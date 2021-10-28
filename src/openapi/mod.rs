@@ -10,6 +10,7 @@ pub use self::{
     info::Info,
     licence::Licence,
     path::{PathItem, PathItemType, Paths},
+    schema::Schema,
     security::Security,
     server::Server,
     tag::Tag,
@@ -22,6 +23,7 @@ pub mod licence;
 pub mod path;
 pub mod request_body;
 pub mod response;
+pub mod schema;
 pub mod security;
 pub mod server;
 pub mod tag;
@@ -40,9 +42,9 @@ pub struct OpenApi {
     pub servers: Option<Vec<Server>>,
 
     pub paths: BTreeMap<String, PathItem>,
-    // TODO
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub components: Option<Vec<String>>,
+    pub components: Option<Schema>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security: Option<Vec<Security>>,
@@ -65,6 +67,12 @@ impl OpenApi {
 
     pub fn with_servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
         self.servers = Some(servers.into_iter().collect());
+
+        self
+    }
+
+    pub fn with_components(mut self, schema: Schema) -> Self {
+        self.components = Some(schema);
 
         self
     }
