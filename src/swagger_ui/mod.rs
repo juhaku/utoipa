@@ -4,7 +4,7 @@ use actix_web::{web, HttpResponse, Resource};
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
-#[folder = "src/swagger_ui/dist/"]
+#[folder = "target/swagger-ui-3.52.5/dist/"]
 pub struct SwaggerUi;
 
 pub struct SwaggerService {

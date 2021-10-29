@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::BTreeMap, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 
@@ -25,8 +25,16 @@ impl Paths {
         self
     }
 
-    pub fn to_map(self) -> HashMap<String, PathItem> {
-        self.collect()
+    pub fn to_map(self) -> BTreeMap<String, PathItem> {
+        self.fold(BTreeMap::new(), |mut acc, (path, path_item)| {
+            if let Some(item) = acc.get_mut(&path) {
+                item.merge_operations(path_item);
+            } else {
+                acc.insert(path, path_item);
+            }
+
+            acc
+        })
     }
 }
 
@@ -53,89 +61,23 @@ pub struct PathItem {
     pub description: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub get: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub put: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub post: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub delete: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub options: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub head: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub patch: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub trace: Option<Operation>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub servers: Option<Vec<Server>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<Vec<Parameter>>,
+
+    #[serde(flatten)]
+    pub operations: BTreeMap<PathItemType, Operation>,
 }
 
 impl PathItem {
-    pub fn new_get(operation: Operation) -> Self {
-        Self {
-            get: Some(operation),
-            ..Default::default()
-        }
-    }
+    pub fn new(path_item_type: PathItemType, operation: Operation) -> Self {
+        let mut operations = BTreeMap::new();
 
-    pub fn new_put(operation: Operation) -> Self {
-        Self {
-            put: Some(operation),
-            ..Default::default()
-        }
-    }
+        operations.insert(path_item_type, operation);
 
-    pub fn new_post(operation: Operation) -> Self {
         Self {
-            post: Some(operation),
-            ..Default::default()
-        }
-    }
-
-    pub fn new_delete(operation: Operation) -> Self {
-        Self {
-            delete: Some(operation),
-            ..Default::default()
-        }
-    }
-
-    pub fn new_options(operation: Operation) -> Self {
-        Self {
-            options: Some(operation),
-            ..Default::default()
-        }
-    }
-
-    pub fn new_head(operation: Operation) -> Self {
-        Self {
-            head: Some(operation),
-            ..Default::default()
-        }
-    }
-
-    pub fn new_patch(operation: Operation) -> Self {
-        Self {
-            patch: Some(operation),
-            ..Default::default()
-        }
-    }
-
-    pub fn new_trace(operation: Operation) -> Self {
-        Self {
-            trace: Some(operation),
+            operations,
             ..Default::default()
         }
     }
@@ -162,6 +104,46 @@ impl PathItem {
         self.parameters = Some(parameters.into_iter().collect());
 
         self
+    }
+
+    fn merge_operations(&mut self, mut another: PathItem) {
+        self.operations.append(&mut another.operations);
+    }
+}
+
+#[derive(Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum PathItemType {
+    Get,
+    Post,
+    Put,
+    Delete,
+    Options,
+    Head,
+    Patch,
+    Trace,
+}
+
+impl Display for PathItemType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Get => write!(f, "get"),
+            Self::Post => write!(f, "post"),
+            Self::Put => write!(f, "put"),
+            Self::Delete => write!(f, "delete"),
+            Self::Options => write!(f, "options"),
+            Self::Head => write!(f, "head"),
+            Self::Patch => write!(f, "patch"),
+            Self::Trace => write!(f, "trace"),
+        }
+    }
+}
+
+impl Serialize for PathItemType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 

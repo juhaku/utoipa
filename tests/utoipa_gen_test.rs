@@ -1,22 +1,22 @@
 // use utoipa::openapi_spec;
-use utoipa::OpenApi;
+use utoipa::{api_operation, OpenApi};
 
-// fn foo() {}
-
-// #[test]
-// fn expand_openapi_spec_macro() {
-//     openapi_spec!("tests/utoipa_gen_test.rs");
-
-//     get_pkg_info()
-// }
+/// Delete foo entity
+///
+/// Delete foo entity by what
+#[api_operation(delete, responses = [
+    (200, "success", String),
+    (400, "my bad error", u64),
+    (404, "vault not found"),
+    (500, "internal server error")
+])]
+fn foo_delete() {}
 
 #[test]
-fn test_derive_openapi() {
+fn derive_openapi() {
     #[derive(OpenApi, Default)]
     #[openapi(handler_files = ["tests/utoipa_gen_test.rs"])]
     struct ApiDoc;
-
-    let doc = ApiDoc {};
 
     println!("{:?}", ApiDoc::openapi().to_json())
 }

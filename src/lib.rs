@@ -9,10 +9,3 @@ pub use utoipa_gen::*;
 pub trait OpenApi {
     fn openapi() -> openapi::OpenApi;
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[ignore = "just empty test"]
-    fn it_works() {}
-}

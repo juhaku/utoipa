@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -9,7 +9,7 @@ pub use self::{
     external_docs::ExternalDocs,
     info::Info,
     licence::Licence,
-    path::{PathItem, Paths},
+    path::{PathItem, PathItemType, Paths},
     security::Security,
     server::Server,
     tag::Tag,
@@ -39,7 +39,7 @@ pub struct OpenApi {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub servers: Option<Vec<Server>>,
 
-    pub paths: HashMap<String, PathItem>,
+    pub paths: BTreeMap<String, PathItem>,
     // TODO
     #[serde(skip_serializing_if = "Option::is_none")]
     pub components: Option<Vec<String>>,
@@ -198,37 +198,40 @@ mod tests {
     }
 
     #[test]
-    fn serialize_openapi_json_success() -> Result<(), Error> {
-        // TODO
+    fn serialize_openapi_json_with_paths_success() -> Result<(), Error> {
         let openapi = OpenApi::new(
             Info::new("My big api", "1.1.0"),
             Paths::new()
                 .append(
                     "/api/v1/users",
-                    PathItem::new_get(
+                    PathItem::new(
+                        PathItemType::Get,
                         Operation::new().with_response("200", Response::new("Get users list")),
                     ),
                 )
                 .append(
                     "/api/v1/users",
-                    PathItem::new_post(
+                    PathItem::new(
+                        PathItemType::Post,
                         Operation::new().with_response("200", Response::new("Post new user")),
                     ),
                 )
                 .append(
                     "/api/v1/users/{id}",
-                    PathItem::new_get(
+                    PathItem::new(
+                        PathItemType::Get,
                         Operation::new().with_response("200", Response::new("Get user by id")),
                     ),
                 ),
         );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
+        let expected = include_str!("./testdata/expected_openapi_with_paths.json");
 
         assert_eq!(
-            serialized, "",
+            serialized, expected,
             "expected serialized json to match raw: \nserialized: \n{} \nraw: \n{}",
-            serialized, ""
+            serialized, expected
         );
         Ok(())
     }
