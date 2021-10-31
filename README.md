@@ -27,6 +27,6 @@ At least 90 % tested code | :x: Still ongoing along with the other development
 Integration with other frameworks are not planned as of this stage but when the intial set of features are complete
 the integrations with other frameworks can be prioritized.
 
-# Licensed
+# License
 
 Licensed under [Apache 2.0](LICENSE).
