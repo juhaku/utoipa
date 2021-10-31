@@ -1,5 +1,5 @@
 // use utoipa::openapi_spec;
-use utoipa::{api_operation, OpenApi};
+use utoipa::{api_operation, Component, OpenApi};
 
 /// Delete foo entity
 ///
@@ -19,4 +19,24 @@ fn derive_openapi() {
     struct ApiDoc;
 
     println!("{:?}", ApiDoc::openapi().to_json())
+}
+
+#[test]
+fn derive_component_struct() {
+    /// This is user component
+    ///
+    /// User component is being used to store user information
+    #[derive(Component)]
+    // #[component()]
+    struct User {
+        id: u64,
+        username: String,
+        roles: Vec<String>,
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handler_files = ["tests/utoipa_gen_test.rs"], components = [User])]
+    struct ApiDoc;
+
+    println!("{}", ApiDoc::openapi().to_json().unwrap());
 }

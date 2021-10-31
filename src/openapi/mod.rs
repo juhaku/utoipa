@@ -10,7 +10,7 @@ pub use self::{
     info::Info,
     licence::Licence,
     path::{PathItem, PathItemType, Paths},
-    schema::Schema,
+    schema::{Array, Component, ComponentFormat, ComponentType, Object, Property, Ref, Schema},
     security::Security,
     server::Server,
     tag::Tag,
