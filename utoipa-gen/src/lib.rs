@@ -23,9 +23,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
         data,
     } = syn::parse_macro_input!(input);
 
-    println!("data:{:#?}", data);
-    println!("generics:{:#?}", generics);
-    println!("attrs:{:#?}", attrs);
+    // println!("data:{:#?}", data);
+    // println!("generics:{:#?}", generics);
+    // println!("attrs:{:#?}", attrs);
 
     let component_quote = impl_component(data);
 
@@ -38,6 +38,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     };
 
     component.into()
+
+    // quote!().into()
 }
 
 #[proc_macro_error]
@@ -116,7 +118,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         }
     });
 
-    println!("{:#?}", &quote);
+    // println!("{:#?}", &quote);
 
     quote.into()
 }
@@ -182,7 +184,7 @@ impl Parse for OpenApiArgs {
         let name_ident = input.parse::<Ident>()?;
         let name_str = &*name_ident.to_string();
 
-        println!("parsed ident: {:?}", name_ident);
+        // println!("parsed ident: {:?}", name_ident);
 
         match name_str {
             "handler_files" => {

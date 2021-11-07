@@ -143,6 +143,12 @@ impl Object {
 
         self
     }
+
+    pub fn with_required<S: AsRef<str>>(mut self, required_field: S) -> Self {
+        self.required.push(required_field.as_ref().to_string());
+
+        self
+    }
 }
 
 impl From<Object> for Component {

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 // use utoipa::openapi_spec;
 use utoipa::{api_operation, Component, OpenApi};
 
@@ -23,6 +25,17 @@ fn derive_openapi() {
 
 #[test]
 fn derive_component_struct() {
+    #[derive(Component)]
+    enum Mode {
+        Mode1,
+        Mode2,
+    }
+
+    #[derive(Component)]
+    struct Book {
+        name: String,
+    }
+
     /// This is user component
     ///
     /// User component is being used to store user information
@@ -32,10 +45,15 @@ fn derive_component_struct() {
         id: u64,
         username: String,
         roles: Vec<String>,
+        foobar: HashMap<String, i64>,
+        enabled: Option<bool>,
+        random: Option<Vec<String>>,
+        mode: Mode,
+        book: Book,
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = ["tests/utoipa_gen_test.rs"], components = [User])]
+    #[openapi(handler_files = [], components = [User, Book])]
     struct ApiDoc;
 
     println!("{}", ApiDoc::openapi().to_json().unwrap());
