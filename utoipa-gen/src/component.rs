@@ -1,47 +1,51 @@
 use std::{ops::Deref, rc::Rc};
 
-use proc_macro2::{Ident, TokenStream as TokenStream2};
-use proc_macro_error::{abort, abort_call_site};
-use quote::quote;
-use syn::{Fields, FieldsNamed, GenericArgument, PathArguments, PathSegment, Type, TypePath};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
+use proc_macro_error::{abort, abort_call_site, emit_error};
+use quote::{quote, ToTokens, TokenStreamExt};
+use syn::{
+    punctuated::Punctuated, Fields, FieldsNamed, GenericArgument, PathArguments, PathSegment, Type,
+    TypePath,
+};
 
 pub fn impl_component(data: syn::Data) -> TokenStream2 {
-    let component = get_fields(data)
-        .iter()
-        .map(|field| {
-            (
-                // get_component_type(get_type_path(&field.ty)),
-                ComponentType::from_type_path(get_type_path(&field.ty)),
-                field.ident.as_ref().unwrap().to_string(),
-            )
-        })
-        .fold(
-            quote! { utoipa::openapi::Object::new() },
-            |mut acc, (field_type, name)| {
-                append_tokens(&mut acc, &field_type, &*name);
-                // match field_type {
-                //     FieldType::Generic(ident, value_type, generic_type) => {
-                //         acc.extend(object_append_generic_type(
-                //             ident,
-                //             &value_type,
-                //             &generic_type,
-                //             &name,
-                //         ));
-                //     }
-                //     FieldType::Primitive(ident) => {
-                //         acc.extend(object_append_primitive_type(ident, &name))
-                //     }
-                //     FieldType::Object(ident) => {
-                //         let object_name = &*ident.to_string();
-                //         acc.extend(quote! {
-                //             .with_property(#name, utoipa::openapi::Ref::from_component_name(#object_name))
-                //             .with_required(#name)
-                //         })
-                //     }
-                // }
-                acc
-            },
-        );
+    let component = match ComponentProperties::new(data) {
+        ComponentProperties::Fields(fields) => fields
+            .iter()
+            .map(|field| {
+                (
+                    ComponentType::from_type_path(get_type_path(&field.ty)),
+                    field.ident.as_ref().unwrap().to_string(),
+                )
+            })
+            .fold(
+                quote! { utoipa::openapi::Object::new() },
+                |mut object_token_stream, (component_type, field_name)| {
+                    object_token_stream.extend(append_property(&component_type, &*field_name));
+
+                    object_token_stream
+                },
+            ),
+        ComponentProperties::Variants(variants) => {
+            variants.iter().filter(|variant| !matches!(variant.fields, Fields::Unit))
+                .for_each(|unsupported_variant| {
+                    emit_error!(unsupported_variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields")
+                });
+
+            let enum_values = &variants
+                .iter()
+                .filter(|variant| matches!(variant.fields, Fields::Unit))
+                .map(|variant| variant.ident.to_string())
+                .collect::<EnumValues>();
+
+            quote! {
+                utoipa::openapi::Property::new(ComponentType::String)
+                    // .with_default("Active")
+                    // .with_description("Credential status")
+                    .with_enum_values(#enum_values)
+            }
+        }
+    };
 
     quote! {
         use utoipa::openapi::{ComponentType, ComponentFormat};
@@ -50,101 +54,71 @@ pub fn impl_component(data: syn::Data) -> TokenStream2 {
     }
 }
 
-fn append_tokens(
-    token_stream: &mut TokenStream2,
-    component_type: &ComponentType,
-    field_name: &str,
-) {
-    // let ComponentType {
-    //     ident,
-    //     optional,
-    //     value_type,
-    //     generic_type,
-    //     child,
-    // } = component_type;
-
-    println!(
-        "append tokens / component type: name: {:?}, type: {:#?}",
-        field_name, component_type
-    );
-
-    match component_type {
-        ComponentType {
-            child: None,
-            value_type: ValueType::Primitive,
-            generic_type: None,
-            ident,
-        } => token_stream.extend(object_append_primitive_type(ident, field_name)),
-        ComponentType {
-            child: None,
-            value_type: ValueType::Object,
-            generic_type: None,
-            ident,
-        } => {
-            let object_name = &*ident.to_string();
-
-            token_stream.extend(quote! {
-                .with_property(#field_name, utoipa::openapi::Ref::from_component_name(#object_name))
-                .with_required(#field_name)
-            })
-        }
-        ComponentType {
-            child: None,
-            value_type,
-            ident,
-            generic_type: Some(generic_type),
-        } => token_stream.extend(object_append_generic_type(
-            ident,
-            value_type,
-            generic_type,
-            field_name,
-            // child,
-        )),
-        tt
-        @
-        ComponentType {
-            child: Some(_),
-            generic_type: Some(GenericType::Option),
-            ..
-        } => token_stream.extend(append_generic_type(tt, field_name)),
-        // ComponentType {
-        //     child: None,
-        //     generic_type: Some(generic_type @ GenericType::Option),
-        //     ident,
-        //     value_type,
-        // } => token_stream.extend(object_append_generic_type(
-        //     ident,
-        //     value_type,
-        //     generic_type,
-        //     &field_name,
-        // )),
-        _ => (),
-    }
+#[derive(Debug)]
+enum ComponentProperties {
+    Fields(Vec<syn::Field>),
+    Variants(Vec<syn::Variant>),
 }
 
-fn get_fields(data: syn::Data) -> Vec<syn::Field> {
-    match data {
-        syn::Data::Struct(content) => {
-            if let Fields::Named(named_fields) = content.fields {
-                let FieldsNamed { named, .. } = named_fields;
+impl ComponentProperties {
+    fn new(data: syn::Data) -> ComponentProperties {
+        match data {
+            syn::Data::Struct(content) => {
+                if let Fields::Named(named_fields) = content.fields {
+                    let FieldsNamed { named, .. } = named_fields;
 
-                named.into_iter().collect::<Vec<_>>()
-            } else {
-                vec![]
+                    ComponentProperties::Fields(named.into_iter().collect())
+                } else {
+                    ComponentProperties::Fields(vec![])
+                }
             }
+            syn::Data::Enum(content) => {
+                ComponentProperties::Variants(content.variants.into_iter().collect())
+            }
+            _ => abort_call_site!(
+                "Unexpected data type, expected syn::Data::Struct or syn::Data::Enum"
+            ),
         }
-        syn::Data::Enum(content) => vec![], // TODO implement enum types
-        _ => vec![],                        // throw error here if another type of data
     }
 }
 
-fn append_generic_type(component_type: &ComponentType, field_name: &str) -> TokenStream2 {
-    let component_type_ref = Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(component_type);
-    let component = component_type_ref.collect::<Component>();
+struct EnumValues(Vec<String>);
+
+impl FromIterator<String> for EnumValues {
+    fn from_iter<T: IntoIterator<Item = String>>(iter: T) -> Self {
+        Self {
+            0: iter.into_iter().collect::<Vec<_>>(),
+        }
+    }
+}
+
+impl ToTokens for EnumValues {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.append(Punct::new('&', proc_macro2::Spacing::Joint));
+        let items = self
+            .0
+            .iter()
+            .fold(Punctuated::new(), |mut punctuated, item| {
+                punctuated.push_value(item);
+                punctuated.push_punct(Punct::new(',', proc_macro2::Spacing::Alone));
+
+                punctuated
+            });
+
+        tokens.append(Group::new(
+            proc_macro2::Delimiter::Bracket,
+            items.to_token_stream(),
+        ));
+    }
+}
+
+fn append_property(component_type: &ComponentType, field_name: &str) -> TokenStream2 {
+    let component = Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(component_type)
+        .collect::<Component>();
 
     println!("Got component: {:?}", component);
 
-    let to = match component {
+    match component {
         Component {
             option,
             generic_type: None,
@@ -164,9 +138,13 @@ fn append_generic_type(component_type: &ComponentType, field_name: &str) -> Toke
                         )
                     }
                 }
-                ValueType::Object => quote! {
-                    .with_property(#field_name, utoipa::openapi::Ref::from_component_name(#ident.to_string()))
-                },
+                ValueType::Object => {
+                    let object_name = &*ident.to_string();
+
+                    quote! {
+                        .with_property(#field_name, utoipa::openapi::Ref::from_component_name(#object_name))
+                    }
+                }
             };
             if !option {
                 property.extend(quote! {
@@ -181,11 +159,41 @@ fn append_generic_type(component_type: &ComponentType, field_name: &str) -> Toke
             generic_type: Some(generic_type_tuple),
             value_type: Some(value_type_tupple),
         } => {
-            // TODO implement me
+            let mut property = match generic_type_tuple.0 {
+                GenericType::Map => quote! {
+                    .with_property(#field_name, utoipa::openapi::Object::new())
+                },
+                GenericType::Vec => {
+                    let property = match value_type_tupple.0 {
+                        ValueType::Object => {
+                            let value_name = &*value_type_tupple.1;
 
-            // TODO check if map or vec and do accordingly
+                            quote! {
+                                utoipa::openapi::Ref::from_component_name(#value_name)
+                            }
+                        }
+                        ValueType::Primitive => {
+                            let item_type = resolve_primitive_type(value_type_tupple.1);
 
-            let mut property = quote! {};
+                            quote! {
+                                utoipa::openapi::Property::new(
+                                    #item_type
+                                )
+                            }
+                        }
+                    };
+
+                    quote! {
+                        .with_property(#field_name,
+                            utoipa::openapi::Array::new(
+                                #property
+                            )
+                        )
+                    }
+                }
+                _ => unreachable!(), //  we do not have option type here
+            };
+
             if !option {
                 property.extend(quote! {
                     .with_required(#field_name)
@@ -195,100 +203,6 @@ fn append_generic_type(component_type: &ComponentType, field_name: &str) -> Toke
             property
         }
         _ => unreachable!(),
-    };
-
-    // component_type_ref.for_each(|component_type_ref| {
-    //     println!(
-    //         "type//////////////////////////: {:?}",
-    //         component_type_ref.deref()
-    //     );
-    // });
-
-    quote! {}
-}
-
-fn object_append_generic_type(
-    ident: &Ident,
-    value_type: &ValueType,
-    generic_type: &GenericType,
-    name: &str,
-    // child: &Option<Rc<ComponentType>>,
-) -> TokenStream2 {
-    // TODO get flat type somehow??????
-    match generic_type {
-        GenericType::Map => {
-            quote! {
-                .with_property(#name.to_string(), utoipa::openapi::Object::new())
-                .with_required(#name.to_string())
-            }
-        }
-        GenericType::Vec => {
-            match value_type {
-                ValueType::Object => {
-                    quote! {
-                        .with_property(#name.to_string(), utoipa::openapi::Ref::from_component_name(#ident.to_string()))
-                        .with_required(#name.to_string())
-                    }
-                }
-                ValueType::Primitive => {
-                    let component_type = resolve_primitive_type(ident);
-                    // TODO resolve properties
-                    quote! {
-                        .with_property(#name.to_string(),
-                            utoipa::openapi::Array::new(
-                                utoipa::openapi::Property::new(
-                                    #component_type
-                                )
-                            )
-                        )
-                        .with_required(#name.to_string())
-                    }
-                }
-            }
-        }
-        GenericType::Option => {
-            // TODO if option is generic??? currently unabled to recognize fields suchs as Option<Vec<String>> such as double generics!
-            match value_type {
-                ValueType::Object => {
-                    quote! {
-                        .with_property(#name.to_string(), utoipa::openapi::Ref::from_component_name(#ident.to_string()))
-                    }
-                }
-                ValueType::Primitive => {
-                    // TODO resolve properties
-                    let component_type = resolve_primitive_type(ident);
-
-                    quote! {
-                        .with_property(#name.to_string(),
-                            utoipa::openapi::Property::new(
-                                #component_type
-                            )
-                            // .with_format(ComponentFormat::Int32)
-                            // .with_description("Id of credential")
-                            // .with_default("1")
-                            // .with_default("Active")
-                            // .with_description("Credential status")
-                            // .with_enum_values(&["Active", "NotActive", "Locked", "Expired"]),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn object_append_primitive_type(ident: &Ident, name: &str) -> TokenStream2 {
-    let component_type_quote = resolve_primitive_type(ident);
-
-    // TODO resolve primitive component type properties
-
-    quote! {
-        .with_property(#name.to_string(),
-            utoipa::openapi::Property::new(
-                #component_type_quote
-            )
-        )
-        .with_required(#name.to_string())
     }
 }
 
@@ -333,71 +247,6 @@ fn is_primitive_type(ident: &Ident) -> bool {
     )
 }
 
-fn get_component_type(type_path: &TypePath) -> FieldType<'_> {
-    get_component_type_from_path(type_path, non_generic_component_type, |path| {
-        let segment = get_segment(path);
-
-        if segment.arguments.is_empty() {
-            abort!(
-                segment.ident.span(),
-                "Expected at least one angle bracket argument but was 0"
-            );
-        };
-
-        println!("got segment: {:#?}", segment);
-
-        get_component_type_from_path(
-            get_type_path(get_first_generic_type(segment)),
-            |ident| generic_component_type(ident, get_generic_type(segment)),
-            |path | {
-
-                println!("path: {:?}", path);
-                // TODO 
-                get_component_type(path)
-            }
-            // |type_path| {
-
-            //     // TODO fix this, in double generic situation this is generic type, thus we need to be able to resolve
-            //     // types recursively
-            //     // abort!(
-            //     //     get_segment(type_path).ident.span(),
-            //     //     "Is not object or primitive type, cannot resolve ident"
-            //     // )
-            // },
-        )
-    })
-}
-
-fn non_generic_component_type(ident: &Ident) -> FieldType {
-    println!("got primitive ident: {:#?}", ident);
-
-    if is_primitive_type(ident) {
-        FieldType::Primitive(ident)
-    } else {
-        FieldType::Object(ident)
-    }
-}
-
-fn generic_component_type(ident: &Ident, generic_type: GenericType) -> FieldType {
-    if is_primitive_type(ident) {
-        FieldType::Generic(ident, ValueType::Primitive, generic_type)
-    } else {
-        FieldType::Generic(ident, ValueType::Object, generic_type)
-    }
-}
-
-fn get_component_type_from_path<'a>(
-    type_path: &'a TypePath,
-    op: impl Fn(&'a Ident) -> FieldType<'a>,
-    or_else: impl Fn(&'a TypePath) -> FieldType<'a>,
-) -> FieldType<'a> {
-    type_path
-        .path
-        .get_ident()
-        .map(op)
-        .unwrap_or_else(|| or_else(type_path))
-}
-
 fn get_type_path(ty: &Type) -> &TypePath {
     match ty {
         Type::Path(path) => path,
@@ -425,18 +274,6 @@ fn get_first_generic_type(segment: &PathSegment) -> &Type {
         _ => abort!(
             segment.ident.span(),
             "Unexpected argument type, expected PathArgument::AngleBraketed, found non generic type"
-        ),
-    }
-}
-
-fn get_generic_type(segment: &PathSegment) -> GenericType {
-    match &*segment.ident.to_string() {
-        "HashMap" | "Map" | "BTreeMap" => GenericType::Map,
-        "Vec" => GenericType::Vec,
-        "Option" => GenericType::Option,
-        _ => abort!(
-            segment.ident.span(),
-            "Unexpected segment type, expected one of: HashMap, BTreeMap, Map, Vec, Option"
         ),
     }
 }
@@ -489,21 +326,6 @@ impl<'a> ComponentType<'a> {
         ))));
 
         generic_component_type
-
-        // ComponentType::from_type_path_(
-        //     generic_type_path,
-        //     ComponentType::convert, // if Option<bool> or Vec<String>
-        //     |seg| {
-        //         // TODO if Option<Vec<String>>
-
-        //         let mut component_type = ComponentType::convert(&seg.ident, seg);
-        //         component_type.child = Some(Box::new(ComponentType::resolve_component_type(seg)));
-
-        //         println!("generic component_type: {:#?}", component_type);
-
-        //         component_type
-        //     },
-        // )
     }
 
     fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentType<'a> {
@@ -536,25 +358,6 @@ impl<'a> ComponentType<'a> {
     }
 }
 
-impl ComponentType<'_> {
-    fn is_option(&self) -> bool {
-        Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(self)
-            .any(|component_type| component_type.generic_type == Some(GenericType::Option))
-    }
-
-    fn is_generic_type(&self, generic_type: GenericType) -> bool {
-        Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(self)
-            .any(|component_type| component_type.generic_type == Some(generic_type))
-    }
-
-    fn get_value_type(&self) -> ValueType {
-        Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(self)
-            .find(|component_type| component_type.generic_type == None)
-            .map(|component_type| component_type.value_type)
-            .unwrap()
-    }
-}
-
 struct ComponentTypeRef<'a, T> {
     _inner: Option<&'a T>,
 }
@@ -566,14 +369,6 @@ impl<'a> Deref for ComponentTypeRef<'a, ComponentType<'a>> {
         self._inner.unwrap() // we can unwrap since it must have value
     }
 }
-
-// impl AsRef<ComponentTypeRef<'_, ComponentType<'_>>> for ComponentTypeRef<'_, ComponentType<'_>> {
-//     fn as_ref(&self) -> &ComponentTypeRef<'_, ComponentType<'_>> {
-//         let inn = self;
-
-//         inn
-//     }
-// }
 
 impl<'a> From<&'a ComponentType<'a>> for ComponentTypeRef<'a, ComponentType<'a>> {
     fn from(component_type: &'a ComponentType<'_>) -> Self {
@@ -600,13 +395,6 @@ impl<'a> Iterator for ComponentTypeRef<'a, ComponentType<'a>> {
             _inner: Some(component_type),
         })
     }
-}
-
-#[derive(Debug)]
-enum FieldType<'a> {
-    Generic(&'a Ident, ValueType, GenericType),
-    Primitive(&'a Ident),
-    Object(&'a Ident),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -657,11 +445,5 @@ impl<'a> FromIterator<ComponentTypeRef<'a, ComponentType<'a>>> for Component<'a>
 
             acc
         })
-
-        // Self {
-        //     option: false,
-        //     generic_type: None,
-        //     value_type: None,
-        // }
     }
 }

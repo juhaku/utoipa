@@ -29,6 +29,9 @@ fn derive_component_struct() {
     enum Mode {
         Mode1,
         Mode2,
+        // Mode3(usize),
+        // Mode4 { x: String },
+        // Mode5(usize, String),
     }
 
     #[derive(Component)]
@@ -53,7 +56,7 @@ fn derive_component_struct() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], components = [User, Book])]
+    #[openapi(handler_files = [], components = [User, Book, Mode])]
     struct ApiDoc;
 
     println!("{}", ApiDoc::openapi().to_json().unwrap());
