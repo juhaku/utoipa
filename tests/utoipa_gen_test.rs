@@ -48,7 +48,7 @@ fn derive_component_struct() {
         foobar: HashMap<String, i64>,
         enabled: Option<bool>,
         random: Option<Vec<String>>,
-        mode: Mode,
+        mode: Option<Mode>,
         book: Book,
     }
 

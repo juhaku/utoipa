@@ -1,4 +1,4 @@
-use std::{rc::Rc, vec::IntoIter};
+use std::{ops::Deref, rc::Rc};
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site};
@@ -64,7 +64,7 @@ fn append_tokens(
     // } = component_type;
 
     println!(
-        "component type: name: {:?}, type: {:#?}",
+        "append tokens / component type: name: {:?}, type: {:#?}",
         field_name, component_type
     );
 
@@ -89,7 +89,7 @@ fn append_tokens(
             })
         }
         ComponentType {
-            child,
+            child: None,
             value_type,
             ident,
             generic_type: Some(generic_type),
@@ -98,8 +98,15 @@ fn append_tokens(
             value_type,
             generic_type,
             field_name,
-            child,
+            // child,
         )),
+        tt
+        @
+        ComponentType {
+            child: Some(_),
+            generic_type: Some(GenericType::Option),
+            ..
+        } => token_stream.extend(append_generic_type(tt, field_name)),
         // ComponentType {
         //     child: None,
         //     generic_type: Some(generic_type @ GenericType::Option),
@@ -131,29 +138,71 @@ fn get_fields(data: syn::Data) -> Vec<syn::Field> {
     }
 }
 
-fn append_generic_type(component_type: &ComponentType) -> TokenStream2 {
-    // TODO
+fn append_generic_type(component_type: &ComponentType, field_name: &str) -> TokenStream2 {
+    let component_type_ref = Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(component_type);
+    let component = component_type_ref.collect::<Component>();
 
-    component_type
-        .to_iter()
-        .map(|component_type| {
-            let cp = &*component_type;
+    println!("Got component: {:?}", component);
 
-            // TODO make sure that each map iteration will append to the same quote token stream for one type
+    let to = match component {
+        Component {
+            option,
+            generic_type: None,
+            value_type:
+                Some(type_tuple @ TypeTuple(ValueType::Primitive | ValueType::Object, ident)),
+        } => {
+            let mut property = match type_tuple.0 {
+                ValueType::Primitive => {
+                    let component_type_quote = resolve_primitive_type(ident);
+                    // TODO resolve other properties
 
-            match cp {
-                ComponentType {
-                    ident,
-                    value_type,
-                    generic_type,
-                    child,
-                } => (),
-                _ => (),
+                    quote! {
+                        .with_property(#field_name,
+                            utoipa::openapi::Property::new(
+                                #component_type_quote
+                            )
+                        )
+                    }
+                }
+                ValueType::Object => quote! {
+                    .with_property(#field_name, utoipa::openapi::Ref::from_component_name(#ident.to_string()))
+                },
             };
+            if !option {
+                property.extend(quote! {
+                    .with_required(#field_name)
+                })
+            }
 
-            String::new()
-        })
-        .collect::<String>();
+            property
+        }
+        Component {
+            option,
+            generic_type: Some(generic_type_tuple),
+            value_type: Some(value_type_tupple),
+        } => {
+            // TODO implement me
+
+            // TODO check if map or vec and do accordingly
+
+            let mut property = quote! {};
+            if !option {
+                property.extend(quote! {
+                    .with_required(#field_name)
+                })
+            }
+
+            property
+        }
+        _ => unreachable!(),
+    };
+
+    // component_type_ref.for_each(|component_type_ref| {
+    //     println!(
+    //         "type//////////////////////////: {:?}",
+    //         component_type_ref.deref()
+    //     );
+    // });
 
     quote! {}
 }
@@ -163,7 +212,7 @@ fn object_append_generic_type(
     value_type: &ValueType,
     generic_type: &GenericType,
     name: &str,
-    child: &Option<Rc<ComponentType>>,
+    // child: &Option<Rc<ComponentType>>,
 ) -> TokenStream2 {
     // TODO get flat type somehow??????
     match generic_type {
@@ -487,44 +536,70 @@ impl<'a> ComponentType<'a> {
     }
 }
 
-// impl<'a> IntoIterator for ComponentType<'a> {
-//     type Item = Rc<ComponentType<'a>>;
-
-//     type IntoIter = IntoIter<Self::Item>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         let mut item = self.child.clone();
-//         let mut items = vec![Rc::new(self)];
-
-//         while let Some(component) = item {
-//             items.push(component.clone());
-//             item = Some(component.clone());
-//         }
-
-//         items.into_iter()
-//         // self.child.iter().into_iter()
-//     }
-// }
-
 impl ComponentType<'_> {
-    fn to_iter(&self) -> IntoIter<&ComponentType<'_>> {
-        let mut item = self.child.as_ref();
-        let mut items = vec![self];
+    fn is_option(&self) -> bool {
+        Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(self)
+            .any(|component_type| component_type.generic_type == Some(GenericType::Option))
+    }
 
-        while let Some(component) = item {
-            items.push(component.as_ref());
-            item = Some(component);
-        }
+    fn is_generic_type(&self, generic_type: GenericType) -> bool {
+        Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(self)
+            .any(|component_type| component_type.generic_type == Some(generic_type))
+    }
 
-        items.into_iter()
+    fn get_value_type(&self) -> ValueType {
+        Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(self)
+            .find(|component_type| component_type.generic_type == None)
+            .map(|component_type| component_type.value_type)
+            .unwrap()
     }
 }
 
-#[derive(Debug)]
-enum ComponentValue {
-    Primitive,
-    Struct,
-    Enum,
+struct ComponentTypeRef<'a, T> {
+    _inner: Option<&'a T>,
+}
+
+impl<'a> Deref for ComponentTypeRef<'a, ComponentType<'a>> {
+    type Target = ComponentType<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        self._inner.unwrap() // we can unwrap since it must have value
+    }
+}
+
+// impl AsRef<ComponentTypeRef<'_, ComponentType<'_>>> for ComponentTypeRef<'_, ComponentType<'_>> {
+//     fn as_ref(&self) -> &ComponentTypeRef<'_, ComponentType<'_>> {
+//         let inn = self;
+
+//         inn
+//     }
+// }
+
+impl<'a> From<&'a ComponentType<'a>> for ComponentTypeRef<'a, ComponentType<'a>> {
+    fn from(component_type: &'a ComponentType<'_>) -> Self {
+        Self {
+            _inner: Some(component_type),
+        }
+    }
+}
+
+impl<'a> Iterator for ComponentTypeRef<'a, ComponentType<'a>> {
+    type Item = ComponentTypeRef<'a, ComponentType<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self._inner;
+        let next = current.and_then(|current| current.child.as_ref());
+
+        if let Some(component) = next {
+            self._inner = Some(component.as_ref());
+        } else {
+            self._inner = None
+        }
+
+        current.map(|component_type| ComponentTypeRef {
+            _inner: Some(component_type),
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -534,15 +609,59 @@ enum FieldType<'a> {
     Object(&'a Ident),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum ValueType {
     Primitive,
     Object,
+    // Enum
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum GenericType {
     Vec,
     Map,
     Option,
+}
+
+#[derive(Debug)]
+struct TypeTuple<'a, T>(T, &'a Ident);
+
+#[derive(Debug, Default)]
+struct Component<'a> {
+    option: bool,
+    generic_type: Option<TypeTuple<'a, GenericType>>,
+    value_type: Option<TypeTuple<'a, ValueType>>,
+}
+
+impl<'a> FromIterator<ComponentTypeRef<'a, ComponentType<'a>>> for Component<'a> {
+    fn from_iter<T: IntoIterator<Item = ComponentTypeRef<'a, ComponentType<'a>>>>(iter: T) -> Self {
+        let components_iter = iter.into_iter();
+        components_iter.fold(Self::default(), |mut acc, item| {
+            match item.generic_type {
+                Some(GenericType::Option) => acc.option = true,
+                Some(generic_type @ GenericType::Map | generic_type @ GenericType::Vec) => {
+                    acc.generic_type = Some(TypeTuple(generic_type, item.ident))
+                }
+                None => (),
+            }
+
+            // we are only interested of final concrete value type
+            match item.value_type {
+                value_type @ ValueType::Object | value_type @ ValueType::Primitive
+                    if item.generic_type == None =>
+                {
+                    acc.value_type = Some(TypeTuple(value_type, item.ident))
+                }
+                _ => (),
+            }
+
+            acc
+        })
+
+        // Self {
+        //     option: false,
+        //     generic_type: None,
+        //     value_type: None,
+        // }
+    }
 }

@@ -173,6 +173,8 @@ macro_rules! option {
 #[cfg(test)]
 mod tests {
 
+    use std::rc::Rc;
+
     use crate::{error::Error, openapi::licence::Licence};
 
     use super::{path::Operation, response::Response, *};
@@ -247,5 +249,63 @@ mod tests {
     #[test]
     fn option() {
         assert_eq!(None, option!(""))
+    }
+
+    #[test]
+    fn test_lined_list() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Linked {
+            val: String,
+            child: Option<Rc<Linked>>,
+        }
+
+        struct LinkedRef<'a, Linked> {
+            inner: Option<&'a Linked>,
+        }
+
+        impl<'a> Iterator for LinkedRef<'a, Linked> {
+            type Item = LinkedRef<'a, Linked>;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let current = self.inner;
+                let next = current.and_then(|current| current.child.as_ref());
+
+                if let Some(linked) = next {
+                    self.inner = Some(linked.as_ref())
+                } else {
+                    self.inner = None
+                }
+
+                // match next {
+                //     Some(linked) if linked.as_ref() != current => {
+                //         Some(LinkedRef { inner: current })
+                //     }
+                //     _ => None,
+                // }
+
+                println!("current: {:?} == {:?}", current, next);
+
+                current.map(|linked| LinkedRef {
+                    inner: Some(linked),
+                })
+            }
+        }
+
+        let linked = Linked {
+            val: "foo".to_string(),
+            child: Some(Rc::new(Linked {
+                val: "bar".to_string(),
+                child: Some(Rc::new(Linked {
+                    val: "finished".to_string(),
+                    child: None,
+                })),
+            })),
+        };
+
+        let linked_refs = LinkedRef {
+            inner: Some(&linked),
+        };
+
+        linked_refs.for_each(|linked| println!("Linked it: {:?}", linked.inner))
     }
 }
