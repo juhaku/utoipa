@@ -124,6 +124,9 @@ pub struct Object {
 
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     properties: HashMap<String, Component>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
 }
 
 impl Object {
@@ -146,6 +149,12 @@ impl Object {
 
     pub fn with_required<S: AsRef<str>>(mut self, required_field: S) -> Self {
         self.required.push(required_field.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
+        self.description = Some(description.as_ref().to_string());
 
         self
     }

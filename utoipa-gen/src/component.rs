@@ -8,20 +8,30 @@ use syn::{
     TypePath,
 };
 
-pub fn impl_component(data: syn::Data) -> TokenStream2 {
-    let component = match ComponentProperties::new(data) {
+use crate::attribute::CommentAttributes;
+
+pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
+    println!("Got data: {:#?}", data);
+    println!("Got attributes: {:#?}", attrs);
+
+    let mut component = match ComponentProperties::new(data) {
         ComponentProperties::Fields(fields) => fields
             .iter()
             .map(|field| {
                 (
                     ComponentType::from_type_path(get_type_path(&field.ty)),
                     field.ident.as_ref().unwrap().to_string(),
+                    CommentAttributes::from_attributes(&field.attrs),
                 )
             })
             .fold(
                 quote! { utoipa::openapi::Object::new() },
-                |mut object_token_stream, (component_type, field_name)| {
-                    object_token_stream.extend(append_property(&component_type, &*field_name));
+                |mut object_token_stream, (component_type, field_name, comment_attributes)| {
+                    object_token_stream.extend(append_property(
+                        &component_type,
+                        &*field_name,
+                        comment_attributes,
+                    ));
 
                     object_token_stream
                 },
@@ -41,11 +51,16 @@ pub fn impl_component(data: syn::Data) -> TokenStream2 {
             quote! {
                 utoipa::openapi::Property::new(ComponentType::String)
                     // .with_default("Active")
-                    // .with_description("Credential status")
                     .with_enum_values(#enum_values)
             }
         }
     };
+
+    if let Some(comment) = CommentAttributes::from_attributes(&attrs).0.first() {
+        component.extend(quote! {
+            .with_description(#comment)
+        })
+    }
 
     quote! {
         use utoipa::openapi::{ComponentType, ComponentFormat};
@@ -112,11 +127,16 @@ impl ToTokens for EnumValues {
     }
 }
 
-fn append_property(component_type: &ComponentType, field_name: &str) -> TokenStream2 {
+fn append_property(
+    component_type: &ComponentType,
+    field_name: &str,
+    comment_attributes: CommentAttributes,
+) -> TokenStream2 {
     let component = Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(component_type)
         .collect::<Component>();
 
     println!("Got component: {:?}", component);
+    println!("Got comments: {:?}", &comment_attributes.0.first());
 
     match component {
         Component {
@@ -130,12 +150,20 @@ fn append_property(component_type: &ComponentType, field_name: &str) -> TokenStr
                     let component_type_quote = resolve_primitive_type(ident);
                     // TODO resolve other properties
 
-                    quote! {
-                        .with_property(#field_name,
-                            utoipa::openapi::Property::new(
-                                #component_type_quote
-                            )
+                    let mut primitive_property = quote! {
+                        utoipa::openapi::Property::new(
+                            #component_type_quote
                         )
+                    };
+
+                    if let Some(comment) = comment_attributes.0.first() {
+                        primitive_property.extend(quote! {
+                            .with_description(#comment)
+                        })
+                    }
+
+                    quote! {
+                        .with_property(#field_name, #primitive_property)
                     }
                 }
                 ValueType::Object => {
@@ -160,26 +188,54 @@ fn append_property(component_type: &ComponentType, field_name: &str) -> TokenStr
             value_type: Some(value_type_tupple),
         } => {
             let mut property = match generic_type_tuple.0 {
-                GenericType::Map => quote! {
-                    .with_property(#field_name, utoipa::openapi::Object::new())
-                },
+                GenericType::Map => {
+                    let mut property = quote! {
+                        utoipa::openapi::Object::new()
+                    };
+
+                    if let Some(comment) = comment_attributes.0.first() {
+                        property.extend(quote! {
+                            .with_description(#comment)
+                        })
+                    }
+
+                    quote! {
+                        .with_property(#field_name, #property)
+                    }
+                }
                 GenericType::Vec => {
                     let property = match value_type_tupple.0 {
                         ValueType::Object => {
                             let value_name = &*value_type_tupple.1;
 
-                            quote! {
+                            let mut property = quote! {
                                 utoipa::openapi::Ref::from_component_name(#value_name)
+                            };
+
+                            if let Some(comment) = comment_attributes.0.first() {
+                                property.extend(quote! {
+                                    .with_description(#comment)
+                                })
                             }
+
+                            property
                         }
                         ValueType::Primitive => {
                             let item_type = resolve_primitive_type(value_type_tupple.1);
 
-                            quote! {
+                            let mut property = quote! {
                                 utoipa::openapi::Property::new(
                                     #item_type
                                 )
+                            };
+
+                            if let Some(comment) = comment_attributes.0.first() {
+                                property.extend(quote! {
+                                    .with_description(#comment)
+                                })
                             }
+
+                            property
                         }
                     };
 
@@ -288,14 +344,14 @@ struct ComponentType<'a> {
 
 impl<'a> ComponentType<'a> {
     fn from_type_path(type_path: &'a TypePath) -> ComponentType<'a> {
-        ComponentType::from_type_path_(
+        ComponentType::_from_type_path(
             type_path,
             ComponentType::convert,
             ComponentType::resolve_component_type,
         )
     }
 
-    fn from_type_path_(
+    fn _from_type_path(
         type_path: &'a TypePath,
         op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentType<'a>,
         or_else: impl Fn(&'a PathSegment) -> ComponentType<'a>,
@@ -317,8 +373,6 @@ impl<'a> ComponentType<'a> {
             );
         };
 
-        println!("got segment: {:#?}", segment);
-
         let mut generic_component_type = ComponentType::convert(&segment.ident, segment);
 
         generic_component_type.child = Some(Rc::new(ComponentType::from_type_path(get_type_path(
@@ -330,11 +384,6 @@ impl<'a> ComponentType<'a> {
 
     fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentType<'a> {
         let generic_type = ComponentType::get_generic(segment);
-
-        println!(
-            "converting ident: {:?} to generic type: {:?}",
-            ident, generic_type
-        );
 
         Self {
             ident,
@@ -424,11 +473,11 @@ struct Component<'a> {
 impl<'a> FromIterator<ComponentTypeRef<'a, ComponentType<'a>>> for Component<'a> {
     fn from_iter<T: IntoIterator<Item = ComponentTypeRef<'a, ComponentType<'a>>>>(iter: T) -> Self {
         let components_iter = iter.into_iter();
-        components_iter.fold(Self::default(), |mut acc, item| {
+        components_iter.fold(Self::default(), |mut component, item| {
             match item.generic_type {
-                Some(GenericType::Option) => acc.option = true,
+                Some(GenericType::Option) => component.option = true,
                 Some(generic_type @ GenericType::Map | generic_type @ GenericType::Vec) => {
-                    acc.generic_type = Some(TypeTuple(generic_type, item.ident))
+                    component.generic_type = Some(TypeTuple(generic_type, item.ident))
                 }
                 None => (),
             }
@@ -438,12 +487,12 @@ impl<'a> FromIterator<ComponentTypeRef<'a, ComponentType<'a>>> for Component<'a>
                 value_type @ ValueType::Object | value_type @ ValueType::Primitive
                     if item.generic_type == None =>
                 {
-                    acc.value_type = Some(TypeTuple(value_type, item.ident))
+                    component.value_type = Some(TypeTuple(value_type, item.ident))
                 }
                 _ => (),
             }
 
-            acc
+            component
         })
     }
 }

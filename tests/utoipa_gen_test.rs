@@ -25,8 +25,10 @@ fn derive_openapi() {
 
 #[test]
 fn derive_component_struct() {
+    /// Mode defines user type
     #[derive(Component)]
     enum Mode {
+        /// Mode1 is admin user
         Mode1,
         Mode2,
         // Mode3(usize),
@@ -45,18 +47,23 @@ fn derive_component_struct() {
     #[derive(Component)]
     // #[component()]
     struct User {
+        /// This is a database id of a user
         id: u64,
-        username: String,
+        // username: String,
+        /// User authenticated roles
         roles: Vec<String>,
+        /// Foobar hashmap
         foobar: HashMap<String, i64>,
+        /// Optional value is user enabled
         enabled: Option<bool>,
-        random: Option<Vec<String>>,
-        mode: Option<Mode>,
-        book: Book,
+        // random: Option<Vec<String>>,
+        // mode: Option<Mode>,
+        // book: Book,
+        // long_property: String,
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], components = [User, Book, Mode])]
+    #[openapi(handler_files = [], components = [User, Mode])]
     struct ApiDoc;
 
     println!("{}", ApiDoc::openapi().to_json().unwrap());

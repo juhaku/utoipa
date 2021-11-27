@@ -4,6 +4,7 @@ use quote::{format_ident, quote, quote_spanned};
 use proc_macro2::Ident;
 use syn::{bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, LitStr, Token};
 
+mod attribute;
 mod component;
 mod info;
 mod paths;
@@ -27,7 +28,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     // println!("generics:{:#?}", generics);
     // println!("attrs:{:#?}", attrs);
 
-    let component_quote = impl_component(data);
+    let component_quote = impl_component(data, attrs);
 
     let component = quote! {
         impl utoipa::Component for #ident {
@@ -76,7 +77,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         .iter()
         .filter(|args| matches!(args, OpenApiArgs::Components(_)))
         .flat_map(|args| match args {
-            OpenApiArgs::Components(files) => files,
+            OpenApiArgs::Components(components) => components,
             _ => unreachable!(),
         })
         .collect::<Vec<_>>();
