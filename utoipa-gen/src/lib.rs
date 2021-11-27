@@ -6,6 +6,7 @@ use syn::{bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInpu
 
 mod attribute;
 mod component;
+mod component_type;
 mod info;
 mod paths;
 

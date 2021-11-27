@@ -38,7 +38,15 @@ fn derive_component_struct() {
 
     #[derive(Component)]
     struct Book {
+        #[component(default = "Default::default()", example = "Book 1")]
         name: String,
+
+        #[component(
+            default = "test",
+            example = "base64 text",
+            format = "ComponentFormat::Byte"
+        )]
+        hash: String,
     }
 
     /// This is user component
@@ -59,7 +67,7 @@ fn derive_component_struct() {
         // random: Option<Vec<String>>,
         // mode: Option<Mode>,
         // book: Book,
-        // long_property: String,
+        long_property: String,
     }
 
     #[derive(OpenApi, Default)]

@@ -8,34 +8,34 @@ use syn::{
     TypePath,
 };
 
-use crate::attribute::CommentAttributes;
+use crate::{
+    attribute::CommentAttributes,
+    component_type::{ComponentFormat, ComponentType},
+};
 
 pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
     println!("Got data: {:#?}", data);
     println!("Got attributes: {:#?}", attrs);
 
     let mut component = match ComponentProperties::new(data) {
-        ComponentProperties::Fields(fields) => fields
-            .iter()
-            .map(|field| {
-                (
-                    ComponentType::from_type_path(get_type_path(&field.ty)),
-                    field.ident.as_ref().unwrap().to_string(),
-                    CommentAttributes::from_attributes(&field.attrs),
-                )
-            })
-            .fold(
-                quote! { utoipa::openapi::Object::new() },
-                |mut object_token_stream, (component_type, field_name, comment_attributes)| {
-                    object_token_stream.extend(append_property(
-                        &component_type,
-                        &*field_name,
-                        comment_attributes,
-                    ));
+        ComponentProperties::Fields(fields) => fields.iter().fold(
+            quote! { utoipa::openapi::Object::new() },
+            |mut object_token_stream, field| {
+                let field_name = &*field.ident.as_ref().unwrap().to_string();
+                let component_part = &ComponentPart::from_type_path(get_type_path(&field.ty));
+                let component =
+                    Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
+                        .collect::<Component>();
 
-                    object_token_stream
-                },
-            ),
+                object_token_stream.extend(append_property(
+                    &component,
+                    field_name,
+                    CommentAttributes::from_attributes(&field.attrs),
+                ));
+
+                object_token_stream
+            },
+        ),
         ComponentProperties::Variants(variants) => {
             variants.iter().filter(|variant| !matches!(variant.fields, Fields::Unit))
                 .for_each(|unsupported_variant| {
@@ -128,179 +128,111 @@ impl ToTokens for EnumValues {
 }
 
 fn append_property(
-    component_type: &ComponentType,
+    component: &Component,
     field_name: &str,
     comment_attributes: CommentAttributes,
 ) -> TokenStream2 {
-    let component = Into::<ComponentTypeRef<'_, ComponentType<'_>>>::into(component_type)
-        .collect::<Component>();
-
-    println!("Got component: {:?}", component);
-    println!("Got comments: {:?}", &comment_attributes.0.first());
-
-    match component {
+    let property = match component {
         Component {
-            option,
             generic_type: None,
             value_type:
                 Some(type_tuple @ TypeTuple(ValueType::Primitive | ValueType::Object, ident)),
-        } => {
-            let mut property = match type_tuple.0 {
-                ValueType::Primitive => {
-                    let component_type_quote = resolve_primitive_type(ident);
-                    // TODO resolve other properties
-
-                    let mut primitive_property = quote! {
-                        utoipa::openapi::Property::new(
-                            #component_type_quote
-                        )
-                    };
-
-                    if let Some(comment) = comment_attributes.0.first() {
-                        primitive_property.extend(quote! {
-                            .with_description(#comment)
-                        })
-                    }
-
-                    quote! {
-                        .with_property(#field_name, #primitive_property)
-                    }
-                }
-                ValueType::Object => {
-                    let object_name = &*ident.to_string();
-
-                    quote! {
-                        .with_property(#field_name, utoipa::openapi::Ref::from_component_name(#object_name))
-                    }
-                }
-            };
-            if !option {
-                property.extend(quote! {
-                    .with_required(#field_name)
-                })
-            }
-
-            property
-        }
+            ..
+        } => resolve_simple_property(type_tuple, ident, &comment_attributes),
         Component {
-            option,
             generic_type: Some(generic_type_tuple),
-            value_type: Some(value_type_tupple),
-        } => {
-            let mut property = match generic_type_tuple.0 {
-                GenericType::Map => {
-                    let mut property = quote! {
-                        utoipa::openapi::Object::new()
-                    };
+            value_type: Some(value_type_tuple),
+            ..
+        } => resolve_complex_property(generic_type_tuple, value_type_tuple, &comment_attributes),
+        _ => unreachable!(),
+    };
 
-                    if let Some(comment) = comment_attributes.0.first() {
-                        property.extend(quote! {
-                            .with_description(#comment)
-                        })
-                    }
+    let mut object = quote! {
+        .with_property(#field_name, #property)
+    };
 
-                    quote! {
-                        .with_property(#field_name, #property)
-                    }
-                }
-                GenericType::Vec => {
-                    let property = match value_type_tupple.0 {
-                        ValueType::Object => {
-                            let value_name = &*value_type_tupple.1;
+    if !component.option {
+        object.extend(quote! {
+            .with_required(#field_name)
+        })
+    }
 
-                            let mut property = quote! {
-                                utoipa::openapi::Ref::from_component_name(#value_name)
-                            };
+    object
+}
 
-                            if let Some(comment) = comment_attributes.0.first() {
-                                property.extend(quote! {
-                                    .with_description(#comment)
-                                })
-                            }
+fn resolve_simple_property(
+    type_tuple: &TypeTuple<ValueType>,
+    ident: &Ident,
+    comment_attributes: &CommentAttributes,
+) -> TokenStream2 {
+    match type_tuple.0 {
+        ValueType::Primitive => {
+            let component_type = ComponentType(ident);
 
-                            property
-                        }
-                        ValueType::Primitive => {
-                            let item_type = resolve_primitive_type(value_type_tupple.1);
+            // TODO resolve other properties
 
-                            let mut property = quote! {
-                                utoipa::openapi::Property::new(
-                                    #item_type
-                                )
-                            };
-
-                            if let Some(comment) = comment_attributes.0.first() {
-                                property.extend(quote! {
-                                    .with_description(#comment)
-                                })
-                            }
-
-                            property
-                        }
-                    };
-
-                    quote! {
-                        .with_property(#field_name,
-                            utoipa::openapi::Array::new(
-                                #property
-                            )
-                        )
-                    }
-                }
-                _ => unreachable!(), //  we do not have option type here
+            let mut property = quote! {
+                utoipa::openapi::Property::new(
+                    #component_type
+                )
             };
 
-            if !option {
+            if let Some(comment) = comment_attributes.0.first() {
                 property.extend(quote! {
-                    .with_required(#field_name)
+                    .with_description(#comment)
+                })
+            }
+
+            let format = ComponentFormat(ident);
+            if format.is_known_format() {
+                property.extend(quote! {
+                    .with_format(#format)
                 })
             }
 
             property
         }
-        _ => unreachable!(),
-    }
-}
+        ValueType::Object => {
+            let object_name = &*ident.to_string();
 
-fn resolve_primitive_type(ident: &Ident) -> TokenStream2 {
-    let primitive_name = &*ident.to_string();
-    quote! {
-        match #primitive_name {
-            "String" | "str" | "char" => utoipa::openapi::ComponentType::String,
-            "bool" => utoipa::openapi::ComponentType::Boolean,
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => utoipa::openapi::ComponentType::Integer,
-            "f32" | "f64"  => utoipa::openapi::ComponentType::Number,
-            _ => utoipa::openapi::ComponentType::Object // TODO is this object for sure???
+            quote! {
+                utoipa::openapi::Ref::from_component_name(#object_name)
+            }
         }
     }
 }
 
-fn is_primitive_type(ident: &Ident) -> bool {
-    let name = &*ident.to_string();
+fn resolve_complex_property(
+    generic_type_tuple: &TypeTuple<GenericType>,
+    value_type_tuple: &TypeTuple<ValueType>,
+    comment_attributes: &CommentAttributes,
+) -> TokenStream2 {
+    match generic_type_tuple.0 {
+        GenericType::Map => {
+            let mut property = quote! {
+                utoipa::openapi::Object::new()
+            };
 
-    matches!(
-        name,
-        "String"
-            | "str"
-            | "&str"
-            | "char"
-            | "&char"
-            | "bool"
-            | "usize"
-            | "u8"
-            | "u16"
-            | "u32"
-            | "u64"
-            | "u128"
-            | "isize"
-            | "i8"
-            | "i16"
-            | "i32"
-            | "i64"
-            | "i128"
-            | "f32"
-            | "f64"
-    )
+            if let Some(comment) = comment_attributes.0.first() {
+                property.extend(quote! {
+                    .with_description(#comment)
+                })
+            }
+
+            property
+        }
+        GenericType::Vec => {
+            let property =
+                resolve_simple_property(value_type_tuple, value_type_tuple.1, comment_attributes);
+
+            quote! {
+                utoipa::openapi::Array::new(
+                    #property
+                )
+            }
+        }
+        _ => unreachable!(), //  we do not have option type here
+    }
 }
 
 fn get_type_path(ty: &Type) -> &TypePath {
@@ -335,27 +267,27 @@ fn get_first_generic_type(segment: &PathSegment) -> &Type {
 }
 
 #[derive(Debug)]
-struct ComponentType<'a> {
+struct ComponentPart<'a> {
     ident: &'a Ident,
     value_type: ValueType,
     generic_type: Option<GenericType>,
-    child: Option<Rc<ComponentType<'a>>>,
+    child: Option<Rc<ComponentPart<'a>>>,
 }
 
-impl<'a> ComponentType<'a> {
-    fn from_type_path(type_path: &'a TypePath) -> ComponentType<'a> {
-        ComponentType::_from_type_path(
+impl<'a> ComponentPart<'a> {
+    fn from_type_path(type_path: &'a TypePath) -> ComponentPart<'a> {
+        ComponentPart::_from_type_path(
             type_path,
-            ComponentType::convert,
-            ComponentType::resolve_component_type,
+            ComponentPart::convert,
+            ComponentPart::resolve_component_type,
         )
     }
 
     fn _from_type_path(
         type_path: &'a TypePath,
-        op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentType<'a>,
-        or_else: impl Fn(&'a PathSegment) -> ComponentType<'a>,
-    ) -> ComponentType<'a> {
+        op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
+        or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
+    ) -> ComponentPart<'a> {
         let segment = get_segment(type_path);
 
         type_path
@@ -365,7 +297,7 @@ impl<'a> ComponentType<'a> {
             .unwrap_or_else(|| or_else(segment))
     }
 
-    fn resolve_component_type(segment: &'a PathSegment) -> ComponentType<'a> {
+    fn resolve_component_type(segment: &'a PathSegment) -> ComponentPart<'a> {
         if segment.arguments.is_empty() {
             abort!(
                 segment.ident.span(),
@@ -373,21 +305,21 @@ impl<'a> ComponentType<'a> {
             );
         };
 
-        let mut generic_component_type = ComponentType::convert(&segment.ident, segment);
+        let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
 
-        generic_component_type.child = Some(Rc::new(ComponentType::from_type_path(get_type_path(
+        generic_component_type.child = Some(Rc::new(ComponentPart::from_type_path(get_type_path(
             get_first_generic_type(segment),
         ))));
 
         generic_component_type
     }
 
-    fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentType<'a> {
-        let generic_type = ComponentType::get_generic(segment);
+    fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentPart<'a> {
+        let generic_type = ComponentPart::get_generic(segment);
 
         Self {
             ident,
-            value_type: if is_primitive_type(ident) {
+            value_type: if ComponentType(ident).is_primitive() {
                 ValueType::Primitive
             } else {
                 ValueType::Object
@@ -407,28 +339,28 @@ impl<'a> ComponentType<'a> {
     }
 }
 
-struct ComponentTypeRef<'a, T> {
+struct ComponentPartRef<'a, T> {
     _inner: Option<&'a T>,
 }
 
-impl<'a> Deref for ComponentTypeRef<'a, ComponentType<'a>> {
-    type Target = ComponentType<'a>;
+impl<'a> Deref for ComponentPartRef<'a, ComponentPart<'a>> {
+    type Target = ComponentPart<'a>;
 
     fn deref(&self) -> &Self::Target {
         self._inner.unwrap() // we can unwrap since it must have value
     }
 }
 
-impl<'a> From<&'a ComponentType<'a>> for ComponentTypeRef<'a, ComponentType<'a>> {
-    fn from(component_type: &'a ComponentType<'_>) -> Self {
+impl<'a> From<&'a ComponentPart<'a>> for ComponentPartRef<'a, ComponentPart<'a>> {
+    fn from(component_type: &'a ComponentPart<'_>) -> Self {
         Self {
             _inner: Some(component_type),
         }
     }
 }
 
-impl<'a> Iterator for ComponentTypeRef<'a, ComponentType<'a>> {
-    type Item = ComponentTypeRef<'a, ComponentType<'a>>;
+impl<'a> Iterator for ComponentPartRef<'a, ComponentPart<'a>> {
+    type Item = ComponentPartRef<'a, ComponentPart<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self._inner;
@@ -440,7 +372,7 @@ impl<'a> Iterator for ComponentTypeRef<'a, ComponentType<'a>> {
             self._inner = None
         }
 
-        current.map(|component_type| ComponentTypeRef {
+        current.map(|component_type| ComponentPartRef {
             _inner: Some(component_type),
         })
     }
@@ -470,8 +402,8 @@ struct Component<'a> {
     value_type: Option<TypeTuple<'a, ValueType>>,
 }
 
-impl<'a> FromIterator<ComponentTypeRef<'a, ComponentType<'a>>> for Component<'a> {
-    fn from_iter<T: IntoIterator<Item = ComponentTypeRef<'a, ComponentType<'a>>>>(iter: T) -> Self {
+impl<'a> FromIterator<ComponentPartRef<'a, ComponentPart<'a>>> for Component<'a> {
+    fn from_iter<T: IntoIterator<Item = ComponentPartRef<'a, ComponentPart<'a>>>>(iter: T) -> Self {
         let components_iter = iter.into_iter();
         components_iter.fold(Self::default(), |mut component, item| {
             match item.generic_type {
