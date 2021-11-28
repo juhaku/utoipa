@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 // use utoipa::openapi_spec;
 use utoipa::{api_operation, Component, OpenApi};
@@ -27,6 +27,7 @@ fn derive_openapi() {
 fn derive_component_struct() {
     /// Mode defines user type
     #[derive(Component)]
+    #[component(default = "Mode1", example = "Mode2")]
     enum Mode {
         /// Mode1 is admin user
         Mode1,
@@ -38,7 +39,7 @@ fn derive_component_struct() {
 
     #[derive(Component)]
     struct Book {
-        #[component(default = "Default::default()", example = "Book 1")]
+        #[component(default = "crate::random_default", example = "Book 1")]
         name: String,
 
         #[component(
@@ -56,6 +57,7 @@ fn derive_component_struct() {
     // #[component()]
     struct User {
         /// This is a database id of a user
+        #[component(default = 1)]
         id: u64,
         // username: String,
         /// User authenticated roles
@@ -71,8 +73,12 @@ fn derive_component_struct() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], components = [User, Mode])]
+    #[openapi(handler_files = [], components = [User, Book, Mode])]
     struct ApiDoc;
 
     println!("{}", ApiDoc::openapi().to_json().unwrap());
+}
+
+fn random_default() -> String {
+    "random".to_string()
 }

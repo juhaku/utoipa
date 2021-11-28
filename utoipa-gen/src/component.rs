@@ -9,13 +9,13 @@ use syn::{
 };
 
 use crate::{
-    attribute::CommentAttributes,
+    attribute::{parse_component_attribute, AttributeType, CommentAttributes, ComponentAttribute},
     component_type::{ComponentFormat, ComponentType},
 };
 
 pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
-    println!("Got data: {:#?}", data);
-    println!("Got attributes: {:#?}", attrs);
+    // println!("Got data: {:#?}", data);
+    // println!("Got attributes: {:#?}", attrs);
 
     let mut component = match ComponentProperties::new(data) {
         ComponentProperties::Fields(fields) => fields.iter().fold(
@@ -26,11 +26,15 @@ pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStrea
                 let component =
                     Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
                         .collect::<Component>();
+                let component_attribute = parse_component_attribute(&field.attrs);
+
+                // println!("Got component attribute: {:#?}", component_attribute);
 
                 object_token_stream.extend(append_property(
                     &component,
                     field_name,
                     CommentAttributes::from_attributes(&field.attrs),
+                    component_attribute,
                 ));
 
                 object_token_stream
@@ -48,11 +52,22 @@ pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStrea
                 .map(|variant| variant.ident.to_string())
                 .collect::<EnumValues>();
 
-            quote! {
+            let mut enum_stream = quote! {
                 utoipa::openapi::Property::new(ComponentType::String)
                     // .with_default("Active")
                     .with_enum_values(#enum_values)
-            }
+            };
+
+            if let Some(enum_attributes) = parse_component_attribute(&attrs) {
+                append_attributes(
+                    &mut enum_stream,
+                    enum_attributes
+                        .into_iter()
+                        .filter(|attribute| !matches!(attribute, AttributeType::Format(..))),
+                )
+            };
+
+            enum_stream
         }
     };
 
@@ -131,8 +146,9 @@ fn append_property(
     component: &Component,
     field_name: &str,
     comment_attributes: CommentAttributes,
+    component_attribute: Option<ComponentAttribute>,
 ) -> TokenStream2 {
-    let property = match component {
+    let mut property = match component {
         Component {
             generic_type: None,
             value_type:
@@ -147,6 +163,10 @@ fn append_property(
         _ => unreachable!(),
     };
 
+    if let Some(component_attribute) = component_attribute {
+        append_attributes(&mut property, component_attribute.into_iter())
+    }
+
     let mut object = quote! {
         .with_property(#field_name, #property)
     };
@@ -160,6 +180,25 @@ fn append_property(
     object
 }
 
+fn append_attributes<I: Iterator<Item = AttributeType>>(
+    token_stream: &mut TokenStream2,
+    component_attribute: I,
+) {
+    component_attribute
+        .into_iter()
+        .for_each(|attribute_type| match attribute_type {
+            AttributeType::Default(..) => token_stream.extend(quote! {
+                .with_default(#attribute_type)
+            }),
+            AttributeType::Example(..) => token_stream.extend(quote! {
+                .with_example(#attribute_type)
+            }),
+            AttributeType::Format(..) => token_stream.extend(quote! {
+                .with_format(#attribute_type)
+            }),
+        })
+}
+
 fn resolve_simple_property(
     type_tuple: &TypeTuple<ValueType>,
     ident: &Ident,
@@ -168,8 +207,6 @@ fn resolve_simple_property(
     match type_tuple.0 {
         ValueType::Primitive => {
             let component_type = ComponentType(ident);
-
-            // TODO resolve other properties
 
             let mut property = quote! {
                 utoipa::openapi::Property::new(

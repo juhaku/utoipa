@@ -61,6 +61,9 @@ pub struct Property {
 
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     enum_values: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    example: Option<String>,
 }
 
 impl Property {
@@ -96,6 +99,12 @@ impl Property {
                 .map(|str| str.as_ref().to_string())
                 .collect(),
         );
+
+        self
+    }
+
+    pub fn with_example<S: AsRef<str>>(mut self, example: S) -> Self {
+        self.example = Some(example.as_ref().to_string());
 
         self
     }
