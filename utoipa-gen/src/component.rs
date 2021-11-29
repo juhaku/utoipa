@@ -4,8 +4,8 @@ use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
-    punctuated::Punctuated, Fields, FieldsNamed, GenericArgument, PathArguments, PathSegment, Type,
-    TypePath,
+    punctuated::Punctuated, Attribute, Fields, FieldsNamed, GenericArgument, PathArguments,
+    PathSegment, Type, TypePath, Variant,
 };
 
 use crate::{
@@ -14,68 +14,7 @@ use crate::{
 };
 
 pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
-    // println!("Got data: {:#?}", data);
-    // println!("Got attributes: {:#?}", attrs);
-
-    let mut component = match ComponentProperties::new(data) {
-        ComponentProperties::Fields(fields) => fields.iter().fold(
-            quote! { utoipa::openapi::Object::new() },
-            |mut object_token_stream, field| {
-                let field_name = &*field.ident.as_ref().unwrap().to_string();
-                let component_part = &ComponentPart::from_type_path(get_type_path(&field.ty));
-                let component =
-                    Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
-                        .collect::<Component>();
-                let component_attribute = parse_component_attribute(&field.attrs);
-
-                // println!("Got component attribute: {:#?}", component_attribute);
-
-                object_token_stream.extend(append_property(
-                    &component,
-                    field_name,
-                    CommentAttributes::from_attributes(&field.attrs),
-                    component_attribute,
-                ));
-
-                object_token_stream
-            },
-        ),
-        ComponentProperties::Variants(variants) => {
-            variants.iter().filter(|variant| !matches!(variant.fields, Fields::Unit))
-                .for_each(|unsupported_variant| {
-                    emit_error!(unsupported_variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields")
-                });
-
-            let enum_values = &variants
-                .iter()
-                .filter(|variant| matches!(variant.fields, Fields::Unit))
-                .map(|variant| variant.ident.to_string())
-                .collect::<EnumValues>();
-
-            let mut enum_stream = quote! {
-                utoipa::openapi::Property::new(ComponentType::String)
-                    // .with_default("Active")
-                    .with_enum_values(#enum_values)
-            };
-
-            if let Some(enum_attributes) = parse_component_attribute(&attrs) {
-                append_attributes(
-                    &mut enum_stream,
-                    enum_attributes
-                        .into_iter()
-                        .filter(|attribute| !matches!(attribute, AttributeType::Format(..))),
-                )
-            };
-
-            enum_stream
-        }
-    };
-
-    if let Some(comment) = CommentAttributes::from_attributes(&attrs).0.first() {
-        component.extend(quote! {
-            .with_description(#comment)
-        })
-    }
+    let component = ComponentVariant::new(data, &attrs);
 
     quote! {
         use utoipa::openapi::{ComponentType, ComponentFormat};
@@ -85,29 +24,120 @@ pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStrea
 }
 
 #[derive(Debug)]
-enum ComponentProperties {
-    Fields(Vec<syn::Field>),
-    Variants(Vec<syn::Variant>),
+enum ComponentVariant<'a> {
+    Object(Vec<syn::Field>, &'a [Attribute]),
+    Enum(Vec<syn::Variant>, &'a [Attribute]),
 }
 
-impl ComponentProperties {
-    fn new(data: syn::Data) -> ComponentProperties {
+impl<'a> ComponentVariant<'a> {
+    fn new(data: syn::Data, attributes: &'a [Attribute]) -> ComponentVariant<'a> {
         match data {
             syn::Data::Struct(content) => {
                 if let Fields::Named(named_fields) = content.fields {
                     let FieldsNamed { named, .. } = named_fields;
 
-                    ComponentProperties::Fields(named.into_iter().collect())
+                    ComponentVariant::Object(named.into_iter().collect(), attributes)
                 } else {
-                    ComponentProperties::Fields(vec![])
+                    ComponentVariant::Object(vec![], attributes)
                 }
             }
             syn::Data::Enum(content) => {
-                ComponentProperties::Variants(content.variants.into_iter().collect())
+                ComponentVariant::Enum(content.variants.into_iter().collect(), attributes)
             }
             _ => abort_call_site!(
                 "Unexpected data type, expected syn::Data::Struct or syn::Data::Enum"
             ),
+        }
+    }
+}
+
+impl<'a> ToTokens for ComponentVariant<'a> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self {
+            Self::Object(fields, attrs) => self.struct_to_tokens(fields, *attrs, tokens),
+            Self::Enum(variants, attrs) => self.enum_to_tokens(variants, *attrs, tokens),
+        };
+    }
+}
+
+impl<'a> ComponentVariant<'a> {
+    fn struct_to_tokens(
+        &self,
+        fields: &[syn::Field],
+        attributes: &[Attribute],
+        tokens: &mut TokenStream2,
+    ) {
+        tokens.extend(quote! { utoipa::openapi::Object::new() });
+
+        fields.iter().for_each(|field| {
+            let field_name = &*field.ident.as_ref().unwrap().to_string();
+            let component_part = &ComponentPart::from_type_path(get_type_path(&field.ty));
+            let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
+                .collect::<Component>();
+
+            let property = create_property_stream(
+                &component,
+                CommentAttributes::from_attributes(&field.attrs),
+                parse_component_attribute(&field.attrs),
+            );
+
+            tokens.extend(quote! {
+                .with_property(#field_name, #property)
+            });
+
+            if !component.option {
+                tokens.extend(quote! {
+                    .with_required(#field_name)
+                })
+            }
+        });
+
+        self.append_description(attributes, tokens);
+    }
+
+    fn is_not_enum_unit_variant(variant: &&Variant) -> bool {
+        !matches!(variant.fields, Fields::Unit)
+    }
+
+    fn enum_to_tokens(
+        &self,
+        variants: &[Variant],
+        attributes: &[Attribute],
+        tokens: &mut TokenStream2,
+    ) {
+        variants
+            .iter()
+            .filter(ComponentVariant::is_not_enum_unit_variant)
+            .for_each(|variant| emit_error!(variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields"));
+
+        let enum_values = &variants
+            .iter()
+            .filter(|variant| matches!(variant.fields, Fields::Unit))
+            .map(|variant| variant.ident.to_string())
+            .collect::<EnumValues>();
+
+        tokens.extend(quote! {
+            utoipa::openapi::Property::new(ComponentType::String)
+                .with_enum_values(#enum_values)
+        });
+
+        if let Some(enum_attributes) = parse_component_attribute(attributes) {
+            append_attributes(
+                tokens,
+                enum_attributes
+                    .into_iter()
+                    .filter(|attribute| !matches!(attribute, AttributeType::Format(..))),
+            )
+        };
+
+        self.append_description(attributes, tokens);
+    }
+
+    fn append_description(&self, attributes: &[Attribute], tokens: &mut TokenStream2) {
+        if let Some(comment) = CommentAttributes::from_attributes(attributes).0.first() {
+            tokens.extend(quote! {
+                .with_description(#comment)
+            })
         }
     }
 }
@@ -142,44 +172,6 @@ impl ToTokens for EnumValues {
     }
 }
 
-fn append_property(
-    component: &Component,
-    field_name: &str,
-    comment_attributes: CommentAttributes,
-    component_attribute: Option<ComponentAttribute>,
-) -> TokenStream2 {
-    let mut property = match component {
-        Component {
-            generic_type: None,
-            value_type:
-                Some(type_tuple @ TypeTuple(ValueType::Primitive | ValueType::Object, ident)),
-            ..
-        } => resolve_simple_property(type_tuple, ident, &comment_attributes),
-        Component {
-            generic_type: Some(generic_type_tuple),
-            value_type: Some(value_type_tuple),
-            ..
-        } => resolve_complex_property(generic_type_tuple, value_type_tuple, &comment_attributes),
-        _ => unreachable!(),
-    };
-
-    if let Some(component_attribute) = component_attribute {
-        append_attributes(&mut property, component_attribute.into_iter())
-    }
-
-    let mut object = quote! {
-        .with_property(#field_name, #property)
-    };
-
-    if !component.option {
-        object.extend(quote! {
-            .with_required(#field_name)
-        })
-    }
-
-    object
-}
-
 fn append_attributes<I: Iterator<Item = AttributeType>>(
     token_stream: &mut TokenStream2,
     component_attribute: I,
@@ -199,12 +191,42 @@ fn append_attributes<I: Iterator<Item = AttributeType>>(
         })
 }
 
-fn resolve_simple_property(
-    type_tuple: &TypeTuple<ValueType>,
+fn create_property_stream(
+    component: &Component,
+    comment_attributes: CommentAttributes,
+    component_attribute: Option<ComponentAttribute>,
+) -> TokenStream2 {
+    let mut property = match component {
+        Component {
+            generic_type: None,
+            value_type:
+                Some(TypeTuple(
+                    value_type @ ValueType::Primitive | value_type @ ValueType::Object,
+                    ident,
+                )),
+            ..
+        } => create_simple_property(value_type, ident, &comment_attributes),
+        Component {
+            generic_type: Some(generic_type_tuple),
+            value_type: Some(value_type_tuple),
+            ..
+        } => create_complex_property(generic_type_tuple, value_type_tuple, &comment_attributes),
+        _ => unreachable!(),
+    };
+
+    if let Some(component_attribute) = component_attribute {
+        append_attributes(&mut property, component_attribute.into_iter())
+    }
+
+    property
+}
+
+fn create_simple_property(
+    value_type: &ValueType,
     ident: &Ident,
     comment_attributes: &CommentAttributes,
 ) -> TokenStream2 {
-    match type_tuple.0 {
+    match value_type {
         ValueType::Primitive => {
             let component_type = ComponentType(ident);
 
@@ -239,7 +261,7 @@ fn resolve_simple_property(
     }
 }
 
-fn resolve_complex_property(
+fn create_complex_property(
     generic_type_tuple: &TypeTuple<GenericType>,
     value_type_tuple: &TypeTuple<ValueType>,
     comment_attributes: &CommentAttributes,
@@ -260,7 +282,7 @@ fn resolve_complex_property(
         }
         GenericType::Vec => {
             let property =
-                resolve_simple_property(value_type_tuple, value_type_tuple.1, comment_attributes);
+                create_simple_property(&value_type_tuple.0, value_type_tuple.1, comment_attributes);
 
             quote! {
                 utoipa::openapi::Array::new(
@@ -419,7 +441,6 @@ impl<'a> Iterator for ComponentPartRef<'a, ComponentPart<'a>> {
 enum ValueType {
     Primitive,
     Object,
-    // Enum
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]

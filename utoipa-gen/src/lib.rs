@@ -18,16 +18,8 @@ use crate::component::impl_component;
 #[proc_macro_derive(Component, attributes(component))]
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
-        attrs,
-        vis,
-        ident,
-        generics,
-        data,
+        attrs, ident, data, ..
     } = syn::parse_macro_input!(input);
-
-    // println!("data:{:#?}", data);
-    // println!("generics:{:#?}", generics);
-    // println!("attrs:{:#?}", attrs);
 
     let component_quote = impl_component(data, attrs);
 
@@ -40,8 +32,6 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     };
 
     component.into()
-
-    // quote!().into()
 }
 
 #[proc_macro_error]
@@ -60,8 +50,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         ident,
         ..
     } = syn::parse_macro_input!(input);
-
-    // let span = Span::call_site();
 
     let openapi_args =
         parse_openapi_attributes(&attrs).expect_or_abort("Expected #openapi[...] attribute");
@@ -82,13 +70,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
             _ => unreachable!(),
         })
         .collect::<Vec<_>>();
-
-    // TODO handle components
-
-    // println!("attributes: {:#?}", &attrs);
-    // println!("data: {:#?}", &data);
-    // println!("ident: {:#?}", &ident);
-    // println!("generics: {:#?}", &generics);
 
     let info = info::impl_info();
     let paths = paths::impl_paths(&files.map(String::to_owned).collect::<Vec<_>>());
@@ -120,8 +101,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         }
     });
 
-    // println!("{:#?}", &quote);
-
     quote.into()
 }
 
@@ -144,37 +123,12 @@ fn parse_openapi_attributes(attributes: &[Attribute]) -> Option<Vec<OpenApiArgs>
             }
         })
         .map(|att| {
-            println!("attr: {:#?}", att);
-
             att.parse_args_with(Punctuated::<OpenApiArgs, Token![,]>::parse_terminated)
                 .unwrap_or_abort()
                 .into_iter()
                 .collect()
         })
 }
-
-// TODO handle components
-// Ident {
-//     ident: "components",
-//     span: #0 bytes(896..906),
-// },
-// Punct {
-//     ch: '=',
-//     spacing: Alone,
-//     span: #0 bytes(907..908),
-// },
-// Group {
-//     delimiter: Bracket,
-//     stream: TokenStream [
-//         Ident {
-//             ident: "User",
-//             span: #0 bytes(910..914),
-//         },
-//     ],
-//     span: #0 bytes(909..915),
-// },
-
-// #[openapi(handler_files = ["tests/utoipa_gen_test.rs"], components = [User])]
 
 enum OpenApiArgs {
     HandlerFiles(Vec<String>),
@@ -185,8 +139,6 @@ impl Parse for OpenApiArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name_ident = input.parse::<Ident>()?;
         let name_str = &*name_ident.to_string();
-
-        // println!("parsed ident: {:?}", name_ident);
 
         match name_str {
             "handler_files" => {

@@ -192,7 +192,6 @@ pub fn parse_component_attribute(attributes: &[Attribute]) -> Option<ComponentAt
         .iter()
         .filter(is_component_attribute)
         .map(|component_attribute| {
-            println!("Parse component attributes: {:#?}", component_attribute);
             component_attribute
                 .parse_args::<ComponentAttribute>()
                 .unwrap_or_abort()

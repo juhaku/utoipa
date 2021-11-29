@@ -70,8 +70,6 @@ impl<T: Display> ToTokens for ComponentFormat<T> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let name = &*self.0.to_string();
 
-        println!("Get component format: {:?}", name);
-
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
                 tokens.extend(quote! {utoipa::openapi::ComponentFormat::Int32})
