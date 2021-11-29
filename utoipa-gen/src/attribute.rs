@@ -4,12 +4,15 @@ use quote::{quote_spanned, ToTokens};
 use syn::{parse::Parse, Attribute, ExprPath, Lit, Meta, Token};
 
 const DOC_ATTRIBUTE_TYPE: &str = "doc";
-const COMPONEONT_ATTRIBUTE_TYPE: &str = "component";
+const COMPONENT_ATTRIBUTE_TYPE: &str = "component";
 
-pub struct CommentAttributes(pub Vec<String>);
+/// CommentAttributes holds Vec of parsed doc comments
+pub(crate) struct CommentAttributes(pub(crate) Vec<String>);
 
 impl CommentAttributes {
-    pub fn from_attributes(attributes: &[Attribute]) -> Self {
+    /// Creates new [`CommentAttributes`] instance from syn::Attribute slice filtering out all
+    /// other attributes which are not `doc` comments
+    pub(crate) fn from_attributes(attributes: &[Attribute]) -> Self {
         Self {
             0: Self::as_string_vec(attributes.iter().filter(Self::is_doc_attribute)),
         }
@@ -53,8 +56,9 @@ impl CommentAttributes {
     }
 }
 
-#[derive(Debug)]
-pub enum AttributeType {
+#[cfg_attr(feature = "all-features", derive(Debug))]
+/// AttributeType is parsed representation of `#[component(...)]` attribute values of Component derive.
+pub(crate) enum AttributeType {
     Default(String, Span),
     Format(String, Span),
     Example(String, Span),
@@ -99,8 +103,10 @@ impl ToTokens for AttributeType {
     }
 }
 
-#[derive(Debug)]
-pub struct ComponentAttribute(pub Vec<AttributeType>);
+#[cfg_attr(feature = "all-features", derive(Debug))]
+/// Wrapper struct for containing parsed [`enum@AttributeType`]s. It implements custom parser
+/// to parse `#[component(...)]` attribute content of Component derive macro.
+pub(crate) struct ComponentAttribute(pub(crate) Vec<AttributeType>);
 
 impl Parse for ComponentAttribute {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -179,22 +185,22 @@ impl IntoIterator for ComponentAttribute {
     }
 }
 
-pub fn is_component_attribute(attribute: &&Attribute) -> bool {
+fn is_component_attribute(attribute: &&Attribute) -> bool {
     *attribute
         .path
         .get_ident()
         .expect_or_abort("Expected component attribute with one path segment")
-        == COMPONEONT_ATTRIBUTE_TYPE
+        == COMPONENT_ATTRIBUTE_TYPE
 }
 
-pub fn parse_component_attribute(attributes: &[Attribute]) -> Option<ComponentAttribute> {
+/// Parses [`struct@ComponentAttribute`] from given syn::Attributes using only first matching attribute.
+pub(crate) fn parse_component_attribute(attributes: &[Attribute]) -> Option<ComponentAttribute> {
     attributes
         .iter()
-        .filter(is_component_attribute)
+        .find(is_component_attribute)
         .map(|component_attribute| {
             component_attribute
                 .parse_args::<ComponentAttribute>()
                 .unwrap_or_abort()
         })
-        .next()
 }

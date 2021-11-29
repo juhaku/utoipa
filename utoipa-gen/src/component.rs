@@ -13,7 +13,7 @@ use crate::{
     component_type::{ComponentFormat, ComponentType},
 };
 
-pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
+pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
     let component = ComponentVariant::new(data, &attrs);
 
     quote! {
@@ -23,9 +23,13 @@ pub fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStrea
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(feature = "all-features", derive(Debug))]
+/// Holds the openapi Component implementation which can be added the Schema.
 enum ComponentVariant<'a> {
+    /// Object variant is rust sturct with Component derive annotation.
     Object(Vec<syn::Field>, &'a [Attribute]),
+    /// Enum variant is rust enum with Component derive annotation. **Only supports** enums with
+    /// Unit type fields.
     Enum(Vec<syn::Variant>, &'a [Attribute]),
 }
 
@@ -71,7 +75,7 @@ impl<'a> ComponentVariant<'a> {
 
         fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
-            let component_part = &ComponentPart::from_type_path(get_type_path(&field.ty));
+            let component_part = &ComponentPart::from_type(&field.ty);
             let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
                 .collect::<Component>();
 
@@ -142,6 +146,7 @@ impl<'a> ComponentVariant<'a> {
     }
 }
 
+/// Tokenizes slice reference (`&[...]`) correctly to OpenAPI JSON.
 struct EnumValues(Vec<String>);
 
 impl FromIterator<String> for EnumValues {
@@ -178,17 +183,18 @@ fn append_attributes<I: Iterator<Item = AttributeType>>(
 ) {
     component_attribute
         .into_iter()
-        .for_each(|attribute_type| match attribute_type {
-            AttributeType::Default(..) => token_stream.extend(quote! {
+        .map(|attribute_type| match attribute_type {
+            AttributeType::Default(..) => quote! {
                 .with_default(#attribute_type)
-            }),
-            AttributeType::Example(..) => token_stream.extend(quote! {
+            },
+            AttributeType::Example(..) => quote! {
                 .with_example(#attribute_type)
-            }),
-            AttributeType::Format(..) => token_stream.extend(quote! {
+            },
+            AttributeType::Format(..) => quote! {
                 .with_format(#attribute_type)
-            }),
+            },
         })
+        .for_each(|stream| token_stream.extend(stream))
 }
 
 fn create_property_stream(
@@ -211,7 +217,7 @@ fn create_property_stream(
             value_type: Some(value_type_tuple),
             ..
         } => create_complex_property(generic_type_tuple, value_type_tuple, &comment_attributes),
-        _ => unreachable!(),
+        _ => unreachable!(), // will never occur, there are only complex generic types or simple types with or without generics
     };
 
     if let Some(component_attribute) = component_attribute {
@@ -294,38 +300,8 @@ fn create_complex_property(
     }
 }
 
-fn get_type_path(ty: &Type) -> &TypePath {
-    match ty {
-        Type::Path(path) => path,
-        _ => abort_call_site!("Unexpected type, expected Type::Path"),
-    }
-}
-
-fn get_segment(type_path: &TypePath) -> &PathSegment {
-    type_path.path.segments.first().unwrap()
-}
-
-fn get_first_generic_type(segment: &PathSegment) -> &Type {
-    match &segment.arguments {
-        PathArguments::AngleBracketed(angle_bracketed_args) => {
-            let first_arg = angle_bracketed_args.args.first().unwrap();
-
-            match first_arg {
-                GenericArgument::Type(generic_type) => generic_type,
-                _ => abort!(
-                    segment.ident.span(),
-                    "Expected GenericArgument::Type, encountered unexpected type"
-                ),
-            }
-        }
-        _ => abort!(
-            segment.ident.span(),
-            "Unexpected argument type, expected PathArgument::AngleBraketed, found non generic type"
-        ),
-    }
-}
-
-#[derive(Debug)]
+#[cfg_attr(feature = "all-features", derive(Debug))]
+/// Linked list of implementing types of a field in a struct.
 struct ComponentPart<'a> {
     ident: &'a Ident,
     value_type: ValueType,
@@ -334,20 +310,23 @@ struct ComponentPart<'a> {
 }
 
 impl<'a> ComponentPart<'a> {
-    fn from_type_path(type_path: &'a TypePath) -> ComponentPart<'a> {
-        ComponentPart::_from_type_path(
-            type_path,
+    fn from_type(ty: &'a Type) -> ComponentPart<'a> {
+        ComponentPart::from_type_path(
+            match ty {
+                Type::Path(path) => path,
+                _ => abort_call_site!("Unexpected type, expected Type::Path"),
+            },
             ComponentPart::convert,
             ComponentPart::resolve_component_type,
         )
     }
 
-    fn _from_type_path(
+    fn from_type_path(
         type_path: &'a TypePath,
         op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
         or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
     ) -> ComponentPart<'a> {
-        let segment = get_segment(type_path);
+        let segment = type_path.path.segments.first().unwrap();
 
         type_path
             .path
@@ -356,6 +335,7 @@ impl<'a> ComponentPart<'a> {
             .unwrap_or_else(|| or_else(segment))
     }
 
+    // Only when type is a generic type we get to this function.
     fn resolve_component_type(segment: &'a PathSegment) -> ComponentPart<'a> {
         if segment.arguments.is_empty() {
             abort!(
@@ -366,11 +346,28 @@ impl<'a> ComponentPart<'a> {
 
         let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
 
-        generic_component_type.child = Some(Rc::new(ComponentPart::from_type_path(get_type_path(
-            get_first_generic_type(segment),
-        ))));
+        generic_component_type.child = Some(Rc::new(ComponentPart::from_type(
+            ComponentPart::get_first_generic_type(segment),
+        )));
 
         generic_component_type
+    }
+
+    fn get_first_generic_type(segment: &PathSegment) -> &Type {
+        match &segment.arguments {
+            PathArguments::AngleBracketed(angle_bracketed_args) => {
+                let first_arg = angle_bracketed_args.args.first().unwrap();
+
+                match first_arg {
+                    GenericArgument::Type(generic_type) => generic_type,
+                    _ => abort!(segment.ident, "Expected GenericArgument::Type"),
+                }
+            }
+            _ => abort!(
+                segment.ident,
+                "Unexpected PathArgument, expected PathArgument::AngleBracketed"
+            ),
+        }
     }
 
     fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentPart<'a> {
@@ -437,23 +434,26 @@ impl<'a> Iterator for ComponentPartRef<'a, ComponentPart<'a>> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "all-features", derive(Debug))]
+#[derive(Clone, Copy)]
 enum ValueType {
     Primitive,
     Object,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "all-features", derive(Debug))]
+#[derive(PartialEq, Clone, Copy)]
 enum GenericType {
     Vec,
     Map,
     Option,
 }
 
-#[derive(Debug)]
+#[cfg_attr(feature = "all-features", derive(Debug))]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
-#[derive(Debug, Default)]
+#[cfg_attr(feature = "all-features", derive(Debug))]
+#[derive(Default)]
 struct Component<'a> {
     option: bool,
     generic_type: Option<TypeTuple<'a, GenericType>>,

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::collections::HashMap;
 
 // use utoipa::openapi_spec;
 use utoipa::{api_operation, Component, OpenApi};

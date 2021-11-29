@@ -3,10 +3,12 @@ use std::fmt::Display;
 use proc_macro2::Ident;
 use quote::{quote, ToTokens};
 
-pub struct ComponentType<'a>(pub &'a Ident);
+/// Tokenizes OpenAPI data type correctly according to the Rust type
+pub(crate) struct ComponentType<'a>(pub &'a Ident);
 
 impl<'a> ComponentType<'a> {
-    pub fn is_primitive(&self) -> bool {
+    /// Check whether type is known to be primitive in wich case returns true.
+    pub(crate) fn is_primitive(&self) -> bool {
         let name = &*self.0.to_string();
 
         matches!(
@@ -53,10 +55,12 @@ impl<'a> ToTokens for ComponentType<'a> {
 }
 
 // TODO add extendability to this so that custom types can also be tokenized?
-pub struct ComponentFormat<T: Display>(pub T);
+/// Tokenizes OpenAPI datatype format correctly by given Rust type.
+pub(crate) struct ComponentFormat<T: Display>(pub(crate) T);
 
 impl<T: Display> ComponentFormat<T> {
-    pub fn is_known_format(&self) -> bool {
+    /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
+    pub(crate) fn is_known_format(&self) -> bool {
         let name = &*self.0.to_string();
 
         matches!(

@@ -4,7 +4,8 @@ use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, ResultExt};
 use quote::quote;
 use syn::{
-    parse::Parse, punctuated::Punctuated, Attribute, Error, LitInt, LitStr, MetaNameValue, Token,
+    parse::Parse, punctuated::Punctuated, Attribute, Error, ItemFn, LitInt, LitStr, MetaNameValue,
+    Token,
 };
 
 const API_OPERATION_IDENT: &str = "api_operation";
@@ -235,7 +236,7 @@ fn has_attribute<S: AsRef<str>>(attributes: &[Attribute], name: S) -> bool {
     })
 }
 
-fn process_function(function: &syn::ItemFn) {
+fn process_function(function: &ItemFn) {
     // TODO this should return the resolved path token stream
 
     let fn_name = function.sig.ident.to_string();

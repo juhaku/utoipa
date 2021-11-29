@@ -1,3 +1,7 @@
+//! This is private utoipa codegen library and is not used alone
+
+#![warn(missing_docs)]
+#![warn(rustdoc::broken_intra_doc_links)]
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
@@ -16,6 +20,7 @@ use crate::component::impl_component;
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
+/// Component dervice
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs, ident, data, ..
