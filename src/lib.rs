@@ -9,3 +9,7 @@ pub use utoipa_gen::*;
 pub trait OpenApi {
     fn openapi() -> openapi::OpenApi;
 }
+
+pub trait Component {
+    fn component() -> openapi::schema::Component;
+}

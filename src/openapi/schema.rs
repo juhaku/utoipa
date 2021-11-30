@@ -16,8 +16,13 @@ impl Schema {
         }
     }
 
-    pub fn with_component<S: AsRef<str>>(mut self, name: S, component: Component) -> Self {
-        self.schemas.insert(name.as_ref().to_string(), component);
+    pub fn with_component<S: AsRef<str>, I: Into<Component>>(
+        mut self,
+        name: S,
+        component: I,
+    ) -> Self {
+        self.schemas
+            .insert(name.as_ref().to_string(), component.into());
 
         self
     }
@@ -28,73 +33,217 @@ impl Schema {
 #[serde(rename_all = "camelCase")]
 pub struct Component {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    base_component: Option<BaseComponent>,
+    property: Option<Property>,
 
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    ref_component: Option<RefComponent>,
+    ref_component: Option<Ref>,
 
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    object_component: Option<ObjectComponent>,
+    struct_component: Option<Object>,
 
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    array_component: Option<ArrayComponent>,
+    array_component: Option<Array>,
 }
 
-impl Component {
-    pub fn new<S: AsRef<str>>(
-        component_type: ComponentType,
-        component_format: Option<ComponentFormat>,
-        default_value: Option<S>,
-        description: Option<S>,
-        enum_values: Option<Vec<S>>,
+#[derive(Default, Serialize, Deserialize)]
+pub struct Property {
+    #[serde(rename = "type")]
+    component_type: ComponentType,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    format: Option<ComponentFormat>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default: Option<String>,
+
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    enum_values: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    example: Option<String>,
+}
+
+impl Property {
+    pub fn new(component_type: ComponentType) -> Self {
+        Self {
+            component_type,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_format(mut self, format: ComponentFormat) -> Self {
+        self.format = Some(format);
+
+        self
+    }
+
+    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
+        self.description = Some(description.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_default<S: AsRef<str>>(mut self, default: S) -> Self {
+        self.default = Some(default.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_enum_values<S: AsRef<str>>(mut self, enum_values: &[S]) -> Self {
+        self.enum_values = Some(
+            enum_values
+                .iter()
+                .map(|str| str.as_ref().to_string())
+                .collect(),
+        );
+
+        self
+    }
+
+    pub fn with_example<S: AsRef<str>>(mut self, example: S) -> Self {
+        self.example = Some(example.as_ref().to_string());
+
+        self
+    }
+}
+
+impl From<Property> for Component {
+    fn from(property: Property) -> Self {
+        Self {
+            property: Some(property),
+            ..Default::default()
+        }
+    }
+}
+
+impl ToArray for Property {}
+
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Object {
+    #[serde(rename = "type")]
+    component_type: ComponentType,
+
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    required: Vec<String>,
+
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    properties: HashMap<String, Component>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+}
+
+impl Object {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    pub fn with_property<S: AsRef<str>, I: Into<Component>>(
+        mut self,
+        property_name: S,
+        component: I,
     ) -> Self {
+        self.properties
+            .insert(property_name.as_ref().to_string(), component.into());
+
+        self
+    }
+
+    pub fn with_required<S: AsRef<str>>(mut self, required_field: S) -> Self {
+        self.required.push(required_field.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
+        self.description = Some(description.as_ref().to_string());
+
+        self
+    }
+}
+
+impl From<Object> for Component {
+    fn from(s: Object) -> Self {
         Self {
-            base_component: Some(BaseComponent {
-                component_type,
-                format: component_format,
-                default: default_value.map(|value| value.as_ref().to_string()),
-                description: description.map(|value| value.as_ref().to_string()),
-                enum_values: enum_values.map(|values| {
-                    values
-                        .into_iter()
-                        .map(|value| value.as_ref().to_string())
-                        .collect()
-                }),
-            }),
+            struct_component: Some(s),
             ..Default::default()
         }
     }
 }
 
-impl From<RefComponent> for Component {
-    fn from(ref_component: RefComponent) -> Self {
+impl ToArray for Object {}
+
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default)]
+pub struct Ref {
+    #[serde(rename = "$ref")]
+    ref_location: String,
+}
+
+impl Ref {
+    pub fn new<S: AsRef<str>>(ref_location: S) -> Self {
         Self {
-            ref_component: Some(ref_component),
+            ref_location: ref_location.as_ref().to_string(),
+        }
+    }
+
+    pub fn from_component_name<S: AsRef<str>>(component_name: S) -> Self {
+        Self::new(&format!("#/components/schemas/{}", component_name.as_ref()))
+    }
+}
+
+impl From<Ref> for Component {
+    fn from(r: Ref) -> Self {
+        Self {
+            ref_component: Some(r),
             ..Default::default()
         }
     }
 }
 
-impl From<ObjectComponent> for Component {
-    fn from(object_component: ObjectComponent) -> Self {
+impl ToArray for Ref {}
+
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Default)]
+pub struct Array {
+    #[serde(rename = "type")]
+    component_type: ComponentType,
+
+    items: Box<Component>,
+}
+
+impl Array {
+    pub fn new<I: Into<Component>>(component: I) -> Self {
         Self {
-            base_component: Some(BaseComponent::default()),
-            object_component: Some(object_component),
+            component_type: ComponentType::Array,
+            items: Box::new(component.into()),
+        }
+    }
+}
+
+impl From<Array> for Component {
+    fn from(array: Array) -> Self {
+        Self {
+            array_component: Some(array),
             ..Default::default()
         }
     }
 }
 
-impl From<ArrayComponent> for Component {
-    fn from(array_component: ArrayComponent) -> Self {
-        Self {
-            base_component: Some(BaseComponent {
-                component_type: ComponentType::Array,
-                ..Default::default()
-            }),
-            array_component: Some(array_component),
-            ..Default::default()
-        }
+trait ToArray
+where
+    Component: From<Self>,
+    Self: Sized,
+{
+    fn to_array(self) -> Array {
+        Array::new(self)
     }
 }
 
@@ -162,85 +311,6 @@ impl Serialize for ComponentFormat {
     }
 }
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct BaseComponent {
-    #[serde(rename = "type")]
-    component_type: ComponentType,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    format: Option<ComponentFormat>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    default: Option<String>,
-
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    enum_values: Option<Vec<String>>,
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct ObjectComponent {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    required: Vec<String>,
-
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    properties: HashMap<String, Component>,
-}
-
-impl ObjectComponent {
-    pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
-    pub fn with_property<S: AsRef<str>>(mut self, property_name: S, component: Component) -> Self {
-        self.properties
-            .insert(property_name.as_ref().to_string(), component);
-
-        self
-    }
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
-pub struct RefComponent {
-    #[serde(rename = "$ref")]
-    ref_location: String,
-}
-
-impl RefComponent {
-    pub fn new<S: AsRef<str>>(ref_location: S) -> Self {
-        Self {
-            ref_location: ref_location.as_ref().to_string(),
-        }
-    }
-
-    pub fn from_component_name<S: AsRef<str>>(component_name: S) -> Self {
-        Self::new(&format!("#/components/schemas/{}", component_name.as_ref()))
-    }
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
-pub struct ArrayComponent {
-    items: Box<Component>,
-}
-
-impl ArrayComponent {
-    pub fn new(component: Component) -> Self {
-        Self {
-            items: Box::new(component),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
@@ -252,51 +322,34 @@ mod tests {
     fn create_schema_serializes_json() -> Result<(), Error> {
         let openapi = OpenApi::new(Info::new("My api", "1.0.0"), Paths::new()).with_components(
             Schema::new()
-                .with_component(
-                    "Person",
-                    RefComponent::new("#/components/PersonModel").into(),
-                )
+                .with_component("Person", Ref::new("#/components/PersonModel"))
                 .with_component(
                     "Credential",
-                    ObjectComponent::new()
+                    Object::new()
                         .with_property(
                             "id",
-                            Component::new(
-                                ComponentType::Integer,
-                                Some(ComponentFormat::Int32),
-                                Some("1"),
-                                Some("Id of credential"),
-                                None,
-                            ),
+                            Property::new(ComponentType::Integer)
+                                .with_format(ComponentFormat::Int32)
+                                .with_description("Id of credential")
+                                .with_default("1"),
                         )
                         .with_property(
                             "name",
-                            Component::new(
-                                ComponentType::String,
-                                None,
-                                None,
-                                Some("Name of credential"),
-                                None,
-                            ),
+                            Property::new(ComponentType::String)
+                                .with_description("Name of credential"),
                         )
                         .with_property(
                             "status",
-                            Component::new(
-                                ComponentType::String,
-                                None,
-                                Some("Active"),
-                                Some("Credential status"),
-                                Some(vec!["Active", "NotActive", "Locked", "Expired"]),
-                            ),
+                            Property::new(ComponentType::String)
+                                .with_default("Active")
+                                .with_description("Credential status")
+                                .with_enum_values(&["Active", "NotActive", "Locked", "Expired"]),
                         )
                         .with_property(
                             "history",
-                            ArrayComponent::new(
-                                RefComponent::from_component_name("UpdateHistory").into(),
-                            )
-                            .into(),
+                            Array::new(Ref::from_component_name("UpdateHistory")),
                         )
-                        .into(),
+                        .with_property("tags", Property::new(ComponentType::String).to_array()),
                 ),
         );
 

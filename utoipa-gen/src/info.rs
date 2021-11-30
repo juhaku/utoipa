@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-pub fn impl_info() -> TokenStream2 {
+pub(crate) fn impl_info() -> TokenStream2 {
     let name = std::env::var("CARGO_PKG_NAME").unwrap_or_default();
     let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_default();
     let description = std::env::var("CARGO_PKG_DESCRIPTION").unwrap_or_default();
