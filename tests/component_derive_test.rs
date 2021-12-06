@@ -227,21 +227,31 @@ fn derive_enum_with_comments_success() {
     }
 }
 
-// Not supported at least at the moment
-// #[test]
-// fn derive_struct_tuple_type_success() {
-//     #[allow(dead_code)]
-//     #[derive(Component)]
-//     struct Point(i32);
+// FIXME not yet implemented
+#[test]
+fn derive_struct_tuple_type_success() {
+    #[allow(dead_code)]
 
-//     #[derive(OpenApi)]
-//     #[openapi(handler_files = [], components = [$name])]
-//     struct ApiDoc;
+    struct Pi {
+        value: i64,
+    }
 
-//     let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-//     let account = get_json_path(&api_doc_value, "components.schemas.AccountStatus");
+    #[derive(Component)]
+    struct Point(f64);
 
-//     assert_value! {account=>
-//         "description" = r#""This is user account status enum""#, "AccountStatus description"
-//     }
-// }
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Point])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    println!(
+        "apidoc: {}",
+        serde_json::to_string_pretty(&api_doc_value).unwrap()
+    );
+
+    let account = get_json_path(&api_doc_value, "components.schemas.accountstatus");
+
+    assert_value! {account=>
+        "description" = r#""this is user account status enum""#, "accountstatus description"
+    }
+}
