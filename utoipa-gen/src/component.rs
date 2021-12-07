@@ -4,8 +4,8 @@ use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::{
-    punctuated::Punctuated, Attribute, Fields, FieldsNamed, GenericArgument, PathArguments,
-    PathSegment, Type, TypePath, Variant,
+    punctuated::Punctuated, Attribute, Fields, FieldsNamed, FieldsUnnamed, GenericArgument,
+    PathArguments, PathSegment, Type, TypePath, Variant,
 };
 
 use crate::{
@@ -24,10 +24,17 @@ pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> Tok
 }
 
 #[cfg_attr(feature = "all-features", derive(Debug))]
-/// Holds the openapi Component implementation which can be added the Schema.
+
+enum FieldType {
+    Named,
+    Unnamed,
+}
+
+#[cfg_attr(feature = "all-features", derive(Debug))]
+/// Holds the OpenAPI Component implementation which can be added the Schema.
 enum ComponentVariant<'a> {
     /// Object variant is rust sturct with Component derive annotation.
-    Object(Vec<syn::Field>, &'a [Attribute]),
+    Object(Vec<syn::Field>, &'a [Attribute], FieldType),
     /// Enum variant is rust enum with Component derive annotation. **Only supports** enums with
     /// Unit type fields.
     Enum(Vec<syn::Variant>, &'a [Attribute]),
@@ -37,13 +44,18 @@ impl<'a> ComponentVariant<'a> {
     fn new(data: syn::Data, attributes: &'a [Attribute]) -> ComponentVariant<'a> {
         match data {
             syn::Data::Struct(content) => {
-                if let Fields::Named(named_fields) = content.fields {
-                    let FieldsNamed { named, .. } = named_fields;
-
-                    ComponentVariant::Object(named.into_iter().collect(), attributes)
-                } else {
-                    ComponentVariant::Object(vec![], attributes)
-                }
+                let (fields , field_type ) = match content.fields {
+                    Fields::Unnamed(fields) => {
+                        let FieldsUnnamed { unnamed, .. } = fields;
+                        (unnamed , FieldType::Unnamed)
+                    }
+                    Fields::Named(fields) => {
+                        let FieldsNamed { named, .. } = fields;
+                        (named, FieldType::Named)
+                    }
+                    Fields::Unit => abort_call_site!("Expected struct with either named or unnamed fields, unit type unsupported")
+                };
+                ComponentVariant::Object(fields.into_iter().collect(), attributes, field_type)
             }
             syn::Data::Enum(content) => {
                 ComponentVariant::Enum(content.variants.into_iter().collect(), attributes)
@@ -58,7 +70,9 @@ impl<'a> ComponentVariant<'a> {
 impl<'a> ToTokens for ComponentVariant<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
-            Self::Object(fields, attrs) => self.struct_to_tokens(fields, *attrs, tokens),
+            Self::Object(fields, attrs, field_type) => {
+                self.struct_to_tokens(fields, *attrs, tokens, field_type)
+            }
             Self::Enum(variants, attrs) => self.enum_to_tokens(variants, *attrs, tokens),
         };
     }
@@ -70,11 +84,22 @@ impl<'a> ComponentVariant<'a> {
         fields: &[syn::Field],
         attributes: &[Attribute],
         tokens: &mut TokenStream2,
+        field_type: &FieldType,
     ) {
+        match field_type {
+            FieldType::Named => self.named_fields_struct_to_tokens(fields, tokens),
+            FieldType::Unnamed => self.unnamed_fields_struct_to_tokens(fields, tokens),
+        }
+
+        self.append_description(attributes, tokens);
+    }
+
+    fn named_fields_struct_to_tokens(&self, fields: &[syn::Field], tokens: &mut TokenStream2) {
         tokens.extend(quote! { utoipa::openapi::Object::new() });
 
         fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
+
             let component_part = &ComponentPart::from_type(&field.ty);
             let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
                 .collect::<Component>();
@@ -95,12 +120,56 @@ impl<'a> ComponentVariant<'a> {
                 })
             }
         });
-
-        self.append_description(attributes, tokens);
     }
 
-    fn is_not_enum_unit_variant(variant: &&Variant) -> bool {
-        !matches!(variant.fields, Fields::Unit)
+    fn unnamed_fields_struct_to_tokens(&self, fields: &[syn::Field], tokens: &mut TokenStream2) {
+        let fields_len = fields.len();
+        let first_field = fields.first().unwrap();
+        let first_part = &ComponentPart::from_type(&first_field.ty);
+        let first_component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(first_part)
+            .collect::<Component>();
+
+        let all_fields_are_same = fields.iter().skip(1).all(|field| {
+            let component_part = &ComponentPart::from_type(&field.ty);
+            let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
+                .collect::<Component>();
+
+            first_component == component
+        });
+
+        // If Struct is single value struct such as Point(i64) create a Property component based on type
+        if fields_len == 1 {
+            let component =
+                create_property_stream(&first_component, CommentAttributes::empty(), None);
+
+            tokens.extend(quote! { #component });
+        } else {
+            let component = if all_fields_are_same {
+                // When all fields are same we can represent the struct as typed array
+                create_property_stream(&first_component, CommentAttributes::empty(), None)
+            } else {
+                // Struct that has multiple unnamed fields is serialized to array by default with serde.
+                // See: https://serde.rs/json.html
+                // Typically OpenAPI does not support multi type arrays thus we simply consider the case
+                // as generic object array
+                quote! {
+                    utoipa::openapi::Object::new()
+                }
+            };
+
+            tokens.extend(quote! {
+                utoipa::openapi::Array::new(
+                    #component
+                )
+            });
+        }
+    }
+
+    fn warn_unsupported_enum_variants(&self, variants: &[Variant]) {
+        variants
+            .iter()
+            .filter(|variant| !matches!(variant.fields, Fields::Unit))
+            .for_each(|variant| emit_error!(variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields"));
     }
 
     fn enum_to_tokens(
@@ -109,10 +178,7 @@ impl<'a> ComponentVariant<'a> {
         attributes: &[Attribute],
         tokens: &mut TokenStream2,
     ) {
-        variants
-            .iter()
-            .filter(ComponentVariant::is_not_enum_unit_variant)
-            .for_each(|variant| emit_error!(variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields"));
+        self.warn_unsupported_enum_variants(variants);
 
         let enum_values = &variants
             .iter()
@@ -435,7 +501,7 @@ impl<'a> Iterator for ComponentPartRef<'a, ComponentPart<'a>> {
 }
 
 #[cfg_attr(feature = "all-features", derive(Debug))]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum ValueType {
     Primitive,
     Object,
@@ -450,10 +516,11 @@ enum GenericType {
 }
 
 #[cfg_attr(feature = "all-features", derive(Debug))]
+#[derive(PartialEq)]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
 #[cfg_attr(feature = "all-features", derive(Debug))]
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 struct Component<'a> {
     option: bool,
     generic_type: Option<TypeTuple<'a, GenericType>>,

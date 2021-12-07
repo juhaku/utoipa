@@ -227,21 +227,144 @@ fn derive_enum_with_comments_success() {
     }
 }
 
-// Not supported at least at the moment
-// #[test]
-// fn derive_struct_tuple_type_success() {
-//     #[allow(dead_code)]
-//     #[derive(Component)]
-//     struct Point(i32);
+#[test]
+fn derive_struct_unnamed_field_single_value_type_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Point(f64);
 
-//     #[derive(OpenApi)]
-//     #[openapi(handler_files = [], components = [$name])]
-//     struct ApiDoc;
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Point])]
+    struct ApiDoc;
 
-//     let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-//     let account = get_json_path(&api_doc_value, "components.schemas.AccountStatus");
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let point = get_json_path(&api_doc_value, "components.schemas.Point");
 
-//     assert_value! {account=>
-//         "description" = r#""This is user account status enum""#, "AccountStatus description"
-//     }
-// }
+    assert_value! {point=>
+        "type" = r#""number""#, "Point type"
+        "format" = r#""float""#, "Point format"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Point(f64, f64);
+
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Point])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let point = get_json_path(&api_doc_value, "components.schemas.Point");
+
+    assert_value! {point=>
+        "type" = r#""array""#, "Point type"
+        "items.type" = r#""number""#, "Point items type"
+        "items.format" = r#""float""#, "Point items format"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_fields_tuple_with_different_types_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Point(f64, String);
+
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Point])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let point = get_json_path(&api_doc_value, "components.schemas.Point");
+
+    assert_value! {point=>
+        "type" = r#""array""#, "Point type"
+        "items.type" = r#""object""#, "Point items type"
+        "items.format" = r#"null"#, "Point items format"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_field_with_generic_types_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Wrapper(Option<String>);
+
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Wrapper])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+
+    assert_value! {point=>
+        "type" = r#""string""#, "Wrapper type"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_field_with_nested_generic_type_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Wrapper(Option<Vec<i32>>);
+
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Wrapper])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+
+    assert_value! {point=>
+        "type" = r#""array""#, "Wrapper type"
+        "items.type" = r#""integer""#, "Wrapper items type"
+        "items.format" = r#""int32""#, "Wrapper items format"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Wrapper(Option<Vec<i32>>, String);
+
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Wrapper])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+
+    assert_value! {point=>
+        "type" = r#""array""#, "Wrapper type"
+        "items.type" = r#""object""#, "Wrapper items type"
+        "items.format" = r#"null"#, "Wrapper items format"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_field_vec_type_success() {
+    #[allow(dead_code)]
+    #[derive(Component)]
+    struct Wrapper(Vec<i32>);
+
+    #[derive(OpenApi)]
+    #[openapi(handler_files = [], components = [Wrapper])]
+    struct ApiDoc;
+
+    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    println!(
+        "apidoc: {}",
+        serde_json::to_string_pretty(&api_doc_value).unwrap()
+    );
+
+    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+
+    assert_value! {point=>
+        "type" = r#""array""#, "Wrapper type"
+        "items.type" = r#""integer""#, "Wrapper items type"
+        "items.format" = r#""int32""#, "Wrapper items format"
+    }
+}
