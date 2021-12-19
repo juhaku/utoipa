@@ -1,4 +1,3 @@
-#![allow(redundant_semicolons)]
 use std::collections::HashMap;
 
 use serde_json::Value;
@@ -13,8 +12,21 @@ macro_rules! api_doc {
         #[allow(dead_code)]
         #[derive(Component)]
         $(#[$attr])*
+        $key $name $body
+
+        api_doc!(@doc $name)
+    }};
+
+    ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt; ) => {{
+        #[allow(dead_code)]
+        #[derive(Component)]
+        $(#[$attr])*
         $key $name $body;
 
+        api_doc!(@doc $name)
+    }};
+
+    ( @doc $name:ident ) => {{
         #[derive(OpenApi)]
         #[openapi(handler_files = [], components = [$name])]
         struct ApiDoc;
@@ -226,7 +238,7 @@ fn derive_enum_with_comments_success() {
 #[test]
 fn derive_struct_unnamed_field_single_value_type_success() {
     let point = api_doc! {
-        struct Point(f64)
+        struct Point(f64);
     };
 
     assert_value! {point=>
@@ -238,7 +250,7 @@ fn derive_struct_unnamed_field_single_value_type_success() {
 #[test]
 fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
     let point = api_doc! {
-        struct Point(f64, f64)
+        struct Point(f64, f64);
     };
 
     assert_value! {point=>
@@ -251,7 +263,7 @@ fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
 #[test]
 fn derive_struct_unnamed_fields_tuple_with_different_types_success() {
     let point = api_doc! {
-        struct Point(f64, String)
+        struct Point(f64, String);
     };
 
     assert_value! {point=>
@@ -264,7 +276,7 @@ fn derive_struct_unnamed_fields_tuple_with_different_types_success() {
 #[test]
 fn derive_struct_unnamed_field_with_generic_types_success() {
     let point = api_doc! {
-        struct Wrapper(Option<String>)
+        struct Wrapper(Option<String>);
     };
 
     assert_value! {point=>
@@ -275,7 +287,7 @@ fn derive_struct_unnamed_field_with_generic_types_success() {
 #[test]
 fn derive_struct_unnamed_field_with_nested_generic_type_success() {
     let point = api_doc! {
-        struct Wrapper(Option<Vec<i32>>)
+        struct Wrapper(Option<Vec<i32>>);
     };
 
     assert_value! {point=>
@@ -288,7 +300,7 @@ fn derive_struct_unnamed_field_with_nested_generic_type_success() {
 #[test]
 fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
     let point = api_doc! {
-        struct Wrapper(Option<Vec<i32>>, String)
+        struct Wrapper(Option<Vec<i32>>, String);
     };
 
     assert_value! {point=>
@@ -301,7 +313,7 @@ fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
 #[test]
 fn derive_struct_unnamed_field_vec_type_success() {
     let point = api_doc! {
-        struct Wrapper(Vec<i32>)
+        struct Wrapper(Vec<i32>);
     };
 
     assert_value! {point=>
