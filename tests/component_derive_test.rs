@@ -1,3 +1,4 @@
+#![allow(redundant_semicolons)]
 use std::collections::HashMap;
 
 use serde_json::Value;
@@ -12,13 +13,17 @@ macro_rules! api_doc {
         #[allow(dead_code)]
         #[derive(Component)]
         $(#[$attr])*
-        $key $name $body
+        #[allow(redundant_semicolons)]
+        $key $name $body;
 
         #[derive(OpenApi)]
         #[openapi(handler_files = [], components = [$name])]
         struct ApiDoc;
 
-        serde_json::to_value(ApiDoc::openapi()).unwrap()
+        let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
+        let component = get_json_path(&json, &format!("components.schemas.{}", stringify!($name)));
+
+        component.clone()
     }};
 }
 
@@ -42,13 +47,12 @@ macro_rules! assert_value {
 
 #[test]
 fn derive_enum_with_additional_properties_success() {
-    let api_doc_value = api_doc! {
+    let mode = api_doc! {
         #[component(default = "Mode1", example = "Mode2")]
         enum Mode {
             Mode1, Mode2
         }
     };
-    let mode = get_json_path(&api_doc_value, "components.schemas.Mode");
 
     assert_value! {mode=>
         "default" = r#""Mode1""#, "Mode default"
@@ -60,13 +64,12 @@ fn derive_enum_with_additional_properties_success() {
 
 #[test]
 fn derive_enum_with_defaults_success() {
-    let api_doc_value = api_doc! {
+    let mode = api_doc! {
         enum Mode {
             Mode1,
             Mode2
         }
     };
-    let mode = get_json_path(&api_doc_value, "components.schemas.Mode");
 
     assert_value! {mode=>
         "enum" = r#"["Mode1","Mode2"]"#, "Mode enum variants"
@@ -80,14 +83,13 @@ fn derive_enum_with_defaults_success() {
 
 #[test]
 fn derive_enum_with_with_custom_default_fn_success() {
-    let api_doc_value = api_doc! {
+    let mode = api_doc! {
         #[component(default = "crate::mode_custom_default_fn")]
         enum Mode {
             Mode1,
             Mode2
         }
     };
-    let mode = get_json_path(&api_doc_value, "components.schemas.Mode");
 
     assert_value! {mode=>
         "default" = r#""Mode2""#, "Mode default"
@@ -105,13 +107,12 @@ fn mode_custom_default_fn() -> String {
 
 #[test]
 fn derive_struct_with_defaults_success() {
-    let api_doc_value = api_doc! {
+    let book = api_doc! {
         struct Book {
             name: String,
             hash: String,
         }
     };
-    let book = get_json_path(&api_doc_value, "components.schemas.Book");
 
     assert_value! {book=>
         "type" = r#""object""#, "Book type"
@@ -123,7 +124,7 @@ fn derive_struct_with_defaults_success() {
 
 #[test]
 fn derive_struct_with_custom_properties_success() {
-    let api_doc_value = api_doc! {
+    let book = api_doc! {
         struct Book {
             name: String,
             #[component(
@@ -134,7 +135,6 @@ fn derive_struct_with_custom_properties_success() {
             hash: String,
         }
     };
-    let book = get_json_path(&api_doc_value, "components.schemas.Book");
 
     assert_value! {book=>
         "type" = r#""object""#, "Book type"
@@ -150,7 +150,7 @@ fn derive_struct_with_custom_properties_success() {
 #[test]
 fn derive_struct_with_optional_properties_success() {
     struct Book;
-    let api_doc_value = api_doc! {
+    let owner = api_doc! {
         struct Owner {
             #[component(default = 1)]
             id: u64,
@@ -159,7 +159,6 @@ fn derive_struct_with_optional_properties_success() {
             metadata: Option<HashMap<String, String>>
         }
     };
-    let owner = get_json_path(&api_doc_value, "components.schemas.Owner");
 
     assert_value! {owner=>
         "type" = r#""object""#, "Owner type"
@@ -178,7 +177,7 @@ fn derive_struct_with_optional_properties_success() {
 
 #[test]
 fn derive_struct_with_comments_success() {
-    let api_doc_value = api_doc! {
+    let account = api_doc! {
         /// This is user account dto object
         ///
         /// Detailed documentation here
@@ -191,7 +190,6 @@ fn derive_struct_with_comments_success() {
             role_ids: Vec<i32>
         }
     };
-    let account = get_json_path(&api_doc_value, "components.schemas.Account");
 
     assert_value! {account=>
         "description" = r#""This is user account dto object""#, "Account description"
@@ -206,7 +204,7 @@ fn derive_struct_with_comments_success() {
 
 #[test]
 fn derive_enum_with_comments_success() {
-    let api_doc_value = api_doc! {
+    let account = api_doc! {
         /// This is user account status enum
         ///
         /// Detailed documentation here
@@ -220,7 +218,6 @@ fn derive_enum_with_comments_success() {
             Disabled
         }
     };
-    let account = get_json_path(&api_doc_value, "components.schemas.AccountStatus");
 
     assert_value! {account=>
         "description" = r#""This is user account status enum""#, "AccountStatus description"
@@ -229,16 +226,9 @@ fn derive_enum_with_comments_success() {
 
 #[test]
 fn derive_struct_unnamed_field_single_value_type_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Point(f64);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Point])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let point = get_json_path(&api_doc_value, "components.schemas.Point");
+    let point = api_doc! {
+        struct Point(f64)
+    };
 
     assert_value! {point=>
         "type" = r#""number""#, "Point type"
@@ -248,16 +238,9 @@ fn derive_struct_unnamed_field_single_value_type_success() {
 
 #[test]
 fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Point(f64, f64);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Point])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let point = get_json_path(&api_doc_value, "components.schemas.Point");
+    let point = api_doc! {
+        struct Point(f64, f64)
+    };
 
     assert_value! {point=>
         "type" = r#""array""#, "Point type"
@@ -268,16 +251,9 @@ fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
 
 #[test]
 fn derive_struct_unnamed_fields_tuple_with_different_types_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Point(f64, String);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Point])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let point = get_json_path(&api_doc_value, "components.schemas.Point");
+    let point = api_doc! {
+        struct Point(f64, String)
+    };
 
     assert_value! {point=>
         "type" = r#""array""#, "Point type"
@@ -288,16 +264,9 @@ fn derive_struct_unnamed_fields_tuple_with_different_types_success() {
 
 #[test]
 fn derive_struct_unnamed_field_with_generic_types_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Wrapper(Option<String>);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Wrapper])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+    let point = api_doc! {
+        struct Wrapper(Option<String>)
+    };
 
     assert_value! {point=>
         "type" = r#""string""#, "Wrapper type"
@@ -306,16 +275,9 @@ fn derive_struct_unnamed_field_with_generic_types_success() {
 
 #[test]
 fn derive_struct_unnamed_field_with_nested_generic_type_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Wrapper(Option<Vec<i32>>);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Wrapper])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+    let point = api_doc! {
+        struct Wrapper(Option<Vec<i32>>)
+    };
 
     assert_value! {point=>
         "type" = r#""array""#, "Wrapper type"
@@ -326,16 +288,9 @@ fn derive_struct_unnamed_field_with_nested_generic_type_success() {
 
 #[test]
 fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Wrapper(Option<Vec<i32>>, String);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Wrapper])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+    let point = api_doc! {
+        struct Wrapper(Option<Vec<i32>>, String)
+    };
 
     assert_value! {point=>
         "type" = r#""array""#, "Wrapper type"
@@ -346,21 +301,9 @@ fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
 
 #[test]
 fn derive_struct_unnamed_field_vec_type_success() {
-    #[allow(dead_code)]
-    #[derive(Component)]
-    struct Wrapper(Vec<i32>);
-
-    #[derive(OpenApi)]
-    #[openapi(handler_files = [], components = [Wrapper])]
-    struct ApiDoc;
-
-    let api_doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    println!(
-        "apidoc: {}",
-        serde_json::to_string_pretty(&api_doc_value).unwrap()
-    );
-
-    let point = get_json_path(&api_doc_value, "components.schemas.Wrapper");
+    let point = api_doc! {
+        struct Wrapper(Vec<i32>)
+    };
 
     assert_value! {point=>
         "type" = r#""array""#, "Wrapper type"

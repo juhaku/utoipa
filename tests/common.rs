@@ -6,6 +6,6 @@ pub fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
     })
 }
 
-pub fn value_as_string<'a>(value: Option<&'a Value>) -> String {
+pub fn value_as_string(value: Option<&'_ Value>) -> String {
     value.unwrap_or(&Value::Null).to_string()
 }
