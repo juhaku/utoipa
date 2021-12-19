@@ -13,7 +13,6 @@ macro_rules! api_doc {
         #[allow(dead_code)]
         #[derive(Component)]
         $(#[$attr])*
-        #[allow(redundant_semicolons)]
         $key $name $body;
 
         #[derive(OpenApi)]
