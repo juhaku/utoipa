@@ -11,7 +11,7 @@ use syn::{
 const API_OPERATION_IDENT: &str = "api_operation";
 
 #[derive(Debug, Default, Clone)]
-struct ApiOperation {
+struct Path {
     comments: Vec<String>,
     operation: Operation,
     responses: Vec<ApiOperationResponse>,
@@ -19,7 +19,7 @@ struct ApiOperation {
     // TODO missing request path, request body, request params, response body
 }
 
-impl ApiOperation {
+impl Path {
     fn with_comment<S: Into<String>>(mut self, comment: S) -> Self {
         self.comments.push(comment.into());
 
@@ -240,7 +240,7 @@ fn process_function(function: &ItemFn) {
     // TODO this should return the resolved path token stream
 
     let fn_name = function.sig.ident.to_string();
-    // println!("fn: {:#?}", function);
+    println!("fn: {:#?}", function);
 
     // println!("{:?}", function.sig.ident);
 
@@ -249,7 +249,7 @@ fn process_function(function: &ItemFn) {
     function
         .attrs
         .iter()
-        .fold(ApiOperation::default(), |api_operation, attribute| {
+        .fold(Path::default(), |api_operation, attribute| {
             let attribute_ident = &attribute
                 .path
                 .segments

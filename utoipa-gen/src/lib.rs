@@ -6,17 +6,24 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
 use proc_macro2::Ident;
-use syn::{bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, LitStr, Token};
+use syn::{
+    bracketed,
+    parse::{Parse, ParseBuffer},
+    punctuated::Punctuated,
+    token::Token,
+    Attribute, DeriveInput, LitStr, Token,
+};
 
 mod attribute;
 mod component;
 mod component_type;
 mod info;
+mod path2;
 mod paths;
 
 use proc_macro_error::*;
 
-use crate::component::impl_component;
+use crate::{component::impl_component, path2::PathAttr};
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
@@ -41,7 +48,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn api_operation(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
+    println!("Attr: {:#?}", &attr);
+    // let input = syn::parse_macro_input!(attr as PathAttr);
+
     item
 }
 
