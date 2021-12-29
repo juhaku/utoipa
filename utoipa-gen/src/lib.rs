@@ -56,6 +56,18 @@ pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
+#[proc_macro_attribute]
+pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
+    println!("attr: {:#?}", attr);
+
+    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+
+    println!("parsed path attribute: {:#?}", path_attribute);
+
+    item
+}
+
+#[proc_macro_error]
 #[proc_macro_derive(OpenApi, attributes(openapi))]
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput {

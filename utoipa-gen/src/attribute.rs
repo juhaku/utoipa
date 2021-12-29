@@ -59,7 +59,7 @@ impl CommentAttributes {
     }
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 /// AttributeType is parsed representation of `#[component(...)]` attribute values of Component derive.
 pub(crate) enum AttributeType {
     Default(String, Span),
@@ -106,7 +106,7 @@ impl ToTokens for AttributeType {
     }
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 /// Wrapper struct for containing parsed [`enum@AttributeType`]s. It implements custom parser
 /// to parse `#[component(...)]` attribute content of Component derive macro.
 pub(crate) struct ComponentAttribute(pub(crate) Vec<AttributeType>);

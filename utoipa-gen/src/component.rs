@@ -23,14 +23,14 @@ pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> Tok
     }
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 
 enum FieldType {
     Named,
     Unnamed,
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 /// Holds the OpenAPI Component implementation which can be added the Schema.
 enum ComponentVariant<'a> {
     /// Object variant is rust sturct with Component derive annotation.
@@ -366,7 +366,7 @@ fn create_complex_property(
     }
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
 struct ComponentPart<'a> {
     ident: &'a Ident,
@@ -500,14 +500,14 @@ impl<'a> Iterator for ComponentPartRef<'a, ComponentPart<'a>> {
     }
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
 enum ValueType {
     Primitive,
     Object,
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Clone, Copy)]
 enum GenericType {
     Vec,
@@ -515,11 +515,11 @@ enum GenericType {
     Option,
 }
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq)]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
-#[cfg_attr(feature = "all-features", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Default, PartialEq)]
 struct Component<'a> {
     option: bool,
