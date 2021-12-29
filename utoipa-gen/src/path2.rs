@@ -1,7 +1,8 @@
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Group, Ident};
-use proc_macro_error::ResultExt;
+use proc_macro_error::{abort_call_site, ResultExt};
+use quote::{quote, ToTokens};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -102,8 +103,26 @@ impl Parse for PathAttr {
 }
 
 /// Path operation type of response
+///
+/// Instance of path operation can be formed from str parsing with following supported values:
+///   * "get"
+///   * "post"
+///   * "put"
+///   * "delete"
+///   * "options"
+///   * "head"
+///   * "patch"
+///   * "trace"
+///
+/// # Examples
+///
+/// Basic usage:
+/// ```
+/// let operation = "get".parse::<PathOperation>().unwrap();
+/// assert_eq!(operation, PathOperation::Get)
+/// ```
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum PathOperation {
+pub enum PathOperation {
     Get,
     Post,
     Put,
@@ -112,6 +131,18 @@ enum PathOperation {
     Head,
     Patch,
     Trace,
+}
+
+impl PathOperation {
+    /// Create path operation from ident
+    ///
+    /// Ident must have value of http request type as lower case string such as `get`.
+    pub fn from_ident(ident: &Ident) -> Self {
+        match ident.to_string().as_str().parse::<PathOperation>() {
+            Ok(operation) => operation,
+            Err(error) => abort_call_site!("{}", error),
+        }
+    }
 }
 
 impl FromStr for PathOperation {
@@ -132,6 +163,23 @@ impl FromStr for PathOperation {
                 "invalid PathOperation expected one of: [get, post, put, delete, options, head, patch, trace]",
             )),
         }
+    }
+}
+
+impl ToTokens for PathOperation {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let path_item_type = match self {
+            Self::Get => quote! { utoipa::openapi::PathItemType::Get },
+            Self::Post => quote! { utoipa::openapi::PathItemType::Post },
+            Self::Put => quote! { utoipa::openapi::PathItemType::Put },
+            Self::Delete => quote! { utoipa::openapi::PathItemType::Delete },
+            Self::Options => quote! { utoipa::openapi::PathItemType::Options },
+            Self::Head => quote! { utoipa::openapi::PathItemType::Head },
+            Self::Patch => quote! { utoipa::openapi::PathItemType::Patch },
+            Self::Trace => quote! { utoipa::openapi::PathItemType::Trace },
+        };
+
+        tokens.extend(path_item_type);
     }
 }
 

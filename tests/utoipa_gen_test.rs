@@ -20,7 +20,7 @@ async fn foo_delete() -> impl Responder {
 #[test]
 fn derive_openapi() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = ["tests/utoipa_gen_test.rs"])]
+    #[openapi(handler_files = [], handlers = [crate::foo_delete])]
     struct ApiDoc;
 
     println!("{:?}", ApiDoc::openapi().to_json())

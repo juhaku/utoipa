@@ -159,17 +159,6 @@ impl Default for Required {
     }
 }
 
-#[macro_export]
-macro_rules! option {
-    ( $val:expr ) => {
-        if $val.to_string().is_empty() {
-            None
-        } else {
-            Some($val)
-        }
-    };
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -242,10 +231,5 @@ mod tests {
             serialized, expected
         );
         Ok(())
-    }
-
-    #[test]
-    fn option() {
-        assert_eq!(None, option!(""))
     }
 }

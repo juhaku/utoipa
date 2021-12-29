@@ -23,7 +23,12 @@ mod paths;
 
 use proc_macro_error::*;
 
-use crate::{component::impl_component, path2::PathAttr};
+use crate::{
+    component::impl_component,
+    path2::{PathAttr, PathOperation},
+};
+
+const PATH_STRUCT_PREFIX: &str = "__path_";
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
@@ -64,7 +69,77 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     println!("parsed path attribute: {:#?}", path_attribute);
 
-    item
+    let syn::ItemFn {
+        attrs,
+        block,
+        sig,
+        vis,
+    } = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
+
+    println!("item attrs: {:#?}", &attrs);
+    println!("item block: {:#?}", &block);
+    println!("item sig: {:#?}", &sig);
+    println!("item vis: {:#?}", &vis);
+    println!("item: {:#?}", &attrs);
+
+    let fn_name = &*sig.ident.to_string();
+
+    attrs
+        .into_iter()
+        .find_map(|attribute| {
+            if is_valid_request_type(
+                &attribute
+                    .path
+                    .get_ident()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+            ) {
+                Some(attribute)
+            } else {
+                None
+            }
+        })
+        .map(|attribute| {
+            let ident = attribute.path.get_ident().unwrap();
+            // TODO resolve path from attribute
+            PathOperation::from_ident(ident)
+        });
+
+    // TODO tags should be path to the function without the function itself,
+    // only the beginning part which is same for multiple items should be considered
+    // a tag for example>>> crate::todos::delete_todo the
+    // tag should be: crate::todos
+    let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, fn_name);
+    quote! {
+        #[allow(non_camel_case_types)]
+        pub struct #path_struct;
+
+        impl #path_struct {
+            fn path() -> (String, utoipa::openapi::path::PathItem) {
+
+                let path_str = "".to_string(); // TODO resolve this
+                let path_item = utoipa::openapi::PathItem::new(
+                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::Operation::new()
+                        .with_response(
+                            "200", // TODO resolve this status
+                            utoipa::openapi::response::Response::new("this is response message")
+                        )
+                        // .with_operation_id()
+                        // .with_parameters()
+                        // .with_request_body()
+                        // .with_description()
+                        // .with_summary()
+                        // .with_tags() // TODO override tags here from PathAttr
+                        // .with_deprecated()
+                        // .with_security()
+                );
+
+                (path_str, path_item)
+            }
+        }
+    }
+    .into()
 }
 
 #[proc_macro_error]
@@ -106,6 +181,13 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     let mut schema = quote! {
         utoipa::openapi::Schema::new()
     };
+
+    let handlers = openapi_args
+        .iter()
+        .filter(|arg| matches!(arg, OpenApiArgs::Handlers(_)))
+        .collect::<Vec<_>>();
+
+    println!("handlers: {:#?}", handlers);
 
     for component in components {
         let component_name = &*component.to_string();
@@ -157,9 +239,11 @@ fn parse_openapi_attributes(attributes: &[Attribute]) -> Option<Vec<OpenApiArgs>
         })
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum OpenApiArgs {
     HandlerFiles(Vec<String>),
     Components(Vec<Ident>),
+    Handlers(Vec<syn::ExprPath>),
 }
 
 impl Parse for OpenApiArgs {
@@ -203,10 +287,35 @@ impl Parse for OpenApiArgs {
                     Err(syn::Error::new(input.span(), "Expected components = [...]"))
                 }
             }
+            "handlers" => {
+                if input.peek(Token![=]) {
+                    input.parse::<Token![=]>()?;
+                }
+
+                if input.peek(syn::token::Bracket) {
+                    let content;
+                    bracketed!(content in input);
+                    let tokens =
+                        Punctuated::<syn::ExprPath, Token![,]>::parse_terminated(&content)?;
+
+                    Ok(Self::Handlers(tokens.into_iter().collect::<Vec<_>>()))
+                } else {
+                    Err(syn::Error::new(input.span(), "Expected handlers = [...]"))
+                }
+            }
             _ => Err(syn::Error::new(
                 input.span(),
                 "unexpected token expected either handler_files or components",
             )),
         }
+    }
+}
+
+fn is_valid_request_type(s: &str) -> bool {
+    match s {
+        "get" | "post" | "put" | "delete" | "head" | "connect" | "options" | "trace" | "patch" => {
+            true
+        }
+        _ => false,
     }
 }
