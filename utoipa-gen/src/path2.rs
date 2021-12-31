@@ -2,7 +2,7 @@ use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Group, Ident};
 use proc_macro_error::{abort_call_site, ResultExt};
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -11,9 +11,12 @@ use syn::{
     LitInt, LitStr, Token,
 };
 
+const PATH_STRUCT_PREFIX: &str = "__path_";
+
 // #[api_operation(delete,
 //    operation_id = "custom_operation_id",
 //    path = "custom_path",
+//    tag = "groupping_tag"
 //    responses = [
 //     (200, "success", String),
 //     (400, "my bad error", u64),
@@ -31,6 +34,7 @@ pub struct PathAttr {
     responses: Vec<PathResponse>,
     path: Option<String>,
     operation_id: Option<String>,
+    tag: Option<String>,
 }
 
 /// Parse implementation for PathAttr will parse arguments
@@ -79,6 +83,9 @@ impl Parse for PathAttr {
                         .iter()
                         .map(|group| parse2::<PathResponse>(group.stream()).unwrap_or_abort())
                         .collect::<Vec<_>>();
+                }
+                "tag" => {
+                    path_attr.tag = Some(parse_lit_str(&input, "expected literal string for tag"));
                 }
                 _ => {
                     // any other case it is expected to be path operation
@@ -226,5 +233,108 @@ impl Parse for PathResponse {
         }
 
         Ok(response)
+    }
+}
+
+pub struct Path {
+    path_attr: PathAttr,
+    fn_name: String,
+    path_operation: Option<PathOperation>,
+    path: Option<String>,
+}
+
+impl Path {
+    pub fn new(path_attr: PathAttr, fn_name: &str) -> Self {
+        Self {
+            path_attr,
+            fn_name: fn_name.to_string(),
+            path_operation: None,
+            path: None,
+        }
+    }
+
+    pub fn with_path_operation(mut self, path_operation: Option<PathOperation>) -> Self {
+        self.path_operation = path_operation;
+
+        self
+    }
+
+    pub fn with_path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
+        self.path = path_provider();
+
+        self
+    }
+}
+
+impl ToTokens for Path {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
+        let operation_id = self
+            .path_attr
+            .operation_id
+            .as_ref()
+            .or(Some(&self.fn_name))
+            .unwrap();
+        let tag = self
+            .path_attr
+            .tag
+            .as_ref()
+            .map(ToOwned::to_owned)
+            .unwrap_or_default();
+        let path_operation = self
+            .path_attr
+            .path_operation
+            .as_ref()
+            .or_else(|| self.path_operation.as_ref())
+            .unwrap();
+        let path = self
+            .path_attr
+            .path
+            .as_ref()
+            .or_else(|| self.path.as_ref())
+            .unwrap();
+
+        tokens.extend(quote! {
+            #[allow(non_camel_case_types)]
+            pub struct #path_struct;
+
+            impl utoipa::Tag for #path_struct {
+                fn tag() -> &'static str {
+                    #tag
+                }
+            }
+
+            impl utoipa::Path for  #path_struct {
+                fn path() -> &'static str {
+                    #path
+                }
+
+                fn path_item() -> utoipa::openapi::path::PathItem {
+                    utoipa::openapi::PathItem::new(
+                        #path_operation,
+                        utoipa::openapi::path::Operation::new()
+                            .with_response(
+                                "200", // TODO resolve this status
+                                utoipa::openapi::response::Response::new("this is response message")
+                            )
+                            .with_tag(
+                                vec![<#path_struct as utoipa::Tag>::tag(),
+                                    <#path_struct as utoipa::DefaultTag>::tag()
+                                ]
+                                .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")
+                            )
+                            .with_operation_id(
+                                #operation_id
+                            )
+                            // .with_parameters()
+                            // .with_request_body()
+                            // .with_description()
+                            // .with_summary()
+                            // .with_deprecated()
+                            // .with_security()
+                    )
+                }
+            }
+        })
     }
 }

@@ -200,7 +200,13 @@ impl Operation {
     }
 
     pub fn with_tag<S: AsRef<str>>(mut self, tag: S) -> Self {
-        self.tags.as_mut().unwrap().push(tag.as_ref().to_string());
+        let tag_string = tag.as_ref().to_string();
+        match self.tags {
+            Some(ref mut tags) => tags.push(tag_string),
+            None => {
+                self.tags = Some(vec![tag_string]);
+            }
+        }
 
         self
     }
