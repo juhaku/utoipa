@@ -1,7 +1,7 @@
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Group, Ident};
-use proc_macro_error::{abort_call_site, ResultExt};
+use proc_macro_error::{abort_call_site, OptionExt, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     bracketed,
@@ -274,7 +274,7 @@ impl ToTokens for Path {
             .operation_id
             .as_ref()
             .or(Some(&self.fn_name))
-            .unwrap();
+            .expect_or_abort("expected to find operation id but was None");
         let tag = self
             .path_attr
             .tag
@@ -286,13 +286,13 @@ impl ToTokens for Path {
             .path_operation
             .as_ref()
             .or_else(|| self.path_operation.as_ref())
-            .unwrap();
+            .expect_or_abort("expected to find path operation but was None");
         let path = self
             .path_attr
             .path
             .as_ref()
             .or_else(|| self.path.as_ref())
-            .unwrap();
+            .expect_or_abort("expected to find path but was None");
 
         tokens.extend(quote! {
             #[allow(non_camel_case_types)]

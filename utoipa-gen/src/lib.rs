@@ -8,8 +8,8 @@ use quote::{format_ident, quote, quote_spanned};
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use syn::{
-    bracketed, parenthesized, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput,
-    ExprPath, LitStr, Token,
+    bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, ExprPath, LitStr,
+    Token, UsePath,
 };
 
 mod attribute;
@@ -63,23 +63,18 @@ pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
-    println!("parsed path attribute: {:#?}", &path_attribute);
+    // println!("parsed path attribute: {:#?}", &path_attribute);
 
-    let syn::ItemFn {
-        attrs,
-        block,
-        sig,
-        vis,
-    } = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
+    let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
 
-    println!("item attrs: {:#?}", &attrs);
-    println!("item block: {:#?}", &block);
-    println!("item sig: {:#?}", &sig);
-    println!("item vis: {:#?}", &vis);
+    // println!("item attrs: {:#?}", &attrs);
+    // println!("item block: {:#?}", &block);
+    // println!("item sig: {:#?}", &sig);
+    // println!("item vis: {:#?}", &vis);
 
-    let fn_name = &*sig.ident.to_string();
+    let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let attribute = &attrs.into_iter().find_map(|attribute| {
+    let attribute = &ast_fn.attrs.iter().find_map(|attribute| {
         if is_valid_request_type(
             &attribute
                 .path
@@ -117,6 +112,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     quote! {
         #path
+        #ast_fn
     }
     .into()
 }
@@ -310,35 +306,49 @@ fn impl_paths<I: IntoIterator<Item = ExprPath>>(
     quote: &mut TokenStream2,
 ) -> TokenStream2 {
     quote.extend(quote! {
-        use utoipa::Path;
+        use utoipa::Path as OpenApiPath;
     });
     handler_paths.into_iter().fold(
         quote! { utoipa::openapi::path::Paths::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
-            let path_item_part = &*segments.last().unwrap().ident.to_string();
-
+            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
             let tag = segments
                 .iter()
                 .take(segments.len() - 1)
                 .map(|part| part.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::");
-            let assert_path_ident =
-                format_ident!("__assert_{}{}", PATH_STRUCT_PREFIX, path_item_part);
-            let path_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, path_item_part);
+            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+
+            let usage_parts = vec![
+                if !tag.starts_with("crate::") {
+                    None
+                } else {
+                    Some("create")
+                },
+                Some(&tag),
+                Some(handler_fn_name),
+            ];
+            let usage = syn::parse_str::<ExprPath>(
+                &usage_parts
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join("::"),
+            )
+            .unwrap();
 
             quote.extend(quote! {
-                impl utoipa::DefaultTag for #path_ident {
+                use #usage;
+                impl utoipa::DefaultTag for #handler_ident {
                     fn tag() -> &'static str {
                         #tag
                     }
                 }
-
-                struct #assert_path_ident where #path_ident : utoipa::Path;
             });
             paths.extend(quote! {
-                .append(#path_ident::path(), #path_ident::path_item())
+                .append(#handler_ident::path(), #handler_ident::path_item())
             });
 
             paths
