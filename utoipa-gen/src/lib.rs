@@ -9,21 +9,21 @@ use quote::{format_ident, quote, quote_spanned};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use syn::{
     bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, ExprPath, LitStr,
-    Token, UsePath,
+    Token,
 };
 
 mod attribute;
 mod component;
 mod component_type;
 mod info;
-mod path2;
+mod path;
 mod paths;
 
 use proc_macro_error::*;
 
 use crate::{
     component::impl_component,
-    path2::{Path, PathAttr, PathOperation},
+    path::{Path, PathAttr, PathOperation},
 };
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
@@ -101,7 +101,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // TODO validate that path is provided one way or the other
 
-    println!("path provider: {:#?}", path_provider());
+    // println!("path provider: {:#?}", path_provider());
 
     let path = Path::new(path_attribute, fn_name)
         .with_path_operation(attribute.as_ref().map(|attribute| {
@@ -166,7 +166,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         .flatten()
         .collect::<Vec<_>>();
 
-    println!("handlers: {:#?}", &handlers);
+    // println!("handlers: {:#?}", &handlers);
 
     let path_items = impl_paths(handlers.into_iter(), &mut quote);
 
@@ -313,33 +313,37 @@ fn impl_paths<I: IntoIterator<Item = ExprPath>>(
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn_name = &*segments.last().unwrap().ident.to_string();
+
             let tag = segments
                 .iter()
                 .take(segments.len() - 1)
                 .map(|part| part.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::");
-            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
 
-            let usage_parts = vec![
-                if !tag.starts_with("crate::") {
-                    None
-                } else {
-                    Some("create")
-                },
-                Some(&tag),
-                Some(handler_fn_name),
-            ];
+            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+            let handler_ident_name = &*handler_ident.to_string();
+
             let usage = syn::parse_str::<ExprPath>(
-                &usage_parts
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<_>>()
-                    .join("::"),
+                &vec![
+                    if tag.starts_with("crate") {
+                        None
+                    } else {
+                        Some("crate")
+                    },
+                    if tag.is_empty() { None } else { Some(&tag) },
+                    Some(handler_ident_name),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join("::"),
             )
             .unwrap();
 
+            let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
             quote.extend(quote! {
+                struct #assert_handler_ident where #handler_ident : utoipa::Path;
                 use #usage;
                 impl utoipa::DefaultTag for #handler_ident {
                     fn tag() -> &'static str {
