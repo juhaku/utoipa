@@ -13,3 +13,17 @@ pub trait OpenApi {
 pub trait Component {
     fn component() -> openapi::schema::Component;
 }
+
+pub trait Path {
+    fn path() -> &'static str;
+
+    fn path_item() -> openapi::path::PathItem;
+}
+
+pub trait DefaultTag {
+    fn tag() -> &'static str;
+}
+
+pub trait Tag {
+    fn tag() -> &'static str;
+}

@@ -2,21 +2,31 @@
 
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
+
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
-use proc_macro2::Ident;
-use syn::{bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, LitStr, Token};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
+use syn::{
+    bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, ExprPath, LitStr,
+    Token,
+};
 
 mod attribute;
 mod component;
 mod component_type;
 mod info;
+mod path;
 mod paths;
 
 use proc_macro_error::*;
 
-use crate::component::impl_component;
+use crate::{
+    component::impl_component,
+    path::{Path, PathAttr, PathOperation},
+};
+
+const PATH_STRUCT_PREFIX: &str = "__path_";
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
@@ -41,8 +51,70 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn api_operation(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
+    println!("Attr: {:#?}", &attr);
+    // let input = syn::parse_macro_input!(attr as PathAttr);
+
     item
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+
+    // println!("parsed path attribute: {:#?}", &path_attribute);
+
+    let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
+
+    // println!("item attrs: {:#?}", &attrs);
+    // println!("item block: {:#?}", &block);
+    // println!("item sig: {:#?}", &sig);
+    // println!("item vis: {:#?}", &vis);
+
+    let fn_name = &*ast_fn.sig.ident.to_string();
+
+    let attribute = &ast_fn.attrs.iter().find_map(|attribute| {
+        if is_valid_request_type(
+            &attribute
+                .path
+                .get_ident()
+                .map(ToString::to_string)
+                .unwrap_or_default(),
+        ) {
+            Some(attribute)
+        } else {
+            None
+        }
+    });
+
+    #[cfg(feature = "actix_gen")]
+    let path_provider = || {
+        attribute.as_ref().map(|attribute| {
+            let lit = attribute.parse_args::<LitStr>().unwrap();
+            lit.value() // TODO format path according OpenAPI specs
+        })
+    };
+
+    #[cfg(not(feature = "actix_gen"))]
+    let path_provider = || None::<String>;
+
+    // TODO validate that path is provided one way or the other
+
+    // println!("path provider: {:#?}", path_provider());
+
+    let path = Path::new(path_attribute, fn_name)
+        .with_path_operation(attribute.as_ref().map(|attribute| {
+            let ident = attribute.path.get_ident().unwrap();
+            PathOperation::from_ident(ident)
+        }))
+        .with_path(path_provider);
+
+    quote! {
+        #path
+        #ast_fn
+    }
+    .into()
 }
 
 #[proc_macro_error]
@@ -59,13 +131,13 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     let openapi_args =
         parse_openapi_attributes(&attrs).expect_or_abort("Expected #openapi[...] attribute");
 
-    let files = openapi_args
-        .iter()
-        .filter(|args| matches!(args, OpenApiArgs::HandlerFiles(_)))
-        .flat_map(|args| match args {
-            OpenApiArgs::HandlerFiles(files) => files,
-            _ => unreachable!(),
-        });
+    // let files = openapi_args
+    //     .iter()
+    //     .filter(|args| matches!(args, OpenApiArgs::HandlerFiles(_)))
+    //     .flat_map(|args| match args {
+    //         OpenApiArgs::HandlerFiles(files) => files,
+    //         _ => unreachable!(),
+    //     });
 
     let components = openapi_args
         .iter()
@@ -77,13 +149,26 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     let info = info::impl_info();
-    let paths = paths::impl_paths(&files.map(String::to_owned).collect::<Vec<_>>());
+    // let paths = paths::impl_paths(&files.map(String::to_owned).collect::<Vec<_>>());
 
     let span = ident.span();
     let mut quote = quote! {};
     let mut schema = quote! {
         utoipa::openapi::Schema::new()
     };
+
+    let handlers = openapi_args
+        .iter()
+        .filter_map(|args| match args {
+            OpenApiArgs::Handlers(handlers) => Some(handlers.clone()),
+            _ => None,
+        })
+        .flatten()
+        .collect::<Vec<_>>();
+
+    // println!("handlers: {:#?}", &handlers);
+
+    let path_items = impl_paths(handlers.into_iter(), &mut quote);
 
     for component in components {
         let component_name = &*component.to_string();
@@ -100,7 +185,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     quote.extend(quote! {
         impl utoipa::OpenApi for #ident {
             fn openapi() -> utoipa::openapi::OpenApi {
-                utoipa::openapi::OpenApi::new(#info, #paths)
+                utoipa::openapi::OpenApi::new(#info, #path_items)
                     .with_components(#schema)
             }
         }
@@ -135,9 +220,11 @@ fn parse_openapi_attributes(attributes: &[Attribute]) -> Option<Vec<OpenApiArgs>
         })
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum OpenApiArgs {
     HandlerFiles(Vec<String>),
     Components(Vec<Ident>),
+    Handlers(Vec<syn::ExprPath>),
 }
 
 impl Parse for OpenApiArgs {
@@ -181,10 +268,94 @@ impl Parse for OpenApiArgs {
                     Err(syn::Error::new(input.span(), "Expected components = [...]"))
                 }
             }
+            "handlers" => {
+                if input.peek(Token![=]) {
+                    input.parse::<Token![=]>()?;
+                }
+
+                if input.peek(syn::token::Bracket) {
+                    let content;
+                    bracketed!(content in input);
+                    let tokens =
+                        Punctuated::<syn::ExprPath, Token![,]>::parse_terminated(&content)?;
+
+                    Ok(Self::Handlers(tokens.into_iter().collect::<Vec<_>>()))
+                } else {
+                    Err(syn::Error::new(input.span(), "Expected handlers = [...]"))
+                }
+            }
             _ => Err(syn::Error::new(
                 input.span(),
                 "unexpected token expected either handler_files or components",
             )),
         }
     }
+}
+
+fn is_valid_request_type(s: &str) -> bool {
+    match s {
+        "get" | "post" | "put" | "delete" | "head" | "connect" | "options" | "trace" | "patch" => {
+            true
+        }
+        _ => false,
+    }
+}
+
+fn impl_paths<I: IntoIterator<Item = ExprPath>>(
+    handler_paths: I,
+    quote: &mut TokenStream2,
+) -> TokenStream2 {
+    quote.extend(quote! {
+        use utoipa::Path as OpenApiPath;
+    });
+    handler_paths.into_iter().fold(
+        quote! { utoipa::openapi::path::Paths::new() },
+        |mut paths, handler| {
+            let segments = handler.path.segments.iter().collect::<Vec<_>>();
+            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
+
+            let tag = segments
+                .iter()
+                .take(segments.len() - 1)
+                .map(|part| part.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("::");
+
+            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+            let handler_ident_name = &*handler_ident.to_string();
+
+            let usage = syn::parse_str::<ExprPath>(
+                &vec![
+                    if tag.starts_with("crate") {
+                        None
+                    } else {
+                        Some("crate")
+                    },
+                    if tag.is_empty() { None } else { Some(&tag) },
+                    Some(handler_ident_name),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join("::"),
+            )
+            .unwrap();
+
+            let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
+            quote.extend(quote! {
+                struct #assert_handler_ident where #handler_ident : utoipa::Path;
+                use #usage;
+                impl utoipa::DefaultTag for #handler_ident {
+                    fn tag() -> &'static str {
+                        #tag
+                    }
+                }
+            });
+            paths.extend(quote! {
+                .append(#handler_ident::path(), #handler_ident::path_item())
+            });
+
+            paths
+        },
+    )
 }

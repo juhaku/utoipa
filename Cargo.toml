@@ -10,6 +10,8 @@ members = [
 
 [features]
 swagger_ui = ["rust-embed", "mime_guess"]
+debug = ["utoipa-gen/debug"]
+actix_gen = ["utoipa-gen/actix_gen"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

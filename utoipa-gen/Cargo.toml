@@ -13,3 +13,7 @@ proc-macro2 = "1.0.32"
 syn = "1.0.81"
 quote = "1.0.10"
 proc-macro-error = "1.0.4"
+
+[features]
+debug = []
+actix_gen = []
