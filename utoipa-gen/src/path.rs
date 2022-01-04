@@ -1,6 +1,6 @@
 use std::{io::Error, str::FromStr};
 
-use proc_macro2::{Group, Ident};
+use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort_call_site, OptionExt, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
@@ -8,7 +8,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
-    LitInt, LitStr, Token,
+    token, LitInt, LitStr, Token,
 };
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
@@ -241,6 +241,8 @@ pub struct Path {
     fn_name: String,
     path_operation: Option<PathOperation>,
     path: Option<String>,
+    doc_comments: Option<Vec<String>>,
+    deprecated: Option<bool>,
 }
 
 impl Path {
@@ -250,6 +252,8 @@ impl Path {
             fn_name: fn_name.to_string(),
             path_operation: None,
             path: None,
+            doc_comments: None,
+            deprecated: None,
         }
     }
 
@@ -261,6 +265,18 @@ impl Path {
 
     pub fn with_path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
         self.path = path_provider();
+
+        self
+    }
+
+    pub fn with_doc_comments(mut self, doc_commens: Vec<String>) -> Self {
+        self.doc_comments = Some(doc_commens);
+
+        self
+    }
+
+    pub fn with_deprecated(mut self, deprecated: Option<bool>) -> Self {
+        self.deprecated = deprecated;
 
         self
     }
@@ -294,6 +310,17 @@ impl ToTokens for Path {
             .or_else(|| self.path.as_ref())
             .expect_or_abort("expected to find path but was None");
 
+        let operation = Operation {
+            fn_name: &self.fn_name,
+            deprecated: &self.deprecated,
+            operation_id,
+            summary: self
+                .doc_comments
+                .as_ref()
+                .and_then(|comments| comments.iter().next()),
+            description: self.doc_comments.as_ref(),
+        };
+
         tokens.extend(quote! {
             #[allow(non_camel_case_types)]
             pub struct #path_struct;
@@ -312,29 +339,95 @@ impl ToTokens for Path {
                 fn path_item() -> utoipa::openapi::path::PathItem {
                     utoipa::openapi::PathItem::new(
                         #path_operation,
-                        utoipa::openapi::path::Operation::new()
-                            .with_response(
-                                "200", // TODO resolve this status
-                                utoipa::openapi::response::Response::new("this is response message")
-                            )
-                            .with_tag(
-                                vec![<#path_struct as utoipa::Tag>::tag(),
-                                    <#path_struct as utoipa::DefaultTag>::tag()
-                                ]
-                                .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")
-                            )
-                            .with_operation_id(
-                                #operation_id
-                            )
-                            // .with_parameters()
-                            // .with_request_body()
-                            // .with_description()
-                            // .with_summary()
-                            // .with_deprecated()
-                            // .with_security()
+                        #operation
                     )
                 }
             }
         })
     }
+}
+
+struct Operation<'a> {
+    fn_name: &'a String,
+    operation_id: &'a String,
+    summary: Option<&'a String>,
+    description: Option<&'a Vec<String>>,
+    deprecated: &'a Option<bool>,
+}
+
+impl ToTokens for Operation<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(quote! { utoipa::openapi::path::Operation::new() });
+
+        // impl dummy responses
+        tokens.extend(quote! {
+            .with_response(
+                "200", // TODO resolve this status
+                utoipa::openapi::response::Response::new("this is response message")
+            )
+        });
+        //         // .with_parameters()
+        //         // .with_request_body()
+        //         // .with_description()
+        //         // .with_summary()
+        //         // .with_deprecated()
+        //         // .with_security()
+        let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
+        let operation_id = self.operation_id;
+        tokens.extend(quote! {
+            .with_tag(
+                vec![<#path_struct as utoipa::Tag>::tag(),
+                    <#path_struct as utoipa::DefaultTag>::tag()
+                ]
+                .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")
+            )
+            .with_operation_id(
+                #operation_id
+            )
+        });
+
+        let deprecated = get_deprecated_token_stream(self.deprecated);
+        tokens.extend(quote! {
+           .with_deprecated(#deprecated)
+        });
+        if let Some(summary) = self.summary {
+            tokens.extend(quote! {
+                .with_summary(#summary)
+            })
+        }
+
+        if let Some(description) = self.description {
+            let description = description
+                .iter()
+                .map(|comment| format!("{}\n", comment))
+                .collect::<Vec<String>>()
+                .join("");
+
+            tokens.extend(quote! {
+                .with_description(#description)
+            })
+        }
+    }
+}
+
+fn get_deprecated_token_stream(deprecated: &Option<bool>) -> TokenStream2 {
+    let get_deprecated_false = || {
+        quote! {
+            utoipa::openapi::Deprecated::False
+        }
+    };
+
+    deprecated
+        .as_ref()
+        .map(|deprecated| {
+            println!("is deprecated: {:?}", deprecated);
+            if *deprecated {
+                quote! {
+                    utoipa::openapi::Deprecated::True
+                }
+            } else {
+                get_deprecated_false()
+            }
+        })
+        .unwrap_or_else(get_deprecated_false)
 }

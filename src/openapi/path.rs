@@ -259,6 +259,12 @@ impl Operation {
         self
     }
 
+    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
+        self.deprecated = Some(deprecated);
+
+        self
+    }
+
     pub fn with_securities<I: IntoIterator<Item = Security>>(mut self, securities: I) -> Self {
         self.security = Some(securities.into_iter().collect());
 
