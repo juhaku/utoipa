@@ -12,6 +12,7 @@ use syn::{
     Token,
 };
 
+mod argument;
 mod attribute;
 mod component;
 mod component_type;
@@ -69,14 +70,13 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
 
-<<<<<<< HEAD
     // println!("item attrs: {:#?}", &ast_fn.attrs);
-=======
-    println!("item attrs: {:#?}", &ast_fn.attrs);
->>>>>>> 30d6ab0 (Wip path operation properties)
     // println!("item block: {:#?}", &block);
     // println!("item sig: {:#?}", &sig);
+    // println!("item block: {:#?}", &ast_fn.block);
     // println!("item vis: {:#?}", &vis);
+    let arguments = argument::resolve_path_arguments(&ast_fn.sig.inputs);
+    println!("arguments: {:#?}", arguments);
 
     let fn_name = &*ast_fn.sig.ident.to_string();
 
@@ -94,8 +94,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     });
 
+    #[cfg(feature = "actix_gen")]
     let path_provider = || {
-        operation_attribute.as_ref().map(|attribute| {
+        operation_attribute.map(|attribute| {
             let lit = attribute.parse_args::<LitStr>().unwrap();
             lit.value() // TODO format path according OpenAPI specs
         })

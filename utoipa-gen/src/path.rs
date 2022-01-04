@@ -8,7 +8,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
-    token, LitInt, LitStr, Token,
+    LitInt, LitStr, Token,
 };
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
@@ -368,9 +368,6 @@ impl ToTokens for Operation<'_> {
         });
         //         // .with_parameters()
         //         // .with_request_body()
-        //         // .with_description()
-        //         // .with_summary()
-        //         // .with_deprecated()
         //         // .with_security()
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self.operation_id;
@@ -390,6 +387,7 @@ impl ToTokens for Operation<'_> {
         tokens.extend(quote! {
            .with_deprecated(#deprecated)
         });
+
         if let Some(summary) = self.summary {
             tokens.extend(quote! {
                 .with_summary(#summary)

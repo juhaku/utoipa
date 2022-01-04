@@ -1,0 +1,223 @@
+// pat: Ident(
+//     PatIdent {
+//         attrs: [],
+//         by_ref: None,
+//         mutability: None,
+//         ident: Ident {
+//             ident: "id",
+//             span: #0 bytes(502..504),
+//         },
+//         subpat: None,
+//     },
+// )
+
+// inputs: [
+//     Typed(
+//         PatType {
+//             attrs: [],
+//             pat: TupleStruct(
+//                 PatTupleStruct {
+//                     attrs: [],
+//                     path: Path {
+//                         leading_colon: None,
+//                         segments: [
+//                             PathSegment {
+//                                 ident: Ident {
+//                                     ident: "web",
+//                                     span: #0 bytes(469..472),
+//                                 },
+//                                 arguments: None,
+//                             },
+//                             Colon2,
+//                             PathSegment {
+//                                 ident: Ident {
+//                                     ident: "Path",
+//                                     span: #0 bytes(474..478),
+//                                 },
+//                                 arguments: None,
+//                             },
+//                         ],
+//                     },
+//                     pat: PatTuple {
+//                         attrs: [],
+//                         paren_token: Paren,
+//                         elems: [
+//                             Ident(
+//                                 PatIdent {
+//                                     attrs: [],
+//                                     by_ref: None,
+//                                     mutability: None,
+//                                     ident: Ident {
+//                                         ident: "id",
+//                                         span: #0 bytes(479..481),
+//                                     },
+//                                     subpat: None,
+//                                 },
+//                             ),
+//                         ],
+//                     },
+//                 },
+//             ),
+//             colon_token: Colon,
+//             ty: Path(
+//                 TypePath {
+//                     qself: None,
+//                     path: Path {
+//                         leading_colon: None,
+//                         segments: [
+//                             PathSegment {
+//                                 ident: Ident {
+//                                     ident: "web",
+//                                     span: #0 bytes(484..487),
+//                                 },
+//                                 arguments: None,
+//                             },
+//                             Colon2,
+//                             PathSegment {
+//                                 ident: Ident {
+//                                     ident: "Path",
+//                                     span: #0 bytes(489..493),
+//                                 },
+//                                 arguments: AngleBracketed(
+//                                     AngleBracketedGenericArguments {
+//                                         colon2_token: None,
+//                                         lt_token: Lt,
+//                                         args: [
+//                                             Type(
+//                                                 Path(
+//                                                     TypePath {
+//                                                         qself: None,
+//                                                         path: Path {
+//                                                             leading_colon: None,
+//                                                             segments: [
+//                                                                 PathSegment {
+//                                                                     ident: Ident {
+//                                                                         ident: "i32",
+//                                                                         span: #0 bytes(494..497),
+//                                                                     },
+//                                                                     arguments: None,
+//                                                                 },
+//                                                             ],
+//                                                         },
+//                                                     },
+//                                                 ),
+//                                             ),
+//                                         ],
+//                                         gt_token: Gt,
+//                                     },
+//                                 ),
+//                             },
+//                         ],
+//                     },
+//                 },
+//             ),
+//         },
+//     ),
+// ],
+
+// TypePath {
+//     qself: None,
+//     path: Path {
+//         leading_colon: None,
+//         segments: [
+//             PathSegment {
+//                 ident: Ident {
+//                     ident: "web",
+//                     span: #0 bytes(582..585),
+//                 },
+//                 arguments: None,
+//             },
+//             Colon2,
+//             PathSegment {
+//                 ident: Ident {
+//                     ident: "Path",
+//                     span: #0 bytes(587..591),
+//                 },
+//                 arguments: AngleBracketed(
+//                     AngleBracketedGenericArguments {
+//                         colon2_token: None,
+//                         lt_token: Lt,
+//                         args: [
+//                             Type(
+//                                 Path(
+//                                     TypePath {
+//                                         qself: None,
+//                                         path: Path {
+//                                             leading_colon: None,
+//                                             segments: [
+//                                                 PathSegment {
+//                                                     ident: Ident {
+//                                                         ident: "Foo",
+//                                                         span: #0 bytes(592..595),
+//                                                     },
+//                                                     arguments: None,
+//                                                 },
+//                                             ],
+//                                         },
+//                                     },
+//                                 ),
+//                             ),
+//                         ],
+//                         gt_token: Gt,
+//                     },
+//                 ),
+//             },
+//         ],
+//     },
+// },
+// ),
+
+
+  arguments: AngleBracketed(
+    AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: Lt,
+        args: [
+            Type(
+                Tuple(
+                    TypeTuple {
+                        paren_token: Paren,
+                        elems: [
+                            Path(
+                                TypePath {
+                                    qself: None,
+                                    path: Path {
+                                        leading_colon: None,
+                                        segments: [
+                                            PathSegment {
+                                                ident: Ident {
+                                                    ident: "i32",
+                                                    span: #0 bytes(624..627),
+                                                },
+                                                arguments: None,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                            Comma,
+                            Path(
+                                TypePath {
+                                    qself: None,
+                                    path: Path {
+                                        leading_colon: None,
+                                        segments: [
+                                            PathSegment {
+                                                ident: Ident {
+                                                    ident: "String",
+                                                    span: #0 bytes(629..635),
+                                                },
+                                                arguments: None,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            ),
+        ],
+        gt_token: Gt,
+    },
+),
