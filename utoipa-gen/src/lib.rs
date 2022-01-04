@@ -69,7 +69,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
 
+<<<<<<< HEAD
     // println!("item attrs: {:#?}", &ast_fn.attrs);
+=======
+    println!("item attrs: {:#?}", &ast_fn.attrs);
+>>>>>>> 30d6ab0 (Wip path operation properties)
     // println!("item block: {:#?}", &block);
     // println!("item sig: {:#?}", &sig);
     // println!("item vis: {:#?}", &vis);
@@ -90,7 +94,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     });
 
-    #[cfg(feature = "actix_gen")]
     let path_provider = || {
         operation_attribute.as_ref().map(|attribute| {
             let lit = attribute.parse_args::<LitStr>().unwrap();
