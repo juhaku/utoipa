@@ -16,6 +16,7 @@ use utoipa::{path, OpenApi};
     (500, "internal server error")
 ])]
 #[delete("/foo")]
+// #[deprecated = "this is deprecated"]
 async fn foo_delete() -> impl Responder {
     HttpResponse::Ok().json(json!({"ok": "OK"}))
 }
