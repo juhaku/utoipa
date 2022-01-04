@@ -22,6 +22,7 @@ mod paths;
 use proc_macro_error::*;
 
 use crate::{
+    attribute::CommentAttributes,
     component::impl_component,
     path::{Path, PathAttr, PathOperation},
 };
@@ -49,17 +50,18 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     component.into()
 }
 
+// #[proc_macro_error]
+// #[proc_macro_attribute]
+// pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
+//     println!("Attr: {:#?}", &attr);
+//     // let input = syn::parse_macro_input!(attr as PathAttr);
+
+//     item
+// }
+
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
-    println!("Attr: {:#?}", &attr);
-    // let input = syn::parse_macro_input!(attr as PathAttr);
-
-    item
-}
-
-#[proc_macro_error]
-#[proc_macro_attribute]
+/// Path attribute macro
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
@@ -67,14 +69,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
 
-    // println!("item attrs: {:#?}", &attrs);
+    // println!("item attrs: {:#?}", &ast_fn.attrs);
     // println!("item block: {:#?}", &block);
     // println!("item sig: {:#?}", &sig);
     // println!("item vis: {:#?}", &vis);
 
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let attribute = &ast_fn.attrs.iter().find_map(|attribute| {
+    let operation_attribute = &ast_fn.attrs.iter().find_map(|attribute| {
         if is_valid_request_type(
             &attribute
                 .path
@@ -90,7 +92,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     #[cfg(feature = "actix_gen")]
     let path_provider = || {
-        attribute.as_ref().map(|attribute| {
+        operation_attribute.as_ref().map(|attribute| {
             let lit = attribute.parse_args::<LitStr>().unwrap();
             lit.value() // TODO format path according OpenAPI specs
         })
@@ -104,11 +106,20 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     // println!("path provider: {:#?}", path_provider());
 
     let path = Path::new(path_attribute, fn_name)
-        .with_path_operation(attribute.as_ref().map(|attribute| {
+        .with_path_operation(operation_attribute.as_ref().map(|attribute| {
             let ident = attribute.path.get_ident().unwrap();
             PathOperation::from_ident(ident)
         }))
-        .with_path(path_provider);
+        .with_path(path_provider)
+        .with_doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
+        .with_deprecated(ast_fn.attrs.iter().find_map(|attr| {
+            if !matches!(attr.path.get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
+            {
+                None
+            } else {
+                Some(true)
+            }
+        }));
 
     quote! {
         #path
