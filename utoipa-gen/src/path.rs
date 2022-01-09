@@ -11,6 +11,8 @@ use syn::{
     LitInt, LitStr, Token,
 };
 
+use crate::component_type::{ComponentFormat, ComponentType};
+
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
 // #[utoipa::path(delete,
@@ -88,7 +90,7 @@ pub struct PathAttr {
     path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    pub params: Option<Vec<PathParameter>>,
+    pub params: Option<Vec<Parameter>>,
 }
 
 /// Parse implementation for PathAttr will parse arguments
@@ -148,13 +150,11 @@ impl Parse for PathAttr {
                 "params" => {
                     let groups = parse_groups(&input)
                         .expect_or_abort("expected parameters to be group separated by comma (,)");
-                    // TODO parse paramaters in same way as responses
-                    println!("groups: {:#?}", groups);
                     path_attr.params = Some(
                         groups
                             .iter()
-                            .map(|group| parse2::<PathParameter>(group.stream()).unwrap_or_abort())
-                            .collect::<Vec<PathParameter>>(),
+                            .map(|group| parse2::<Parameter>(group.stream()).unwrap_or_abort())
+                            .collect::<Vec<Parameter>>(),
                     )
                 }
                 "tag" => {
@@ -162,11 +162,11 @@ impl Parse for PathAttr {
                 }
                 _ => {
                     // any other case it is expected to be path operation
-                    // if let Some(path_operation) =
-                    //     ident_name.parse::<PathOperation>().into_iter().next()
-                    // {
-                    //     path_attr.path_operation = Some(path_operation)
-                    // }
+                    if let Some(path_operation) =
+                        ident_name.parse::<PathOperation>().into_iter().next()
+                    {
+                        path_attr.path_operation = Some(path_operation)
+                    }
                 }
             }
 
@@ -309,7 +309,7 @@ impl Parse for PathResponse {
     }
 }
 
-/// Path parameter in request path
+/// Parameter of request suchs as in path, header, query or cookie
 ///
 /// For example path `/users/{id}` the path parameter is used to define
 /// type, format and other details of the `{id}` parameter within the path
@@ -322,7 +322,7 @@ impl Parse for PathResponse {
 /// The `= String` type statement is optional if automatic resolvation is supported.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct PathParameter {
+pub struct Parameter {
     pub name: String,
     parameter_in: ParameterIn,
     required: bool,
@@ -331,16 +331,27 @@ pub struct PathParameter {
     description: Option<String>,
 }
 
-impl PathParameter {
-    // TODO cfg_attr when argument resolving is supported
+impl Parameter {
+    pub fn new<S: AsRef<str>>(name: S, parameter_type: &Ident, parameter_in: ParameterIn) -> Self {
+        let required = parameter_in == ParameterIn::Path;
+
+        Self {
+            name: name.as_ref().to_string(),
+            parameter_type: Some(parameter_type.clone()),
+            parameter_in,
+            required,
+            ..Default::default()
+        }
+    }
+
     pub fn update_parameter_type(&mut self, ident: &Ident) {
         self.parameter_type = Some(ident.clone());
     }
 }
 
-impl Parse for PathParameter {
+impl Parse for Parameter {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut parameter = PathParameter::default();
+        let mut parameter = Parameter::default();
 
         if input.peek(LitStr) {
             // parse name
@@ -395,7 +406,7 @@ impl Parse for PathParameter {
         Ok(parameter)
     }
 }
-impl ToTokens for PathParameter {
+impl ToTokens for Parameter {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let name = &*self.name;
         tokens.extend(quote! { utoipa::openapi::path::Parameter::new(#name) });
@@ -411,10 +422,25 @@ impl ToTokens for PathParameter {
         if let Some(ref description) = self.description {
             tokens.extend(quote! { .with_description(#description) });
         }
-        // TODO missing parameter type (parameter schema)
-        // if let Some(parameter_type) = self.parameter_type {
-        //     // TODO what now? missing method in parameter class to add parameter schema
-        // }
+
+        if let Some(ref parameter_type) = self.parameter_type {
+            // TODO handle cases with structs and arrays??? currently only primitive types are expected
+            // TODO unify this property logic with the one in component.rs
+            let component_type = ComponentType(parameter_type);
+            let mut property = quote! {
+                utoipa::openapi::Property::new(
+                    #component_type
+                )
+            };
+            let format = ComponentFormat(parameter_type);
+            if format.is_known_format() {
+                property.extend(quote! {
+                    .with_format(#format)
+                })
+            }
+
+            tokens.extend(quote! { .with_schema(#property) });
+        }
     }
 }
 
@@ -583,7 +609,7 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Vec<PathParameter>>,
+    parameters: Option<&'a Vec<Parameter>>,
 }
 
 impl ToTokens for Operation<'_> {

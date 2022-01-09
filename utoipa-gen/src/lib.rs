@@ -3,8 +3,8 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use argument::Argument;
-use path::PathParameter;
+use argument::{Argument, ArgumentIn};
+use path::{Parameter, ParameterIn};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
@@ -81,7 +81,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     // TODO refactor this argument resolving a bit
     let arguments = argument::resolve_path_arguments(&ast_fn.sig.inputs);
     println!("arguments: {:#?}", arguments);
-    // TODO enabled when argument resolving is enabled 
+    // TODO enabled when argument resolving is enabled
     update_parameter_types_from_arguments(arguments, &mut path_attribute.params);
     let fn_name = &*ast_fn.sig.ident.to_string();
 
@@ -141,10 +141,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[inline]
 fn update_parameter_types_from_arguments(
     arguments: Option<Vec<Argument>>,
-    parameters: &mut Option<Vec<PathParameter>>,
+    parameters: &mut Option<Vec<Parameter>>,
 ) {
     if let Some(arguments) = arguments {
-        // TODO if arguments can be resolved merge them with path attribute params
         if let Some(ref mut parameters) = parameters {
             parameters.iter_mut().for_each(|parameter| {
                 if let Some(argument) = arguments
@@ -152,6 +151,25 @@ fn update_parameter_types_from_arguments(
                     .find(|argument| argument.name == parameter.name)
                 {
                     parameter.update_parameter_type(argument.ident)
+                }
+            });
+
+            arguments.iter().for_each(|argument| {
+                // cannot use filter() for mutli borrow situation. :(
+                if !parameters
+                    .iter()
+                    .any(|parameter| parameter.name == argument.name)
+                {
+                    // if parameters does not contain argument
+                    parameters.push(Parameter::new(
+                        &argument.name,
+                        argument.ident,
+                        if argument.argument_in == ArgumentIn::Path {
+                            ParameterIn::Path
+                        } else {
+                            ParameterIn::Query
+                        },
+                    ));
                 }
             });
         }

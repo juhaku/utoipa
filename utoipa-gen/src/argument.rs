@@ -13,6 +13,7 @@ pub struct Argument<'a> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq)]
 pub enum ArgumentIn {
     Path,
     Query,

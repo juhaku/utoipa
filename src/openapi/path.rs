@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     request_body::RequestBody,
     response::{Response, Responses},
-    Deprecated, ExternalDocs, Required, Security, Server,
+    Component, Deprecated, ExternalDocs, Required, Security, Server,
 };
 
 #[non_exhaustive]
@@ -312,6 +312,8 @@ pub struct Parameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<Component>,
 }
 
 impl Parameter {
@@ -347,6 +349,12 @@ impl Parameter {
 
     pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
         self.deprecated = Some(deprecated);
+
+        self
+    }
+
+    pub fn with_schema<I: Into<Component>>(mut self, component: I) -> Self {
+        self.schema = Some(component.into());
 
         self
     }

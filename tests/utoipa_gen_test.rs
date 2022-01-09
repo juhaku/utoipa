@@ -23,7 +23,7 @@ use utoipa::{path, OpenApi};
         (500, "internal server error")
     ],
      params = [
-        ("id" = i32, description = "this is description"),
+        ("id", description = "this is description"),
    ]
 )]
 #[delete("/foo/{id}")]
