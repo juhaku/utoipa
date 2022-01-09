@@ -7,9 +7,9 @@ use syn::{
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Argument<'a> {
-    name: Option<String>,
-    argument_in: ArgumentIn,
-    ident: &'a Ident,
+    pub name: String,
+    pub argument_in: ArgumentIn,
+    pub ident: &'a Ident,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -37,7 +37,7 @@ pub fn resolve_path_arguments(fn_args: &Punctuated<FnArg, Comma>) -> Option<Vec<
                 .map(|(name, ty)| Argument {
                     argument_in: ArgumentIn::Path,
                     ident: ty,
-                    name: Some(name.to_string()),
+                    name: name.to_string(),
                 })
                 .collect::<Vec<_>>(),
         )

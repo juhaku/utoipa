@@ -236,7 +236,12 @@ impl Operation {
     }
 
     pub fn with_parameter(mut self, parameter: Parameter) -> Self {
-        self.parameters.as_mut().unwrap().push(parameter);
+        match self.parameters {
+            Some(ref mut parameters) => parameters.push(parameter),
+            None => {
+                self.parameters = Some(vec![parameter]);
+            }
+        }
 
         self
     }

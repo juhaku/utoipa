@@ -3,6 +3,8 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use argument::Argument;
+use path::PathParameter;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
@@ -64,7 +66,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 /// Path attribute macro
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+    let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
     // println!("parsed path attribute: {:#?}", &path_attribute);
 
@@ -75,9 +77,12 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     // println!("item sig: {:#?}", &sig);
     // println!("item block: {:#?}", &ast_fn.block);
     // println!("item vis: {:#?}", &vis);
+
+    // TODO refactor this argument resolving a bit
     let arguments = argument::resolve_path_arguments(&ast_fn.sig.inputs);
     println!("arguments: {:#?}", arguments);
-
+    // TODO enabled when argument resolving is enabled 
+    update_parameter_types_from_arguments(arguments, &mut path_attribute.params);
     let fn_name = &*ast_fn.sig.ident.to_string();
 
     let operation_attribute = &ast_fn.attrs.iter().find_map(|attribute| {
@@ -130,6 +135,27 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         #ast_fn
     }
     .into()
+}
+
+// TODO enabed if argument resolving is enabled
+#[inline]
+fn update_parameter_types_from_arguments(
+    arguments: Option<Vec<Argument>>,
+    parameters: &mut Option<Vec<PathParameter>>,
+) {
+    if let Some(arguments) = arguments {
+        // TODO if arguments can be resolved merge them with path attribute params
+        if let Some(ref mut parameters) = parameters {
+            parameters.iter_mut().for_each(|parameter| {
+                if let Some(argument) = arguments
+                    .iter()
+                    .find(|argument| argument.name == parameter.name)
+                {
+                    parameter.update_parameter_type(argument.ident)
+                }
+            });
+        }
+    }
 }
 
 #[proc_macro_error]

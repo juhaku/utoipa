@@ -4,10 +4,10 @@ use serde_json::json;
 // use utoipa::openapi_spec;
 use utoipa::{path, OpenApi};
 
-#[derive(Deserialize)]
-struct Foo {
-    id: i32,
-}
+// #[derive(Deserialize)]
+// struct Foo {
+//     id: i32,
+// }
 
 // mod api {
 //     use super::*;
@@ -15,17 +15,22 @@ struct Foo {
 /// Delete foo entity
 ///
 /// Delete foo entity by what
-#[crate::path(responses = [
-    (200, "success", String),
-    (400, "my bad error", u64),
-    (404, "vault not found"),
-    (500, "internal server error")
-])]
+#[crate::path(
+    responses = [
+        (200, "success", String),
+        (400, "my bad error", u64),
+        (404, "vault not found"),
+        (500, "internal server error")
+    ],
+     params = [
+        ("id" = i32, description = "this is description"),
+   ]
+)]
 #[delete("/foo/{id}")]
 // #[deprecated = "this is deprecated"]
 // web::Path(id): web::Path<i32>
-async fn foo_delete(id: web::Path<Foo>) -> impl Responder {
-    let id = id.id;
+async fn foo_delete(id: web::Path<i32>) -> impl Responder {
+    let id = id.into_inner();
     HttpResponse::Ok().json(json!({ "deleted": id }))
 }
 // }
