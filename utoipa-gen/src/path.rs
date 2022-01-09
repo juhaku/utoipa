@@ -8,6 +8,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
+    token::Bracket,
     LitInt, LitStr, Token,
 };
 
@@ -328,6 +329,7 @@ pub struct Parameter {
     required: bool,
     deprecated: bool,
     pub parameter_type: Option<Ident>,
+    pub is_array: bool,
     description: Option<String>,
 }
 
@@ -361,6 +363,13 @@ impl Parse for Parameter {
                 // parse type for name if provided
                 input.parse::<Token![=]>().unwrap();
                 parameter.parameter_type = Some(input.parse::<syn::Ident>().unwrap());
+            } else if input.peek(Token![=]) && input.peek2(Bracket) {
+                // parse group as array
+                input.parse::<Token![=]>().unwrap();
+                parameter.is_array = true;
+                let group_content;
+                bracketed!(group_content in input);
+                parameter.parameter_type = Some(group_content.parse::<Ident>().unwrap());
             }
         } else {
             return Err(input.error("expected first element to be LitStr parameter name"));
@@ -437,6 +446,9 @@ impl ToTokens for Parameter {
                 property.extend(quote! {
                     .with_format(#format)
                 })
+            }
+            if self.is_array {
+                property.extend(quote! { .to_array() });
             }
 
             tokens.extend(quote! { .with_schema(#property) });
@@ -639,7 +651,11 @@ impl ToTokens for Operation<'_> {
             )
         });
 
-        let deprecated = get_deprecated_token_stream(self.deprecated);
+        let deprecated = self
+            .deprecated
+            .map(Into::<Deprecated>::into)
+            .or(Some(Deprecated::False))
+            .unwrap();
         tokens.extend(quote! {
            .with_deprecated(#deprecated)
         });
@@ -668,28 +684,6 @@ impl ToTokens for Operation<'_> {
                 .for_each(|parameter| tokens.extend(quote! { .with_parameter(#parameter) }));
         }
     }
-}
-
-fn get_deprecated_token_stream(deprecated: &Option<bool>) -> TokenStream2 {
-    let get_deprecated_false = || {
-        quote! {
-            utoipa::openapi::Deprecated::False
-        }
-    };
-
-    deprecated
-        .as_ref()
-        .map(|deprecated| {
-            println!("is deprecated: {:?}", deprecated);
-            if *deprecated {
-                quote! {
-                    utoipa::openapi::Deprecated::True
-                }
-            } else {
-                get_deprecated_false()
-            }
-        })
-        .unwrap_or_else(get_deprecated_false)
 }
 
 pub enum Deprecated {

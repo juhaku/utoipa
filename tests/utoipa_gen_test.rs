@@ -1,13 +1,13 @@
-use actix_web::{delete, web, HttpResponse, Responder};
+use actix_web::{delete, get, web, HttpResponse, Responder};
 use serde::Deserialize;
 use serde_json::json;
 // use utoipa::openapi_spec;
 use utoipa::{path, OpenApi};
 
-// #[derive(Deserialize)]
-// struct Foo {
-//     id: i32,
-// }
+#[derive(Deserialize)]
+struct Foo {
+    ids: Vec<i32>,
+}
 
 // mod api {
 //     use super::*;
@@ -23,15 +23,15 @@ use utoipa::{path, OpenApi};
         (500, "internal server error")
     ],
      params = [
-        ("id", description = "this is description"),
+        ("ids" = [i32], query, description = "Search foos by ids"),
    ]
 )]
-#[delete("/foo/{id}")]
+#[get("/foo")]
 // #[deprecated = "this is deprecated"]
 // web::Path(id): web::Path<i32>
-async fn foo_delete(id: web::Path<i32>) -> impl Responder {
-    let id = id.into_inner();
-    HttpResponse::Ok().json(json!({ "deleted": id }))
+async fn foo_delete(web::Query(foo): web::Query<Foo>) -> impl Responder {
+    let ids = foo.ids;
+    HttpResponse::Ok().json(json!({ "searched": ids }))
 }
 // }
 

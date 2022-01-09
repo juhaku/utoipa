@@ -131,6 +131,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         }));
 
     quote! {
+        use utoipa::openapi::schema::ToArray;
         #path
         #ast_fn
     }
@@ -144,6 +145,18 @@ fn update_parameter_types_from_arguments(
     parameters: &mut Option<Vec<Parameter>>,
 ) {
     if let Some(arguments) = arguments {
+        let new_parameter = |argument: &Argument| {
+            Parameter::new(
+                &argument.name,
+                argument.ident,
+                if argument.argument_in == ArgumentIn::Path {
+                    ParameterIn::Path
+                } else {
+                    ParameterIn::Query
+                },
+            )
+        };
+
         if let Some(ref mut parameters) = parameters {
             parameters.iter_mut().for_each(|parameter| {
                 if let Some(argument) = arguments
@@ -161,17 +174,17 @@ fn update_parameter_types_from_arguments(
                     .any(|parameter| parameter.name == argument.name)
                 {
                     // if parameters does not contain argument
-                    parameters.push(Parameter::new(
-                        &argument.name,
-                        argument.ident,
-                        if argument.argument_in == ArgumentIn::Path {
-                            ParameterIn::Path
-                        } else {
-                            ParameterIn::Query
-                        },
-                    ));
+                    parameters.push(new_parameter(argument))
                 }
             });
+        } else {
+            // no parameters at all, add arguments to the parameters
+            let mut params = Vec::with_capacity(arguments.len());
+            arguments
+                .iter()
+                .map(new_parameter)
+                .for_each(|arg| params.push(arg));
+            *parameters = Some(params);
         }
     }
 }
@@ -242,6 +255,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     }
 
     quote.extend(quote! {
+        use utoipa::openapi::schema::ToArray;
         impl utoipa::OpenApi for #ident {
             fn openapi() -> utoipa::openapi::OpenApi {
                 utoipa::openapi::OpenApi::new(#info, #path_items)
