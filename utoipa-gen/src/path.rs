@@ -29,30 +29,12 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 //     (404, "vault not found"),
 //     (status = 500, description = "internal server error", body = String, content_type = "text/plain")
 //    ],
-//    parameters = [
-//      (cookie = "myval", type = String, description = "this is description"),
-//      (path = "my_parameter", type = u64, required, deprecated, description = "this is description"),
-//      ("my_parameter", path, type = u64, description = "this is description"),
-//      ("my_parameter", type = u64, description = "this is description"),
+//    params = [
+//      ("myval" = String, description = "this is description"),
+//      ("myval", description = "this is description"),
+//      ("myval" = String, path, required, deprecated, description = "this is description"),
 //    ]
 // )]
-// #[utoipa::parameter(
-//      header = "x-auth-id",
-//      type = String,
-//      required,
-//      deprecated,
-//      description = "this is description"
-// )]
-// #[utoipa::parameter(path = "id", type = i23, required, deprecated, description = "this is id")]
-// #[utoipa::parameter(path = "digest", type = String, required, description = "this is digest")]
-// #[utoipa::parameter(query = "time_after", type = String, required, description = "this is time after")]
-// #[utoipa::parameter(cookie = "myval", type = String, required, deprecated, description = "this is description")]
-// #[utoipa::parameter(cookie = "myval", type = String, description = "this is description")]
-// #[utoipa::parameters([
-//      (cookie = "myval", type = String, description = "this is description"),
-//      (path = "my_parameter", type = u64, required, deprecated, description = "this is description"),
-//      (path = "my_parameter", type = u64, description = "this is description"),
-// ])]
 
 // #[utoipa::response(
 //      status = 200,
@@ -329,7 +311,7 @@ pub struct Parameter {
     required: bool,
     deprecated: bool,
     pub parameter_type: Option<Ident>,
-    pub is_array: bool,
+    is_array: bool,
     description: Option<String>,
 }
 
@@ -433,7 +415,6 @@ impl ToTokens for Parameter {
         }
 
         if let Some(ref parameter_type) = self.parameter_type {
-            // TODO handle cases with structs and arrays??? currently only primitive types are expected
             // TODO unify this property logic with the one in component.rs
             let component_type = ComponentType(parameter_type);
             let mut property = quote! {
@@ -588,7 +569,6 @@ impl ToTokens for Path {
             parameters: self.path_attr.params.as_ref(),
         };
 
-        println!("parameters: {:#?}", self.path_attr.params);
         tokens.extend(quote! {
             #[allow(non_camel_case_types)]
             pub struct #path_struct;
@@ -641,7 +621,7 @@ impl ToTokens for Operation<'_> {
         let operation_id = self.operation_id;
         tokens.extend(quote! {
             .with_tag(
-                vec![<#path_struct as utoipa::Tag>::tag(),
+                [<#path_struct as utoipa::Tag>::tag(),
                     <#path_struct as utoipa::DefaultTag>::tag()
                 ]
                 .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")

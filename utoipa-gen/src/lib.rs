@@ -3,8 +3,10 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use argument::{Argument, ArgumentIn};
-use path::{Parameter, ParameterIn};
+#[cfg(feature = "actix_extras")]
+use ext::actix::update_parameters_from_arguments;
+
+use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
@@ -14,10 +16,10 @@ use syn::{
     Token,
 };
 
-mod argument;
 mod attribute;
 mod component;
 mod component_type;
+mod ext;
 mod info;
 mod path;
 mod paths;
@@ -53,69 +55,24 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     component.into()
 }
 
-// #[proc_macro_error]
-// #[proc_macro_attribute]
-// pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
-//     println!("Attr: {:#?}", &attr);
-//     // let input = syn::parse_macro_input!(attr as PathAttr);
-
-//     item
-// }
-
 #[proc_macro_error]
 #[proc_macro_attribute]
 /// Path attribute macro
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
-
-    // println!("parsed path attribute: {:#?}", &path_attribute);
-
     let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
-
-    // println!("item attrs: {:#?}", &ast_fn.attrs);
-    // println!("item block: {:#?}", &block);
-    // println!("item sig: {:#?}", &sig);
-    // println!("item block: {:#?}", &ast_fn.block);
-    // println!("item vis: {:#?}", &vis);
-
-    // TODO refactor this argument resolving a bit
-    let arguments = argument::resolve_path_arguments(&ast_fn.sig.inputs);
-    println!("arguments: {:#?}", arguments);
-    // TODO enabled when argument resolving is enabled
-    update_parameter_types_from_arguments(arguments, &mut path_attribute.params);
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let operation_attribute = &ast_fn.attrs.iter().find_map(|attribute| {
-        if is_valid_request_type(
-            &attribute
-                .path
-                .get_ident()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-        ) {
-            Some(attribute)
-        } else {
-            None
-        }
-    });
+    let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs);
 
-    #[cfg(feature = "actix_gen")]
-    let path_provider = || {
-        operation_attribute.map(|attribute| {
-            let lit = attribute.parse_args::<LitStr>().unwrap();
-            lit.value() // TODO format path according OpenAPI specs
-        })
-    };
+    #[cfg(feature = "actix_extras")]
+    update_parameters_from_arguments(arguments, &mut path_attribute.params);
 
-    #[cfg(not(feature = "actix_gen"))]
-    let path_provider = || None::<String>;
-
-    // TODO validate that path is provided one way or the other
-
-    // println!("path provider: {:#?}", path_provider());
+    let operation_attribute = &PathOperations::resolve_attribute(&ast_fn);
+    let path_provider = || PathOperations::resolve_path(operation_attribute);
 
     let path = Path::new(path_attribute, fn_name)
-        .with_path_operation(operation_attribute.as_ref().map(|attribute| {
+        .with_path_operation(operation_attribute.map(|attribute| {
             let ident = attribute.path.get_ident().unwrap();
             PathOperation::from_ident(ident)
         }))
@@ -136,57 +93,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         #ast_fn
     }
     .into()
-}
-
-// TODO enabed if argument resolving is enabled
-#[inline]
-fn update_parameter_types_from_arguments(
-    arguments: Option<Vec<Argument>>,
-    parameters: &mut Option<Vec<Parameter>>,
-) {
-    if let Some(arguments) = arguments {
-        let new_parameter = |argument: &Argument| {
-            Parameter::new(
-                &argument.name,
-                argument.ident,
-                if argument.argument_in == ArgumentIn::Path {
-                    ParameterIn::Path
-                } else {
-                    ParameterIn::Query
-                },
-            )
-        };
-
-        if let Some(ref mut parameters) = parameters {
-            parameters.iter_mut().for_each(|parameter| {
-                if let Some(argument) = arguments
-                    .iter()
-                    .find(|argument| argument.name == parameter.name)
-                {
-                    parameter.update_parameter_type(argument.ident)
-                }
-            });
-
-            arguments.iter().for_each(|argument| {
-                // cannot use filter() for mutli borrow situation. :(
-                if !parameters
-                    .iter()
-                    .any(|parameter| parameter.name == argument.name)
-                {
-                    // if parameters does not contain argument
-                    parameters.push(new_parameter(argument))
-                }
-            });
-        } else {
-            // no parameters at all, add arguments to the parameters
-            let mut params = Vec::with_capacity(arguments.len());
-            arguments
-                .iter()
-                .map(new_parameter)
-                .for_each(|arg| params.push(arg));
-            *parameters = Some(params);
-        }
-    }
 }
 
 #[proc_macro_error]
@@ -217,6 +123,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         .flat_map(|args| match args {
             OpenApiArgs::Components(components) => components,
             _ => unreachable!(),
+            // TODO enabed if argument resolving is enabled
         })
         .collect::<Vec<_>>();
 
@@ -362,15 +269,6 @@ impl Parse for OpenApiArgs {
                 "unexpected token expected either handler_files or components",
             )),
         }
-    }
-}
-
-fn is_valid_request_type(s: &str) -> bool {
-    match s {
-        "get" | "post" | "put" | "delete" | "head" | "connect" | "options" | "trace" | "patch" => {
-            true
-        }
-        _ => false,
     }
 }
 
