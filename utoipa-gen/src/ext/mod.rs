@@ -17,27 +17,11 @@ pub enum ArgumentIn {
     Path,
 }
 
-// pub struct Arguments<T: Sized> {
-//     _p: PhantomData<T>,
-// }
-
-// impl<T> Arguments<T> {
-//     pub fn new() -> Self {
-//         Self {
-//             _p: PhantomData::default(),
-//         }
-//     }
-// }
-
 pub trait ArgumentResolver {
     fn resolve_path_arguments(_: &Punctuated<FnArg, Comma>) -> Option<Vec<Argument<'_>>> {
         None
     }
 }
-
-// pub struct DefaultResolver;
-
-// impl ArgumentResolver for Arguments<DefaultResolver> {}
 
 pub trait PathResolver {
     fn resolve_path(_: &Option<&Attribute>) -> Option<String> {

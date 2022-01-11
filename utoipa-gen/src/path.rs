@@ -579,7 +579,7 @@ impl ToTokens for Path {
                 }
             }
 
-            impl utoipa::Path for  #path_struct {
+            impl utoipa::Path for #path_struct {
                 fn path() -> &'static str {
                     #path
                 }

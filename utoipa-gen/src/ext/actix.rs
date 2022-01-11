@@ -1,5 +1,7 @@
+use lazy_static::lazy_static;
 use proc_macro2::Ident;
 use proc_macro_error::abort_call_site;
+use regex::{Captures, Regex};
 use syn::{
     punctuated::Punctuated, token::Comma, Attribute, FnArg, GenericArgument, ItemFn, LitStr, Pat,
     PatType, PathArguments, PathSegment, Type, TypePath,
@@ -140,20 +142,35 @@ impl PathResolver for PathOperations {
     fn resolve_path(operation_attribute: &Option<&Attribute>) -> Option<String> {
         operation_attribute.map(|attribute| {
             let lit = attribute.parse_args::<LitStr>().unwrap();
-            lit.value() // TODO format path according OpenAPI specs
+            format_path(&lit.value())
         })
     }
 }
 
 fn format_path(path: &str) -> String {
-    // TODO
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"\{[a-zA-Z0-9_]*:[^{}]*}").unwrap();
+    }
 
-    // for c in path.chars() {
-    //     // char
+    RE.replace_all(path, |captures: &Captures| {
+        let mut capture = captures.get(0).unwrap().as_str().to_string();
 
-    //     c.
-    // }
-    "".to_string()
+        if capture.contains("_:") {
+            // replace unnamed capture with generic 'arg0' name
+            "{arg0}".to_string()
+        } else if capture.contains(':') {
+            //  replace colon (:) separated regexp with empty string
+            let colon = capture.find(':').unwrap();
+            let end = capture.len() - 1;
+            capture.replace_range(colon..end, "");
+
+            capture
+        } else {
+            // otherwise return the capture itself
+            capture
+        }
+    })
+    .to_string()
 }
 
 fn is_valid_request_type(s: &str) -> bool {

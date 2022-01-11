@@ -26,7 +26,7 @@ struct Foo {
         ("ids" = [i32], query, description = "Search foos by ids"),
    ]
 )]
-#[get("/foo/{name:.*}")]
+#[get("/foo/{_:.*}")]
 // #[deprecated = "this is deprecated"]
 // web::Path(id): web::Path<i32>
 async fn foo_delete(web::Query(foo): web::Query<Foo>) -> impl Responder {
