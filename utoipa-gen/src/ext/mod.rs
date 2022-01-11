@@ -6,9 +6,15 @@ pub mod actix;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Argument<'a> {
-    pub name: String,
+    pub name: Option<String>,
     pub argument_in: ArgumentIn,
     pub ident: &'a Ident,
+}
+
+impl Argument<'_> {
+    pub fn has_name(&self) -> bool {
+        self.name.is_some()
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

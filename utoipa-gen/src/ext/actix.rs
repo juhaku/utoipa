@@ -19,17 +19,30 @@ impl ArgumentResolver for PathOperations {
             let names = Self::get_argument_names(pat_type);
             let types = Self::get_argument_types(path_segment);
 
-            Some(
-                names
-                    .into_iter()
-                    .zip(types.into_iter())
-                    .map(|(name, ty)| Argument {
-                        argument_in: ArgumentIn::Path,
-                        ident: ty,
-                        name: name.to_string(),
-                    })
-                    .collect::<Vec<_>>(),
-            )
+            if names.len() != types.len() {
+                Some(
+                    types
+                        .into_iter()
+                        .map(|ty| Argument {
+                            argument_in: ArgumentIn::Path,
+                            ident: ty,
+                            name: None,
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            } else {
+                Some(
+                    names
+                        .into_iter()
+                        .zip(types.into_iter())
+                        .map(|(name, ty)| Argument {
+                            argument_in: ArgumentIn::Path,
+                            ident: ty,
+                            name: Some(name.to_string()),
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            }
         } else {
             None
         }
@@ -54,8 +67,18 @@ impl PathOperations {
                 .pat
                 .elems
                 .iter()
-                .map(|pat| match pat {
-                    Pat::Ident(pat_ident) => &pat_ident.ident,
+                .flat_map(|pat| match pat {
+                    Pat::Ident(pat_ident) => vec![&pat_ident.ident],
+                    Pat::Tuple(tuple) => tuple
+                        .elems
+                        .iter()
+                        .map(|pat| match pat {
+                            Pat::Ident(pat_ident) => &pat_ident.ident,
+                            _ => abort_call_site!(
+                                "unexpected pat ident in Pat::Tuple expected Pat::Ident"
+                            ),
+                        })
+                        .collect(),
                     _ => abort_call_site!("unexpected pat type expected Pat::Ident"),
                 })
                 .collect::<Vec<_>>(),
@@ -191,7 +214,7 @@ pub fn update_parameters_from_arguments(
     if let Some(arguments) = arguments {
         let new_parameter = |argument: &Argument| {
             Parameter::new(
-                &argument.name,
+                &argument.name.as_ref().unwrap(),
                 argument.ident,
                 if argument.argument_in == ArgumentIn::Path {
                     ParameterIn::Path
@@ -205,29 +228,34 @@ pub fn update_parameters_from_arguments(
             parameters.iter_mut().for_each(|parameter| {
                 if let Some(argument) = arguments
                     .iter()
-                    .find(|argument| argument.name == parameter.name)
+                    .find(|argument| argument.name.as_ref() == Some(&parameter.name))
                 {
                     parameter.update_parameter_type(argument.ident)
                 }
             });
 
-            arguments.iter().for_each(|argument| {
-                // cannot use filter() for mutli borrow situation. :(
-                if !parameters
-                    .iter()
-                    .any(|parameter| parameter.name == argument.name)
-                {
-                    // if parameters does not contain argument
-                    parameters.push(new_parameter(argument))
-                }
-            });
+            // add argument to the parameters if argument has a name and it does not exists in parameters
+            arguments
+                .iter()
+                .filter(|argument| argument.has_name())
+                .for_each(|argument| {
+                    // cannot use filter() for mutli borrow situation. :(
+                    if !parameters
+                        .iter()
+                        .any(|parameter| Some(&parameter.name) == argument.name.as_ref())
+                    {
+                        // if parameters does not contain argument
+                        parameters.push(new_parameter(argument))
+                    }
+                });
         } else {
-            // no parameters at all, add arguments to the parameters
+            // no parameters at all, add arguments to the parameters if argument has a name
             let mut params = Vec::with_capacity(arguments.len());
             arguments
                 .iter()
+                .filter(|argument| argument.has_name())
                 .map(new_parameter)
-                .for_each(|arg| params.push(arg));
+                .for_each(|parameter| params.push(parameter));
             *parameters = Some(params);
         }
     }
