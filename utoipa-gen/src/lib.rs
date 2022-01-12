@@ -3,6 +3,10 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+#[cfg(feature = "actix_extras")]
+use ext::actix::update_parameters_from_arguments;
+
+use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, quote_spanned};
 
@@ -15,9 +19,9 @@ use syn::{
 mod attribute;
 mod component;
 mod component_type;
+mod ext;
 mod info;
 mod path;
-mod paths;
 
 use proc_macro_error::*;
 
@@ -50,63 +54,24 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     component.into()
 }
 
-// #[proc_macro_error]
-// #[proc_macro_attribute]
-// pub fn api_operation(attr: TokenStream, item: TokenStream) -> TokenStream {
-//     println!("Attr: {:#?}", &attr);
-//     // let input = syn::parse_macro_input!(attr as PathAttr);
-
-//     item
-// }
-
 #[proc_macro_error]
 #[proc_macro_attribute]
 /// Path attribute macro
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
-
-    // println!("parsed path attribute: {:#?}", &path_attribute);
-
+    let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
     let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
-
-    // println!("item attrs: {:#?}", &ast_fn.attrs);
-    // println!("item block: {:#?}", &block);
-    // println!("item sig: {:#?}", &sig);
-    // println!("item vis: {:#?}", &vis);
-
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let operation_attribute = &ast_fn.attrs.iter().find_map(|attribute| {
-        if is_valid_request_type(
-            &attribute
-                .path
-                .get_ident()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-        ) {
-            Some(attribute)
-        } else {
-            None
-        }
-    });
+    let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs);
 
-    #[cfg(feature = "actix_gen")]
-    let path_provider = || {
-        operation_attribute.as_ref().map(|attribute| {
-            let lit = attribute.parse_args::<LitStr>().unwrap();
-            lit.value() // TODO format path according OpenAPI specs
-        })
-    };
+    #[cfg(feature = "actix_extras")]
+    update_parameters_from_arguments(arguments, &mut path_attribute.params);
 
-    #[cfg(not(feature = "actix_gen"))]
-    let path_provider = || None::<String>;
-
-    // TODO validate that path is provided one way or the other
-
-    // println!("path provider: {:#?}", path_provider());
+    let operation_attribute = &PathOperations::resolve_attribute(&ast_fn);
+    let path_provider = || PathOperations::resolve_path(operation_attribute);
 
     let path = Path::new(path_attribute, fn_name)
-        .with_path_operation(operation_attribute.as_ref().map(|attribute| {
+        .with_path_operation(operation_attribute.map(|attribute| {
             let ident = attribute.path.get_ident().unwrap();
             PathOperation::from_ident(ident)
         }))
@@ -122,6 +87,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         }));
 
     quote! {
+        use utoipa::openapi::schema::ToArray;
         #path
         #ast_fn
     }
@@ -156,6 +122,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
         .flat_map(|args| match args {
             OpenApiArgs::Components(components) => components,
             _ => unreachable!(),
+            // TODO enabed if argument resolving is enabled
         })
         .collect::<Vec<_>>();
 
@@ -194,6 +161,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     }
 
     quote.extend(quote! {
+        use utoipa::openapi::schema::ToArray;
         impl utoipa::OpenApi for #ident {
             fn openapi() -> utoipa::openapi::OpenApi {
                 utoipa::openapi::OpenApi::new(#info, #path_items)
@@ -218,7 +186,7 @@ fn parse_openapi_attributes(attributes: &[Attribute]) -> Option<Vec<OpenApiArgs>
         .next()
         .map(|attribute| {
             if !attribute.path.is_ident("openapi") {
-                abort_call_site!("Expected #[openapi(...)], but was: {:?}", attribute);
+                abort_call_site!("Expected #[openapi(...)]");
             } else {
                 attribute
             }
@@ -300,15 +268,6 @@ impl Parse for OpenApiArgs {
                 "unexpected token expected either handler_files or components",
             )),
         }
-    }
-}
-
-fn is_valid_request_type(s: &str) -> bool {
-    match s {
-        "get" | "post" | "put" | "delete" | "head" | "connect" | "options" | "trace" | "patch" => {
-            true
-        }
-        _ => false,
     }
 }
 

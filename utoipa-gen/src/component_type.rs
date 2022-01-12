@@ -55,7 +55,7 @@ impl<'a> ToTokens for ComponentType<'a> {
 }
 
 // TODO add extendability to this so that custom types can also be tokenized?
-/// Tokenizes OpenAPI datatype format correctly by given Rust type.
+/// Tokenizes OpenAPI data type format correctly by given Rust type.
 pub(crate) struct ComponentFormat<T: Display>(pub(crate) T);
 
 impl<T: Display> ComponentFormat<T> {

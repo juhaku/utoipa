@@ -1,6 +1,6 @@
 use std::{io::Error, str::FromStr};
 
-use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::{abort_call_site, OptionExt, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
@@ -8,21 +8,59 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
-    token, LitInt, LitStr, Token,
+    token::Bracket,
+    LitInt, LitStr, Token,
 };
+
+use crate::component_type::{ComponentFormat, ComponentType};
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
-// #[api_operation(delete,
+// #[utoipa::path(delete,
 //    operation_id = "custom_operation_id",
-//    path = "custom_path",
+//    path = "/custom/path/{id}/{digest}",
 //    tag = "groupping_tag"
 //    responses = [
-//     (200, "success", String),
+//     (status = 200, description = "delete foo entity successful",
+//          body = String, content_type = "text/plain"),
+//     (status = 500, description = "internal server error",
+//          body = String, content_type = "text/plain")
 //     (400, "my bad error", u64),
 //     (404, "vault not found"),
-//     (500, "internal server error")
-// ])]
+//     (status = 500, description = "internal server error", body = String, content_type = "text/plain")
+//    ],
+//    params = [
+//      ("myval" = String, description = "this is description"),
+//      ("myval", description = "this is description"),
+//      ("myval" = String, path, required, deprecated, description = "this is description"),
+//    ]
+// )]
+
+// #[utoipa::response(
+//      status = 200,
+//      description = "success response",
+//      body = String,
+//      content_type = "text/plain"
+// )]
+// #[utoipa::response(
+//      status = 400,
+//      description = "this is bad request",
+//      body = String,
+//      content_type = "application/json"
+// )]
+// #[utoipa::response(
+//      status = 500,
+//      description = "internal server error",
+//      body = Error,
+//      content_type = "text/plain"
+// )]
+// #[utoipa::response(
+//      status = 404,
+//      description = "item not found",
+//      body = i32 // because body type is primitive the content_type is not necessary
+// )]
+// implementation should make assumptions based on response body type. If response body type is primitive type
+// content_type is set to text/pain by default
 
 /// PathAttr is parsed #[path(...)] proc macro and its attributes.
 /// Parsed attributes can be used to override or append OpenAPI Path
@@ -35,6 +73,7 @@ pub struct PathAttr {
     path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
+    pub params: Option<Vec<Parameter>>,
 }
 
 /// Parse implementation for PathAttr will parse arguments
@@ -44,7 +83,9 @@ impl Parse for PathAttr {
         let mut path_attr = PathAttr::default();
 
         loop {
-            let ident = input.parse::<Ident>().unwrap();
+            let ident = input
+                .parse::<Ident>()
+                .expect_or_abort("failed to parse first ident");
             let ident_name = &*ident.to_string();
 
             let parse_lit_str = |input: &ParseStream, error_message: &str| -> String {
@@ -56,6 +97,17 @@ impl Parse for PathAttr {
                     .parse::<LitStr>()
                     .expect_or_abort(error_message)
                     .value()
+            };
+
+            let parse_groups = |input: &ParseStream| {
+                if input.peek(Token![=]) {
+                    input.parse::<Token![=]>().unwrap();
+                }
+
+                let content;
+                bracketed!(content in input);
+
+                Punctuated::<Group, Token![,]>::parse_terminated(&content)
             };
 
             match ident_name {
@@ -70,19 +122,23 @@ impl Parse for PathAttr {
                         Some(parse_lit_str(&input, "expected literal string for path"));
                 }
                 "responses" => {
-                    if input.peek(Token![=]) {
-                        input.parse::<Token![=]>().unwrap();
-                    }
-
-                    let content;
-                    bracketed!(content in input);
-                    let groups = Punctuated::<Group, Token![,]>::parse_terminated(&content)
+                    let groups = parse_groups(&input)
                         .expect_or_abort("expected responses to be group separated by comma (,)");
 
                     path_attr.responses = groups
                         .iter()
                         .map(|group| parse2::<PathResponse>(group.stream()).unwrap_or_abort())
                         .collect::<Vec<_>>();
+                }
+                "params" => {
+                    let groups = parse_groups(&input)
+                        .expect_or_abort("expected parameters to be group separated by comma (,)");
+                    path_attr.params = Some(
+                        groups
+                            .iter()
+                            .map(|group| parse2::<Parameter>(group.stream()).unwrap_or_abort())
+                            .collect::<Vec<Parameter>>(),
+                    )
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_lit_str(&input, "expected literal string for tag"));
@@ -138,6 +194,7 @@ pub enum PathOperation {
     Head,
     Patch,
     Trace,
+    Connect,
 }
 
 impl PathOperation {
@@ -165,9 +222,10 @@ impl FromStr for PathOperation {
             "head" => Ok(Self::Head),
             "patch" => Ok(Self::Patch),
             "trace" => Ok(Self::Trace),
+            "connect" => Ok(Self::Connect),
             _ => Err(Error::new(
                 std::io::ErrorKind::Other,
-                "invalid PathOperation expected one of: [get, post, put, delete, options, head, patch, trace]",
+                "invalid PathOperation expected one of: get, post, put, delete, options, head, patch, trace, connect",
             )),
         }
     }
@@ -184,6 +242,7 @@ impl ToTokens for PathOperation {
             Self::Head => quote! { utoipa::openapi::PathItemType::Head },
             Self::Patch => quote! { utoipa::openapi::PathItemType::Patch },
             Self::Trace => quote! { utoipa::openapi::PathItemType::Trace },
+            Self::Connect => quote! { utoipa::openapi::PathItemType::Connect },
         };
 
         tokens.extend(path_item_type);
@@ -233,6 +292,197 @@ impl Parse for PathResponse {
         }
 
         Ok(response)
+    }
+}
+
+/// Parameter of request suchs as in path, header, query or cookie
+///
+/// For example path `/users/{id}` the path parameter is used to define
+/// type, format and other details of the `{id}` parameter within the path
+///
+/// Parse is executed for following formats:
+///
+/// * ("id" = String, path, required, deprecated, description = "Users database id"),
+/// * ("id", path, required, deprecated, description = "Users database id"),
+///
+/// The `= String` type statement is optional if automatic resolvation is supported.
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Parameter {
+    pub name: String,
+    parameter_in: ParameterIn,
+    required: bool,
+    deprecated: bool,
+    pub parameter_type: Option<Ident>,
+    is_array: bool,
+    description: Option<String>,
+}
+
+impl Parameter {
+    pub fn new<S: AsRef<str>>(name: S, parameter_type: &Ident, parameter_in: ParameterIn) -> Self {
+        let required = parameter_in == ParameterIn::Path;
+
+        Self {
+            name: name.as_ref().to_string(),
+            parameter_type: Some(parameter_type.clone()),
+            parameter_in,
+            required,
+            ..Default::default()
+        }
+    }
+
+    pub fn update_parameter_type(&mut self, ident: &Ident) {
+        self.parameter_type = Some(ident.clone());
+    }
+}
+
+impl Parse for Parameter {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut parameter = Parameter::default();
+
+        if input.peek(LitStr) {
+            // parse name
+            let name = input.parse::<LitStr>().unwrap().value();
+            parameter.name = name;
+            if input.peek(Token![=]) && input.peek2(syn::Ident) {
+                // parse type for name if provided
+                input.parse::<Token![=]>().unwrap();
+                parameter.parameter_type = Some(input.parse::<syn::Ident>().unwrap());
+            } else if input.peek(Token![=]) && input.peek2(Bracket) {
+                // parse group as array
+                input.parse::<Token![=]>().unwrap();
+                parameter.is_array = true;
+                let group_content;
+                bracketed!(group_content in input);
+                parameter.parameter_type = Some(group_content.parse::<Ident>().unwrap());
+            }
+        } else {
+            return Err(input.error("expected first element to be LitStr parameter name"));
+        }
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>().unwrap();
+        }
+
+        loop {
+            let ident = input.parse::<syn::Ident>().unwrap();
+            let name = &*ident.to_string();
+            match name {
+                "path" | "query" | "header" | "cookie" => {
+                    parameter.parameter_in = name.parse::<ParameterIn>().unwrap_or_abort();
+                    if parameter.parameter_in == ParameterIn::Path {
+                        parameter.required = true; // all path parameters are required by default
+                    }
+                }
+                "required" => parameter.required = true,
+                "deprecated" => parameter.deprecated = true,
+                "description" => {
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>().unwrap();
+                    }
+
+                    parameter.description = Some(
+                        input
+                            .parse::<LitStr>()
+                            .expect_or_abort("expected description value as LitStr")
+                            .value(),
+                    )
+                }
+                _ => return Err(input.error(&format!("unexpected element: {}", name))),
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>().unwrap();
+            }
+            if input.is_empty() {
+                break;
+            }
+        }
+        Ok(parameter)
+    }
+}
+impl ToTokens for Parameter {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let name = &*self.name;
+        tokens.extend(quote! { utoipa::openapi::path::Parameter::new(#name) });
+        let parameter_in = &self.parameter_in;
+        tokens.extend(quote! { .with_in(#parameter_in) });
+
+        let required: Required = self.required.into();
+        tokens.extend(quote! { .with_required(#required) });
+
+        let deprecated: Deprecated = self.deprecated.into();
+        tokens.extend(quote! { .with_deprecated(#deprecated) });
+
+        if let Some(ref description) = self.description {
+            tokens.extend(quote! { .with_description(#description) });
+        }
+
+        if let Some(ref parameter_type) = self.parameter_type {
+            // TODO unify this property logic with the one in component.rs
+            let component_type = ComponentType(parameter_type);
+            let mut property = quote! {
+                utoipa::openapi::Property::new(
+                    #component_type
+                )
+            };
+            let format = ComponentFormat(parameter_type);
+            if format.is_known_format() {
+                property.extend(quote! {
+                    .with_format(#format)
+                })
+            }
+            if self.is_array {
+                property.extend(quote! { .to_array() });
+            }
+
+            tokens.extend(quote! { .with_schema(#property) });
+        }
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq)]
+pub enum ParameterIn {
+    Query,
+    Path,
+    Header,
+    Cookie,
+}
+
+impl Default for ParameterIn {
+    fn default() -> Self {
+        Self::Path
+    }
+}
+
+impl FromStr for ParameterIn {
+    type Err = syn::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "path" => Ok(Self::Path),
+            "query" => Ok(Self::Query),
+            "header" => Ok(Self::Header),
+            "cookie" => Ok(Self::Cookie),
+            _ => Err(syn::Error::new(
+                Span::call_site(),
+                &format!(
+                    "unexpected str: {}, expected one of: path, query, header, cookie",
+                    s
+                ),
+            )),
+        }
+    }
+}
+
+impl ToTokens for ParameterIn {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(match self {
+            Self::Path => quote! { utoipa::openapi::path::ParameterIn::Path },
+            Self::Query => quote! { utoipa::openapi::path::ParameterIn::Query },
+            Self::Header => quote! { utoipa::openapi::path::ParameterIn::Header },
+            Self::Cookie => quote! { utoipa::openapi::path::ParameterIn::Cookie },
+        })
     }
 }
 
@@ -319,6 +569,7 @@ impl ToTokens for Path {
                 .as_ref()
                 .and_then(|comments| comments.iter().next()),
             description: self.doc_comments.as_ref(),
+            parameters: self.path_attr.params.as_ref(),
         };
 
         tokens.extend(quote! {
@@ -331,7 +582,7 @@ impl ToTokens for Path {
                 }
             }
 
-            impl utoipa::Path for  #path_struct {
+            impl utoipa::Path for #path_struct {
                 fn path() -> &'static str {
                     #path
                 }
@@ -353,6 +604,7 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
+    parameters: Option<&'a Vec<Parameter>>,
 }
 
 impl ToTokens for Operation<'_> {
@@ -366,17 +618,13 @@ impl ToTokens for Operation<'_> {
                 utoipa::openapi::response::Response::new("this is response message")
             )
         });
-        //         // .with_parameters()
         //         // .with_request_body()
-        //         // .with_description()
-        //         // .with_summary()
-        //         // .with_deprecated()
         //         // .with_security()
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self.operation_id;
         tokens.extend(quote! {
             .with_tag(
-                vec![<#path_struct as utoipa::Tag>::tag(),
+                [<#path_struct as utoipa::Tag>::tag(),
                     <#path_struct as utoipa::DefaultTag>::tag()
                 ]
                 .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")
@@ -386,10 +634,15 @@ impl ToTokens for Operation<'_> {
             )
         });
 
-        let deprecated = get_deprecated_token_stream(self.deprecated);
+        let deprecated = self
+            .deprecated
+            .map(Into::<Deprecated>::into)
+            .or(Some(Deprecated::False))
+            .unwrap();
         tokens.extend(quote! {
            .with_deprecated(#deprecated)
         });
+
         if let Some(summary) = self.summary {
             tokens.extend(quote! {
                 .with_summary(#summary)
@@ -407,27 +660,59 @@ impl ToTokens for Operation<'_> {
                 .with_description(#description)
             })
         }
+
+        if let Some(parameters) = self.parameters {
+            parameters
+                .iter()
+                .for_each(|parameter| tokens.extend(quote! { .with_parameter(#parameter) }));
+        }
     }
 }
 
-fn get_deprecated_token_stream(deprecated: &Option<bool>) -> TokenStream2 {
-    let get_deprecated_false = || {
-        quote! {
-            utoipa::openapi::Deprecated::False
-        }
-    };
+pub enum Deprecated {
+    True,
+    False,
+}
 
-    deprecated
-        .as_ref()
-        .map(|deprecated| {
-            println!("is deprecated: {:?}", deprecated);
-            if *deprecated {
-                quote! {
-                    utoipa::openapi::Deprecated::True
-                }
-            } else {
-                get_deprecated_false()
-            }
+impl From<bool> for Deprecated {
+    fn from(bool: bool) -> Self {
+        if bool {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
+
+impl ToTokens for Deprecated {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(match self {
+            Self::False => quote! { utoipa::openapi::Deprecated::False },
+            Self::True => quote! { utoipa::openapi::Deprecated::True },
         })
-        .unwrap_or_else(get_deprecated_false)
+    }
+}
+
+pub enum Required {
+    True,
+    False,
+}
+
+impl From<bool> for Required {
+    fn from(bool: bool) -> Self {
+        if bool {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
+
+impl ToTokens for Required {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(match self {
+            Self::False => quote! { utoipa::openapi::Required::False },
+            Self::True => quote! { utoipa::openapi::Required::True },
+        })
+    }
 }

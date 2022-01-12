@@ -237,7 +237,7 @@ impl From<Array> for Component {
     }
 }
 
-trait ToArray
+pub trait ToArray
 where
     Component: From<Self>,
     Self: Sized,

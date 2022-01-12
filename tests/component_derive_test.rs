@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
 
-use crate::common::{get_json_path, value_as_string};
+use crate::common::get_json_path;
 
 mod common;
 
@@ -36,24 +36,6 @@ macro_rules! api_doc {
 
         component.clone()
     }};
-}
-
-macro_rules! assert_value {
-    ($value:expr=> $( $path:literal = $expected:literal, $error:literal)* ) => {{
-        $(
-            let actual = value_as_string(Some(get_json_path(&$value, $path)));
-            assert_eq!(actual, $expected, "{}: {} expected to be: {} but was: {}", $error, $path, $expected, actual);
-         )*
-    }};
-
-    ($value:expr=> $( $path:literal = $expected:expr, $error:literal)*) => {
-        {
-            $(
-                let actual = get_json_path(&$value, $path);
-                assert!(actual == &$expected, "{}: {} expected to be: {:?} but was: {:?}", $error, $path, $expected, actual);
-             )*
-        }
-    }
 }
 
 #[test]

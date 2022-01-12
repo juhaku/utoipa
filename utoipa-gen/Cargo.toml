@@ -10,10 +10,12 @@ proc-macro = true
 
 [dependencies]
 proc-macro2 = "1.0.32"
-syn = "1.0.81"
+syn = { version = "1.0.81", features = ["full"] }
 quote = "1.0.10"
 proc-macro-error = "1.0.4"
+regex = { version = "1.5.4", optional = true } 
+lazy_static = { version = "1.4.0", optional = true }
 
 [features]
 debug = []
-actix_gen = []
+actix_extras = ["regex", "lazy_static"]

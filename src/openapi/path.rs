@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     request_body::RequestBody,
     response::{Response, Responses},
-    Deprecated, ExternalDocs, Required, Security, Server,
+    Component, Deprecated, ExternalDocs, Required, Security, Server,
 };
 
 #[non_exhaustive]
@@ -121,6 +121,7 @@ pub enum PathItemType {
     Head,
     Patch,
     Trace,
+    Connect,
 }
 
 impl Display for PathItemType {
@@ -134,6 +135,7 @@ impl Display for PathItemType {
             Self::Head => write!(f, "head"),
             Self::Patch => write!(f, "patch"),
             Self::Trace => write!(f, "trace"),
+            Self::Connect => write!(f, "connect"),
         }
     }
 }
@@ -236,7 +238,12 @@ impl Operation {
     }
 
     pub fn with_parameter(mut self, parameter: Parameter) -> Self {
-        self.parameters.as_mut().unwrap().push(parameter);
+        match self.parameters {
+            Some(ref mut parameters) => parameters.push(parameter),
+            None => {
+                self.parameters = Some(vec![parameter]);
+            }
+        }
 
         self
     }
@@ -307,6 +314,8 @@ pub struct Parameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema: Option<Component>,
 }
 
 impl Parameter {
@@ -342,6 +351,12 @@ impl Parameter {
 
     pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
         self.deprecated = Some(deprecated);
+
+        self
+    }
+
+    pub fn with_schema<I: Into<Component>>(mut self, component: I) -> Self {
+        self.schema = Some(component.into());
 
         self
     }

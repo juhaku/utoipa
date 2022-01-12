@@ -80,6 +80,10 @@ impl OpenApi {
     pub fn to_json(&self) -> Result<String, Error> {
         serde_json::to_string(self).map_err(Error::Serde)
     }
+
+    pub fn to_pretty_json(&self) -> Result<String, Error> {
+        serde_json::to_string_pretty(self).map_err(Error::Serde)
+    }
 }
 
 #[derive(Debug, Deserialize)]
