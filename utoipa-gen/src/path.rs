@@ -194,6 +194,7 @@ pub enum PathOperation {
     Head,
     Patch,
     Trace,
+    Connect,
 }
 
 impl PathOperation {
@@ -221,9 +222,10 @@ impl FromStr for PathOperation {
             "head" => Ok(Self::Head),
             "patch" => Ok(Self::Patch),
             "trace" => Ok(Self::Trace),
+            "connect" => Ok(Self::Connect),
             _ => Err(Error::new(
                 std::io::ErrorKind::Other,
-                "invalid PathOperation expected one of: [get, post, put, delete, options, head, patch, trace]",
+                "invalid PathOperation expected one of: get, post, put, delete, options, head, patch, trace, connect",
             )),
         }
     }
@@ -240,6 +242,7 @@ impl ToTokens for PathOperation {
             Self::Head => quote! { utoipa::openapi::PathItemType::Head },
             Self::Patch => quote! { utoipa::openapi::PathItemType::Patch },
             Self::Trace => quote! { utoipa::openapi::PathItemType::Trace },
+            Self::Connect => quote! { utoipa::openapi::PathItemType::Connect },
         };
 
         tokens.extend(path_item_type);

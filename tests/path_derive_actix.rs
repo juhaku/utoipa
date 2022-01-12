@@ -175,4 +175,9 @@ test_derive_path_operations! {
     derive_path_operation_get, mod_test_get: get
     derive_path_operation_delete, mod_test_delete: delete
     derive_path_operation_put, mod_test_put: put
+    derive_path_operation_head, mod_test_head: head
+    derive_path_operation_connect, mod_test_connect: connect
+    derive_path_operation_options, mod_test_options: options
+    derive_path_operation_trace, mod_test_trace: trace
+    derive_path_operation_patch, mod_test_patch: patch
 }

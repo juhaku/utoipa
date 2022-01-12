@@ -121,6 +121,7 @@ pub enum PathItemType {
     Head,
     Patch,
     Trace,
+    Connect,
 }
 
 impl Display for PathItemType {
@@ -134,6 +135,7 @@ impl Display for PathItemType {
             Self::Head => write!(f, "head"),
             Self::Patch => write!(f, "patch"),
             Self::Trace => write!(f, "trace"),
+            Self::Connect => write!(f, "connect"),
         }
     }
 }

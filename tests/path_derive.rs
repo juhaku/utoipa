@@ -81,6 +81,7 @@ test_path_operation! {
     derive_path_head: head
     derive_path_patch: patch
     derive_path_trace: trace
+    derive_path_connect: connect
 }
 
 test_api_fn! {
