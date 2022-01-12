@@ -17,7 +17,7 @@ mod mod_derive_path_actix {
             (200, "success", String),
         ],
         params = [
-            ("id" = i32, description = "Foo id"),
+            ("id", description = "Foo id"),
         ]
     )]
     #[get("/foo/{id}")]
@@ -36,16 +36,7 @@ fn derive_path_one_value_actix_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
 
-    match parameters {
-        Value::Array(array) => assert_eq!(
-            1,
-            array.len(),
-            "wrong amount of parameters {} != {}",
-            1,
-            array.len()
-        ),
-        _ => unreachable!(),
-    };
+    common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""id""#, "Parameter name"
@@ -88,16 +79,7 @@ fn derive_path_with_unnamed_regex_actix_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{arg0}.get.parameters");
 
-    match parameters {
-        Value::Array(array) => assert_eq!(
-            1,
-            array.len(),
-            "wrong amount of parameters {} != {}",
-            1,
-            array.len()
-        ),
-        _ => unreachable!(),
-    };
+    common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""arg0""#, "Parameter name"
@@ -140,16 +122,7 @@ fn derive_path_with_named_regex_actix_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{tail}.get.parameters");
 
-    match parameters {
-        Value::Array(array) => assert_eq!(
-            1,
-            array.len(),
-            "wrong amount of parameters {} != {}",
-            1,
-            array.len()
-        ),
-        _ => unreachable!(),
-    };
+    common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""tail""#, "Parameter name"

@@ -1,6 +1,5 @@
 #![cfg(feature = "actix_extras")]
 
-use serde_json::Value;
 use utoipa::OpenApi;
 
 mod common;
@@ -38,16 +37,7 @@ fn derive_path_parameter_multiple_with_matching_names_and_types_actix_success() 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
 
-    match parameters {
-        Value::Array(array) => assert_eq!(
-            2,
-            array.len(),
-            "wrong amount of parameters {} != {}",
-            2,
-            array.len()
-        ),
-        _ => unreachable!(),
-    };
+    common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""id""#, "Parameter name"
@@ -101,16 +91,7 @@ fn derive_path_parameter_multiple_no_matching_names_acitx_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
 
-    match parameters {
-        Value::Array(array) => assert_eq!(
-            2,
-            array.len(),
-            "wrong amount of parameters {} != {}",
-            2,
-            array.len()
-        ),
-        _ => unreachable!(),
-    };
+    common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""id""#, "Parameter name"
@@ -123,6 +104,52 @@ fn derive_path_parameter_multiple_no_matching_names_acitx_success() {
         "[1].in" = r#""path""#, "Parameter in"
         "[1].name" = r#""digest""#, "Parameter name"
         "[1].description" = r#""Digest of foo""#, "Parameter description"
+        "[1].required" = r#"true"#, "Parameter required"
+        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+    };
+}
+
+mod derive_params_from_method_args_actix {
+    use actix_web::{web, HttpResponse, Responder};
+    use serde_json::json;
+
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}/{digest}",
+        responses = [
+            (200, "success", String),
+        ],
+    )]
+    #[allow(unused)]
+    async fn get_foo_by_id(web::Path((id, digest)): web::Path<(i32, String)>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "foo": format!("{:?}{:?}", &id, &digest) }))
+    }
+}
+
+#[test]
+fn derive_params_from_method_args_actix_success() {
+    #[derive(OpenApi, Default)]
+    #[openapi(handler_files = [], handlers = [derive_params_from_method_args_actix::get_foo_by_id])]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
+
+    common::assert_json_array_len(parameters, 2);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#"null"#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int32""#, "Parameter schema format"
+
+        "[1].in" = r#""path""#, "Parameter in"
+        "[1].name" = r#""digest""#, "Parameter name"
+        "[1].description" = r#"null"#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
         "[1].deprecated" = r#"false"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"

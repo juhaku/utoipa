@@ -20,6 +20,19 @@ pub fn value_as_string(value: Option<&'_ Value>) -> String {
     value.unwrap_or(&Value::Null).to_string()
 }
 
+pub fn assert_json_array_len(value: &Value, len: usize) {
+    match value {
+        Value::Array(array) => assert_eq!(
+            len,
+            array.len(),
+            "wrong amount of parameters {} != {}",
+            len,
+            array.len()
+        ),
+        _ => unreachable!(),
+    }
+}
+
 #[macro_export]
 macro_rules! assert_value {
     ($value:expr=> $( $path:literal = $expected:literal, $error:literal)* ) => {{
