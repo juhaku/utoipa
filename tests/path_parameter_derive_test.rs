@@ -1,3 +1,4 @@
+#![cfg(not(feature = "actix_extras"))]
 use serde_json::Value;
 use utoipa::OpenApi;
 
@@ -219,5 +220,96 @@ fn derive_path_parameter_multiple_no_matching_names() {
         "[1].deprecated" = r#"false"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
+    };
+}
+
+mod mod_derive_parameters_all_types {
+    use actix_web::{web, HttpResponse, Responder};
+    use serde_json::json;
+
+    /// Get foo by id
+    ///
+    /// Get foo by id long description
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses = [
+            (200, "success", String),
+        ],
+        params = [
+            ("id" = i32, path, description = "Foo id"),
+            ("since" = String, deprecated, required, query, description = "Datetime since"),
+            ("numbers" = [u64], query, description = "Foo numbers list"),
+            ("token" = String, header, deprecated, required, description = "Token of foo"),
+            ("cookieval" = String, cookie, deprecated, required, description = "Foo cookie"),
+        ]
+    )]
+    #[allow(unused)]
+    async fn get_foo_by_id(id: web::Path<i32>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "foo": format!("{:?}", &id.0) }))
+    }
+}
+
+#[test]
+fn derive_parameters_with_all_types() {
+    #[derive(OpenApi, Default)]
+    #[openapi(handler_files = [], handlers = [mod_derive_parameters_all_types::get_foo_by_id])]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+
+    match parameters {
+        Value::Array(array) => assert_eq!(
+            5,
+            array.len(),
+            "wrong amount of parameters {} != {}",
+            5,
+            array.len()
+        ),
+        _ => unreachable!(),
+    };
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#""Foo id""#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int32""#, "Parameter schema format"
+
+        "[1].in" = r#""query""#, "Parameter in"
+        "[1].name" = r#""since""#, "Parameter name"
+        "[1].description" = r#""Datetime since""#, "Parameter description"
+        "[1].required" = r#"true"#, "Parameter required"
+        "[1].deprecated" = r#"true"#, "Parameter deprecated"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+
+        "[2].in" = r#""query""#, "Parameter in"
+        "[2].name" = r#""numbers""#, "Parameter name"
+        "[2].description" = r#""Foo numbers list""#, "Parameter description"
+        "[2].required" = r#"false"#, "Parameter required"
+        "[2].deprecated" = r#"false"#, "Parameter deprecated"
+        "[2].schema.type" = r#""array""#, "Parameter schema type"
+        "[2].schema.format" = r#"null"#, "Parameter schema format"
+        "[2].schema.items.type" = r#""integer""#, "Parameter schema items type"
+        "[2].schema.items.format" = r#""int64""#, "Parameter schema items format"
+
+        "[3].in" = r#""header""#, "Parameter in"
+        "[3].name" = r#""token""#, "Parameter name"
+        "[3].description" = r#""Token of foo""#, "Parameter description"
+        "[3].required" = r#"true"#, "Parameter required"
+        "[3].deprecated" = r#"true"#, "Parameter deprecated"
+        "[3].schema.type" = r#""string""#, "Parameter schema type"
+        "[3].schema.format" = r#"null"#, "Parameter schema format"
+
+        "[4].in" = r#""cookie""#, "Parameter in"
+        "[4].name" = r#""cookieval""#, "Parameter name"
+        "[4].description" = r#""Foo cookie""#, "Parameter description"
+        "[4].required" = r#"true"#, "Parameter required"
+        "[4].deprecated" = r#"true"#, "Parameter deprecated"
+        "[4].schema.type" = r#""string""#, "Parameter schema type"
+        "[4].schema.format" = r#"null"#, "Parameter schema format"
     };
 }

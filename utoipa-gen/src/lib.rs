@@ -22,7 +22,6 @@ mod component_type;
 mod ext;
 mod info;
 mod path;
-mod paths;
 
 use proc_macro_error::*;
 
@@ -187,7 +186,7 @@ fn parse_openapi_attributes(attributes: &[Attribute]) -> Option<Vec<OpenApiArgs>
         .next()
         .map(|attribute| {
             if !attribute.path.is_ident("openapi") {
-                abort_call_site!("Expected #[openapi(...)], but was: {:?}", attribute);
+                abort_call_site!("Expected #[openapi(...)]");
             } else {
                 attribute
             }

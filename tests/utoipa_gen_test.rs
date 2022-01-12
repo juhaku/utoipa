@@ -1,8 +1,9 @@
-use actix_web::{delete, get, web, HttpResponse, Responder};
+#![cfg(feature = "actix_extras")]
+use actix_web::{get, web, HttpResponse, Responder};
 use serde::Deserialize;
 use serde_json::json;
 // use utoipa::openapi_spec;
-use utoipa::{path, OpenApi};
+use utoipa::OpenApi;
 
 #[derive(Deserialize)]
 struct Foo {
@@ -15,7 +16,7 @@ struct Foo {
 /// Delete foo entity
 ///
 /// Delete foo entity by what
-#[crate::path(
+#[utoipa::path(
     responses = [
         (200, "success", String),
         (400, "my bad error", u64),
@@ -36,6 +37,7 @@ async fn foo_delete(web::Query(foo): web::Query<Foo>) -> impl Responder {
 // }
 
 #[test]
+#[ignore = "this is just a test bed to run macros"]
 fn derive_openapi() {
     // use crate::api::__path_foo_delete;
     #[derive(OpenApi, Default)]
