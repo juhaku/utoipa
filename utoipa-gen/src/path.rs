@@ -8,11 +8,15 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
-    token::Bracket,
+    token::{Bracket, Token},
     LitInt, LitStr, Token,
 };
 
-use crate::component_type::{ComponentFormat, ComponentType};
+use crate::{
+    component_type::{ComponentFormat, ComponentType},
+    request_body::RequestBodyAttr,
+    Deprecated, Required,
+};
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
@@ -20,6 +24,7 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 //    operation_id = "custom_operation_id",
 //    path = "/custom/path/{id}/{digest}",
 //    tag = "groupping_tag"
+//    request_body = [Foo]
 //    responses = [
 //     (status = 200, description = "delete foo entity successful",
 //          body = String, content_type = "text/plain"),
@@ -69,6 +74,7 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr {
     path_operation: Option<PathOperation>,
+    request_body: Option<RequestBodyAttr>,
     responses: Vec<PathResponse>,
     path: Option<String>,
     operation_id: Option<String>,
@@ -120,6 +126,13 @@ impl Parse for PathAttr {
                 "path" => {
                     path_attr.path =
                         Some(parse_lit_str(&input, "expected literal string for path"));
+                }
+                "request_body" => {
+                    if input.peek(Token![=]) {
+                        input.parse::<Token![=]>().unwrap();
+                    }
+                    path_attr.request_body =
+                        Some(input.parse::<RequestBodyAttr>().unwrap_or_abort());
                 }
                 "responses" => {
                     let groups = parse_groups(&input)
@@ -570,6 +583,7 @@ impl ToTokens for Path {
                 .and_then(|comments| comments.iter().next()),
             description: self.doc_comments.as_ref(),
             parameters: self.path_attr.params.as_ref(),
+            request_body: self.path_attr.request_body.as_ref(),
         };
 
         tokens.extend(quote! {
@@ -605,11 +619,18 @@ struct Operation<'a> {
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
     parameters: Option<&'a Vec<Parameter>>,
+    request_body: Option<&'a RequestBodyAttr>,
 }
 
 impl ToTokens for Operation<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         tokens.extend(quote! { utoipa::openapi::path::Operation::new() });
+
+        if let Some(request_body) = self.request_body {
+            tokens.extend(quote! {
+                .with_request_body(#request_body)
+            })
+        }
 
         // impl dummy responses
         tokens.extend(quote! {
@@ -618,7 +639,6 @@ impl ToTokens for Operation<'_> {
                 utoipa::openapi::response::Response::new("this is response message")
             )
         });
-        //         // .with_request_body()
         //         // .with_security()
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self.operation_id;
@@ -666,53 +686,5 @@ impl ToTokens for Operation<'_> {
                 .iter()
                 .for_each(|parameter| tokens.extend(quote! { .with_parameter(#parameter) }));
         }
-    }
-}
-
-pub enum Deprecated {
-    True,
-    False,
-}
-
-impl From<bool> for Deprecated {
-    fn from(bool: bool) -> Self {
-        if bool {
-            Self::True
-        } else {
-            Self::False
-        }
-    }
-}
-
-impl ToTokens for Deprecated {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.extend(match self {
-            Self::False => quote! { utoipa::openapi::Deprecated::False },
-            Self::True => quote! { utoipa::openapi::Deprecated::True },
-        })
-    }
-}
-
-pub enum Required {
-    True,
-    False,
-}
-
-impl From<bool> for Required {
-    fn from(bool: bool) -> Self {
-        if bool {
-            Self::True
-        } else {
-            Self::False
-        }
-    }
-}
-
-impl ToTokens for Required {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.extend(match self {
-            Self::False => quote! { utoipa::openapi::Required::False },
-            Self::True => quote! { utoipa::openapi::Required::True },
-        })
     }
 }

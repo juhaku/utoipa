@@ -17,6 +17,7 @@ struct Foo {
 ///
 /// Delete foo entity by what
 #[utoipa::path(
+    request_body = (content = Foo, required, description = "foobar", content_type = "text/xml"), 
     responses = [
         (200, "success", String),
         (400, "my bad error", u64),
@@ -44,5 +45,5 @@ fn derive_openapi() {
     #[openapi(handler_files = [], handlers = [foo_delete])]
     struct ApiDoc;
 
-    println!("{:?}", ApiDoc::openapi().to_json())
+    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 }

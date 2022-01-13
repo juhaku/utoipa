@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::Required;
+use super::{Component, Required};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]
@@ -43,7 +43,15 @@ impl RequestBody {
 }
 
 #[derive(Serialize, Deserialize, Default)]
+#[non_exhaustive]
 pub struct Content {
-    // TODO implement schema somehow
-    pub schema: String,
+    pub schema: Component,
+}
+
+impl Content {
+    pub fn new<I: Into<Component>>(schema: I) -> Self {
+        Self {
+            schema: schema.into(),
+        }
+    }
 }
