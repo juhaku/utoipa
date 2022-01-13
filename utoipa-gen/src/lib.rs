@@ -8,12 +8,15 @@ use ext::actix::update_parameters_from_arguments;
 
 use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use syn::{
-    bracketed, parse::Parse, punctuated::Punctuated, Attribute, DeriveInput, ExprPath, LitStr,
-    Token,
+    bracketed,
+    parse::{Parse, ParseStream},
+    punctuated::Punctuated,
+    token::Bracket,
+    Attribute, DeriveInput, ExprPath, LitStr, Token,
 };
 
 mod attribute;
@@ -22,6 +25,7 @@ mod component_type;
 mod ext;
 mod info;
 mod path;
+mod request_body;
 
 use proc_macro_error::*;
 
@@ -328,4 +332,79 @@ fn impl_paths<I: IntoIterator<Item = ExprPath>>(
             paths
         },
     )
+}
+
+enum Deprecated {
+    True,
+    False,
+}
+
+impl From<bool> for Deprecated {
+    fn from(bool: bool) -> Self {
+        if bool {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
+
+impl ToTokens for Deprecated {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(match self {
+            Self::False => quote! { utoipa::openapi::Deprecated::False },
+            Self::True => quote! { utoipa::openapi::Deprecated::True },
+        })
+    }
+}
+
+enum Required {
+    True,
+    False,
+}
+
+impl From<bool> for Required {
+    fn from(bool: bool) -> Self {
+        if bool {
+            Self::True
+        } else {
+            Self::False
+        }
+    }
+}
+
+impl ToTokens for Required {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(match self {
+            Self::False => quote! { utoipa::openapi::Required::False },
+            Self::True => quote! { utoipa::openapi::Required::True },
+        })
+    }
+}
+
+/// Media type is wrapper around type and information is type an array
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct MediaType {
+    ty: Option<Ident>,
+    is_array: bool,
+}
+
+impl Parse for MediaType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut is_array = false;
+        let ty = if input.peek(Bracket) {
+            is_array = true;
+            let group;
+            bracketed!(group in input);
+            group.parse::<Ident>().unwrap()
+        } else {
+            input.parse::<Ident>().unwrap()
+        };
+
+        Ok(MediaType {
+            ty: Some(ty),
+            is_array,
+        })
+    }
 }
