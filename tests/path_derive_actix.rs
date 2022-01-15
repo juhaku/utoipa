@@ -14,7 +14,7 @@ mod mod_derive_path_actix {
     /// Get foo by id long description
     #[utoipa::path(
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success response")
         ],
         params = [
             ("id", description = "Foo id"),
@@ -56,9 +56,9 @@ mod mod_derive_path_unnamed_regex_actix {
     ///
     /// Get foo by id long description
     #[utoipa::path(
-        responses = [
-            (200, "success", String),
-        ],
+        // responses = [
+        //     (200, "success", String),
+        // ],
         params = [
             ("arg0", description = "Foo path unnamed regex tail")
         ]
@@ -100,7 +100,7 @@ mod mod_derive_path_named_regex_actix {
     /// Get foo by id long description
     #[utoipa::path(
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success response")
         ],
         params = [
             ("tail", description = "Foo path named regex tail")
@@ -143,7 +143,7 @@ macro_rules! test_derive_path_operations {
 
             #[utoipa::path(
                 responses = [
-                    (200, "success", String),
+                    (status = 200, description = "success response")
                 ]
             )]
             #[$operation("/foo")]

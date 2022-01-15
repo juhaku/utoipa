@@ -6,10 +6,13 @@ use crate::error::Error;
 
 pub use self::{
     contact::Contact,
+    content::Content,
     external_docs::ExternalDocs,
+    header::Header,
     info::Info,
     licence::Licence,
     path::{PathItem, PathItemType, Paths},
+    response::{Response, Responses},
     schema::{Array, Component, ComponentFormat, ComponentType, Object, Property, Ref, Schema},
     security::Security,
     server::Server,
@@ -17,7 +20,9 @@ pub use self::{
 };
 
 pub mod contact;
+pub mod content;
 pub mod external_docs;
+pub mod header;
 pub mod info;
 pub mod licence;
 pub mod path;

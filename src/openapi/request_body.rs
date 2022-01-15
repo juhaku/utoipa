@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{Component, Required};
+use super::{Component, Content, Required};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]
@@ -34,24 +34,16 @@ impl RequestBody {
         self
     }
 
-    pub fn with_content<S: AsRef<str>>(mut self, content_type: S, content: Content) -> Self {
-        self.content
-            .insert(content_type.as_ref().to_string(), content);
+    pub fn with_content<S: AsRef<str>, C: Into<Component>>(
+        mut self,
+        content_type: S,
+        component: C,
+    ) -> Self {
+        self.content.insert(
+            content_type.as_ref().to_string(),
+            Content::new(component.into()),
+        );
 
         self
-    }
-}
-
-#[derive(Serialize, Deserialize, Default)]
-#[non_exhaustive]
-pub struct Content {
-    pub schema: Component,
-}
-
-impl Content {
-    pub fn new<I: Into<Component>>(schema: I) -> Self {
-        Self {
-            schema: schema.into(),
-        }
     }
 }

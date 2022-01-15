@@ -171,7 +171,7 @@ impl ToTokens for RequestBodyAttr {
 
         tokens.extend(quote! {
             utoipa::openapi::request_body::RequestBody::new()
-                .with_content(#content_type, utoipa::openapi::request_body::Content::new(#component))
+                .with_content(#content_type, #component)
         });
 
         if let Some(required) = self.required {

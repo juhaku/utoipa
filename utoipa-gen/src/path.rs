@@ -8,82 +8,61 @@ use syn::{
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
-    token::{Bracket, Token},
-    LitInt, LitStr, Token,
+    token::Bracket,
+    LitBool, LitInt, LitStr, Token,
 };
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
     request_body::RequestBodyAttr,
+    response::{Response, Responses},
     Deprecated, Required,
 };
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
-// #[utoipa::path(delete,
-//    operation_id = "custom_operation_id",
-//    path = "/custom/path/{id}/{digest}",
-//    tag = "groupping_tag"
-//    request_body = [Foo]
-//    responses = [
-//     (status = 200, description = "delete foo entity successful",
-//          body = String, content_type = "text/plain"),
-//     (status = 500, description = "internal server error",
-//          body = String, content_type = "text/plain")
-//     (400, "my bad error", u64),
-//     (404, "vault not found"),
-//     (status = 500, description = "internal server error", body = String, content_type = "text/plain")
-//    ],
-//    params = [
-//      ("myval" = String, description = "this is description"),
-//      ("myval", description = "this is description"),
-//      ("myval" = String, path, required, deprecated, description = "this is description"),
-//    ]
-// )]
-
-// #[utoipa::response(
-//      status = 200,
-//      description = "success response",
-//      body = String,
-//      content_type = "text/plain"
-// )]
-// #[utoipa::response(
-//      status = 400,
-//      description = "this is bad request",
-//      body = String,
-//      content_type = "application/json"
-// )]
-// #[utoipa::response(
-//      status = 500,
-//      description = "internal server error",
-//      body = Error,
-//      content_type = "text/plain"
-// )]
-// #[utoipa::response(
-//      status = 404,
-//      description = "item not found",
-//      body = i32 // because body type is primitive the content_type is not necessary
-// )]
-// implementation should make assumptions based on response body type. If response body type is primitive type
-// content_type is set to text/pain by default
-
-/// PathAttr is parsed #[path(...)] proc macro and its attributes.
+/// PathAttr is parsed `#[utoipa::path(...)]` proc macro and its attributes.
 /// Parsed attributes can be used to override or append OpenAPI Path
 /// options.
+///
+/// # Example
+/// ```text
+/// #[utoipa::path(delete,
+///    operation_id = "custom_operation_id",
+///    path = "/custom/path/{id}/{digest}",
+///    tag = "groupping_tag"
+///    request_body = [Foo]
+///    responses = [
+///         (status = 200, description = "success update Foos", body = [Foo], content_type = "application/json",
+///             headers = [
+///                 ("fooo-bar" = String, description = "custom header value")
+///             ]
+///         ),
+///         (status = 500, description = "internal server error", body = String, content_type = "text/plain",
+///             headers = [
+///                 ("fooo-bar" = String, description = "custom header value")
+///             ]
+///         ),
+///    ],
+///    params = [
+///      ("id" = u64, description = "Id of Foo"),
+///      ("digest", description = "Foos message digest of last updated"),
+///      ("x-csrf-token", header, required, deprecated),
+///    ]
+/// )]
+/// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr {
     path_operation: Option<PathOperation>,
     request_body: Option<RequestBodyAttr>,
-    responses: Vec<PathResponse>,
+    responses: Vec<Response>,
     path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
     pub params: Option<Vec<Parameter>>,
 }
 
-/// Parse implementation for PathAttr will parse arguments
-/// exhaustively.
 impl Parse for PathAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut path_attr = PathAttr::default();
@@ -139,8 +118,8 @@ impl Parse for PathAttr {
                         .expect_or_abort("expected responses to be group separated by comma (,)");
 
                     path_attr.responses = groups
-                        .iter()
-                        .map(|group| parse2::<PathResponse>(group.stream()).unwrap_or_abort())
+                        .into_iter()
+                        .map(|group| syn::parse2::<Response>(group.stream()).unwrap_or_abort())
                         .collect::<Vec<_>>();
                 }
                 "params" => {
@@ -376,6 +355,18 @@ impl Parse for Parameter {
             input.parse::<Token![,]>().unwrap();
         }
 
+        let parse_bool = |input: ParseStream| {
+            // support assign form as: required = bool
+            if input.peek(Token![=]) && input.peek2(LitBool) {
+                input.parse::<Token![=]>().unwrap();
+
+                input.parse::<LitBool>().unwrap().value()
+            } else {
+                // quick form as: required
+                true
+            }
+        };
+
         loop {
             let ident = input.parse::<syn::Ident>().unwrap();
             let name = &*ident.to_string();
@@ -386,8 +377,8 @@ impl Parse for Parameter {
                         parameter.required = true; // all path parameters are required by default
                     }
                 }
-                "required" => parameter.required = true,
-                "deprecated" => parameter.deprecated = true,
+                "required" => parameter.required = parse_bool(input),
+                "deprecated" => parameter.deprecated = parse_bool(input),
                 "description" => {
                     if input.peek(Token![=]) {
                         input.parse::<Token![=]>().unwrap();
@@ -584,6 +575,7 @@ impl ToTokens for Path {
             description: self.doc_comments.as_ref(),
             parameters: self.path_attr.params.as_ref(),
             request_body: self.path_attr.request_body.as_ref(),
+            responses: self.path_attr.responses.as_ref(),
         };
 
         tokens.extend(quote! {
@@ -620,6 +612,7 @@ struct Operation<'a> {
     deprecated: &'a Option<bool>,
     parameters: Option<&'a Vec<Parameter>>,
     request_body: Option<&'a RequestBodyAttr>,
+    responses: &'a Vec<Response>,
 }
 
 impl ToTokens for Operation<'_> {
@@ -632,13 +625,17 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        // impl dummy responses
+        let responses = Responses(self.responses);
         tokens.extend(quote! {
-            .with_response(
-                "200", // TODO resolve this status
-                utoipa::openapi::response::Response::new("this is response message")
-            )
+            .with_responses(#responses)
         });
+        // impl dummy responses
+        // tokens.extend(quote! {
+        //     .with_response(
+        //         "200", // TODO resolve this status
+        //         utoipa::openapi::response::Response::new("this is response message")
+        //     )
+        // });
         //         // .with_security()
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self.operation_id;
