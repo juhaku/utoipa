@@ -241,52 +241,6 @@ impl ToTokens for PathOperation {
     }
 }
 
-/// Parsed representation of response argument within `#[path(...)]` macro attribute.
-/// Response is typically formed from group such like (200, "success", String) where
-///   * 200 number represents http status code
-///   * "success" stands for response description included in documentation
-///   * String represents type of response body
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct PathResponse {
-    status_code: i32,
-    message: String,
-    response_type: Option<Ident>,
-}
-
-impl Parse for PathResponse {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = PathResponse::default();
-
-        loop {
-            let next_type = input.lookahead1();
-            if next_type.peek(LitInt) {
-                response.status_code = input
-                    .parse::<LitInt>()
-                    .unwrap()
-                    .base10_parse()
-                    .unwrap_or_abort();
-            } else if next_type.peek(LitStr) {
-                response.message = input.parse::<LitStr>().unwrap().value();
-            } else if next_type.peek(syn::Ident) {
-                response.response_type = Some(input.parse::<syn::Ident>().unwrap());
-            } else {
-                return Err(next_type.error());
-            }
-
-            if input.peek(Token![,]) {
-                input.parse::<Token![,]>().unwrap();
-            }
-
-            if input.is_empty() {
-                break;
-            }
-        }
-
-        Ok(response)
-    }
-}
-
 /// Parameter of request suchs as in path, header, query or cookie
 ///
 /// For example path `/users/{id}` the path parameter is used to define
@@ -629,13 +583,6 @@ impl ToTokens for Operation<'_> {
         tokens.extend(quote! {
             .with_responses(#responses)
         });
-        // impl dummy responses
-        // tokens.extend(quote! {
-        //     .with_response(
-        //         "200", // TODO resolve this status
-        //         utoipa::openapi::response::Response::new("this is response message")
-        //     )
-        // });
         //         // .with_security()
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self.operation_id;

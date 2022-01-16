@@ -56,9 +56,9 @@ mod mod_derive_path_unnamed_regex_actix {
     ///
     /// Get foo by id long description
     #[utoipa::path(
-        // responses = [
-        //     (200, "success", String),
-        // ],
+        responses = [
+            (status = 200, description = "success"),
+        ],
         params = [
             ("arg0", description = "Foo path unnamed regex tail")
         ]

@@ -14,7 +14,7 @@ mod derive_params_all_options {
         get,
         path = "/foo/{id}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success"),
         ],
         params = [
             ("id" = i32, path, required, deprecated, description = "Search foos by ids"),
@@ -55,7 +55,7 @@ mod derive_params_minimal {
         get,
         path = "/foo/{id}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success"),
         ],
         params = [
             ("id" = i32, description = "Search foos by ids"),
@@ -96,7 +96,7 @@ mod derive_params_multiple {
         get,
         path = "/foo/{id}/{digest}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success"),
         ],
         params = [
             ("id" = i32, description = "Foo id"),
@@ -146,7 +146,7 @@ mod mod_derive_parameters_all_types {
         get,
         path = "/foo/{id}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success"),
         ],
         params = [
             ("id" = i32, path, description = "Foo id"),
@@ -222,7 +222,7 @@ mod derive_params_without_args {
         get,
         path = "/foo/{id}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success"),
         ],
         params = [
             ("id" = i32, path, description = "Foo id"),
