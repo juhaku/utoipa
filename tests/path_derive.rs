@@ -27,15 +27,15 @@ macro_rules! test_api_fn {
         mod $module {
             $( $(#[$meta])* )*
             #[utoipa::path(
-                                                                    $operation,
-                                                                   $( operation_id = $operation_id, )*
-                                                                    path = $path,
-                                                                    responses = [
-                                                                        (200, "success", String),
-                                                                    ],
-                                                                   $( params = $params, )*
-                                                                   $( tag = $tag, )*
-                                                                )]
+                $operation,
+                $( operation_id = $operation_id, )*
+                path = $path,
+                responses = [
+                    (status = 200, description = "success response")
+                ],
+                $( params = $params, )*
+                $( tag = $tag, )*
+            )]
             #[allow(unused)]
             async fn $name() -> String {
                 "foo".to_string()
@@ -153,7 +153,7 @@ fn derive_path_with_defaults_success() {
     get,
     path = "/foo/{id}",
     responses = [
-        (200, "success", String)
+        (status = 200, description = "success response")
     ],
     params = [
         ("id" = u64, description = "Foo database id"),

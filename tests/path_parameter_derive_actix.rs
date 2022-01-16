@@ -15,7 +15,7 @@ mod derive_params_multiple_actix {
         get,
         path = "/foo/{id}/{digest}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success response")
         ],
         params = [
             ("id", description = "Foo id"),
@@ -68,7 +68,7 @@ mod derive_parameters_multiple_no_matching_names_actix {
         get,
         path = "/foo/{id}/{digest}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success response")
         ],
         params = [
             ("id" = i32, description = "Foo id"),
@@ -119,7 +119,7 @@ mod derive_params_from_method_args_actix {
         get,
         path = "/foo/{id}/{digest}",
         responses = [
-            (200, "success", String),
+            (status = 200, description = "success response")
         ],
     )]
     #[allow(unused)]

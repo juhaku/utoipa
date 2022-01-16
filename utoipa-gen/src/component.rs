@@ -1,16 +1,17 @@
 use std::{ops::Deref, rc::Rc};
 
-use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, Attribute, Fields, FieldsNamed, FieldsUnnamed, GenericArgument,
-    PathArguments, PathSegment, Type, TypePath, Variant,
+    Attribute, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, PathArguments, PathSegment,
+    Type, TypePath, Variant,
 };
 
 use crate::{
     attribute::{parse_component_attribute, AttributeType, CommentAttributes, ComponentAttribute},
     component_type::{ComponentFormat, ComponentType},
+    ValueArray,
 };
 
 pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
@@ -184,7 +185,7 @@ impl<'a> ComponentVariant<'a> {
             .iter()
             .filter(|variant| matches!(variant.fields, Fields::Unit))
             .map(|variant| variant.ident.to_string())
-            .collect::<EnumValues>();
+            .collect::<ValueArray<String>>();
 
         tokens.extend(quote! {
             utoipa::openapi::Property::new(ComponentType::String)
@@ -209,37 +210,6 @@ impl<'a> ComponentVariant<'a> {
                 .with_description(#comment)
             })
         }
-    }
-}
-
-/// Tokenizes slice reference (`&[...]`) correctly to OpenAPI JSON.
-struct EnumValues(Vec<String>);
-
-impl FromIterator<String> for EnumValues {
-    fn from_iter<T: IntoIterator<Item = String>>(iter: T) -> Self {
-        Self {
-            0: iter.into_iter().collect::<Vec<_>>(),
-        }
-    }
-}
-
-impl ToTokens for EnumValues {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.append(Punct::new('&', proc_macro2::Spacing::Joint));
-        let items = self
-            .0
-            .iter()
-            .fold(Punctuated::new(), |mut punctuated, item| {
-                punctuated.push_value(item);
-                punctuated.push_punct(Punct::new(',', proc_macro2::Spacing::Alone));
-
-                punctuated
-            });
-
-        tokens.append(Group::new(
-            proc_macro2::Delimiter::Bracket,
-            items.to_token_stream(),
-        ));
     }
 }
 

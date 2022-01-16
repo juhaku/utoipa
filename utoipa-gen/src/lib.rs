@@ -8,9 +8,9 @@ use ext::actix::update_parameters_from_arguments;
 
 use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens, TokenStreamExt};
 
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -25,7 +25,9 @@ mod component_type;
 mod ext;
 mod info;
 mod path;
+mod property;
 mod request_body;
+mod response;
 
 use proc_macro_error::*;
 
@@ -332,6 +334,44 @@ fn impl_paths<I: IntoIterator<Item = ExprPath>>(
             paths
         },
     )
+}
+
+/// Tokenizes slice or Vec of tokenizable items as slice reference (`&[...]`) correctly to OpenAPI JSON.
+struct ValueArray<V>(Vec<V>)
+where
+    V: Sized + ToTokens;
+
+impl<V> FromIterator<V> for ValueArray<V>
+where
+    V: Sized + ToTokens,
+{
+    fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
+        Self {
+            0: iter.into_iter().collect::<Vec<_>>(),
+        }
+    }
+}
+
+impl<T> ToTokens for ValueArray<T>
+where
+    T: Sized + ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.append(Punct::new('&', proc_macro2::Spacing::Joint));
+
+        tokens.append(Group::new(
+            proc_macro2::Delimiter::Bracket,
+            self.0
+                .iter()
+                .fold(Punctuated::new(), |mut punctuated, item| {
+                    punctuated.push_value(item);
+                    punctuated.push_punct(Punct::new(',', proc_macro2::Spacing::Alone));
+
+                    punctuated
+                })
+                .to_token_stream(),
+        ));
+    }
 }
 
 enum Deprecated {

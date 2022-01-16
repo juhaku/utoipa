@@ -7,10 +7,7 @@ use syn::{
     LitBool, LitStr, Token,
 };
 
-use crate::{
-    component_type::{ComponentFormat, ComponentType},
-    MediaType, Required,
-};
+use crate::{property::Property, MediaType, Required};
 
 /// Parsed information related to requst body of path.
 ///
@@ -128,42 +125,11 @@ impl Parse for RequestBodyAttr {
 
 impl ToTokens for RequestBodyAttr {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        // TODO refactor component type & format to its own type
-        let body_type = self.content.ty.as_ref().unwrap();
-        let component_type = ComponentType(body_type);
-
-        let mut component = if component_type.is_primitive() {
-            let mut component = quote! {
-                utoipa::openapi::Property::new(
-                    #component_type
-                )
-            };
-
-            let format = ComponentFormat(body_type);
-            if format.is_known_format() {
-                component.extend(quote! {
-                    .with_format(#format)
-                })
-            }
-
-            component
-        } else {
-            let name = &*body_type.to_string();
-
-            quote! {
-                utoipa::openapi::Ref::from_component_name(#name)
-            }
-        };
-
-        if self.content.is_array {
-            component.extend(quote! {
-                .to_array()
-            });
-        }
+        let property = Property::new(self.content.is_array, self.content.ty.as_ref().unwrap());
 
         let content_type = if let Some(ref content_type) = self.content_type {
             content_type
-        } else if component_type.is_primitive() {
+        } else if property.component_type.is_primitive() {
             "text/plain"
         } else {
             "application/json"
@@ -171,7 +137,7 @@ impl ToTokens for RequestBodyAttr {
 
         tokens.extend(quote! {
             utoipa::openapi::request_body::RequestBody::new()
-                .with_content(#content_type, utoipa::openapi::request_body::Content::new(#component))
+                .with_content(#content_type, #property)
         });
 
         if let Some(required) = self.required {

@@ -19,10 +19,10 @@ struct Foo {
 #[utoipa::path(
     request_body = (content = Foo, required, description = "foobar", content_type = "text/xml"), 
     responses = [
-        (200, "success", String),
-        (400, "my bad error", u64),
-        (404, "vault not found"),
-        (500, "internal server error")
+        (status = 200, description = "success response", body = [Foo], headers = [("xrfs-token" = u64)])
+        // (400, "my bad error", u64),
+        // (404, "vault not found"),
+        // (500, "internal server error")
     ],
      params = [
         ("ids" = [i32], query, description = "Search foos by ids"),

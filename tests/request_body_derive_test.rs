@@ -11,13 +11,13 @@ macro_rules! test_fn {
                 name: String,
             }
             #[utoipa::path(
-                                                                post,
-                                                                path = "/foo",
-                                                                request_body = $body,
-                                                                responses = [
-                                                                    (200, "success", String),
-                                                                ]
-                                                            )]
+                                                post,
+                                                path = "/foo",
+                                                request_body = $body,
+                                                responses = [
+                                                    (status = 200, description = "success response")
+                                                ]
+                                            )]
             fn post_foo() {}
         }
     };
