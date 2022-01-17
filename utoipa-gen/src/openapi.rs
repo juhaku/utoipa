@@ -10,33 +10,29 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use crate::{parse_utils, PATH_STRUCT_PREFIX};
+use crate::parse_utils;
 
-use super::info;
+mod info;
+
+const PATH_STRUCT_PREFIX: &str = "__path_";
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub(crate) struct OpenApiAttributes {
+pub struct OpenApiAttr {
     handlers: Vec<ExprPath>,
     components: Vec<Ident>,
 }
 
-pub(crate) fn parse_openapi_attributes_from_attributes(
-    attrs: &[Attribute],
-) -> Option<OpenApiAttributes> {
+pub fn parse_openapi_attributes_from_attributes(attrs: &[Attribute]) -> Option<OpenApiAttr> {
     attrs
         .iter()
         .find(|attribute| attribute.path.is_ident("openapi"))
-        .map(|attribute| {
-            attribute
-                .parse_args::<OpenApiAttributes>()
-                .unwrap_or_abort()
-        })
+        .map(|attribute| attribute.parse_args::<OpenApiAttr>().unwrap_or_abort())
 }
 
-impl Parse for OpenApiAttributes {
+impl Parse for OpenApiAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut openapi = OpenApiAttributes::default();
+        let mut openapi = OpenApiAttr::default();
 
         loop {
             let ident = input
@@ -108,7 +104,7 @@ fn parse_components(input: ParseStream) -> syn::Result<Vec<Ident>> {
     })
 }
 
-pub(crate) struct OpenApi(pub OpenApiAttributes, pub Ident);
+pub(crate) struct OpenApi(pub OpenApiAttr, pub Ident);
 
 impl ToTokens for OpenApi {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {

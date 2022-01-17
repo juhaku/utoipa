@@ -2,12 +2,14 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
-    parse::{Parse, ParseBuffer},
+    parse::Parse,
     token::{Bracket, Paren},
-    LitBool, LitStr, Token,
+    Error, Token,
 };
 
-use crate::{property::Property, MediaType, Required};
+use crate::{parse_utils, MediaType, Required};
+
+use super::property::Property;
 
 /// Parsed information related to requst body of path.
 ///
@@ -52,7 +54,7 @@ use crate::{property::Property, MediaType, Required};
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr {
-    content: MediaType,
+    content: Option<MediaType>,
     content_type: Option<String>,
     required: Option<bool>,
     description: Option<String>,
@@ -60,14 +62,8 @@ pub struct RequestBodyAttr {
 
 impl Parse for RequestBodyAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let parse_lit_str = |group: &ParseBuffer| -> String {
-            if group.peek(Token![=]) {
-                group.parse::<Token![=]>().unwrap();
-            }
-            group.parse::<LitStr>().unwrap().value()
-        };
-
         let lookahead = input.lookahead1();
+
         if lookahead.peek(Paren) {
             let group;
             parenthesized!(group in input);
@@ -83,22 +79,33 @@ impl Parse for RequestBodyAttr {
                             group.parse::<Token![=]>().unwrap();
                         }
 
-                        request_body_attr.content = group.parse::<MediaType>().unwrap();
+                        request_body_attr.content = Some(group.parse::<MediaType>().unwrap());
                     }
-                    "content_type" => request_body_attr.content_type = Some(parse_lit_str(&group)),
+                    "content_type" => {
+                        request_body_attr.content_type = Some(parse_utils::parse_next_lit_str(
+                            &group,
+                            "unparseable content type, expected LitStr",
+                        ))
+                    }
                     "required" => {
-                        // support assign form as: required = bool
-                        if group.peek(Token![=]) && group.peek2(LitBool) {
-                            group.parse::<Token![=]>().unwrap();
-
-                            request_body_attr.required = Some(group.parse::<LitBool>().unwrap().value());
-                        } else {
-                            // quick form as: required
-                            request_body_attr.required = Some(true);
-                        }
+                        request_body_attr.required = Some(parse_utils::parse_bool_or_true(&group));
                     }
-                    "description" => request_body_attr.description = Some(parse_lit_str(&group)),
-                    _ => return Err(group.error(format!("unexpedted attribute: {}, expected values: content, content_type, required, description", &name)))
+                    "description" => {
+                        request_body_attr.description = Some(parse_utils::parse_next_lit_str(
+                            &group,
+                            "unparseable description, expected LitStr",
+                        ))
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            ident.span(),
+                            format!(
+                                "unexpedted attribute: {}, 
+                        expected values: content, content_type, required, description",
+                                &name
+                            ),
+                        ))
+                    }
                 }
 
                 if group.peek(Token![,]) {
@@ -112,7 +119,7 @@ impl Parse for RequestBodyAttr {
             Ok(request_body_attr)
         } else if lookahead.peek(Bracket) || lookahead.peek(syn::Ident) {
             Ok(RequestBodyAttr {
-                content: input.parse().unwrap(),
+                content: Some(input.parse().unwrap()),
                 content_type: None,
                 description: None,
                 required: None,
@@ -125,20 +132,22 @@ impl Parse for RequestBodyAttr {
 
 impl ToTokens for RequestBodyAttr {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let property = Property::new(self.content.is_array, self.content.ty.as_ref().unwrap());
+        if let Some(ref body_type) = self.content {
+            let property = Property::new(body_type.is_array, &body_type.ty);
 
-        let content_type = if let Some(ref content_type) = self.content_type {
-            content_type
-        } else if property.component_type.is_primitive() {
-            "text/plain"
-        } else {
-            "application/json"
-        };
+            let content_type = if let Some(ref content_type) = self.content_type {
+                content_type
+            } else if property.component_type.is_primitive() {
+                "text/plain"
+            } else {
+                "application/json"
+            };
 
-        tokens.extend(quote! {
-            utoipa::openapi::request_body::RequestBody::new()
-                .with_content(#content_type, #property)
-        });
+            tokens.extend(quote! {
+                utoipa::openapi::request_body::RequestBody::new()
+                    .with_content(#content_type, #property)
+            });
+        }
 
         if let Some(required) = self.required {
             let required: Required = required.into();

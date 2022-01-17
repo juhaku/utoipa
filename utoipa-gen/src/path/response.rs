@@ -2,14 +2,12 @@ use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
 use proc_macro_error::ResultExt;
 use quote::{quote, ToTokens};
 use syn::{
-    bracketed,
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    token::Comma,
-    LitInt, LitStr, Token,
+    bracketed, parse::Parse, punctuated::Punctuated, token::Comma, Error, LitInt, LitStr, Token,
 };
 
-use crate::{property::Property, MediaType};
+use crate::{parse_utils, MediaType};
+
+use super::property::Property;
 
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 ///
@@ -85,7 +83,7 @@ impl Parse for Response {
 
             match name {
                 "status" => {
-                    response.status_code = parse_next(&input, || {
+                    response.status_code = parse_utils::parse_next(input, || {
                         input
                             .parse::<LitInt>()
                             .unwrap()
@@ -94,21 +92,22 @@ impl Parse for Response {
                     });
                 }
                 "description" => {
-                    response.description =
-                        parse_next(&input, || input.parse::<LitStr>().unwrap_or_abort().value());
+                    response.description = parse_utils::parse_next(input, || {
+                        input.parse::<LitStr>().unwrap_or_abort().value()
+                    });
                 }
                 "body" => {
-                    response.response_type = Some(parse_next(&input, || {
+                    response.response_type = Some(parse_utils::parse_next(input, || {
                         input.parse::<MediaType>().unwrap_or_abort()
                     }));
                 }
                 "content_type" => {
-                    response.content_type = Some(parse_next(&input, || {
+                    response.content_type = Some(parse_utils::parse_next(input, || {
                         input.parse::<LitStr>().unwrap_or_abort().value()
                     }));
                 }
                 "headers" => {
-                    let groups = parse_next(&input, || {
+                    let groups = parse_utils::parse_next(input, || {
                         let content;
                         bracketed!(content in input);
                         Punctuated::<Group, Comma>::parse_terminated(&content)
@@ -126,7 +125,8 @@ impl Parse for Response {
                     expected values: status, description, body, content_type, headers",
                         &name
                     );
-                    return Err(input.error(error_msg));
+
+                    return Err(Error::new(ident.span(), error_msg));
                 }
             }
 
@@ -140,14 +140,6 @@ impl Parse for Response {
 
         Ok(response)
     }
-}
-
-#[inline]
-fn parse_next<T: Sized>(input: &ParseStream, next: impl FnOnce() -> T) -> T {
-    input
-        .parse::<Token![=]>()
-        .expect_or_abort("expected euqals sign token (=)");
-    next()
 }
 
 pub struct Responses<'a>(pub &'a [Response]);
@@ -165,7 +157,7 @@ impl ToTokens for Responses<'_> {
             };
 
             if let Some(ref response_body_type) = response.response_type {
-                let body_type = response_body_type.ty.as_ref().unwrap();
+                let body_type = &response_body_type.ty;
 
                 let component = Property::new(response_body_type.is_array, body_type);
                 let content_type = if let Some(ref content_type) = response.content_type {
@@ -201,7 +193,7 @@ impl ToTokens for Responses<'_> {
 fn new_header_tokens(header: &Header) -> TokenStream2 {
     let mut header_tokens = if let Some(ref header_type) = header.media_type {
         // header property with custom type
-        let header_type = Property::new(header_type.is_array, header_type.ty.as_ref().unwrap());
+        let header_type = Property::new(header_type.is_array, &header_type.ty);
 
         quote! {
             utoipa::openapi::Header::new(#header_type)
@@ -297,7 +289,11 @@ impl Parse for Header {
         if input.peek(Token![=]) {
             input.parse::<Token![=]>().unwrap_or_abort();
 
-            header.media_type = Some(input.parse::<MediaType>().unwrap_or_abort());
+            header.media_type = Some(
+                input
+                    .parse::<MediaType>()
+                    .expect_or_abort("unparseable Header type, expected: Ident"),
+            );
         }
 
         if input.peek(Token![,]) {
@@ -305,9 +301,7 @@ impl Parse for Header {
         }
 
         if input.peek(syn::Ident) {
-            let description = input
-                .parse::<Ident>()
-                .expect_or_abort("unexpected attribute for Header description, expected Ident");
+            let description = input.parse::<Ident>().unwrap();
 
             if description == "description" {
                 if input.peek(Token![=]) {
@@ -317,7 +311,7 @@ impl Parse for Header {
                 let description = input.parse::<LitStr>().unwrap_or_abort().value();
                 header.description = Some(description);
             } else {
-                return Err(syn::Error::new(
+                return Err(Error::new(
                     description.span(),
                     format!(
                         "unexpected attribute: {}, expected: description",

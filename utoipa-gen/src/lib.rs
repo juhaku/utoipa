@@ -3,8 +3,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-#[cfg(feature = "actix_extras")]
-use ext::actix;
+use doc_comment::CommentAttributes;
 
 use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
@@ -15,29 +14,19 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
-    token::Bracket,
-    DeriveInput,
+    DeriveInput, Error,
 };
 
-mod attribute;
 mod component;
 mod component_type;
+mod doc_comment;
 mod ext;
-mod info;
 mod openapi;
 mod path;
-mod property;
-mod request_body;
-mod response;
 
-use crate::{
-    attribute::CommentAttributes,
-    path::{Path, PathAttr, PathOperation},
-};
-
-const PATH_STRUCT_PREFIX: &str = "__path_";
+use crate::path::{Path, PathAttr, PathOperation};
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
@@ -71,7 +60,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs);
 
     #[cfg(feature = "actix_extras")]
-    actix::update_parameters_from_arguments(arguments, &mut path_attribute.params);
+    path_attribute.update_parameters(arguments);
 
     let operation_attribute = &PathOperations::resolve_attribute(&ast_fn);
     let path_provider = || PathOperations::resolve_path(operation_attribute);
@@ -205,50 +194,80 @@ impl ToTokens for Required {
 }
 
 /// Media type is wrapper around type and information is type an array
-#[derive(Default)]
+// #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct MediaType {
-    ty: Option<Ident>,
+    ty: Ident,
     is_array: bool,
+}
+
+impl MediaType {
+    pub fn new(ident: Ident) -> Self {
+        Self {
+            ty: ident,
+            is_array: false,
+        }
+    }
 }
 
 impl Parse for MediaType {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut is_array = false;
-        let ty = if input.peek(Bracket) {
-            is_array = true;
-            let group;
-            bracketed!(group in input);
-            group.parse::<Ident>().unwrap()
-        } else {
-            input.parse::<Ident>().unwrap()
+
+        let parse_ident = |group: &ParseBuffer, error_msg: &str| {
+            if group.peek(syn::Ident) {
+                group.parse::<Ident>()
+            } else {
+                Err(Error::new(input.span(), error_msg))
+            }
         };
 
-        Ok(MediaType {
-            ty: Some(ty),
-            is_array,
-        })
+        let ty = if input.peek(syn::Ident) {
+            parse_ident(input, "unparseable MediaType, expected Ident")
+        } else {
+            is_array = true;
+
+            let group;
+            bracketed!(group in input);
+
+            parse_ident(
+                &group,
+                "unparseable MediaType, expected Ident within Bracket Group",
+            )
+        }?;
+
+        Ok(MediaType { ty, is_array })
     }
 }
 
-/// parsing utils
+/// Parsing utils
 mod parse_utils {
     use proc_macro_error::ResultExt;
-    use syn::{parse::ParseStream, LitStr, Token};
+    use syn::{parse::ParseStream, LitBool, LitStr, Token};
 
-    pub(crate) fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
+    pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
             .parse::<Token![=]>()
             .expect_or_abort("expected equals token (=) before value assigment");
         next()
     }
 
-    pub(crate) fn parse_next_lit_str(input: ParseStream, error_message: &str) -> String {
+    pub fn parse_next_lit_str(input: ParseStream, error_message: &str) -> String {
         parse_next(input, || {
             input
                 .parse::<LitStr>()
                 .expect_or_abort(error_message)
                 .value()
         })
+    }
+
+    pub fn parse_bool_or_true(input: ParseStream) -> bool {
+        if input.peek(Token![=]) && input.peek2(LitBool) {
+            input.parse::<Token![=]>().unwrap();
+
+            input.parse::<LitBool>().unwrap().value()
+        } else {
+            true
+        }
     }
 }

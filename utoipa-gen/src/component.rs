@@ -9,10 +9,14 @@ use syn::{
 };
 
 use crate::{
-    attribute::{parse_component_attribute, AttributeType, CommentAttributes, ComponentAttribute},
     component_type::{ComponentFormat, ComponentType},
+    doc_comment::CommentAttributes,
     ValueArray,
 };
+
+use self::attribute::{parse_component_attribute, AttributeType, ComponentAttribute};
+
+mod attribute;
 
 pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
     let component = ComponentVariant::new(data, &attrs);
@@ -25,7 +29,6 @@ pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> Tok
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-
 enum FieldType {
     Named,
     Unnamed,
