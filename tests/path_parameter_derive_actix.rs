@@ -31,7 +31,7 @@ mod derive_params_multiple_actix {
 #[test]
 fn derive_path_parameter_multiple_with_matching_names_and_types_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_params_multiple_actix::get_foo_by_id])]
+    #[openapi(handlers = [derive_params_multiple_actix::get_foo_by_id])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -85,7 +85,7 @@ mod derive_parameters_multiple_no_matching_names_actix {
 #[test]
 fn derive_path_parameter_multiple_no_matching_names_acitx_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_parameters_multiple_no_matching_names_actix::get_foo_by_id])]
+    #[openapi(handlers = [derive_parameters_multiple_no_matching_names_actix::get_foo_by_id])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -131,7 +131,7 @@ mod derive_params_from_method_args_actix {
 #[test]
 fn derive_params_from_method_args_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_params_from_method_args_actix::get_foo_by_id])]
+    #[openapi(handlers = [derive_params_from_method_args_actix::get_foo_by_id])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();

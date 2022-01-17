@@ -9,7 +9,7 @@ use syn::{
     parse2,
     punctuated::Punctuated,
     token::Bracket,
-    LitBool, LitInt, LitStr, Token,
+    LitBool, LitStr, Token,
 };
 
 use crate::{

@@ -6,7 +6,7 @@ macro_rules! test_api_fn_doc {
     ( $handler:path, operation: $operation:expr, path: $path:literal ) => {{
         use utoipa::OpenApi;
         #[derive(OpenApi, Default)]
-        #[openapi(handler_files = [], handlers = [$handler])]
+        #[openapi(handlers = [$handler])]
         struct ApiDoc;
 
         let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -58,7 +58,7 @@ macro_rules! test_path_operation {
             paste!{
                 use utoipa::OpenApi;
                 #[derive(OpenApi, Default)]
-                #[openapi(handler_files = [], handlers = [
+                #[openapi(handlers = [
                     [<mod_ $name>]::test_operation
                 ])]
                 struct ApiDoc;

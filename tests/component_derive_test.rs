@@ -28,7 +28,7 @@ macro_rules! api_doc {
 
     ( @doc $name:ident ) => {{
         #[derive(OpenApi)]
-        #[openapi(handler_files = [], components = [$name])]
+        #[openapi(components = [$name])]
         struct ApiDoc;
 
         let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
