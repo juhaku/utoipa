@@ -4,8 +4,8 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
 use quote::{quote, ToTokens};
 use syn::{
-    Attribute, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, PathArguments, PathSegment,
-    Type, TypePath, Variant,
+    Attribute, Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, PathArguments,
+    PathSegment, Type, TypePath, Variant,
 };
 
 use crate::{
@@ -14,40 +14,59 @@ use crate::{
     ValueArray,
 };
 
-use self::attribute::{parse_component_attribute, AttributeType, ComponentAttribute};
+use self::attribute::{AttributeType, ComponentAttribute};
 
 mod attribute;
 
-pub(crate) fn impl_component(data: syn::Data, attrs: Vec<syn::Attribute>) -> TokenStream2 {
-    let component = ComponentVariant::new(data, &attrs);
+pub struct Component<'a> {
+    ident: &'a Ident,
+    variant: ComponentVariant<'a>,
+}
 
-    quote! {
-        use utoipa::openapi::{ComponentType, ComponentFormat};
+impl<'a> Component<'a> {
+    pub fn new(data: Data, attributes: &'a [Attribute], ident: &'a Ident) -> Self {
+        Self {
+            ident,
+            variant: ComponentVariant::new(data, attributes),
+        }
+    }
+}
 
-        #component.into()
+impl ToTokens for Component<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let ident = self.ident;
+        let component_variant_impl = &self.variant;
+
+        tokens.extend(quote! {
+            impl utoipa::Component for #ident {
+                fn component() -> utoipa::openapi::schema::Component {
+                    #component_variant_impl.into()
+                }
+            }
+        })
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum FieldType {
+pub enum FieldType {
     Named,
     Unnamed,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Holds the OpenAPI Component implementation which can be added the Schema.
-enum ComponentVariant<'a> {
+pub enum ComponentVariant<'a> {
     /// Object variant is rust sturct with Component derive annotation.
-    Object(Vec<syn::Field>, &'a [Attribute], FieldType),
+    Object(Vec<Field>, &'a [Attribute], FieldType),
     /// Enum variant is rust enum with Component derive annotation. **Only supports** enums with
     /// Unit type fields.
-    Enum(Vec<syn::Variant>, &'a [Attribute]),
+    Enum(Vec<Variant>, &'a [Attribute]),
 }
 
 impl<'a> ComponentVariant<'a> {
-    fn new(data: syn::Data, attributes: &'a [Attribute]) -> ComponentVariant<'a> {
+    pub fn new(data: Data, attributes: &'a [Attribute]) -> ComponentVariant<'a> {
         match data {
-            syn::Data::Struct(content) => {
+            Data::Struct(content) => {
                 let (fields , field_type ) = match content.fields {
                     Fields::Unnamed(fields) => {
                         let FieldsUnnamed { unnamed, .. } = fields;
@@ -61,7 +80,7 @@ impl<'a> ComponentVariant<'a> {
                 };
                 ComponentVariant::Object(fields.into_iter().collect(), attributes, field_type)
             }
-            syn::Data::Enum(content) => {
+            Data::Enum(content) => {
                 ComponentVariant::Enum(content.variants.into_iter().collect(), attributes)
             }
             _ => abort_call_site!(
@@ -73,6 +92,10 @@ impl<'a> ComponentVariant<'a> {
 
 impl<'a> ToTokens for ComponentVariant<'a> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        tokens.extend(quote! {
+            use utoipa::openapi::{ComponentType, ComponentFormat};
+        });
+
         match self {
             Self::Object(fields, attrs, field_type) => {
                 self.struct_to_tokens(fields, *attrs, tokens, field_type)
@@ -85,7 +108,7 @@ impl<'a> ToTokens for ComponentVariant<'a> {
 impl<'a> ComponentVariant<'a> {
     fn struct_to_tokens(
         &self,
-        fields: &[syn::Field],
+        fields: &[Field],
         attributes: &[Attribute],
         tokens: &mut TokenStream2,
         field_type: &FieldType,
@@ -98,7 +121,7 @@ impl<'a> ComponentVariant<'a> {
         self.append_description(attributes, tokens);
     }
 
-    fn named_fields_struct_to_tokens(&self, fields: &[syn::Field], tokens: &mut TokenStream2) {
+    fn named_fields_struct_to_tokens(&self, fields: &[Field], tokens: &mut TokenStream2) {
         tokens.extend(quote! { utoipa::openapi::Object::new() });
 
         fields.iter().for_each(|field| {
@@ -106,14 +129,13 @@ impl<'a> ComponentVariant<'a> {
 
             let component_part = &ComponentPart::from_type(&field.ty);
             let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
-                .collect::<Component>();
+                .collect::<ComponentPropertyType>();
 
             let property = create_property_stream(
                 &component,
                 CommentAttributes::from_attributes(&field.attrs),
-                parse_component_attribute(&field.attrs),
+                attribute::parse_component_attribute(&field.attrs),
             );
-
             tokens.extend(quote! {
                 .with_property(#field_name, #property)
             });
@@ -126,17 +148,17 @@ impl<'a> ComponentVariant<'a> {
         });
     }
 
-    fn unnamed_fields_struct_to_tokens(&self, fields: &[syn::Field], tokens: &mut TokenStream2) {
+    fn unnamed_fields_struct_to_tokens(&self, fields: &[Field], tokens: &mut TokenStream2) {
         let fields_len = fields.len();
         let first_field = fields.first().unwrap();
         let first_part = &ComponentPart::from_type(&first_field.ty);
         let first_component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(first_part)
-            .collect::<Component>();
+            .collect::<ComponentPropertyType>();
 
         let all_fields_are_same = fields.iter().skip(1).all(|field| {
             let component_part = &ComponentPart::from_type(&field.ty);
             let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
-                .collect::<Component>();
+                .collect::<ComponentPropertyType>();
 
             first_component == component
         });
@@ -195,7 +217,7 @@ impl<'a> ComponentVariant<'a> {
                 .with_enum_values(#enum_values)
         });
 
-        if let Some(enum_attributes) = parse_component_attribute(attributes) {
+        if let Some(enum_attributes) = attribute::parse_component_attribute(attributes) {
             append_attributes(
                 tokens,
                 enum_attributes
@@ -237,12 +259,12 @@ fn append_attributes<I: Iterator<Item = AttributeType>>(
 }
 
 fn create_property_stream(
-    component: &Component,
+    component: &ComponentPropertyType,
     comment_attributes: CommentAttributes,
     component_attribute: Option<ComponentAttribute>,
 ) -> TokenStream2 {
     let mut property = match component {
-        Component {
+        ComponentPropertyType {
             generic_type: None,
             value_type:
                 Some(TypeTuple(
@@ -251,7 +273,7 @@ fn create_property_stream(
                 )),
             ..
         } => create_simple_property(value_type, ident, &comment_attributes),
-        Component {
+        ComponentPropertyType {
             generic_type: Some(generic_type_tuple),
             value_type: Some(value_type_tuple),
             ..
@@ -494,13 +516,13 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Default, PartialEq)]
-struct Component<'a> {
+struct ComponentPropertyType<'a> {
     option: bool,
     generic_type: Option<TypeTuple<'a, GenericType>>,
     value_type: Option<TypeTuple<'a, ValueType>>,
 }
 
-impl<'a> FromIterator<ComponentPartRef<'a, ComponentPart<'a>>> for Component<'a> {
+impl<'a> FromIterator<ComponentPartRef<'a, ComponentPart<'a>>> for ComponentPropertyType<'a> {
     fn from_iter<T: IntoIterator<Item = ComponentPartRef<'a, ComponentPart<'a>>>>(iter: T) -> Self {
         let components_iter = iter.into_iter();
         components_iter.fold(Self::default(), |mut component, item| {

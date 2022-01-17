@@ -304,3 +304,20 @@ fn derive_struct_unnamed_field_vec_type_success() {
         "items.format" = r#""int32""#, "Wrapper items format"
     }
 }
+
+#[test]
+#[ignore = "not supported yet!!!"]
+fn derive_struct_nested_vec_success() {
+    let vecs = api_doc! {
+        struct VecTest {
+            vecs: Vec<Vec<String>>
+        }
+    };
+
+    println!("{:#?}", vecs);
+    // assert_value! {point=>
+    //     "type" = r#""array""#, "Wrapper type"
+    //     "items.type" = r#""integer""#, "Wrapper items type"
+    //     "items.format" = r#""int32""#, "Wrapper items format"
+    // }
+}

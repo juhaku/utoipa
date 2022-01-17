@@ -7,7 +7,7 @@ use syn::{
 
 use crate::{parse_utils, MediaType};
 
-use super::property::Property;
+use super::{property::Property, ContentTypeResolver};
 
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 ///
@@ -144,6 +144,8 @@ impl Parse for Response {
 
 pub struct Responses<'a>(pub &'a [Response]);
 
+impl ContentTypeResolver for Responses<'_> {}
+
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(quote! { utoipa::openapi::Responses::new() });
@@ -160,13 +162,11 @@ impl ToTokens for Responses<'_> {
                 let body_type = &response_body_type.ty;
 
                 let component = Property::new(response_body_type.is_array, body_type);
-                let content_type = if let Some(ref content_type) = response.content_type {
-                    content_type
-                } else if component.component_type.is_primitive() {
-                    "text/plain"
-                } else {
-                    "application/json"
-                };
+
+                let content_type = self.resolve_content_type(
+                    response.content_type.as_ref(),
+                    &component.component_type,
+                );
 
                 response_tokens.extend(quote! {
                     .with_content(#content_type, #component)

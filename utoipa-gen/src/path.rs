@@ -11,8 +11,11 @@ use syn::{
     LitStr, Token,
 };
 
-use crate::ext::{Argument, ArgumentIn};
 use crate::Deprecated;
+use crate::{
+    component_type::ComponentType,
+    ext::{Argument, ArgumentIn},
+};
 
 use self::{
     parameter::{Parameter, ParameterIn},
@@ -375,7 +378,7 @@ impl ToTokens for Path {
             .expect_or_abort("expected to find path but was None");
 
         let operation = Operation {
-            fn_name: &self.fn_name,
+            path_struct: &path_struct,
             deprecated: &self.deprecated,
             operation_id,
             summary: self
@@ -415,7 +418,7 @@ impl ToTokens for Path {
 }
 
 struct Operation<'a> {
-    fn_name: &'a String,
+    path_struct: &'a Ident,
     operation_id: &'a String,
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
@@ -440,7 +443,7 @@ impl ToTokens for Operation<'_> {
             .with_responses(#responses)
         });
         //         // .with_security()
-        let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
+        let path_struct = self.path_struct;
         let operation_id = self.operation_id;
         tokens.extend(quote! {
             .with_tag(
@@ -485,6 +488,22 @@ impl ToTokens for Operation<'_> {
             parameters
                 .iter()
                 .for_each(|parameter| tokens.extend(quote! { .with_parameter(#parameter) }));
+        }
+    }
+}
+
+trait ContentTypeResolver {
+    fn resolve_content_type<'a>(
+        &self,
+        content_type: Option<&'a String>,
+        component_type: &ComponentType<'a>,
+    ) -> &'a str {
+        if let Some(content_type) = content_type {
+            content_type
+        } else if component_type.is_primitive() {
+            "text/plain"
+        } else {
+            "application/json"
         }
     }
 }

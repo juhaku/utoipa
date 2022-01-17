@@ -1,7 +1,11 @@
+use std::{slice::Iter, vec::IntoIter};
+
 use proc_macro2::{Ident, Span};
 use proc_macro_error::{abort, emit_warning, OptionExt, ResultExt};
 use quote::{quote_spanned, ToTokens};
 use syn::{parse::Parse, Attribute, ExprPath, Lit, Token};
+
+use crate::doc_comment::CommentAttributes;
 
 const COMPONENT_ATTRIBUTE_TYPE: &str = "component";
 

@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use component::Component;
 use doc_comment::CommentAttributes;
 
 use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
@@ -36,17 +37,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
         attrs, ident, data, ..
     } = syn::parse_macro_input!(input);
 
-    let component_quote = component::impl_component(data, attrs);
+    let component = Component::new(data, &attrs, &ident);
 
-    let component = quote! {
-        impl utoipa::Component for #ident {
-            fn component() -> utoipa::openapi::schema::Component {
-                #component_quote
-            }
-        }
-    };
-
-    component.into()
+    quote! {
+        #component
+    }
+    .into()
 }
 
 #[proc_macro_error]

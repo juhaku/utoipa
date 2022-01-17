@@ -9,7 +9,7 @@ use syn::{
 
 use crate::{parse_utils, MediaType, Required};
 
-use super::property::Property;
+use super::{property::Property, ContentTypeResolver};
 
 /// Parsed information related to requst body of path.
 ///
@@ -130,18 +130,15 @@ impl Parse for RequestBodyAttr {
     }
 }
 
+impl ContentTypeResolver for RequestBodyAttr {}
+
 impl ToTokens for RequestBodyAttr {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(ref body_type) = self.content {
             let property = Property::new(body_type.is_array, &body_type.ty);
 
-            let content_type = if let Some(ref content_type) = self.content_type {
-                content_type
-            } else if property.component_type.is_primitive() {
-                "text/plain"
-            } else {
-                "application/json"
-            };
+            let content_type =
+                self.resolve_content_type(self.content_type.as_ref(), &property.component_type);
 
             tokens.extend(quote! {
                 utoipa::openapi::request_body::RequestBody::new()
