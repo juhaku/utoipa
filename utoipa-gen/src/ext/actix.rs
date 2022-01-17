@@ -10,7 +10,6 @@ use syn::{
 use super::{
     Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
 };
-use crate::path::{Parameter, ParameterIn};
 
 #[cfg(feature = "actix_extras")]
 impl ArgumentResolver for PathOperations {
@@ -202,61 +201,5 @@ fn is_valid_request_type(s: &str) -> bool {
             true
         }
         _ => false,
-    }
-}
-
-#[inline]
-#[cfg(feature = "actix_extras")]
-pub fn update_parameters_from_arguments(
-    arguments: Option<Vec<Argument>>,
-    parameters: &mut Option<Vec<Parameter>>,
-) {
-    if let Some(arguments) = arguments {
-        let new_parameter = |argument: &Argument| {
-            Parameter::new(
-                &argument.name.as_ref().unwrap(),
-                argument.ident,
-                if argument.argument_in == ArgumentIn::Path {
-                    ParameterIn::Path
-                } else {
-                    ParameterIn::Query
-                },
-            )
-        };
-
-        if let Some(ref mut parameters) = parameters {
-            parameters.iter_mut().for_each(|parameter| {
-                if let Some(argument) = arguments
-                    .iter()
-                    .find(|argument| argument.name.as_ref() == Some(&parameter.name))
-                {
-                    parameter.update_parameter_type(argument.ident)
-                }
-            });
-
-            // add argument to the parameters if argument has a name and it does not exists in parameters
-            arguments
-                .iter()
-                .filter(|argument| argument.has_name())
-                .for_each(|argument| {
-                    // cannot use filter() for mutli borrow situation. :(
-                    if !parameters
-                        .iter()
-                        .any(|parameter| Some(&parameter.name) == argument.name.as_ref())
-                    {
-                        // if parameters does not contain argument
-                        parameters.push(new_parameter(argument))
-                    }
-                });
-        } else {
-            // no parameters at all, add arguments to the parameters if argument has a name
-            let mut params = Vec::with_capacity(arguments.len());
-            arguments
-                .iter()
-                .filter(|argument| argument.has_name())
-                .map(new_parameter)
-                .for_each(|parameter| params.push(parameter));
-            *parameters = Some(params);
-        }
     }
 }

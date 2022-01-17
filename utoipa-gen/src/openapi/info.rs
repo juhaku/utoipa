@@ -10,14 +10,12 @@ pub(crate) fn impl_info() -> TokenStream2 {
 
     let contact = get_contact(&authors);
 
-    let info = quote! {
+    quote! {
         utoipa::openapi::Info::new(#name, #version)
             .with_description(#description)
             .with_licence(utoipa::openapi::Licence::new(#licence))
             .with_contact(#contact)
-    };
-
-    info
+    }
 }
 
 fn get_parsed_author(author: Option<&str>) -> Option<(&str, String)> {

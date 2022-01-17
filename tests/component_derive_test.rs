@@ -28,7 +28,7 @@ macro_rules! api_doc {
 
     ( @doc $name:ident ) => {{
         #[derive(OpenApi)]
-        #[openapi(handler_files = [], components = [$name])]
+        #[openapi(components = [$name])]
         struct ApiDoc;
 
         let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -303,4 +303,21 @@ fn derive_struct_unnamed_field_vec_type_success() {
         "items.type" = r#""integer""#, "Wrapper items type"
         "items.format" = r#""int32""#, "Wrapper items format"
     }
+}
+
+#[test]
+#[ignore = "not supported yet!!!"]
+fn derive_struct_nested_vec_success() {
+    let vecs = api_doc! {
+        struct VecTest {
+            vecs: Vec<Vec<String>>
+        }
+    };
+
+    println!("{:#?}", vecs);
+    // assert_value! {point=>
+    //     "type" = r#""array""#, "Wrapper type"
+    //     "items.type" = r#""integer""#, "Wrapper items type"
+    //     "items.format" = r#""int32""#, "Wrapper items format"
+    // }
 }

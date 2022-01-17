@@ -31,7 +31,7 @@ test_fn! {
 #[test]
 fn derive_path_request_body_simple_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_simple::post_foo])]
+    #[openapi(handlers = [derive_request_body_simple::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -52,7 +52,7 @@ test_fn! {
 #[test]
 fn derive_path_request_body_simple_array_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_simple_array::post_foo])]
+    #[openapi(handlers = [derive_request_body_simple_array::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -75,7 +75,7 @@ test_fn! {
 #[test]
 fn derive_request_body_primitive_simple_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_primitive_simple::post_foo])]
+    #[openapi(handlers = [derive_request_body_primitive_simple::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -98,7 +98,7 @@ test_fn! {
 #[test]
 fn derive_request_body_primitive_array_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_primitive_simple_array::post_foo])]
+    #[openapi(handlers = [derive_request_body_primitive_simple_array::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -121,7 +121,7 @@ test_fn! {
 #[test]
 fn derive_request_body_complex_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_complex::post_foo])]
+    #[openapi(handlers = [derive_request_body_complex::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -144,7 +144,7 @@ test_fn! {
 #[test]
 fn derive_request_body_complex_required_explisit_false_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_complex_required_explisit::post_foo])]
+    #[openapi(handlers = [derive_request_body_complex_required_explisit::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -167,7 +167,7 @@ test_fn! {
 #[test]
 fn derive_request_body_complex_primitive_array_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [derive_request_body_complex_primitive_array::post_foo])]
+    #[openapi(handlers = [derive_request_body_complex_primitive_array::post_foo])]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();

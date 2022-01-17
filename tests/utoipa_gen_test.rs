@@ -1,11 +1,11 @@
 #![cfg(feature = "actix_extras")]
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 // use utoipa::openapi_spec;
-use utoipa::OpenApi;
+use utoipa::{Component, OpenApi};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Component)]
 struct Foo {
     ids: Vec<i32>,
 }
@@ -42,7 +42,7 @@ async fn foo_delete(web::Query(foo): web::Query<Foo>) -> impl Responder {
 fn derive_openapi() {
     // use crate::api::__path_foo_delete;
     #[derive(OpenApi, Default)]
-    #[openapi(handler_files = [], handlers = [foo_delete])]
+    #[openapi(handlers = [foo_delete], components = [Foo])]
     struct ApiDoc;
 
     println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());

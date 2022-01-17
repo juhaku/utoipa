@@ -3,41 +3,31 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-#[cfg(feature = "actix_extras")]
-use ext::actix::update_parameters_from_arguments;
+use component::Component;
+use doc_comment::CommentAttributes;
 
 use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
+use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, quote_spanned, ToTokens, TokenStreamExt};
+use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
+use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
-    token::Bracket,
-    Attribute, DeriveInput, ExprPath, LitStr, Token,
+    DeriveInput, Error,
 };
 
-mod attribute;
 mod component;
 mod component_type;
+mod doc_comment;
 mod ext;
-mod info;
+mod openapi;
 mod path;
-mod property;
-mod request_body;
-mod response;
 
-use proc_macro_error::*;
-
-use crate::{
-    attribute::CommentAttributes,
-    component::impl_component,
-    path::{Path, PathAttr, PathOperation},
-};
-
-const PATH_STRUCT_PREFIX: &str = "__path_";
+use crate::path::{Path, PathAttr, PathOperation};
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
@@ -47,17 +37,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
         attrs, ident, data, ..
     } = syn::parse_macro_input!(input);
 
-    let component_quote = impl_component(data, attrs);
+    let component = Component::new(data, &attrs, &ident);
 
-    let component = quote! {
-        impl utoipa::Component for #ident {
-            fn component() -> utoipa::openapi::schema::Component {
-                #component_quote
-            }
-        }
-    };
-
-    component.into()
+    quote! {
+        #component
+    }
+    .into()
 }
 
 #[proc_macro_error]
@@ -71,7 +56,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs);
 
     #[cfg(feature = "actix_extras")]
-    update_parameters_from_arguments(arguments, &mut path_attribute.params);
+    path_attribute.update_parameters(arguments);
 
     let operation_attribute = &PathOperations::resolve_attribute(&ast_fn);
     let path_provider = || PathOperations::resolve_path(operation_attribute);
@@ -102,238 +87,20 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(OpenApi, attributes(openapi))]
+/// Derive OpenApi macro
 pub fn openapi(input: TokenStream) -> TokenStream {
-    let DeriveInput {
-        attrs,
-        // data,
-        // generics,
-        ident,
-        ..
-    } = syn::parse_macro_input!(input);
+    let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
-    let openapi_args =
-        parse_openapi_attributes(&attrs).expect_or_abort("Expected #openapi[...] attribute");
-
-    // let files = openapi_args
-    //     .iter()
-    //     .filter(|args| matches!(args, OpenApiArgs::HandlerFiles(_)))
-    //     .flat_map(|args| match args {
-    //         OpenApiArgs::HandlerFiles(files) => files,
-    //         _ => unreachable!(),
-    //     });
-
-    let components = openapi_args
-        .iter()
-        .filter(|args| matches!(args, OpenApiArgs::Components(_)))
-        .flat_map(|args| match args {
-            OpenApiArgs::Components(components) => components,
-            _ => unreachable!(),
-            // TODO enabed if argument resolving is enabled
-        })
-        .collect::<Vec<_>>();
-
-    let info = info::impl_info();
-    // let paths = paths::impl_paths(&files.map(String::to_owned).collect::<Vec<_>>());
-
-    let span = ident.span();
-    let mut quote = quote! {};
-    let mut schema = quote! {
-        utoipa::openapi::Schema::new()
-    };
-
-    let handlers = openapi_args
-        .iter()
-        .filter_map(|args| match args {
-            OpenApiArgs::Handlers(handlers) => Some(handlers.clone()),
-            _ => None,
-        })
-        .flatten()
-        .collect::<Vec<_>>();
-
-    // println!("handlers: {:#?}", &handlers);
-
-    let path_items = impl_paths(handlers.into_iter(), &mut quote);
-
-    for component in components {
-        let component_name = &*component.to_string();
-        let assert_ident = format_ident!("_AssertComponent{}", component_name);
-        quote.extend(quote_spanned! {span=>
-            struct #assert_ident where #component: utoipa::Component;
-        });
-
-        schema.extend(quote! {
-            .with_component(#component_name, #component::component())
-        });
-    }
-
-    quote.extend(quote! {
-        use utoipa::openapi::schema::ToArray;
-        impl utoipa::OpenApi for #ident {
-            fn openapi() -> utoipa::openapi::OpenApi {
-                utoipa::openapi::OpenApi::new(#info, #path_items)
-                    .with_components(#schema)
-            }
-        }
-    });
-
-    quote.into()
-}
-
-fn parse_openapi_attributes(attributes: &[Attribute]) -> Option<Vec<OpenApiArgs>> {
-    if attributes.len() > 1 {
-        panic!(
-            "Expected at most 1 attribute, but found: {}",
-            &attributes.len()
+    let openapi_attributes = openapi::parse_openapi_attributes_from_attributes(&attrs)
+        .expect_or_abort(
+            "expected #[openapi(...)] attribute to be present when used with OpenApi derive trait",
         );
+
+    let openapi = OpenApi(openapi_attributes, ident);
+    quote! {
+        #openapi
     }
-
-    attributes
-        .iter()
-        .next()
-        .map(|attribute| {
-            if !attribute.path.is_ident("openapi") {
-                abort_call_site!("Expected #[openapi(...)]");
-            } else {
-                attribute
-            }
-        })
-        .map(|att| {
-            att.parse_args_with(Punctuated::<OpenApiArgs, Token![,]>::parse_terminated)
-                .unwrap_or_abort()
-                .into_iter()
-                .collect()
-        })
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-enum OpenApiArgs {
-    HandlerFiles(Vec<String>),
-    Components(Vec<Ident>),
-    Handlers(Vec<syn::ExprPath>),
-}
-
-impl Parse for OpenApiArgs {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name_ident = input.parse::<Ident>()?;
-        let name_str = &*name_ident.to_string();
-
-        match name_str {
-            "handler_files" => {
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>()?;
-                }
-
-                if input.peek(syn::token::Bracket) {
-                    let content;
-                    bracketed!(content in input);
-                    let tokens = Punctuated::<LitStr, Token![,]>::parse_terminated(&content)?;
-
-                    Ok(Self::HandlerFiles(
-                        tokens.iter().map(LitStr::value).collect::<Vec<_>>(),
-                    ))
-                } else {
-                    Err(syn::Error::new(
-                        input.span(),
-                        "Expected handler_files = [...]",
-                    ))
-                }
-            }
-            "components" => {
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>()?;
-                }
-
-                if input.peek(syn::token::Bracket) {
-                    let content;
-                    bracketed!(content in input);
-                    let tokens = Punctuated::<Ident, Token![,]>::parse_terminated(&content)?;
-
-                    Ok(Self::Components(tokens.into_iter().collect::<Vec<_>>()))
-                } else {
-                    Err(syn::Error::new(input.span(), "Expected components = [...]"))
-                }
-            }
-            "handlers" => {
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>()?;
-                }
-
-                if input.peek(syn::token::Bracket) {
-                    let content;
-                    bracketed!(content in input);
-                    let tokens =
-                        Punctuated::<syn::ExprPath, Token![,]>::parse_terminated(&content)?;
-
-                    Ok(Self::Handlers(tokens.into_iter().collect::<Vec<_>>()))
-                } else {
-                    Err(syn::Error::new(input.span(), "Expected handlers = [...]"))
-                }
-            }
-            _ => Err(syn::Error::new(
-                input.span(),
-                "unexpected token expected either handler_files or components",
-            )),
-        }
-    }
-}
-
-fn impl_paths<I: IntoIterator<Item = ExprPath>>(
-    handler_paths: I,
-    quote: &mut TokenStream2,
-) -> TokenStream2 {
-    quote.extend(quote! {
-        use utoipa::Path as OpenApiPath;
-    });
-    handler_paths.into_iter().fold(
-        quote! { utoipa::openapi::path::Paths::new() },
-        |mut paths, handler| {
-            let segments = handler.path.segments.iter().collect::<Vec<_>>();
-            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
-
-            let tag = segments
-                .iter()
-                .take(segments.len() - 1)
-                .map(|part| part.ident.to_string())
-                .collect::<Vec<_>>()
-                .join("::");
-
-            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
-            let handler_ident_name = &*handler_ident.to_string();
-
-            let usage = syn::parse_str::<ExprPath>(
-                &vec![
-                    if tag.starts_with("crate") {
-                        None
-                    } else {
-                        Some("crate")
-                    },
-                    if tag.is_empty() { None } else { Some(&tag) },
-                    Some(handler_ident_name),
-                ]
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>()
-                .join("::"),
-            )
-            .unwrap();
-
-            let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
-            quote.extend(quote! {
-                struct #assert_handler_ident where #handler_ident : utoipa::Path;
-                use #usage;
-                impl utoipa::DefaultTag for #handler_ident {
-                    fn tag() -> &'static str {
-                        #tag
-                    }
-                }
-            });
-            paths.extend(quote! {
-                .append(#handler_ident::path(), #handler_ident::path_item())
-            });
-
-            paths
-        },
-    )
+    .into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as slice reference (`&[...]`) correctly to OpenAPI JSON.
@@ -423,28 +190,80 @@ impl ToTokens for Required {
 }
 
 /// Media type is wrapper around type and information is type an array
-#[derive(Default)]
+// #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct MediaType {
-    ty: Option<Ident>,
+    ty: Ident,
     is_array: bool,
+}
+
+impl MediaType {
+    pub fn new(ident: Ident) -> Self {
+        Self {
+            ty: ident,
+            is_array: false,
+        }
+    }
 }
 
 impl Parse for MediaType {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut is_array = false;
-        let ty = if input.peek(Bracket) {
-            is_array = true;
-            let group;
-            bracketed!(group in input);
-            group.parse::<Ident>().unwrap()
-        } else {
-            input.parse::<Ident>().unwrap()
+
+        let parse_ident = |group: &ParseBuffer, error_msg: &str| {
+            if group.peek(syn::Ident) {
+                group.parse::<Ident>()
+            } else {
+                Err(Error::new(input.span(), error_msg))
+            }
         };
 
-        Ok(MediaType {
-            ty: Some(ty),
-            is_array,
+        let ty = if input.peek(syn::Ident) {
+            parse_ident(input, "unparseable MediaType, expected Ident")
+        } else {
+            is_array = true;
+
+            let group;
+            bracketed!(group in input);
+
+            parse_ident(
+                &group,
+                "unparseable MediaType, expected Ident within Bracket Group",
+            )
+        }?;
+
+        Ok(MediaType { ty, is_array })
+    }
+}
+
+/// Parsing utils
+mod parse_utils {
+    use proc_macro_error::ResultExt;
+    use syn::{parse::ParseStream, LitBool, LitStr, Token};
+
+    pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
+        input
+            .parse::<Token![=]>()
+            .expect_or_abort("expected equals token (=) before value assigment");
+        next()
+    }
+
+    pub fn parse_next_lit_str(input: ParseStream, error_message: &str) -> String {
+        parse_next(input, || {
+            input
+                .parse::<LitStr>()
+                .expect_or_abort(error_message)
+                .value()
         })
+    }
+
+    pub fn parse_bool_or_true(input: ParseStream) -> bool {
+        if input.peek(Token![=]) && input.peek2(LitBool) {
+            input.parse::<Token![=]>().unwrap();
+
+            input.parse::<LitBool>().unwrap().value()
+        } else {
+            true
+        }
     }
 }
