@@ -166,7 +166,7 @@ Embed ReDocly for OpenAPI documentation | :x: Not done
 Integration with Actix web framework | :heavy_minus_sign: In development
 Integration with Rocker framework | :x: Not done
 Write exessive documentation & Book & Examples | :x: Not done
-At least 90 % tested code | :heavy_check_mark: Still ongoing along with the other development
+At least 90 % tested code | :heavy_minus_sign: Still ongoing along with the other development
 
 Integration with other frameworks are not planned as of this stage but when the intial set of features are complete the integrations with other frameworks can be prioritized.
 
