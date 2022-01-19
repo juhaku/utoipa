@@ -13,7 +13,9 @@ pub use self::{
     licence::Licence,
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
-    schema::{Array, Component, ComponentFormat, ComponentType, Object, Property, Ref, Schema},
+    schema::{
+        Array, Component, ComponentFormat, ComponentType, Object, Property, Ref, Schema, ToArray,
+    },
     security::Security,
     server::Server,
     tag::Tag,

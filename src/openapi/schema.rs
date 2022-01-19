@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use super::Deprecated;
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]
@@ -57,13 +60,16 @@ pub struct Property {
     description: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    default: Option<String>,
+    default: Option<Value>,
 
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     enum_values: Option<Vec<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     example: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deprecated: Option<Deprecated>,
 }
 
 impl Property {
@@ -86,8 +92,8 @@ impl Property {
         self
     }
 
-    pub fn with_default<S: AsRef<str>>(mut self, default: S) -> Self {
-        self.default = Some(default.as_ref().to_string());
+    pub fn with_default(mut self, default: Value) -> Self {
+        self.default = Some(default);
 
         self
     }
@@ -105,6 +111,12 @@ impl Property {
 
     pub fn with_example<S: AsRef<str>>(mut self, example: S) -> Self {
         self.example = Some(example.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
+        self.deprecated = Some(deprecated);
 
         self
     }
@@ -136,6 +148,12 @@ pub struct Object {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deprecated: Option<Deprecated>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    example: Option<Value>,
 }
 
 impl Object {
@@ -164,6 +182,18 @@ impl Object {
 
     pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
         self.description = Some(description.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
+        self.deprecated = Some(deprecated);
+
+        self
+    }
+
+    pub fn with_example(mut self, example: Value) -> Self {
+        self.example = Some(example);
 
         self
     }
@@ -236,6 +266,8 @@ impl From<Array> for Component {
         }
     }
 }
+
+impl ToArray for Array {}
 
 pub trait ToArray
 where
@@ -313,7 +345,7 @@ impl Serialize for ComponentFormat {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
+    use serde_json::{json, Value};
 
     use super::*;
     use crate::openapi::*;
@@ -331,7 +363,7 @@ mod tests {
                             Property::new(ComponentType::Integer)
                                 .with_format(ComponentFormat::Int32)
                                 .with_description("Id of credential")
-                                .with_default("1"),
+                                .with_default(json!(1)),
                         )
                         .with_property(
                             "name",
@@ -341,7 +373,7 @@ mod tests {
                         .with_property(
                             "status",
                             Property::new(ComponentType::String)
-                                .with_default("Active")
+                                .with_default(json!("Active"))
                                 .with_description("Credential status")
                                 .with_enum_values(&["Active", "NotActive", "Locked", "Expired"]),
                         )
@@ -381,7 +413,7 @@ mod tests {
                 .get("id")
                 .unwrap_or(&serde_json::value::Value::Null)
                 .to_string(),
-            r#"{"default":"1","description":"Id of credential","format":"int32","type":"integer"}"#,
+            r#"{"default":1,"description":"Id of credential","format":"int32","type":"integer"}"#,
             "components.schemas.Credential.properties.id did not match"
         );
         assert_eq!(
@@ -415,6 +447,19 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn derive_object_with_example() {
+        let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
+        let json_value = Object::new().with_example(json!({"age": 20, "name": "bob the cat"}));
+
+        let value_string = serde_json::to_string(&json_value).unwrap();
+        assert_eq!(
+            value_string, expected,
+            "value string != expected string, {} != {}",
+            value_string, expected
+        );
     }
 
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {

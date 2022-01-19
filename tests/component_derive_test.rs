@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
@@ -77,7 +77,7 @@ fn derive_enum_with_defaults_success() {
 #[test]
 fn derive_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
-        #[component(default = "crate::mode_custom_default_fn")]
+        #[component(default = mode_custom_default_fn)]
         enum Mode {
             Mode1,
             Mode2
@@ -119,11 +119,12 @@ fn derive_struct_with_defaults_success() {
 fn derive_struct_with_custom_properties_success() {
     let book = api_doc! {
         struct Book {
+            #[component(default = String::default)]
             name: String,
             #[component(
-                default = "testhash"
+                default = "testhash",
                 example = "base64 text",
-                format = "ComponentFormat::Byte"
+                format = ComponentFormat::Byte,
             )]
             hash: String,
         }
@@ -132,6 +133,7 @@ fn derive_struct_with_custom_properties_success() {
     assert_value! {book=>
         "type" = r#""object""#, "Book type"
         "properties.name.type" = r#""string""#, "Book name type"
+        "properties.name.default" = r#""""#, "Book name default"
         "properties.hash.type" = r#""string""#, "Book hash type"
         "properties.hash.format" = r#""byte""#, "Book hash format"
         "properties.hash.example" = r#""base64 text""#, "Book hash example"
@@ -306,7 +308,6 @@ fn derive_struct_unnamed_field_vec_type_success() {
 }
 
 #[test]
-#[ignore = "not supported yet!!!"]
 fn derive_struct_nested_vec_success() {
     let vecs = api_doc! {
         struct VecTest {
@@ -314,10 +315,95 @@ fn derive_struct_nested_vec_success() {
         }
     };
 
-    println!("{:#?}", vecs);
-    // assert_value! {point=>
-    //     "type" = r#""array""#, "Wrapper type"
-    //     "items.type" = r#""integer""#, "Wrapper items type"
-    //     "items.format" = r#""int32""#, "Wrapper items format"
-    // }
+    assert_value! {vecs=>
+        "properties.vecs.type" = r#""array""#, "Vecs property type"
+        "properties.vecs.items.type" = r#""array""#, "Vecs property items type"
+        "properties.vecs.items.items.type" = r#""string""#, "Vecs property items item type"
+        "type" = r#""object""#, "Property type"
+        "required.[0]" = r#""vecs""#, "Required properties"
+    }
+    common::assert_json_array_len(vecs.get("required").unwrap(), 1);
+}
+
+#[test]
+fn derive_struct_with_example() {
+    let pet = api_doc! {
+        #[component(example = json!({"name": "bob the cat", "age": 8}))]
+        struct Pet {
+            name: String,
+            age: i32
+        }
+    };
+
+    assert_value! {pet=>
+        "example.name" = r#""bob the cat""#, "Pet example name"
+        "example.age" = r#"8"#, "Pet example age"
+    }
+}
+
+#[test]
+fn derive_struct_with_deprecated() {
+    #[allow(deprecated)]
+    let pet = api_doc! {
+        #[deprecated]
+        struct Pet {
+            name: String,
+            #[deprecated]
+            age: i32
+        }
+    };
+
+    assert_value! {pet=>
+        "deprecated" = r#"true"#, "Pet deprecated"
+        "properties.name.type" = r#""string""#, "Pet properties name type"
+        "properties.name.deprecated" = r#"null"#, "Pet properties name deprecated"
+        "properties.age.type" = r#""integer""#, "Pet properties age type"
+        "properties.age.deprecated" = r#"true"#, "Pet properties age deprecated"
+        "example" = r#"null"#, "Pet example"
+    }
+}
+
+#[test]
+fn derive_unnamed_struct_deprecated_success() {
+    #[allow(deprecated)]
+    let pet_age = api_doc! {
+        #[deprecated]
+        #[component(example = 8)]
+        struct PetAge(u64);
+    };
+
+    assert_value! {pet_age=>
+        "deprecated" = r#"true"#, "PetAge deprecated"
+        "example" = r#""8""#, "PetAge example"
+    }
+}
+
+#[test]
+fn derive_unnamed_struct_example_json_array_success() {
+    let pet_age = api_doc! {
+        #[component(example = "0", default = u64::default)]
+        struct PetAge(u64, u64);
+    };
+
+    assert_value! {pet_age=>
+        "items.example" = r#""0""#, "PetAge example"
+        "items.default" = r#"0"#, "PetAge default"
+    }
+}
+
+#[test]
+fn derive_enum_with_deprecated() {
+    #[allow(deprecated)]
+    let mode = api_doc! {
+        #[deprecated]
+        enum Mode {
+            Mode1, Mode2
+        }
+    };
+
+    assert_value! {mode=>
+        "enum" = r#"["Mode1","Mode2"]"#, "Mode enum variants"
+        "type" = r#""string""#, "Mode type"
+        "deprecated" = r#"true"#, "Mode deprecated"
+    };
 }

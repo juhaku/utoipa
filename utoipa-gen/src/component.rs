@@ -1,4 +1,4 @@
-use std::{ops::Deref, rc::Rc};
+use std::rc::Rc;
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
@@ -11,12 +11,12 @@ use syn::{
 use crate::{
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
-    ValueArray,
+    Deprecated, ValueArray,
 };
 
-use self::attribute::{AttributeType, ComponentAttribute};
+use self::attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct};
 
-mod attribute;
+mod attr;
 
 pub struct Component<'a> {
     ident: &'a Ident,
@@ -114,81 +114,111 @@ impl<'a> ComponentVariant<'a> {
         field_type: &FieldType,
     ) {
         match field_type {
-            FieldType::Named => self.named_fields_struct_to_tokens(fields, tokens),
-            FieldType::Unnamed => self.unnamed_fields_struct_to_tokens(fields, tokens),
+            FieldType::Named => self.named_fields_struct_to_tokens(fields, attributes, tokens),
+            FieldType::Unnamed => self.unnamed_fields_struct_to_tokens(fields, attributes, tokens),
+        }
+
+        if let Some(deprecated) = get_deprecated(attributes) {
+            tokens.extend(quote! {
+                .with_deprecated(#deprecated)
+            })
         }
 
         self.append_description(attributes, tokens);
     }
 
-    fn named_fields_struct_to_tokens(&self, fields: &[Field], tokens: &mut TokenStream2) {
+    fn named_fields_struct_to_tokens(
+        &self,
+        fields: &[Field],
+        attributes: &[Attribute],
+        tokens: &mut TokenStream2,
+    ) {
         tokens.extend(quote! { utoipa::openapi::Object::new() });
 
         fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
 
             let component_part = &ComponentPart::from_type(&field.ty);
-            let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
-                .collect::<ComponentPropertyType>();
 
-            let property = create_property_stream(
-                &component,
-                CommentAttributes::from_attributes(&field.attrs),
-                attribute::parse_component_attribute(&field.attrs),
+            let deprecated = get_deprecated(&field.attrs);
+            let attrs = attr::parse_component_attr::<ComponentAttr<NamedField>>(&field.attrs);
+            let comments = CommentAttributes::from_attributes(&field.attrs);
+            let component = ComponentProperty::new(
+                component_part,
+                Some(&comments),
+                attrs.as_ref(),
+                deprecated.as_ref(),
             );
+
             tokens.extend(quote! {
-                .with_property(#field_name, #property)
+                .with_property(#field_name, #component)
             });
 
-            if !component.option {
+            if !component.is_option() {
                 tokens.extend(quote! {
                     .with_required(#field_name)
                 })
             }
         });
+
+        if let Some(deprecated) = get_deprecated(attributes) {
+            tokens.extend(quote! { .with_deprecated(#deprecated) });
+        }
+
+        let attrs = attr::parse_component_attr::<ComponentAttr<attr::Struct>>(attributes);
+        if let Some(attrs) = attrs {
+            tokens.extend(attrs.to_token_stream());
+        }
     }
 
-    fn unnamed_fields_struct_to_tokens(&self, fields: &[Field], tokens: &mut TokenStream2) {
+    fn unnamed_fields_struct_to_tokens(
+        &self,
+        fields: &[Field],
+        attributes: &[Attribute],
+        tokens: &mut TokenStream2,
+    ) {
         let fields_len = fields.len();
         let first_field = fields.first().unwrap();
         let first_part = &ComponentPart::from_type(&first_field.ty);
-        let first_component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(first_part)
-            .collect::<ComponentPropertyType>();
 
-        let all_fields_are_same = fields.iter().skip(1).all(|field| {
-            let component_part = &ComponentPart::from_type(&field.ty);
-            let component = Into::<ComponentPartRef<'_, ComponentPart<'_>>>::into(component_part)
-                .collect::<ComponentPropertyType>();
+        let all_fields_are_same = fields_len == 1
+            || fields.iter().skip(1).all(|field| {
+                let component_part = &ComponentPart::from_type(&field.ty);
 
-            first_component == component
-        });
+                first_part == component_part
+            });
 
-        // If Struct is single value struct such as Point(i64) create a Property component based on type
-        if fields_len == 1 {
-            let component =
-                create_property_stream(&first_component, CommentAttributes::empty(), None);
-
-            tokens.extend(quote! { #component });
+        let attrs = attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(attributes);
+        let deprecated = get_deprecated(attributes);
+        if all_fields_are_same {
+            tokens.extend(
+                ComponentProperty::new(first_part, None, attrs.as_ref(), deprecated.as_ref())
+                    .to_token_stream(),
+            );
+            if fields_len > 1 {
+                tokens.extend(quote! { .to_array() })
+            }
         } else {
-            let component = if all_fields_are_same {
-                // When all fields are same we can represent the struct as typed array
-                create_property_stream(&first_component, CommentAttributes::empty(), None)
-            } else {
-                // Struct that has multiple unnamed fields is serialized to array by default with serde.
-                // See: https://serde.rs/json.html
-                // Typically OpenAPI does not support multi type arrays thus we simply consider the case
-                // as generic object array
-                quote! {
-                    utoipa::openapi::Object::new()
-                }
-            };
+            // Struct that has multiple unnamed fields is serialized to array by default with serde.
+            // See: https://serde.rs/json.html
+            // Typically OpenAPI does not support multi type arrays thus we simply consider the case
+            // as generic object array
+            tokens.extend(quote! {
+                utoipa::openapi::Object::new()
+            });
+
+            if let Some(deprecated) = deprecated {
+                tokens.extend(quote! { .with_deprecated(#deprecated) });
+            }
+
+            if let Some(attrs) = attrs {
+                tokens.extend(attrs.to_token_stream())
+            }
 
             tokens.extend(quote! {
-                utoipa::openapi::Array::new(
-                    #component
-                )
-            });
-        }
+                .to_array()
+            })
+        };
     }
 
     fn warn_unsupported_enum_variants(&self, variants: &[Variant]) {
@@ -217,14 +247,14 @@ impl<'a> ComponentVariant<'a> {
                 .with_enum_values(#enum_values)
         });
 
-        if let Some(enum_attributes) = attribute::parse_component_attribute(attributes) {
-            append_attributes(
-                tokens,
-                enum_attributes
-                    .into_iter()
-                    .filter(|attribute| !matches!(attribute, AttributeType::Format(..))),
-            )
-        };
+        let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(attributes);
+        if let Some(attributes) = attrs {
+            tokens.extend(attributes.to_token_stream());
+        }
+
+        if let Some(deprecated) = get_deprecated(attributes) {
+            tokens.extend(quote! { .with_deprecated(#deprecated) });
+        }
 
         self.append_description(attributes, tokens);
     }
@@ -238,129 +268,17 @@ impl<'a> ComponentVariant<'a> {
     }
 }
 
-fn append_attributes<I: Iterator<Item = AttributeType>>(
-    token_stream: &mut TokenStream2,
-    component_attribute: I,
-) {
-    component_attribute
-        .into_iter()
-        .map(|attribute_type| match attribute_type {
-            AttributeType::Default(..) => quote! {
-                .with_default(#attribute_type)
-            },
-            AttributeType::Example(..) => quote! {
-                .with_example(#attribute_type)
-            },
-            AttributeType::Format(..) => quote! {
-                .with_format(#attribute_type)
-            },
-        })
-        .for_each(|stream| token_stream.extend(stream))
+fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
+    attributes.iter().find_map(|attribute| {
+        if *attribute.path.get_ident().unwrap() == "deprecated" {
+            Some(Deprecated::True)
+        } else {
+            None
+        }
+    })
 }
 
-fn create_property_stream(
-    component: &ComponentPropertyType,
-    comment_attributes: CommentAttributes,
-    component_attribute: Option<ComponentAttribute>,
-) -> TokenStream2 {
-    let mut property = match component {
-        ComponentPropertyType {
-            generic_type: None,
-            value_type:
-                Some(TypeTuple(
-                    value_type @ ValueType::Primitive | value_type @ ValueType::Object,
-                    ident,
-                )),
-            ..
-        } => create_simple_property(value_type, ident, &comment_attributes),
-        ComponentPropertyType {
-            generic_type: Some(generic_type_tuple),
-            value_type: Some(value_type_tuple),
-            ..
-        } => create_complex_property(generic_type_tuple, value_type_tuple, &comment_attributes),
-        _ => unreachable!(), // will never occur, there are only complex generic types or simple types with or without generics
-    };
-
-    if let Some(component_attribute) = component_attribute {
-        append_attributes(&mut property, component_attribute.into_iter())
-    }
-
-    property
-}
-
-fn create_simple_property(
-    value_type: &ValueType,
-    ident: &Ident,
-    comment_attributes: &CommentAttributes,
-) -> TokenStream2 {
-    match value_type {
-        ValueType::Primitive => {
-            let component_type = ComponentType(ident);
-
-            let mut property = quote! {
-                utoipa::openapi::Property::new(
-                    #component_type
-                )
-            };
-
-            if let Some(comment) = comment_attributes.0.first() {
-                property.extend(quote! {
-                    .with_description(#comment)
-                })
-            }
-
-            let format = ComponentFormat(ident);
-            if format.is_known_format() {
-                property.extend(quote! {
-                    .with_format(#format)
-                })
-            }
-
-            property
-        }
-        ValueType::Object => {
-            let object_name = &*ident.to_string();
-
-            quote! {
-                utoipa::openapi::Ref::from_component_name(#object_name)
-            }
-        }
-    }
-}
-
-fn create_complex_property(
-    generic_type_tuple: &TypeTuple<GenericType>,
-    value_type_tuple: &TypeTuple<ValueType>,
-    comment_attributes: &CommentAttributes,
-) -> TokenStream2 {
-    match generic_type_tuple.0 {
-        GenericType::Map => {
-            let mut property = quote! {
-                utoipa::openapi::Object::new()
-            };
-
-            if let Some(comment) = comment_attributes.0.first() {
-                property.extend(quote! {
-                    .with_description(#comment)
-                })
-            }
-
-            property
-        }
-        GenericType::Vec => {
-            let property =
-                create_simple_property(&value_type_tuple.0, value_type_tuple.1, comment_attributes);
-
-            quote! {
-                utoipa::openapi::Array::new(
-                    #property
-                )
-            }
-        }
-        _ => unreachable!(), //  we do not have option type here
-    }
-}
-
+#[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
 struct ComponentPart<'a> {
@@ -456,45 +374,6 @@ impl<'a> ComponentPart<'a> {
     }
 }
 
-struct ComponentPartRef<'a, T> {
-    _inner: Option<&'a T>,
-}
-
-impl<'a> Deref for ComponentPartRef<'a, ComponentPart<'a>> {
-    type Target = ComponentPart<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        self._inner.unwrap() // we can unwrap since it must have value
-    }
-}
-
-impl<'a> From<&'a ComponentPart<'a>> for ComponentPartRef<'a, ComponentPart<'a>> {
-    fn from(component_type: &'a ComponentPart<'_>) -> Self {
-        Self {
-            _inner: Some(component_type),
-        }
-    }
-}
-
-impl<'a> Iterator for ComponentPartRef<'a, ComponentPart<'a>> {
-    type Item = ComponentPartRef<'a, ComponentPart<'a>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self._inner;
-        let next = current.and_then(|current| current.child.as_ref());
-
-        if let Some(component) = next {
-            self._inner = Some(component.as_ref());
-        } else {
-            self._inner = None
-        }
-
-        current.map(|component_type| ComponentPartRef {
-            _inner: Some(component_type),
-        })
-    }
-}
-
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
 enum ValueType {
@@ -514,37 +393,114 @@ enum GenericType {
 #[derive(PartialEq)]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default, PartialEq)]
-struct ComponentPropertyType<'a> {
-    option: bool,
-    generic_type: Option<TypeTuple<'a, GenericType>>,
-    value_type: Option<TypeTuple<'a, ValueType>>,
+struct ComponentProperty<'a, T> {
+    component_part: &'a ComponentPart<'a>,
+    comments: Option<&'a CommentAttributes>,
+    attrs: Option<&'a ComponentAttr<T>>,
+    deprecated: Option<&'a Deprecated>,
 }
 
-impl<'a> FromIterator<ComponentPartRef<'a, ComponentPart<'a>>> for ComponentPropertyType<'a> {
-    fn from_iter<T: IntoIterator<Item = ComponentPartRef<'a, ComponentPart<'a>>>>(iter: T) -> Self {
-        let components_iter = iter.into_iter();
-        components_iter.fold(Self::default(), |mut component, item| {
-            match item.generic_type {
-                Some(GenericType::Option) => component.option = true,
-                Some(generic_type @ GenericType::Map | generic_type @ GenericType::Vec) => {
-                    component.generic_type = Some(TypeTuple(generic_type, item.ident))
-                }
-                None => (),
-            }
+impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
+    fn new(
+        component_part: &'a ComponentPart<'a>,
+        comments: Option<&'a CommentAttributes>,
+        attrs: Option<&'a ComponentAttr<T>>,
+        deprecated: Option<&'a Deprecated>,
+    ) -> Self {
+        Self {
+            component_part,
+            comments,
+            attrs,
+            deprecated,
+        }
+    }
 
-            // we are only interested of final concrete value type
-            match item.value_type {
-                value_type @ ValueType::Object | value_type @ ValueType::Primitive
-                    if item.generic_type == None =>
+    /// Check wheter property is required or not
+    fn is_option(&self) -> bool {
+        matches!(self.component_part.generic_type, Some(GenericType::Option))
+    }
+}
+
+impl<T> ToTokens for ComponentProperty<'_, T>
+where
+    T: Sized + quote::ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self.component_part.generic_type {
+            Some(GenericType::Map) => {
+                // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
+                tokens.extend(quote! {
+                    utoipa::openapi::Object::new()
+                });
+
+                if let Some(description) = self.comments.and_then(|attributes| attributes.0.first())
                 {
-                    component.value_type = Some(TypeTuple(value_type, item.ident))
+                    tokens.extend(quote! {
+                        .with_description(#description)
+                    })
                 }
-                _ => (),
             }
+            Some(GenericType::Vec) => {
+                let component_property = ComponentProperty::new(
+                    self.component_part.child.as_ref().unwrap(),
+                    self.comments,
+                    self.attrs,
+                    self.deprecated,
+                );
 
-            component
-        })
+                tokens.extend(quote! {
+                    #component_property.to_array()
+                });
+            }
+            Some(GenericType::Option) => {
+                let component_property = ComponentProperty::new(
+                    self.component_part.child.as_ref().unwrap(),
+                    self.comments,
+                    self.attrs,
+                    self.deprecated,
+                );
+
+                tokens.extend(component_property.into_token_stream())
+            }
+            None => match self.component_part.value_type {
+                ValueType::Primitive => {
+                    let component_type = ComponentType(self.component_part.ident);
+
+                    tokens.extend(quote! {
+                        utoipa::openapi::Property::new(#component_type)
+                    });
+
+                    let format = ComponentFormat(self.component_part.ident);
+                    if format.is_known_format() {
+                        tokens.extend(quote! {
+                            .with_format(#format)
+                        })
+                    }
+
+                    if let Some(description) =
+                        self.comments.and_then(|attributes| attributes.0.first())
+                    {
+                        tokens.extend(quote! {
+                            .with_description(#description)
+                        })
+                    }
+
+                    if let Some(deprecated) = self.deprecated {
+                        tokens.extend(quote! { .with_deprecated(#deprecated) });
+                    }
+
+                    if let Some(attributes) = self.attrs {
+                        tokens.extend(attributes.to_token_stream())
+                    }
+                }
+                ValueType::Object => {
+                    let name = &*self.component_part.ident.to_string();
+
+                    tokens.extend(quote! {
+                        utoipa::openapi::Ref::from_component_name(#name)
+                    })
+                }
+            },
+        }
     }
 }

@@ -40,6 +40,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     let component = Component::new(data, &attrs, &ident);
 
     quote! {
+        use utoipa::openapi::ToArray;
         #component
     }
     .into()
@@ -78,7 +79,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         }));
 
     quote! {
-        use utoipa::openapi::schema::ToArray;
+        use utoipa::openapi::ToArray;
         #path
         #ast_fn
     }

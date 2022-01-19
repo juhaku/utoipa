@@ -8,9 +8,6 @@ const DOC_ATTRIBUTE_TYPE: &str = "doc";
 pub(crate) struct CommentAttributes(pub(crate) Vec<String>);
 
 impl CommentAttributes {
-    pub(crate) fn empty() -> Self {
-        Self { 0: vec![] }
-    }
     /// Creates new [`CommentAttributes`] instance from [`Attribute`] slice filtering out all
     /// other attributes which are not `doc` comments
     pub(crate) fn from_attributes(attributes: &[Attribute]) -> Self {

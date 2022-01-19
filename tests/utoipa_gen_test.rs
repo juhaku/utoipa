@@ -6,6 +6,7 @@ use serde_json::json;
 use utoipa::{Component, OpenApi};
 
 #[derive(Deserialize, Serialize, Component)]
+#[component(example = json!({"name": "bob the cat", "id": 1}))]
 struct Pet {
     id: u64,
     name: String,
