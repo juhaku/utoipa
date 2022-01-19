@@ -11,10 +11,10 @@ use syn::{
 use crate::{
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
-    ValueArray,
+    Deprecated, ValueArray,
 };
 
-use self::attr::{ComponentAttr, Enum, NamedField};
+use self::attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct};
 
 mod attr;
 
@@ -114,14 +114,25 @@ impl<'a> ComponentVariant<'a> {
         field_type: &FieldType,
     ) {
         match field_type {
-            FieldType::Named => self.named_fields_struct_to_tokens(fields, tokens),
-            FieldType::Unnamed => self.unnamed_fields_struct_to_tokens(fields, tokens),
+            FieldType::Named => self.named_fields_struct_to_tokens(fields, attributes, tokens),
+            FieldType::Unnamed => self.unnamed_fields_struct_to_tokens(fields, attributes, tokens),
+        }
+
+        if let Some(deprecated) = get_deprecated(attributes) {
+            tokens.extend(quote! {
+                .with_deprecated(#deprecated)
+            })
         }
 
         self.append_description(attributes, tokens);
     }
 
-    fn named_fields_struct_to_tokens(&self, fields: &[Field], tokens: &mut TokenStream2) {
+    fn named_fields_struct_to_tokens(
+        &self,
+        fields: &[Field],
+        attributes: &[Attribute],
+        tokens: &mut TokenStream2,
+    ) {
         tokens.extend(quote! { utoipa::openapi::Object::new() });
 
         fields.iter().for_each(|field| {
@@ -129,9 +140,15 @@ impl<'a> ComponentVariant<'a> {
 
             let component_part = &ComponentPart::from_type(&field.ty);
 
+            let deprecated = get_deprecated(&field.attrs);
             let attrs = attr::parse_component_attr::<ComponentAttr<NamedField>>(&field.attrs);
             let comments = CommentAttributes::from_attributes(&field.attrs);
-            let component = ComponentProperty::new(component_part, Some(&comments), attrs.as_ref());
+            let component = ComponentProperty::new(
+                component_part,
+                Some(&comments),
+                attrs.as_ref(),
+                deprecated.as_ref(),
+            );
 
             tokens.extend(quote! {
                 .with_property(#field_name, #component)
@@ -143,9 +160,23 @@ impl<'a> ComponentVariant<'a> {
                 })
             }
         });
+
+        if let Some(deprecated) = get_deprecated(attributes) {
+            tokens.extend(quote! { .with_deprecated(#deprecated) });
+        }
+
+        let attrs = attr::parse_component_attr::<ComponentAttr<attr::Struct>>(attributes);
+        if let Some(attrs) = attrs {
+            tokens.extend(attrs.to_token_stream());
+        }
     }
 
-    fn unnamed_fields_struct_to_tokens(&self, fields: &[Field], tokens: &mut TokenStream2) {
+    fn unnamed_fields_struct_to_tokens(
+        &self,
+        fields: &[Field],
+        attributes: &[Attribute],
+        tokens: &mut TokenStream2,
+    ) {
         let fields_len = fields.len();
         let first_field = fields.first().unwrap();
         let first_part = &ComponentPart::from_type(&first_field.ty);
@@ -157,9 +188,11 @@ impl<'a> ComponentVariant<'a> {
                 first_part == component_part
             });
 
+        let attrs = attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(attributes);
+        let deprecated = get_deprecated(attributes);
         if all_fields_are_same {
             tokens.extend(
-                ComponentProperty::new(first_part, None, None::<&ComponentAttr<attr::Struct>>)
+                ComponentProperty::new(first_part, None, attrs.as_ref(), deprecated.as_ref())
                     .to_token_stream(),
             );
             if fields_len > 1 {
@@ -171,8 +204,20 @@ impl<'a> ComponentVariant<'a> {
             // Typically OpenAPI does not support multi type arrays thus we simply consider the case
             // as generic object array
             tokens.extend(quote! {
-                utoipa::openapi::Object::new().to_array()
+                utoipa::openapi::Object::new()
             });
+
+            if let Some(deprecated) = deprecated {
+                tokens.extend(quote! { .with_deprecated(#deprecated) });
+            }
+
+            if let Some(attrs) = attrs {
+                tokens.extend(attrs.to_token_stream())
+            }
+
+            tokens.extend(quote! {
+                .to_array()
+            })
         };
     }
 
@@ -207,6 +252,10 @@ impl<'a> ComponentVariant<'a> {
             tokens.extend(attributes.to_token_stream());
         }
 
+        if let Some(deprecated) = get_deprecated(attributes) {
+            tokens.extend(quote! { .with_deprecated(#deprecated) });
+        }
+
         self.append_description(attributes, tokens);
     }
 
@@ -217,6 +266,16 @@ impl<'a> ComponentVariant<'a> {
             })
         }
     }
+}
+
+fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
+    attributes.iter().find_map(|attribute| {
+        if *attribute.path.get_ident().unwrap() == "deprecated" {
+            Some(Deprecated::True)
+        } else {
+            None
+        }
+    })
 }
 
 #[derive(PartialEq)]
@@ -338,6 +397,7 @@ struct ComponentProperty<'a, T> {
     component_part: &'a ComponentPart<'a>,
     comments: Option<&'a CommentAttributes>,
     attrs: Option<&'a ComponentAttr<T>>,
+    deprecated: Option<&'a Deprecated>,
 }
 
 impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
@@ -345,11 +405,13 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
         component_part: &'a ComponentPart<'a>,
         comments: Option<&'a CommentAttributes>,
         attrs: Option<&'a ComponentAttr<T>>,
+        deprecated: Option<&'a Deprecated>,
     ) -> Self {
         Self {
             component_part,
             comments,
             attrs,
+            deprecated,
         }
     }
 
@@ -383,6 +445,7 @@ where
                     self.component_part.child.as_ref().unwrap(),
                     self.comments,
                     self.attrs,
+                    self.deprecated,
                 );
 
                 tokens.extend(quote! {
@@ -394,6 +457,7 @@ where
                     self.component_part.child.as_ref().unwrap(),
                     self.comments,
                     self.attrs,
+                    self.deprecated,
                 );
 
                 tokens.extend(component_property.into_token_stream())
@@ -419,6 +483,10 @@ where
                         tokens.extend(quote! {
                             .with_description(#description)
                         })
+                    }
+
+                    if let Some(deprecated) = self.deprecated {
+                        tokens.extend(quote! { .with_deprecated(#deprecated) });
                     }
 
                     if let Some(attributes) = self.attrs {

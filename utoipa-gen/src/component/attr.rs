@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Group, Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
@@ -6,7 +6,7 @@ use syn::{
     Attribute, Error, ExprPath, Lit, Token,
 };
 
-use crate::{parse_utils, Deprecated};
+use crate::parse_utils;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentAttr<T>
@@ -28,20 +28,25 @@ where
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Enum {
-    deprecated: bool,
     default: Option<TokenStream>,
     example: Option<String>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Struct {
-    deprecated: bool,
+    example: Option<TokenStream>,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct UnnamedFieldStruct {
+    default: Option<TokenStream>,
+    example: Option<String>,
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
-    deprecated: bool,
     example: Option<String>,
     format: Option<ExprPath>,
     default: Option<TokenStream>,
@@ -50,6 +55,7 @@ pub struct NamedField {
 impl Parse for ComponentAttr<Enum> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut enum_attr = Enum::default();
+
         loop {
             let ident = input
                 .parse::<Ident>()
@@ -57,9 +63,6 @@ impl Parse for ComponentAttr<Enum> {
             let name = &*ident.to_string();
 
             match name {
-                "deprecated" => {
-                    enum_attr.deprecated = parse_utils::parse_bool_or_true(input);
-                }
                 "default" => {
                     enum_attr.default = Some(parse_utils::parse_next(input, || {
                         parse_default_as_token_stream(input, name)
@@ -73,10 +76,7 @@ impl Parse for ComponentAttr<Enum> {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!(
-                            "unexpected attribute: {}, expected: deprecated, default, example",
-                            name
-                        ),
+                        format!("unexpected attribute: {}, expected: default, example", name),
                     ))
                 }
             }
@@ -101,22 +101,85 @@ impl Parse for ComponentAttr<Struct> {
         let name = &*ident.to_string();
 
         match name {
-            "deprecated" => Ok(Self {
-                inner: Struct {
-                    deprecated: parse_utils::parse_bool_or_true(input),
-                },
-            }),
+            "example" => {
+                let tokens = parse_utils::parse_next(input, || {
+                    if input.peek(syn::Ident) && input.peek2(Token![!]) {
+                        input.parse::<Ident>().unwrap();
+                        input.parse::<Token![!]>().unwrap();
+
+                        Ok(input.parse::<Group>().expect_or_abort(
+                            "unparseable example, expected Parenthesized Group e.g. json!(...)",
+                        ))
+                    } else {
+                        Err(Error::new(
+                            ident.span(),
+                            "unexpected example, expected json!(...)",
+                        ))
+                    }
+                })?;
+
+                Ok(Self {
+                    inner: Struct {
+                        example: Some(tokens.stream()),
+                    },
+                })
+            }
             _ => Err(Error::new(
                 ident.span(),
-                format!("unexpected attribute: {}, expected: deprecated", name),
+                format!("unexpected attribute: {}, expected: example", name),
             )),
         }
+    }
+}
+
+impl Parse for ComponentAttr<UnnamedFieldStruct> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut unnamed_struct = UnnamedFieldStruct::default();
+
+        loop {
+            let attribute = input
+                .parse::<Ident>()
+                .expect_or_abort("Unparseable ComponentAttr<UnnamedFieldStruct>, expected Ident");
+            let name = &*attribute.to_string();
+
+            match name {
+                "default" => {
+                    unnamed_struct.default = Some(parse_utils::parse_next(input, || {
+                        parse_default_as_token_stream(input, name)
+                    }))
+                }
+                "example" => {
+                    unnamed_struct.example = Some(parse_utils::parse_next(input, || {
+                        parse_lit_as_string(input, name, "unparseable example, expected Literal")
+                    }))
+                }
+                _ => {
+                    return Err(Error::new(
+                        attribute.span(),
+                        format!("unexpected attribute: {}, expected default, example", name),
+                    ))
+                }
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>().unwrap();
+            }
+
+            if input.is_empty() {
+                break;
+            }
+        }
+
+        Ok(Self {
+            inner: unnamed_struct,
+        })
     }
 }
 
 impl Parse for ComponentAttr<NamedField> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut field = NamedField::default();
+
         loop {
             let ident = input
                 .parse::<Ident>()
@@ -124,9 +187,6 @@ impl Parse for ComponentAttr<NamedField> {
             let name = &*ident.to_string();
 
             match name {
-                "deprecated" => {
-                    field.deprecated = parse_utils::parse_bool_or_true(input);
-                }
                 "example" => {
                     field.example = Some(parse_utils::parse_next(input, || {
                         parse_lit_as_string(input, name, "unparseable example, expected Literal")
@@ -232,14 +292,9 @@ where
 
 impl ToTokens for Enum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let deprecated: Deprecated = self.deprecated.into();
-        tokens.extend(quote! {
-            .with_deprecated(#deprecated)
-        });
-
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(#default)
+                .with_default(serde_json::json!(#default))
             })
         }
 
@@ -253,23 +308,35 @@ impl ToTokens for Enum {
 
 impl ToTokens for Struct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let deprecated: Deprecated = self.deprecated.into();
-        tokens.extend(quote! {
-            .with_deprecated(#deprecated)
-        })
+        if let Some(ref example) = self.example {
+            tokens.extend(quote! {
+                .with_example(serde_json::json!(#example))
+            })
+        }
+    }
+}
+
+impl ToTokens for UnnamedFieldStruct {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let Some(ref default) = self.default {
+            tokens.extend(quote! {
+                .with_default(serde_json::json!(#default))
+            })
+        }
+
+        if let Some(ref example) = self.example {
+            tokens.extend(quote! {
+                .with_example(#example)
+            })
+        }
     }
 }
 
 impl ToTokens for NamedField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let deprecated: Deprecated = self.deprecated.into();
-        tokens.extend(quote! {
-            .with_deprecated(#deprecated)
-        });
-
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(#default)
+                .with_default(serde_json::json!(#default))
             })
         }
 
