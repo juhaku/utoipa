@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::Deprecated;
+
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -64,6 +66,9 @@ pub struct Property {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     example: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deprecated: Option<Deprecated>,
 }
 
 impl Property {
@@ -108,6 +113,12 @@ impl Property {
 
         self
     }
+
+    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
+        self.deprecated = Some(deprecated);
+
+        self
+    }
 }
 
 impl From<Property> for Component {
@@ -136,6 +147,9 @@ pub struct Object {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deprecated: Option<Deprecated>,
 }
 
 impl Object {
@@ -164,6 +178,12 @@ impl Object {
 
     pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
         self.description = Some(description.as_ref().to_string());
+
+        self
+    }
+
+    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
+        self.deprecated = Some(deprecated);
 
         self
     }
@@ -236,6 +256,8 @@ impl From<Array> for Component {
         }
     }
 }
+
+impl ToArray for Array {}
 
 pub trait ToArray
 where

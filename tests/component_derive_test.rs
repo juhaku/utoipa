@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
@@ -77,7 +77,7 @@ fn derive_enum_with_defaults_success() {
 #[test]
 fn derive_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
-        #[component(default = "crate::mode_custom_default_fn")]
+        #[component(default = mode_custom_default_fn)]
         enum Mode {
             Mode1,
             Mode2
@@ -102,6 +102,7 @@ fn mode_custom_default_fn() -> String {
 fn derive_struct_with_defaults_success() {
     let book = api_doc! {
         struct Book {
+            // #[component(default = String::default)]
             name: String,
             hash: String,
         }
@@ -121,9 +122,9 @@ fn derive_struct_with_custom_properties_success() {
         struct Book {
             name: String,
             #[component(
-                default = "testhash"
+                default = "testhash",
                 example = "base64 text",
-                format = "ComponentFormat::Byte"
+                format = ComponentFormat::Byte,
             )]
             hash: String,
         }
@@ -306,7 +307,6 @@ fn derive_struct_unnamed_field_vec_type_success() {
 }
 
 #[test]
-#[ignore = "not supported yet!!!"]
 fn derive_struct_nested_vec_success() {
     let vecs = api_doc! {
         struct VecTest {
@@ -314,10 +314,12 @@ fn derive_struct_nested_vec_success() {
         }
     };
 
-    println!("{:#?}", vecs);
-    // assert_value! {point=>
-    //     "type" = r#""array""#, "Wrapper type"
-    //     "items.type" = r#""integer""#, "Wrapper items type"
-    //     "items.format" = r#""int32""#, "Wrapper items format"
-    // }
+    assert_value! {vecs=>
+        "properties.vecs.type" = r#""array""#, "Vecs property type"
+        "properties.vecs.items.type" = r#""array""#, "Vecs property items type"
+        "properties.vecs.items.items.type" = r#""string""#, "Vecs property items item type"
+        "type" = r#""object""#, "Property type"
+        "required.[0]" = r#""vecs""#, "Required properties"
+    }
+    common::assert_json_array_len(vecs.get("required").unwrap(), 1);
 }

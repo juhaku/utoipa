@@ -134,7 +134,7 @@ impl ToTokens for OpenApi {
         let path_items = impl_paths(&attributes.handlers, tokens);
 
         tokens.extend(quote! {
-            use utoipa::openapi::schema::ToArray;
+            use utoipa::openapi::ToArray;
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     utoipa::openapi::OpenApi::new(#info, #path_items)
