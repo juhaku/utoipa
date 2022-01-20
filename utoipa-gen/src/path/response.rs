@@ -78,7 +78,7 @@ impl Parse for Response {
         loop {
             let ident = input
                 .parse::<Ident>()
-                .expect_or_abort("unparseable response expected to find Ident");
+                .expect_or_abort("unparseable Response expected identifier");
             let name = &*ident.to_string();
 
             match name {
@@ -88,13 +88,14 @@ impl Parse for Response {
                             .parse::<LitInt>()
                             .unwrap()
                             .base10_parse()
-                            .unwrap_or_abort()
+                            .expect_or_abort("unparseable status, expected literal integer")
                     });
                 }
                 "description" => {
-                    response.description = parse_utils::parse_next(input, || {
-                        input.parse::<LitStr>().unwrap_or_abort().value()
-                    });
+                    response.description = parse_utils::parse_next_lit_str(
+                        input,
+                        "unparseable description, expected literal string",
+                    );
                 }
                 "body" => {
                     response.response_type = Some(parse_utils::parse_next(input, || {
@@ -102,9 +103,10 @@ impl Parse for Response {
                     }));
                 }
                 "content_type" => {
-                    response.content_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<LitStr>().unwrap_or_abort().value()
-                    }));
+                    response.content_type = Some(parse_utils::parse_next_lit_str(
+                        input,
+                        "unparseable content_type, expected literal string",
+                    ));
                 }
                 "headers" => {
                     let groups = parse_utils::parse_next(input, || {
@@ -112,7 +114,7 @@ impl Parse for Response {
                         bracketed!(content in input);
                         Punctuated::<Group, Comma>::parse_terminated(&content)
                     })
-                    .expect_or_abort("expected headers in brackets [..]");
+                    .expect_or_abort("unparseable headers, expected group separated by comma (,)");
 
                     response.headers = groups
                         .into_iter()
@@ -121,8 +123,7 @@ impl Parse for Response {
                 }
                 _ => {
                     let error_msg = format!(
-                        "unexpected attribute: {}, 
-                    expected values: status, description, body, content_type, headers",
+                        "unexpected identifer: {}, expected any of: status, description, body, content_type, headers",
                         &name
                     );
 
@@ -281,7 +282,7 @@ impl Parse for Header {
         let mut header = Header {
             name: input
                 .parse::<LitStr>()
-                .expect_or_abort("unexpected attribute for Header name, expected LitStr")
+                .expect_or_abort("unexpected attribute for Header name, expected literal string")
                 .value(),
             ..Default::default()
         };
@@ -292,7 +293,7 @@ impl Parse for Header {
             header.media_type = Some(
                 input
                     .parse::<MediaType>()
-                    .expect_or_abort("unparseable Header type, expected: Ident"),
+                    .expect_or_abort("unparseable Header type, expected identifer"),
             );
         }
 
@@ -301,20 +302,25 @@ impl Parse for Header {
         }
 
         if input.peek(syn::Ident) {
-            let description = input.parse::<Ident>().unwrap();
+            let description = input
+                .parse::<Ident>()
+                .expect_or_abort("unparseable Header description, expected identifier");
 
             if description == "description" {
                 if input.peek(Token![=]) {
                     input.parse::<Token![=]>().unwrap_or_abort();
                 }
 
-                let description = input.parse::<LitStr>().unwrap_or_abort().value();
+                let description = input
+                    .parse::<LitStr>()
+                    .expect_or_abort("unparseable description, expected literal string")
+                    .value();
                 header.description = Some(description);
             } else {
                 return Err(Error::new(
                     description.span(),
                     format!(
-                        "unexpected attribute: {}, expected: description",
+                        "unexpected identifer: {}, expected: description",
                         description
                     ),
                 ));

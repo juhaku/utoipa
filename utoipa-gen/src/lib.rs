@@ -220,7 +220,7 @@ impl Parse for MediaType {
         };
 
         let ty = if input.peek(syn::Ident) {
-            parse_ident(input, "unparseable MediaType, expected Ident")
+            parse_ident(input, "unparseable MediaType, expected identifer")
         } else {
             is_array = true;
 
@@ -229,7 +229,7 @@ impl Parse for MediaType {
 
             parse_ident(
                 &group,
-                "unparseable MediaType, expected Ident within Bracket Group",
+                "unparseable MediaType, expected identifer within brackets",
             )
         }?;
 

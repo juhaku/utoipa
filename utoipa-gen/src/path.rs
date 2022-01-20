@@ -1,21 +1,21 @@
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
-use proc_macro_error::{abort_call_site, OptionExt, ResultExt};
+use proc_macro_error::{abort, OptionExt, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
-    LitStr, Token,
+    Token,
 };
 
-use crate::Deprecated;
 use crate::{
     component_type::ComponentType,
     ext::{Argument, ArgumentIn},
 };
+use crate::{parse_utils, Deprecated};
 
 use self::{
     parameter::{Parameter, ParameterIn},
@@ -133,41 +133,30 @@ impl Parse for PathAttr {
         loop {
             let ident = input
                 .parse::<Ident>()
-                .expect_or_abort("failed to parse first ident");
-            let ident_name = &*ident.to_string();
-
-            let parse_lit_str = |input: &ParseStream, error_message: &str| -> String {
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>().unwrap();
-                }
-
-                input
-                    .parse::<LitStr>()
-                    .expect_or_abort(error_message)
-                    .value()
-            };
+                .expect_or_abort("unparseable PatAttr, expected identifer");
+            let attribute = &*ident.to_string();
 
             let parse_groups = |input: &ParseStream| {
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>().unwrap();
-                }
+                parse_utils::parse_next(input, || {
+                    let content;
+                    bracketed!(content in input);
 
-                let content;
-                bracketed!(content in input);
-
-                Punctuated::<Group, Token![,]>::parse_terminated(&content)
+                    Punctuated::<Group, Token![,]>::parse_terminated(&content)
+                })
             };
 
-            match ident_name {
+            match attribute {
                 "operation_id" => {
-                    path_attr.operation_id = Some(parse_lit_str(
-                        &input,
-                        "expected literal string for operation id",
+                    path_attr.operation_id = Some(parse_utils::parse_next_lit_str(
+                        input,
+                        "unparseable operation_id, expected literal string",
                     ));
                 }
                 "path" => {
-                    path_attr.path =
-                        Some(parse_lit_str(&input, "expected literal string for path"));
+                    path_attr.path = Some(parse_utils::parse_next_lit_str(
+                        input,
+                        "unparseable path, expected literal string",
+                    ));
                 }
                 "request_body" => {
                     if input.peek(Token![=]) {
@@ -177,8 +166,9 @@ impl Parse for PathAttr {
                         Some(input.parse::<RequestBodyAttr>().unwrap_or_abort());
                 }
                 "responses" => {
-                    let groups = parse_groups(&input)
-                        .expect_or_abort("expected responses to be group separated by comma (,)");
+                    let groups = parse_groups(&input).expect_or_abort(
+                        "unparseable responses, expected group separated by comma (,)",
+                    );
 
                     path_attr.responses = groups
                         .into_iter()
@@ -186,8 +176,9 @@ impl Parse for PathAttr {
                         .collect::<Vec<_>>();
                 }
                 "params" => {
-                    let groups = parse_groups(&input)
-                        .expect_or_abort("expected parameters to be group separated by comma (,)");
+                    let groups = parse_groups(&input).expect_or_abort(
+                        "unparseable params, expected group separated by comma (,)",
+                    );
                     path_attr.params = Some(
                         groups
                             .iter()
@@ -196,14 +187,20 @@ impl Parse for PathAttr {
                     )
                 }
                 "tag" => {
-                    path_attr.tag = Some(parse_lit_str(&input, "expected literal string for tag"));
+                    path_attr.tag = Some(parse_utils::parse_next_lit_str(
+                        input,
+                        "unparseable tag, expected literal string",
+                    ));
                 }
                 _ => {
                     // any other case it is expected to be path operation
                     if let Some(path_operation) =
-                        ident_name.parse::<PathOperation>().into_iter().next()
+                        attribute.parse::<PathOperation>().into_iter().next()
                     {
                         path_attr.path_operation = Some(path_operation)
+                    } else {
+                        let erro_msg = format!("unexpected identifier: {}, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag", attribute);
+                        return Err(syn::Error::new(ident.span(), erro_msg));
                     }
                 }
             }
@@ -259,7 +256,7 @@ impl PathOperation {
     pub fn from_ident(ident: &Ident) -> Self {
         match ident.to_string().as_str().parse::<PathOperation>() {
             Ok(operation) => operation,
-            Err(error) => abort_call_site!("{}", error),
+            Err(error) => abort!(ident.span(), format!("{}", error)),
         }
     }
 }

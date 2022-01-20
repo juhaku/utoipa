@@ -46,7 +46,7 @@ mod pet_api {
             (status = 404, description = "Pet was not found")
         ],
         params = [
-            ("id" = u64, path, description = "Pet database id to get Per for"),
+            ("id" = u64, path, description = "Pet database id to get Pet for"),
         ]
     )]
     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -97,7 +97,7 @@ This would produce api doc something similar to:
           {
             "name": "id",
             "in": "path",
-            "description": "Pet database id to get Per for",
+            "description": "Pet database id to get Pet for",
             "required": true,
             "deprecated": false,
             "schema": {

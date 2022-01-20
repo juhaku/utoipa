@@ -5,7 +5,7 @@ use proc_macro_error::ResultExt;
 use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
-    LitStr, Token,
+    Error, LitStr, Token,
 };
 
 use crate::{parse_utils, Deprecated, MediaType, Required};
@@ -62,23 +62,26 @@ impl Parse for Parameter {
             parameter.name = name;
 
             if input.peek(Token![=]) {
-                parameter.parameter_type =
-                    parse_utils::parse_next(input, || {
-                        Some(input.parse().expect_or_abort(
-                            "unparseable parameter type expected: Ident or [Ident]",
+                parameter.parameter_type = parse_utils::parse_next(input, || {
+                    Some(input.parse().expect_or_abort(
+                            "unparseable parameter type expected: identifier or identifier within brackets",
                         ))
-                    });
+                });
             }
         } else {
-            return Err(input.error("expected first element to be LitStr parameter name"));
-        }
-        if input.peek(Token![,]) {
-            input.parse::<Token![,]>().unwrap();
+            return Err(input.error("unparseable parameter name, expected literal string"));
         }
 
+        input
+            .parse::<Token![,]>()
+            .expect_or_abort("expected comma after literal string");
+
         loop {
-            let ident = input.parse::<syn::Ident>().unwrap();
+            let ident = input
+                .parse::<Ident>()
+                .expect_or_abort("unparseable Parameter, expected identifier");
             let name = &*ident.to_string();
+
             match name {
                 "path" | "query" | "header" | "cookie" => {
                     parameter.parameter_in = name.parse::<ParameterIn>().unwrap_or_abort();
@@ -89,19 +92,24 @@ impl Parse for Parameter {
                 "required" => parameter.required = parse_utils::parse_bool_or_true(input),
                 "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(input),
                 "description" => {
-                    if input.peek(Token![=]) {
-                        input.parse::<Token![=]>().unwrap();
-                    }
-
-                    parameter.description = Some(
-                        ResultExt::expect_or_abort(
-                            input.parse::<LitStr>(),
-                            "expected description value as LitStr",
+                    parameter.description = parse_utils::parse_next(input, || {
+                        Some(
+                            input
+                                .parse::<LitStr>()
+                                .expect_or_abort("unparseable description, expected literal string")
+                                .value(),
                         )
-                        .value(),
-                    )
+                    })
                 }
-                _ => return Err(input.error(&format!("unexpected element: {}", name))),
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!(
+                        "unexpected identifier: {}, expected any of: path, query, header, cookie, required, deprecated, description",
+                        name
+                    ),
+                    ))
+                }
             }
 
             if input.peek(Token![,]) {

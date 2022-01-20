@@ -1,4 +1,5 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro_error::ResultExt;
 use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
@@ -70,21 +71,21 @@ impl Parse for RequestBodyAttr {
 
             let mut request_body_attr = RequestBodyAttr::default();
             loop {
-                let ident = group.parse::<Ident>().unwrap();
+                let ident = group
+                    .parse::<Ident>()
+                    .expect_or_abort("unparseable RequestBodyAttr, expected identifer");
                 let name = &*ident.to_string();
 
                 match name {
                     "content" => {
-                        if group.peek(Token![=]) {
-                            group.parse::<Token![=]>().unwrap();
-                        }
-
-                        request_body_attr.content = Some(group.parse::<MediaType>().unwrap());
+                        request_body_attr.content = Some(parse_utils::parse_next(&group, || {
+                            group.parse::<MediaType>().unwrap()
+                        }));
                     }
                     "content_type" => {
                         request_body_attr.content_type = Some(parse_utils::parse_next_lit_str(
                             &group,
-                            "unparseable content type, expected LitStr",
+                            "unparseable content_type, expected literal string",
                         ))
                     }
                     "required" => {
@@ -93,15 +94,14 @@ impl Parse for RequestBodyAttr {
                     "description" => {
                         request_body_attr.description = Some(parse_utils::parse_next_lit_str(
                             &group,
-                            "unparseable description, expected LitStr",
+                            "unparseable description, expected literal string",
                         ))
                     }
                     _ => {
                         return Err(Error::new(
                             ident.span(),
                             format!(
-                                "unexpedted attribute: {}, 
-                        expected values: content, content_type, required, description",
+                                "unexpected identifer: {}, expected any of: content, content_type, required, description",
                                 &name
                             ),
                         ))

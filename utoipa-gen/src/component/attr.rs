@@ -70,13 +70,16 @@ impl Parse for ComponentAttr<Enum> {
                 }
                 "example" => {
                     enum_attr.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_as_string(input, name, "unparseable example, expected Literal")
+                        parse_lit_as_string(input, name, "unparseable example, expected literal")
                     }))
                 }
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexpected attribute: {}, expected: default, example", name),
+                        format!(
+                            "unexpected identifer: {}, expected any of: default, example",
+                            name
+                        ),
                     ))
                 }
             }
@@ -107,9 +110,9 @@ impl Parse for ComponentAttr<Struct> {
                         input.parse::<Ident>().unwrap();
                         input.parse::<Token![!]>().unwrap();
 
-                        Ok(input.parse::<Group>().expect_or_abort(
-                            "unparseable example, expected Parenthesized Group e.g. json!(...)",
-                        ))
+                        Ok(input
+                            .parse::<Group>()
+                            .expect_or_abort("unparseable example, expected parenthesis"))
                     } else {
                         Err(Error::new(
                             ident.span(),
@@ -126,7 +129,7 @@ impl Parse for ComponentAttr<Struct> {
             }
             _ => Err(Error::new(
                 ident.span(),
-                format!("unexpected attribute: {}, expected: example", name),
+                format!("unexpected identifer: {}, expected: example", name),
             )),
         }
     }
@@ -137,9 +140,9 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
         let mut unnamed_struct = UnnamedFieldStruct::default();
 
         loop {
-            let attribute = input
-                .parse::<Ident>()
-                .expect_or_abort("Unparseable ComponentAttr<UnnamedFieldStruct>, expected Ident");
+            let attribute = input.parse::<Ident>().expect_or_abort(
+                "Unparseable ComponentAttr<UnnamedFieldStruct>, expected identifier",
+            );
             let name = &*attribute.to_string();
 
             match name {
@@ -150,13 +153,20 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                 }
                 "example" => {
                     unnamed_struct.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_as_string(input, name, "unparseable example, expected Literal")
+                        parse_lit_as_string(
+                            input,
+                            name,
+                            "unparseable example, expected literal string",
+                        )
                     }))
                 }
                 _ => {
                     return Err(Error::new(
                         attribute.span(),
-                        format!("unexpected attribute: {}, expected default, example", name),
+                        format!(
+                            "unexpected identifier: {}, expected any of: default, example",
+                            name
+                        ),
                     ))
                 }
             }
@@ -183,19 +193,19 @@ impl Parse for ComponentAttr<NamedField> {
         loop {
             let ident = input
                 .parse::<Ident>()
-                .expect_or_abort("Unparseable ComponentAttr<NamedField>, expected Ident");
+                .expect_or_abort("Unparseable ComponentAttr<NamedField>, expected identifier");
             let name = &*ident.to_string();
 
             match name {
                 "example" => {
                     field.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_as_string(input, name, "unparseable example, expected Literal")
+                        parse_lit_as_string(input, name, "unparseable example, expected literal")
                     }));
                 }
                 "format" => {
                     let format = parse_utils::parse_next(input, || {
                         input.parse::<ExprPath>().expect_or_abort(
-                            "unparseable format expected ExprPath e.g. ComponentFormat::String",
+                            "unparseable format expected expression path e.g. ComponentFormat::String",
                         )
                     });
 
@@ -215,9 +225,9 @@ impl Parse for ComponentAttr<NamedField> {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                        "unexpected attribute: {}, expected: deprecated, example, format, default",
-                        name
-                    ),
+                            "unexpected identifier: {}, expected any of: example, format, default",
+                            name
+                        ),
                     ))
                 }
             }
@@ -242,7 +252,7 @@ fn parse_lit_as_string(input: &ParseBuffer, field: &str, error_msg: &str) -> Str
         Lit::ByteStr(byte_str) => String::from_utf8(byte_str.value()).unwrap_or_else(|_| {
             abort!(
                 input.span(),
-                format!("Unparseable utf8 content in: {}", &field)
+                format!("unparseable utf8 content in: {}", &field)
             )
         }),
         Lit::Char(char) => char.value().to_string(),
@@ -252,7 +262,7 @@ fn parse_lit_as_string(input: &ParseBuffer, field: &str, error_msg: &str) -> Str
         Lit::Verbatim(_) => {
             abort!(
                 input.span(),
-                format!("Unparseable literal in field: {}", &field)
+                format!("unparseable literal in field: {}", &field)
             )
         }
     }
@@ -260,14 +270,19 @@ fn parse_lit_as_string(input: &ParseBuffer, field: &str, error_msg: &str) -> Str
 
 fn parse_default_as_token_stream(input: &ParseBuffer, name: &str) -> TokenStream {
     if input.peek(Lit) {
-        let literal = parse_lit_as_string(input, name, "unparseable default, expected Literal");
+        let literal = parse_lit_as_string(
+            input,
+            name,
+            &format!("unparseable {}, expected literal", name),
+        );
         quote_spanned! {input.span()=>
             #literal
         }
     } else {
-        let method = input
-            .parse::<ExprPath>()
-            .expect_or_abort("unparseable default, expected Literal, or ExprPath");
+        let method = input.parse::<ExprPath>().expect_or_abort(&format!(
+            "unparseable {}, expected literal or expresssion path",
+            name
+        ));
         quote_spanned! {input.span()=>
             #method()
         }
