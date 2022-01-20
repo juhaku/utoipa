@@ -4,8 +4,8 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
 use quote::{quote, ToTokens};
 use syn::{
-    Attribute, Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, PathArguments,
-    PathSegment, Type, TypePath, Variant,
+    punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields, FieldsNamed,
+    FieldsUnnamed, GenericArgument, PathArguments, PathSegment, Type, TypePath, Variant,
 };
 
 use crate::{
@@ -24,10 +24,10 @@ pub struct Component<'a> {
 }
 
 impl<'a> Component<'a> {
-    pub fn new(data: Data, attributes: &'a [Attribute], ident: &'a Ident) -> Self {
+    pub fn new(data: &'a Data, attributes: &'a [Attribute], ident: &'a Ident) -> Self {
         Self {
             ident,
-            variant: ComponentVariant::new(data, attributes),
+            variant: ComponentVariant::new(data, attributes, ident),
         }
     }
 }
@@ -35,107 +35,84 @@ impl<'a> Component<'a> {
 impl ToTokens for Component<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let ident = self.ident;
-        let component_variant_impl = &self.variant;
+        let variant = &self.variant;
 
         tokens.extend(quote! {
             impl utoipa::Component for #ident {
                 fn component() -> utoipa::openapi::schema::Component {
-                    #component_variant_impl.into()
+                    #variant.into()
                 }
             }
         })
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub enum FieldType {
-    Named,
-    Unnamed,
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-/// Holds the OpenAPI Component implementation which can be added the Schema.
-pub enum ComponentVariant<'a> {
-    /// Object variant is rust sturct with Component derive annotation.
-    Object(Vec<Field>, &'a [Attribute], FieldType),
-    /// Enum variant is rust enum with Component derive annotation. **Only supports** enums with
-    /// Unit type fields.
-    Enum(Vec<Variant>, &'a [Attribute]),
+enum ComponentVariant<'a> {
+    Named(NamedStructComponent<'a>),
+    Unnamed(UnnamedStructComponent<'a>),
+    Enum(EnumComponent<'a>),
 }
 
 impl<'a> ComponentVariant<'a> {
-    pub fn new(data: Data, attributes: &'a [Attribute]) -> ComponentVariant<'a> {
+    pub fn new(
+        data: &'a Data,
+        attributes: &'a [Attribute],
+        ident: &'a Ident,
+    ) -> ComponentVariant<'a> {
         match data {
-            Data::Struct(content) => {
-                let (fields , field_type ) = match content.fields {
-                    Fields::Unnamed(fields) => {
-                        let FieldsUnnamed { unnamed, .. } = fields;
-                        (unnamed , FieldType::Unnamed)
-                    }
-                    Fields::Named(fields) => {
-                        let FieldsNamed { named, .. } = fields;
-                        (named, FieldType::Named)
-                    }
-                    Fields::Unit => abort_call_site!("Expected struct with either named or unnamed fields, unit type unsupported")
-                };
-                ComponentVariant::Object(fields.into_iter().collect(), attributes, field_type)
-            }
-            Data::Enum(content) => {
-                ComponentVariant::Enum(content.variants.into_iter().collect(), attributes)
-            }
-            _ => abort_call_site!(
-                "Unexpected data type, expected syn::Data::Struct or syn::Data::Enum"
+            Data::Struct(content) => match &content.fields {
+                Fields::Unnamed(fields) => {
+                    let FieldsUnnamed { unnamed, .. } = fields;
+                    Self::Unnamed(UnnamedStructComponent {
+                        attributes,
+                        fields: unnamed,
+                    })
+                }
+                Fields::Named(fields) => {
+                    let FieldsNamed { named, .. } = fields;
+                    Self::Named(NamedStructComponent {
+                        attributes,
+                        fields: named,
+                    })
+                }
+                Fields::Unit => abort!(
+                    ident.span(),
+                    "unexpected Field::Unit expected struct with Field::Named or Field::Unnamed"
+                ),
+            },
+            Data::Enum(content) => Self::Enum(EnumComponent {
+                attributes,
+                variants: &content.variants,
+            }),
+            _ => abort!(
+                ident.span(),
+                "unexpected data type, expected syn::Data::Struct or syn::Data::Enum"
             ),
         }
     }
 }
 
-impl<'a> ToTokens for ComponentVariant<'a> {
+impl ToTokens for ComponentVariant<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.extend(quote! {
-            use utoipa::openapi::{ComponentType, ComponentFormat};
-        });
-
         match self {
-            Self::Object(fields, attrs, field_type) => {
-                self.struct_to_tokens(fields, *attrs, tokens, field_type)
-            }
-            Self::Enum(variants, attrs) => self.enum_to_tokens(variants, *attrs, tokens),
-        };
+            Self::Enum(component) => component.to_tokens(tokens),
+            Self::Named(component) => component.to_tokens(tokens),
+            Self::Unnamed(component) => component.to_tokens(tokens),
+        }
     }
 }
 
-impl<'a> ComponentVariant<'a> {
-    fn struct_to_tokens(
-        &self,
-        fields: &[Field],
-        attributes: &[Attribute],
-        tokens: &mut TokenStream2,
-        field_type: &FieldType,
-    ) {
-        match field_type {
-            FieldType::Named => self.named_fields_struct_to_tokens(fields, attributes, tokens),
-            FieldType::Unnamed => self.unnamed_fields_struct_to_tokens(fields, attributes, tokens),
-        }
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct NamedStructComponent<'a> {
+    fields: &'a Punctuated<Field, Comma>,
+    attributes: &'a [Attribute],
+}
 
-        if let Some(deprecated) = get_deprecated(attributes) {
-            tokens.extend(quote! {
-                .with_deprecated(#deprecated)
-            })
-        }
-
-        self.append_description(attributes, tokens);
-    }
-
-    fn named_fields_struct_to_tokens(
-        &self,
-        fields: &[Field],
-        attributes: &[Attribute],
-        tokens: &mut TokenStream2,
-    ) {
+impl ToTokens for NamedStructComponent<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
         tokens.extend(quote! { utoipa::openapi::Object::new() });
 
-        fields.iter().for_each(|field| {
+        self.fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
 
             let component_part = &ComponentPart::from_type(&field.ty);
@@ -161,43 +138,53 @@ impl<'a> ComponentVariant<'a> {
             }
         });
 
-        if let Some(deprecated) = get_deprecated(attributes) {
+        if let Some(deprecated) = get_deprecated(self.attributes) {
             tokens.extend(quote! { .with_deprecated(#deprecated) });
         }
 
-        let attrs = attr::parse_component_attr::<ComponentAttr<attr::Struct>>(attributes);
+        let attrs = attr::parse_component_attr::<ComponentAttr<attr::Struct>>(self.attributes);
         if let Some(attrs) = attrs {
             tokens.extend(attrs.to_token_stream());
         }
-    }
 
-    fn unnamed_fields_struct_to_tokens(
-        &self,
-        fields: &[Field],
-        attributes: &[Attribute],
-        tokens: &mut TokenStream2,
-    ) {
-        let fields_len = fields.len();
-        let first_field = fields.first().unwrap();
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
+            .0
+            .first()
+        {
+            tokens.extend(quote! {
+                .with_description(#comment)
+            })
+        }
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct UnnamedStructComponent<'a> {
+    fields: &'a Punctuated<Field, Comma>,
+    attributes: &'a [Attribute],
+}
+
+impl ToTokens for UnnamedStructComponent<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let fields_len = self.fields.len();
+        let first_field = self.fields.first().unwrap();
         let first_part = &ComponentPart::from_type(&first_field.ty);
 
         let all_fields_are_same = fields_len == 1
-            || fields.iter().skip(1).all(|field| {
+            || self.fields.iter().skip(1).all(|field| {
                 let component_part = &ComponentPart::from_type(&field.ty);
 
                 first_part == component_part
             });
 
-        let attrs = attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(attributes);
-        let deprecated = get_deprecated(attributes);
+        let attrs =
+            attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
+        let deprecated = get_deprecated(self.attributes);
         if all_fields_are_same {
             tokens.extend(
                 ComponentProperty::new(first_part, None, attrs.as_ref(), deprecated.as_ref())
                     .to_token_stream(),
             );
-            if fields_len > 1 {
-                tokens.extend(quote! { .to_array() })
-            }
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.
             // See: https://serde.rs/json.html
@@ -214,53 +201,61 @@ impl<'a> ComponentVariant<'a> {
             if let Some(attrs) = attrs {
                 tokens.extend(attrs.to_token_stream())
             }
-
-            tokens.extend(quote! {
-                .to_array()
-            })
         };
-    }
 
-    fn warn_unsupported_enum_variants(&self, variants: &[Variant]) {
-        variants
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
+            .0
+            .first()
+        {
+            tokens.extend(quote! {
+                .with_description(#comment)
+            })
+        }
+
+        if fields_len > 1 {
+            tokens.extend(quote! { .to_array() })
+        }
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct EnumComponent<'a> {
+    variants: &'a Punctuated<Variant, Comma>,
+    attributes: &'a [Attribute],
+}
+
+impl ToTokens for EnumComponent<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        self.variants
             .iter()
             .filter(|variant| !matches!(variant.fields, Fields::Unit))
             .for_each(|variant| emit_error!(variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields"));
-    }
 
-    fn enum_to_tokens(
-        &self,
-        variants: &[Variant],
-        attributes: &[Attribute],
-        tokens: &mut TokenStream2,
-    ) {
-        self.warn_unsupported_enum_variants(variants);
-
-        let enum_values = &variants
+        let enum_values = self
+            .variants
             .iter()
             .filter(|variant| matches!(variant.fields, Fields::Unit))
             .map(|variant| variant.ident.to_string())
             .collect::<ValueArray<String>>();
 
         tokens.extend(quote! {
-            utoipa::openapi::Property::new(ComponentType::String)
+            utoipa::openapi::Property::new(utoipa::openapi::ComponentType::String)
                 .with_enum_values(#enum_values)
         });
 
-        let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(attributes);
+        let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
         if let Some(attributes) = attrs {
             tokens.extend(attributes.to_token_stream());
         }
 
-        if let Some(deprecated) = get_deprecated(attributes) {
+        if let Some(deprecated) = get_deprecated(self.attributes) {
             tokens.extend(quote! { .with_deprecated(#deprecated) });
         }
 
-        self.append_description(attributes, tokens);
-    }
-
-    fn append_description(&self, attributes: &[Attribute], tokens: &mut TokenStream2) {
-        if let Some(comment) = CommentAttributes::from_attributes(attributes).0.first() {
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
+            .0
+            .first()
+        {
             tokens.extend(quote! {
                 .with_description(#comment)
             })

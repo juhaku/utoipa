@@ -37,7 +37,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
         attrs, ident, data, ..
     } = syn::parse_macro_input!(input);
 
-    let component = Component::new(data, &attrs, &ident);
+    let component = Component::new(&data, &attrs, &ident);
 
     quote! {
         use utoipa::openapi::ToArray;

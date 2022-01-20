@@ -234,6 +234,9 @@ fn derive_struct_unnamed_field_single_value_type_success() {
 #[test]
 fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
     let point = api_doc! {
+        /// Contains x and y coordinates
+        ///
+        /// Coordinates are used to pinpoint location on a map
         struct Point(f64, f64);
     };
 
@@ -241,6 +244,7 @@ fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
         "type" = r#""array""#, "Point type"
         "items.type" = r#""number""#, "Point items type"
         "items.format" = r#""float""#, "Point items format"
+        "items.description" = r#""Contains x and y coordinates""#, "Point items description"
     }
 }
 
