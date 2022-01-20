@@ -1,8 +1,5 @@
 #![cfg(feature = "actix_extras")]
-use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-// use utoipa::openapi_spec;
 use utoipa::{Component, OpenApi};
 
 #[derive(Deserialize, Serialize, Component)]
@@ -30,6 +27,7 @@ mod pet_api {
             ("id" = u64, path, description = "Pet database id to get Per for"),
         ]
     )]
+    #[allow(unused)]
     async fn get_pet_by_id(pet_id: u64) -> Pet {
         Pet {
             id: pet_id,
@@ -39,12 +37,12 @@ mod pet_api {
     }
 }
 
+#[derive(OpenApi, Default)]
+#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
+struct ApiDoc;
+
 #[test]
 #[ignore = "this is just a test bed to run macros"]
 fn derive_openapi() {
-    #[derive(OpenApi, Default)]
-    #[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
-    struct ApiDoc;
-
     println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 }

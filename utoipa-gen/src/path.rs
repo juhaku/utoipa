@@ -407,6 +407,7 @@ impl ToTokens for Path {
                 }
 
                 fn path_item() -> utoipa::openapi::path::PathItem {
+                    use utoipa::openapi::ToArray;
                     utoipa::openapi::PathItem::new(
                         #path_operation,
                         #operation

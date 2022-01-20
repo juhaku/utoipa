@@ -40,6 +40,7 @@ impl ToTokens for Component<'_> {
         tokens.extend(quote! {
             impl utoipa::Component for #ident {
                 fn component() -> utoipa::openapi::schema::Component {
+                    use utoipa::openapi::ToArray;
                     #variant.into()
                 }
             }

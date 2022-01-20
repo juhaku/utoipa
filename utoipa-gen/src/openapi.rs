@@ -134,7 +134,6 @@ impl ToTokens for OpenApi {
         let path_items = impl_paths(&attributes.handlers, tokens);
 
         tokens.extend(quote! {
-            use utoipa::openapi::ToArray;
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     utoipa::openapi::OpenApi::new(#info, #path_items)
@@ -184,6 +183,7 @@ fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStrea
 
             let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
             quote.extend(quote! {
+                #[allow(non_camel_case_types)]
                 struct #assert_handler_ident where #handler_ident : utoipa::Path;
                 use #usage;
                 impl utoipa::DefaultTag for #handler_ident {
