@@ -51,7 +51,7 @@ impl Iterator for Paths {
 }
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PathItem {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -111,7 +111,7 @@ impl PathItem {
     }
 }
 
-#[derive(Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub enum PathItemType {
     Get,
     Post,
@@ -150,7 +150,7 @@ impl Serialize for PathItemType {
 }
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -298,7 +298,7 @@ impl Operation {
 }
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Parameter {
     pub name: String,

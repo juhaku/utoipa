@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{Component, Content, Required};
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestBody {
     #[serde(skip_serializing_if = "Option::is_none")]

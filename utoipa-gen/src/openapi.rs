@@ -136,6 +136,7 @@ impl ToTokens for OpenApi {
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
+                    use utoipa::Path;
                     utoipa::openapi::OpenApi::new(#info, #path_items)
                         .with_components(#schema)
                 }
@@ -145,9 +146,9 @@ impl ToTokens for OpenApi {
 }
 
 fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStream {
-    quote.extend(quote! {
-        use utoipa::Path as OpenApiPath;
-    });
+    // quote.extend(quote! {
+    //     use utoipa::Path as OpenApiPath;
+    // });
     handler_paths.iter().fold(
         quote! { utoipa::openapi::path::Paths::new() },
         |mut paths, handler| {
@@ -181,16 +182,16 @@ fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStrea
             )
             .unwrap();
 
-            let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
+            // let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
             quote.extend(quote! {
-                #[allow(non_camel_case_types)]
-                struct #assert_handler_ident where #handler_ident : utoipa::Path;
+            //     #[allow(non_camel_case_types)]
+            //     struct #assert_handler_ident where #handler_ident : utoipa::Path;
                 use #usage;
-                impl utoipa::DefaultTag for #handler_ident {
-                    fn tag() -> &'static str {
-                        #tag
-                    }
-                }
+            //     impl utoipa::DefaultTag for #handler_ident {
+            //         fn tag() -> &'static str {
+            //             #tag
+            //         }
+            //     }
             });
             paths.extend(quote! {
                 .append(#handler_ident::path(), #handler_ident::path_item())

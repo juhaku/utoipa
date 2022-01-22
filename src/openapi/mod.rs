@@ -38,7 +38,7 @@ pub mod tag;
 const OPENAPI_VERSION_3: &str = "3.0.3";
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenApi {
     pub openapi: OpenApiVersion,
@@ -93,7 +93,7 @@ impl OpenApi {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum OpenApiVersion {
     Version3,
@@ -116,7 +116,7 @@ impl Default for OpenApiVersion {
     }
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub enum Deprecated {
     True,
     False,
@@ -143,7 +143,7 @@ impl Default for Deprecated {
     }
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub enum Required {
     True,
     False,

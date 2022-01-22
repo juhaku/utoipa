@@ -445,8 +445,8 @@ impl ToTokens for Operation<'_> {
         let operation_id = self.operation_id;
         tokens.extend(quote! {
             .with_tag(
-                [<#path_struct as utoipa::Tag>::tag(),
-                    <#path_struct as utoipa::DefaultTag>::tag()
+                [<#path_struct as utoipa::Tag>::tag()
+                    // <#path_struct as utoipa::DefaultTag>::tag()
                 ]
                 .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")
             )

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{header::Header, Component, Content};
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Responses {
     #[serde(flatten)]
@@ -25,7 +25,7 @@ impl Responses {
 }
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub description: String,

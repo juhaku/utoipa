@@ -6,7 +6,7 @@ use serde_json::Value;
 use super::Deprecated;
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Schema {
     schemas: HashMap<String, Component>,
@@ -32,7 +32,7 @@ impl Schema {
 }
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Component {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -48,7 +48,7 @@ pub struct Component {
     array_component: Option<Array>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct Property {
     #[serde(rename = "type")]
     component_type: ComponentType,
@@ -134,7 +134,7 @@ impl From<Property> for Component {
 impl ToArray for Property {}
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
     #[serde(rename = "type")]
@@ -211,7 +211,7 @@ impl From<Object> for Component {
 impl ToArray for Object {}
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Ref {
     #[serde(rename = "$ref")]
     ref_location: String,
@@ -241,7 +241,7 @@ impl From<Ref> for Component {
 impl ToArray for Ref {}
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Array {
     #[serde(rename = "type")]
     component_type: ComponentType,
@@ -279,7 +279,7 @@ where
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub enum ComponentType {
     Object,
     String,
@@ -311,7 +311,7 @@ impl Serialize for ComponentType {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub enum ComponentFormat {
     Int32,
     Int64,
