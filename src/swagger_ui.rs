@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::Deref};
+use std::borrow::Cow;
 
 use actix_web::{dev::HttpServiceFactory, guard::Get, web, HttpResponse, Resource, Responder};
 use rust_embed::RustEmbed;
@@ -9,62 +9,29 @@ use crate::openapi::OpenApi;
 #[folder = "target/swagger-ui-3.52.5/dist/"]
 pub struct SwaggerUiDist;
 
-pub struct SwaggerService {
-    path: Cow<'static, str>,
-    // TODO need to know all possible api urls
-    url: Cow<'static, str>,
-    // TODO need to know application json
-}
-
-#[cfg(feature = "actix-web")]
-impl SwaggerService {
-    pub fn new<S: Into<Cow<'static, str>>>(path: S, url: S) -> Self {
-        Self {
-            path: path.into(),
-            url: url.into(),
-        }
-    }
-
-    pub fn resource(&self) -> Resource {
-        web::resource(self.path.deref())
-            .data(self.url.to_string())
-            .route(web::get().to(serve_swagger_ui))
-    }
-}
-
 #[non_exhaustive]
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct SwaggerUi {
-    path: String,
-    url: Option<(Url, OpenApi)>,
-    urls: Option<Vec<(Url, OpenApi)>>,
+    path: Cow<'static, str>,
+    urls: Vec<(Url<'static>, OpenApi)>,
 }
 
 impl SwaggerUi {
-    pub fn new<S: Into<String>>(path: S) -> Self {
+    pub fn new<P: Into<Cow<'static, str>>>(path: P) -> Self {
         Self {
             path: path.into(),
-            url: None,
-            urls: None,
+            urls: Vec::new(),
         }
     }
 
-    pub fn with_url<U: Into<Url>>(mut self, url: U, openapi: OpenApi) -> Self {
-        self.url = Some((url.into(), openapi));
+    pub fn with_url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
+        self.urls.push((url.into(), openapi));
 
         self
     }
 
-    pub fn with_urls<U: 'static + Into<Url>>(mut self, urls: &'static [(U, OpenApi)]) -> Self
-    where
-        U: 'static + Into<Url>,
-        Url: From<&'static U>,
-    {
-        let u = urls
-            .iter()
-            .map(|(url, api)| (Into::<Url>::into(url), api.clone()))
-            .collect::<Vec<_>>();
-        self.urls = Some(u);
+    pub fn with_urls(mut self, urls: Vec<(Url<'static>, OpenApi)>) -> Self {
+        self.urls = urls;
 
         self
     }
@@ -74,25 +41,15 @@ impl SwaggerUi {
 impl HttpServiceFactory for SwaggerUi {
     fn register(self, config: &mut actix_web::dev::AppService) {
         let urls = self
-            .url
+            .urls
+            .into_iter()
             .map(|url| {
                 register_api_doc_url_resource(&url, config);
-                vec![url.0]
+                url.0
             })
-            .or_else(|| {
-                self.urls.map(|slice| {
-                    slice
-                        .iter()
-                        .map(|url| {
-                            register_api_doc_url_resource(url, config);
-                            url.0.clone()
-                        })
-                        .collect()
-                })
-            })
-            .unwrap_or_default();
+            .collect::<Vec<_>>();
 
-        let swagger_resource = Resource::new(self.path)
+        let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
             .data(urls)
             .to(serve_swagger_ui);
@@ -104,12 +61,12 @@ impl HttpServiceFactory for SwaggerUi {
 #[cfg(feature = "actix-web")]
 fn register_api_doc_url_resource(url: &(Url, OpenApi), config: &mut actix_web::dev::AppService) {
     pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl Responder {
-        log::debug!("Get api doc:\n{}", api_doc.to_pretty_json().unwrap());
+        log::trace!("Get api doc:\n{}", api_doc.to_pretty_json().unwrap());
 
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
-    let url_resource = Resource::new(&url.0.url)
+    let url_resource = Resource::new(url.0.url.as_ref())
         .guard(Get())
         .data(url.1.clone())
         .to(get_api_doc);
@@ -118,65 +75,43 @@ fn register_api_doc_url_resource(url: &(Url, OpenApi), config: &mut actix_web::d
 
 #[non_exhaustive]
 #[derive(Default, Clone)]
-pub struct Url {
-    name: String,
-    url: String,
+pub struct Url<'a> {
+    name: Cow<'a, str>,
+    url: Cow<'a, str>,
     primary: bool,
 }
 
-impl Url {
-    pub fn new<S>(name: S, url: S, primary: bool) -> Self
-    where
-        S: Into<String>,
-    {
+impl<'a> Url<'a> {
+    pub fn new(name: &'a str, url: &'a str) -> Self {
         Self {
-            name: name.into(),
-            url: url.into(),
-            primary,
+            name: Cow::Borrowed(name),
+            url: Cow::Borrowed(url),
+            ..Default::default()
         }
     }
 
-    // fn with_url<S: 'a + AsRef<&'a str>>(mut self, url: S) -> Self {
-    //     self.url = Cow::Borrowed(url.as_ref());
-
-    //     self
-    // }
-
-    // fn with_name<S: 'a + AsRef<&'a str>>(mut self, name: S) -> Self {
-    //     self.name = Cow::Borrowed(name.as_ref());
-
-    //     self
-    // }
-
-    // fn with_primary(mut self, primary: bool) -> Self {
-    //     self.primary = primary;
-
-    //     self
-    // }
+    pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {
+        Self {
+            name: Cow::Borrowed(name),
+            url: Cow::Borrowed(url),
+            primary,
+        }
+    }
 }
 
-impl From<&'static str> for Url {
-    fn from(url: &'static str) -> Self {
+impl<'a> From<&'a str> for Url<'a> {
+    fn from(url: &'a str) -> Self {
         Self {
-            url: String::from(url),
+            url: Cow::Borrowed(url),
             ..Default::default()
         }
     }
 }
 
-// impl From<str> for Url {
-//     fn from(url: str) -> Self {
-//         Self {
-//             url: Cow::Owned(url),
-//             ..Default::default()
-//         }
-//     }
-// }
-
-impl From<String> for Url {
+impl From<String> for Url<'_> {
     fn from(url: String) -> Self {
         Self {
-            url,
+            url: Cow::Owned(url),
             ..Default::default()
         }
     }
@@ -185,7 +120,7 @@ impl From<String> for Url {
 #[cfg(feature = "actix-web")]
 async fn serve_swagger_ui(
     web::Path(mut part): web::Path<String>,
-    data: web::Data<Vec<Url>>,
+    data: web::Data<Vec<Url<'_>>>,
 ) -> HttpResponse {
     use crate::error::Error;
 
@@ -195,31 +130,31 @@ async fn serve_swagger_ui(
         part = "index.html".to_string()
     }
 
-    // log::debug!("Replace urls: {:?}", data.as_ref());
-
-    // TODO replace urls with correct urls from index
-    // TODO provide the api doc and serve info
-
     if let Some(file) = SwaggerUiDist::get(&part) {
         let mut bytes = file.data.into_owned();
 
         if part == "index.html" {
-            // TODO replace the url wihtin the content
             let mut index = match String::from_utf8(bytes.to_vec()).map_err(Error::FromUtf8) {
                 Ok(index) => index,
                 Err(error) => return HttpResponse::InternalServerError().body(error.to_string()),
             };
 
-            // url: "https://petstore.swagger.io/v2/swagger.json",
             if data.len() > 1 {
-                // TODO multiple
                 let mut urls = String::from("urls: [");
                 data.as_ref().iter().for_each(|url| {
-                    urls.push_str(&format!("{{name: {}, url: {}}},", url.name, url.url));
+                    urls.push_str(&format!(
+                        "{{name: \"{}\", url: \"{}\"}},",
+                        if url.name.is_empty() {
+                            &url.url
+                        } else {
+                            &url.name
+                        },
+                        url.url
+                    ));
                 });
                 urls.push(']');
                 if let Some(primary) = data.as_ref().iter().find(|url| url.primary) {
-                    urls.push_str(&format!(", urls.primaryName: {}", primary.name));
+                    urls.push_str(&format!(", \"urls.primaryName\": \"{}\"", primary.name));
                 }
                 index = index.replace(r"{{urls}}", &urls);
             } else if let Some(url) = data.first() {
