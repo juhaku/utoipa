@@ -136,6 +136,7 @@ impl ToTokens for OpenApi {
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
+                    use utoipa::Path;
                     utoipa::openapi::OpenApi::new(#info, #path_items)
                         .with_components(#schema)
                 }
@@ -145,9 +146,6 @@ impl ToTokens for OpenApi {
 }
 
 fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStream {
-    quote.extend(quote! {
-        use utoipa::Path as OpenApiPath;
-    });
     handler_paths.iter().fold(
         quote! { utoipa::openapi::path::Paths::new() },
         |mut paths, handler| {

@@ -17,7 +17,7 @@ use syn::{
     bracketed,
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
-    DeriveInput, Error,
+    DeriveInput, Error, ItemFn,
 };
 
 mod component;
@@ -40,7 +40,6 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
     let component = Component::new(&data, &attrs, &ident);
 
     quote! {
-        // use utoipa::openapi::ToArray;
         #component
     }
     .into()
@@ -51,7 +50,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// Path attribute macro
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
-    let ast_fn = syn::parse::<syn::ItemFn>(item).unwrap_or_abort();
+    let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
 
     let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs);
@@ -79,7 +78,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         }));
 
     quote! {
-        // use utoipa::openapi::ToArray;
         #path
         #ast_fn
     }

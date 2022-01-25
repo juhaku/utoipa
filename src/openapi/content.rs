@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Component;
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[non_exhaustive]
 pub struct Content {
     pub schema: Component,

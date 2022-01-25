@@ -4,6 +4,7 @@ use std::fmt::Display;
 pub enum Error {
     Serde(serde_json::Error),
     Io(std::io::Error),
+    FromUtf8(std::string::FromUtf8Error),
 }
 
 impl Display for Error {
@@ -11,6 +12,7 @@ impl Display for Error {
         match self {
             Self::Serde(error) => write!(f, "serde: {}", error),
             Self::Io(error) => write!(f, "io: {}", error),
+            Self::FromUtf8(error) => write!(f, "from utf8: {}", error),
         }
     }
 }

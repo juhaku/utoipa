@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::{Component, ComponentType, Property};
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Header {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::{contact::Contact, licence::Licence};
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Info {
     pub title: String,
