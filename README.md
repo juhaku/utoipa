@@ -164,7 +164,7 @@ Necessary subset implementation of OpenAPI spec in Rust| :heavy_minus_sign: Some
 Macros for autogenerating documentation | :heavy_check_mark: Done, but some things missing 
 Embed Swagger UI for OpenAPI documentation | :heavy_check_mark: Done
 Embed ReDocly for OpenAPI documentation | :x: Not done 
-Integration with Actix web framework | :heavy_minus_sign: In development
+Integration with Actix web framework | :heavy_check_mark: Done
 Integration with Rocker framework | :x: Not done
 Write exessive documentation & Book & Examples | :x: Not done
 At least 90 % tested code | :heavy_minus_sign: Still ongoing along with the other development
