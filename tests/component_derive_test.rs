@@ -26,9 +26,18 @@ macro_rules! api_doc {
         api_doc!(@doc $name)
     }};
 
-    ( @doc $name:ident ) => {{
+    ( $( #[$attr:meta] )* $key:ident $name:ident<$generic:ident> $body:tt ) => {{
+        #[allow(dead_code)]
+        #[derive(Component)]
+        $(#[$attr])*
+        $key $name<$generic> $body
+
+        api_doc!(@doc $name <$generic> )
+    }};
+
+    ( @doc $name:ident $( $generic:tt )* ) => {{
         #[derive(OpenApi)]
-        #[openapi(components = [$name])]
+        #[openapi(components = [$name$($generic)*])]
         struct ApiDoc;
 
         let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -409,5 +418,23 @@ fn derive_enum_with_deprecated() {
         "enum" = r#"["Mode1","Mode2"]"#, "Mode enum variants"
         "type" = r#""string""#, "Mode type"
         "deprecated" = r#"true"#, "Mode deprecated"
+    };
+}
+
+#[test]
+fn derive_struct_with_generics() {
+    #[allow(unused)]
+    enum Type {
+        Foo,
+        Bar,
+    }
+    let status = api_doc! {
+        struct Status<Type> {
+            t: Type
+        }
+    };
+
+    assert_value! {status=>
+        "properties.t.$ref" = r###""#/components/schemas/Type""###, "Status t field"
     };
 }
