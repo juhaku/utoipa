@@ -5,7 +5,7 @@ use proc_macro_error::{abort, abort_call_site, emit_error};
 use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields, FieldsNamed,
-    FieldsUnnamed, GenericArgument, PathArguments, PathSegment, Type, TypePath, Variant,
+    FieldsUnnamed, GenericArgument, Generics, PathArguments, PathSegment, Type, TypePath, Variant,
 };
 
 use crate::{
@@ -21,13 +21,20 @@ mod attr;
 pub struct Component<'a> {
     ident: &'a Ident,
     variant: ComponentVariant<'a>,
+    generics: &'a Generics,
 }
 
 impl<'a> Component<'a> {
-    pub fn new(data: &'a Data, attributes: &'a [Attribute], ident: &'a Ident) -> Self {
+    pub fn new(
+        data: &'a Data,
+        attributes: &'a [Attribute],
+        ident: &'a Ident,
+        generics: &'a Generics,
+    ) -> Self {
         Self {
             ident,
             variant: ComponentVariant::new(data, attributes, ident),
+            generics,
         }
     }
 }
@@ -36,9 +43,10 @@ impl ToTokens for Component<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let ident = self.ident;
         let variant = &self.variant;
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         tokens.extend(quote! {
-            impl utoipa::Component for #ident {
+            impl #impl_generics utoipa::Component for #ident #ty_generics #where_clause {
                 fn component() -> utoipa::openapi::schema::Component {
                     use utoipa::openapi::ToArray;
                     #variant.into()

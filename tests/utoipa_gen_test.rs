@@ -10,6 +10,17 @@ struct Pet {
     age: Option<i32>,
 }
 
+#[derive(Component)]
+struct Status<StatusType> {
+    status: StatusType,
+}
+
+#[derive(Component)]
+enum StatusType {
+    Ok,
+    NotOk,
+}
+
 mod pet_api {
     use super::*;
 
@@ -38,7 +49,7 @@ mod pet_api {
 }
 
 #[derive(OpenApi, Default)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
+#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet, StatusType, Status<StatusType>])]
 struct ApiDoc;
 
 #[test]

@@ -34,15 +34,16 @@ use crate::path::{Path, PathAttr, PathOperation};
 /// Component dervice
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
-        attrs, ident, data, ..
+        attrs,
+        ident,
+        data,
+        generics,
+        ..
     } = syn::parse_macro_input!(input);
 
-    let component = Component::new(&data, &attrs, &ident);
+    let component = Component::new(&data, &attrs, &ident, &generics);
 
-    quote! {
-        #component
-    }
-    .into()
+    component.to_token_stream().into()
 }
 
 #[proc_macro_error]

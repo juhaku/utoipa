@@ -4,7 +4,7 @@ use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Attribute, Error, ExprPath, Token,
+    Attribute, Error, ExprPath, Generics, Token,
 };
 
 use proc_macro2::TokenStream;
@@ -20,7 +20,13 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiAttr {
     handlers: Vec<ExprPath>,
-    components: Vec<Ident>,
+    components: Vec<Component>,
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Component {
+    ty: Ident,
+    generics: Generics,
 }
 
 pub fn parse_openapi_attributes_from_attributes(attrs: &[Attribute]) -> Option<OpenApiAttr> {
@@ -87,14 +93,28 @@ fn parse_handlers(input: ParseStream) -> syn::Result<Vec<ExprPath>> {
     })
 }
 
-fn parse_components(input: ParseStream) -> syn::Result<Vec<Ident>> {
+fn parse_components(input: ParseStream) -> syn::Result<Vec<Component>> {
     parse_utils::parse_next(input, || {
         if input.peek(syn::token::Bracket) {
             let content;
             bracketed!(content in input);
-            let tokens = Punctuated::<Ident, Token![,]>::parse_terminated(&content)?;
 
-            Ok(tokens.into_iter().collect::<Vec<_>>())
+            let mut components = Vec::new();
+            loop {
+                components.push(Component {
+                    ty: content.parse()?,
+                    generics: content.parse()?,
+                });
+
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
+                if content.is_empty() {
+                    break;
+                }
+            }
+
+            Ok(components)
         } else {
             Err(syn::Error::new(
                 input.span(),
@@ -115,16 +135,18 @@ impl ToTokens for OpenApi {
         let schema = attributes.components.iter().fold(
             quote! { utoipa::openapi::Schema::new() },
             |mut schema, component| {
-                let span = component.span();
-                let component_name = &*component.to_string();
+                let ident = &component.ty;
+                let span = ident.span();
+                let component_name = &*ident.to_string();
+                let (_, ty_generics, _) = component.generics.split_for_impl();
 
                 let assert_component = format_ident!("_AssertComponent{}", component_name);
                 tokens.extend(quote_spanned! {span=>
-                    struct #assert_component where #component: utoipa::Component;
+                    struct #assert_component where #ident #ty_generics: utoipa::Component;
                 });
 
                 schema.extend(quote! {
-                    .with_component(#component_name, #component::component())
+                    .with_component(#component_name, <#ident #ty_generics>::component())
                 });
 
                 schema
@@ -136,7 +158,7 @@ impl ToTokens for OpenApi {
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
-                    use utoipa::Path;
+                    use utoipa::{Component, Path};
                     utoipa::openapi::OpenApi::new(#info, #path_items)
                         .with_components(#schema)
                 }
