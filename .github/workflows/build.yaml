@@ -1,4 +1,4 @@
-name: Utoipa build pipeline
+name: Utoipa build
 
 on:
   push:
