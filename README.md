@@ -1,7 +1,6 @@
 # utoipa - Autogenerate OpenAPI documentation
 
-![build](https://github.com/juhaku/utoipa/actions/workflows/build.yml/badge.svg)
-
+[![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 
 Want to document your utopic api? Want it to feel as fuzzy as cold ipa? Then you are probably in need of utoipa.  
 
