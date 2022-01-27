@@ -1,11 +1,18 @@
 [package]
 name = "utoipa"
+description = "Compile time rest API documentation for Rust"
 version = "0.1.0"
 edition = "2021"
-
-[workspace]
-members = [
-  "utoipa-gen"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["rest-api", "rest", "openapi3", "documentation", "compile-time"]
+# documentation = ""
+# homepage = ""
+repository = "https://github.com/juhaku/utoipa"
+categories = ["web-programming"]
+exclude = [
+  ".git*",
+  ".github"
 ]
 
 [features]
@@ -13,16 +20,19 @@ swagger_ui = ["rust-embed", "mime_guess"]
 debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 serde = { version = "1.0.130", features = ["derive"] }
 log = "0.4.14"
 serde_json = "1.0.68"
-rust-embed = { version = "6.2.0", optional = true }
+rust-embed = { version = "6.2.0", optional = true, features = ["interpolate-folder-path"] }
 actix-web =  { version = "3.3.2", optional = true }
 mime_guess = { version = "2.0.3", optional = true }
 utoipa-gen = { path = "./utoipa-gen" }
 
 [dev-dependencies]
 paste = "1.0.6"
+
+[workspace]
+members = [
+  "utoipa-gen"
+]

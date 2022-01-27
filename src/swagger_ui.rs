@@ -6,7 +6,7 @@ use rust_embed::RustEmbed;
 use crate::openapi::OpenApi;
 
 #[derive(RustEmbed)]
-#[folder = "target/swagger-ui-4.3.0/dist/"]
+#[folder = "target/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
 pub struct SwaggerUiDist;
 
 #[non_exhaustive]

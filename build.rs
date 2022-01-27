@@ -1,9 +1,13 @@
 use std::process::Command;
 
-const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.3.0";
+const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.4.0";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{}.zip", SWAGGER_UI_DIST_ZIP);
+    println!(
+        "cargo:rustc-env=UTOIPA_SWAGGER_UI_VERSION={}",
+        SWAGGER_UI_DIST_ZIP
+    );
 
     Command::new("unzip")
         .arg(&format!("res/{}.zip", SWAGGER_UI_DIST_ZIP))
