@@ -26,13 +26,13 @@ macro_rules! api_doc {
         api_doc!(@doc $name)
     }};
 
-    ( $( #[$attr:meta] )* $key:ident $name:ident<$generic:ident> $body:tt ) => {{
+    ( $( #[$attr:meta] )* $key:ident $name:ident< $($life:lifetime)? $($generic:ident)? > $body:tt ) => {{
         #[allow(dead_code)]
         #[derive(Component)]
         $(#[$attr])*
-        $key $name<$generic> $body
+        $key $name<$($life)? $($generic)?> $body
 
-        api_doc!(@doc $name <$generic> )
+        api_doc!(@doc $name < $($life)? $($generic)?> )
     }};
 
     ( @doc $name:ident $( $generic:tt )* ) => {{
@@ -436,5 +436,19 @@ fn derive_struct_with_generics() {
 
     assert_value! {status=>
         "properties.t.$ref" = r###""#/components/schemas/Type""###, "Status t field"
+    };
+}
+
+#[test]
+fn derive_struct_with_lifetime_generics() {
+    #[allow(unused)]
+    let greeting = api_doc! {
+        struct Greeting<'a> {
+            greeting: &'a str
+        }
+    };
+
+    assert_value! {greeting=>
+        "properties.greeting.type" = r###""string""###, "Greeting greeting field type"
     };
 }

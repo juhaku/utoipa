@@ -1,4 +1,5 @@
 #![cfg(feature = "actix_extras")]
+
 use serde::{Deserialize, Serialize};
 use utoipa::{Component, OpenApi};
 
@@ -19,6 +20,11 @@ struct Status<StatusType> {
 enum StatusType {
     Ok,
     NotOk,
+}
+
+#[derive(Serialize, Deserialize, Component)]
+struct Simple {
+    greeting: &'static str,
 }
 
 mod pet_api {
@@ -49,7 +55,7 @@ mod pet_api {
 }
 
 #[derive(OpenApi, Default)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet, StatusType, Status<StatusType>])]
+#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet, StatusType, Status<StatusType>, Simple])]
 struct ApiDoc;
 
 #[test]
