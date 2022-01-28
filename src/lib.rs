@@ -12,6 +12,10 @@ pub trait OpenApi {
 
 pub trait Component {
     fn component() -> openapi::schema::Component;
+
+    fn sub_components() -> Vec<(&'static str, openapi::schema::Component)> {
+        Vec::new()
+    }
 }
 
 pub trait Path {

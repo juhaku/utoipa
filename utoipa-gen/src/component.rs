@@ -46,6 +46,7 @@ impl ToTokens for Component<'_> {
         let variant = &self.variant;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
+        // TODO implement sub components for complex enum variants
         tokens.extend(quote! {
             impl #impl_generics utoipa::Component for #ident #ty_generics #where_clause {
                 fn component() -> utoipa::openapi::schema::Component {
@@ -236,6 +237,17 @@ struct EnumComponent<'a> {
 
 impl ToTokens for EnumComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        println!("variants: {:#?}", self.variants);
+
+        if self
+            .variants
+            .iter()
+            .all(|variant| matches!(variant.fields, Fields::Unit))
+        {
+            // regular enum to tokens
+        };
+
+        // TODO implement complex variants to tokens
         self.variants
             .iter()
             .filter(|variant| !matches!(variant.fields, Fields::Unit))

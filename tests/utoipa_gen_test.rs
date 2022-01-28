@@ -24,6 +24,13 @@ enum StatusType {
     NotOk,
 }
 
+#[derive(Component)]
+enum Random {
+    Response { id: String },
+    PetResponse(Pet),
+    Ids(Vec<String>),
+}
+
 #[derive(Serialize, Deserialize, Component)]
 struct Simple {
     greeting: &'static str,

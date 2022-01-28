@@ -166,6 +166,7 @@ impl ToTokens for OpenApi {
                 };
                 schema.extend(quote! {
                     .with_component(#component_name, <#ident #ty_generics>::component())
+                    .with_components(<#ident #ty_generics>::sub_components())
                 });
 
                 schema

@@ -29,6 +29,14 @@ impl Schema {
 
         self
     }
+
+    pub fn with_components(mut self, components: Vec<(&str, Component)>) -> Self {
+        components.into_iter().for_each(|(name, component)| {
+            self.schemas.insert(name.to_string(), component);
+        });
+
+        self
+    }
 }
 
 #[non_exhaustive]
