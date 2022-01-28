@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, vec};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, vec};
 
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
@@ -466,5 +466,28 @@ fn derive_struct_with_cow() {
     assert_value! {greeting=>
         "properties.greeting.type" = r###""string""###, "Greeting greeting field type"
         "required.[0]" = r###""greeting""###, "Greeting required"
+    };
+}
+
+#[test]
+fn derive_with_box_and_refcell() {
+    #[allow(unused)]
+    struct Foo {
+        name: &'static str,
+    }
+
+    let greeting = api_doc! {
+        struct Greeting {
+            foo: Box<Foo>,
+            ref_cell_foo: RefCell<Foo>
+        }
+    };
+
+    common::assert_json_array_len(greeting.get("required").unwrap(), 2);
+    assert_value! {greeting=>
+        "properties.foo.$ref" = r###""#/components/schemas/Foo""###, "Greeting foo field"
+        "properties.ref_cell_foo.$ref" = r###""#/components/schemas/Foo""###, "Greeting ref_cell_foo field"
+        "required.[0]" = r###""foo""###, "Greeting required 0"
+        "required.[1]" = r###""ref_cell_foo""###, "Greeting required 1"
     };
 }

@@ -385,6 +385,8 @@ impl<'a> ComponentPart<'a> {
             "Vec" => Some(GenericType::Vec),
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
+            "Box" => Some(GenericType::Box),
+            "RefCell" => Some(GenericType::RefCell),
             _ => None,
         }
     }
@@ -404,6 +406,8 @@ enum GenericType {
     Map,
     Option,
     Cow,
+    Box,
+    RefCell,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -469,7 +473,10 @@ where
                     #component_property.to_array()
                 });
             }
-            Some(GenericType::Option) | Some(GenericType::Cow) => {
+            Some(GenericType::Option)
+            | Some(GenericType::Cow)
+            | Some(GenericType::Box)
+            | Some(GenericType::RefCell) => {
                 let component_property = ComponentProperty::new(
                     self.component_part.child.as_ref().unwrap(),
                     self.comments,
