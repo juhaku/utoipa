@@ -1,4 +1,4 @@
-use std::{collections::HashMap, vec};
+use std::{borrow::Cow, collections::HashMap, vec};
 
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
@@ -450,5 +450,21 @@ fn derive_struct_with_lifetime_generics() {
 
     assert_value! {greeting=>
         "properties.greeting.type" = r###""string""###, "Greeting greeting field type"
+    };
+}
+
+#[test]
+fn derive_struct_with_cow() {
+    #[allow(unused)]
+    let greeting = api_doc! {
+        struct Greeting<'a> {
+            greeting: Cow<'a, str>
+        }
+    };
+
+    common::assert_json_array_len(greeting.get("required").unwrap(), 1);
+    assert_value! {greeting=>
+        "properties.greeting.type" = r###""string""###, "Greeting greeting field type"
+        "required.[0]" = r###""greeting""###, "Greeting required"
     };
 }

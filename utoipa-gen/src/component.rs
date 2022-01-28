@@ -4,8 +4,9 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, abort_call_site, emit_error};
 use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields, FieldsNamed,
-    FieldsUnnamed, GenericArgument, Generics, PathArguments, PathSegment, Type, TypePath, Variant,
+    punctuated::Punctuated, token::Comma, AngleBracketedGenericArguments, Attribute, Data, Field,
+    Fields, FieldsNamed, FieldsUnnamed, GenericArgument, Generics, PathArguments, PathSegment,
+    Type, TypePath, Variant,
 };
 
 use crate::{
@@ -326,33 +327,39 @@ impl<'a> ComponentPart<'a> {
     fn resolve_component_type(segment: &'a PathSegment) -> ComponentPart<'a> {
         if segment.arguments.is_empty() {
             abort!(
-                segment.ident.span(),
-                "Expected at least one angle bracket argument but was 0"
+                segment.ident,
+                "expected at least one angle bracket argument but was 0"
             );
         };
 
         let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
 
         generic_component_type.child = Some(Rc::new(ComponentPart::from_type(
-            ComponentPart::get_first_generic_type(segment),
+            match &segment.arguments {
+                PathArguments::AngleBracketed(angle_bracketed_args) => {
+                    ComponentPart::get_generic_arg_type(0, angle_bracketed_args)
+                }
+                _ => abort!(
+                    segment.ident,
+                    "unexpected path argument, expected angle bracketed path argument"
+                ),
+            },
         )));
 
         generic_component_type
     }
 
-    fn get_first_generic_type(segment: &PathSegment) -> &Type {
-        match &segment.arguments {
-            PathArguments::AngleBracketed(angle_bracketed_args) => {
-                let first_arg = angle_bracketed_args.args.first().unwrap();
+    fn get_generic_arg_type(index: usize, args: &'a AngleBracketedGenericArguments) -> &'a Type {
+        let generic_arg = args.args.iter().nth(index);
 
-                match first_arg {
-                    GenericArgument::Type(generic_type) => generic_type,
-                    _ => abort!(segment.ident, "Expected GenericArgument::Type"),
-                }
+        match generic_arg {
+            Some(GenericArgument::Type(generic_type)) => generic_type,
+            Some(GenericArgument::Lifetime(_)) => {
+                ComponentPart::get_generic_arg_type(index + 1, args)
             }
             _ => abort!(
-                segment.ident,
-                "Unexpected PathArgument, expected PathArgument::AngleBracketed"
+                generic_arg,
+                "expected generic argument type or generic argument lifetime"
             ),
         }
     }
@@ -377,6 +384,7 @@ impl<'a> ComponentPart<'a> {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
             "Option" => Some(GenericType::Option),
+            "Cow" => Some(GenericType::Cow),
             _ => None,
         }
     }
@@ -395,6 +403,7 @@ enum GenericType {
     Vec,
     Map,
     Option,
+    Cow,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -460,7 +469,7 @@ where
                     #component_property.to_array()
                 });
             }
-            Some(GenericType::Option) => {
+            Some(GenericType::Option) | Some(GenericType::Cow) => {
                 let component_property = ComponentProperty::new(
                     self.component_part.child.as_ref().unwrap(),
                     self.comments,

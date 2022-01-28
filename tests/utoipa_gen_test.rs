@@ -1,5 +1,7 @@
 #![cfg(feature = "actix_extras")]
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 use utoipa::{Component, OpenApi};
 
@@ -25,6 +27,7 @@ enum StatusType {
 #[derive(Serialize, Deserialize, Component)]
 struct Simple {
     greeting: &'static str,
+    cow: Cow<'static, str>,
 }
 
 mod pet_api {
