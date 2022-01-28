@@ -297,7 +297,11 @@ impl<'a> ComponentPart<'a> {
         ComponentPart::from_type_path(
             match ty {
                 Type::Path(path) => path,
-                _ => abort_call_site!("Unexpected type, expected Type::Path"),
+                Type::Reference(reference) => match reference.elem.as_ref() {
+                    Type::Path(path) => path,
+                    _ => abort_call_site!("unexpected type in reference, expected Type:Path"),
+                },
+                _ => abort_call_site!("unexpected type, expected Type::Path"),
             },
             ComponentPart::convert,
             ComponentPart::resolve_component_type,

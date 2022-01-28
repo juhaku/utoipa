@@ -15,9 +15,7 @@ impl<'a> ComponentType<'a> {
             name,
             "String"
                 | "str"
-                | "&str"
                 | "char"
-                | "&char"
                 | "bool"
                 | "usize"
                 | "u8"

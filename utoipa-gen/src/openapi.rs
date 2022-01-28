@@ -4,7 +4,7 @@ use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Attribute, Error, ExprPath, Generics, Token,
+    Attribute, Error, ExprPath, GenericParam, Generics, Token,
 };
 
 use proc_macro2::TokenStream;
@@ -27,6 +27,15 @@ pub struct OpenApiAttr {
 struct Component {
     ty: Ident,
     generics: Generics,
+}
+
+impl Component {
+    fn has_lifetime_generics(&self) -> bool {
+        self.generics
+            .params
+            .iter()
+            .any(|generic| matches!(generic, GenericParam::Lifetime(_)))
+    }
 }
 
 pub fn parse_openapi_attributes_from_attributes(attrs: &[Attribute]) -> Option<OpenApiAttr> {
@@ -140,11 +149,21 @@ impl ToTokens for OpenApi {
                 let component_name = &*ident.to_string();
                 let (_, ty_generics, _) = component.generics.split_for_impl();
 
+                let assert_ty_generics = if component.has_lifetime_generics() {
+                    Some(quote! {<'static>})
+                } else {
+                    Some(ty_generics.to_token_stream())
+                };
                 let assert_component = format_ident!("_AssertComponent{}", component_name);
                 tokens.extend(quote_spanned! {span=>
-                    struct #assert_component where #ident #ty_generics: utoipa::Component;
+                    struct #assert_component where #ident #assert_ty_generics: utoipa::Component;
                 });
 
+                let ty_generics = if component.has_lifetime_generics() {
+                    None
+                } else {
+                    Some(ty_generics)
+                };
                 schema.extend(quote! {
                     .with_component(#component_name, <#ident #ty_generics>::component())
                 });
