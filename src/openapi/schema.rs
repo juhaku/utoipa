@@ -29,14 +29,6 @@ impl Schema {
 
         self
     }
-
-    pub fn with_components(mut self, components: Vec<(&str, Component)>) -> Self {
-        components.into_iter().for_each(|(name, component)| {
-            self.schemas.insert(name.to_string(), component);
-        });
-
-        self
-    }
 }
 
 #[non_exhaustive]
@@ -54,6 +46,43 @@ pub struct Component {
 
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     array_component: Option<Array>,
+
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    one_of: Vec<Component>,
+}
+
+#[derive(Default)]
+pub struct OneOf {
+    items: Vec<Component>,
+}
+
+impl OneOf {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            items: Vec::with_capacity(capacity),
+        }
+    }
+
+    pub fn append<I: Into<Component>>(mut self, component: I) -> Self {
+        self.items.push(component.into());
+
+        self
+    }
+}
+
+impl From<OneOf> for Component {
+    fn from(one_of: OneOf) -> Self {
+        Self {
+            one_of: one_of.items,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]

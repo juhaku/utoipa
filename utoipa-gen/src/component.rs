@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use proc_macro_error::{abort, abort_call_site, emit_error};
+use proc_macro_error::{abort, abort_call_site};
 use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated, token::Comma, AngleBracketedGenericArguments, Attribute, Data, Field,
@@ -237,22 +237,38 @@ struct EnumComponent<'a> {
 
 impl ToTokens for EnumComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        println!("variants: {:#?}", self.variants);
-
         if self
             .variants
             .iter()
             .all(|variant| matches!(variant.fields, Fields::Unit))
         {
-            // regular enum to tokens
+            tokens.extend(
+                SimpleEnum {
+                    attributes: self.attributes,
+                    variants: self.variants,
+                }
+                .to_token_stream(),
+            )
+        } else {
+            tokens.extend(
+                ComplexEnum {
+                    attributes: self.attributes,
+                    variants: self.variants,
+                }
+                .to_token_stream(),
+            )
         };
+    }
+}
 
-        // TODO implement complex variants to tokens
-        self.variants
-            .iter()
-            .filter(|variant| !matches!(variant.fields, Fields::Unit))
-            .for_each(|variant| emit_error!(variant.ident.span(), "Currently unsupported enum variant, expected Unit variant without additional fields"));
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct SimpleEnum<'a> {
+    variants: &'a Punctuated<Variant, Comma>,
+    attributes: &'a [Attribute],
+}
 
+impl ToTokens for SimpleEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
         let enum_values = self
             .variants
             .iter()
@@ -262,7 +278,7 @@ impl ToTokens for EnumComponent<'_> {
 
         tokens.extend(quote! {
             utoipa::openapi::Property::new(utoipa::openapi::ComponentType::String)
-                .with_enum_values(#enum_values)
+            .with_enum_values(#enum_values)
         });
 
         let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
@@ -282,6 +298,78 @@ impl ToTokens for EnumComponent<'_> {
                 .with_description(#comment)
             })
         }
+    }
+}
+
+struct ComplexEnum<'a> {
+    variants: &'a Punctuated<Variant, Comma>,
+    attributes: &'a [Attribute],
+}
+
+impl ToTokens for ComplexEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        if self
+            .attributes
+            .iter()
+            .any(|attribute| attribute.path.get_ident().unwrap() == "component")
+        {
+            abort!(
+                self.attributes.first().unwrap(),
+                "component macro attribute not expected on complex enum";
+
+                help = "Try adding the #[component(...)] on variant of the enum";
+            );
+        }
+
+        let capasity = self.variants.len();
+        tokens.extend(quote! {
+            utoipa::openapi::OneOf::with_capacity(#capasity)
+        });
+
+        // serde, externally tagged format supported by now
+        self.variants
+            .iter()
+            .map(|variant| match &variant.fields {
+                Fields::Named(named_fields) => {
+                    let named_enum = NamedStructComponent {
+                        attributes: &variant.attrs,
+                        fields: &named_fields.named,
+                    };
+                    let name = &*variant.ident.to_string();
+
+                    quote! {
+                        utoipa::openapi::schema::Object::new()
+                            .with_property(#name, #named_enum)
+                    }
+                }
+                Fields::Unnamed(unnamed_fields) => {
+                    let unnamed_enum = UnnamedStructComponent {
+                        attributes: &variant.attrs,
+                        fields: &unnamed_fields.unnamed,
+                    };
+                    let name = &*variant.ident.to_string();
+
+                    quote! {
+                        utoipa::openapi::schema::Object::new()
+                            .with_property(#name, #unnamed_enum)
+                    }
+                }
+                Fields::Unit => {
+                    let mut enum_values = Punctuated::<Variant, Comma>::new();
+                    enum_values.push(variant.clone());
+
+                    SimpleEnum {
+                        attributes: &variant.attrs,
+                        variants: &enum_values,
+                    }
+                    .to_token_stream()
+                }
+            })
+            .for_each(|inline_variant| {
+                tokens.extend(quote! {
+                    .append(#inline_variant)
+                })
+            })
     }
 }
 

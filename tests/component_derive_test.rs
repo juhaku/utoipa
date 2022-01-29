@@ -399,8 +399,11 @@ fn derive_unnamed_struct_example_json_array_success() {
     };
 
     assert_value! {pet_age=>
+        "type" = r#""array""#, "PetAge type"
         "items.example" = r#""0""#, "PetAge example"
         "items.default" = r#"0"#, "PetAge default"
+        "items.type" = r#""integer""#, "PetAge default"
+        "items.format" = r#""int64""#, "PetAge default"
     }
 }
 
