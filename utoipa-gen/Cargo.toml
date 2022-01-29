@@ -18,5 +18,5 @@ regex = { version = "1.5.4", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 
 [features]
-debug = []
+debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static"]

@@ -14,7 +14,8 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
     schema::{
-        Array, Component, ComponentFormat, ComponentType, Object, Property, Ref, Schema, ToArray,
+        Array, Component, ComponentFormat, ComponentType, Object, OneOf, Property, Ref, Schema,
+        ToArray,
     },
     security::Security,
     server::Server,

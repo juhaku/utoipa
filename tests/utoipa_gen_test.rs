@@ -1,4 +1,5 @@
 #![cfg(feature = "actix_extras")]
+#![allow(dead_code)]
 
 use std::borrow::Cow;
 
@@ -22,6 +23,14 @@ struct Status<StatusType> {
 enum StatusType {
     Ok,
     NotOk,
+}
+
+#[derive(Component)]
+enum Random {
+    Response { id: String },
+    PetResponse(Pet),
+    Ids(Vec<String>),
+    UnitValue,
 }
 
 #[derive(Serialize, Deserialize, Component)]
@@ -58,7 +67,7 @@ mod pet_api {
 }
 
 #[derive(OpenApi, Default)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet, StatusType, Status<StatusType>, Simple])]
+#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet, StatusType, Status<StatusType>, Simple, Random])]
 struct ApiDoc;
 
 #[test]
