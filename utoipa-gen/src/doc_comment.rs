@@ -5,6 +5,7 @@ use syn::{Attribute, Lit, Meta};
 const DOC_ATTRIBUTE_TYPE: &str = "doc";
 
 /// CommentAttributes holds Vec of parsed doc comments
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) struct CommentAttributes(pub(crate) Vec<String>);
 
 impl CommentAttributes {

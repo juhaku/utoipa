@@ -254,6 +254,8 @@ fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
         "items.type" = r#""number""#, "Point items type"
         "items.format" = r#""float""#, "Point items format"
         "items.description" = r#""Contains x and y coordinates""#, "Point items description"
+        "maxItems" = r#"2"#, "Wrapper max items"
+        "minItems" = r#"2"#, "Wrapper min items"
     }
 }
 
@@ -317,6 +319,8 @@ fn derive_struct_unnamed_field_vec_type_success() {
         "type" = r#""array""#, "Wrapper type"
         "items.type" = r#""integer""#, "Wrapper items type"
         "items.format" = r#""int32""#, "Wrapper items format"
+        "maxItems" = r#"null"#, "Wrapper max items"
+        "minItems" = r#"null"#, "Wrapper min items"
     }
 }
 
@@ -404,6 +408,8 @@ fn derive_unnamed_struct_example_json_array_success() {
         "items.default" = r#"0"#, "PetAge default"
         "items.type" = r#""integer""#, "PetAge default"
         "items.format" = r#""int64""#, "PetAge default"
+        "maxItems" = r#"2"#, "PetAge max items"
+        "minItems" = r#"2"#, "PetAge min items"
     }
 }
 
@@ -519,5 +525,26 @@ fn derive_complex_enum_with_named_and_unnamed_fields() {
         "oneOf.[1].properties.NamedFields.properties.names.type" = r###""array""###, "Complex enum named fields names type"
         "oneOf.[2].type" = r###""object""###, "Complex enum unnamed fields type"
         "oneOf.[2].properties.UnnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Complex enum unnamed fields type"
+    }
+}
+
+#[test]
+fn derive_struct_with_read_only_and_write_only() {
+    let user = api_doc! {
+        struct User {
+            #[component(read_only)]
+            username: String,
+            #[component(write_only)]
+            password: String
+        }
+    };
+
+    assert_value! {user=>
+        "properties.password.type" = r###""string""###, "User password type"
+        "properties.password.writeOnly" = r###"true"###, "User password write only"
+        "properties.password.readOnly" = r###"null"###, "User password read only"
+        "properties.username.type" = r###""string""###, "User username type"
+        "properties.username.readOnly" = r###"true"###, "User username read only"
+        "properties.username.writeOnly" = r###"null"###, "User username write only"
     }
 }

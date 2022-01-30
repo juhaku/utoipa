@@ -224,7 +224,9 @@ impl ToTokens for UnnamedStructComponent<'_> {
         }
 
         if fields_len > 1 {
-            tokens.extend(quote! { .to_array() })
+            tokens.extend(
+                quote! { .to_array().with_max_items(#fields_len).with_min_items(#fields_len) },
+            )
         }
     }
 }
@@ -514,6 +516,7 @@ enum GenericType {
 #[derive(PartialEq)]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct ComponentProperty<'a, T> {
     component_part: &'a ComponentPart<'a>,
     comments: Option<&'a CommentAttributes>,

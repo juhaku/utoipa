@@ -50,6 +50,8 @@ pub struct NamedField {
     example: Option<String>,
     format: Option<ExprPath>,
     default: Option<TokenStream>,
+    write_only: Option<bool>,
+    read_only: Option<bool>,
 }
 
 impl Parse for ComponentAttr<Enum> {
@@ -221,11 +223,13 @@ impl Parse for ComponentAttr<NamedField> {
                         parse_default_as_token_stream(input, name)
                     }))
                 }
+                "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)),
+                "read_only" => field.read_only = Some(parse_utils::parse_bool_or_true(input)),
                 _ => {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                            "unexpected identifier: {}, expected any of: example, format, default",
+                            "unexpected identifier: {}, expected any of: example, format, default, write_only, read_only",
                             name
                         ),
                     ))
@@ -364,6 +368,18 @@ impl ToTokens for NamedField {
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
                 .with_example(#example)
+            })
+        }
+
+        if let Some(ref write_only) = self.write_only {
+            tokens.extend(quote! {
+                .with_write_only(#write_only)
+            })
+        }
+
+        if let Some(ref read_only) = self.read_only {
+            tokens.extend(quote! {
+                .with_read_only(#read_only)
             })
         }
     }

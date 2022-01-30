@@ -141,6 +141,7 @@ where
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum Deprecated {
     True,
     False,

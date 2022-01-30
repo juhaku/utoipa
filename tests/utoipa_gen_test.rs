@@ -14,30 +14,30 @@ struct Pet {
     age: Option<i32>,
 }
 
-#[derive(Component)]
-struct Status<StatusType> {
-    status: StatusType,
-}
+// #[derive(Component)]
+// struct Status<StatusType> {
+//     status: StatusType,
+// }
 
-#[derive(Component)]
-enum StatusType {
-    Ok,
-    NotOk,
-}
+// #[derive(Component)]
+// enum StatusType {
+//     Ok,
+//     NotOk,
+// }
 
-#[derive(Component)]
-enum Random {
-    Response { id: String },
-    PetResponse(Pet),
-    Ids(Vec<String>),
-    UnitValue,
-}
+// #[derive(Component)]
+// enum Random {
+//     Response { id: String },
+//     PetResponse(Pet),
+//     Ids(Vec<String>),
+//     UnitValue,
+// }
 
-#[derive(Serialize, Deserialize, Component)]
-struct Simple {
-    greeting: &'static str,
-    cow: Cow<'static, str>,
-}
+// #[derive(Serialize, Deserialize, Component)]
+// struct Simple {
+//     greeting: &'static str,
+//     cow: Cow<'static, str>,
+// }
 
 mod pet_api {
     use super::*;
@@ -67,7 +67,7 @@ mod pet_api {
 }
 
 #[derive(OpenApi, Default)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet, StatusType, Status<StatusType>, Simple, Random])]
+#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
 struct ApiDoc;
 
 #[test]

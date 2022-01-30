@@ -86,6 +86,7 @@ impl From<OneOf> for Component {
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Property {
     #[serde(rename = "type")]
     component_type: ComponentType,
@@ -107,6 +108,12 @@ pub struct Property {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     deprecated: Option<Deprecated>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    write_only: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    read_only: Option<bool>,
 }
 
 impl Property {
@@ -154,6 +161,18 @@ impl Property {
 
     pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
         self.deprecated = Some(deprecated);
+
+        self
+    }
+
+    pub fn with_write_only(mut self, write_only: bool) -> Self {
+        self.write_only = Some(write_only);
+
+        self
+    }
+
+    pub fn with_read_only(mut self, read_only: bool) -> Self {
+        self.read_only = Some(read_only);
 
         self
     }
@@ -279,11 +298,18 @@ impl ToArray for Ref {}
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Array {
     #[serde(rename = "type")]
     component_type: ComponentType,
 
     items: Box<Component>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_items: Option<usize>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    min_items: Option<usize>,
 }
 
 impl Array {
@@ -291,7 +317,20 @@ impl Array {
         Self {
             component_type: ComponentType::Array,
             items: Box::new(component.into()),
+            ..Default::default()
         }
+    }
+
+    pub fn with_max_items(mut self, max_items: usize) -> Self {
+        self.max_items = Some(max_items);
+
+        self
+    }
+
+    pub fn with_min_items(mut self, min_items: usize) -> Self {
+        self.min_items = Some(min_items);
+
+        self
     }
 }
 
