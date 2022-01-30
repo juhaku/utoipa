@@ -157,7 +157,7 @@ fn derive_path_with_defaults_success() {
     ],
     params = [
         ("id" = u64, description = "Foo database id"),
-        ("since" = String, query, description = "Datetime since foo is updated")
+        ("since" = Option<String>, query, description = "Datetime since foo is updated")
     ]
 )]
 #[allow(unused)]

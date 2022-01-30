@@ -1,7 +1,5 @@
 #![cfg(not(feature = "actix_extras"))]
-use std::println;
 
-use serde_json::Value;
 use utoipa::OpenApi;
 
 mod common;
@@ -17,7 +15,7 @@ mod derive_params_all_options {
             (status = 200, description = "success"),
         ],
         params = [
-            ("id" = i32, path, required, deprecated, description = "Search foos by ids"),
+            ("id" = i32, path, deprecated, description = "Search foos by ids"),
         ]
     )]
     #[allow(unused)]
@@ -150,10 +148,10 @@ mod mod_derive_parameters_all_types {
         ],
         params = [
             ("id" = i32, path, description = "Foo id"),
-            ("since" = String, deprecated, required, query, description = "Datetime since"),
-            ("numbers" = [u64], query, description = "Foo numbers list"),
-            ("token" = String, header, deprecated, required, description = "Token of foo"),
-            ("cookieval" = String, cookie, deprecated, required, description = "Foo cookie"),
+            ("since" = String, deprecated, query, description = "Datetime since"),
+            ("numbers" = Option<[u64]>, query, description = "Foo numbers list"),
+            ("token" = String, header, deprecated, description = "Token of foo"),
+            ("cookieval" = String, cookie, deprecated, description = "Foo cookie"),
         ]
     )]
     #[allow(unused)]

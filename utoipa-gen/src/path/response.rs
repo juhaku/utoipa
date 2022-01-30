@@ -5,7 +5,7 @@ use syn::{
     bracketed, parse::Parse, punctuated::Punctuated, token::Comma, Error, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, MediaType};
+use crate::{parse_utils, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -66,7 +66,7 @@ use super::{property::Property, ContentTypeResolver};
 pub struct Response {
     status_code: i32,
     description: String,
-    response_type: Option<MediaType>,
+    response_type: Option<Type>,
     content_type: Option<String>,
     headers: Vec<Header>,
 }
@@ -99,7 +99,7 @@ impl Parse for Response {
                 }
                 "body" => {
                     response.response_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<MediaType>().unwrap_or_abort()
+                        input.parse::<Type>().unwrap_or_abort()
                     }));
                 }
                 "content_type" => {
@@ -192,7 +192,7 @@ impl ToTokens for Responses<'_> {
 
 #[inline]
 fn new_header_tokens(header: &Header) -> TokenStream2 {
-    let mut header_tokens = if let Some(ref header_type) = header.media_type {
+    let mut header_tokens = if let Some(ref header_type) = header.value_type {
         // header property with custom type
         let header_type = Property::new(header_type.is_array, &header_type.ty);
 
@@ -273,7 +273,7 @@ fn new_header_tokens(header: &Header) -> TokenStream2 {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Header {
     name: String,
-    media_type: Option<MediaType>,
+    value_type: Option<Type>,
     description: Option<String>,
 }
 
@@ -290,9 +290,9 @@ impl Parse for Header {
         if input.peek(Token![=]) {
             input.parse::<Token![=]>().unwrap_or_abort();
 
-            header.media_type = Some(
+            header.value_type = Some(
                 input
-                    .parse::<MediaType>()
+                    .parse::<Type>()
                     .expect_or_abort("unparseable Header type, expected identifer"),
             );
         }

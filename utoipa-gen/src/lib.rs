@@ -17,7 +17,8 @@ use syn::{
     bracketed,
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
-    DeriveInput, Error, ItemFn,
+    token::Bracket,
+    DeriveInput, ItemFn, Token,
 };
 
 mod component;
@@ -190,50 +191,70 @@ impl ToTokens for Required {
     }
 }
 
-/// Media type is wrapper around type and information is type an array
-// #[derive(Default)]
+/// Parses a type information in uotapi macro parameters.
+///
+/// Supports formats:
+///   * `type` type is just a simple type identifier
+///   * `[type]` type is an array of types
+///   * `Option<type>` type is option of type
+///   * `Option<[type]>` type is an option of array of types
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct MediaType {
+struct Type {
     ty: Ident,
     is_array: bool,
+    is_option: bool,
 }
 
-impl MediaType {
+impl Type {
     pub fn new(ident: Ident) -> Self {
         Self {
             ty: ident,
             is_array: false,
+            is_option: false,
         }
     }
 }
 
-impl Parse for MediaType {
+impl Parse for Type {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut is_array = false;
+        let mut is_option = false;
 
-        let parse_ident = |group: &ParseBuffer, error_msg: &str| {
-            if group.peek(syn::Ident) {
-                group.parse::<Ident>()
-            } else {
-                Err(Error::new(input.span(), error_msg))
-            }
+        let mut parse_array = |input: &ParseBuffer| {
+            is_array = true;
+            let group;
+            bracketed!(group in input);
+            group.parse::<Ident>()
         };
 
         let ty = if input.peek(syn::Ident) {
-            parse_ident(input, "unparseable MediaType, expected identifer")
+            let mut ident: Ident = input.parse().unwrap();
+
+            // is option of type or [type]
+            if (ident == "Option" && input.peek(Token![<]))
+                && (input.peek2(syn::Ident) || input.peek2(Bracket))
+            {
+                is_option = true;
+
+                input.parse::<Token![<]>().unwrap();
+
+                if input.peek(syn::Ident) {
+                    ident = input.parse::<Ident>().unwrap();
+                } else {
+                    ident = parse_array(input)?;
+                }
+                input.parse::<Token![>]>()?;
+            }
+            Ok(ident)
         } else {
-            is_array = true;
-
-            let group;
-            bracketed!(group in input);
-
-            parse_ident(
-                &group,
-                "unparseable MediaType, expected identifer within brackets",
-            )
+            parse_array(input)
         }?;
 
-        Ok(MediaType { ty, is_array })
+        Ok(Type {
+            ty,
+            is_array,
+            is_option,
+        })
     }
 }
 

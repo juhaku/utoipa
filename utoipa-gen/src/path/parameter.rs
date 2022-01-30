@@ -8,7 +8,7 @@ use syn::{
     Error, LitStr, Token,
 };
 
-use crate::{parse_utils, Deprecated, MediaType, Required};
+use crate::{parse_utils, Deprecated, Required, Type};
 
 use super::property::Property;
 
@@ -19,8 +19,8 @@ use super::property::Property;
 ///
 /// Parse is executed for following formats:
 ///
-/// * ("id" = String, path, required, deprecated, description = "Users database id"),
-/// * ("id", path, required, deprecated, description = "Users database id"),
+/// * ("id" = String, path, deprecated, description = "Users database id"),
+/// * ("id", path, deprecated, description = "Users database id"),
 ///
 /// The `= String` type statement is optional if automatic resolvation is supported.
 #[derive(Default)]
@@ -28,27 +28,23 @@ use super::property::Property;
 pub struct Parameter {
     pub name: String,
     parameter_in: ParameterIn,
-    required: bool,
     deprecated: bool,
     description: Option<String>,
-    parameter_type: Option<MediaType>,
+    parameter_type: Option<Type>,
 }
 
 impl Parameter {
     pub fn new<S: AsRef<str>>(name: S, parameter_type: &Ident, parameter_in: ParameterIn) -> Self {
-        let required = parameter_in == ParameterIn::Path;
-
         Self {
             name: name.as_ref().to_string(),
-            parameter_type: Some(MediaType::new(parameter_type.clone())),
+            parameter_type: Some(Type::new(parameter_type.clone())),
             parameter_in,
-            required,
             ..Default::default()
         }
     }
 
     pub fn update_parameter_type(&mut self, ident: &Ident) {
-        self.parameter_type = Some(MediaType::new(ident.clone()));
+        self.parameter_type = Some(Type::new(ident.clone()));
     }
 }
 
@@ -85,11 +81,7 @@ impl Parse for Parameter {
             match name {
                 "path" | "query" | "header" | "cookie" => {
                     parameter.parameter_in = name.parse::<ParameterIn>().unwrap_or_abort();
-                    if parameter.parameter_in == ParameterIn::Path {
-                        parameter.required = true; // all path parameters are required by default
-                    }
                 }
-                "required" => parameter.required = parse_utils::parse_bool_or_true(input),
                 "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(input),
                 "description" => {
                     parameter.description = parse_utils::parse_next(input, || {
@@ -105,7 +97,7 @@ impl Parse for Parameter {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                        "unexpected identifier: {}, expected any of: path, query, header, cookie, required, deprecated, description",
+                        "unexpected identifier: {}, expected any of: path, query, header, cookie, deprecated, description",
                         name
                     ),
                     ))
@@ -130,9 +122,6 @@ impl ToTokens for Parameter {
         let parameter_in = &self.parameter_in;
         tokens.extend(quote! { .with_in(#parameter_in) });
 
-        let required: Required = self.required.into();
-        tokens.extend(quote! { .with_required(#required) });
-
         let deprecated: Deprecated = self.deprecated.into();
         tokens.extend(quote! { .with_deprecated(#deprecated) });
 
@@ -142,8 +131,9 @@ impl ToTokens for Parameter {
 
         if let Some(ref parameter_type) = self.parameter_type {
             let property = Property::new(parameter_type.is_array, &parameter_type.ty);
+            let required: Required = (!parameter_type.is_option).into();
 
-            tokens.extend(quote! { .with_schema(#property) });
+            tokens.extend(quote! { .with_schema(#property).with_required(#required) });
         }
     }
 }

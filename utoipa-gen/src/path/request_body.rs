@@ -8,7 +8,7 @@ use syn::{
     Error, Token,
 };
 
-use crate::{parse_utils, MediaType, Required};
+use crate::{parse_utils, Required, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -16,8 +16,6 @@ use super::{property::Property, ContentTypeResolver};
 ///
 /// Supported configuration options:
 ///   * **content** Request body content object type. Can also be array e.g. `content = [String]`.
-///   * **required** Defines is request body mandatory. Supports also short form e.g. `required`
-///     without the `= bool` suffix.
 ///   * **content_type** Defines the actual content mime type of a request body such as `application/json`.
 ///     If not provided really rough guess logic is used. Basically all primitive types are treated as `text/plain`
 ///     and Object types are expected to be `application/json` by default.
@@ -28,16 +26,8 @@ use super::{property::Property, ContentTypeResolver};
 /// to be xml.
 /// ```text
 /// #[utoipa::path(
-///    request_body = (content = String, required = true, description = "foobar", content_type = "text/xml"),
+///    request_body = (content = String, description = "foobar", content_type = "text/xml"),
 /// )]
-///
-///  ```
-///  The `required` attribute could be rewritten like so without the `= bool` suffix.
-///```text
-/// #[utoipa::path(
-///    request_body = (content = String, required, description = "foobar", content_type = "text/xml"),
-/// )]
-/// ```
 ///
 /// It is also possible to provide the request body type simply by providing only the content object type.
 /// ```text
@@ -52,12 +42,18 @@ use super::{property::Property, ContentTypeResolver};
 ///    request_body = [Foo],
 /// )]
 /// ```
+///
+/// To define optional request body just wrap the type in `Option<type>`.
+/// ```text
+/// #[utoipa::path(
+///    request_body = Option<[Foo]>,
+/// )]
+/// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr {
-    content: Option<MediaType>,
+    content: Option<Type>,
     content_type: Option<String>,
-    required: Option<bool>,
     description: Option<String>,
 }
 
@@ -79,7 +75,7 @@ impl Parse for RequestBodyAttr {
                 match name {
                     "content" => {
                         request_body_attr.content = Some(parse_utils::parse_next(&group, || {
-                            group.parse::<MediaType>().unwrap()
+                            group.parse::<Type>().unwrap()
                         }));
                     }
                     "content_type" => {
@@ -87,9 +83,6 @@ impl Parse for RequestBodyAttr {
                             &group,
                             "unparseable content_type, expected literal string",
                         ))
-                    }
-                    "required" => {
-                        request_body_attr.required = Some(parse_utils::parse_bool_or_true(&group));
                     }
                     "description" => {
                         request_body_attr.description = Some(parse_utils::parse_next_lit_str(
@@ -101,7 +94,7 @@ impl Parse for RequestBodyAttr {
                         return Err(Error::new(
                             ident.span(),
                             format!(
-                                "unexpected identifer: {}, expected any of: content, content_type, required, description",
+                                "unexpected identifer: {}, expected any of: content, content_type, description",
                                 &name
                             ),
                         ))
@@ -122,7 +115,6 @@ impl Parse for RequestBodyAttr {
                 content: Some(input.parse().unwrap()),
                 content_type: None,
                 description: None,
-                required: None,
             })
         } else {
             Err(lookahead.error())
@@ -139,18 +131,13 @@ impl ToTokens for RequestBodyAttr {
 
             let content_type =
                 self.resolve_content_type(self.content_type.as_ref(), &property.component_type);
+            let required: Required = (!body_type.is_option).into();
 
             tokens.extend(quote! {
                 utoipa::openapi::request_body::RequestBody::new()
                     .with_content(#content_type, #property)
+                    .with_required(#required)
             });
-        }
-
-        if let Some(required) = self.required {
-            let required: Required = required.into();
-            tokens.extend(quote! {
-                .with_required(#required)
-            })
         }
 
         if let Some(ref description) = self.description {
