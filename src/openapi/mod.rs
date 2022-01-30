@@ -85,10 +85,12 @@ impl OpenApi {
         self
     }
 
+    #[cfg(feature = "serde_json")]
     pub fn to_json(&self) -> Result<String, Error> {
         serde_json::to_string(self).map_err(Error::Serde)
     }
 
+    #[cfg(feature = "serde_json")]
     pub fn to_pretty_json(&self) -> Result<String, Error> {
         serde_json::to_string_pretty(self).map_err(Error::Serde)
     }
@@ -172,6 +174,7 @@ impl Default for Required {
 }
 
 #[cfg(test)]
+#[cfg(feature = "serde_json")]
 mod tests {
 
     use crate::{error::Error, openapi::licence::Licence};
