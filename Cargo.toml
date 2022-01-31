@@ -16,6 +16,7 @@ exclude = [
 ]
 
 [features]
+default = ["json"]
 swagger_ui = ["rust-embed", "mime_guess"]
 debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]

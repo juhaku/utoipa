@@ -27,9 +27,9 @@ jobs:
     
     - name: Run tests
       run: |
-        cargo test --features json
-        cargo test --test path_response_derive_test_no_serde_json
-        cargo test --test component_derive_no_serde_json
+        cargo test
+        cargo test --test path_response_derive_test_no_serde_json --no-default-features
+        cargo test --test component_derive_no_serde_json --no-default-features
 
   test-with-actix:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-actix
     
     - name: Run tests
-      run: cargo test --features actix-web,actix_extras,json
+      run: cargo test --features actix-web,actix_extras
 
 # TODO add release jobs
   # release:
