@@ -1,10 +1,11 @@
+#![cfg(feature = "serde_json")]
 mod common;
 
 macro_rules! test_fn {
-    ( module: $name:ident, responses: $responses:expr ) => {
+    ( module: $name:ident, responses: $($responses:tt)* ) => {
         #[allow(unused)]
         mod $name {
-            #[utoipa::path(get,path = "/foo",responses = $responses)]
+            #[utoipa::path(get,path = "/foo",responses = $($responses)*)]
             fn get_foo() {}
         }
     };
@@ -81,7 +82,8 @@ macro_rules! test_response_types {
                         (status = 200, description = "success",
                             $(body = $expected ,)*
                             $(content_type = $content_type,)*
-                            $(headers = $headers)*),
+                            $(headers = $headers, )*
+                        ),
                     ]
                 }
             }
@@ -172,4 +174,23 @@ response_no_body_with_complex_header_with_description => headers: [
     "responses.200.headers.random-digits.schema.type" = r###""array""###, "random-digits header type"
     "responses.200.headers.random-digits.schema.items.type" = r###""integer""###, "random-digits header items type"
     "responses.200.headers.random-digits.schema.items.format" = r###""int64""###, "random-digits header items format"
+}
+
+test_fn! {
+    module: response_with_json_example,
+    responses: [
+        (status = 200, description = "success", body = Foo, example = json!({"foo": "bar"}))
+    ]
+}
+
+#[test]
+fn derive_response_with_json_example_success() {
+    let doc = api_doc!(module: response_with_json_example);
+
+    assert_value! {doc=>
+        "responses.200.description" = r#""success""#, "Response description"
+        "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
+        "responses.200.content.application/json.example" = r###"{"foo":"bar"}"###, "Response content example"
+        "responses.200.headers" = r#"null"#, "Response headers"
+    }
 }

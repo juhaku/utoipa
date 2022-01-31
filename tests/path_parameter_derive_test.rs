@@ -1,4 +1,5 @@
 #![cfg(not(feature = "actix_extras"))]
+#![cfg(feature = "serde_json")]
 
 use utoipa::OpenApi;
 

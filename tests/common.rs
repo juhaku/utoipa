@@ -1,3 +1,4 @@
+#![cfg(feature = "serde_json")]
 use serde_json::Value;
 
 pub fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {

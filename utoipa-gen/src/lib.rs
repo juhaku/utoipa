@@ -258,10 +258,31 @@ impl Parse for Type {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum Example {
+    String(TokenStream2),
+    Json(TokenStream2),
+}
+
+impl ToTokens for Example {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self {
+            Self::Json(json) => tokens.extend(quote! {
+                serde_json::json!(#json)
+            }),
+            Self::String(string) => tokens.extend(string.to_owned()),
+        }
+    }
+}
+
 /// Parsing utils
 mod parse_utils {
-    use proc_macro_error::ResultExt;
-    use syn::{parse::ParseStream, LitBool, LitStr, Token};
+    use proc_macro2::{Group, Ident, TokenStream};
+    use proc_macro_error::{abort, ResultExt};
+    use quote::ToTokens;
+    use syn::{parse::ParseStream, Error, LitBool, LitStr, Token};
+
+    use crate::Example;
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
@@ -287,5 +308,43 @@ mod parse_utils {
         } else {
             true
         }
+    }
+
+    pub fn parse_json_token_stream(input: ParseStream) -> Result<TokenStream, Error> {
+        if input.peek(syn::Ident) && input.peek2(Token![!]) {
+            input.parse::<Ident>().unwrap();
+            input.parse::<Token![!]>().unwrap();
+
+            Ok(input.parse::<Group>()?.stream())
+        } else {
+            Err(Error::new(
+                input.span(),
+                "unexpected token, expected json!(...)",
+            ))
+        }
+    }
+
+    fn parse_next_lit_str_or_json(input: ParseStream, abort_op: impl FnOnce(&Error)) -> Example {
+        if input.peek2(LitStr) {
+            Example::String(parse_next(input, || {
+                input.parse::<LitStr>().unwrap().to_token_stream()
+            }))
+        } else {
+            Example::Json(parse_next(input, || {
+                parse_json_token_stream(input).unwrap_or_else(|error| {
+                    abort_op(&error);
+                    // hacky way to tell rust that we are having a "never" type here
+                    unreachable!("oops! unreachable code we should have aborted here");
+                })
+            }))
+        }
+    }
+
+    pub(crate) fn parse_next_lit_str_or_json_example(input: ParseStream, ident: &Ident) -> Example {
+        parse_next_lit_str_or_json(input, |error| {
+            abort! {ident, "unparseable example, expected json!(), {}", error;
+            help = r#"Try defining example = json!({{"key": "value"}})"#;
+            }
+        })
     }
 }

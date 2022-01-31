@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "serde_json")]
 use serde_json::Value;
 
 use super::Deprecated;
@@ -33,6 +34,7 @@ impl Schema {
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Component {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -52,6 +54,7 @@ pub struct Component {
 }
 
 #[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OneOf {
     items: Vec<Component>,
 }
@@ -86,6 +89,7 @@ impl From<OneOf> for Component {
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Property {
     #[serde(rename = "type")]
@@ -98,13 +102,23 @@ pub struct Property {
     description: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
     default: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    default: Option<String>,
 
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     enum_values: Option<Vec<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    example: Option<Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     deprecated: Option<Deprecated>,
@@ -136,8 +150,16 @@ impl Property {
         self
     }
 
+    #[cfg(feature = "serde_json")]
     pub fn with_default(mut self, default: Value) -> Self {
         self.default = Some(default);
+
+        self
+    }
+
+    #[cfg(not(feature = "serde_json"))]
+    pub fn with_default<I: Into<String>>(mut self, default: I) -> Self {
+        self.default = Some(default.into());
 
         self
     }
@@ -153,8 +175,16 @@ impl Property {
         self
     }
 
-    pub fn with_example<S: AsRef<str>>(mut self, example: S) -> Self {
-        self.example = Some(example.as_ref().to_string());
+    #[cfg(not(feature = "serde_json"))]
+    pub fn with_example<I: Into<String>>(mut self, example: I) -> Self {
+        self.example = Some(example.into());
+
+        self
+    }
+
+    #[cfg(feature = "serde_json")]
+    pub fn with_example(mut self, example: Value) -> Self {
+        self.example = Some(example);
 
         self
     }
@@ -191,6 +221,7 @@ impl ToArray for Property {}
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
     #[serde(rename = "type")]
@@ -209,7 +240,12 @@ pub struct Object {
     deprecated: Option<Deprecated>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
     example: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    example: Option<String>,
 }
 
 impl Object {
@@ -248,8 +284,16 @@ impl Object {
         self
     }
 
+    #[cfg(feature = "serde_json")]
     pub fn with_example(mut self, example: Value) -> Self {
         self.example = Some(example);
+
+        self
+    }
+
+    #[cfg(not(feature = "serde_json"))]
+    pub fn with_example<I: Into<String>>(mut self, example: I) -> Self {
+        self.example = Some(example.into());
 
         self
     }
@@ -268,6 +312,7 @@ impl ToArray for Object {}
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Ref {
     #[serde(rename = "$ref")]
     ref_location: String,
@@ -298,6 +343,7 @@ impl ToArray for Ref {}
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Array {
     #[serde(rename = "type")]
@@ -356,6 +402,7 @@ where
 }
 
 #[derive(Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ComponentType {
     Object,
     String,
@@ -388,6 +435,7 @@ impl Serialize for ComponentType {
 }
 
 #[derive(Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ComponentFormat {
     Int32,
     Int64,
@@ -421,12 +469,14 @@ impl Serialize for ComponentFormat {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "serde_json")]
     use serde_json::{json, Value};
 
     use super::*;
     use crate::openapi::*;
 
     #[test]
+    #[cfg(feature = "serde_json")]
     fn create_schema_serializes_json() -> Result<(), Error> {
         let openapi = OpenApi::new(Info::new("My api", "1.0.0"), Paths::new()).with_components(
             Schema::new()
@@ -526,6 +576,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "serde_json")]
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
         let json_value = Object::new().with_example(json!({"age": 20, "name": "bob the cat"}));
@@ -538,6 +589,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "serde_json")]
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
         path.split('.').into_iter().fold(value, |acc, fragment| {
             acc.get(fragment).unwrap_or(&serde_json::value::Value::Null)

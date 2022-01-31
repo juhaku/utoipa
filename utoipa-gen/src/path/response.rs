@@ -5,7 +5,7 @@ use syn::{
     bracketed, parse::Parse, punctuated::Punctuated, token::Comma, Error, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, Type};
+use crate::{parse_utils, Example, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -69,6 +69,7 @@ pub struct Response {
     response_type: Option<Type>,
     content_type: Option<String>,
     headers: Vec<Header>,
+    example: Option<Example>,
 }
 
 impl Parse for Response {
@@ -121,6 +122,11 @@ impl Parse for Response {
                         .map(|group| syn::parse2::<Header>(group.stream()).unwrap_or_abort())
                         .collect::<Vec<_>>();
                 }
+                "example" => {
+                    response.example = Some(parse_utils::parse_next_lit_str_or_json_example(
+                        input, &ident,
+                    ));
+                }
                 _ => {
                     let error_msg = format!(
                         "unexpected identifer: {}, expected any of: status, description, body, content_type, headers",
@@ -169,8 +175,17 @@ impl ToTokens for Responses<'_> {
                     &component.component_type,
                 );
 
+                let mut content = quote! {
+                    utoipa::openapi::Content::new(#component)
+                };
+                if let Some(ref example) = response.example {
+                    content.extend(quote! {
+                        .with_example(#example)
+                    })
+                }
+
                 response_tokens.extend(quote! {
-                    .with_content(#content_type, #component)
+                    .with_content(#content_type, #content)
                 })
             }
 

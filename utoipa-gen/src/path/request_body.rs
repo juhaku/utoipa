@@ -135,7 +135,7 @@ impl ToTokens for RequestBodyAttr {
 
             tokens.extend(quote! {
                 utoipa::openapi::request_body::RequestBody::new()
-                    .with_content(#content_type, #property)
+                    .with_content(#content_type, utoipa::openapi::Content::new(#property))
                     .with_required(#required)
             });
         }

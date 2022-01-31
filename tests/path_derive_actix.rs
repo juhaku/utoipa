@@ -1,4 +1,5 @@
 #![cfg(feature = "actix_extras")]
+#![cfg(feature = "serde_json")]
 
 use serde_json::Value;
 use utoipa::OpenApi;

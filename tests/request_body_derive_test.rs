@@ -1,3 +1,4 @@
+#![cfg(feature = "serde_json")]
 use utoipa::OpenApi;
 
 mod common;

@@ -1,3 +1,4 @@
+#![cfg(feature = "serde_json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, vec};
 
 use serde_json::Value;
@@ -168,7 +169,7 @@ fn derive_struct_with_optional_properties_success() {
         "type" = r#""object""#, "Owner type"
         "properties.id.type" = r#""integer""#, "Owner id type"
         "properties.id.format" = r#""int64""#, "Owner id format"
-        "properties.id.default" = r#""1""#, "Owner id default"
+        "properties.id.default" = r#"1"#, "Owner id default"
         "properties.enabled.type" = r#""boolean""#, "Owner enabled"
         "properties.books.type" = r#""array""#, "Owner books"
         "properties.books.items.$ref" = r###""#/components/schemas/Book""###, "Owner books items ref"
@@ -391,7 +392,7 @@ fn derive_unnamed_struct_deprecated_success() {
 
     assert_value! {pet_age=>
         "deprecated" = r#"true"#, "PetAge deprecated"
-        "example" = r#""8""#, "PetAge example"
+        "example" = r#"8"#, "PetAge example"
     }
 }
 

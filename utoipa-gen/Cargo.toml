@@ -20,3 +20,4 @@ lazy_static = { version = "1.4.0", optional = true }
 [features]
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static"]
+json = []

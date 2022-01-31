@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use super::{header::Header, Component, Content};
+use super::{header::Header, Content};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -45,15 +45,9 @@ impl Response {
         }
     }
 
-    pub fn with_content<C: Into<Component>, S: AsRef<str>>(
-        mut self,
-        content_type: S,
-        component: C,
-    ) -> Self {
-        self.content.insert(
-            content_type.as_ref().to_string(),
-            Content::new(component.into()),
-        );
+    pub fn with_content<S: AsRef<str>>(mut self, content_type: S, content: Content) -> Self {
+        self.content
+            .insert(content_type.as_ref().to_string(), content);
 
         self
     }

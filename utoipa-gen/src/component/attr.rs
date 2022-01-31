@@ -1,12 +1,12 @@
-use proc_macro2::{Group, Ident, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseBuffer},
     Attribute, Error, ExprPath, Lit, Token,
 };
 
-use crate::parse_utils;
+use crate::{parse_utils, Example};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentAttr<T>
@@ -29,25 +29,25 @@ where
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Enum {
     default: Option<TokenStream>,
-    example: Option<String>,
+    example: Option<TokenStream>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Struct {
-    example: Option<TokenStream>,
+    example: Option<Example>,
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
     default: Option<TokenStream>,
-    example: Option<String>,
+    example: Option<TokenStream>,
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
-    example: Option<String>,
+    example: Option<TokenStream>,
     format: Option<ExprPath>,
     default: Option<TokenStream>,
     write_only: Option<bool>,
@@ -67,12 +67,12 @@ impl Parse for ComponentAttr<Enum> {
             match name {
                 "default" => {
                     enum_attr.default = Some(parse_utils::parse_next(input, || {
-                        parse_default_as_token_stream(input, name)
+                        parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "example" => {
                     enum_attr.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_as_string(input, name, "unparseable example, expected literal")
+                        parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 _ => {
@@ -107,25 +107,11 @@ impl Parse for ComponentAttr<Struct> {
 
         match name {
             "example" => {
-                let tokens = parse_utils::parse_next(input, || {
-                    if input.peek(syn::Ident) && input.peek2(Token![!]) {
-                        input.parse::<Ident>().unwrap();
-                        input.parse::<Token![!]>().unwrap();
-
-                        Ok(input
-                            .parse::<Group>()
-                            .expect_or_abort("unparseable example, expected parenthesis"))
-                    } else {
-                        Err(Error::new(
-                            ident.span(),
-                            "unexpected example, expected json!(...)",
-                        ))
-                    }
-                })?;
+                let example = parse_utils::parse_next_lit_str_or_json_example(input, &ident);
 
                 Ok(Self {
                     inner: Struct {
-                        example: Some(tokens.stream()),
+                        example: Some(example),
                     },
                 })
             }
@@ -150,16 +136,12 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
             match name {
                 "default" => {
                     unnamed_struct.default = Some(parse_utils::parse_next(input, || {
-                        parse_default_as_token_stream(input, name)
+                        parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "example" => {
                     unnamed_struct.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_as_string(
-                            input,
-                            name,
-                            "unparseable example, expected literal string",
-                        )
+                        parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 _ => {
@@ -201,7 +183,7 @@ impl Parse for ComponentAttr<NamedField> {
             match name {
                 "example" => {
                     field.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_as_string(input, name, "unparseable example, expected literal")
+                        parse_lit_or_fn_ref_as_token_stream(input, name)
                     }));
                 }
                 "format" => {
@@ -220,7 +202,7 @@ impl Parse for ComponentAttr<NamedField> {
                 }
                 "default" => {
                     field.default = Some(parse_utils::parse_next(input, || {
-                        parse_default_as_token_stream(input, name)
+                        parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)),
@@ -248,47 +230,45 @@ impl Parse for ComponentAttr<NamedField> {
     }
 }
 
-fn parse_lit_as_string(input: &ParseBuffer, field: &str, error_msg: &str) -> String {
-    let lit = &input.parse::<Lit>().expect_or_abort(error_msg);
-    match lit {
-        Lit::Bool(bool) => bool.value().to_string(),
-        Lit::Byte(byte) => byte.value().to_string(),
-        Lit::ByteStr(byte_str) => String::from_utf8(byte_str.value()).unwrap_or_else(|_| {
-            abort!(
-                input.span(),
-                format!("unparseable utf8 content in: {}", &field)
-            )
-        }),
-        Lit::Char(char) => char.value().to_string(),
-        Lit::Float(float) => float.base10_digits().to_string(),
-        Lit::Int(int) => int.base10_digits().to_string(),
-        Lit::Str(str) => str.value(),
-        Lit::Verbatim(_) => {
-            abort!(
-                input.span(),
-                format!("unparseable literal in field: {}", &field)
-            )
-        }
-    }
-}
-
-fn parse_default_as_token_stream(input: &ParseBuffer, name: &str) -> TokenStream {
+fn parse_lit_or_fn_ref_as_token_stream(input: &ParseBuffer, name: &str) -> TokenStream {
     if input.peek(Lit) {
-        let literal = parse_lit_as_string(
-            input,
-            name,
-            &format!("unparseable {}, expected literal", name),
-        );
-        quote_spanned! {input.span()=>
-            #literal
+        let literal = input.parse::<Lit>().unwrap();
+
+        #[cfg(feature = "json")]
+        {
+            quote! {
+                serde_json::json!(#literal)
+            }
+        }
+
+        #[cfg(not(feature = "json"))]
+        {
+            quote! {
+                format!("{}", #literal)
+            }
         }
     } else {
-        let method = input.parse::<ExprPath>().expect_or_abort(&format!(
-            "unparseable {}, expected literal or expresssion path",
-            name
-        ));
-        quote_spanned! {input.span()=>
-            #method()
+        let method = input.parse::<ExprPath>().unwrap_or_else(|error| {
+            let message = &format!("unparseable {}, expected literal or expresssion path", name);
+            abort! {
+                error.span(), message;
+                help = "Try to define {} = value", name;
+                help = r#"You should define either literal value e.g. {} = 1 or {} = "value""#, name, name;
+                help = r#"You can also use function reference e.g {} = String::default"#, name
+            }
+        });
+
+        #[cfg(feature = "json")]
+        {
+            quote! {
+                serde_json::json!(#method())
+            }
+        }
+        #[cfg(not(feature = "json"))]
+        {
+            quote! {
+                format!("{}", #method())
+            }
         }
     }
 }
@@ -313,7 +293,7 @@ impl ToTokens for Enum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(serde_json::json!(#default))
+                .with_default(#default)
             })
         }
 
@@ -329,7 +309,7 @@ impl ToTokens for Struct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
-                .with_example(serde_json::json!(#example))
+                .with_example(#example)
             })
         }
     }
@@ -339,7 +319,7 @@ impl ToTokens for UnnamedFieldStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(serde_json::json!(#default))
+                .with_default(#default)
             })
         }
 
@@ -355,7 +335,7 @@ impl ToTokens for NamedField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(serde_json::json!(#default))
+                .with_default(#default)
             })
         }
 
