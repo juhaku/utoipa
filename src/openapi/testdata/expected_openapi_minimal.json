@@ -3,7 +3,7 @@
   "info": {
     "title": "My api",
     "description": "My api description",
-    "licence": {
+    "license": {
       "name": "MIT",
       "url": "http://mit.licence"
     },

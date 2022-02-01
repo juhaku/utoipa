@@ -10,7 +10,7 @@ pub use self::{
     external_docs::ExternalDocs,
     header::Header,
     info::Info,
-    licence::Licence,
+    licence::License,
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
     schema::{
@@ -177,7 +177,7 @@ impl Default for Required {
 #[cfg(feature = "serde_json")]
 mod tests {
 
-    use crate::{error::Error, openapi::licence::Licence};
+    use crate::{error::Error, openapi::licence::License};
 
     use super::{path::Operation, response::Response, *};
 
@@ -196,7 +196,7 @@ mod tests {
         let openapi = OpenApi::new(
             Info::new("My api", "1.0.0")
                 .with_description("My api description")
-                .with_licence(Licence::new("MIT").with_url("http://mit.licence")),
+                .with_license(License::new("MIT").with_url("http://mit.licence")),
             Paths::new(),
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;

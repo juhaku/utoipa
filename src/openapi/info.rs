@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{contact::Contact, licence::Licence};
+use super::{contact::Contact, licence::License};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -18,7 +18,7 @@ pub struct Info {
     pub contact: Option<Contact>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub licence: Option<Licence>,
+    pub license: Option<License>,
 
     pub version: String,
 }
@@ -50,8 +50,8 @@ impl Info {
         self
     }
 
-    pub fn with_licence(mut self, licence: Licence) -> Self {
-        self.licence = Some(licence);
+    pub fn with_license(mut self, license: License) -> Self {
+        self.license = Some(license);
 
         self
     }

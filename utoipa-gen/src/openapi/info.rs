@@ -13,7 +13,7 @@ pub(crate) fn impl_info() -> TokenStream2 {
     quote! {
         utoipa::openapi::Info::new(#name, #version)
             .with_description(#description)
-            .with_licence(utoipa::openapi::Licence::new(#licence))
+            .with_license(utoipa::openapi::License::new(#licence))
             .with_contact(#contact)
     }
 }
