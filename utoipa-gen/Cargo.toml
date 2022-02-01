@@ -10,12 +10,12 @@ repository = "https://github.com/juhaku/utoipa"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.32"
-syn = { version = "1.0.81", features = ["full"] }
-quote = "1.0.10"
-proc-macro-error = "1.0.4"
-regex = { version = "1.5.4", optional = true } 
-lazy_static = { version = "1.4.0", optional = true }
+proc-macro2 = "1.0"
+syn = { version = "1.0", features = ["full"] }
+quote = "1.0"
+proc-macro-error = "1.0"
+regex = { version = "1.5", optional = true } 
+lazy_static = { version = "1.4", optional = true }
 
 [features]
 debug = ["syn/extra-traits"]
