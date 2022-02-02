@@ -2,8 +2,6 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::error::Error;
-
 pub use self::{
     contact::Contact,
     content::Content,
@@ -86,13 +84,13 @@ impl OpenApi {
     }
 
     #[cfg(feature = "serde_json")]
-    pub fn to_json(&self) -> Result<String, Error> {
-        serde_json::to_string(self).map_err(Error::Serde)
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
     }
 
     #[cfg(feature = "serde_json")]
-    pub fn to_pretty_json(&self) -> Result<String, Error> {
-        serde_json::to_string_pretty(self).map_err(Error::Serde)
+    pub fn to_pretty_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
     }
 }
 
@@ -176,22 +174,18 @@ impl Default for Required {
 #[cfg(test)]
 #[cfg(feature = "serde_json")]
 mod tests {
-
-    use crate::{error::Error, openapi::licence::License};
+    use crate::openapi::licence::License;
 
     use super::{path::Operation, response::Response, *};
 
     #[test]
-    fn serialize_deserialize_openapi_version_success() -> Result<(), Error> {
-        assert_eq!(
-            serde_json::to_value(&OpenApiVersion::Version3).map_err(Error::Serde)?,
-            "3.0.3"
-        );
+    fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3)?, "3.0.3");
         Ok(())
     }
 
     #[test]
-    fn serialize_openapi_json_minimal_success() -> Result<(), Error> {
+    fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
         let raw_json = include_str!("testdata/expected_openapi_minimal.json");
         let openapi = OpenApi::new(
             Info::new("My api", "1.0.0")
@@ -210,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn serialize_openapi_json_with_paths_success() -> Result<(), Error> {
+    fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
         let openapi = OpenApi::new(
             Info::new("My big api", "1.1.0"),
             Paths::new()

@@ -477,7 +477,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "serde_json")]
-    fn create_schema_serializes_json() -> Result<(), Error> {
+    fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
         let openapi = OpenApi::new(Info::new("My api", "1.0.0"), Paths::new()).with_components(
             Schema::new()
                 .with_component("Person", Ref::new("#/components/PersonModel"))

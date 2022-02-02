@@ -32,7 +32,102 @@ use crate::path::{Path, PathAttr, PathOperation};
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
-/// Component dervice
+/// Component dervice macro
+///
+/// This is `#[derive]` implementation for [`Component`][c] trait. The macro accepts one `component`
+/// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
+/// at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
+/// not have any effect.
+///
+/// # Struct Optional Configuration Options
+/// * **example** Can be either `json!(...)` or literal string that can be parsed to json. `json!`
+///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+///  
+/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
+///
+/// # Enum & Unnamed Field Struct Optional Configuration Options
+/// * **example** Can be method reference or literal value. [^json2]
+/// * **default** Can be method reference or literal value. [^json2]
+///
+/// # Named Fields Optional Configuration Options
+/// * **example** Can be method reference or literal value. [^json2]
+/// * **default** Can be method reference or literal value. [^json2]
+/// * **format**  [`ComponentFormat`][format] to use for the property. By default the format is derived from
+///   the type of the property according OpenApi spec.
+/// * **write_only** Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+/// * **read_only** Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+///
+/// [^json2]: Values are converted to string if **json** feature is not enabled.
+///
+/// # Examples
+///
+/// Example struct with struct level example.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// #[component(example = json!({"name": "bob the cat", "id": 0}))]
+/// struct Pet {
+///     id: u64,
+///     name: String,
+///     age: Option<i32>,
+/// }
+/// ```
+///
+/// The `component` attribute can also be placed at field level as follows.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// struct Pet {
+///     #[component(example = 1, default = 0))]
+///     id: u64,
+///     name: String,
+///     age: Option<i32>,
+/// }
+/// ```
+///
+/// You can also use method reference for attribute values.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// struct Pet {
+///     #[component(example = u64::default, default = u64::default))]
+///     id: u64,
+///     #[component(default = default_name)]
+///     name: String,
+///     age: Option<i32>,
+/// }
+///
+/// fn default_name() -> String {
+///     "bob".to_string()
+/// }
+/// ```
+///
+/// For enums and unnamed field structs you can define `component` at type level.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// #[component(example = "Bus")]
+/// enum VechileType {
+///     Rocket, Car, Bus, Submarine
+/// }
+/// ```
+///
+/// Also you write complex enum combining all above types.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// enum ErrorResponse {
+///     InvalidCredentials,
+///     #[component(default = String::default, example = "Pet not found")]
+///     NotFound(String),
+///     System {
+///         #[component(example = "Unknown system failure")]
+///         details: String,
+///     }
+/// }
+/// ```
+/// [c]: trait.Component.html
+/// [format]: schema/enum.ComponentFormat.html
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -88,7 +183,63 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(OpenApi, attributes(openapi))]
-/// Derive OpenApi macro
+/// OpenApi derive macro
+///
+/// This is `#[derive]` implementation for [OpenApi][openapi] trait. The macro accepts one `openapi` argument.
+///
+/// **Accepted `openapi` argument attributes**
+///
+/// * **handlers**  List of method references having attribute [`#[utoipa::path]`][path] macro.
+/// * **components**  List of [Component][component]s in OpenAPI schema.
+///
+/// OpenApi derive macro will also derive [Info][info] for OpenApi specification using Cargo
+/// environment variables.
+///
+/// * env `CARGO_PKG_NAME` map to info `title`
+/// * env `CARGO_PKG_VERSION` map to info `version`
+/// * env `CARGO_PKG_DESCRIPTION` map info `description`
+/// * env `CARGO_PKG_AUTHORS` map to contact `name` and `email` **only first author will be used**
+/// * env `CARGO_PKG_LICENSE` map to info `licence`
+///
+/// # Examples
+///
+/// Define OpenApi schema with some paths and components.
+/// ```rust
+/// # use utoipa::{OpenApi, Component};
+/// #
+/// #[derive(Component)]
+/// struct Pet {
+///     name: String,
+///     age: i32,
+/// }
+///
+/// #[derive(Component)]
+/// enum Status {
+///     Active, InActive, Locked,
+/// }
+///
+/// #[utoipa::path(get, path = "/pet")]
+/// fn get_pet() - Pet {
+///     Pet {
+///         name: "bob".to_string(),
+///         age: 8,
+///     }
+/// }
+///
+/// #[utoipa::path(get, path = "/status")]
+/// fn get_status() - Status {
+///     Status::Active
+/// }
+///
+/// #[derive(OpenApi)]
+/// #[openapi(handlers = [get_pet, get_status], components = [Pet, Status])]
+/// struct ApiDoc;
+/// ```
+///
+/// [openapi]: trait.OpenApi.html
+/// [component]: derive.Component.html
+/// [path]: attr.path.html
+/// [info]: openapi/info/struct.Info.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
