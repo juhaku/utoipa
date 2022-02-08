@@ -72,7 +72,7 @@
 //!         path = "/pets/{id}"
 //!         responses = [
 //!             (status = 200, description = "Pet found succesfully", body = Pet),
-//!             (status = 404, description = "Pet was not found", body = NotFoundError)
+//!             (status = 404, description = "Pet was not found")
 //!         ],
 //!         params = [
 //!             ("id" = u64, path, description = "Pet database id to get Pet for"),
