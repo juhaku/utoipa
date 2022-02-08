@@ -5,6 +5,7 @@ use rust_embed::RustEmbed;
 
 use crate::openapi::OpenApi;
 
+#[doc(hidden)]
 #[derive(RustEmbed)]
 #[folder = "target/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
 pub struct SwaggerUiDist;
@@ -122,8 +123,6 @@ async fn serve_swagger_ui(
     web::Path(mut part): web::Path<String>,
     data: web::Data<Vec<Url<'_>>>,
 ) -> HttpResponse {
-    use crate::error::Error;
-
     log::debug!("Get swagger resource: {}", &part);
 
     if part.is_empty() || part == "/" {
@@ -134,7 +133,7 @@ async fn serve_swagger_ui(
         let mut bytes = file.data.into_owned();
 
         if part == "index.html" {
-            let mut index = match String::from_utf8(bytes.to_vec()).map_err(Error::FromUtf8) {
+            let mut index = match String::from_utf8(bytes.to_vec()) {
                 Ok(index) => index,
                 Err(error) => return HttpResponse::InternalServerError().body(error.to_string()),
             };

@@ -38,3 +38,6 @@ paste = "1.0.6"
 members = [
   "utoipa-gen"
 ]
+
+[package.metadata.docs.rs]
+features = ["swagger_ui", "json", "actix-web", "actix_extras"]

@@ -122,7 +122,6 @@ struct NamedStructComponent<'a> {
 impl ToTokens for NamedStructComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         tokens.extend(quote! { utoipa::openapi::Object::new() });
-
         self.fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
 
