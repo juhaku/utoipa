@@ -21,12 +21,12 @@ Rust if autogeneration is not your flavor or does not fit your purpose.
 Long term goal of the library is to be the place to go when OpenAPI documentation is needed in Rust
 codebase.
 
-# What's up with the word play?
+## What's up with the word play?
 
 The name comes from words `utopic` and `api` where `uto` is the first three letters of utopic
 and the `ipa` is api reversed.
 
-# Features
+## Features
 
 * **default** Default enabled features are **json**.
 * **json** Enables some advanced features for openapi which otherwise are not available. Thus is
@@ -38,7 +38,7 @@ and the `ipa` is api reversed.
   from actix web macro attributes and types.
 * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 
-# Install
+## Install
 
 Add minimal dependency declaration to Cargo.toml.
 ```
