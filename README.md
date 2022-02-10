@@ -29,7 +29,7 @@ and the `ipa` is api reversed.
 ## Features
 
 * **default** Default enabled features are **json**.
-* **json** Enables some advanced features for openapi which otherwise are not available. Thus is
+* **json** Enables **serde_json** what allow to use json values in OpenAPI specification values. Thus is
   enabled by default.
 * **swagger_ui** Enables the embedded Swagger UI to view openapi api documentation.
 * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
@@ -43,14 +43,14 @@ and the `ipa` is api reversed.
 Add minimal dependency declaration to Cargo.toml.
 ```
 [dependencies]
-utoipa = "0.1.beta.0"  
+utoipa = "0.1.0.beta.0"  
 ```
 
 To enable more features such as use of swagger together with actix-web framework you could define the
 dependency as follows.
 ```
 [dependencies]
-utoipa = { version = "0.1.beta.0", features = ["swagger_ui", "actix-web", "actix_extras"] }
+utoipa = { version = "0.1.0.beta.0", features = ["swagger_ui", "actix-web", "actix_extras"] }
 ```
 
 ## Current project status
