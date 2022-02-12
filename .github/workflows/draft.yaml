@@ -1,0 +1,50 @@
+
+name: Draft release
+
+on:
+  push:
+    branches:
+      - ci_tweaking # master
+  pull_request:
+    branches:
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: ./.github/actions/gitlog
+      name: Get changed commits
+      id: gitlog
+
+    - name: Get release info
+      id: release_info
+      run: |
+        version=$(cargo read-manifest | jq -r .version)
+
+        prerelease=false
+        if [[ "$version" =~ .*-.* ]]; then
+          prerelease=true
+        fi
+        echo "::set-output name=is_prerelease::$prerelease"
+        echo "::set-output name=version::$version"
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.release_info.outputs.version }}
+        release_name: Release ${{ steps.release_info.outputs.version }}
+        body: | # TODO get the body from somewhere
+          # Changes in this Release
+          ${{ steps.gitlog.outputs.commits }}
+        draft: true
+        prerelease: ${{ steps.release_info.outputs.is_prerelease }}

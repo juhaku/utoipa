@@ -1,0 +1,17 @@
+name: Git log
+description: "Mangles git log for change log"
+inputs:
+  output-file:
+    description: Optional file path where to place the content of the changed commits
+    required: false
+outputs:
+  commits:
+    description: Changed commits since last release tag
+    value: ${{ steps.gitlog.outputs.commits }}
+runs:
+  using: composite
+  steps:
+    - shell: bash 
+      id: gitlog
+      run: |
+        ${{ github.action_path }}/gitlog.sh --output-file ${{ inputs.output-file }}

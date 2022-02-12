@@ -49,9 +49,3 @@ jobs:
     
     - name: Run tests
       run: cargo test --features actix-web,actix_extras
-
-# TODO add release jobs
-  # release:
-  #  needs:
-  #   - test
-  #   - test-with-actix
