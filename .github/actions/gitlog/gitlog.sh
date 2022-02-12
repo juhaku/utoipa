@@ -55,11 +55,9 @@ mapfile -t log_lines < <(git log --pretty=format:'(%p) %s' $ancestry_path $commi
 log=""
 for line in "${log_lines[@]}"; do
   log=$log"* $line\n"
-  # echo "* $line" # >> _release_changes.md
 done
-echo "::set-output name=commits::$(echo -e "$log")"
-# echo -e "$log"
 if [[ "$output_file" != "" ]]; then
   echo -e "$log" > "$output_file"
 fi
-# TODO how to update the CHANGES.md??
+cat "$output_file"
+# echo "::set-output name=commits::$(echo -e "$log")"
