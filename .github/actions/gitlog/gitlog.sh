@@ -4,6 +4,20 @@
 
 from_commit=HEAD
 last_release=$(git tag --sort=-taggerdate | head -1) # get last tag
+# tags=()
+# tags=($(git tag | xargs))
+# mapfile -t tags < <(git tag)
+
+# for tag in "${tags[@]}"; do
+#   echo "tag $tag"
+# done
+
+# function has_tags {
+#   [[ ${#tags[@]} -gt 0 ]] && echo true || echo false
+# }
+
+# echo ${#tags[@]} -gt 0
+# echo $(has_tags) "--" ${#tags[@]}
 
 output_file=""
 while true; do
@@ -22,10 +36,6 @@ while true; do
   esac
 done
 
-if [[ "$output_file" == "" ]]; then
-  echo "Missing output file, did you forget to define --output-file <file>?" && exit 1
-fi
-
 commit_range=""
 if [[ $last_release != "" ]]; then
   commit_range="$from_commit...$last_release"
@@ -42,9 +52,14 @@ fi
 
 mapfile -t log_lines < <(git log --pretty=format:'(%p) %s' $ancestry_path $commit_range)
 
+log=""
 for line in "${log_lines[@]}"; do
-  log=$log"* $line"
-  echo "$log" >> "$output_file"
+  log=$log"* $line\n"
+  # echo "* $line" # >> _release_changes.md
 done
-
-cat < "$output_file"
+echo "::set-output name=commits::$(echo -e "$log")"
+# echo -e "$log"
+if [[ "$output_file" != "" ]]; then
+  echo -e "$log" > "$output_file"
+fi
+# TODO how to update the CHANGES.md??
