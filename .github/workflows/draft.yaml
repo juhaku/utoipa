@@ -4,7 +4,7 @@ name: Draft release
 on:
   push:
     branches:
-      - ci_tweaking # master
+      - ci-tweaking # master
   pull_request:
     branches:
       - master
