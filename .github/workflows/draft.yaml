@@ -22,6 +22,13 @@ jobs:
     - uses: ./.github/actions/gitlog
       name: Get changed commits
       id: gitlog
+      with:
+        output-file: ./draft-gitlog.md
+      
+    - name: Prepare changes
+      run: |
+        echo "# Changeds in this Release" > ./draft-changes.md
+        cat < ./draft-gitlog.md >> ./draft-changes.md
 
     - name: Get release info
       id: release_info
@@ -43,8 +50,6 @@ jobs:
       with:
         tag_name: ${{ steps.release_info.outputs.version }}
         release_name: Release ${{ steps.release_info.outputs.version }}
-        body: | # TODO get the body from somewhere
-          # Changes in this Release
-          ${{ steps.gitlog.outputs.commits }}
+        body_path: ./draft-changes.md
         draft: true
         prerelease: ${{ steps.release_info.outputs.is_prerelease }}

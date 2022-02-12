@@ -60,7 +60,7 @@ for line in "${log_lines[@]}"; do
   log=$log"* $line\n"
   # echo "* $line" # >> _release_changes.md
 done
-echo "::set-output name=commits::'$(echo -e "$log")'"
+echo "::set-output name=commits::$(echo -e "$log")"
 # echo -e "$log"
 if [[ "$output_file" != "" ]]; then
   echo -e "$log" > "$output_file"
