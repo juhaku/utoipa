@@ -1,5 +1,5 @@
 name: Git log
-description: "Mangles git log for change log"
+description: Mangles git log for change log
 inputs:
   output-file:
     description: Optional file path where to place the content of the changed commits
