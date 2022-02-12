@@ -44,7 +44,13 @@ if [[ $last_release != "" ]]; then
 else
   commit_range="$from_commit"
 fi
-mapfile -t log_lines < <(git log --pretty=format:'(%p) %s' --ancestry-path "$commit_range")
+
+ancestry_path=""
+if [[ "$last_release" != "" ]]; then
+  ancestry_path="--ancestry-path"
+fi
+
+mapfile -t log_lines < <(git log --pretty=format:'(%p) %s' $ancestry_path $commit_range)
 
 # version="0.0.0" # get this from somewhere from Cargo.toml?
 # echo "# Release v $version" # > _release_changes.md
