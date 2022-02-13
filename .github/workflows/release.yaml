@@ -1,0 +1,68 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+**"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      # with:
+      #   fetch-depth: 0
+
+    # - uses: ./.github/actions/gitlog
+    #   name: Get changed commits
+    #   id: gitlog
+    #   with:
+    #     output-file: ./release-gitlog.md
+
+    # - name: Prepare changes
+    #   run: |
+    #     echo "# Changes in this Release" > ./release-changes.md
+    #     cat < ./release-gitlog.md >> ./release-changes.md
+
+    #     cat ./release-changes.md
+
+    # - name: Get release info
+    #   id: release_info
+    #   run: |
+    #     version=$(cargo read-manifest | jq -r .version)
+
+    #     prerelease=false
+    #     if [[ "$version" =~ .*-.* ]]; then
+    #       prerelease=true
+    #     fi
+    #     echo "::set-output name=is_prerelease::$prerelease"
+    #     echo "::set-output name=version::$version"
+
+    # - name: Create release
+    #   id: create_release
+    #   uses: actions/create-release@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     tag_name: ${{ steps.release_info.outputs.version }}
+    #     release_name: Release ${{ steps.release_info.outputs.version }}
+    #     body_path: ./release-changes.md
+    #     draft: false
+    #     prerelease: ${{ steps.release_info.outputs.is_prerelease }}
+    
+    - name: Cargo publish
+      run: |
+        echo ${{ secrets.CARGO_LOGIN }} | cargo login
+        manifests=$(git diff --name-only ${{ github.sha }}^ ${{ github.sha }} | awk '{if ($0 ~ /.*Cargo.toml/) print $0}' | sort -r)
+        for manifest in "$manifests"; do
+          module=$(cargo read-manifest --manifest-path "$manifest" | jq -r .name)
+          if [[ "$module" == "utoipa" ]]; then
+            cargo publish
+          else
+            cargo publish -p "$module"
+          fi
+        done
