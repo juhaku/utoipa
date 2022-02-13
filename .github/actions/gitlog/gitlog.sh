@@ -33,7 +33,7 @@ if [[ "$last_release" != "" ]]; then
   ancestry_path="--ancestry-path"
 fi
 
-mapfile -t log_lines < <(git log --pretty=format:'(%p) %s' $ancestry_path $commit_range)
+mapfile -t log_lines < <(git log --pretty=format:'(%h) %s' $ancestry_path $commit_range)
 
 log=""
 for line in "${log_lines[@]}"; do
@@ -42,4 +42,3 @@ done
 if [[ "$output_file" != "" ]]; then
   echo -e "$log" > "$output_file"
 fi
-cat "$output_file"
