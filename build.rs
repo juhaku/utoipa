@@ -1,6 +1,6 @@
 use std::process::Command;
 
-const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.4.0";
+const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.5.0";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{}.zip", SWAGGER_UI_DIST_ZIP);
