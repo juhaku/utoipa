@@ -26,10 +26,10 @@ jobs:
       id: gitlog
       with:
         output-file: ./draft-gitlog.md
-      
+
     - name: Prepare changes
       run: |
-        echo "# Changeds in this Release" > ./draft-changes.md
+        echo "# Changes in this Release" > ./draft-changes.md
         cat < ./draft-gitlog.md >> ./draft-changes.md
 
         cat ./draft-changes.md
