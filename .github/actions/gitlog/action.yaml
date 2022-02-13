@@ -4,10 +4,6 @@ inputs:
   output-file:
     description: File path where to place the content of the changed commits
     required: true
-# outputs:
-#   commits:
-#     description: Changed commits since last release tag
-#     value: ${{ steps.gitlog.outputs.commits }}
 runs:
   using: composite
   steps:

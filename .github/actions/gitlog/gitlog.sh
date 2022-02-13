@@ -4,20 +4,6 @@
 
 from_commit=HEAD
 last_release=$(git tag --sort=-taggerdate | head -1) # get last tag
-# tags=()
-# tags=($(git tag | xargs))
-# mapfile -t tags < <(git tag)
-
-# for tag in "${tags[@]}"; do
-#   echo "tag $tag"
-# done
-
-# function has_tags {
-#   [[ ${#tags[@]} -gt 0 ]] && echo true || echo false
-# }
-
-# echo ${#tags[@]} -gt 0
-# echo $(has_tags) "--" ${#tags[@]}
 
 output_file=""
 while true; do
@@ -26,9 +12,6 @@ while true; do
       shift
       output_file="$1"
       shift
-    ;;
-    "")
-      break
     ;;
     *)
       break
@@ -60,4 +43,3 @@ if [[ "$output_file" != "" ]]; then
   echo -e "$log" > "$output_file"
 fi
 cat "$output_file"
-# echo "::set-output name=commits::$(echo -e "$log")"
