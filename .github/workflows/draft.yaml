@@ -45,7 +45,12 @@ jobs:
         echo "::set-output name=is_prerelease::$prerelease"
         echo "::set-output name=version::$version"
 
-    - name: Create Release
+    - name: Remove previous release
+      run: |
+        echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
+        gh release delete ${{ steps.release_info.outputs.version }} -y || true
+
+    - name: Create release
       id: create_release
       uses: actions/create-release@v1
       env:
