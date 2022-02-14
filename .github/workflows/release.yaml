@@ -16,31 +16,7 @@ jobs:
       with:
         fetch-depth: 2
 
-    - name: Cargo publish
-      run: |
-        echo ${{ secrets.CARGO_LOGIN }} | cargo login
-        manifests=$(git diff --name-only ${{ github.sha }}^ ${{ github.sha }} | awk '{if ($0 ~ /.*Cargo.toml/) print $0}' | sort -r)
-        for manifest in $(echo "$manifests" | xargs); do
-          module=$(cargo read-manifest --manifest-path "$manifest" | jq -r .name)
-          if [[ "$module" == "utoipa" ]]; then
-            retry=0
-            while ! cargo publish && [[ $retry -lt 3 ]]; do
-              echo "Failed to publish, Retrying... $retry after $((retry*1)) sec."
-              sleep $((retry*1))
-              retry=$((retry+1))
-            done
-            if [[ $retry -eq 3 ]]; then
-              echo "Failed to publish crate utoipa, try to increase wait? Or retries?" && exit 1
-            fi
-          else
-            retry=0
-            while ! cargo publish -p "$module" && [[ $retry -lt 3 ]]; do
-              echo "Failed to publish, Retrying... $retry after $((retry*1)) sec."
-              sleep $((retry*1))
-              retry=$((retry+1))
-            done
-            if [[ $retry -eq 3 ]]; then
-              echo "Failed to publish crate $module, try to increase wait? Or retries?" && exit 1
-            fi
-          fi
-        done
+    - uses: ./.github/actions/publish
+      name: Cargo publish
+      with:
+        token: ${{ secrets.CARGO_LOGIN }}
