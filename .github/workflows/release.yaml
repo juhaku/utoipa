@@ -8,12 +8,14 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  draft:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
- 
+      with:
+        fetch-depth: 2
+
     - name: Cargo publish
       run: |
         echo ${{ secrets.CARGO_LOGIN }} | cargo login
