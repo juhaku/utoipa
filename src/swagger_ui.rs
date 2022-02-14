@@ -7,7 +7,7 @@ use crate::openapi::OpenApi;
 
 #[doc(hidden)]
 #[derive(RustEmbed)]
-#[folder = "target/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
+#[folder = "$UTOIPA_SWAGGER_DIR/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
 pub struct SwaggerUiDist;
 
 #[non_exhaustive]
