@@ -3,7 +3,7 @@ name: Publish release
 on:
   push:
     tags:
-      - "[0-9]+.[0-9]+.[0-9]+**"
+      - "*.*.**"
 
 env:
   CARGO_TERM_COLOR: always
