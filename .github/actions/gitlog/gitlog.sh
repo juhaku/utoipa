@@ -22,8 +22,6 @@ done
 commit_range=""
 if [[ $last_release != "" ]]; then
   commit_range="$from_commit...$last_release"
-  len=${#log_lines[@]}
-  unset "log_lines[(($len - 1))]" # remove the last item since it is the actual tag
 else
   commit_range="$from_commit"
 fi
@@ -35,6 +33,11 @@ fi
 
 mapfile -t log_lines < <(git log --pretty=format:'(%h) %s' $ancestry_path $commit_range)
 
+if [[ "$last_release" != "" ]]; then
+  len=${#log_lines[@]}
+  unset "log_lines[(($len - 1))]" # remove the last item since it is the actual tag
+fi
+
 log=""
 for line in "${log_lines[@]}"; do
   log=$log"* $line\n"
@@ -42,3 +45,4 @@ done
 if [[ "$output_file" != "" ]]; then
   echo -e "$log" > "$output_file"
 fi
+echo -e "$log"
