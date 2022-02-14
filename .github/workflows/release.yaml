@@ -20,7 +20,7 @@ jobs:
       run: |
         echo ${{ secrets.CARGO_LOGIN }} | cargo login
         manifests=$(git diff --name-only ${{ github.sha }}^ ${{ github.sha }} | awk '{if ($0 ~ /.*Cargo.toml/) print $0}' | sort -r)
-        for manifest in "$manifests"; do
+        for manifest in $(echo "$manifests" | xargs); do
           module=$(cargo read-manifest --manifest-path "$manifest" | jq -r .name)
           if [[ "$module" == "utoipa" ]]; then
             cargo publish
