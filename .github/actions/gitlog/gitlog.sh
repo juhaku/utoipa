@@ -45,4 +45,3 @@ done
 if [[ "$output_file" != "" ]]; then
   echo -e "$log" > "$output_file"
 fi
-echo -e "$log"
