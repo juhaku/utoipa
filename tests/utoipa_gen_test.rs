@@ -1,8 +1,6 @@
 #![cfg(feature = "actix_extras")]
 #![allow(dead_code)]
 
-use std::borrow::Cow;
-
 use serde::{Deserialize, Serialize};
 use utoipa::{Component, OpenApi};
 

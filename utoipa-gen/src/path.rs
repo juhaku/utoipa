@@ -355,7 +355,7 @@ impl ToTokens for Path {
             .as_ref()
             .or(Some(&self.fn_name))
             .expect_or_abort("expected to find operation id but was None");
-        let tag = self
+        let tag = &*self
             .path_attr
             .tag
             .as_ref()
@@ -375,7 +375,6 @@ impl ToTokens for Path {
             .expect_or_abort("expected to find path but was None");
 
         let operation = Operation {
-            path_struct: &path_struct,
             deprecated: &self.deprecated,
             operation_id,
             summary: self
@@ -392,22 +391,19 @@ impl ToTokens for Path {
             #[allow(non_camel_case_types)]
             pub struct #path_struct;
 
-            impl utoipa::Tag for #path_struct {
-                fn tag() -> &'static str {
-                    #tag
-                }
-            }
-
             impl utoipa::Path for #path_struct {
                 fn path() -> &'static str {
                     #path
                 }
 
-                fn path_item() -> utoipa::openapi::path::PathItem {
+                fn path_item(default_tag: Option<&str>) -> utoipa::openapi::path::PathItem {
                     use utoipa::openapi::ToArray;
                     utoipa::openapi::PathItem::new(
                         #path_operation,
-                        #operation
+                        #operation.with_tag(*[Some(#tag), default_tag, Some("crate")].iter()
+                            .flatten()
+                            .find(|t| !t.is_empty()).unwrap()
+                        )
                     )
                 }
             }
@@ -416,7 +412,6 @@ impl ToTokens for Path {
 }
 
 struct Operation<'a> {
-    path_struct: &'a Ident,
     operation_id: &'a String,
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
@@ -441,15 +436,8 @@ impl ToTokens for Operation<'_> {
             .with_responses(#responses)
         });
         //         // .with_security()
-        let path_struct = self.path_struct;
         let operation_id = self.operation_id;
         tokens.extend(quote! {
-            .with_tag(
-                [<#path_struct as utoipa::Tag>::tag(),
-                    <#path_struct as utoipa::DefaultTag>::tag()
-                ]
-                .into_iter().find(|s| !s.is_empty()).unwrap_or_else(|| "crate")
-            )
             .with_operation_id(
                 #operation_id
             )

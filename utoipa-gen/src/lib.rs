@@ -1,4 +1,8 @@
-//! This is private utoipa codegen library and is not used alone
+//! This is **private** utoipa codegen library and is not used alone
+//!
+//! The library contains macro implementations for utoipa library. Content
+//! of the libarary documentation is available through **utoipa** library itself.
+//! Consider browsing via the **utoipa** crate so all links will work correctly.
 
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]

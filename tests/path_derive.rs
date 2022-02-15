@@ -123,15 +123,14 @@ fn derive_path_with_all_info_success() {
     }
 }
 
-test_api_fn! {
-    name: test_operation3,
-    module: derive_path_with_defaults,
-    operation: post,
-    path: "/foo/bar";
-}
-
 #[test]
 fn derive_path_with_defaults_success() {
+    test_api_fn! {
+        name: test_operation3,
+        module: derive_path_with_defaults,
+        operation: post,
+        path: "/foo/bar";
+    }
     let operation = test_api_fn_doc! {
         derive_path_with_defaults::test_operation3,
         operation: post,
