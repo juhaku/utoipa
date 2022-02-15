@@ -3,7 +3,7 @@
 # This mangles git log entries for change lop purposes
 
 from_commit=HEAD
-last_release=$(git tag --sort=-taggerdate | head -1) # get last tag
+last_release=$(git tag | sort -r | head -1) # get last tag
 
 output_file=""
 while true; do
