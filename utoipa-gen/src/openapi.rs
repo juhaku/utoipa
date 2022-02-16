@@ -172,7 +172,7 @@ impl ToTokens for OpenApi {
             },
         );
 
-        let path_items = impl_paths(&attributes.handlers, tokens);
+        let path_items = impl_paths(&attributes.handlers);
 
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
@@ -186,14 +186,14 @@ impl ToTokens for OpenApi {
     }
 }
 
-fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStream {
+fn impl_paths(handler_paths: &[ExprPath]) -> TokenStream {
     handler_paths.iter().fold(
         quote! { utoipa::openapi::path::Paths::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn_name = &*segments.last().unwrap().ident.to_string();
 
-            let tag = segments
+            let tag = &*segments
                 .iter()
                 .take(segments.len() - 1)
                 .map(|part| part.ident.to_string())
@@ -205,12 +205,7 @@ fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStrea
 
             let usage = syn::parse_str::<ExprPath>(
                 &vec![
-                    if tag.starts_with("crate") {
-                        None
-                    } else {
-                        Some("crate")
-                    },
-                    if tag.is_empty() { None } else { Some(&tag) },
+                    if tag.is_empty() { None } else { Some(tag) },
                     Some(handler_ident_name),
                 ]
                 .into_iter()
@@ -220,19 +215,8 @@ fn impl_paths(handler_paths: &[ExprPath], quote: &mut TokenStream) -> TokenStrea
             )
             .unwrap();
 
-            let assert_handler_ident = format_ident!("__assert_{}", handler_ident_name);
-            quote.extend(quote! {
-                #[allow(non_camel_case_types)]
-                struct #assert_handler_ident where #handler_ident : utoipa::Path;
-                use #usage;
-                impl utoipa::DefaultTag for #handler_ident {
-                    fn tag() -> &'static str {
-                        #tag
-                    }
-                }
-            });
             paths.extend(quote! {
-                .append(#handler_ident::path(), #handler_ident::path_item())
+                .append(#usage::path(), #usage::path_item(Some(#tag)))
             });
 
             paths
