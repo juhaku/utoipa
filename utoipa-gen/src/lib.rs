@@ -149,6 +149,174 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 #[proc_macro_error]
 #[proc_macro_attribute]
 /// Path attribute macro
+///
+/// This is a `#[derive]` implementation for [`Path`][path] trait. Macro accepts set of attributes that can
+/// be used to configure and override default values what are resolved automatically.
+///
+/// # Path Attributes
+///
+/// * **operation** _**Must be first parameter!**_ Accepted values are known http operations suchs as
+///   _`get, post, put, delete, head, options, connect, patch, trace`_.
+/// * **path** Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
+/// * **operation_id** Unique operation id for the enpoint. By default this is mapped to function name.
+/// * **tag** Can be used to group operations. Operations with same tag are groupped together. By default
+///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
+///   then default value _`crate`_ is used instead.
+/// * **request_body** Defining request body indicates that the request is expecting request body within
+///   the performed request.
+/// * **responses** Slice of responses the endpoint is going to possibly return to the caller.
+/// * **params** Slice of params that the endpoint accepts.
+///
+/// # Request Body Attributes
+///
+/// * **content** Can be used to define the content object. Should be an identifier, slice or option
+///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_.
+/// * **description** Define the description for the request body object as str.
+/// * **content_type** Can be used to override the default behaviour of auto resolving the content type
+///   from the `content` attribute. If defined the value should be valid content type such as
+///   _`application/json`_. By default the content type is _`text/plain`_ for
+///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
+///
+/// **Request body supports following formats:**
+///
+/// ```text
+/// request_body = (content = String, description = "Xml as string request", content_type = "text/xml"),
+/// request_body = Pet,
+/// request_body = Option<[Pet]>,
+/// ```
+///
+/// 1. First is the long representation of the request body definition.
+/// 2. Second is the quick format which only defines the content object type.
+/// 3. Last one is same quick format but only with optional request body.
+///
+/// # Responses Attributes
+///
+/// * **status** Is valid http status code. E.g. _`200`_
+/// * **description** Define description for the response as str.
+/// * **body** Optional response body object type. When left empty response does not expect to send any
+///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_
+/// * **content_type** Can be used to override the default behaviour of auto resolving the content type
+///   from the `body` attribute. If defined the value should be valid content type such as
+///   _`application/json`_. By default the content type is _`text/plain`_ for
+///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
+/// * **headers** Slice of response headers that are returned back to a caller.
+/// * **example** Can be either `json!(...)` or literal str that can be parsed to json. `json!`
+///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+///
+/// **Minimal response format:**
+/// ```text
+/// (status = 200, description = "success response")
+/// ```
+///
+/// **Response with all possible values:**
+/// ```text
+/// (status = 200, description = "Success response", body = Pet, content_type = "application/json",
+///     headers = [...],
+///     example = json!({"id": 1, "name": "bob the cat"})
+/// )
+/// ```
+///
+/// # Response Header Attributes
+///
+/// * **name** Name of the header. E.g. _`x-csrf-token`_
+/// * **type** Addtional type of the header value. Type is defined after `name` with equals sign before the type.
+///   Type should be identifer or slice of identifiers. E.g. _`String`_ or _`[String]`_
+/// * **description** Can be used to define optional description for the response header as str.
+///
+/// **Header supported formats:**
+///
+/// ```text
+/// ("x-csfr-token"),
+/// ("x-csrf-token" = String, description = "New csfr token"),
+/// ```
+///
+/// # Params Attributes
+///
+/// * **name** _**Must be the first argument**_. Define the name for parameter.
+/// * **parameter_type** Define possible type for the parameter. Type should be an identifer, slice or option.
+///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
+///   equals sign E.g. _`"id" = String`_
+/// * **in** _**Must be placed after name or parameter_type**_. Define the place of the parameter.
+///   E.g. _`path, query, header, cookie`_
+/// * **deprecated** Define whether the parameter is deprecated or not.
+/// * **description** Define possible description for the parameter as str.
+///
+/// **Params supports following representation formats:**
+///
+/// ```text
+/// ("id" = String, path, deprecated, description = "Pet database id"),
+/// ("id", path, deprecated, description = "Pet database id"),
+/// ```
+///  
+/// # Examples
+///
+/// Example with all possible arguments.
+/// ```rust
+/// # struct Pet {
+/// #    id: u64,
+/// #    name: String,
+/// # }
+/// #
+/// #[utoipa::path(
+///    post,
+///    operation_id = "custom_post_pet",
+///    path = "/pet",
+///    tag = "pet_handlers"
+///    request_body = (content = Pet, description = "Pet to store the database", content_type = "application/json")
+///    responses = [
+///         (status = 200, description = "Pet stored successfully", body = Pet, content_type = "application/json",
+///             headers = [
+///                 ("x-cache-len" = String, description = "Cache length")
+///             ],
+///             example = json!({"id": 1, "name": "bob the cat"})
+///         ),
+///    ],
+///    params = [
+///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
+///    ]
+/// )]
+/// fn post_pet(pet: Pet) -> Pet {
+///     Pet {
+///         id: 4,
+///         name: "bob the cat".to_string(),
+///     }
+/// }
+/// ```
+///
+/// More minimal example with the defaults.
+/// ```rust
+/// # struct Pet {
+/// #    id: u64,
+/// #    name: String,
+/// # }
+/// #
+/// #[utoipa::path(
+///    post,
+///    path = "/pet",
+///    request_body = Pet
+///    responses = [
+///         (status = 200, description = "Pet stored successfully", body = Pet,
+///             headers = [
+///                 ("x-cache-len", description = "Cache length")
+///             ]
+///         ),
+///    ],
+///    params = [
+///      ("x-csrf-token", header, description = "Current csrf token of user"),
+///    ]
+/// )]
+/// fn post_pet(pet: Pet) -> Pet {
+///     Pet {
+///         id: 4,
+///         name: "bob the cat".to_string(),
+///     }
+/// }
+/// ```
+///
+/// [path]: trait.Path.html
+/// [openapi]: derive.OpenApi.html
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
