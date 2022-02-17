@@ -43,14 +43,14 @@ and the `ipa` is api reversed.
 Add minimal dependency declaration to Cargo.toml.
 ```
 [dependencies]
-utoipa = "0.1.0.beta.4"
+utoipa = "0.1.0-beta.4"
 ```
 
 To enable more features such as use of swagger together with actix-web framework you could define the
 dependency as follows.
 ```
 [dependencies]
-utoipa = { version = "0.1.0.beta.4", features = ["swagger_ui", "actix-web", "actix_extras"] }
+utoipa = { version = "0.1.0-beta.4", features = ["swagger_ui", "actix-web", "actix_extras"] }
 ```
 
 ## Current project status
