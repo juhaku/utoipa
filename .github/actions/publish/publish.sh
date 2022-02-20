@@ -34,7 +34,7 @@ while read -r manifest; do
   echo "Publishing module $manifest..."
   module=$(cargo read-manifest --manifest-path "$manifest" | jq -r .name)
   
-  max_retries=5
+  max_retries=10
   retry=0
   while ! publish "$module" && [[ $retry -lt $max_retries ]]; do
     await_time=$((retry*2))
