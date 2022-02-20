@@ -62,8 +62,17 @@
 //! ```
 //!
 //! Create an handler that would handle your business logic and add `path` proc attribute macro over it.
-//! ```compile_fail
+//! ```rust
 //! mod pet_api {
+//! #     use utoipa::OpenApi;
+//! #     use utoipa::Component;
+//! #     
+//! #     #[derive(Component)]
+//! #     struct Pet {
+//! #       id: u64,
+//! #       name: String,
+//! #       age: Option<i32>,
+//! #     }
 //!     /// Get pet by id
 //!     ///
 //!     /// Get pet from database by pet id  
@@ -89,10 +98,48 @@
 //! ```
 //!
 //! Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
-//! ```compile_fail
-//! use utoipa::OpenApi;
-//! use crate::Pet;
-//!
+//! ```rust
+//! # mod pet_api {
+//! #     use utoipa::Component;
+//! #     
+//! #     #[derive(Component)]
+//! #     struct Pet {
+//! #       id: u64,
+//! #       name: String,
+//! #       age: Option<i32>,
+//! #     }
+//! #
+//! #     /// Get pet by id
+//! #     ///
+//! #     /// Get pet from database by pet id  
+//! #     #[utoipa::path(
+//! #         get,
+//! #         path = "/pets/{id}"
+//! #         responses = [
+//! #             (status = 200, description = "Pet found succesfully", body = Pet),
+//! #             (status = 404, description = "Pet was not found")
+//! #         ],
+//! #         params = [
+//! #             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//! #         ]
+//! #     )]
+//! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
+//! #         Pet {
+//! #             id: pet_id,
+//! #             age: None,
+//! #             name: "lightning".to_string(),
+//! #         }
+//! #     }
+//! # }
+//! # use utoipa::Component;
+//! #
+//! # #[derive(Component)]
+//! # struct Pet {
+//! #   id: u64,
+//! #   name: String,
+//! #   age: Option<i32>,
+//! # }
+//! # use utoipa::OpenApi;
 //! #[derive(OpenApi)]
 //! #[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
 //! struct ApiDoc;
@@ -100,28 +147,13 @@
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 //! ```
 //!
-//! If you have *swagger_ui* and the *actix-web* features enabled you can display the openapi documentation
-//! as easily as follows:
-//! ```compile_fail
-//! HttpServer::new(move || {
-//!         App::new()
-//!             .service(
-//!                 SwaggerUi::new("/swagger-ui/{_:.*}")
-//!                     .with_url("/api-doc/openapi.json", ApiDoc::openapi()),
-//!             )
-//!     })
-//!     .bind(format!("{}:{}", Ipv4Addr::UNSPECIFIED, 8989))?
-//!     .run()
-//!     .await
-//! ```
-//!
-//! See more details in [`swagger_ui`] module. You can also browse to
-//! [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensinve examples.
+//! See how to serve OpenAPI doc via Swagger UI check [`swagger_ui`] module for more details.
+//! You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
+//! for more comprehensinve examples.
 
-/// Openapi module contains Rust implementation of Openapi Spec V3
+/// Rust implementation of Openapi Spec V3
 pub mod openapi;
 #[cfg(feature = "swagger_ui")]
-/// Swagger UI module contains embedded Swagger UI and extensions for actix-web
 pub mod swagger_ui;
 
 pub use utoipa_gen::*;

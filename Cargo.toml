@@ -24,7 +24,6 @@ json = ["serde_json", "utoipa-gen/json"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-log = "0.4.14"
 serde_json = { version = "1.0", optional = true }
 rust-embed = { version = "6.3", optional = true, features = ["interpolate-folder-path"] }
 actix-web =  { version = "3.3", optional = true }

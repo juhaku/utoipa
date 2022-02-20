@@ -1,3 +1,34 @@
+//! Provides implementations to serve Swagger UI.
+//!
+//! While serving Swagger UI is framework independant. Uotipa implements the boiler plate for
+//! few frameworks.
+//!
+//! **Currently supported frameworks by boiler plate implementations:**
+//!
+//! * **actix-web**
+//!
+//! # Examples
+//!
+//! Serve Swagger UI with api doc via actix-web. [^actix]
+//! ```no_run
+//! # use actix_web::{App, HttpServer};
+//! # use utoipa::swagger_ui::SwaggerUi;
+//! # use utoipa::OpenApi;
+//! # use std::net::Ipv4Addr;
+//! # #[derive(OpenApi)]
+//! # #[openapi(handlers = [])]
+//! # struct ApiDoc;
+//! let _ = HttpServer::new(move || {
+//!         App::new()
+//!             .service(
+//!                 SwaggerUi::new("/swagger-ui/{_:.*}")
+//!                     .with_url("/api-doc/openapi.json", ApiDoc::openapi()),
+//!             )
+//!     })
+//!     .bind(format!("{}:{}", Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
+//!     .run();
+//! ```
+//! [^actix]: **actix-web** feature need to be enabled.
 use std::borrow::Cow;
 
 use actix_web::{dev::HttpServiceFactory, guard::Get, web, HttpResponse, Resource, Responder};
@@ -10,6 +41,7 @@ use crate::openapi::OpenApi;
 #[folder = "$UTOIPA_SWAGGER_DIR/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
 pub struct SwaggerUiDist;
 
+/// Entry point for serving Swagger UI and api docs in application.
 #[non_exhaustive]
 #[derive(Clone)]
 pub struct SwaggerUi {
@@ -18,6 +50,19 @@ pub struct SwaggerUi {
 }
 
 impl SwaggerUi {
+    /// Create a new [`SwaggerUi`] for given path.
+    ///
+    /// Path argument will expose the Swagger UI to the user and should be something that
+    /// the underlying application framework / library supports.
+    ///
+    /// # Examples
+    ///
+    /// Exposes Swagger UI using path `/swagger-ui` using actix-web supported syntax.
+    ///
+    /// ```rust
+    /// # use utoipa::swagger_ui::SwaggerUi;
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}");
+    /// ```
     pub fn new<P: Into<Cow<'static, str>>>(path: P) -> Self {
         Self {
             path: path.into(),
@@ -25,12 +70,66 @@ impl SwaggerUi {
         }
     }
 
+    /// Add api doc [`Url`] into [`SwaggerUi`].
+    ///
+    /// Method takes two arguments where first one is path which exposes the [`OpenApi`] to the user.
+    /// Second argument is the actual Rust implementation of the OpenAPI doc which is being exposed.
+    ///
+    /// # Examples
+    ///
+    /// Expose manually created OpenAPI doc.
+    /// ```rust
+    /// # use utoipa::swagger_ui::SwaggerUi;
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .with_url("/api-doc/openapi.json", utoipa::openapi::OpenApi::new(
+    ///        utoipa::openapi::Info::new("my application", "0.1.0"),
+    ///        utoipa::openapi::Paths::new(),
+    /// ));
+    /// ```
+    ///
+    /// Expose derived OpenAPI doc.
+    /// ```rust
+    /// # use utoipa::swagger_ui::SwaggerUi;
+    /// # use utoipa::OpenApi;
+    /// # #[derive(OpenApi)]
+    /// # #[openapi(handlers = [])]
+    /// # struct ApiDoc;
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .with_url("/api-doc/openapi.json", ApiDoc::openapi());
+    /// ```
     pub fn with_url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
         self.urls.push((url.into(), openapi));
 
         self
     }
 
+    /// Add multiple [`Url`]s to Swagger UI.
+    ///
+    /// Takes one [`Vec`] argument containing tuples of [`Url`] and [`OpenApi`].
+    ///
+    /// Situations where this comes handy is when there is a need or wish to seprate different parts
+    /// of the api to separate api docs.
+    ///
+    /// # Examples
+    ///
+    /// Expose multiple api docs via Swagger UI.
+    /// ```rust
+    /// # use utoipa::swagger_ui::{SwaggerUi, Url};
+    /// # use utoipa::OpenApi;
+    /// # #[derive(OpenApi)]
+    /// # #[openapi(handlers = [])]
+    /// # struct ApiDoc;
+    /// # #[derive(OpenApi)]
+    /// # #[openapi(handlers = [])]
+    /// # struct ApiDoc2;
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .with_urls(
+    ///       vec![
+    ///          (Url::with_primary("api doc 1", "/api-doc/openapi.json", true), ApiDoc::openapi()),
+    ///          (Url::new("api doc 2", "/api-doc/openapi2.json"), ApiDoc2::openapi())
+    ///     ]
+    /// );
+    /// ```
     pub fn with_urls(mut self, urls: Vec<(Url<'static>, OpenApi)>) -> Self {
         self.urls = urls;
 
@@ -62,8 +161,6 @@ impl HttpServiceFactory for SwaggerUi {
 #[cfg(feature = "actix-web")]
 fn register_api_doc_url_resource(url: &(Url, OpenApi), config: &mut actix_web::dev::AppService) {
     pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl Responder {
-        log::trace!("Get api doc:\n{}", api_doc.to_pretty_json().unwrap());
-
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
@@ -74,6 +171,7 @@ fn register_api_doc_url_resource(url: &(Url, OpenApi), config: &mut actix_web::d
     HttpServiceFactory::register(url_resource, config);
 }
 
+/// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
 #[derive(Default, Clone)]
 pub struct Url<'a> {
@@ -83,6 +181,18 @@ pub struct Url<'a> {
 }
 
 impl<'a> Url<'a> {
+    /// Create new [`Url`].
+    ///
+    /// Name is shown in the select dropdown when there are multiple docs in Swagger UI.
+    ///
+    /// Url is path which exposes the OpenAPI doc.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::swagger_ui::Url;
+    /// let url = Url::new("My Api", "/api-doc/openapi.json");
+    /// ```
     pub fn new(name: &'a str, url: &'a str) -> Self {
         Self {
             name: Cow::Borrowed(name),
@@ -91,6 +201,23 @@ impl<'a> Url<'a> {
         }
     }
 
+    /// Create new [`Url`] with primary flag.
+    ///
+    /// Primary flag allows users to override the default behaviour of the Swagger UI for selecting the primary
+    /// doc to display. By default when there are multiple docs in Swagger UI the first one in the list
+    /// will be the primary.
+    ///
+    /// Name is shown in the select dropdown when there are multiple docs in Swagger UI.
+    ///
+    /// Url is path which exposes the OpenAPI doc.
+    ///
+    /// # Examples
+    ///
+    /// Set "My Api" as primary.
+    /// ```rust
+    /// # use utoipa::swagger_ui::Url;
+    /// let url = Url::with_primary("My Api", "/api-doc/openapi.json", true);
+    /// ```
     pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {
         Self {
             name: Cow::Borrowed(name),
@@ -123,8 +250,6 @@ async fn serve_swagger_ui(
     web::Path(mut part): web::Path<String>,
     data: web::Data<Vec<Url<'_>>>,
 ) -> HttpResponse {
-    log::debug!("Get swagger resource: {}", &part);
-
     if part.is_empty() || part == "/" {
         part = "index.html".to_string()
     }
