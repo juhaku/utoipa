@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
+use actix_web::client::Client;
 use serde::{Deserialize, Serialize};
 
 #[non_exhaustive]
@@ -80,23 +81,6 @@ pub enum SecurityType {
     OpenIdConnect { open_id_connect_url: String },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Flows {
-    flows: HashMap<String, Flow>,
-}
-
-impl Flows {
-    pub fn new<I: IntoIterator<Item = Flow>>(flows: I) -> Self {
-        Self {
-            flows: HashMap::from_iter(
-                flows
-                    .into_iter()
-                    .map(|auth| (String::from(auth.get_type_as_str()), auth)),
-            ),
-        }
-    }
-}
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1) which are maintained in
 /// https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml
 #[derive(Serialize, Deserialize, Clone)]
@@ -127,13 +111,31 @@ pub enum ApiKeyIn {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Flows {
+    flows: HashMap<String, Flow>,
+}
+
+impl Flows {
+    pub fn new<I: IntoIterator<Item = Flow>>(flows: I) -> Self {
+        Self {
+            flows: HashMap::from_iter(
+                flows
+                    .into_iter()
+                    .map(|auth| (String::from(auth.get_type_as_str()), auth)),
+            ),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Flow {
-    Implicit(OAuth2Flow),
-    Password(OAuth2Flow),
-    ClientCredentials(OAuth2Flow),
-    AuthorizationCode(OAuth2Flow),
+    Implicit(Implicit),
+    Password(Password),
+    ClientCredentials(ClientCredentials),
+    AuthorizationCode(AuthorizationCode),
 }
 
 impl Flow {
@@ -150,12 +152,8 @@ impl Flow {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct OAuth2Flow {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    authorization_url: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    token_url: Option<String>,
+pub struct Implicit {
+    authorization_url: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     refresh_url: Option<String>,
@@ -163,19 +161,103 @@ pub struct OAuth2Flow {
     scopes: HashMap<String, String>,
 }
 
-impl OAuth2Flow {
+impl Implicit {
+    pub fn new<S: Into<String>>(authorization_url: S, scopes: HashMap<String, String>) -> Self {
+        Self {
+            authorization_url: authorization_url.into(),
+            refresh_url: None,
+            scopes,
+        }
+    }
+
+    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
+        self.refresh_url = Some(refresh_url.into());
+
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct AuthorizationCode {
+    authorization_url: String,
+    token_url: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    refresh_url: Option<String>,
+
+    scopes: HashMap<String, String>,
+}
+
+impl AuthorizationCode {
     pub fn new<A: Into<String>, T: Into<String>, R: Into<String>>(
-        authorization_url: Option<A>,
-        token_url: Option<T>,
-        refresh_url: Option<R>,
+        authorization_url: A,
+        token_url: T,
         scopes: HashMap<String, String>,
     ) -> Self {
         Self {
-            authorization_url: authorization_url.map(Into::into),
-            token_url: token_url.map(Into::into),
-            refresh_url: refresh_url.map(Into::into),
+            authorization_url: authorization_url.into(),
+            token_url: token_url.into(),
+            refresh_url: None,
             scopes,
         }
+    }
+
+    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
+        self.refresh_url = Some(refresh_url.into());
+
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Password {
+    token_url: String,
+    refresh_url: Option<String>,
+    scopes: HashMap<String, String>,
+}
+
+impl Password {
+    pub fn new<S: Into<String>>(token_url: S, scopes: HashMap<String, String>) -> Self {
+        Self {
+            token_url: token_url.into(),
+            refresh_url: None,
+            scopes,
+        }
+    }
+
+    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
+        self.refresh_url = Some(refresh_url.into());
+
+        self
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ClientCredentials {
+    token_url: String,
+    refresh_url: Option<String>,
+    scopes: HashMap<String, String>,
+}
+
+impl ClientCredentials {
+    pub fn new<S: Into<String>>(token_url: S, scopes: HashMap<String, String>) -> Self {
+        Self {
+            token_url: token_url.into(),
+            refresh_url: None,
+            scopes,
+        }
+    }
+
+    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
+        self.refresh_url = Some(refresh_url.into());
+
+        self
     }
 }
 
@@ -188,18 +270,19 @@ mod tests {
         ($name:ident: $schema:expr; $expected:literal) => {
             #[test]
             fn $name() {
-                let s = $schema;
-                let actual = serde_json::to_string_pretty(&s).unwrap();
+                let value = serde_json::to_value($schema).unwrap();
+                let expected_value: serde_json::Value = serde_json::from_str($expected).unwrap();
+
                 assert_eq!(
-                    actual,
-                    $expected,
+                    value,
+                    expected_value,
                     "testing serializing \"{}\": \nactual:\n{}\nexpected:\n{}",
                     stringify!($name),
-                    actual,
-                    $expected
+                    value,
+                    expected_value
                 );
 
-                println!("{}", &actual);
+                println!("{}", &serde_json::to_string_pretty(&$schema).unwrap());
             }
         };
     }
@@ -231,7 +314,7 @@ mod tests {
         SecuritySchema::new(SecurityType::Http{schema: HttpAutheticationType::Digest, bearer_format: None});
         r###"{
   "type": "http",
-  "schema": "digets"
+  "schema": "digest"
 }"###
     }
 
@@ -332,16 +415,14 @@ mod tests {
         security_schema_correct_oauth2_implicit:
         SecuritySchema::new(SecurityType::OAuth2 {
             flows: Flows::new([Flow::Implicit(
-        OAuth2Flow::new(
-            Some("http://localhost/auth/dialog"),
-            None::<&str>,
-            None::<&str>,
-            HashMap::from([
-                ("edit:items".to_string(), "edit my items".to_string()),
-                ("read:items".to_string(), "read my items".to_string()
-            )]),
-        ),
-    )])
+                Implicit::new(
+                    "http://localhost/auth/dialog",
+                    HashMap::from([
+                        ("edit:items".to_string(), "edit my items".to_string()),
+                        ("read:items".to_string(), "read my items".to_string()
+                    )]),
+                ),
+            )])
         });
         r###"{
   "type": "oauth2",
