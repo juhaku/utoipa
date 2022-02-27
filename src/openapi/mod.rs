@@ -15,7 +15,7 @@ pub use self::{
         Array, Component, ComponentFormat, ComponentType, Object, OneOf, Property, Ref, Schema,
         ToArray,
     },
-    security::Security,
+    security::SecurityRequirement,
     server::Server,
     tag::Tag,
 };
@@ -53,7 +53,7 @@ pub struct OpenApi {
     pub components: Option<Schema>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<Security>>,
+    pub security: Option<Vec<SecurityRequirement>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,

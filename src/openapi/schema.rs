@@ -33,12 +33,13 @@ impl Schema {
         self
     }
 
-    pub fn with_security_schemas<I: Into<String>>(
+    pub fn with_security_schemas<N: Into<String>, S: Into<SecuritySchema>>(
         mut self,
-        name: I,
-        security_schema: SecuritySchema,
+        name: N,
+        security_schema: S,
     ) -> Self {
-        self.security_schemas.insert(name.into(), security_schema);
+        self.security_schemas
+            .insert(name.into(), security_schema.into());
 
         self
     }

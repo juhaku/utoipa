@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     request_body::RequestBody,
     response::{Response, Responses},
-    Component, Deprecated, ExternalDocs, Required, Security, Server,
+    Component, Deprecated, ExternalDocs, Required, SecurityRequirement, Server,
 };
 
 #[non_exhaustive]
@@ -184,7 +184,7 @@ pub struct Operation {
     pub deprecated: Option<Deprecated>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<Security>>,
+    pub security: Option<Vec<SecurityRequirement>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub servers: Option<Vec<Server>>,
@@ -272,13 +272,16 @@ impl Operation {
         self
     }
 
-    pub fn with_securities<I: IntoIterator<Item = Security>>(mut self, securities: I) -> Self {
+    pub fn with_securities<I: IntoIterator<Item = SecurityRequirement>>(
+        mut self,
+        securities: I,
+    ) -> Self {
         self.security = Some(securities.into_iter().collect());
 
         self
     }
 
-    pub fn with_security(mut self, security: Security) -> Self {
+    pub fn with_security(mut self, security: SecurityRequirement) -> Self {
         self.security.as_mut().unwrap().push(security);
 
         self
