@@ -4,13 +4,15 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::Deprecated;
+use super::{security::SecuritySchema, Deprecated};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Schema {
     schemas: HashMap<String, Component>,
+
+    security_schemas: HashMap<String, SecuritySchema>,
 }
 
 impl Schema {
@@ -27,6 +29,17 @@ impl Schema {
     ) -> Self {
         self.schemas
             .insert(name.as_ref().to_string(), component.into());
+
+        self
+    }
+
+    pub fn with_security_schemas<N: Into<String>, S: Into<SecuritySchema>>(
+        mut self,
+        name: N,
+        security_schema: S,
+    ) -> Self {
+        self.security_schemas
+            .insert(name.into(), security_schema.into());
 
         self
     }
