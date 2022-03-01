@@ -146,10 +146,15 @@
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 //! ```
+//! # Go beyond the surface
 //!
-//! See how to serve OpenAPI doc via Swagger UI check [`swagger_ui`] module for more details.
+//! * See how to serve OpenAPI doc via Swagger UI check [`swagger_ui`] module for more details.
 //! You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
 //! for more comprehensinve examples.
+//! * Modify generated OpenAPI at runtime check [`Modify`] trait for more details.
+//! * More about OpenAPI security in [security documentation][security].
+//!
+//! [security]: openapi/security/index.html
 
 /// Rust implementation of Openapi Spec V3
 pub mod openapi;
@@ -158,7 +163,7 @@ pub mod swagger_ui;
 
 pub use utoipa_gen::*;
 
-/// OpenApi trait for implementing OpenAPI specification in Rust.
+/// Trait for implementing OpenAPI specification in Rust.
 ///
 /// This trait is derivable and can be used with `#[derive]` attribute. The derived implementation
 /// will use Cargo provided environment variables to implement the default information. For a details of
@@ -195,7 +200,7 @@ pub use utoipa_gen::*;
 ///                 ),
 ///             utoipa::openapi::path::Paths::new(),
 ///         )
-///         .with_components(utoipa::openapi::Schema::new())
+///         .with_components(utoipa::openapi::Components::new())
 ///     }
 /// }
 /// ```
@@ -204,7 +209,7 @@ pub trait OpenApi {
     fn openapi() -> openapi::OpenApi;
 }
 
-/// Component trait for implementing OpenAPI Schema object.
+/// Trait for implementing OpenAPI Schema object.
 ///
 /// This trait is deriveable and can be used with `[#derive]` attribute. For a details of
 /// `#[derive(Component)]` refer to [derive documentation][derive].
@@ -264,7 +269,7 @@ pub trait Component {
     fn component() -> openapi::schema::Component;
 }
 
-/// Path trait for implementing OpenAPI PathItem object with path.
+/// Trait for implementing OpenAPI PathItem object with path.
 ///
 /// This trait is implemented via [`#[utoipa::path(...)]`][derive] attribute macro and there
 /// is no need to implement this trait manually.
@@ -346,4 +351,46 @@ pub trait Path {
     fn path() -> &'static str;
 
     fn path_item(defalt_tag: Option<&str>) -> openapi::path::PathItem;
+}
+
+/// Trait that allows OpenApi modification at runtime.
+///
+/// Implement this trait if you wish to modify the OpenApi at runtime before it is being consumed
+/// *(Before `utoipa::OpenApi::openapi()` function returns)*.
+/// This is trait can be used to add or change already generated OpenApi spec to alter the generated
+/// specification by user defined condition. For example you can add definitions that should be loaded
+/// from some configuration at runtime what may not be available during compile time.
+///
+/// See more about [`OpenApi`][derive] derive at [derive documentation][derive].
+///
+/// [derive]: derive.OpenApi.html
+/// [security_schema]: openapi/security/enum.SecuritySchema.html
+///
+/// # Examples
+///
+/// Add custom JWT [`SecuritySchema`][security_schema] to [`OpenApi`][`openapi::OpenApi`].
+/// ```rust
+/// # use utoipa::{OpenApi, Modify};
+/// # use utoipa::openapi::security::{SecuritySchema, Http, HttpAuthenticationType};
+/// #[derive(OpenApi)]
+/// #[openapi(modifiers = [&SecurityAddon])]
+/// struct ApiDoc;
+///
+/// struct SecurityAddon;
+///
+/// impl Modify for SecurityAddon {
+///    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+///        if let Some(components) = openapi.components.as_mut() {
+///            components.add_security_schema(
+///                "api_jwt_token",
+///                SecuritySchema::Http(
+///                    Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
+///                ),
+///            )
+///        }
+///    }
+///}
+/// ```
+pub trait Modify {
+    fn modify(&self, openapi: &mut openapi::OpenApi);
 }

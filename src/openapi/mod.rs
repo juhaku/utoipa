@@ -12,7 +12,7 @@ pub use self::{
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
     schema::{
-        Array, Component, ComponentFormat, ComponentType, Object, OneOf, Property, Ref, Schema,
+        Array, Component, ComponentFormat, ComponentType, Components, Object, OneOf, Property, Ref,
         ToArray,
     },
     security::SecurityRequirement,
@@ -50,7 +50,7 @@ pub struct OpenApi {
     pub paths: BTreeMap<String, PathItem>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub components: Option<Schema>,
+    pub components: Option<Components>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security: Option<Vec<SecurityRequirement>>,
@@ -77,8 +77,8 @@ impl OpenApi {
         self
     }
 
-    pub fn with_components(mut self, schema: Schema) -> Self {
-        self.components = Some(schema);
+    pub fn with_components(mut self, components: Components) -> Self {
+        self.components = Some(components);
 
         self
     }

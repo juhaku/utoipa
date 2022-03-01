@@ -9,13 +9,13 @@ use super::{security::SecuritySchema, Deprecated};
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Schema {
+pub struct Components {
     schemas: HashMap<String, Component>,
 
     security_schemas: HashMap<String, SecuritySchema>,
 }
 
-impl Schema {
+impl Components {
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -42,6 +42,30 @@ impl Schema {
             .insert(name.into(), security_schema.into());
 
         self
+    }
+
+    pub fn add_security_schema<N: Into<String>, S: Into<SecuritySchema>>(
+        &mut self,
+        name: N,
+        security_schema: S,
+    ) {
+        self.security_schemas
+            .insert(name.into(), security_schema.into());
+    }
+
+    pub fn add_security_schemas_from_iter<
+        I: IntoIterator<Item = (N, S)>,
+        N: Into<String>,
+        S: Into<SecuritySchema>,
+    >(
+        &mut self,
+        schemas: I,
+    ) {
+        self.security_schemas.extend(
+            schemas
+                .into_iter()
+                .map(|(name, item)| (name.into(), item.into())),
+        );
     }
 }
 
@@ -492,7 +516,7 @@ mod tests {
     #[cfg(feature = "serde_json")]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
         let openapi = OpenApi::new(Info::new("My api", "1.0.0"), Paths::new()).with_components(
-            Schema::new()
+            Components::new()
                 .with_component("Person", Ref::new("#/components/PersonModel"))
                 .with_component(
                     "Credential",

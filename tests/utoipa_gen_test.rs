@@ -2,7 +2,13 @@
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
-use utoipa::{Component, OpenApi};
+use utoipa::{
+    openapi::{
+        self,
+        security::{Http, HttpAuthenticationType, SecuritySchema},
+    },
+    Component, Modify, OpenApi,
+};
 
 #[derive(Deserialize, Serialize, Component)]
 #[component(example = json!({"name": "bob the cat", "id": 1}))]
@@ -64,8 +70,8 @@ mod pet_api {
     }
 }
 
-#[derive(OpenApi, Default)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
+#[derive(Default, OpenApi)]
+#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet], modifiers = [&Foo])]
 struct ApiDoc;
 
 #[test]
@@ -77,3 +83,18 @@ fn derive_openapi() {
     );
     println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 }
+
+impl Modify for Foo {
+    fn modify(&self, openapi: &mut openapi::OpenApi) {
+        if let Some(schema) = openapi.components.as_mut() {
+            schema.add_security_schema(
+                "token_jwt",
+                SecuritySchema::Http(
+                    Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
+                ),
+            )
+        }
+    }
+}
+
+struct Foo;

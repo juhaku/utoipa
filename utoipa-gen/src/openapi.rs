@@ -4,6 +4,7 @@ use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    token::{And, Comma},
     Attribute, Error, ExprPath, GenericParam, Generics, Token,
 };
 
@@ -21,12 +22,38 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 pub struct OpenApiAttr {
     handlers: Vec<ExprPath>,
     components: Vec<Component>,
+    modifiers: Punctuated<Modifier, Comma>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Component {
     ty: Ident,
     generics: Generics,
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Modifier {
+    and: And,
+    ident: Ident,
+}
+
+impl ToTokens for Modifier {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let and = &self.and;
+        let ident = &self.ident;
+        tokens.extend(quote! {
+            #and #ident
+        })
+    }
+}
+
+impl Parse for Modifier {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self {
+            and: input.parse()?,
+            ident: input.parse()?,
+        })
+    }
 }
 
 impl Component {
@@ -57,16 +84,19 @@ impl Parse for OpenApiAttr {
 
             match attribute {
                 "handlers" => {
-                    openapi.handlers = parse_handlers(input).unwrap_or_abort();
+                    openapi.handlers = parse_handlers(input)?;
                 }
                 "components" => {
-                    openapi.components = parse_components(input).unwrap_or_abort();
+                    openapi.components = parse_components(input)?;
+                }
+                "modifiers" => {
+                    openapi.modifiers = parse_modifiers(input)?;
                 }
                 _ => {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                            "unexpected attribute: {}, expected: handlers, components",
+                            "unexpected attribute: {}, expected: handlers, components, modifiers",
                             ident
                         ),
                     ));
@@ -133,6 +163,15 @@ fn parse_components(input: ParseStream) -> syn::Result<Vec<Component>> {
     })
 }
 
+fn parse_modifiers(input: ParseStream) -> syn::Result<Punctuated<Modifier, Comma>> {
+    parse_utils::parse_next(input, || {
+        let content;
+        bracketed!(content in input);
+
+        Punctuated::<Modifier, Comma>::parse_terminated(&content)
+    })
+}
+
 pub(crate) struct OpenApi(pub OpenApiAttr, pub Ident);
 
 impl ToTokens for OpenApi {
@@ -141,8 +180,8 @@ impl ToTokens for OpenApi {
 
         let info = info::impl_info();
 
-        let schema = attributes.components.iter().fold(
-            quote! { utoipa::openapi::Schema::new() },
+        let components = attributes.components.iter().fold(
+            quote! { utoipa::openapi::Components::new() },
             |mut schema, component| {
                 let ident = &component.ty;
                 let span = ident.span();
@@ -172,14 +211,30 @@ impl ToTokens for OpenApi {
             },
         );
 
+        let modifiers = &self.0.modifiers;
+        let modifiers_len = modifiers.len();
+
+        modifiers.iter().for_each(|modifier| {
+            let assert_modifier = format_ident!("_Assert{}", modifier.ident);
+            let ident = &modifier.ident;
+            quote_spanned! {modifier.ident.span()=>
+                struct #assert_modifier where #ident : utoipa::Modify;
+            };
+        });
+
         let path_items = impl_paths(&attributes.handlers);
 
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     use utoipa::{Component, Path};
-                    utoipa::openapi::OpenApi::new(#info, #path_items)
-                        .with_components(#schema)
+                    let mut openapi = utoipa::openapi::OpenApi::new(#info, #path_items)
+                        .with_components(#components);
+
+                    let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
+                    _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
+
+                    openapi
                 }
             }
         });
