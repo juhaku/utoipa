@@ -357,14 +357,16 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_derive(OpenApi, attributes(openapi))]
 /// OpenApi derive macro
 ///
-/// This is `#[derive]` implementation for [OpenApi][openapi] trait. The macro accepts one `openapi` argument.
+/// This is `#[derive]` implementation for [`OpenApi`][openapi] trait. The macro accepts one `openapi` argument.
 ///
-/// **Accepted `openapi` argument attributes**
+/// **Accepted argument attributes:**
 ///
 /// * **handlers**  List of method references having attribute [`#[utoipa::path]`][path] macro.
-/// * **components**  List of [Component][component]s in OpenAPI schema.
+/// * **components**  List of [`Component`][component]s in OpenAPI schema.
+/// * **modifiers** List of items implemeting [`Modify`][modify] trait for runtime OpenApi modification.
+///   See the [trait documentation][modify] for more details.
 ///
-/// OpenApi derive macro will also derive [Info][info] for OpenApi specification using Cargo
+/// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
 ///
 /// * env `CARGO_PKG_NAME` map to info `title`
@@ -411,6 +413,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [openapi]: trait.OpenApi.html
 /// [component]: derive.Component.html
 /// [path]: attr.path.html
+/// [modify]: trait.Modify.html
 /// [info]: openapi/info/struct.Info.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
