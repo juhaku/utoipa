@@ -33,6 +33,12 @@ impl Components {
         self
     }
 
+    /// Add [`SecuritySchema`] to [`Components`] while consuming self.
+    ///
+    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn with_security_schemas<N: Into<String>, S: Into<SecuritySchema>>(
         mut self,
         name: N,
@@ -44,6 +50,13 @@ impl Components {
         self
     }
 
+    /// Add [`SecuritySchema`] to [`Components`] **without** consuming self. Use this when you want to
+    /// update existing [`Components`] object.
+    ///
+    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn add_security_schema<N: Into<String>, S: Into<SecuritySchema>>(
         &mut self,
         name: N,
@@ -53,6 +66,13 @@ impl Components {
             .insert(name.into(), security_schema.into());
     }
 
+    /// Add iterator of [`SecuritySchema`]s to [`Components`] **without** consuming self. Use this
+    /// when you want to update existing [`Components`] object.
+    ///
+    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn add_security_schemas_from_iter<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,

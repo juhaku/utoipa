@@ -31,6 +31,7 @@ mod doc_comment;
 mod ext;
 mod openapi;
 mod path;
+mod security_requirement;
 
 use crate::path::{Path, PathAttr, PathOperation};
 
@@ -166,6 +167,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///   the performed request.
 /// * **responses** Slice of responses the endpoint is going to possibly return to the caller.
 /// * **params** Slice of params that the endpoint accepts.
+/// * **security** List of [`SecurityRequirement`][security]s local to the path operation.
 ///
 /// # Request Body Attributes
 ///
@@ -247,7 +249,25 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// ("id" = String, path, deprecated, description = "Pet database id"),
 /// ("id", path, deprecated, description = "Pet database id"),
 /// ```
-///  
+///
+/// # Security Requirement Attributes
+///
+/// * **name** Define the name for security requirement. This must match to name of existing
+///   [`SecuritySchema`][security_schema].
+/// * **scopes** Define the list of scopes needed. These must be scopes defined already in
+///   existing [`SecuritySchema`][security_schema].
+///
+/// **Security Requirement supported formats:**
+///
+/// ```text
+/// (),
+/// ("name" = []),
+/// ("name" = ["scope1", "scope2"]),
+/// ```
+///
+/// Leaving empty _`()`_ creates an empty [`SecurityRequirement`][security] this is useful when
+/// security requirement is optional for operation.
+///
 /// # Examples
 ///
 /// Example with all possible arguments.
@@ -273,6 +293,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///    ],
 ///    params = [
 ///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
+///    ],
+///    security = [
+///        (),
+///        ("my_auth" = ["read:items", "edit:items"]),
+///        ("token_jwt" = [])
 ///    ]
 /// )]
 /// fn post_pet(pet: Pet) -> Pet {
@@ -315,6 +340,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// [path]: trait.Path.html
 /// [openapi]: derive.OpenApi.html
+/// [security]: openapi/security/struct.SecurityRequirement.html
+/// [security_schema]: openapi/security/struct.SecuritySchema.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -365,6 +392,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * **components**  List of [`Component`][component]s in OpenAPI schema.
 /// * **modifiers** List of items implemeting [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
+/// * **security** List of [`SecurityRequirement`][security]s global to all operations.
+///   See more details in [`#[utoipa::path(...)]`][path] [attribute macro security options][path_security].
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -406,7 +435,15 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[derive(OpenApi)]
-/// #[openapi(handlers = [get_pet, get_status], components = [Pet, Status])]
+/// #[openapi(
+///     handlers = [get_pet, get_status],
+///     components = [Pet, Status],
+///     security = [
+///         (),
+///         ("my_auth" = ["read:items", "edit:items"]),
+///         ("token_jwt" = [])
+///     ]
+/// )]
 /// struct ApiDoc;
 /// ```
 ///
@@ -415,6 +452,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [path]: attr.path.html
 /// [modify]: trait.Modify.html
 /// [info]: openapi/info/struct.Info.html
+/// [security]: openapi/security/struct.SecurityRequirement.html
+/// [path_security]: attr.path.html#security-requirement-attributes
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
@@ -430,32 +469,54 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Tokenizes slice or Vec of tokenizable items as slice reference (`&[...]`) correctly to OpenAPI JSON.
-struct ValueArray<V>(Vec<V>)
+/// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
+/// or without correctly to OpenAPI JSON.
+enum Array<T>
 where
-    V: Sized + ToTokens;
-
-impl<V> FromIterator<V> for ValueArray<V>
-where
-    V: Sized + ToTokens,
+    T: Sized + ToTokens,
 {
-    fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
-        Self {
-            0: iter.into_iter().collect::<Vec<_>>(),
+    Owned(Vec<T>),
+    Referenced(Vec<T>),
+}
+
+impl<T> Array<T>
+where
+    T: ToTokens + Sized,
+{
+    fn into_referenced_array(self) -> Self {
+        match self {
+            Array::Owned(values) => Self::Referenced(values),
+            Array::Referenced(_) => self,
         }
     }
 }
 
-impl<T> ToTokens for ValueArray<T>
+impl<V> FromIterator<V> for Array<V>
+where
+    V: Sized + ToTokens,
+{
+    fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
+        Self::Owned(iter.into_iter().collect())
+    }
+}
+
+impl<T> ToTokens for Array<T>
 where
     T: Sized + ToTokens,
 {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.append(Punct::new('&', proc_macro2::Spacing::Joint));
+        let (add_and, values) = match self {
+            Array::Owned(values) => (false, values),
+            Array::Referenced(values) => (true, values),
+        };
+
+        if add_and {
+            tokens.append(Punct::new('&', proc_macro2::Spacing::Joint));
+        }
 
         tokens.append(Group::new(
             proc_macro2::Delimiter::Bracket,
-            self.0
+            values
                 .iter()
                 .fold(Punctuated::new(), |mut punctuated, item| {
                     punctuated.push_value(item);

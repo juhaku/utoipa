@@ -12,7 +12,7 @@ use syn::{
 use crate::{
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
-    Deprecated, ValueArray,
+    Array, Deprecated,
 };
 
 use self::attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct};
@@ -275,7 +275,8 @@ impl ToTokens for SimpleEnum<'_> {
             .iter()
             .filter(|variant| matches!(variant.fields, Fields::Unit))
             .map(|variant| variant.ident.to_string())
-            .collect::<ValueArray<String>>();
+            .collect::<Array<String>>()
+            .into_referenced_array();
 
         tokens.extend(quote! {
             utoipa::openapi::Property::new(utoipa::openapi::ComponentType::String)

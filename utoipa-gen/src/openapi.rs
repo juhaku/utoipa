@@ -11,7 +11,10 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use crate::parse_utils;
+use crate::{
+    parse_utils,
+    security_requirement::{self, SecurityRequirementAttr},
+};
 
 mod info;
 
@@ -23,6 +26,7 @@ pub struct OpenApiAttr {
     handlers: Vec<ExprPath>,
     components: Vec<Component>,
     modifiers: Punctuated<Modifier, Comma>,
+    security: Option<Vec<SecurityRequirementAttr>>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -92,11 +96,18 @@ impl Parse for OpenApiAttr {
                 "modifiers" => {
                     openapi.modifiers = parse_modifiers(input)?;
                 }
+                "security" => {
+                    openapi.security = Some(
+                        security_requirement::parse_security_requirements(input)?
+                            .into_iter()
+                            .collect::<Vec<_>>(),
+                    )
+                }
                 _ => {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                            "unexpected attribute: {}, expected: handlers, components, modifiers",
+                            "unexpected attribute: {}, expected: handlers, components, modifiers, security",
                             ident
                         ),
                     ));
@@ -224,12 +235,23 @@ impl ToTokens for OpenApi {
 
         let path_items = impl_paths(&attributes.handlers);
 
+        let securities = if let Some(ref securities) = self.0.security {
+            let securities_tokens =
+                security_requirement::security_requirements_to_tokens(securities);
+            Some(quote! {
+                .with_securities(#securities_tokens)
+            })
+        } else {
+            None
+        };
+
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     use utoipa::{Component, Path};
                     let mut openapi = utoipa::openapi::OpenApi::new(#info, #path_items)
-                        .with_components(#components);
+                        .with_components(#components)
+                        #securities;
 
                     let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
                     _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
