@@ -83,6 +83,23 @@ impl OpenApi {
         self
     }
 
+    /// Add list of [`SecurityRequirement`]s that are globally available for all operations.
+    pub fn with_securities<I: IntoIterator<Item = SecurityRequirement>>(
+        mut self,
+        securities: I,
+    ) -> Self {
+        self.security = Some(securities.into_iter().collect());
+
+        self
+    }
+
+    /// Add [`SecurityRequirement`] that is globally available for all operations.
+    pub fn with_security(mut self, security: SecurityRequirement) -> Self {
+        self.security.as_mut().unwrap().push(security);
+
+        self
+    }
+
     #[cfg(feature = "serde_json")]
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)

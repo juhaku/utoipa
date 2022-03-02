@@ -198,3 +198,35 @@ fn derive_path_with_extra_attributes_without_nested_module() {
         "parameters.[1].schema.type" = r#""string""#, "Parameter 1 schema type"
     }
 }
+
+#[test]
+fn derive_path_with_security_requirements() {
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses = [
+            (status = 200, description = "success response")
+        ],
+        security = [
+            (),
+            ("api_oauth" = ["read:items", "edit:items"]),
+            ("jwt_token" = [])
+        ]
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_value! {operation=>
+        "security.[0]" = "{}", "Optional security requirement"
+        "security.[1].api_oauth.[0]" = r###""read:items""###, "api_oauth first scope"
+        "security.[1].api_oauth.[1]" = r###""edit:items""###, "api_oauth second scope"
+        "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
+    }
+}

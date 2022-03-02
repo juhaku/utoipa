@@ -272,6 +272,7 @@ impl Operation {
         self
     }
 
+    /// Add list of [`SecurityRequirement`]s that are globally available for all operations.
     pub fn with_securities<I: IntoIterator<Item = SecurityRequirement>>(
         mut self,
         securities: I,
@@ -281,6 +282,7 @@ impl Operation {
         self
     }
 
+    /// Add [`SecurityRequirement`] that is globally available for all operations.
     pub fn with_security(mut self, security: SecurityRequirement) -> Self {
         self.security.as_mut().unwrap().push(security);
 

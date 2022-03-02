@@ -14,6 +14,7 @@ use syn::{
 use crate::{
     component_type::ComponentType,
     ext::{Argument, ArgumentIn},
+    security_requirement::{self, SecurityRequirementAttr},
 };
 use crate::{parse_utils, Deprecated};
 
@@ -70,6 +71,7 @@ pub struct PathAttr {
     operation_id: Option<String>,
     tag: Option<String>,
     params: Option<Vec<Parameter>>,
+    security: Option<Vec<SecurityRequirementAttr>>,
 }
 
 impl PathAttr {
@@ -192,6 +194,13 @@ impl Parse for PathAttr {
                         "unparseable tag, expected literal string",
                     ));
                 }
+                "security" => {
+                    path_attr.security = Some(
+                        security_requirement::parse_security_requirements(input)?
+                            .into_iter()
+                            .collect::<Vec<_>>(),
+                    )
+                }
                 _ => {
                     // any other case it is expected to be path operation
                     if let Some(path_operation) =
@@ -199,7 +208,7 @@ impl Parse for PathAttr {
                     {
                         path_attr.path_operation = Some(path_operation)
                     } else {
-                        let erro_msg = format!("unexpected identifier: {}, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag", attribute);
+                        let erro_msg = format!("unexpected identifier: {}, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security", attribute);
                         return Err(syn::Error::new(ident.span(), erro_msg));
                     }
                 }
@@ -385,6 +394,7 @@ impl ToTokens for Path {
             parameters: self.path_attr.params.as_ref(),
             request_body: self.path_attr.request_body.as_ref(),
             responses: self.path_attr.responses.as_ref(),
+            security: self.path_attr.security.as_ref(),
         };
 
         tokens.extend(quote! {
@@ -419,6 +429,7 @@ struct Operation<'a> {
     parameters: Option<&'a Vec<Parameter>>,
     request_body: Option<&'a RequestBodyAttr>,
     responses: &'a Vec<Response>,
+    security: Option<&'a Vec<SecurityRequirementAttr>>,
 }
 
 impl ToTokens for Operation<'_> {
@@ -435,7 +446,13 @@ impl ToTokens for Operation<'_> {
         tokens.extend(quote! {
             .with_responses(#responses)
         });
-        //         // .with_security()
+        if let Some(security_requirements) = self.security {
+            let security =
+                security_requirement::security_requirements_to_tokens(security_requirements);
+            tokens.extend(quote! {
+                .with_securities(#security)
+            })
+        }
         let operation_id = self.operation_id;
         tokens.extend(quote! {
             .with_operation_id(

@@ -1,10 +1,24 @@
 //! OpenAPI schema's security components implementations.
 //!
 //! Refer to [`SecuritySchema`] for usage and more details.
-use std::collections::HashMap;
+use std::{collections::HashMap, iter};
 
 use serde::{Deserialize, Serialize};
 
+/// OpenAPI [security requirment][security] object.
+///
+/// Security requirement holds list of required [`SecuritySchema`] *names* and possible *scopes* required
+/// to execute the operation. They can be defined in [`#[utoipa::path(...)]`][path] or in `#[openapi(...)]`
+/// of [`OpenApi`][openapi].
+///
+/// Applying the security requirement to [`OpenApi`][openapi] will make it globally
+/// available to all operations. When applied to specific [`#[utoipa::path(...)]`][path] will only
+/// make the security requirements available for that operation. Only one of the requirements must be
+/// satisfied.
+///
+/// [security]: https://spec.openapis.org/oas/latest.html#security-requirement-object
+/// [path]: ../../attr.path.html
+/// [openapi]: ../../derive.OpenApi.html
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SecurityRequirement {
@@ -13,14 +27,46 @@ pub struct SecurityRequirement {
 }
 
 impl SecurityRequirement {
-    pub fn new() -> Self {
-        Default::default()
+    /// Construct a new [`SecurityRequirement`]
+    ///
+    /// Accepts name for the security requirement which must match to the name of available [`SecuritySchema`].
+    /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
+    /// Scopes must match to the ones defined in [`SecuritySchema`].
+    ///
+    /// # Examples
+    ///
+    /// Create new security requirement with scopes.
+    /// ```rust
+    /// # use utoipa::openapi::security::SecurityRequirement;
+    /// SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
+    /// ```
+    ///
+    /// You can also create an empty security requirement with `Default::default()`.
+    /// ```rust
+    /// # use utoipa::openapi::security::SecurityRequirement;
+    /// SecurityRequirement::default();
+    /// ```
+    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
+        name: N,
+        scopes: S,
+    ) -> Self {
+        Self {
+            value: HashMap::from_iter(iter::once_with(|| {
+                (
+                    Into::<String>::into(name),
+                    scopes
+                        .into_iter()
+                        .map(|scope| Into::<String>::into(scope))
+                        .collect::<Vec<_>>(),
+                )
+            })),
+        }
     }
 }
 
-/// Defines OpenAPI security schema that the path operations can use.
+/// OpenAPI [security schema][security] for path operations.
 ///
-/// See more details at <https://spec.openapis.org/oas/latest.html#security-scheme-object>.
+/// [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
 ///
 /// # Examples
 ///
