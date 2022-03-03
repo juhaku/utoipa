@@ -227,7 +227,7 @@ HttpServer::new(move || {
 You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
 for more comprehensinve examples.
 * Modify generated OpenAPI at runtime check `Modify` trait for more details.
-* More about OpenAPI security in [security documentation][https://docs.rs/utoipa/0.1.0-beta.5/utoipa/openapi/security/index.html].
+* More about OpenAPI security in [security documentation](https://docs.rs/utoipa/0.1.0-beta.5/utoipa/openapi/security/index.html).
 
 # License
 
