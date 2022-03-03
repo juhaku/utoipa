@@ -1,4 +1,4 @@
-//! This is **private** utoipa codegen library and is not used alone
+//! This is **private** utoipa codegen library and is not used alone.
 //!
 //! The library contains macro implementations for utoipa library. Content
 //! of the libarary documentation is available through **utoipa** library itself.

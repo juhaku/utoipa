@@ -21,6 +21,12 @@ Rust if autogeneration is not your flavor or does not fit your purpose.
 Long term goal of the library is to be the place to go when OpenAPI documentation is needed in Rust
 codebase.
 
+Utoipa is framework agnostic and could be used together with any web framework or even without one. While 
+being portable and standalone one of it's key aspects is simple integration with web frameworks. 
+
+Currently utoipa provides simple integration with actix-web framework but is not limited to the actix-web 
+framework. All functionalities are not restricted to any specific framework.
+
 ## What's up with the word play?
 
 The name comes from words `utopic` and `api` where `uto` is the first three letters of utopic
@@ -58,8 +64,8 @@ utoipa = { version = "0.1.0-beta.5", features = ["swagger_ui", "actix-web", "act
 **This project is currently in active development and not ready for PRODUCTION use!** 
 
 The basic features are nearly implemented and the it can handle the OpenApi generation in most typical situations. 
-It is yet to be released to crates later on when the api and the functionalities gets mature enough. Before initial
-release there are going to be still couple of beta releases and one or few rc releases.
+There are already prereleases available in crates.io and is still pending the first stable release. Before the
+first stable release there are going to be still couple of beta releases and one or few rc releases.
 
 See https://github.com/juhaku/utoipa/projects for more details about the progress of the project implementation.
 
@@ -78,7 +84,7 @@ struct Pet {
 }
 ```
 
-Create an handler that would handle your business logic and add `path` proc attribute macro over it.
+Create a handler that would handle your business logic and add `path` proc attribute macro over it.
 ```rust
 mod pet_api {
     /// Get pet by id
@@ -105,10 +111,9 @@ mod pet_api {
 }
 ```
 
-Tie the `Component` and the api above to the OpenApi schema with following `OpenApi` derive proc macro.
+Tie the `Component` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
 ```rust
 use utoipa::OpenApi;
-use crate::Pet;
 
 #[derive(OpenApi)]
 #[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
@@ -216,9 +221,13 @@ HttpServer::new(move || {
     .await
 ```
 
-See more details in `swagger_ui` module of [utoipa docs](https://docs.rs/utoipa/0.1.0-beta.5/utoipa/).
-You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for 
-more comprehensinve examples.
+# Go beyond the surface
+
+* See how to serve OpenAPI doc via Swagger UI check `swagger_ui` module for more details.
+You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
+for more comprehensinve examples.
+* Modify generated OpenAPI at runtime check `Modify` trait for more details.
+* More about OpenAPI security in [security documentation][https://docs.rs/utoipa/0.1.0-beta.5/utoipa/openapi/security/index.html].
 
 # License
 

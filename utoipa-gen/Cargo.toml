@@ -4,6 +4,8 @@ description = "Code generation implementation for utoipa"
 version = "0.1.0-beta.6"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["openapi", "codegen", "proc-macro", "documentation", "compile-time"]
 repository = "https://github.com/juhaku/utoipa"
 
 [lib]
