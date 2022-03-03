@@ -25,9 +25,6 @@
 //! * **default** Default enabled features are **json**.
 //! * **json** Enables **serde_json** what allow to use json values in OpenAPI specification values.
 //!   Thus is enabled by default.
-//! * **swagger_ui** Enables the embedded Swagger UI to view openapi api documentation.
-//! * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
-//!   users to use the Swagger UI without a hazzle.
 //! * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
 //!   from actix web macro attributes and types.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
@@ -40,12 +37,16 @@
 //! utoipa = "0.1.0.beta.0"  
 //! ```
 //!
-//! To enable more features such as use of swagger together with actix-web framework you could define the
+//! To enable more features such as use actix framework extras you could define the
 //! dependency as follows.
 //! ```text
 //! [dependencies]
-//! utoipa = { version = "0.1.0.beta.0", features = ["swagger_ui", "actix-web", "actix_extras"] }
+//! utoipa = { version = "0.1.0.beta.0", features = ["actix_extras"] }
 //! ```
+//!
+//! **Note!** To use `utoipa` together with Swagger UI you can use the [`utoipa-swagger-ui`][utoipa_swagger] crate.
+//!
+//! [utoipa_swagger]: <https://docs.rs/utoipa-swagger-ui/>
 //!
 //! # Examples
 //!
@@ -148,9 +149,8 @@
 //! ```
 //! # Go beyond the surface
 //!
-//! * See how to serve OpenAPI doc via Swagger UI check [`swagger_ui`] module for more details.
-//! You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
-//! for more comprehensinve examples.
+//! * See how to serve OpenAPI doc via Swagger UI check [`utoipa-swagger-ui`][utoipa_swagger] crate for more details.
+//! * Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensinve examples.
 //! * Modify generated OpenAPI at runtime check [`Modify`] trait for more details.
 //! * More about OpenAPI security in [security documentation][security].
 //!
@@ -158,8 +158,6 @@
 
 /// Rust implementation of Openapi Spec V3
 pub mod openapi;
-#[cfg(feature = "swagger_ui")]
-pub mod swagger_ui;
 
 pub use utoipa_gen::*;
 
