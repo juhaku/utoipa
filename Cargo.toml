@@ -40,3 +40,6 @@ members = [
 
 [package.metadata.docs.rs]
 features = ["swagger_ui", "json", "actix-web", "actix_extras"]
+
+[package.metadata.publish]
+order = ["utoipa-gen", "utoipa"]

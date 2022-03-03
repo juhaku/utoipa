@@ -29,10 +29,13 @@ function publish {
   fi
 }
 
+if [ ! -f "Cargo.toml" ]; then
+  echo "Missing Cargo.toml file, not in a Rust project root?" && exit 1
+fi
+
 echo "$token" | cargo login
-while read -r manifest; do
-  echo "Publishing module $manifest..."
-  module=$(cargo read-manifest --manifest-path "$manifest" | jq -r .name)
+while read -r module; do
+  echo "Publishing module $module..."
   
   max_retries=10
   retry=0
@@ -45,4 +48,4 @@ while read -r manifest; do
   if [[ $retry -eq $max_retries ]]; then
     echo "Failed to publish crate $module, try to increase await time? Or retries?" && exit 1
   fi
-done < <(find . ! -path "*target*" -name "Cargo.toml" | sort -r)
+done < <(cargo read-manifest --manifest-path Cargo.toml | jq -r '.metadata.publish.order[]')
