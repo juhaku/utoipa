@@ -221,7 +221,7 @@ HttpServer::new(move || {
     .await
 ```
 
-# Go beyond the surface
+## Go beyond the surface
 
 * See how to serve OpenAPI doc via Swagger UI check `swagger_ui` module for more details.
 You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
