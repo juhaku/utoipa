@@ -37,6 +37,13 @@ echo "$token" | cargo login
 while read -r module; do
   echo "Publishing module $module..."
   
+  current_version=$(cargo read-manifest --manifest-path "$module"/Cargo.toml | jq -r '.version')
+  last_version=$(curl -sS https://crates.io/api/v1/crates/"$module"/versions | jq -r '.versions[0].num')
+  if [[ "$last_version" == "$current_version" ]]; then
+    echo "Module: $module, is already at it's latest release ($last_version), nothing to release"
+    continue
+  fi
+  
   max_retries=10
   retry=0
   while ! publish "$module" && [[ $retry -lt $max_retries ]]; do
