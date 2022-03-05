@@ -19,6 +19,11 @@ proc-macro-error = "1.0"
 regex = { version = "1.5", optional = true } 
 lazy_static = { version = "1.4", optional = true }
 
+[dev-dependencies]
+utoipa = { path = ".." }
+serde_json = "1"
+
+
 [features]
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static"]

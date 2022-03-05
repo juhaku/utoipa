@@ -237,14 +237,6 @@ impl Parse for PathAttr {
 ///   * "head"
 ///   * "patch"
 ///   * "trace"
-///
-/// # Examples
-///
-/// Basic usage:
-/// ```
-/// let operation = "get".parse::<PathOperation>().unwrap();
-/// assert_eq!(operation, PathOperation::Get)
-/// ```
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum PathOperation {
     Get,

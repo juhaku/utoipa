@@ -83,7 +83,7 @@ use crate::path::{Path, PathAttr, PathOperation};
 /// # use utoipa::Component;
 /// #[derive(Component)]
 /// struct Pet {
-///     #[component(example = 1, default = 0))]
+///     #[component(example = 1, default = 0)]
 ///     id: u64,
 ///     name: String,
 ///     age: Option<i32>,
@@ -95,7 +95,7 @@ use crate::path::{Path, PathAttr, PathOperation};
 /// # use utoipa::Component;
 /// #[derive(Component)]
 /// struct Pet {
-///     #[component(example = u64::default, default = u64::default))]
+///     #[component(example = u64::default, default = u64::default)]
 ///     id: u64,
 ///     #[component(default = default_name)]
 ///     name: String,
@@ -422,7 +422,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(get, path = "/pet")]
-/// fn get_pet() - Pet {
+/// fn get_pet() -> Pet {
 ///     Pet {
 ///         name: "bob".to_string(),
 ///         age: 8,
@@ -430,7 +430,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(get, path = "/status")]
-/// fn get_status() - Status {
+/// fn get_status() -> Status {
 ///     Status::Active
 /// }
 ///
