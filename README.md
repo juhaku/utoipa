@@ -1,8 +1,8 @@
 # utoipa - Autogenerate OpenAPI documentation
 
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
-[![crates.io](https://img.shields.io/static/v1?label=crates.io&message=0.1.0-beta.5&color=orange&logo=rust)](https://crates.io/crates/utoipa/0.1.0-beta.5)
-[![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa/0.1.0-beta.5/utoipa/)
+[![crates.io](https://img.shields.io/static/v1?label=crates.io&message=0.1.0-beta6&color=orange&logo=rust)](https://crates.io/crates/utoipa/0.1.0-beta6)
+[![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa/0.1.0-beta6/utoipa/)
 
 Want to have your API documented with OpenAPI? But you dont want to see the
 trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
@@ -37,9 +37,6 @@ and the `ipa` is api reversed.
 * **default** Default enabled features are **json**.
 * **json** Enables **serde_json** what allow to use json values in OpenAPI specification values. Thus is
   enabled by default.
-* **swagger_ui** Enables the embedded Swagger UI to view openapi api documentation.
-* **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
-  users to use the Swagger UI without a hazzle.
 * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
   from actix web macro attributes and types.
 * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
@@ -49,19 +46,23 @@ and the `ipa` is api reversed.
 Add minimal dependency declaration to Cargo.toml.
 ```
 [dependencies]
-utoipa = "0.1.0-beta.5"
+utoipa = "0.1.0-beta6"
 ```
 
-To enable more features such as use of swagger together with actix-web framework you could define the
+To enable more features such as use actix framework extras you could define the
 dependency as follows.
 ```
 [dependencies]
-utoipa = { version = "0.1.0-beta.5", features = ["swagger_ui", "actix-web", "actix_extras"] }
+utoipa = { version = "0.1.0-beta6", features = ["actix_extras"] }
 ```
+
+**Note!** To use `utoipa` together with Swagger UI you can use the [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate.
 
 ## Current project status
 
 **This project is currently in active development and not ready for PRODUCTION use!** 
+
+The API might changes anytime before the first **stable** release while still in pre-release state.
 
 The basic features are nearly implemented and the it can handle the OpenApi generation in most typical situations. 
 There are already prereleases available in crates.io and is still pending the first stable release. Before the
@@ -206,28 +207,12 @@ This would produce api doc something similar to:
 }
 ```
 
-If you have *swagger_ui* and the *actix-web* features enabled you can display the openapi documentation
-as easily as follows:
-```rust
-HttpServer::new(move || {
-        App::new()
-            .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .with_url("/api-doc/openapi.json", ApiDoc::openapi()),
-            )
-    })
-    .bind(format!("{}:{}", Ipv4Addr::UNSPECIFIED, 8989))?
-    .run()
-    .await
-```
-
 ## Go beyond the surface
 
-* See how to serve OpenAPI doc via Swagger UI check `swagger_ui` module for more details.
-You can also browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples)
-for more comprehensinve examples.
+* See how to serve OpenAPI doc via Swagger UI check [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate for more details.
+* Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensinve examples.
 * Modify generated OpenAPI at runtime check `Modify` trait for more details.
-* More about OpenAPI security in [security documentation](https://docs.rs/utoipa/0.1.0-beta.5/utoipa/openapi/security/index.html).
+* More about OpenAPI security in [security documentation](https://docs.rs/utoipa/0.1.0-beta6/utoipa/openapi/security/index.html).
 
 # License
 
