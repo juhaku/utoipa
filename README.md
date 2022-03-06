@@ -62,7 +62,7 @@ utoipa = { version = "0.1.0-beta6", features = ["actix_extras"] }
 
 **This project is currently in active development and not ready for PRODUCTION use!** 
 
-The API might changes anytime before the first **stable** release while still in pre-release state.
+The API might change anytime before the first **stable** release while still in pre-release state.
 
 The basic features are nearly implemented and the it can handle the OpenApi generation in most typical situations. 
 There are already prereleases available in crates.io and is still pending the first stable release. Before the
