@@ -4,10 +4,13 @@ inputs:
   token:
     description: Cargo login token to use the publish the crate
     required: true
+  ref:
+    description: "Github release tag ref"
+    required: true
 runs:
   using: composite
   steps:
     - shell: bash 
       id: publish_crate
       run: |
-        ${{ github.action_path }}/publish.sh --token ${{ inputs.token }}
+        ${{ github.action_path }}/publish.sh --token ${{ inputs.token }} --ref ${{ inputs.ref }}

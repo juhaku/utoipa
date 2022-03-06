@@ -20,3 +20,4 @@ jobs:
       name: Cargo publish
       with:
         token: ${{ secrets.CARGO_LOGIN }}
+        ref: ${{ github.ref }}

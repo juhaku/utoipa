@@ -10,6 +10,13 @@ env:
 
 jobs:
   draft:
+    strategy:
+      matrix:
+        crate:
+          - utoipa
+          - utoipa-gen
+          - utoipa-swagger-ui
+      fail-fast: true
     runs-on: ubuntu-latest
 
     steps:
@@ -22,18 +29,22 @@ jobs:
       id: gitlog
       with:
         output-file: ./draft-gitlog.md
+        crate: ${{ matrix.crate }}
 
     - name: Prepare changes
       run: |
-        echo "# Changes in this Release" > ./draft-changes.md
+        echo "## What's New :gem: :new: :tada:" > ./draft-changes.md
         cat < ./draft-gitlog.md >> ./draft-changes.md
-
-        cat ./draft-changes.md
 
     - name: Get release info
       id: release_info
       run: |
-        version=$(cargo read-manifest | jq -r .version)
+        version=""
+        if [[ "${{ matrix.crate }}" == "utoipa" ]]; then
+          version=$(cargo read-manifest | jq -r .version)
+        else 
+          version=$(cargo read-manifest --manifest-path "${{ matrix.crate }}/Cargo.toml" | jq -r .version)
+        fi
 
         prerelease=false
         if [[ "$version" =~ .*-.* ]]; then
@@ -41,17 +52,21 @@ jobs:
         fi
         echo "::set-output name=is_prerelease::$prerelease"
         echo "::set-output name=version::$version"
+    
+    - name: Add full change log link
+      run: |
+        echo -e "#### Full [change log](${{ github.server_url }}/${{ github.repository }}/compare/${{ steps.gitlog.outputs.last_release }}...${{ matrix.crate }}-${{ steps.release_info.outputs.version }})" >> ./draft-changes.md
 
     - name: Check existing release
       run: |
-        if git tag | grep ${{ steps.release_info.outputs.version }} > /dev/null; then 
-          echo "Tag tag with ${{ steps.release_info.outputs.version }} already exists, cannot draft a release for already existing tag!, Consider upgrading versions to Cargo.toml file" && exit 1
+        if git tag | grep ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} > /dev/null; then 
+          echo "Tag tag with ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} already exists, cannot draft a release for already existing tag!, Consider upgrading versions to Cargo.toml file" && exit 1
         fi
 
     - name: Remove previous release
       run: |
         echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-        gh release delete ${{ steps.release_info.outputs.version }} -y || true
+        gh release delete ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} -y || true
 
     - name: Create release
       id: create_release
@@ -59,8 +74,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.release_info.outputs.version }}
-        release_name: Release ${{ steps.release_info.outputs.version }}
+        tag_name: ${{ matrix.crate }}-${{ steps.release_info.outputs.version }}
+        release_name: ${{ matrix.crate }}-${{ steps.release_info.outputs.version }}
         body_path: ./draft-changes.md
         draft: true
         prerelease: ${{ steps.release_info.outputs.is_prerelease }}
