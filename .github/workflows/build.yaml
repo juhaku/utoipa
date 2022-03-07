@@ -18,10 +18,9 @@ jobs:
     strategy:
       matrix:
         testset: 
-          - default
-          - actix
-          - gen
-          - swagger
+          - utoipa
+          - utoipa-gen
+          - utoipa-swagger-ui
       fail-fast: true
     runs-on: ubuntu-latest
 
@@ -61,14 +60,13 @@ jobs:
 
     - name: Run tests
       run: |
-        if [[ "${{ matrix.testset }}" == "default" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
+        if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
           cargo test
           cargo test --test path_response_derive_test_no_serde_json --no-default-features
           cargo test --test component_derive_no_serde_json --no-default-features
-        elif [[ "${{ matrix.testset }}" == "actix" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
-          cargo test --features actix_extras
-        elif [[ "${{ matrix.testset }}" == "gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
+          cargo test --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
+        elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
           cargo test -p utoipa-gen --features actix_extras
-        elif [[ "${{ matrix.testset }}" == "swagger" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
+        elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
           cargo test -p utoipa-swagger-ui --features actix-web
         fi

@@ -3,11 +3,17 @@
 # Publishes crate to crates.io
 
 token=""
+ref=""
 while true; do
   case $1 in
     "--token")
       shift
       token="$1"
+      shift
+    ;;
+    "--ref")
+      shift
+      ref=${1/refs\/tags\//}
       shift
     ;;
     *)
@@ -18,6 +24,9 @@ done
 
 if [[ "$token" == "" ]]; then
   echo "Missing --token <token> option argument, cannot publish crates without it!" && exit 1
+fi
+if [[ "$ref" == "" ]]; then
+  echo "Missing --ref <ref> option argument, need an explisit ref to release!" && exit 1
 fi
 
 function publish {
@@ -35,15 +44,26 @@ fi
 
 echo "$token" | cargo login
 while read -r module; do
-  echo "Publishing module $module..."
+  # crate=$(echo "$ref" | sed 's|-[0-9]*\.[0-9]*\.[0-9].*||')
+  crate=${ref/-[0-9]\.[0-9]\.[0-9]*/}
+  if [[ "$crate" != "$module" ]]; then
+    echo "Module: $module does not match to release crate: $crate, skipping release for module"
+    continue
+  fi
   
-  current_version=$(cargo read-manifest --manifest-path "$module"/Cargo.toml | jq -r '.version')
+  toml="Cargo.toml"
+  if [[ "$module" != "utoipa" ]]; then
+    toml="$module/Cargo.toml"
+  fi
+  
+  current_version=$(cargo read-manifest --manifest-path "$toml" | jq -r '.version')
   last_version=$(curl -sS https://crates.io/api/v1/crates/"$module"/versions | jq -r '.versions[0].num')
   if [[ "$last_version" == "$current_version" ]]; then
     echo "Module: $module, is already at it's latest release ($last_version), nothing to release"
     continue
   fi
   
+  echo "Publishing module $module..."
   max_retries=10
   retry=0
   while ! publish "$module" && [[ $retry -lt $max_retries ]]; do
