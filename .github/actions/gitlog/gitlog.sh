@@ -59,7 +59,7 @@ function is_crate_related {
   if [[ "$crate" != "utoipa" ]] && [[ "$changes" == *"$crate"* ]]; then
     is_related=true
   fi
-  if [[ "$crate" == "utoipa" ]] && [[ ! $changes =~ (utoipa-gen|utoipa-swagger-ui) ]]; then
+  if [[ "$crate" == "utoipa" ]] && [[ $changes =~ (src|tests|Cargo.toml|README.md) ]]; then
     is_related=true
   fi
   
