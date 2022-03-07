@@ -56,7 +56,9 @@
 //! [^actix]: **actix-web** feature need to be enabled.
 use std::borrow::Cow;
 
+#[cfg(feature = "actix-web")]
 use actix_web::{dev::HttpServiceFactory, guard::Get, web, HttpResponse, Resource, Responder};
+
 use rust_embed::RustEmbed;
 use utoipa::openapi::OpenApi;
 
