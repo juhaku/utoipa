@@ -1,4 +1,4 @@
-# utoipa - Autogenerate OpenAPI documentation
+# utoipa - Auto generated OpenAPI documentation
 
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/static/v1?label=crates.io&message=0.1.0-beta6&color=orange&logo=rust)](https://crates.io/crates/utoipa/0.1.0-beta6)
