@@ -82,7 +82,7 @@ impl Parse for Parameter {
                 "path" | "query" | "header" | "cookie" => {
                     parameter.parameter_in = name.parse::<ParameterIn>().unwrap_or_abort();
                 }
-                "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(input),
+                "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(input)?,
                 "description" => {
                     parameter.description = parse_utils::parse_next(input, || {
                         Some(

@@ -67,7 +67,7 @@ pub fn security_requirements_to_tokens(
         if let (Some(name), Some(scopes)) = (&security.name, &security.scopes) {
             let scopes_array = scopes.iter().collect::<Array<&String>>();
             let scopes_len = scopes.len();
-            
+
             quote! {
                 utoipa::openapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
             }
