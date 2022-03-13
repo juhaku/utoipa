@@ -549,3 +549,55 @@ fn derive_struct_with_read_only_and_write_only() {
         "properties.username.writeOnly" = r###"null"###, "User username write only"
     }
 }
+
+#[test]
+fn derive_struct_xml() {
+    let user = api_doc! {
+        #[component(xml(name = "user", prefix = "u", namespace = "https://mynamespace.test"))]
+        struct User {
+            #[component(xml(attribute, prefix = "u"))]
+            id: i64,
+            #[component(xml(name = "user_name", prefix = "u"))]
+            username: String,
+            #[component(xml(wrapped(name = "linkList"), name = "link"))]
+            links: Vec<String>,
+            #[component(xml(wrapped, name = "photo_url"))]
+            photos_urls: Vec<String>
+        }
+    };
+
+    assert_value! {user=>
+        "xml.attribute" = r###"null"###, "User xml attribute"
+        "xml.name" = r###""user""###, "User xml name"
+        "xml.prefix" = r###""u""###, "User xml prefix"
+        "xml.namespace" = r###""https://mynamespace.test""###, "User xml namespace"
+        "properties.id.xml.attribute" = r###"true"###, "User id xml attribute"
+        "properties.id.xml.name" = r###"null"###, "User id xml name"
+        "properties.id.xml.prefix" = r###""u""###, "User id xml prefix"
+        "properties.id.xml.namespace" = r###"null"###, "User id xml namespace"
+        "properties.username.xml.attribute" = r###"null"###, "User username xml attribute"
+        "properties.username.xml.name" = r###""user_name""###, "User username xml name"
+        "properties.username.xml.prefix" = r###""u""###, "User username xml prefix"
+        "properties.username.xml.namespace" = r###"null"###, "User username xml namespace"
+        "properties.links.xml.attribute" = r###"null"###, "User links xml attribute"
+        "properties.links.xml.name" = r###""linkList""###, "User links xml name"
+        "properties.links.xml.prefix" = r###"null"###, "User links xml prefix"
+        "properties.links.xml.namespace" = r###"null"###, "User links xml namespace"
+        "properties.links.xml.wrapped" = r###"true"###, "User links xml wrapped"
+        "properties.links.items.xml.attribute" = r###"null"###, "User links xml items attribute"
+        "properties.links.items.xml.name" = r###""link""###, "User links xml items name"
+        "properties.links.items.xml.prefix" = r###"null"###, "User links xml items prefix"
+        "properties.links.items.xml.namespace" = r###"null"###, "User links xml items namespace"
+        "properties.links.items.xml.wrapped" = r###"null"###, "User links xml items wrapped"
+        "properties.photos_urls.xml.attribute" = r###"null"###, "User photos_urls xml attribute"
+        "properties.photos_urls.xml.name" = r###"null"###, "User photos_urls xml name"
+        "properties.photos_urls.xml.prefix" = r###"null"###, "User photos_urls xml prefix"
+        "properties.photos_urls.xml.namespace" = r###"null"###, "User photos_urls xml namespace"
+        "properties.photos_urls.xml.wrapped" = r###"true"###, "User photos_urls xml wrapped"
+        "properties.photos_urls.items.xml.attribute" = r###"null"###, "User photos_urls xml items attribute"
+        "properties.photos_urls.items.xml.name" = r###""photo_url""###, "User photos_urls xml items name"
+        "properties.photos_urls.items.xml.prefix" = r###"null"###, "User photos_urls xml items prefix"
+        "properties.photos_urls.items.xml.namespace" = r###"null"###, "User photos_urls xml items namespace"
+        "properties.photos_urls.items.xml.wrapped" = r###"null"###, "User photos_urls links xml items wrapped"
+    }
+}

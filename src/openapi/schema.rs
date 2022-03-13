@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::{security::SecuritySchema, Deprecated};
+use super::{security::SecuritySchema, xml::Xml, Deprecated};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -185,6 +185,9 @@ pub struct Property {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     read_only: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xml: Option<Xml>,
 }
 
 impl Property {
@@ -263,6 +266,12 @@ impl Property {
 
         self
     }
+
+    pub fn with_xml(mut self, xml: Xml) -> Self {
+        self.xml = Some(xml);
+
+        self
+    }
 }
 
 impl From<Property> for Component {
@@ -303,6 +312,9 @@ pub struct Object {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xml: Option<Xml>,
 }
 
 impl Object {
@@ -351,6 +363,12 @@ impl Object {
     #[cfg(not(feature = "serde_json"))]
     pub fn with_example<I: Into<String>>(mut self, example: I) -> Self {
         self.example = Some(example.into());
+
+        self
+    }
+
+    pub fn with_xml(mut self, xml: Xml) -> Self {
+        self.xml = Some(xml);
 
         self
     }
@@ -413,6 +431,9 @@ pub struct Array {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     min_items: Option<usize>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xml: Option<Xml>,
 }
 
 impl Array {
@@ -432,6 +453,12 @@ impl Array {
 
     pub fn with_min_items(mut self, min_items: usize) -> Self {
         self.min_items = Some(min_items);
+
+        self
+    }
+
+    pub fn with_xml(mut self, xml: Xml) -> Self {
+        self.xml = Some(xml);
 
         self
     }

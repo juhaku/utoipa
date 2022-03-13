@@ -687,13 +687,13 @@ mod parse_utils {
         })
     }
 
-    pub fn parse_bool_or_true(input: ParseStream) -> bool {
+    pub fn parse_bool_or_true(input: ParseStream) -> Result<bool, syn::Error> {
         if input.peek(Token![=]) && input.peek2(LitBool) {
-            input.parse::<Token![=]>().unwrap();
+            input.parse::<Token![=]>()?;
 
-            input.parse::<LitBool>().unwrap().value()
+            Ok(input.parse::<LitBool>()?.value())
         } else {
-            true
+            Ok(true)
         }
     }
 

@@ -1,12 +1,20 @@
+use std::mem;
+
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{
+    parenthesized,
     parse::{Parse, ParseBuffer},
     Attribute, Error, ExprPath, Lit, Token,
 };
 
 use crate::{parse_utils, Example};
+
+use super::{
+    xml::{Xml, XmlAttr},
+    ComponentPart,
+};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentAttr<T>
@@ -32,9 +40,11 @@ pub struct Enum {
     example: Option<TokenStream>,
 }
 
+#[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Struct {
     example: Option<Example>,
+    xml_attr: Option<XmlAttr>,
 }
 
 #[derive(Default)]
@@ -52,6 +62,8 @@ pub struct NamedField {
     default: Option<TokenStream>,
     write_only: Option<bool>,
     read_only: Option<bool>,
+    xml_attr: Option<XmlAttr>,
+    pub(super) xml: Option<Xml>,
 }
 
 impl Parse for ComponentAttr<Enum> {
@@ -98,28 +110,56 @@ impl Parse for ComponentAttr<Enum> {
     }
 }
 
+impl ComponentAttr<Struct> {
+    pub(super) fn from_attributes_validated(attributes: &[Attribute]) -> Option<Self> {
+        parse_component_attr::<ComponentAttr<Struct>>(attributes).map(|attrs| {
+            if let Some(ref wrapped_ident) = attrs
+                .as_ref()
+                .xml_attr
+                .as_ref()
+                .and_then(|xml| xml.is_wrapped.as_ref())
+            {
+                abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice type";
+                    help = "Try removing `wrapped` attribute"
+                }
+            }
+
+            attrs
+        })
+    }
+}
+
 impl Parse for ComponentAttr<Struct> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let ident = input
-            .parse::<Ident>()
-            .expect_or_abort("Unparseable ComponentAttr<Struct>, expected Ident");
-        let name = &*ident.to_string();
+        let mut struct_ = Struct::default();
 
-        match name {
-            "example" => {
-                let example = parse_utils::parse_next_lit_str_or_json_example(input, &ident);
+        while !input.is_empty() {
+            let ident = input
+                .parse::<Ident>()
+                .expect_or_abort("Unparseable ComponentAttr<Struct>, expected Ident");
+            let name = &*ident.to_string();
 
-                Ok(Self {
-                    inner: Struct {
-                        example: Some(example),
-                    },
-                })
+            match name {
+                "example" => {
+                    struct_.example = Some(parse_utils::parse_next_lit_str_or_json_example(
+                        input, &ident,
+                    ));
+                }
+                "xml" => {
+                    let xml;
+                    parenthesized!(xml in input);
+                    struct_.xml_attr = Some(xml.parse()?)
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unexpected identifer: {name}, expected one of: example, xml"),
+                    ))
+                }
             }
-            _ => Err(Error::new(
-                ident.span(),
-                format!("unexpected identifer: {}, expected: example", name),
-            )),
         }
+
+        Ok(Self { inner: struct_ })
     }
 }
 
@@ -170,6 +210,49 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
     }
 }
 
+impl ComponentAttr<NamedField> {
+    pub(super) fn from_attributes_validated(
+        attributes: &[Attribute],
+        component_part: &ComponentPart,
+    ) -> Option<Self> {
+        parse_component_attr::<ComponentAttr<NamedField>>(attributes).map(|attrs| {
+            if !matches!(
+                component_part.generic_type,
+                Some(crate::component::GenericType::Vec)
+            ) {
+                if let Some(ref wrapped_ident) = attrs
+                    .as_ref()
+                    .xml_attr
+                    .as_ref()
+                    .and_then(|xml| xml.is_wrapped.as_ref())
+                {
+                    abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
+                        help = "Try removing `wrapped` attribute or make your field `Vec`"
+                    }
+                }
+            }
+
+            attrs
+        })
+        .map(|mut attrs| {
+            if matches!(component_part.generic_type, Some(super::GenericType::Vec)) {
+                if let Some(ref mut xml) = attrs.inner.xml_attr {
+                    let mut value_xml = mem::take(xml);
+                    let vec_xml = XmlAttr::with_wrapped(
+                        mem::take(&mut value_xml.is_wrapped),
+                        mem::take(&mut value_xml.wrap_name));
+
+                    attrs.inner.xml = Some(Xml::Slice{vec: vec_xml, value: value_xml});
+                }
+            } else if let Some(ref mut xml) = attrs.inner.xml_attr {
+                attrs.inner.xml = Some(Xml::NonSlice(mem::take(xml)));
+            }
+
+            attrs
+        })
+    }
+}
+
 impl Parse for ComponentAttr<NamedField> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut field = NamedField::default();
@@ -205,13 +288,18 @@ impl Parse for ComponentAttr<NamedField> {
                         parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
-                "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)),
-                "read_only" => field.read_only = Some(parse_utils::parse_bool_or_true(input)),
+                "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)?),
+                "read_only" => field.read_only = Some(parse_utils::parse_bool_or_true(input)?),
+                "xml" => {
+                    let xml;
+                    parenthesized!(xml in input);
+                    field.xml_attr = Some(xml.parse()?)
+                }
                 _ => {
                     return Err(Error::new(
                         ident.span(),
                         format!(
-                            "unexpected identifier: {}, expected any of: example, format, default, write_only, read_only",
+                            "unexpected identifier: {}, expected any of: example, format, default, write_only, read_only, xml",
                             name
                         ),
                     ))
@@ -311,6 +399,11 @@ impl ToTokens for Struct {
             tokens.extend(quote! {
                 .with_example(#example)
             })
+        }
+        if let Some(ref xml) = self.xml_attr {
+            tokens.extend(quote!(
+                 .with_xml(#xml)
+            ))
         }
     }
 }

@@ -15,9 +15,13 @@ use crate::{
     Array, Deprecated,
 };
 
-use self::attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct};
+use self::{
+    attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct},
+    xml::Xml,
+};
 
 mod attr;
+mod xml;
 
 pub struct Component<'a> {
     ident: &'a Ident,
@@ -126,15 +130,22 @@ impl ToTokens for NamedStructComponent<'_> {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
 
             let component_part = &ComponentPart::from_type(&field.ty);
-
             let deprecated = get_deprecated(&field.attrs);
-            let attrs = attr::parse_component_attr::<ComponentAttr<NamedField>>(&field.attrs);
+            let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
+                &field.attrs,
+                component_part,
+            );
+            let xml_value = attrs
+                .as_ref()
+                .and_then(|named_field| named_field.as_ref().xml.as_ref());
             let comments = CommentAttributes::from_attributes(&field.attrs);
+
             let component = ComponentProperty::new(
                 component_part,
                 Some(&comments),
                 attrs.as_ref(),
                 deprecated.as_ref(),
+                xml_value,
             );
 
             tokens.extend(quote! {
@@ -152,7 +163,7 @@ impl ToTokens for NamedStructComponent<'_> {
             tokens.extend(quote! { .with_deprecated(#deprecated) });
         }
 
-        let attrs = attr::parse_component_attr::<ComponentAttr<attr::Struct>>(self.attributes);
+        let attrs = ComponentAttr::<attr::Struct>::from_attributes_validated(self.attributes);
         if let Some(attrs) = attrs {
             tokens.extend(attrs.to_token_stream());
         }
@@ -192,7 +203,7 @@ impl ToTokens for UnnamedStructComponent<'_> {
         let deprecated = get_deprecated(self.attributes);
         if all_fields_are_same {
             tokens.extend(
-                ComponentProperty::new(first_part, None, attrs.as_ref(), deprecated.as_ref())
+                ComponentProperty::new(first_part, None, attrs.as_ref(), deprecated.as_ref(), None)
                     .to_token_stream(),
             );
         } else {
@@ -522,6 +533,7 @@ struct ComponentProperty<'a, T> {
     comments: Option<&'a CommentAttributes>,
     attrs: Option<&'a ComponentAttr<T>>,
     deprecated: Option<&'a Deprecated>,
+    xml: Option<&'a Xml>,
 }
 
 impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
@@ -530,12 +542,14 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
         comments: Option<&'a CommentAttributes>,
         attrs: Option<&'a ComponentAttr<T>>,
         deprecated: Option<&'a Deprecated>,
+        xml: Option<&'a Xml>,
     ) -> Self {
         Self {
             component_part,
             comments,
             attrs,
             deprecated,
+            xml,
         }
     }
 
@@ -570,11 +584,21 @@ where
                     self.comments,
                     self.attrs,
                     self.deprecated,
+                    self.xml,
                 );
 
                 tokens.extend(quote! {
                     #component_property.to_array()
                 });
+
+                if let Some(xml_value) = self.xml {
+                    match xml_value {
+                        Xml::Slice { vec, value: _ } => tokens.extend(quote! {
+                            .with_xml(#vec)
+                        }),
+                        Xml::NonSlice(_) => (),
+                    }
+                }
             }
             Some(GenericType::Option)
             | Some(GenericType::Cow)
@@ -585,6 +609,7 @@ where
                     self.comments,
                     self.attrs,
                     self.deprecated,
+                    self.xml,
                 );
 
                 tokens.extend(component_property.into_token_stream())
@@ -618,6 +643,17 @@ where
 
                     if let Some(attributes) = self.attrs {
                         tokens.extend(attributes.to_token_stream())
+                    }
+
+                    if let Some(xml_value) = self.xml {
+                        match xml_value {
+                            Xml::Slice { vec: _, value } => tokens.extend(quote! {
+                                .with_xml(#value)
+                            }),
+                            Xml::NonSlice(xml) => tokens.extend(quote! {
+                                .with_xml(#xml)
+                            }),
+                        }
                     }
                 }
                 ValueType::Object => {

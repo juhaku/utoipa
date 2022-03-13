@@ -33,6 +33,7 @@ pub mod schema;
 pub mod security;
 pub mod server;
 pub mod tag;
+pub mod xml;
 
 const OPENAPI_VERSION_3: &str = "3.0.3";
 
