@@ -26,7 +26,7 @@
 //! * **json** Enables **serde_json** what allow to use json values in OpenAPI specification values.
 //!   Thus is enabled by default.
 //! * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
-//!   from actix web macro attributes and types.
+//!   from actix web macro attributes and types. See [`utoipa::path(...)`][path] for more details.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 //!
 //! # Install
@@ -153,6 +153,8 @@
 //! * Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensinve examples.
 //! * Modify generated OpenAPI at runtime check [`Modify`] trait for more details.
 //! * More about OpenAPI security in [security documentation][security].
+//!
+//! [path]: attr.path.html
 //!
 //! [security]: openapi/security/index.html
 

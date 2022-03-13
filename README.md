@@ -29,8 +29,8 @@ framework. All functionalities are not restricted to any specific framework.
 
 ## What's up with the word play?
 
-The name comes from words `utopic` and `api` where `uto` is the first three letters of utopic
-and the `ipa` is api reversed.
+The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
+and the `ipa` is _api_ reversed.
 
 ## Features
 
@@ -38,7 +38,7 @@ and the `ipa` is api reversed.
 * **json** Enables **serde_json** what allow to use json values in OpenAPI specification values. Thus is
   enabled by default.
 * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
-  from actix web macro attributes and types.
+  from actix web macro attributes and types. See the [path attribute macro](https://docs.rs/utoipa/0.1.0-beta6/utoipa/attr.path.html) for more details.
 * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 
 ## Install
@@ -211,7 +211,7 @@ This would produce api doc something similar to:
 
 * See how to serve OpenAPI doc via Swagger UI check [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate for more details.
 * Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensinve examples.
-* Modify generated OpenAPI at runtime check `Modify` trait for more details.
+* Modify generated OpenAPI at runtime check [Modify](https://docs.rs/utoipa/0.1.0-beta6/utoipa/trait.Modify.html) trait for more details.
 * More about OpenAPI security in [security documentation](https://docs.rs/utoipa/0.1.0-beta6/utoipa/openapi/security/index.html).
 
 # License

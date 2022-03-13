@@ -44,9 +44,17 @@ use crate::path::{Path, PathAttr, PathOperation};
 /// at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
 /// not have any effect.
 ///
+/// You can use the Rust's own `#[deprecated]` attribute on any struct, emun or field to mark it as deprecated and it will
+/// reflect to the generated OpenAPI spec.
+///
+/// `#[deprecated]` attribute supports adding addtional details such as a reason and or since version but this is is not supported in
+/// OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
+/// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
+///
 /// # Struct Optional Configuration Options
 /// * **example** Can be either `json!(...)` or literal string that can be parsed to json. `json!`
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+/// * **xml** Can be used to define [`Xml`][xml] object properties applicable to Structs.
 ///  
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
@@ -61,8 +69,20 @@ use crate::path::{Path, PathAttr, PathOperation};
 ///   the type of the property according OpenApi spec.
 /// * **write_only** Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * **read_only** Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+/// * **xml** Can be used to define [`Xml`][xml] object properties applicable to named fields.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
+///
+/// # Xml attribute Configuration Options
+///
+/// * `xml(name = "...")` Will set name for property or type.
+/// * `xml(namespace = "...")` Will set namespace for xml element which needs to be valid uri.
+/// * `xml(prefix = "...")` Will set prefix for name.
+/// * `xml(attribute)` Will translate property to xml attribute instead of xml element.
+/// * `xml(wrapped)` Will make wrapped xml element.
+/// * `xml(wrapped(name = "wrap_name"))` Will override the wrapper elements name.
+///
+/// See [`Xml`][xml] for more details.
 ///
 /// # Examples
 ///
@@ -131,8 +151,41 @@ use crate::path::{Path, PathAttr, PathOperation};
 ///     }
 /// }
 /// ```
+///
+/// Use `xml` attribute to manipulate xml output.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// #[component(xml(name = "user", prefix = "u", namespace = "https://user.xml.schema.test"))]
+/// struct User {
+///     #[component(xml(attribute, prefix = "u"))]
+///     id: i64,
+///     #[component(xml(name = "user_name", prefix = "u"))]
+///     username: String,
+///     #[component(xml(wrapped(name = "linkList"), name = "link"))]
+///     links: Vec<String>,
+///     #[component(xml(wrapped, name = "photo_url"))]
+///     photos_urls: Vec<String>
+/// }
+/// ```
+///
+/// Use of Rust's own `#[deprecated]` attribute will reflect to generated OpenAPI spec.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// #[deprecated]
+/// struct User {
+///     id: i64,
+///     username: String,
+///     links: Vec<String>,
+///     #[deprecated]
+///     photos_urls: Vec<String>
+/// }
+/// ```
+///
 /// [c]: trait.Component.html
-/// [format]: schema/enum.ComponentFormat.html
+/// [format]: openapi/schema/enum.ComponentFormat.html
+/// [xml]: openapi/xml/struct.Xml.html
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -154,6 +207,13 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// This is a `#[derive]` implementation for [`Path`][path] trait. Macro accepts set of attributes that can
 /// be used to configure and override default values what are resolved automatically.
 ///
+/// You can use the Rust's own `#[deprecated]` attribute on functions to mark it as deprecated and it will
+/// reflect to the generated OpenAPI spec. Only **parameters** has a special **deprecated** attribute to define them as deprecated.
+///
+/// `#[deprecated]` attribute supports adding addtional details such as a reason and or since version but this is is not supported in
+/// OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
+/// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
+///
 /// # Path Attributes
 ///
 /// * **operation** _**Must be first parameter!**_ Accepted values are known http operations suchs as
@@ -168,6 +228,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * **responses** Slice of responses the endpoint is going to possibly return to the caller.
 /// * **params** Slice of params that the endpoint accepts.
 /// * **security** List of [`SecurityRequirement`][security]s local to the path operation.
+///
+/// > **Note!** when **actix_extras** feature is enabled the **operation** and **path** declaration may be omitted since they
+/// > are resolved from **actix-web** attributes. Also **params** may leave the **type** definition out since it will be derived from
+/// > function arguments. See the example in examples section.
 ///
 /// # Request Body Attributes
 ///
@@ -338,12 +402,54 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parmater types** [^actix_extras].
+/// ```rust
+/// use actix_web::{get, web, HttpResponse, Responder};
+/// use serde_json::json;
+///
+/// /// Get Pet by id
+/// #[utoipa::path(
+///     responses = [
+///         (status = 200, description = "Pet found from database")
+///     ],
+///     params = [
+///         ("id", description = "Pet id"),
+///     ]
+/// )]
+/// #[get("/pet/{id}")]
+/// async fn get_pet_by_id(web::Path(id): web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id) }))
+/// }
+/// ```
+///
+/// Use of Rust's own `#[deprecated]` attribute will refect to the generated OpenAPI spec and mark this operation as deprecated.
+/// ```rust
+/// # use actix_web::{get, web, HttpResponse, Responder};
+/// # use serde_json::json;
+/// #[utoipa::path(
+///     responses = [
+///         (status = 200, description = "Pet found from database")
+///     ],
+///     params = [
+///         ("id", description = "Pet id"),
+///     ]
+/// )]
+/// #[get("/pet/{id}")]
+/// #[deprecated]
+/// async fn get_pet_by_id(web::Path(id): web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id) }))
+/// }
+/// ```
+///
 /// [path]: trait.Path.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
+///
+/// [^actix_extras]: **actix_extras** feature need to be enabled and **actix-web** framework must be declared in your `Cargo.toml`.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();

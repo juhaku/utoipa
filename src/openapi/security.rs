@@ -1,6 +1,8 @@
-//! OpenAPI schema's security components implementations.
+//! Implements [OpenAPI Security Schema][security] types.
 //!
 //! Refer to [`SecuritySchema`] for usage and more details.
+//!
+//! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
 use std::{collections::HashMap, iter};
 
 use serde::{Deserialize, Serialize};
