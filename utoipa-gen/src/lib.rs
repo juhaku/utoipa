@@ -500,6 +500,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   See the [trait documentation][modify] for more details.
 /// * **security** List of [`SecurityRequirement`][security]s global to all operations.
 ///   See more details in [`#[utoipa::path(...)]`][path] [attribute macro security options][path_security].
+/// * **tags** List of [`Tag`][tags] which must match the tag _**path operation**_. By default
+///   the tag is derived from path given to **handlers** list or if undefined then `crate` is used by default.
+///   Alternatively the tag name can be given to path operation via [`#[utoipa::path(...)]`][path] macro.
+///   Tag can be used to define extra information for the api to produce richer documentation.
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -508,7 +512,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * env `CARGO_PKG_VERSION` map to info `version`
 /// * env `CARGO_PKG_DESCRIPTION` map info `description`
 /// * env `CARGO_PKG_AUTHORS` map to contact `name` and `email` **only first author will be used**
-/// * env `CARGO_PKG_LICENSE` map to info `licence`
+/// * env `CARGO_PKG_LICENSE` map to info `license`
 ///
 /// # Examples
 ///
@@ -548,7 +552,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///         (),
 ///         ("my_auth" = ["read:items", "edit:items"]),
 ///         ("token_jwt" = [])
-///     ]
+///     ],
+///     tags(
+///         (name = "pets::api", description = "All about pets",
+///             external_docs(url = "http://more.about.pets.api", description = "Find out more"))
+///     )
 /// )]
 /// struct ApiDoc;
 /// ```
@@ -560,6 +568,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [info]: openapi/info/struct.Info.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [path_security]: attr.path.html#security-requirement-attributes
+/// [tags]: openapi/tag/struct.Tag.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
@@ -577,6 +586,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
 /// or without correctly to OpenAPI JSON.
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum Array<T>
 where
     T: Sized + ToTokens,
@@ -751,6 +761,60 @@ impl Parse for Type {
     }
 }
 
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ExternalDocs {
+    url: String,
+    description: Option<String>,
+}
+
+impl Parse for ExternalDocs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE: &str =
+            "unexpected attribute, expected one of: url or description";
+
+        let mut external_docs = ExternalDocs::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(error.span(), &format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+            })?;
+            let attribute_name = &*ident.to_string();
+
+            match attribute_name {
+                "url" => {
+                    external_docs.url = parse_utils::parse_next_literal_str(input)?;
+                }
+                "description" => {
+                    external_docs.description = Some(parse_utils::parse_next_literal_str(input)?);
+                }
+                _ => return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>().unwrap();
+            }
+        }
+
+        Ok(external_docs)
+    }
+}
+
+impl ToTokens for ExternalDocs {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let url = &self.url;
+        tokens.extend(quote! {
+            utoipa::openapi::external_docs::ExternalDocs::new(#url)
+        });
+
+        if let Some(ref description) = self.description {
+            tokens.extend(quote! {
+                .with_description(#description)
+            });
+        }
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Example {
     String(TokenStream2),
@@ -773,23 +837,37 @@ mod parse_utils {
     use proc_macro2::{Group, Ident, TokenStream};
     use proc_macro_error::{abort, ResultExt};
     use quote::ToTokens;
-    use syn::{parse::ParseStream, Error, LitBool, LitStr, Token};
+    use syn::{
+        parse::{Parse, ParseStream},
+        punctuated::Punctuated,
+        token::Comma,
+        Error, LitBool, LitStr, Token,
+    };
 
     use crate::Example;
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
             .parse::<Token![=]>()
-            .expect_or_abort("expected equals token (=) before value assigment");
+            .expect_or_abort("expected equals token before value assigment");
         next()
     }
 
-    pub fn parse_next_lit_str(input: ParseStream, error_message: &str) -> String {
-        parse_next(input, || {
-            input
-                .parse::<LitStr>()
-                .expect_or_abort(error_message)
-                .value()
+    pub fn parse_next_literal_str(input: ParseStream) -> Result<String, Error> {
+        Ok(parse_next(input, || input.parse::<LitStr>())?.value())
+    }
+
+    pub fn parse_group<T, R>(input: ParseStream) -> Result<R, Error>
+    where
+        T: Sized,
+        T: Parse,
+        R: FromIterator<T>,
+    {
+        Punctuated::<Group, Comma>::parse_terminated(input).and_then(|groups| {
+            groups
+                .into_iter()
+                .map(|group| syn::parse2::<T>(group.stream()))
+                .collect::<Result<R, Error>>()
         })
     }
 

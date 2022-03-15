@@ -1,7 +1,7 @@
 use proc_macro2::Ident;
 use proc_macro_error::ResultExt;
 use syn::{
-    bracketed,
+    bracketed, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::{And, Comma},
@@ -14,6 +14,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use crate::{
     parse_utils,
     security_requirement::{self, SecurityRequirementAttr},
+    Array, ExternalDocs,
 };
 
 mod info;
@@ -27,12 +28,22 @@ pub struct OpenApiAttr {
     components: Vec<Component>,
     modifiers: Punctuated<Modifier, Comma>,
     security: Option<Vec<SecurityRequirementAttr>>,
+    tags: Option<Array<Tag>>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Component {
     ty: Ident,
     generics: Generics,
+}
+
+impl Component {
+    fn has_lifetime_generics(&self) -> bool {
+        self.generics
+            .params
+            .iter()
+            .any(|generic| matches!(generic, GenericParam::Lifetime(_)))
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -60,12 +71,67 @@ impl Parse for Modifier {
     }
 }
 
-impl Component {
-    fn has_lifetime_generics(&self) -> bool {
-        self.generics
-            .params
-            .iter()
-            .any(|generic| matches!(generic, GenericParam::Lifetime(_)))
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Tag {
+    name: String,
+    description: Option<String>,
+    external_docs: Option<ExternalDocs>,
+}
+
+impl Parse for Tag {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE: &str =
+            "unexpected token, expected one of: name, description or external_docs";
+
+        let mut tag = Tag::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(error.span(), &format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+            })?;
+            let attribute_name = &*ident.to_string();
+
+            match attribute_name {
+                "name" => tag.name = parse_utils::parse_next_literal_str(input)?,
+                "description" => {
+                    tag.description = Some(parse_utils::parse_next_literal_str(input)?)
+                }
+                "external_docs" => {
+                    let content;
+                    parenthesized!(content in input);
+                    tag.external_docs = Some(content.parse::<ExternalDocs>()?);
+                }
+                _ => return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
+            }
+
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>().unwrap();
+            }
+        }
+
+        Ok(tag)
+    }
+}
+
+impl ToTokens for Tag {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let name = &self.name;
+        tokens.extend(quote! {
+            utoipa::openapi::tag::Tag::new(#name)
+        });
+
+        if let Some(ref description) = self.description {
+            tokens.extend(quote! {
+                .with_description(#description)
+            });
+        }
+
+        if let Some(ref external_docs) = self.external_docs {
+            tokens.extend(quote! {
+                .with_external_docs(#external_docs)
+            });
+        }
     }
 }
 
@@ -78,12 +144,14 @@ pub fn parse_openapi_attributes_from_attributes(attrs: &[Attribute]) -> Option<O
 
 impl Parse for OpenApiAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE: &str =
+            "unexpected attribute, expected one of: handlers, components, modifiers, security or tags";
         let mut openapi = OpenApiAttr::default();
 
         loop {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("unaparseable OpenApi, expected Ident");
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(error.span(), &format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+            })?;
             let attribute = &*ident.to_string();
 
             match attribute {
@@ -103,14 +171,13 @@ impl Parse for OpenApiAttr {
                             .collect::<Vec<_>>(),
                     )
                 }
+                "tags" => {
+                    let tags;
+                    parenthesized!(tags in input);
+                    openapi.tags = Some(parse_utils::parse_group::<Tag, Array<Tag>>(&tags)?);
+                }
                 _ => {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!(
-                            "unexpected attribute: {}, expected: handlers, components, modifiers, security",
-                            ident
-                        ),
-                    ));
+                    return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE));
                 }
             }
 
@@ -245,13 +312,20 @@ impl ToTokens for OpenApi {
             None
         };
 
+        let tags = self.0.tags.as_ref().map(|tags| {
+            quote! {
+                .with_tags(#tags)
+            }
+        });
+
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     use utoipa::{Component, Path};
                     let mut openapi = utoipa::openapi::OpenApi::new(#info, #path_items)
                         .with_components(#components)
-                        #securities;
+                        #securities
+                        #tags;
 
                     let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
                     _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));

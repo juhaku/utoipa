@@ -149,16 +149,10 @@ impl Parse for PathAttr {
 
             match attribute {
                 "operation_id" => {
-                    path_attr.operation_id = Some(parse_utils::parse_next_lit_str(
-                        input,
-                        "unparseable operation_id, expected literal string",
-                    ));
+                    path_attr.operation_id = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "path" => {
-                    path_attr.path = Some(parse_utils::parse_next_lit_str(
-                        input,
-                        "unparseable path, expected literal string",
-                    ));
+                    path_attr.path = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "request_body" => {
                     if input.peek(Token![=]) {
@@ -189,10 +183,7 @@ impl Parse for PathAttr {
                     )
                 }
                 "tag" => {
-                    path_attr.tag = Some(parse_utils::parse_next_lit_str(
-                        input,
-                        "unparseable tag, expected literal string",
-                    ));
+                    path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "security" => {
                     path_attr.security = Some(
