@@ -23,3 +23,27 @@ fn derive_openapi_with_security_requirement() {
         "security.[2].token_jwt" = "[]", "jwt_token auth scopes"
     }
 }
+
+#[test]
+fn derive_openapi_tags() {
+    #[derive(OpenApi)]
+    #[openapi(tags(
+        (name = "random::api", description = "this is random api description"),
+        (name = "pets::api", description = "api all about pets", external_docs(
+            url = "http://localhost", description = "Find more about pets")
+        )
+    ))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    assert_value! {doc=>
+        "tags.[0].name" = r###""random::api""###, "Tags random_api name"
+        "tags.[0].description" = r###""this is random api description""###, "Tags random_api description"
+        "tags.[0].externalDocs" = r###"null"###, "Tags random_api external docs"
+        "tags.[1].name" = r###""pets::api""###, "Tags pets_api name"
+        "tags.[1].description" = r###""api all about pets""###, "Tags pets_api description"
+        "tags.[1].externalDocs.url" = r###""http://localhost""###, "Tags pets_api external docs url"
+        "tags.[1].externalDocs.description" = r###""Find more about pets""###, "Tags pets_api external docs description"
+    }
+}

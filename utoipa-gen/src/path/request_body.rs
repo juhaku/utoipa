@@ -79,16 +79,14 @@ impl Parse for RequestBodyAttr {
                         }));
                     }
                     "content_type" => {
-                        request_body_attr.content_type = Some(parse_utils::parse_next_lit_str(
+                        request_body_attr.content_type = Some(parse_utils::parse_next_literal_str(
                             &group,
-                            "unparseable content_type, expected literal string",
-                        ))
+                        )?)
                     }
                     "description" => {
-                        request_body_attr.description = Some(parse_utils::parse_next_lit_str(
+                        request_body_attr.description = Some(parse_utils::parse_next_literal_str(
                             &group,
-                            "unparseable description, expected literal string",
-                        ))
+                        )?)
                     }
                     _ => {
                         return Err(Error::new(

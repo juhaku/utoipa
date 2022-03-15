@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use super::external_docs::ExternalDocs;
 
+/// Implements [OpenAPI Tag Object][tag].
+///
+/// Tag can be used to provide additional metadata for tags used by path operations.
+///
+/// [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]

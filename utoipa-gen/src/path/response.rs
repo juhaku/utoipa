@@ -93,10 +93,7 @@ impl Parse for Response {
                     });
                 }
                 "description" => {
-                    response.description = parse_utils::parse_next_lit_str(
-                        input,
-                        "unparseable description, expected literal string",
-                    );
+                    response.description = parse_utils::parse_next_literal_str(input)?;
                 }
                 "body" => {
                     response.response_type = Some(parse_utils::parse_next(input, || {
@@ -104,10 +101,7 @@ impl Parse for Response {
                     }));
                 }
                 "content_type" => {
-                    response.content_type = Some(parse_utils::parse_next_lit_str(
-                        input,
-                        "unparseable content_type, expected literal string",
-                    ));
+                    response.content_type = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "headers" => {
                     let groups = parse_utils::parse_next(input, || {

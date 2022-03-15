@@ -101,6 +101,18 @@ impl OpenApi {
         self
     }
 
+    /// Add list of [`Tag`]s to [`OpenApi`].
+    ///
+    /// This operation consumes self and is expected to be chained after [`OpenApi::new`].
+    /// It accepts one argument with anything that implements [`IntoIterator`] for [`Tag`].
+    ///
+    /// Method returns self for chaining more operations.
+    pub fn with_tags<I: IntoIterator<Item = Tag>>(mut self, tags: I) -> Self {
+        self.tags = Some(tags.into_iter().collect());
+
+        self
+    }
+
     #[cfg(feature = "serde_json")]
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
