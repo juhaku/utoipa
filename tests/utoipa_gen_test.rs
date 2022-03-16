@@ -59,11 +59,11 @@ mod pet_api {
         params = [
             ("id" = u64, path, description = "Pet database id to get Pet for"),
         ]
-        security = [
+        security(
             (),
             ("my_auth" = ["read:items", "edit:items"]),
             ("token_jwt" = [])
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -76,11 +76,16 @@ mod pet_api {
 }
 
 #[derive(Default, OpenApi)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet], modifiers = [&Foo], security = [
-            (),
-            ("my_auth" = ["read:items", "edit:items"]),
-            ("token_jwt" = [])
-        ])]
+#[openapi(
+    handlers(pet_api::get_pet_by_id), 
+    components(Pet), 
+    modifiers(&Foo), 
+    security(
+        (),
+        ("my_auth" = ["read:items", "edit:items"]),
+        ("token_jwt" = [])
+    )
+)]
 struct ApiDoc;
 
 #[test]

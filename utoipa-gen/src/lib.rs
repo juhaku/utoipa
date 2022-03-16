@@ -358,11 +358,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///    params = [
 ///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
 ///    ],
-///    security = [
+///    security(
 ///        (),
 ///        ("my_auth" = ["read:items", "edit:items"]),
 ///        ("token_jwt" = [])
-///    ]
+///    )
 /// )]
 /// fn post_pet(pet: Pet) -> Pet {
 ///     Pet {
@@ -546,13 +546,13 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// #[derive(OpenApi)]
 /// #[openapi(
-///     handlers = [get_pet, get_status],
-///     components = [Pet, Status],
-///     security = [
+///     handlers(get_pet, get_status),
+///     components(Pet, Status),
+///     security(
 ///         (),
 ///         ("my_auth" = ["read:items", "edit:items"]),
 ///         ("token_jwt" = [])
-///     ],
+///     ),
 ///     tags(
 ///         (name = "pets::api", description = "All about pets",
 ///             external_docs(url = "http://more.about.pets.api", description = "Find out more"))
@@ -572,10 +572,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
-    let openapi_attributes = openapi::parse_openapi_attributes_from_attributes(&attrs)
-        .expect_or_abort(
-            "expected #[openapi(...)] attribute to be present when used with OpenApi derive trait",
-        );
+    let openapi_attributes = openapi::parse_openapi_attrs(&attrs).expect_or_abort(
+        "expected #[openapi(...)] attribute to be present when used with OpenApi derive trait",
+    );
 
     let openapi = OpenApi(openapi_attributes, ident);
     quote! {
@@ -838,6 +837,7 @@ mod parse_utils {
     use proc_macro_error::{abort, ResultExt};
     use quote::ToTokens;
     use syn::{
+        parenthesized,
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
         token::Comma,
@@ -857,7 +857,7 @@ mod parse_utils {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
-    pub fn parse_group<T, R>(input: ParseStream) -> Result<R, Error>
+    pub fn parse_groups<T, R>(input: ParseStream) -> Result<R, Error>
     where
         T: Sized,
         T: Parse,
@@ -869,6 +869,17 @@ mod parse_utils {
                 .map(|group| syn::parse2::<T>(group.stream()))
                 .collect::<Result<R, Error>>()
         })
+    }
+
+    pub fn parse_punctuated_within_parenthesis<T>(
+        input: ParseStream,
+    ) -> Result<Punctuated<T, Comma>, Error>
+    where
+        T: Parse,
+    {
+        let content;
+        parenthesized!(content in input);
+        Punctuated::<T, Comma>::parse_terminated(&content)
     }
 
     pub fn parse_bool_or_true(input: ParseStream) -> Result<bool, syn::Error> {

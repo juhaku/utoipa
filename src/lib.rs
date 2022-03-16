@@ -142,7 +142,7 @@
 //! # }
 //! # use utoipa::OpenApi;
 //! #[derive(OpenApi)]
-//! #[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
+//! #[openapi(handlers(pet_api::get_pet_by_id), components(Pet))]
 //! struct ApiDoc;
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
@@ -175,7 +175,7 @@ pub use utoipa_gen::*;
 /// ```rust
 /// use utoipa::OpenApi;
 /// #[derive(OpenApi)]
-/// #[openapi(handlers = [])]
+/// #[openapi(handlers())]
 /// struct OpenApiDoc;
 /// ```
 ///
@@ -373,7 +373,7 @@ pub trait Path {
 /// # use utoipa::{OpenApi, Modify};
 /// # use utoipa::openapi::security::{SecuritySchema, Http, HttpAuthenticationType};
 /// #[derive(OpenApi)]
-/// #[openapi(modifiers = [&SecurityAddon])]
+/// #[openapi(modifiers(&SecurityAddon))]
 /// struct ApiDoc;
 ///
 /// struct SecurityAddon;

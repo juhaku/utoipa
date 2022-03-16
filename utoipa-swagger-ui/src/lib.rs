@@ -41,7 +41,7 @@
 //! # use utoipa::OpenApi;
 //! # use std::net::Ipv4Addr;
 //! # #[derive(OpenApi)]
-//! # #[openapi(handlers = [])]
+//! # #[openapi(handlers())]
 //! # struct ApiDoc;
 //! HttpServer::new(move || {
 //!         App::new()
@@ -118,7 +118,7 @@ impl SwaggerUi {
     /// # use utoipa_swagger_ui::SwaggerUi;
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers = [])]
+    /// # #[openapi(handlers())]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .with_url("/api-doc/openapi.json", ApiDoc::openapi());
@@ -143,10 +143,10 @@ impl SwaggerUi {
     /// # use utoipa_swagger_ui::{SwaggerUi, Url};
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers = [])]
+    /// # #[openapi(handlers())]
     /// # struct ApiDoc;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers = [])]
+    /// # #[openapi(handlers())]
     /// # struct ApiDoc2;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .with_urls(

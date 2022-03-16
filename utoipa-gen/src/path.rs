@@ -4,7 +4,7 @@ use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, OptionExt, ResultExt};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
-    bracketed,
+    bracketed, parenthesized,
     parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
@@ -14,7 +14,8 @@ use syn::{
 use crate::{
     component_type::ComponentType,
     ext::{Argument, ArgumentIn},
-    security_requirement::{self, SecurityRequirementAttr},
+    security_requirement::SecurityRequirementAttr,
+    Array,
 };
 use crate::{parse_utils, Deprecated};
 
@@ -29,7 +30,7 @@ mod property;
 mod request_body;
 mod response;
 
-const PATH_STRUCT_PREFIX: &str = "__path_";
+pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 
 /// PathAttr is parsed `#[utoipa::path(...)]` proc macro and its attributes.
 /// Parsed attributes can be used to override or append OpenAPI Path
@@ -71,7 +72,7 @@ pub struct PathAttr {
     operation_id: Option<String>,
     tag: Option<String>,
     params: Option<Vec<Parameter>>,
-    security: Option<Vec<SecurityRequirementAttr>>,
+    security: Option<Array<SecurityRequirementAttr>>,
 }
 
 impl PathAttr {
@@ -186,11 +187,9 @@ impl Parse for PathAttr {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "security" => {
-                    path_attr.security = Some(
-                        security_requirement::parse_security_requirements(input)?
-                            .into_iter()
-                            .collect::<Vec<_>>(),
-                    )
+                    let security;
+                    parenthesized!(security in input);
+                    path_attr.security = Some(parse_utils::parse_groups(&security)?)
                 }
                 _ => {
                     // any other case it is expected to be path operation
@@ -412,7 +411,7 @@ struct Operation<'a> {
     parameters: Option<&'a Vec<Parameter>>,
     request_body: Option<&'a RequestBodyAttr>,
     responses: &'a Vec<Response>,
-    security: Option<&'a Vec<SecurityRequirementAttr>>,
+    security: Option<&'a Array<SecurityRequirementAttr>>,
 }
 
 impl ToTokens for Operation<'_> {
@@ -430,10 +429,10 @@ impl ToTokens for Operation<'_> {
             .with_responses(#responses)
         });
         if let Some(security_requirements) = self.security {
-            let security =
-                security_requirement::security_requirements_to_tokens(security_requirements);
+            // let security =
+            //     security_requirement::security_requirements_to_tokens(security_requirements);
             tokens.extend(quote! {
-                .with_securities(#security)
+                .with_securities(#security_requirements)
             })
         }
         let operation_id = self.operation_id;

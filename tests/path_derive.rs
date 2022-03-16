@@ -7,7 +7,7 @@ macro_rules! test_api_fn_doc {
     ( $handler:path, operation: $operation:expr, path: $path:literal ) => {{
         use utoipa::OpenApi;
         #[derive(OpenApi, Default)]
-        #[openapi(handlers = [$handler])]
+        #[openapi(handlers($handler))]
         struct ApiDoc;
 
         let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -59,9 +59,9 @@ macro_rules! test_path_operation {
             paste!{
                 use utoipa::OpenApi;
                 #[derive(OpenApi, Default)]
-                #[openapi(handlers = [
+                #[openapi(handlers(
                     [<mod_ $name>]::test_operation
-                ])]
+                 ))]
                 struct ApiDoc;
             }
 
@@ -207,11 +207,11 @@ fn derive_path_with_security_requirements() {
         responses = [
             (status = 200, description = "success response")
         ],
-        security = [
+        security(
             (),
             ("api_oauth" = ["read:items", "edit:items"]),
             ("jwt_token" = [])
-        ]
+        )
     )]
     #[allow(unused)]
     fn get_items() -> String {

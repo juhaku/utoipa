@@ -15,7 +15,7 @@ macro_rules! api_doc {
     ( module: $module:expr ) => {{
         use utoipa::OpenApi;
         #[derive(OpenApi, Default)]
-        #[openapi(handlers = [$module::get_foo])]
+        #[openapi(handlers($module::get_foo))]
         struct ApiDoc;
 
         let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();

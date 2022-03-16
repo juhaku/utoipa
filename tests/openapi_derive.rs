@@ -7,11 +7,11 @@ mod common;
 #[test]
 fn derive_openapi_with_security_requirement() {
     #[derive(Default, OpenApi)]
-    #[openapi(security = [
+    #[openapi(security(
             (),
             ("my_auth" = ["read:items", "edit:items"]),
             ("token_jwt" = [])
-        ])]
+        ))]
     struct ApiDoc;
 
     let doc_value = serde_json::to_value(&ApiDoc::openapi()).unwrap();

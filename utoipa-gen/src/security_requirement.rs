@@ -1,5 +1,4 @@
-use proc_macro2::{Group, TokenStream};
-use proc_macro_error::ResultExt;
+use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{
     bracketed,
@@ -9,7 +8,7 @@ use syn::{
     LitStr, Token,
 };
 
-use crate::{parse_utils, Array};
+use crate::Array;
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -42,39 +41,19 @@ impl Parse for SecurityRequirementAttr {
     }
 }
 
-pub fn parse_security_requirements(
-    stream: ParseStream,
-) -> syn::Result<Vec<SecurityRequirementAttr>> {
-    parse_utils::parse_next(stream, || {
-        let content;
-        bracketed!(content in stream);
-
-        let groups = Punctuated::<Group, Comma>::parse_terminated(&content)?;
-
-        Ok(groups
-            .into_iter()
-            .map(|parameter_group| {
-                syn::parse2::<SecurityRequirementAttr>(parameter_group.stream()).unwrap_or_abort()
-            })
-            .collect::<Vec<_>>())
-    })
-}
-
-pub fn security_requirements_to_tokens(
-    security_requirements: &[SecurityRequirementAttr],
-) -> TokenStream {
-    security_requirements.iter().map(| security | {
-        if let (Some(name), Some(scopes)) = (&security.name, &security.scopes) {
+impl ToTokens for SecurityRequirementAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let (Some(name), Some(scopes)) = (&self.name, &self.scopes) {
             let scopes_array = scopes.iter().collect::<Array<&String>>();
             let scopes_len = scopes.len();
 
-            quote! {
+            tokens.extend(quote! {
                 utoipa::openapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
-            }
+            })
         } else {
-            quote!{
+            tokens.extend(quote! {
                 utoipa::openapi::security::SecurityRequirement::default()
-            }
+            })
         }
-    }).collect::<Array<TokenStream>>().into_token_stream()
+    }
 }

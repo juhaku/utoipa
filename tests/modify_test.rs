@@ -13,7 +13,7 @@ mod common;
 #[test]
 fn modify_openapi_add_security_schema() {
     #[derive(Default, OpenApi)]
-    #[openapi(modifiers = [&SecurityAddon])]
+    #[openapi(modifiers(&SecurityAddon))]
     struct ApiDoc;
 
     struct SecurityAddon;

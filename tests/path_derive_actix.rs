@@ -31,7 +31,7 @@ mod mod_derive_path_actix {
 #[test]
 fn derive_path_one_value_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers = [mod_derive_path_actix::get_foo_by_id])]
+    #[openapi(handlers(mod_derive_path_actix::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -74,7 +74,7 @@ mod mod_derive_path_unnamed_regex_actix {
 #[test]
 fn derive_path_with_unnamed_regex_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers = [mod_derive_path_unnamed_regex_actix::get_foo_by_id])]
+    #[openapi(handlers(mod_derive_path_unnamed_regex_actix::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -117,7 +117,7 @@ mod mod_derive_path_named_regex_actix {
 #[test]
 fn derive_path_with_named_regex_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers = [mod_derive_path_named_regex_actix::get_foo_by_id])]
+    #[openapi(handlers(mod_derive_path_named_regex_actix::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -157,7 +157,7 @@ macro_rules! test_derive_path_operations {
         #[test]
         fn $name() {
             #[derive(OpenApi, Default)]
-            #[openapi(handlers = [$mod::test_operation])]
+            #[openapi(handlers($mod::test_operation))]
             struct ApiDoc;
 
             let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
