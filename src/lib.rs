@@ -15,6 +15,12 @@
 //! Long term goal of the library is to be the place to go when OpenAPI documentation is needed in Rust
 //! codebase.
 //!
+//! Utoipa is framework agnostic and could be used together with any web framework or even without one. While
+//! being portable and standalone one of it's key aspects is simple integration with web frameworks.
+//!
+//! Currently utoipa provides simple integration with actix-web framework but is not limited to the actix-web
+//! framework. All functionalities are not restricted to any specific framework.
+//!
 //! # What's up with the word play?
 //!
 //! The name comes from words `utopic` and `api` where `uto` is the first three letters of utopic
@@ -79,14 +85,14 @@
 //!     /// Get pet from database by pet id  
 //!     #[utoipa::path(
 //!         get,
-//!         path = "/pets/{id}"
-//!         responses = [
+//!         path = "/pets/{id}",
+//!         responses(
 //!             (status = 200, description = "Pet found succesfully", body = Pet),
 //!             (status = 404, description = "Pet was not found")
-//!         ],
-//!         params = [
+//!         ),
+//!         params(
 //!             ("id" = u64, path, description = "Pet database id to get Pet for"),
-//!         ]
+//!         )
 //!     )]
 //!     async fn get_pet_by_id(pet_id: u64) -> Pet {
 //!         Pet {
@@ -115,14 +121,14 @@
 //! #     /// Get pet from database by pet id  
 //! #     #[utoipa::path(
 //! #         get,
-//! #         path = "/pets/{id}"
-//! #         responses = [
+//! #         path = "/pets/{id}",
+//! #         responses(
 //! #             (status = 200, description = "Pet found succesfully", body = Pet),
 //! #             (status = 404, description = "Pet was not found")
-//! #         ],
-//! #         params = [
+//! #         ),
+//! #         params(
 //! #             ("id" = u64, path, description = "Pet database id to get Pet for"),
-//! #         ]
+//! #         )
 //! #     )]
 //! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
 //! #         Pet {
@@ -289,14 +295,14 @@ pub trait Component {
 /// /// Get pet from database by pet database id  
 /// #[utoipa::path(
 ///     get,
-///     path = "/pets/{id}"
-///     responses = [
+///     path = "/pets/{id}",
+///     responses(
 ///         (status = 200, description = "Pet found succesfully", body = Pet),
 ///         (status = 404, description = "Pet was not found")
-///     ],
-///     params = [
+///     ),
+///     params(
 ///         ("id" = u64, path, description = "Pet database id to get Pet for"),
-///     ]
+///     )
 /// )]
 /// async fn get_pet_by_id(pet_id: u64) -> Pet {
 ///     Pet {

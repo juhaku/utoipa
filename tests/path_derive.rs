@@ -31,10 +31,10 @@ macro_rules! test_api_fn {
                 $operation,
                 $( operation_id = $operation_id, )*
                 path = $path,
-                responses = [
+                responses(
                     (status = 200, description = "success response")
-                ],
-                $( params = $params, )*
+                ),
+                $( params $params, )*
                 $( tag = $tag, )*
             )]
             #[allow(unused)]
@@ -90,7 +90,7 @@ test_api_fn! {
     module: derive_path_with_all_info,
     operation: post,
     path: "/foo/bar/{id}",
-    params: [("id", description = "Foo bar id")],
+    params: (("id", description = "Foo bar id")),
     operation_id: "foo_bar_id",
     tag: "custom_tag";
     /// This is test operation description
@@ -152,13 +152,13 @@ fn derive_path_with_defaults_success() {
 #[utoipa::path(
     get,
     path = "/foo/{id}",
-    responses = [
+    responses(
         (status = 200, description = "success response")
-    ],
-    params = [
+    ),
+    params(
         ("id" = u64, description = "Foo database id"),
         ("since" = Option<String>, query, description = "Datetime since foo is updated")
-    ]
+    )
 )]
 #[allow(unused)]
 async fn get_foos_by_id_since() -> String {
@@ -204,9 +204,9 @@ fn derive_path_with_security_requirements() {
     #[utoipa::path(
         get,
         path = "/items",
-        responses = [
+        responses(
             (status = 200, description = "success response")
-        ],
+        ),
         security(
             (),
             ("api_oauth" = ["read:items", "edit:items"]),

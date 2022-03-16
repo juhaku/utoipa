@@ -246,7 +246,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// **Request body supports following formats:**
 ///
 /// ```text
-/// request_body = (content = String, description = "Xml as string request", content_type = "text/xml"),
+/// request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
 /// request_body = Pet,
 /// request_body = Option<[Pet]>,
 /// ```
@@ -277,7 +277,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// **Response with all possible values:**
 /// ```text
 /// (status = 200, description = "Success response", body = Pet, content_type = "application/json",
-///     headers = [...],
+///     headers(...),
 ///     example = json!({"id": 1, "name": "bob the cat"})
 /// )
 /// ```
@@ -345,19 +345,19 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///    post,
 ///    operation_id = "custom_post_pet",
 ///    path = "/pet",
-///    tag = "pet_handlers"
-///    request_body = (content = Pet, description = "Pet to store the database", content_type = "application/json")
-///    responses = [
+///    tag = "pet_handlers",
+///    request_body(content = Pet, description = "Pet to store the database", content_type = "application/json"),
+///    responses(
 ///         (status = 200, description = "Pet stored successfully", body = Pet, content_type = "application/json",
-///             headers = [
+///             headers(
 ///                 ("x-cache-len" = String, description = "Cache length")
-///             ],
+///             ),
 ///             example = json!({"id": 1, "name": "bob the cat"})
 ///         ),
-///    ],
-///    params = [
+///    ),
+///    params(
 ///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
-///    ],
+///    ),
 ///    security(
 ///        (),
 ///        ("my_auth" = ["read:items", "edit:items"]),
@@ -382,17 +382,17 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// #[utoipa::path(
 ///    post,
 ///    path = "/pet",
-///    request_body = Pet
-///    responses = [
+///    request_body = Pet,
+///    responses(
 ///         (status = 200, description = "Pet stored successfully", body = Pet,
-///             headers = [
+///             headers(
 ///                 ("x-cache-len", description = "Cache length")
-///             ]
+///             )
 ///         ),
-///    ],
-///    params = [
+///    ),
+///    params(
 ///      ("x-csrf-token", header, description = "Current csrf token of user"),
-///    ]
+///    )
 /// )]
 /// fn post_pet(pet: Pet) -> Pet {
 ///     Pet {
@@ -409,12 +409,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// /// Get Pet by id
 /// #[utoipa::path(
-///     responses = [
+///     responses(
 ///         (status = 200, description = "Pet found from database")
-///     ],
-///     params = [
+///     ),
+///     params(
 ///         ("id", description = "Pet id"),
-///     ]
+///     )
 /// )]
 /// #[get("/pet/{id}")]
 /// async fn get_pet_by_id(web::Path(id): web::Path<i32>) -> impl Responder {
@@ -427,12 +427,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # use actix_web::{get, web, HttpResponse, Responder};
 /// # use serde_json::json;
 /// #[utoipa::path(
-///     responses = [
+///     responses(
 ///         (status = 200, description = "Pet found from database")
-///     ],
-///     params = [
+///     ),
+///     params(
 ///         ("id", description = "Pet id"),
-///     ]
+///     )
 /// )]
 /// #[get("/pet/{id}")]
 /// #[deprecated]
@@ -730,7 +730,7 @@ impl Parse for Type {
         };
 
         let ty = if input.peek(syn::Ident) {
-            let mut ident: Ident = input.parse().unwrap();
+            let mut ident: Ident = input.parse()?;
 
             // is option of type or [type]
             if (ident == "Option" && input.peek(Token![<]))
@@ -738,10 +738,10 @@ impl Parse for Type {
             {
                 is_option = true;
 
-                input.parse::<Token![<]>().unwrap();
+                input.parse::<Token![<]>()?;
 
                 if input.peek(syn::Ident) {
-                    ident = input.parse::<Ident>().unwrap();
+                    ident = input.parse::<Ident>()?;
                 } else {
                     ident = parse_array(input)?;
                 }
@@ -769,8 +769,7 @@ struct ExternalDocs {
 
 impl Parse for ExternalDocs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str =
-            "unexpected attribute, expected one of: url or description";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected attribute, expected any of: url, description";
 
         let mut external_docs = ExternalDocs::default();
 
@@ -790,7 +789,7 @@ impl Parse for ExternalDocs {
                 _ => return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
             }
 
-            if input.peek(Token![,]) {
+            if !input.is_empty() {
                 input.parse::<Token![,]>().unwrap();
             }
         }
@@ -894,8 +893,14 @@ mod parse_utils {
 
     pub fn parse_json_token_stream(input: ParseStream) -> Result<TokenStream, Error> {
         if input.peek(syn::Ident) && input.peek2(Token![!]) {
-            input.parse::<Ident>().unwrap();
-            input.parse::<Token![!]>().unwrap();
+            input.parse::<Ident>().and_then(|ident| {
+                if ident != "json" {
+                    return Err(Error::new(ident.span(), "unexpected token, expected: json"));
+                }
+
+                Ok(ident)
+            })?;
+            input.parse::<Token![!]>()?;
 
             Ok(input.parse::<Group>()?.stream())
         } else {

@@ -6,14 +6,14 @@ pub(crate) fn impl_info() -> TokenStream2 {
     let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_default();
     let description = std::env::var("CARGO_PKG_DESCRIPTION").unwrap_or_default();
     let authors = std::env::var("CARGO_PKG_AUTHORS").unwrap_or_default();
-    let licence = std::env::var("CARGO_PKG_LICENSE").unwrap_or_default();
+    let license = std::env::var("CARGO_PKG_LICENSE").unwrap_or_default();
 
     let contact = get_contact(&authors);
 
     quote! {
         utoipa::openapi::Info::new(#name, #version)
             .with_description(#description)
-            .with_license(utoipa::openapi::License::new(#licence))
+            .with_license(utoipa::openapi::License::new(#license))
             .with_contact(#contact)
     }
 }
@@ -38,8 +38,8 @@ fn get_contact(authors: &str) -> TokenStream2 {
     if let Some((name, email)) = get_parsed_author(authors.split(',').into_iter().next()) {
         quote! {
             utoipa::openapi::Contact::new()
-            .with_name(#name)
-            .with_email(#email)
+                .with_name(#name)
+                .with_email(#email)
         }
     } else {
         quote! {

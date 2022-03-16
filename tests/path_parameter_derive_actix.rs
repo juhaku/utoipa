@@ -15,13 +15,13 @@ mod derive_params_multiple_actix {
     #[utoipa::path(
         get,
         path = "/foo/{id}/{digest}",
-        responses = [
+        responses(
             (status = 200, description = "success response")
-        ],
-        params = [
+        ),
+        params(
             ("id", description = "Foo id"),
             ("digest", description = "Digest of foo"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id(web::Path((id, digest)): web::Path<(i32, String)>) -> impl Responder {
@@ -68,13 +68,13 @@ mod derive_parameters_multiple_no_matching_names_actix {
     #[utoipa::path(
         get,
         path = "/foo/{id}/{digest}",
-        responses = [
+        responses(
             (status = 200, description = "success response")
-        ],
-        params = [
+        ),
+        params(
             ("id" = i32, description = "Foo id"),
             ("digest" = String, description = "Digest of foo"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id(info: web::Path<(i32, String)>) -> impl Responder {
@@ -119,9 +119,9 @@ mod derive_params_from_method_args_actix {
     #[utoipa::path(
         get,
         path = "/foo/{id}/{digest}",
-        responses = [
+        responses(
             (status = 200, description = "success response")
-        ],
+        ),
     )]
     #[allow(unused)]
     async fn get_foo_by_id(web::Path((id, digest)): web::Path<(i32, String)>) -> impl Responder {

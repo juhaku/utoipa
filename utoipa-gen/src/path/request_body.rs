@@ -1,12 +1,6 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use proc_macro_error::ResultExt;
 use quote::{quote, ToTokens};
-use syn::{
-    parenthesized,
-    parse::Parse,
-    token::{Bracket, Paren},
-    Error, Token,
-};
+use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::{parse_utils, Required, Type};
 
@@ -59,6 +53,8 @@ pub struct RequestBodyAttr {
 
 impl Parse for RequestBodyAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
+            "unexpected attribute, expected any of: content, content_type, description";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
@@ -66,51 +62,53 @@ impl Parse for RequestBodyAttr {
             parenthesized!(group in input);
 
             let mut request_body_attr = RequestBodyAttr::default();
-            loop {
+            while !group.is_empty() {
                 let ident = group
                     .parse::<Ident>()
-                    .expect_or_abort("unparseable RequestBodyAttr, expected identifer");
-                let name = &*ident.to_string();
+                    .map_err(|error| Error::new(error.span(), EXPECTED_ATTRIBUTE_MESSAGE))?;
+                let attribute_name = &*ident.to_string();
 
-                match name {
+                match attribute_name {
                     "content" => {
-                        request_body_attr.content = Some(parse_utils::parse_next(&group, || {
-                            group.parse::<Type>().unwrap()
-                        }));
+                        request_body_attr.content = Some(
+                            parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
+                                Error::new(
+                                    error.span(),
+                                    format!(
+                                        "unexpected token, expected type such as String, {}",
+                                        error
+                                    ),
+                                )
+                            })?,
+                        );
                     }
                     "content_type" => {
-                        request_body_attr.content_type = Some(parse_utils::parse_next_literal_str(
-                            &group,
-                        )?)
+                        request_body_attr.content_type =
+                            Some(parse_utils::parse_next_literal_str(&group)?)
                     }
                     "description" => {
-                        request_body_attr.description = Some(parse_utils::parse_next_literal_str(
-                            &group,
-                        )?)
+                        request_body_attr.description =
+                            Some(parse_utils::parse_next_literal_str(&group)?)
                     }
-                    _ => {
-                        return Err(Error::new(
-                            ident.span(),
-                            format!(
-                                "unexpected identifer: {}, expected any of: content, content_type, description",
-                                &name
-                            ),
-                        ))
-                    }
+                    _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
 
-                if group.peek(Token![,]) {
-                    group.parse::<Token![,]>().unwrap();
-                }
-                if group.is_empty() {
-                    break;
+                if !group.is_empty() {
+                    group.parse::<Token![,]>()?;
                 }
             }
 
             Ok(request_body_attr)
-        } else if lookahead.peek(Bracket) || lookahead.peek(syn::Ident) {
+        } else if lookahead.peek(Token![=]) {
+            input.parse::<Token![=]>()?;
+
             Ok(RequestBodyAttr {
-                content: Some(input.parse().unwrap()),
+                content: Some(input.parse().map_err(|error| {
+                    Error::new(
+                        error.span(),
+                        format!("unexpected token, expected type such as String, {}", error),
+                    )
+                })?),
                 content_type: None,
                 description: None,
             })

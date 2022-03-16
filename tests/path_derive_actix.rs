@@ -14,12 +14,12 @@ mod mod_derive_path_actix {
     ///
     /// Get foo by id long description
     #[utoipa::path(
-        responses = [
+        responses(
             (status = 200, description = "success response")
-        ],
-        params = [
+        ),
+        params(
             ("id", description = "Foo id"),
-        ]
+        )
     )]
     #[get("/foo/{id}")]
     #[allow(unused)]
@@ -57,12 +57,12 @@ mod mod_derive_path_unnamed_regex_actix {
     ///
     /// Get foo by id long description
     #[utoipa::path(
-        responses = [
+        responses(
             (status = 200, description = "success"),
-        ],
-        params = [
+        ),
+        params(
             ("arg0", description = "Foo path unnamed regex tail")
-        ]
+        )
     )]
     #[get("/foo/{_:.*}")]
     #[allow(unused)]
@@ -100,12 +100,12 @@ mod mod_derive_path_named_regex_actix {
     ///
     /// Get foo by id long description
     #[utoipa::path(
-        responses = [
+        responses(
             (status = 200, description = "success response")
-        ],
-        params = [
+        ),
+        params(
             ("tail", description = "Foo path named regex tail")
-        ]
+        )
     )]
     #[get("/foo/{tail:.*}")]
     #[allow(unused)]
@@ -143,9 +143,9 @@ macro_rules! test_derive_path_operations {
             use serde_json::json;
 
             #[utoipa::path(
-                responses = [
+                responses(
                     (status = 200, description = "success response")
-                ]
+                )
             )]
             #[$operation("/foo")]
             #[allow(unused)]

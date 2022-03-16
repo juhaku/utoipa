@@ -4,7 +4,7 @@ macro_rules! test_fn {
     ( module: $name:ident, responses: $($responses:tt)* ) => {
         #[allow(unused)]
         mod $name {
-            #[utoipa::path(get,path = "/foo",responses = $($responses)*)]
+            #[utoipa::path(get,path = "/foo",responses $($responses)*)]
             fn get_foo() {}
         }
     }
@@ -12,9 +12,9 @@ macro_rules! test_fn {
 
 test_fn! {
     module: response_with_string_example,
-    responses: [
+    responses: (
         (status = 200, description = "success", body = Foo, example = r#"{"foo": "bar"}"#)
-    ]
+    )
 }
 
 #[test]

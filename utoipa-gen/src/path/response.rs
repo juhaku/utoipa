@@ -1,9 +1,6 @@
-use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
-use proc_macro_error::ResultExt;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
-use syn::{
-    bracketed, parse::Parse, punctuated::Punctuated, token::Comma, Error, LitInt, LitStr, Token,
-};
+use syn::{parenthesized, parse::Parse, Error, LitInt, LitStr, Token};
 
 use crate::{parse_utils, Example, Type};
 
@@ -74,68 +71,61 @@ pub struct Response {
 
 impl Parse for Response {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers";
         let mut response = Response::default();
 
-        loop {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("unparseable Response expected identifier");
-            let name = &*ident.to_string();
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
+            let attribute_name = &*ident.to_string();
 
-            match name {
+            match attribute_name {
                 "status" => {
-                    response.status_code = parse_utils::parse_next(input, || {
-                        input
-                            .parse::<LitInt>()
-                            .unwrap()
-                            .base10_parse()
-                            .expect_or_abort("unparseable status, expected literal integer")
-                    });
+                    response.status_code =
+                        parse_utils::parse_next(input, || input.parse::<LitInt>())?
+                            .base10_parse()?;
                 }
                 "description" => {
                     response.description = parse_utils::parse_next_literal_str(input)?;
                 }
                 "body" => {
-                    response.response_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<Type>().unwrap_or_abort()
-                    }));
+                    response.response_type = Some(
+                        parse_utils::parse_next(input, || input.parse::<Type>()).map_err(
+                            |error| {
+                                Error::new(
+                                    ident.span(),
+                                    format!(
+                                        "unexpected token, expected type such as String, {}",
+                                        error
+                                    ),
+                                )
+                            },
+                        )?,
+                    );
                 }
                 "content_type" => {
                     response.content_type = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "headers" => {
-                    let groups = parse_utils::parse_next(input, || {
-                        let content;
-                        bracketed!(content in input);
-                        Punctuated::<Group, Comma>::parse_terminated(&content)
-                    })
-                    .expect_or_abort("unparseable headers, expected group separated by comma (,)");
+                    let headers;
+                    parenthesized!(headers in input);
 
-                    response.headers = groups
-                        .into_iter()
-                        .map(|group| syn::parse2::<Header>(group.stream()).unwrap_or_abort())
-                        .collect::<Vec<_>>();
+                    response.headers = parse_utils::parse_groups(&headers)?;
                 }
                 "example" => {
                     response.example = Some(parse_utils::parse_next_lit_str_or_json_example(
                         input, &ident,
                     ));
                 }
-                _ => {
-                    let error_msg = format!(
-                        "unexpected identifer: {}, expected any of: status, description, body, content_type, headers",
-                        &name
-                    );
-
-                    return Err(Error::new(ident.span(), error_msg));
-                }
+                _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
-            if input.peek(Token![,]) {
-                input.parse::<Token![,]>().unwrap_or_abort();
-            }
-            if input.is_empty() {
-                break;
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
             }
         }
 
@@ -289,51 +279,45 @@ struct Header {
 impl Parse for Header {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut header = Header {
-            name: input
-                .parse::<LitStr>()
-                .expect_or_abort("unexpected attribute for Header name, expected literal string")
-                .value(),
+            name: input.parse::<LitStr>()?.value(),
             ..Default::default()
         };
 
         if input.peek(Token![=]) {
-            input.parse::<Token![=]>().unwrap_or_abort();
+            input.parse::<Token![=]>()?;
 
-            header.value_type = Some(
-                input
-                    .parse::<Type>()
-                    .expect_or_abort("unparseable Header type, expected identifer"),
-            );
+            header.value_type = Some(input.parse::<Type>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("unexpected token, expected type such as String, {}", error),
+                )
+            })?);
         }
 
-        if input.peek(Token![,]) {
-            input.parse::<Token![,]>().unwrap_or_abort();
+        if !input.is_empty() {
+            input.parse::<Token![,]>()?;
         }
 
         if input.peek(syn::Ident) {
-            let description = input
+            input
                 .parse::<Ident>()
-                .expect_or_abort("unparseable Header description, expected identifier");
-
-            if description == "description" {
-                if input.peek(Token![=]) {
-                    input.parse::<Token![=]>().unwrap_or_abort();
-                }
-
-                let description = input
-                    .parse::<LitStr>()
-                    .expect_or_abort("unparseable description, expected literal string")
-                    .value();
-                header.description = Some(description);
-            } else {
-                return Err(Error::new(
-                    description.span(),
-                    format!(
-                        "unexpected identifer: {}, expected: description",
-                        description
-                    ),
-                ));
-            }
+                .map_err(|error| {
+                    Error::new(
+                        error.span(),
+                        format!("unexpected attribute, expected: description, {}", error),
+                    )
+                })
+                .and_then(|ident| {
+                    if ident != "description" {
+                        return Err(Error::new(
+                            ident.span(),
+                            "unexpected attribute, expected: description",
+                        ));
+                    }
+                    Ok(ident)
+                })?;
+            input.parse::<Token![=]>()?;
+            header.description = Some(input.parse::<LitStr>()?.value());
         }
 
         Ok(header)

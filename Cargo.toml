@@ -1,11 +1,11 @@
 [package]
 name = "utoipa"
-description = "Compile time rest API documentation for Rust"
+description = "Compile time generated OpenAPI documentation for Rust"
 version = "0.1.0-beta7"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-keywords = ["rest-api", "openapi", "autogenerate", "documentation", "compile-time"]
+keywords = ["rest-api", "openapi", "auto-generate", "documentation", "compile-time"]
 # documentation = ""
 # homepage = ""
 repository = "https://github.com/juhaku/utoipa"

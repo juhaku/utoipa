@@ -93,14 +93,14 @@ mod pet_api {
     /// Get pet from database by pet id  
     #[utoipa::path(
         get,
-        path = "/pets/{id}"
-        responses = [
+        path = "/pets/{id}",
+        responses(
             (status = 200, description = "Pet found succesfully", body = Pet),
             (status = 404, description = "Pet was not found")
-        ],
-        params = [
+        ),
+        params(
             ("id" = u64, path, description = "Pet database id to get Pet for"),
-        ]
+        )
     )]
     async fn get_pet_by_id(pet_id: u64) -> Pet {
         Pet {
@@ -117,7 +117,7 @@ Tie the `Component` and the endpoint above to the OpenApi schema with following 
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
-#[openapi(handlers = [pet_api::get_pet_by_id], components = [Pet])]
+#[openapi(handlers(pet_api::get_pet_by_id), components(Pet))]
 struct ApiDoc;
 
 println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
