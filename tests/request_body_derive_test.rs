@@ -14,10 +14,10 @@ macro_rules! test_fn {
             #[utoipa::path(
                                                 post,
                                                 path = "/foo",
-                                                request_body = $($body)*,
-                                                responses = [
+                                                request_body $($body)*,
+                                                responses(
                                                     (status = 200, description = "success response")
-                                                ]
+                                                )
                                             )]
             fn post_foo() {}
         }
@@ -26,7 +26,7 @@ macro_rules! test_fn {
 
 test_fn! {
     module: derive_request_body_simple,
-    body: Foo
+    body: = Foo
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn derive_path_request_body_simple_success() {
 
 test_fn! {
     module: derive_request_body_simple_array,
-    body: [Foo]
+    body: = [Foo]
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn derive_path_request_body_simple_array_success() {
 
 test_fn! {
     module: derive_request_body_option_array,
-    body: Option<[Foo]>
+    body: = Option<[Foo]>
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn derive_request_body_option_array_success() {
 }
 test_fn! {
     module: derive_request_body_primitive_simple,
-    body: String
+    body: = String
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn derive_request_body_primitive_simple_success() {
 
 test_fn! {
     module: derive_request_body_primitive_simple_array,
-    body: [u64]
+    body: = [u64]
 }
 
 #[test]

@@ -5,7 +5,7 @@ macro_rules! test_fn {
     ( module: $name:ident, responses: $($responses:tt)* ) => {
         #[allow(unused)]
         mod $name {
-            #[utoipa::path(get,path = "/foo",responses = $($responses)*)]
+            #[utoipa::path(get,path = "/foo",responses $($responses)*)]
             fn get_foo() {}
         }
     };
@@ -25,9 +25,9 @@ macro_rules! api_doc {
 
 test_fn! {
     module: simple_success_response,
-    responses: [
+    responses: (
         (status = 200, description = "success")
-    ]
+    )
 }
 
 #[test]
@@ -43,12 +43,12 @@ fn derive_path_with_simple_success_response() {
 
 test_fn! {
     module: multiple_simple_responses,
-    responses: [
+    responses: (
         (status = 200, description = "success"),
         (status = 401, description = "unauthorized"),
         (status = 404, description = "not found"),
         (status = 500, description = "server error")
-    ]
+    )
 }
 
 #[test]
@@ -78,13 +78,13 @@ macro_rules! test_response_types {
             paste::paste! {
                 test_fn! {
                     module: [<mod_ $name>],
-                    responses: [
+                    responses: (
                         (status = 200, description = "success",
                             $(body = $expected ,)*
                             $(content_type = $content_type,)*
-                            $(headers = $headers, )*
+                            $(headers $headers, )*
                         ),
-                    ]
+                    )
                 }
             }
 
@@ -143,32 +143,32 @@ object_body_override_content_type_to_xml => body: Foo, "text/xml", assert:
     "responses.200.content.application/json.schema.$ref" = r###"null"###, "Response content type"
     "responses.200.content.text/xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
-object_body_with_simple_header => body: Foo, headers: [
+object_body_with_simple_header => body: Foo, headers: (
     ("xsrf-token")
-], assert:
+), assert:
     "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.xsrf-token.schema.type" = r###""string""###, "xsrf-token header type"
     "responses.200.headers.xsrf-token.description" = r###"null"###, "xsrf-token header description"
-object_body_with_multiple_headers => body: Foo, headers: [
+object_body_with_multiple_headers => body: Foo, headers: (
     ("xsrf-token"),
     ("another-header")
-], assert:
+), assert:
     "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.xsrf-token.schema.type" = r###""string""###, "xsrf-token header type"
     "responses.200.headers.xsrf-token.description" = r###"null"###, "xsrf-token header description"
     "responses.200.headers.another-header.schema.type" = r###""string""###, "another-header header type"
     "responses.200.headers.another-header.description" = r###"null"###, "another-header header description"
-object_body_with_header_with_type => body: Foo, headers: [
+object_body_with_header_with_type => body: Foo, headers: (
     ("random-digits" = [u64]),
-], assert:
+), assert:
     "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.random-digits.schema.type" = r###""array""###, "random-digits header type"
     "responses.200.headers.random-digits.description" = r###"null"###, "random-digits header description"
     "responses.200.headers.random-digits.schema.items.type" = r###""integer""###, "random-digits header items type"
     "responses.200.headers.random-digits.schema.items.format" = r###""int64""###, "random-digits header items format"
-response_no_body_with_complex_header_with_description => headers: [
+response_no_body_with_complex_header_with_description => headers: (
     ("random-digits" = [u64], description = "Random digits response header"),
-], assert:
+), assert:
     "responses.200.content" = r###"null"###, "Response content type"
     "responses.200.headers.random-digits.description" = r###""Random digits response header""###, "random-digits header description"
     "responses.200.headers.random-digits.schema.type" = r###""array""###, "random-digits header type"
@@ -178,9 +178,9 @@ response_no_body_with_complex_header_with_description => headers: [
 
 test_fn! {
     module: response_with_json_example,
-    responses: [
+    responses: (
         (status = 200, description = "success", body = Foo, example = json!({"foo": "bar"}))
-    ]
+    )
 }
 
 #[test]

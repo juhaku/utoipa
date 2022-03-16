@@ -51,14 +51,14 @@ mod pet_api {
     /// Get pet from database by pet database id  
     #[utoipa::path(
         get,
-        path = "/pets/{id}"
-        responses = [
+        path = "/pets/{id}",
+        responses(
             (status = 200, description = "Pet found succesfully", body = Pet),
             (status = 404, description = "Pet was not found")
-        ],
-        params = [
+        ),
+        params(
             ("id" = u64, path, description = "Pet database id to get Pet for"),
-        ]
+        ),
         security(
             (),
             ("my_auth" = ["read:items", "edit:items"]),

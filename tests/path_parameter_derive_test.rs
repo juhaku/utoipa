@@ -12,12 +12,12 @@ mod derive_params_all_options {
     #[utoipa::path(
         get,
         path = "/foo/{id}",
-        responses = [
+        responses(
             (status = 200, description = "success"),
-        ],
-        params = [
+        ),
+        params(
             ("id" = i32, path, deprecated, description = "Search foos by ids"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id(id: i32) -> i32 {
@@ -53,12 +53,12 @@ mod derive_params_minimal {
     #[utoipa::path(
         get,
         path = "/foo/{id}",
-        responses = [
+        responses(
             (status = 200, description = "success"),
-        ],
-        params = [
+        ),
+        params(
             ("id" = i32, description = "Search foos by ids"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id(id: i32) -> i32 {
@@ -94,13 +94,13 @@ mod derive_params_multiple {
     #[utoipa::path(
         get,
         path = "/foo/{id}/{digest}",
-        responses = [
+        responses(
             (status = 200, description = "success"),
-        ],
-        params = [
+        ),
+        params(
             ("id" = i32, description = "Foo id"),
             ("digest" = String, description = "Digest of foo"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id(id: i32, digest: String) -> String {
@@ -144,16 +144,16 @@ mod mod_derive_parameters_all_types {
     #[utoipa::path(
         get,
         path = "/foo/{id}",
-        responses = [
+        responses(
             (status = 200, description = "success"),
-        ],
-        params = [
+        ),
+        params(
             ("id" = i32, path, description = "Foo id"),
             ("since" = String, deprecated, query, description = "Datetime since"),
             ("numbers" = Option<[u64]>, query, description = "Foo numbers list"),
             ("token" = String, header, deprecated, description = "Token of foo"),
             ("cookieval" = String, cookie, deprecated, description = "Foo cookie"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id(id: i32) -> i32 {
@@ -220,12 +220,12 @@ mod derive_params_without_args {
     #[utoipa::path(
         get,
         path = "/foo/{id}",
-        responses = [
+        responses(
             (status = 200, description = "success"),
-        ],
-        params = [
+        ),
+        params(
             ("id" = i32, path, description = "Foo id"),
-        ]
+        )
     )]
     #[allow(unused)]
     async fn get_foo_by_id() -> String {

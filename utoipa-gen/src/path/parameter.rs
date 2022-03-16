@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::ResultExt;
 use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
@@ -54,63 +53,54 @@ impl Parse for Parameter {
 
         if input.peek(LitStr) {
             // parse name
-            let name = input.parse::<LitStr>().unwrap().value();
+            let name = input.parse::<LitStr>()?.value();
             parameter.name = name;
 
             if input.peek(Token![=]) {
-                parameter.parameter_type = parse_utils::parse_next(input, || {
-                    Some(input.parse().expect_or_abort(
-                            "unparseable parameter type expected: identifier or identifier within brackets",
-                        ))
-                });
+                parameter.parameter_type = Some(parse_utils::parse_next(input, || {
+                    input.parse().map_err(|error| {
+                        Error::new(
+                            error.span(),
+                            format!("unexpected token, expected type such as String, {}", error),
+                        )
+                    })
+                })?);
             }
         } else {
             return Err(input.error("unparseable parameter name, expected literal string"));
         }
 
-        input
-            .parse::<Token![,]>()
-            .expect_or_abort("expected comma after literal string");
+        input.parse::<Token![,]>()?;
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: path, query, header, cookie, deprecated, description";
 
-        loop {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("unparseable Parameter, expected identifier");
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
             let name = &*ident.to_string();
 
             match name {
                 "path" | "query" | "header" | "cookie" => {
-                    parameter.parameter_in = name.parse::<ParameterIn>().unwrap_or_abort();
+                    parameter.parameter_in = name
+                        .parse::<ParameterIn>()
+                        .map_err(|error| Error::new(ident.span(), error))?;
                 }
                 "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(input)?,
                 "description" => {
-                    parameter.description = parse_utils::parse_next(input, || {
-                        Some(
-                            input
-                                .parse::<LitStr>()
-                                .expect_or_abort("unparseable description, expected literal string")
-                                .value(),
-                        )
-                    })
+                    parameter.description =
+                        Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
                 }
-                _ => {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!(
-                        "unexpected identifier: {}, expected any of: path, query, header, cookie, deprecated, description",
-                        name
-                    ),
-                    ))
-                }
+                _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
-            if input.peek(Token![,]) {
-                input.parse::<Token![,]>().unwrap();
-            }
-            if input.is_empty() {
-                break;
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
             }
         }
+
         Ok(parameter)
     }
 }

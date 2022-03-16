@@ -38,7 +38,7 @@ pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
 impl Parse for OpenApiAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
-            "unexpected attribute, expected one of: handlers, components, modifiers, security or tags";
+            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags";
         let mut openapi = OpenApiAttr::default();
 
         while !input.is_empty() {
@@ -141,7 +141,7 @@ struct Tag {
 impl Parse for Tag {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
-            "unexpected token, expected one of: name, description or external_docs";
+            "unexpected token, expected any of: name, description, external_docs";
 
         let mut tag = Tag::default();
 

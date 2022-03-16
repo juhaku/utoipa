@@ -1,3 +1,5 @@
+#![cfg(feature = "actix_extras")]
+
 use lazy_static::lazy_static;
 use proc_macro2::Ident;
 use proc_macro_error::abort_call_site;
@@ -11,7 +13,6 @@ use super::{
     Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
 };
 
-#[cfg(feature = "actix_extras")]
 impl ArgumentResolver for PathOperations {
     fn resolve_path_arguments(fn_args: &Punctuated<FnArg, Comma>) -> Option<Vec<Argument<'_>>> {
         if let Some((pat_type, path_segment)) = Self::find_path_pat_type_and_segment(fn_args) {
@@ -48,7 +49,6 @@ impl ArgumentResolver for PathOperations {
     }
 }
 
-#[cfg(feature = "actix_extras")]
 impl PathOperations {
     fn get_type_path(ty: &Type) -> &TypePath {
         match ty {
@@ -140,7 +140,6 @@ impl PathOperations {
     }
 }
 
-#[cfg(feature = "actix_extras")]
 impl PathOperationResolver for PathOperations {
     fn resolve_attribute(item_fn: &ItemFn) -> Option<&Attribute> {
         item_fn.attrs.iter().find_map(|attribute| {
@@ -159,7 +158,6 @@ impl PathOperationResolver for PathOperations {
     }
 }
 
-#[cfg(feature = "actix_extras")]
 impl PathResolver for PathOperations {
     fn resolve_path(operation_attribute: &Option<&Attribute>) -> Option<String> {
         operation_attribute.map(|attribute| {

@@ -68,12 +68,17 @@ pub struct NamedField {
 
 impl Parse for ComponentAttr<Enum> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
+            "unexpected attribute, expected any of: default, example";
         let mut enum_attr = Enum::default();
 
-        loop {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("Unparseable ComponentAttr<Enum>, expected Ident");
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
             let name = &*ident.to_string();
 
             match name {
@@ -87,23 +92,11 @@ impl Parse for ComponentAttr<Enum> {
                         parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
-                _ => {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!(
-                            "unexpected identifer: {}, expected any of: default, example",
-                            name
-                        ),
-                    ))
-                }
+                _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
-            if input.peek(Token![,]) {
+            if !input.is_empty() {
                 input.parse::<Token![,]>().unwrap();
-            }
-
-            if input.is_empty() {
-                break;
             }
         }
         Ok(Self { inner: enum_attr })
@@ -131,12 +124,17 @@ impl ComponentAttr<Struct> {
 
 impl Parse for ComponentAttr<Struct> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
+            "unexpected attribute, expected any of: example, xml";
         let mut struct_ = Struct::default();
 
         while !input.is_empty() {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("Unparseable ComponentAttr<Struct>, expected Ident");
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    &format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
             let name = &*ident.to_string();
 
             match name {
@@ -150,12 +148,11 @@ impl Parse for ComponentAttr<Struct> {
                     parenthesized!(xml in input);
                     struct_.xml_attr = Some(xml.parse()?)
                 }
-                _ => {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!("unexpected identifer: {name}, expected one of: example, xml"),
-                    ))
-                }
+                _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
+            }
+
+            if !input.is_empty() {
+                input.parse::<Token![,]>().unwrap();
             }
         }
 
@@ -165,12 +162,17 @@ impl Parse for ComponentAttr<Struct> {
 
 impl Parse for ComponentAttr<UnnamedFieldStruct> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
+            "unexpected attribute, expected any of: default, example";
         let mut unnamed_struct = UnnamedFieldStruct::default();
 
-        loop {
-            let attribute = input.parse::<Ident>().expect_or_abort(
-                "Unparseable ComponentAttr<UnnamedFieldStruct>, expected identifier",
-            );
+        while !input.is_empty() {
+            let attribute = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
             let name = &*attribute.to_string();
 
             match name {
@@ -184,23 +186,11 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                         parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
-                _ => {
-                    return Err(Error::new(
-                        attribute.span(),
-                        format!(
-                            "unexpected identifier: {}, expected any of: default, example",
-                            name
-                        ),
-                    ))
-                }
+                _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
-            if input.peek(Token![,]) {
+            if !input.is_empty() {
                 input.parse::<Token![,]>().unwrap();
-            }
-
-            if input.is_empty() {
-                break;
             }
         }
 
@@ -255,12 +245,16 @@ impl ComponentAttr<NamedField> {
 
 impl Parse for ComponentAttr<NamedField> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml";
         let mut field = NamedField::default();
 
-        loop {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("Unparseable ComponentAttr<NamedField>, expected identifier");
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
             let name = &*ident.to_string();
 
             match name {
@@ -270,11 +264,9 @@ impl Parse for ComponentAttr<NamedField> {
                     }));
                 }
                 "format" => {
-                    let format = parse_utils::parse_next(input, || {
-                        input.parse::<ExprPath>().expect_or_abort(
-                            "unparseable format expected expression path e.g. ComponentFormat::String",
-                        )
-                    });
+                    let format = parse_utils::parse_next(input, || input.parse::<ExprPath>())
+                        .map_err(|error| Error::new(error.span(), 
+                        format!("unparseable format expected expression path e.g. ComponentFormat::String, {}", error)))?;
 
                     if format.path.segments.first().unwrap().ident != "utoipa" {
                         let appended_path: ExprPath = syn::parse_quote!(utoipa::openapi::#format);
@@ -295,22 +287,11 @@ impl Parse for ComponentAttr<NamedField> {
                     parenthesized!(xml in input);
                     field.xml_attr = Some(xml.parse()?)
                 }
-                _ => {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!(
-                            "unexpected identifier: {}, expected any of: example, format, default, write_only, read_only, xml",
-                            name
-                        ),
-                    ))
-                }
+                _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
-            if input.peek(Token![,]) {
+            if !input.is_empty() {
                 input.parse::<Token![,]>().unwrap();
-            }
-            if input.is_empty() {
-                break;
             }
         }
 

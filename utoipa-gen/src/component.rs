@@ -50,7 +50,6 @@ impl ToTokens for Component<'_> {
         let variant = &self.variant;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        // TODO implement sub components for complex enum variants
         tokens.extend(quote! {
             impl #impl_generics utoipa::Component for #ident #ty_generics #where_clause {
                 fn component() -> utoipa::openapi::schema::Component {

@@ -1,15 +1,9 @@
 use std::{io::Error, str::FromStr};
 
-use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
-use proc_macro_error::{abort, OptionExt, ResultExt};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
+use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::{
-    bracketed, parenthesized,
-    parse::{Parse, ParseStream},
-    parse2,
-    punctuated::Punctuated,
-    Token,
-};
+use syn::{parenthesized, parse::Parse, Token};
 
 use crate::{
     component_type::ComponentType,
@@ -131,24 +125,19 @@ impl PathAttr {
 
 impl Parse for PathAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security";
         let mut path_attr = PathAttr::default();
 
-        loop {
-            let ident = input
-                .parse::<Ident>()
-                .expect_or_abort("unparseable PatAttr, expected identifer");
-            let attribute = &*ident.to_string();
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
+            let attribute_name = &*ident.to_string();
 
-            let parse_groups = |input: &ParseStream| {
-                parse_utils::parse_next(input, || {
-                    let content;
-                    bracketed!(content in input);
-
-                    Punctuated::<Group, Token![,]>::parse_terminated(&content)
-                })
-            };
-
-            match attribute {
+            match attribute_name {
                 "operation_id" => {
                     path_attr.operation_id = Some(parse_utils::parse_next_literal_str(input)?);
                 }
@@ -156,32 +145,18 @@ impl Parse for PathAttr {
                     path_attr.path = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "request_body" => {
-                    if input.peek(Token![=]) {
-                        input.parse::<Token![=]>().unwrap();
-                    }
-                    path_attr.request_body =
-                        Some(input.parse::<RequestBodyAttr>().unwrap_or_abort());
+                    path_attr.request_body = Some(input.parse::<RequestBodyAttr>()?);
                 }
                 "responses" => {
-                    let groups = parse_groups(&input).expect_or_abort(
-                        "unparseable responses, expected group separated by comma (,)",
-                    );
-
-                    path_attr.responses = groups
-                        .into_iter()
-                        .map(|group| syn::parse2::<Response>(group.stream()).unwrap_or_abort())
-                        .collect::<Vec<_>>();
+                    let responses;
+                    parenthesized!(responses in input);
+                    path_attr.responses =
+                        parse_utils::parse_groups::<Response, Vec<_>>(&responses)?;
                 }
                 "params" => {
-                    let groups = parse_groups(&input).expect_or_abort(
-                        "unparseable params, expected group separated by comma (,)",
-                    );
-                    path_attr.params = Some(
-                        groups
-                            .iter()
-                            .map(|group| parse2::<Parameter>(group.stream()).unwrap_or_abort())
-                            .collect::<Vec<Parameter>>(),
-                    )
+                    let params;
+                    parenthesized!(params in input);
+                    path_attr.params = Some(parse_utils::parse_groups(&params)?);
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -194,21 +169,17 @@ impl Parse for PathAttr {
                 _ => {
                     // any other case it is expected to be path operation
                     if let Some(path_operation) =
-                        attribute.parse::<PathOperation>().into_iter().next()
+                        attribute_name.parse::<PathOperation>().into_iter().next()
                     {
                         path_attr.path_operation = Some(path_operation)
                     } else {
-                        let erro_msg = format!("unexpected identifier: {}, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security", attribute);
-                        return Err(syn::Error::new(ident.span(), erro_msg));
+                        return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
                     }
                 }
             }
 
-            if input.peek(Token![,]) {
+            if !input.is_empty() {
                 input.parse::<Token![,]>().unwrap();
-            }
-            if input.is_empty() {
-                break;
             }
         }
 
@@ -345,7 +316,13 @@ impl ToTokens for Path {
             .operation_id
             .as_ref()
             .or(Some(&self.fn_name))
-            .expect_or_abort("expected to find operation id but was None");
+            .unwrap_or_else(|| {
+                abort! {
+                    Span::call_site(), "operation id is not defined for path";
+                    help = r###"Try to define it in #[utoipa::path(operation_id = {})]"###, &self.fn_name;
+                    help = "Did you define the #[utoipa::path(...)] over function?"
+                }
+            });
         let tag = &*self
             .path_attr
             .tag
@@ -357,13 +334,39 @@ impl ToTokens for Path {
             .path_operation
             .as_ref()
             .or_else(|| self.path_operation.as_ref())
-            .expect_or_abort("expected to find path operation but was None");
+            .unwrap_or_else(|| {
+                #[cfg(feature = "actix_extras")]
+                let help =
+                    Some("Did you forget to define operation path attribute macro e.g #[get(...)]");
+
+                #[cfg(not(feature = "actix_extras"))]
+                let help = None::<&str>;
+
+                abort! {
+                    Span::call_site(), "path operation is not defined for path";
+                    help = "Did you forget to define it in #[utoipa::path(get,...)]";
+                    help =? help
+                }
+            });
         let path = self
             .path_attr
             .path
             .as_ref()
             .or_else(|| self.path.as_ref())
-            .expect_or_abort("expected to find path but was None");
+            .unwrap_or_else(|| {
+                #[cfg(feature = "actix_extras")]
+                let help =
+                    Some("Did you forget to define operation path attribute macro e.g #[get(...)]");
+
+                #[cfg(not(feature = "actix_extras"))]
+                let help = None::<&str>;
+
+                abort! {
+                    Span::call_site(), "path is not defined for path";
+                    help = r###"Did you forget to define it in #[utoipa::path(path = "...")]"###;
+                    help =? help
+                }
+            });
 
         let operation = Operation {
             deprecated: &self.deprecated,
@@ -429,8 +432,6 @@ impl ToTokens for Operation<'_> {
             .with_responses(#responses)
         });
         if let Some(security_requirements) = self.security {
-            // let security =
-            //     security_requirement::security_requirements_to_tokens(security_requirements);
             tokens.extend(quote! {
                 .with_securities(#security_requirements)
             })
