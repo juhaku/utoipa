@@ -170,8 +170,9 @@ impl HttpServiceFactory for SwaggerUi {
             .urls
             .into_iter()
             .map(|url| {
-                register_api_doc_url_resource(&url, config);
-                url.0
+                let (url, openapi) = url;
+                register_api_doc_url_resource((url.url.as_ref(), openapi), config);
+                url
             })
             .collect::<Vec<_>>();
 
@@ -185,14 +186,14 @@ impl HttpServiceFactory for SwaggerUi {
 }
 
 #[cfg(feature = "actix-web")]
-fn register_api_doc_url_resource(url: &(Url, OpenApi), config: &mut actix_web::dev::AppService) {
+fn register_api_doc_url_resource(url: (&str, OpenApi), config: &mut actix_web::dev::AppService) {
     pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl Responder {
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
-    let url_resource = Resource::new(url.0.url.as_ref())
+    let url_resource = Resource::new(url.0)
         .guard(Get())
-        .data(url.1.clone())
+        .data(url.1)
         .to(get_api_doc);
     HttpServiceFactory::register(url_resource, config);
 }

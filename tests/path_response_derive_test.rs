@@ -194,3 +194,24 @@ fn derive_response_with_json_example_success() {
         "responses.200.headers" = r#"null"#, "Response headers"
     }
 }
+
+#[test]
+fn derive_reponse_multiple_content_types() {
+    test_fn! {
+        module: response_multiple_content_types,
+        responses: (
+            (status = 200, description = "success", body = Foo, content_type = ["text/xml", "application/json"])
+        )
+    }
+
+    let doc = api_doc!(module: response_multiple_content_types);
+
+    assert_value! {doc=>
+        "responses.200.description" = r#""success""#, "Response description"
+        "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
+        "responses.200.content.text/xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
+        "responses.200.content.application/json.example" = r###"null"###, "Response content example"
+        "responses.200.content.text/xml.example" = r###"null"###, "Response content example"
+        "responses.200.headers" = r#"null"#, "Response headers"
+    }
+}

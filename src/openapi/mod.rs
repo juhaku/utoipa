@@ -113,6 +113,12 @@ impl OpenApi {
         self
     }
 
+    pub fn with_external_docs(mut self, external_docs: ExternalDocs) -> Self {
+        self.external_docs = Some(external_docs);
+
+        self
+    }
+
     #[cfg(feature = "serde_json")]
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
