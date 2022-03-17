@@ -6,6 +6,7 @@ use serde_json::Value;
 use super::Component;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[non_exhaustive]
 pub struct Content {
     pub schema: Component,

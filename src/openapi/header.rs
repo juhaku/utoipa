@@ -4,6 +4,7 @@ use super::{Component, ComponentType, Property};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Header {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,

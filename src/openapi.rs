@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
     contact::Contact,
@@ -35,10 +35,9 @@ pub mod server;
 pub mod tag;
 pub mod xml;
 
-const OPENAPI_VERSION_3: &str = "3.0.3";
-
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct OpenApi {
     pub openapi: OpenApiVersion,
@@ -130,21 +129,11 @@ impl OpenApi {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
+    #[serde(rename = "3.0.3")]
     Version3,
-}
-
-impl Serialize for OpenApiVersion {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Self::Version3 => serializer.serialize_str(OPENAPI_VERSION_3),
-        }
-    }
 }
 
 impl Default for OpenApiVersion {
@@ -153,24 +142,46 @@ impl Default for OpenApiVersion {
     }
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Deprecated {
     True,
     False,
 }
 
-impl Deprecated {
-    pub fn to_bool(&self) -> bool {
-        matches!(self, Self::True)
-    }
-}
-
 impl Serialize for Deprecated {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
-        serializer.serialize_bool(self.to_bool())
+        serializer.serialize_bool(matches!(self, Self::True))
+    }
+}
+
+impl<'de> Deserialize<'de> for Deprecated {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct BoolVisitor;
+        impl<'de> Visitor<'de> for BoolVisitor {
+            type Value = Deprecated;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a bool true or false")
+            }
+
+            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match v {
+                    true => Ok(Deprecated::True),
+                    false => Ok(Deprecated::False),
+                }
+            }
+        }
+        deserializer.deserialize_bool(BoolVisitor)
     }
 }
 
@@ -180,24 +191,46 @@ impl Default for Deprecated {
     }
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Required {
     True,
     False,
 }
 
-impl Required {
-    pub fn to_bool(&self) -> bool {
-        matches!(self, Self::True)
-    }
-}
-
 impl Serialize for Required {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
-        serializer.serialize_bool(self.to_bool())
+        serializer.serialize_bool(matches!(self, Self::True))
+    }
+}
+
+impl<'de> Deserialize<'de> for Required {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct BoolVisitor;
+        impl<'de> Visitor<'de> for BoolVisitor {
+            type Value = Required;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a bool true or false")
+            }
+
+            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match v {
+                    true => Ok(Required::True),
+                    false => Ok(Required::False),
+                }
+            }
+        }
+        deserializer.deserialize_bool(BoolVisitor)
     }
 }
 
@@ -222,7 +255,7 @@ mod tests {
 
     #[test]
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("testdata/expected_openapi_minimal.json");
+        let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
         let openapi = OpenApi::new(
             Info::new("My api", "1.0.0")
                 .with_description("My api description")
@@ -268,7 +301,7 @@ mod tests {
         );
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("./testdata/expected_openapi_with_paths.json");
+        let expected = include_str!("./openapi/testdata/expected_openapi_with_paths.json");
 
         assert_eq!(
             serialized, expected,

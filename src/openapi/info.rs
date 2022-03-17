@@ -4,6 +4,7 @@ use super::{contact::Contact, licence::License};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Info {
     pub title: String,
