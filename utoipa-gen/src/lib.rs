@@ -265,6 +265,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
+///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
+///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///  _`json`_ and _`xml`_ formats.
 /// * **headers** Slice of response headers that are returned back to a caller.
 /// * **example** Can be either `json!(...)` or literal str that can be parsed to json. `json!`
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
@@ -280,6 +283,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///     headers(...),
 ///     example = json!({"id": 1, "name": "bob the cat"})
 /// )
+/// ```
+///
+/// **Response with multiple response content types:**
+/// ```text
+/// (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
 /// ```
 ///
 /// # Response Header Attributes
@@ -504,6 +512,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   the tag is derived from path given to **handlers** list or if undefined then `crate` is used by default.
 ///   Alternatively the tag name can be given to path operation via [`#[utoipa::path(...)]`][path] macro.
 ///   Tag can be used to define extra information for the api to produce richer documentation.
+/// * **external_docs** Can be used to reference external resource to the OpenAPI doc for extended documentation.
+///   External docs can be in [`OpenApi`][openapi_struct] or in [`Tag`][tags] level.
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -556,12 +566,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     tags(
 ///         (name = "pets::api", description = "All about pets",
 ///             external_docs(url = "http://more.about.pets.api", description = "Find out more"))
-///     )
+///     ),
+///     external_docs(url = "http://more.about.our.apis", description = "More about our APIs")
 /// )]
 /// struct ApiDoc;
 /// ```
 ///
 /// [openapi]: trait.OpenApi.html
+/// [openapi_struct]: openapi/struct.OpenApi.html
 /// [component]: derive.Component.html
 /// [path]: attr.path.html
 /// [modify]: trait.Modify.html

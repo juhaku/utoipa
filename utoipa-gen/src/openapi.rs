@@ -26,6 +26,7 @@ pub struct OpenApiAttr {
     modifiers: Punctuated<Modifier, Comma>,
     security: Option<Array<SecurityRequirementAttr>>,
     tags: Option<Array<Tag>>,
+    external_docs: Option<ExternalDocs>,
 }
 
 pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
@@ -38,7 +39,7 @@ pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
 impl Parse for OpenApiAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
-            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags";
+            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs";
         let mut openapi = OpenApiAttr::default();
 
         while !input.is_empty() {
@@ -66,6 +67,11 @@ impl Parse for OpenApiAttr {
                     let tags;
                     parenthesized!(tags in input);
                     openapi.tags = Some(parse_utils::parse_groups(&tags)?);
+                }
+                "external_docs" => {
+                    let external_docs;
+                    parenthesized!(external_docs in input);
+                    openapi.external_docs = Some(external_docs.parse()?);
                 }
                 _ => {
                     return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE));
@@ -256,6 +262,11 @@ impl ToTokens for OpenApi {
                 .with_tags(#tags)
             }
         });
+        let external_docs = attributes.external_docs.as_ref().map(|external_docs| {
+            quote! {
+                .with_external_docs(#external_docs)
+            }
+        });
 
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
@@ -264,7 +275,8 @@ impl ToTokens for OpenApi {
                     let mut openapi = utoipa::openapi::OpenApi::new(#info, #path_items)
                         .with_components(#components)
                         #securities
-                        #tags;
+                        #tags
+                        #external_docs;
 
                     let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
                     _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));

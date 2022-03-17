@@ -47,3 +47,34 @@ fn derive_openapi_tags() {
         "tags.[1].externalDocs.description" = r###""Find more about pets""###, "Tags pets_api external docs description"
     }
 }
+
+#[test]
+fn derive_openapi_with_external_docs() {
+    #[derive(OpenApi)]
+    #[openapi(external_docs(
+        url = "http://localhost.more.about.api",
+        description = "Find out more"
+    ))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    assert_value! {doc=>
+        "externalDocs.url" = r###""http://localhost.more.about.api""###, "External docs url"
+        "externalDocs.description" = r###""Find out more""###, "External docs description"
+    }
+}
+
+#[test]
+fn derive_openapi_with_external_docs_only_url() {
+    #[derive(OpenApi)]
+    #[openapi(external_docs(url = "http://localhost.more.about.api"))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    assert_value! {doc=>
+        "externalDocs.url" = r###""http://localhost.more.about.api""###, "External docs url"
+        "externalDocs.description" = r###"null"###, "External docs description"
+    }
+}

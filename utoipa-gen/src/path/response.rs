@@ -1,70 +1,25 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, Error, LitInt, LitStr, Token};
+use syn::{
+    bracketed, parenthesized,
+    parse::Parse,
+    punctuated::Punctuated,
+    token::{Bracket, Comma},
+    Error, LitInt, LitStr, Token,
+};
 
 use crate::{parse_utils, Example, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
-///
-/// Configuration options:
-///   * **status** Http status code of the response e.g. `200`
-///   * **description** Description of the response
-///   * **body** Optional response body type. Can be primitive, struct or enum type and slice types are supported
-///     by wrapping the type with brackets e.g. `[Foo]`
-///   * **content_type** Optional content type of the response e.g. `"text/plain"`
-///   * **headers** Optional response headers. See [`Header`] for detailed description and usage
-///
-/// Only status and description are mandatory for describing response. Responses which does not
-/// define `body = type` are treated as they would not return any response back. Content type of
-/// responses will be if not provided determined automatically suggesting that any primitive type such as
-/// integer, string or boolean are treated as `"text/plain"` and struct types are treated as `"application/json"`.
-///
-/// # Examples
-///
-/// Minimal example example providing responses.
-/// ```text
-/// #[utoipa::path(
-///     ...
-///     responses = [
-///         (status = 200, description = "success response"),
-///     ]
-/// )]
-/// ```
-///
-/// Example with all supported configuration.
-/// ```text
-/// #[utoipa::path(
-///     ...
-///     responses = [
-///         (status = 200, description = "success response", body = [Foo], content_type = "text/xml",
-///             headers = [
-///                 ("xrfs-token" = String, description = "New csrf token sent back in response header")
-///             ]
-///         ),
-///     ]
-/// )]
-/// ```
-///
-/// Example with multiple responses.
-/// ```text
-/// #[utoipa::path(
-///     ...
-///     responses = [
-///         (status = 200, description = "success response", body = [Foo]),
-///         (status = 401, description = "unauthorized to access", body = UnautorizedError),
-///         (status = 404, description = "foo not found", body = NotFoundError),
-///     ]
-/// )]
-/// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Response {
     status_code: i32,
     description: String,
     response_type: Option<Type>,
-    content_type: Option<String>,
+    content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     example: Option<Example>,
 }
@@ -108,7 +63,23 @@ impl Parse for Response {
                     );
                 }
                 "content_type" => {
-                    response.content_type = Some(parse_utils::parse_next_literal_str(input)?);
+                    response.content_type = Some(parse_utils::parse_next(input, || {
+                        let look_content_type = input.lookahead1();
+                        if look_content_type.peek(LitStr) {
+                            Ok(vec![input.parse::<LitStr>()?.value()])
+                        } else if look_content_type.peek(Bracket) {
+                            let content_types;
+                            bracketed!(content_types in input);
+                            Ok(
+                                Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                                    .into_iter()
+                                    .map(|lit| lit.value())
+                                    .collect(),
+                            )
+                        } else {
+                            Err(look_content_type.error())
+                        }
+                    })?);
                 }
                 "headers" => {
                     let headers;
@@ -133,9 +104,53 @@ impl Parse for Response {
     }
 }
 
-pub struct Responses<'a>(pub &'a [Response]);
+impl ToTokens for Response {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let description = &self.description;
+        tokens.extend(quote! {
+            utoipa::openapi::Response::new(#description)
+        });
 
-impl ContentTypeResolver for Responses<'_> {}
+        if let Some(ref body_type) = self.response_type {
+            let body_ty = &body_type.ty;
+
+            let component = Property::new(body_type.is_array, body_ty);
+            let mut content = quote! {
+                utoipa::openapi::Content::new(#component)
+            };
+
+            if let Some(ref example) = self.example {
+                content.extend(quote! {
+                    .with_example(#example)
+                })
+            }
+
+            if let Some(content_types) = self.content_type.as_ref() {
+                content_types.iter().for_each(|content_type| {
+                    tokens.extend(quote! {
+                        .with_content(#content_type, #content)
+                    })
+                })
+            } else {
+                let default_type = self.resolve_content_type(None, &component.component_type);
+                tokens.extend(quote! {
+                    .with_content(#default_type, #content)
+                });
+            }
+        }
+
+        self.headers.iter().for_each(|header| {
+            let name = &header.name;
+            tokens.extend(quote! {
+                .with_header(#name, #header)
+            })
+        });
+    }
+}
+
+impl ContentTypeResolver for Response {}
+
+pub struct Responses<'a>(pub &'a [Response]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -143,75 +158,11 @@ impl ToTokens for Responses<'_> {
 
         self.0.iter().for_each(|response| {
             let status = response.status_code.to_string();
-            let description = &response.description;
-
-            let mut response_tokens = quote! {
-                utoipa::openapi::Response::new(#description)
-            };
-
-            if let Some(ref response_body_type) = response.response_type {
-                let body_type = &response_body_type.ty;
-
-                let component = Property::new(response_body_type.is_array, body_type);
-
-                let content_type = self.resolve_content_type(
-                    response.content_type.as_ref(),
-                    &component.component_type,
-                );
-
-                let mut content = quote! {
-                    utoipa::openapi::Content::new(#component)
-                };
-                if let Some(ref example) = response.example {
-                    content.extend(quote! {
-                        .with_example(#example)
-                    })
-                }
-
-                response_tokens.extend(quote! {
-                    .with_content(#content_type, #content)
-                })
-            }
-
-            response.headers.iter().for_each(|header| {
-                let name = &header.name;
-                let header_tokens = new_header_tokens(header);
-
-                response_tokens.extend(quote! {
-                    .with_header(#name, #header_tokens)
-                })
-            });
-
             tokens.extend(quote! {
-                .with_response(#status, #response_tokens)
+                .with_response(#status, #response)
             });
         })
     }
-}
-
-#[inline]
-fn new_header_tokens(header: &Header) -> TokenStream2 {
-    let mut header_tokens = if let Some(ref header_type) = header.value_type {
-        // header property with custom type
-        let header_type = Property::new(header_type.is_array, &header_type.ty);
-
-        quote! {
-            utoipa::openapi::Header::new(#header_type)
-        }
-    } else {
-        // default header (string type)
-        quote! {
-            utoipa::openapi::Header::default()
-        }
-    };
-
-    if let Some(ref description) = header.description {
-        header_tokens.extend(quote! {
-            .with_description(#description)
-        })
-    }
-
-    header_tokens
 }
 
 /// Parsed representation of response header defined in `#[utoipa::path(..)]` attribute.
@@ -321,5 +272,29 @@ impl Parse for Header {
         }
 
         Ok(header)
+    }
+}
+
+impl ToTokens for Header {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        if let Some(ref header_type) = self.value_type {
+            // header property with custom type
+            let header_type = Property::new(header_type.is_array, &header_type.ty);
+
+            tokens.extend(quote! {
+                utoipa::openapi::Header::new(#header_type)
+            })
+        } else {
+            // default header (string type)
+            tokens.extend(quote! {
+                utoipa::openapi::Header::default()
+            })
+        };
+
+        if let Some(ref description) = self.description {
+            tokens.extend(quote! {
+                .with_description(#description)
+            })
+        }
     }
 }
