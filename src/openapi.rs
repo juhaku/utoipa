@@ -129,6 +129,214 @@ impl OpenApi {
     }
 }
 
+macro_rules! build_fn {
+    ( $vis:vis $name:ident $( $field:ident ),+ ) => {
+        $vis fn build(self) -> $name {
+            $name {
+                $(
+                    $field: self.$field,
+                )*
+                ..Default::default()
+            }
+        }
+    };
+}
+
+macro_rules! add_value {
+    ( $self:ident $field:ident $value:expr ) => {{
+        $self.$field = $value;
+
+        $self
+    }};
+}
+
+macro_rules! new {
+    ( $vis:vis $name:ident ) => {
+        $vis fn new() -> $name {
+            $name {
+                ..Default::default()
+            }
+        }
+    };
+}
+
+macro_rules! from {
+    ( $name:ident $to:ident $( $field:ident ),+ ) => {
+        impl From<$name> for $to {
+            fn from(value: $name) -> Self {
+                Self {
+                    $( $field: value.$field, )*
+                }
+            }
+        }
+    };
+}
+
+macro_rules! builder {
+    ( $builder_name:ident=> $(#[$meta:meta])* $vis:vis $key:ident $name:ident $( $tt:tt )* ) => {
+        builder!( @type_impl $( #[$meta] )* $vis $key $name $( $tt )* );
+        builder!( @builder_impl $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
+    };
+
+    ( @type_impl $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
+        { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
+        $bidnet:ident $bname:ident $( $builder_tt:tt )*
+    ) => {
+
+        $( #[$meta] )*
+        $vis $key $name {
+            $( $( #[$field_meta] )* $field_vis $field: $field_ty, )*
+        }
+    };
+
+    ( @builder_impl $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
+        { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
+        $bidnet:ident $bname:ident $( $builder_tt:tt )*
+    ) => {
+        #[doc = concat!("Builder for [`", stringify!($name),
+            "`] with chainable configuration methods to create a new [`", stringify!($name) , "`].")]
+        #[derive(Default)]
+        $vis $key $builder_name {
+            $( $field: $field_ty, )*
+        }
+
+        impl $builder_name {
+            new!($vis $builder_name);
+            build_fn!($vis $name $( $field ),* );
+        }
+
+        from!($name $builder_name $( $field ),* );
+
+        impl $builder_name $( $builder_tt )*
+    };
+}
+
+builder! {OpenApi2Builder=>
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct OpenApi2 {
+        pub openapi: OpenApiVersion,
+
+        pub info: Info,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub servers: Option<Vec<Server>>,
+
+        pub paths: BTreeMap<String, PathItem>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub components: Option<Components>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub security: Option<Vec<SecurityRequirement>>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub tags: Option<Vec<Tag>>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub external_docs: Option<ExternalDocs>,
+    }
+
+
+    impl OpenApi2Builder {
+        pub fn info2(mut self, info: Info) -> Self {
+            add_value!(self info info)
+        }
+
+
+        pub fn servers2<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
+            add_value!(self servers servers.map(|servers| servers.into_iter().collect()))
+        }
+    }
+}
+
+impl OpenApi2Builder {
+    pub fn info(mut self, info: Info) -> Self {
+        add_value!(self info info)
+    }
+
+    pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
+        add_value!(self servers servers.map(|servers| servers.into_iter().collect()))
+    }
+
+    pub fn paths(mut self, paths: Paths) -> Self {
+        add_value!(self paths paths.to_map())
+    }
+
+    pub fn components(mut self, components: Option<Components>) -> Self {
+        add_value!(self components components)
+    }
+
+    pub fn security<I: IntoIterator<Item = SecurityRequirement>>(
+        mut self,
+        security: Option<I>,
+    ) -> Self {
+        add_value!(self security security.map(|security| security.into_iter().collect()))
+    }
+
+    pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: Option<I>) -> Self {
+        add_value!(self tags tags.map(|tags| tags.into_iter().collect()))
+    }
+
+    pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
+        add_value!(self external_docs external_docs)
+    }
+}
+
+// /// Builder for [`OpenApi`] with chainable configuration methods to create new [`OpenApi`].
+// #[derive(Default)]
+// #[cfg_attr(feature = "debug", derive(Debug))]
+// pub struct OpenApiBuilder {
+//     info: Info,
+//     servers: Option<Vec<Server>>,
+//     paths: BTreeMap<String, PathItem>,
+//     components: Option<Components>,
+//     security: Option<Vec<SecurityRequirement>>,
+//     tags: Option<Vec<Tag>>,
+//     external_docs: Option<ExternalDocs>,
+// }
+
+// impl OpenApiBuilder {
+//     new!(pub OpenApiBuilder);
+
+//     pub fn info(mut self, info: Info) -> Self {
+//         add_value!(self info info)
+//     }
+
+//     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
+//         add_value!(self servers servers.map(|servers| servers.into_iter().collect()))
+//     }
+
+//     pub fn paths(mut self, paths: Paths) -> Self {
+//         add_value!(self paths paths.to_map())
+//     }
+
+//     pub fn components(mut self, components: Option<Components>) -> Self {
+//         add_value!(self components components)
+//     }
+
+//     pub fn security<I: IntoIterator<Item = SecurityRequirement>>(
+//         mut self,
+//         security: Option<I>,
+//     ) -> Self {
+//         add_value!(self security security.map(|security| security.into_iter().collect()))
+//     }
+
+//     pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: Option<I>) -> Self {
+//         add_value!(self tags tags.map(|tags| tags.into_iter().collect()))
+//     }
+
+//     pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
+//         add_value!(self external_docs external_docs)
+//     }
+
+//     build_fn!(pub OpenApi info, servers, paths, components, security, tags, external_docs);
+// }
+
+// from!(OpenApi OpenApiBuilder info, servers, paths, components, security, tags, external_docs);
+
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
