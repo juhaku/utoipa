@@ -195,18 +195,18 @@ pub use utoipa_gen::*;
 /// impl utoipa::OpenApi for OpenApiDoc {
 ///     fn openapi() -> utoipa::openapi::OpenApi {
 ///         use utoipa::{Component, Path};
-///         utoipa::openapi::OpenApi::new(
-///             utoipa::openapi::Info::new("application name", "version")
+///         utoipa::openapi::OpenApiBuilder::new()
+///             .info(utoipa::openapi::Info::new("application name", "version")
 ///                 .with_description("application description")
 ///                 .with_license(utoipa::openapi::License::new("MIT"))
 ///                 .with_contact(
 ///                     utoipa::openapi::Contact::new()
 ///                         .with_name("author name")
 ///                         .with_email("author email"),
-///                 ),
-///             utoipa::openapi::path::Paths::new(),
-///         )
-///         .with_components(utoipa::openapi::Components::new())
+///             ))
+///             .paths(utoipa::openapi::path::Paths::new())
+///             .components(Some(utoipa::openapi::Components::new()))
+///             .build()
 ///     }
 /// }
 /// ```

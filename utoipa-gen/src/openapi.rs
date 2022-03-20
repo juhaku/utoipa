@@ -207,8 +207,67 @@ impl ToTokens for OpenApi {
         let OpenApi(attributes, ident) = self;
 
         let info = info::impl_info();
+        let components = impl_components(&attributes.components, tokens).map(|components| {
+            quote! { .components(Some(#components)) }
+        });
 
-        let components = attributes.components.iter().fold(
+        let modifiers = &attributes.modifiers;
+        let modifiers_len = modifiers.len();
+
+        modifiers.iter().for_each(|modifier| {
+            let assert_modifier = format_ident!("_Assert{}", modifier.ident);
+            let ident = &modifier.ident;
+            quote_spanned! {modifier.ident.span()=>
+                struct #assert_modifier where #ident : utoipa::Modify;
+            };
+        });
+
+        let path_items = impl_paths(&attributes.handlers);
+
+        let securities = attributes.security.as_ref().map(|securities| {
+            quote! {
+                .security(Some(#securities))
+            }
+        });
+        let tags = attributes.tags.as_ref().map(|tags| {
+            quote! {
+                .tags(Some(#tags))
+            }
+        });
+        let external_docs = attributes.external_docs.as_ref().map(|external_docs| {
+            quote! {
+                .external_docs(Some(#external_docs))
+            }
+        });
+
+        tokens.extend(quote! {
+            impl utoipa::OpenApi for #ident {
+                fn openapi() -> utoipa::openapi::OpenApi {
+                    use utoipa::{Component, Path};
+                    let mut openapi = utoipa::openapi::OpenApiBuilder::new()
+                        .info(#info)
+                        .paths(#path_items)
+                        #components
+                        #securities
+                        #tags
+                        #external_docs.build();
+
+                    let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
+                    _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
+
+                    openapi
+                }
+            }
+        });
+    }
+}
+
+fn impl_components(
+    components: &Punctuated<Component, Comma>,
+    tokens: &mut TokenStream,
+) -> Option<TokenStream> {
+    if !components.is_empty() {
+        Some(components.iter().fold(
             quote! { utoipa::openapi::Components::new() },
             |mut schema, component| {
                 let ident = &component.ty;
@@ -237,54 +296,9 @@ impl ToTokens for OpenApi {
 
                 schema
             },
-        );
-
-        let modifiers = &attributes.modifiers;
-        let modifiers_len = modifiers.len();
-
-        modifiers.iter().for_each(|modifier| {
-            let assert_modifier = format_ident!("_Assert{}", modifier.ident);
-            let ident = &modifier.ident;
-            quote_spanned! {modifier.ident.span()=>
-                struct #assert_modifier where #ident : utoipa::Modify;
-            };
-        });
-
-        let path_items = impl_paths(&attributes.handlers);
-
-        let securities = attributes.security.as_ref().map(|securities| {
-            quote! {
-                .with_securities(#securities)
-            }
-        });
-        let tags = attributes.tags.as_ref().map(|tags| {
-            quote! {
-                .with_tags(#tags)
-            }
-        });
-        let external_docs = attributes.external_docs.as_ref().map(|external_docs| {
-            quote! {
-                .with_external_docs(#external_docs)
-            }
-        });
-
-        tokens.extend(quote! {
-            impl utoipa::OpenApi for #ident {
-                fn openapi() -> utoipa::openapi::OpenApi {
-                    use utoipa::{Component, Path};
-                    let mut openapi = utoipa::openapi::OpenApi::new(#info, #path_items)
-                        .with_components(#components)
-                        #securities
-                        #tags
-                        #external_docs;
-
-                    let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
-                    _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
-
-                    openapi
-                }
-            }
-        });
+        ))
+    } else {
+        None
     }
 }
 

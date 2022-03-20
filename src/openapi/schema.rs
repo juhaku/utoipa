@@ -11,8 +11,10 @@ use super::{security::SecuritySchema, xml::Xml, Deprecated};
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Components {
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     schemas: HashMap<String, Component>,
 
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     security_schemas: HashMap<String, SecuritySchema>,
 }
 
@@ -513,38 +515,47 @@ mod tests {
 
     #[test]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new(Info::new("My api", "1.0.0"), Paths::new()).with_components(
-            Components::new()
-                .with_component("Person", Ref::new("#/components/PersonModel"))
-                .with_component(
-                    "Credential",
-                    Object::new()
-                        .with_property(
-                            "id",
-                            Property::new(ComponentType::Integer)
-                                .with_format(ComponentFormat::Int32)
-                                .with_description("Id of credential")
-                                .with_default(json!(1)),
-                        )
-                        .with_property(
-                            "name",
-                            Property::new(ComponentType::String)
-                                .with_description("Name of credential"),
-                        )
-                        .with_property(
-                            "status",
-                            Property::new(ComponentType::String)
-                                .with_default(json!("Active"))
-                                .with_description("Credential status")
-                                .with_enum_values(&["Active", "NotActive", "Locked", "Expired"]),
-                        )
-                        .with_property(
-                            "history",
-                            Array::new(Ref::from_component_name("UpdateHistory")),
-                        )
-                        .with_property("tags", Property::new(ComponentType::String).to_array()),
-                ),
-        );
+        let openapi = OpenApiBuilder::new()
+            .info(Info::new("My api", "1.0.0"))
+            .paths(Paths::new())
+            .components(Some(
+                Components::new()
+                    .with_component("Person", Ref::new("#/components/PersonModel"))
+                    .with_component(
+                        "Credential",
+                        Object::new()
+                            .with_property(
+                                "id",
+                                Property::new(ComponentType::Integer)
+                                    .with_format(ComponentFormat::Int32)
+                                    .with_description("Id of credential")
+                                    .with_default(json!(1)),
+                            )
+                            .with_property(
+                                "name",
+                                Property::new(ComponentType::String)
+                                    .with_description("Name of credential"),
+                            )
+                            .with_property(
+                                "status",
+                                Property::new(ComponentType::String)
+                                    .with_default(json!("Active"))
+                                    .with_description("Credential status")
+                                    .with_enum_values(&[
+                                        "Active",
+                                        "NotActive",
+                                        "Locked",
+                                        "Expired",
+                                    ]),
+                            )
+                            .with_property(
+                                "history",
+                                Array::new(Ref::from_component_name("UpdateHistory")),
+                            )
+                            .with_property("tags", Property::new(ComponentType::String).to_array()),
+                    ),
+            ))
+            .build();
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
         println!("serialized json:\n {}", serialized);
