@@ -89,7 +89,7 @@ impl Parse for XmlAttr {
 impl ToTokens for XmlAttr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(quote! {
-            utoipa::openapi::xml::Xml::new()
+            utoipa::openapi::xml::XmlBuilder::new()
         });
 
         if let Some(ref name) = self.name {
@@ -128,6 +128,8 @@ impl ToTokens for XmlAttr {
                 })
             }
         }
+
+        tokens.extend(quote! { .build() })
     }
 }
 

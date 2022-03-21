@@ -814,14 +814,17 @@ impl ToTokens for ExternalDocs {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let url = &self.url;
         tokens.extend(quote! {
-            utoipa::openapi::external_docs::ExternalDocs::new(#url)
+            utoipa::openapi::external_docs::ExternalDocsBuilder::new()
+                .url(#url)
         });
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .with_description(#description)
+                .description(Some(#description))
             });
         }
+
+        tokens.extend(quote! { .build() })
     }
 }
 

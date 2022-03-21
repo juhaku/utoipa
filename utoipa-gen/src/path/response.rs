@@ -116,25 +116,25 @@ impl ToTokens for Response {
 
             let component = Property::new(body_type.is_array, body_ty);
             let mut content = quote! {
-                utoipa::openapi::Content::new(#component)
+                utoipa::openapi::ContentBuilder::new().schema(#component)
             };
 
             if let Some(ref example) = self.example {
                 content.extend(quote! {
-                    .with_example(#example)
+                    .example(Some(#example))
                 })
             }
 
             if let Some(content_types) = self.content_type.as_ref() {
                 content_types.iter().for_each(|content_type| {
                     tokens.extend(quote! {
-                        .with_content(#content_type, #content)
+                        .with_content(#content_type, #content.build())
                     })
                 })
             } else {
                 let default_type = self.resolve_content_type(None, &component.component_type);
                 tokens.extend(quote! {
-                    .with_content(#default_type, #content)
+                    .with_content(#default_type, #content.build())
                 });
             }
         }
@@ -282,19 +282,21 @@ impl ToTokens for Header {
             let header_type = Property::new(header_type.is_array, &header_type.ty);
 
             tokens.extend(quote! {
-                utoipa::openapi::Header::new(#header_type)
+                utoipa::openapi::HeaderBuilder::new().schema(#header_type)
             })
         } else {
             // default header (string type)
             tokens.extend(quote! {
-                utoipa::openapi::Header::default()
+                Into::<utoipa::openapi::HeaderBuilder>::into(utoipa::openapi::Header::default())
             })
         };
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .with_description(#description)
+                .description(Some(#description))
             })
         }
+
+        tokens.extend(quote! { .build() })
     }
 }

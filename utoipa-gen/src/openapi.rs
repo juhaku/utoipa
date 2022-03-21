@@ -183,20 +183,22 @@ impl ToTokens for Tag {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.name;
         tokens.extend(quote! {
-            utoipa::openapi::tag::Tag::new(#name)
+            utoipa::openapi::tag::TagBuilder::new().name(#name)
         });
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .with_description(#description)
+                .description(Some(#description))
             });
         }
 
         if let Some(ref external_docs) = self.external_docs {
             tokens.extend(quote! {
-                .with_external_docs(#external_docs)
+                .external_docs(Some(#external_docs))
             });
         }
+
+        tokens.extend(quote! { .build() })
     }
 }
 
