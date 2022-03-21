@@ -3,12 +3,10 @@ use std::collections::BTreeMap;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
-    contact::Contact,
     content::Content,
     external_docs::ExternalDocs,
     header::Header,
-    info::Info,
-    licence::License,
+    info::{Contact, ContactBuilder, Info, InfoBuilder, License, LicenseBuilder},
     path::{PathItem, PathItemType, Paths},
     response::{Response, Responses},
     schema::{
@@ -20,12 +18,10 @@ pub use self::{
     tag::Tag,
 };
 
-pub mod contact;
 pub mod content;
 pub mod external_docs;
 pub mod header;
 pub mod info;
-pub mod licence;
 pub mod path;
 pub mod request_body;
 pub mod response;
@@ -35,7 +31,21 @@ pub mod server;
 pub mod tag;
 pub mod xml;
 
-builder! {OpenApiBuilder;
+builder! {
+    /// # Examples
+    ///
+    /// Create [`OpenApi`] using [`OpenApiBuilder`].
+    /// ```rust
+    /// # use utoipa::openapi::{Info, Paths, Components, OpenApiBuilder};
+    /// let openapi = OpenApiBuilder::new()
+    ///      .info(Info::new("My api", "1.0.0"))
+    ///      .paths(Paths::new())
+    ///      .components(Some(
+    ///          Components::new()
+    ///      ))
+    ///      .build();
+    /// ```
+    OpenApiBuilder;
 
     /// Root object of the OpenAPI document.
     ///
@@ -179,9 +189,13 @@ impl OpenApiBuilder {
     }
 }
 
+/// Represents available [OpenAPI versions][version].
+///
+/// [version]: <https://spec.openapis.org/oas/latest.html#versions>
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
+    /// Will serialize to `3.0.3` the latest from 3.0 serie.
     #[serde(rename = "3.0.3")]
     Version3,
 }
@@ -192,6 +206,9 @@ impl Default for OpenApiVersion {
     }
 }
 
+/// Value used to indicate whether reusable schema, parameter or operation is deprecated.
+///
+/// The value will serialize to boolean.
 #[derive(PartialEq, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Deprecated {
@@ -241,6 +258,9 @@ impl Default for Deprecated {
     }
 }
 
+/// Value used to indicate whether parameter or property is required.
+///
+/// The value will serialize to boolean.
 #[derive(PartialEq, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Required {
@@ -346,9 +366,9 @@ macro_rules! from {
 pub(crate) use from;
 
 macro_rules! builder {
-    ( $builder_name:ident; $(#[$meta:meta])* $vis:vis $key:ident $name:ident $( $tt:tt )* ) => {
+    ( $( #[$builder_meta:meta] )* $builder_name:ident; $(#[$meta:meta])* $vis:vis $key:ident $name:ident $( $tt:tt )* ) => {
         builder!( @type_impl $( #[$meta] )* $vis $key $name $( $tt )* );
-        builder!( @builder_impl $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
+        builder!( @builder_impl $( #[$builder_meta] )* $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
     };
 
     ( @type_impl $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
@@ -361,11 +381,12 @@ macro_rules! builder {
         }
     };
 
-    ( @builder_impl $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
+    ( @builder_impl $( #[$builder_meta:meta] )* $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
         { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
     ) => {
         #[doc = concat!("Builder for [`", stringify!($name),
             "`] with chainable configuration methods to create a new [`", stringify!($name) , "`].")]
+        $( #[$builder_meta] )*
         #[derive(Default)]
         #[cfg_attr(feature = "debug", derive(Debug))]
         $vis $key $builder_name {
@@ -385,7 +406,7 @@ pub(crate) use builder;
 #[cfg(test)]
 #[cfg(feature = "serde_json")]
 mod tests {
-    use crate::openapi::licence::License;
+    use crate::openapi::info::InfoBuilder;
 
     use super::{path::Operation, response::Response, *};
 
@@ -399,9 +420,17 @@ mod tests {
     fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
         let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
         let openapi = OpenApi::new(
-            Info::new("My api", "1.0.0")
-                .with_description("My api description")
-                .with_license(License::new("MIT").with_url("http://mit.licence")),
+            InfoBuilder::new()
+                .title("My api")
+                .version("1.0.0")
+                .description(Some("My api description"))
+                .license(Some(
+                    LicenseBuilder::new()
+                        .name("MIT")
+                        .url(Some("http://mit.licence"))
+                        .build(),
+                ))
+                .build(),
             Paths::new(),
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;
