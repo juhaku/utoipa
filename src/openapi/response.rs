@@ -6,6 +6,7 @@ use super::{header::Header, Content};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Responses {
     #[serde(flatten)]
@@ -26,6 +27,7 @@ impl Responses {
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub description: String,

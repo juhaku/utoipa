@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -52,6 +52,7 @@ impl Iterator for Paths {
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct PathItem {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -111,7 +112,9 @@ impl PathItem {
     }
 }
 
-#[derive(Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum PathItemType {
     Get,
     Post,
@@ -124,33 +127,9 @@ pub enum PathItemType {
     Connect,
 }
 
-impl Display for PathItemType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Get => write!(f, "get"),
-            Self::Post => write!(f, "post"),
-            Self::Put => write!(f, "put"),
-            Self::Delete => write!(f, "delete"),
-            Self::Options => write!(f, "options"),
-            Self::Head => write!(f, "head"),
-            Self::Patch => write!(f, "patch"),
-            Self::Trace => write!(f, "trace"),
-            Self::Connect => write!(f, "connect"),
-        }
-    }
-}
-
-impl Serialize for PathItemType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -304,6 +283,7 @@ impl Operation {
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Parameter {
     pub name: String,
@@ -367,7 +347,9 @@ impl Parameter {
     }
 }
 
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {
     Query,
     Path,
@@ -378,19 +360,5 @@ pub enum ParameterIn {
 impl Default for ParameterIn {
     fn default() -> Self {
         Self::Path
-    }
-}
-
-impl Serialize for ParameterIn {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match *self {
-            ParameterIn::Query => serializer.serialize_str("query"),
-            ParameterIn::Path => serializer.serialize_str("path"),
-            ParameterIn::Header => serializer.serialize_str("header"),
-            ParameterIn::Cookie => serializer.serialize_str("cookie"),
-        }
     }
 }

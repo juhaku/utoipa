@@ -9,6 +9,7 @@ use super::external_docs::ExternalDocs;
 /// [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Tag {
     pub name: String,

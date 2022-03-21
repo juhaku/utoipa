@@ -11,10 +11,13 @@ pub(crate) fn impl_info() -> TokenStream2 {
     let contact = get_contact(&authors);
 
     quote! {
-        utoipa::openapi::Info::new(#name, #version)
-            .with_description(#description)
-            .with_license(utoipa::openapi::License::new(#license))
-            .with_contact(#contact)
+        utoipa::openapi::InfoBuilder::new()
+            .title(#name)
+            .version(#version)
+            .description(Some(#description))
+            .license(Some(utoipa::openapi::License::new(#license)))
+            .contact(Some(#contact))
+            .build()
     }
 }
 
@@ -37,9 +40,10 @@ fn get_parsed_author(author: Option<&str>) -> Option<(&str, String)> {
 fn get_contact(authors: &str) -> TokenStream2 {
     if let Some((name, email)) = get_parsed_author(authors.split(',').into_iter().next()) {
         quote! {
-            utoipa::openapi::Contact::new()
-                .with_name(#name)
-                .with_email(#email)
+            utoipa::openapi::ContactBuilder::new()
+                .name(Some(#name))
+                .email(Some(#email))
+                .build()
         }
     } else {
         quote! {

@@ -20,14 +20,12 @@ fn modify_openapi_add_security_schema() {
 
     impl Modify for SecurityAddon {
         fn modify(&self, openapi: &mut openapi::OpenApi) {
-            if let Some(schema) = openapi.components.as_mut() {
-                schema.add_security_schema(
-                    "api_jwt_token",
-                    SecuritySchema::Http(
-                        Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
-                    ),
-                )
-            }
+            openapi.components = Some(utoipa::openapi::Components::new().with_security_schemas(
+                "api_jwt_token",
+                SecuritySchema::Http(
+                    Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
+                ),
+            ))
         }
     }
 

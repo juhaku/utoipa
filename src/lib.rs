@@ -195,18 +195,20 @@ pub use utoipa_gen::*;
 /// impl utoipa::OpenApi for OpenApiDoc {
 ///     fn openapi() -> utoipa::openapi::OpenApi {
 ///         use utoipa::{Component, Path};
-///         utoipa::openapi::OpenApi::new(
-///             utoipa::openapi::Info::new("application name", "version")
-///                 .with_description("application description")
-///                 .with_license(utoipa::openapi::License::new("MIT"))
-///                 .with_contact(
-///                     utoipa::openapi::Contact::new()
-///                         .with_name("author name")
-///                         .with_email("author email"),
-///                 ),
-///             utoipa::openapi::path::Paths::new(),
-///         )
-///         .with_components(utoipa::openapi::Components::new())
+///         utoipa::openapi::OpenApiBuilder::new()
+///             .info(utoipa::openapi::InfoBuilder::new()
+///                 .title("application name")
+///                 .version("version")
+///                 .description(Some("application description"))
+///                 .license(Some(utoipa::openapi::License::new("MIT")))
+///                 .contact(
+///                     Some(utoipa::openapi::ContactBuilder::new()
+///                         .name(Some("author name"))
+///                         .email(Some("author email")).build()),
+///             ).build())
+///             .paths(utoipa::openapi::path::Paths::new())
+///             .components(Some(utoipa::openapi::Components::new()))
+///             .build()
 ///     }
 /// }
 /// ```

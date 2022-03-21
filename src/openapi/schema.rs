@@ -8,10 +8,13 @@ use super::{security::SecuritySchema, xml::Xml, Deprecated};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Components {
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     schemas: HashMap<String, Component>,
 
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     security_schemas: HashMap<String, SecuritySchema>,
 }
 
@@ -90,29 +93,27 @@ impl Components {
 }
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Component {
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    property: Option<Property>,
-
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    ref_component: Option<Ref>,
-
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    struct_component: Option<Object>,
-
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    array_component: Option<Array>,
-
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    one_of: Vec<Component>,
+#[serde(untagged, rename_all = "camelCase")]
+pub enum Component {
+    Property(Property),
+    Ref(Ref),
+    Object(Object),
+    Array(Array),
+    OneOf(OneOf),
 }
 
-#[derive(Default)]
+impl Default for Component {
+    fn default() -> Self {
+        Component::Object(Object::default())
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OneOf {
+    #[serde(rename = "oneOf")]
     items: Vec<Component>,
 }
 
@@ -138,10 +139,7 @@ impl OneOf {
 
 impl From<OneOf> for Component {
     fn from(one_of: OneOf) -> Self {
-        Self {
-            one_of: one_of.items,
-            ..Default::default()
-        }
+        Self::OneOf(one_of)
     }
 }
 
@@ -276,10 +274,7 @@ impl Property {
 
 impl From<Property> for Component {
     fn from(property: Property) -> Self {
-        Self {
-            property: Some(property),
-            ..Default::default()
-        }
+        Self::Property(property)
     }
 }
 
@@ -376,10 +371,7 @@ impl Object {
 
 impl From<Object> for Component {
     fn from(s: Object) -> Self {
-        Self {
-            struct_component: Some(s),
-            ..Default::default()
-        }
+        Self::Object(s)
     }
 }
 
@@ -407,10 +399,7 @@ impl Ref {
 
 impl From<Ref> for Component {
     fn from(r: Ref) -> Self {
-        Self {
-            ref_component: Some(r),
-            ..Default::default()
-        }
+        Self::Ref(r)
     }
 }
 
@@ -466,10 +455,7 @@ impl Array {
 
 impl From<Array> for Component {
     fn from(array: Array) -> Self {
-        Self {
-            array_component: Some(array),
-            ..Default::default()
-        }
+        Self::Array(array)
     }
 }
 
@@ -485,8 +471,9 @@ where
     }
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(rename_all = "lowercase")]
 pub enum ComponentType {
     Object,
     String,
@@ -502,24 +489,9 @@ impl Default for ComponentType {
     }
 }
 
-impl Serialize for ComponentType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Self::Object => serializer.serialize_str("object"),
-            Self::String => serializer.serialize_str("string"),
-            Self::Integer => serializer.serialize_str("integer"),
-            Self::Number => serializer.serialize_str("number"),
-            Self::Boolean => serializer.serialize_str("boolean"),
-            Self::Array => serializer.serialize_str("array"),
-        }
-    }
-}
-
-#[derive(Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(rename_all = "lowercase")]
 pub enum ComponentFormat {
     Int32,
     Int64,
@@ -528,72 +500,62 @@ pub enum ComponentFormat {
     Byte,
     Binary,
     Date,
+    #[serde(rename = "date-time")]
     DateTime,
     Password,
 }
 
-impl Serialize for ComponentFormat {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Self::Int32 => serializer.serialize_str("int32"),
-            Self::Int64 => serializer.serialize_str("int64"),
-            Self::Float => serializer.serialize_str("float"),
-            Self::Double => serializer.serialize_str("double"),
-            Self::Byte => serializer.serialize_str("byte"),
-            Self::Binary => serializer.serialize_str("binary"),
-            Self::Date => serializer.serialize_str("date"),
-            Self::DateTime => serializer.serialize_str("date-time"),
-            Self::Password => serializer.serialize_str("password"),
-        }
-    }
-}
-
 #[cfg(test)]
+#[cfg(feature = "serde_json")]
 mod tests {
-    #[cfg(feature = "serde_json")]
     use serde_json::{json, Value};
 
     use super::*;
     use crate::openapi::*;
 
     #[test]
-    #[cfg(feature = "serde_json")]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
-        let openapi = OpenApi::new(Info::new("My api", "1.0.0"), Paths::new()).with_components(
-            Components::new()
-                .with_component("Person", Ref::new("#/components/PersonModel"))
-                .with_component(
-                    "Credential",
-                    Object::new()
-                        .with_property(
-                            "id",
-                            Property::new(ComponentType::Integer)
-                                .with_format(ComponentFormat::Int32)
-                                .with_description("Id of credential")
-                                .with_default(json!(1)),
-                        )
-                        .with_property(
-                            "name",
-                            Property::new(ComponentType::String)
-                                .with_description("Name of credential"),
-                        )
-                        .with_property(
-                            "status",
-                            Property::new(ComponentType::String)
-                                .with_default(json!("Active"))
-                                .with_description("Credential status")
-                                .with_enum_values(&["Active", "NotActive", "Locked", "Expired"]),
-                        )
-                        .with_property(
-                            "history",
-                            Array::new(Ref::from_component_name("UpdateHistory")),
-                        )
-                        .with_property("tags", Property::new(ComponentType::String).to_array()),
-                ),
-        );
+        let openapi = OpenApiBuilder::new()
+            .info(Info::new("My api", "1.0.0"))
+            .paths(Paths::new())
+            .components(Some(
+                Components::new()
+                    .with_component("Person", Ref::new("#/components/PersonModel"))
+                    .with_component(
+                        "Credential",
+                        Object::new()
+                            .with_property(
+                                "id",
+                                Property::new(ComponentType::Integer)
+                                    .with_format(ComponentFormat::Int32)
+                                    .with_description("Id of credential")
+                                    .with_default(json!(1)),
+                            )
+                            .with_property(
+                                "name",
+                                Property::new(ComponentType::String)
+                                    .with_description("Name of credential"),
+                            )
+                            .with_property(
+                                "status",
+                                Property::new(ComponentType::String)
+                                    .with_default(json!("Active"))
+                                    .with_description("Credential status")
+                                    .with_enum_values(&[
+                                        "Active",
+                                        "NotActive",
+                                        "Locked",
+                                        "Expired",
+                                    ]),
+                            )
+                            .with_property(
+                                "history",
+                                Array::new(Ref::from_component_name("UpdateHistory")),
+                            )
+                            .with_property("tags", Property::new(ComponentType::String).to_array()),
+                    ),
+            ))
+            .build();
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
         println!("serialized json:\n {}", serialized);
@@ -660,7 +622,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "serde_json")]
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
         let json_value = Object::new().with_example(json!({"age": 20, "name": "bob the cat"}));
@@ -673,7 +634,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "serde_json")]
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
         path.split('.').into_iter().fold(value, |acc, fragment| {
             acc.get(fragment).unwrap_or(&serde_json::value::Value::Null)
