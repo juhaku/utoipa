@@ -130,16 +130,18 @@ impl ToTokens for RequestBodyAttr {
             let required: Required = (!body_type.is_option).into();
 
             tokens.extend(quote! {
-                utoipa::openapi::request_body::RequestBody::new()
-                    .with_content(#content_type, utoipa::openapi::Content::new(#property))
-                    .with_required(#required)
+                utoipa::openapi::request_body::RequestBodyBuilder::new()
+                    .content(#content_type, utoipa::openapi::Content::new(#property))
+                    .required(Some(#required))
             });
         }
 
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
-                .with_description(#description)
+                .description(Some(#description))
             })
         }
+
+        tokens.extend(quote! { .build() })
     }
 }

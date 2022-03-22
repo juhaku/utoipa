@@ -239,8 +239,8 @@ impl Operation {
         self
     }
 
-    pub fn with_response<S: AsRef<str>>(mut self, code: S, response: Response) -> Self {
-        self.responses = self.responses.with_response(code, response);
+    pub fn with_response<S: Into<String>>(mut self, code: S, response: Response) -> Self {
+        self.responses.responses.insert(code.into(), response);
 
         self
     }

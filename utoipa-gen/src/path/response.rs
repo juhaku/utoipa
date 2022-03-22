@@ -108,7 +108,7 @@ impl ToTokens for Response {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let description = &self.description;
         tokens.extend(quote! {
-            utoipa::openapi::Response::new(#description)
+            utoipa::openapi::ResponseBuilder::new().description(#description)
         });
 
         if let Some(ref body_type) = self.response_type {
@@ -128,13 +128,13 @@ impl ToTokens for Response {
             if let Some(content_types) = self.content_type.as_ref() {
                 content_types.iter().for_each(|content_type| {
                     tokens.extend(quote! {
-                        .with_content(#content_type, #content.build())
+                        .content(#content_type, #content.build())
                     })
                 })
             } else {
                 let default_type = self.resolve_content_type(None, &component.component_type);
                 tokens.extend(quote! {
-                    .with_content(#default_type, #content.build())
+                    .content(#default_type, #content.build())
                 });
             }
         }
@@ -142,9 +142,11 @@ impl ToTokens for Response {
         self.headers.iter().for_each(|header| {
             let name = &header.name;
             tokens.extend(quote! {
-                .with_header(#name, #header)
+                .header(#name, #header)
             })
         });
+
+        tokens.extend(quote! { .build() })
     }
 }
 
@@ -154,14 +156,20 @@ pub struct Responses<'a>(pub &'a [Response]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(quote! { utoipa::openapi::Responses::new() });
+        if self.0.is_empty() {
+            tokens.extend(quote! { utoipa::openapi::Responses::new() })
+        } else {
+            let responses = self.0.iter().fold(quote! {}, |mut acc, response| {
+                let code = &response.status_code.to_string();
+                acc.extend(quote! { (#code, #response), });
 
-        self.0.iter().for_each(|response| {
-            let status = response.status_code.to_string();
-            tokens.extend(quote! {
-                .with_response(#status, #response)
+                acc
             });
-        })
+
+            tokens.extend(quote! {
+                utoipa::openapi::Responses::from_iter([#responses])
+            });
+        }
     }
 }
 

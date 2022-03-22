@@ -322,17 +322,18 @@ pub trait Component {
 ///             utoipa::openapi::PathItemType::Get,
 ///             utoipa::openapi::path::Operation::new()
 ///                 .with_responses(
-///                     utoipa::openapi::Responses::new()
-///                         .with_response(
+///                     utoipa::openapi::ResponsesBuilder::new()
+///                         .response(
 ///                             "200",
-///                             utoipa::openapi::Response::new("Pet found succesfully").with_content(
-///                                 "application/json",
-///                                 utoipa::openapi::Content::new(
-///                                     utoipa::openapi::Ref::from_component_name("Pet"),
-///                                 ),
-///                             ),
+///                             utoipa::openapi::ResponseBuilder::new()
+///                                 .description("Pet found succesfully")
+///                                 .content("application/json",
+///                                     utoipa::openapi::Content::new(
+///                                         utoipa::openapi::Ref::from_component_name("Pet"),
+///                                     ),
+///                             ).build(),
 ///                         )
-///                         .with_response("404", utoipa::openapi::Response::new("Pet was not found")),
+///                         .response("404", utoipa::openapi::Response::new("Pet was not found")).build(),
 ///                 )
 ///                 .with_operation_id("get_pet_by_id")
 ///                 .with_deprecated(utoipa::openapi::Deprecated::False)

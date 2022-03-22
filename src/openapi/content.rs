@@ -65,7 +65,7 @@ impl ContentBuilder {
     /// Add example of schema.
     #[cfg(not(feature = "serde_json"))]
     pub fn example<S: Into<String>>(mut self, example: Option<S>) -> Self {
-        add_value!(self example example.into())
+        add_value!(self example example.map(|example| example.into()))
     }
 
     build_fn!(pub Content schema, example);
