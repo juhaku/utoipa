@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
-    content::Content,
+    content::{Content, ContentBuilder},
     external_docs::ExternalDocs,
-    header::Header,
+    header::{Header, HeaderBuilder},
     info::{Contact, ContactBuilder, Info, InfoBuilder, License, LicenseBuilder},
     path::{PathItem, PathItemType, Paths},
-    response::{Response, Responses},
+    response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
         Array, Component, ComponentFormat, ComponentType, Components, Object, OneOf, Property, Ref,
         ToArray,

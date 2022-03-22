@@ -1,29 +1,54 @@
+//! Implements [OpenAPI Header Object][header] types.
+//!
+//! [header]: https://spec.openapis.org/oas/latest.html#header-object
+
 use serde::{Deserialize, Serialize};
 
-use super::{Component, ComponentType, Property};
+use super::{add_value, build_fn, builder, from, new, Component, ComponentType, Property};
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Header {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+builder! {
+    HeaderBuilder;
 
-    pub schema: Component,
+    /// Implements [OpenAPI Header Object][header] for response headers.
+    ///
+    /// [header]: https://spec.openapis.org/oas/latest.html#header-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Header {
+        /// Schema of header type.
+        pub schema: Component,
+
+        /// Additional descripiton of the header value.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+    }
 }
 
 impl Header {
+    /// Construct a new [`Header`] with custom schema. If you wish to construct a default
+    /// header with `String` type you can use [`Header::default`] function.
+    ///
+    /// # Examples
+    ///
+    /// Create new [`Header`] with integer type.
+    /// ```rust
+    /// # use utoipa::openapi::header::Header;
+    /// # use utoipa::openapi::{Property, ComponentType};
+    /// let header = Header::new(Property::new(ComponentType::Integer));
+    /// ```
+    ///
+    /// Create a new [`Header`] with default type `String`
+    /// ```rust
+    /// # use utoipa::openapi::header::Header;
+    /// # use utoipa::openapi::{Property, ComponentType};
+    /// let header = Header::default();
+    /// ```
     pub fn new<C: Into<Component>>(component: C) -> Self {
         Self {
             schema: component.into(),
             ..Default::default()
         }
-    }
-
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
     }
 }
 
@@ -33,5 +58,17 @@ impl Default for Header {
             description: Default::default(),
             schema: Property::new(ComponentType::String).into(),
         }
+    }
+}
+
+impl HeaderBuilder {
+    /// Add schema of header.
+    pub fn schema<I: Into<Component>>(mut self, component: I) -> Self {
+        add_value!(self schema component.into())
+    }
+
+    /// Add additional description for header.
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        add_value!(self description description.map(|description| description.into()))
     }
 }

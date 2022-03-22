@@ -1,43 +1,59 @@
+//! Implements [OpenAPI Tag Object][tag] types.
+//!
+//! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 use serde::{Deserialize, Serialize};
 
-use super::external_docs::ExternalDocs;
+use super::{add_value, build_fn, builder, external_docs::ExternalDocs, from, new};
 
-/// Implements [OpenAPI Tag Object][tag].
-///
-/// Tag can be used to provide additional metadata for tags used by path operations.
-///
-/// [tag]: https://spec.openapis.org/oas/latest.html#tag-object
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Tag {
-    pub name: String,
+builder! {
+    TagBuilder;
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    /// Implements [OpenAPI Tag Object][tag].
+    ///
+    /// Tag can be used to provide additional metadata for tags used by path operations.
+    ///
+    /// [tag]: https://spec.openapis.org/oas/latest.html#tag-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Tag {
+        /// Name of the tag. Should match to tag of **operation**.
+        pub name: String,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub external_docs: Option<ExternalDocs>,
+        /// Additional description for the tag shown in the document.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+
+        /// Additional external documentation for the tag.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub external_docs: Option<ExternalDocs>,
+    }
 }
 
 impl Tag {
+    /// Construct a new [`Tag`] with given name.
     pub fn new<S: AsRef<str>>(name: S) -> Self {
         Self {
             name: name.as_ref().to_string(),
             ..Default::default()
         }
     }
+}
 
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
+impl TagBuilder {
+    /// Add name fo the tag.
+    pub fn name<I: Into<String>>(mut self, name: I) -> Self {
+        add_value!(self name name.into())
     }
 
-    pub fn with_external_docs(mut self, external_docs: ExternalDocs) -> Self {
-        self.external_docs = Some(external_docs);
+    /// Add additional description for the tag.
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        add_value!(self description description.map(|description| description.into()))
+    }
 
-        self
+    /// Add additional external documentation for the tag.
+    pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
+        add_value!(self external_docs external_docs)
     }
 }

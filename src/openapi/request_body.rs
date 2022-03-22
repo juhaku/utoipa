@@ -1,43 +1,57 @@
+//! Implements [OpenAPI Request Body][request_body] types.
+//!
+//! [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{Content, Required};
+use super::{add_value, build_fn, builder, from, new, Content, Required};
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct RequestBody {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+builder! {
+    RequestBodyBuilder;
 
-    pub content: HashMap<String, Content>,
+    /// Implements [OpenAPI Request Body][request_body].
+    ///
+    /// [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct RequestBody {
+        /// Additional description of [`RequestBody`] supporting markdown syntax.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub required: Option<Required>,
+        /// Map of request body contents mapped by content type e.g. `application/json`.
+        pub content: HashMap<String, Content>,
+
+        /// Determines whether request body is reuqired in the request or not.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub required: Option<Required>,
+    }
 }
 
 impl RequestBody {
+    /// Constrcut a new [`RequestBody`].
     pub fn new() -> Self {
         Default::default()
     }
+}
 
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
+impl RequestBodyBuilder {
+    /// Add description for [`RequestBody`].
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        add_value!(self description description.map(|description| description.into()))
     }
 
-    pub fn with_required(mut self, required: Required) -> Self {
-        self.required = Some(required);
-
-        self
+    /// Define [`RequestBody`] required.
+    pub fn required(mut self, required: Option<Required>) -> Self {
+        add_value!(self required required)
     }
 
-    pub fn with_content<S: AsRef<str>>(mut self, content_type: S, content: Content) -> Self {
-        self.content
-            .insert(content_type.as_ref().to_string(), content);
+    /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
+    pub fn content<S: Into<String>>(mut self, content_type: S, content: Content) -> Self {
+        self.content.insert(content_type.into(), content);
 
         self
     }
