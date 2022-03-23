@@ -234,7 +234,7 @@ impl ToTokens for UnnamedStructComponent<'_> {
 
         if fields_len > 1 {
             tokens.extend(
-                quote! { .to_array().with_max_items(#fields_len).with_min_items(#fields_len) },
+                quote! { .to_array().to_builder().max_items(Some(#fields_len)).min_items(Some(#fields_len)).build() },
             )
         }
     }
@@ -335,7 +335,7 @@ impl ToTokens for ComplexEnum<'_> {
 
         let capasity = self.variants.len();
         tokens.extend(quote! {
-            utoipa::openapi::OneOf::with_capacity(#capasity)
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capasity))
         });
 
         // serde, externally tagged format supported by now
@@ -379,9 +379,11 @@ impl ToTokens for ComplexEnum<'_> {
             })
             .for_each(|inline_variant| {
                 tokens.extend(quote! {
-                    .append(#inline_variant)
+                    .item(#inline_variant)
                 })
-            })
+            });
+
+        tokens.extend(quote! { .build() })
     }
 }
 
@@ -593,7 +595,7 @@ where
                 if let Some(xml_value) = self.xml {
                     match xml_value {
                         Xml::Slice { vec, value: _ } => tokens.extend(quote! {
-                            .with_xml(#vec)
+                            .to_builder().xml(Some(#vec)).build()
                         }),
                         Xml::NonSlice(_) => (),
                     }

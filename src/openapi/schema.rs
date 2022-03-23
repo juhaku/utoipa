@@ -4,57 +4,44 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::{security::SecuritySchema, xml::Xml, Deprecated};
+use super::{
+    add_value, build_fn, builder, from, new, security::SecuritySchema, xml::Xml, Deprecated,
+};
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Components {
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    schemas: HashMap<String, Component>,
+builder! {
+    ComponentsBuilder;
 
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    security_schemas: HashMap<String, SecuritySchema>,
+    /// Implements [OpenAPI Components Object][components] which holds supported
+    /// reusable objects.
+    ///
+    /// [components]: https://spec.openapis.org/oas/latest.html#components-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Components {
+        /// Map of reusable [OpenAPI Schema Object][schema]s.
+        ///
+        /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
+        #[serde(skip_serializing_if = "HashMap::is_empty")]
+        pub schemas: HashMap<String, Component>,
+
+        /// Map of reusable [OpenAPI Security Schema Object][security_schema]s.
+        ///
+        /// [security_schema]: https://spec.openapis.org/oas/latest.html#security-scheme-object
+        #[serde(skip_serializing_if = "HashMap::is_empty")]
+        pub security_schemas: HashMap<String, SecuritySchema>,
+    }
 }
 
 impl Components {
+    /// Construct a new [`Components`].
     pub fn new() -> Self {
         Self {
             ..Default::default()
         }
     }
-
-    pub fn with_component<S: AsRef<str>, I: Into<Component>>(
-        mut self,
-        name: S,
-        component: I,
-    ) -> Self {
-        self.schemas
-            .insert(name.as_ref().to_string(), component.into());
-
-        self
-    }
-
-    /// Add [`SecuritySchema`] to [`Components`] while consuming self.
-    ///
-    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
-    ///
-    /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn with_security_schemas<N: Into<String>, S: Into<SecuritySchema>>(
-        mut self,
-        name: N,
-        security_schema: S,
-    ) -> Self {
-        self.security_schemas
-            .insert(name.into(), security_schema.into());
-
-        self
-    }
-
-    /// Add [`SecuritySchema`] to [`Components`] **without** consuming self. Use this when you want to
-    /// update existing [`Components`] object.
+    /// Add [`SecuritySchema`] to [`Components`]
     ///
     /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
@@ -69,8 +56,7 @@ impl Components {
             .insert(name.into(), security_schema.into());
     }
 
-    /// Add iterator of [`SecuritySchema`]s to [`Components`] **without** consuming self. Use this
-    /// when you want to update existing [`Components`] object.
+    /// Add iterator of [`SecuritySchema`]s to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
@@ -92,15 +78,63 @@ impl Components {
     }
 }
 
+impl ComponentsBuilder {
+    /// Add [`Component`] to [`Components`].
+    ///
+    /// Accpets two arguments where first is name of the component and second is the component itself.
+    pub fn component<S: Into<String>, I: Into<Component>>(mut self, name: S, component: I) -> Self {
+        self.schemas.insert(name.into(), component.into());
+
+        self
+    }
+
+    /// Add [`SecuritySchema`] to [`Components`].
+    ///
+    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    ///
+    /// [requirement]: ../security/struct.SecurityRequirement.html
+    pub fn security_schema<N: Into<String>, S: Into<SecuritySchema>>(
+        mut self,
+        name: N,
+        security_schema: S,
+    ) -> Self {
+        self.security_schemas
+            .insert(name.into(), security_schema.into());
+
+        self
+    }
+}
+
+/// Is super type for [OpenAPI Schema Object][components] components. Component
+/// is reusable resource what can be referenced from path operations and other
+/// components using [`Ref`] component.
+///
+/// [components]: https://spec.openapis.org/oas/latest.html#components-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Component {
+    /// Defines property component typically used together with
+    /// [`Component::Object`] or [`Component::Array`]. It is used to map
+    /// field types to OpenAPI documentation.
     Property(Property),
+    /// Creates a reference component _`$ref=#/components/schemas/ComponentName`_. Which
+    /// can be used to reference a other reusable component in [`Components`].
     Ref(Ref),
+    /// Defines object component. This is formed from structs holding [`Property`] components
+    /// created from it's fields.
     Object(Object),
+    /// Defines array component from another component. Typically used with
+    /// [`Component::Property`] or [`Component::Object`] component. Slice and Vec
+    /// types are translated to [`Component::Array`] types.
     Array(Array),
+    /// Creates a _OneOf_ type [Discriminator Object][discriminator] component. This component
+    /// is used to map multiple components together where API endpoint could return any of them.
+    /// [`Component::OneOf`] is created form complex enum where enum holds other than unit types.
+    ///
+    /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
 }
 
@@ -110,33 +144,61 @@ impl Default for Component {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct OneOf {
-    #[serde(rename = "oneOf")]
-    items: Vec<Component>,
+builder! {
+    OneOfBuilder;
+
+    /// OneOf [Discriminator Object][discriminator] component holds
+    /// multiple components together where API endpoint could return any of them.
+    ///
+    /// See [`Component::OneOf`] for more details.
+    ///
+    /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
+    #[derive(Serialize, Deserialize, Clone, Default)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct OneOf {
+        /// Components of _OneOf_ component.
+        #[serde(rename = "oneOf")]
+        pub items: Vec<Component>,
+    }
 }
 
 impl OneOf {
+    /// Construct a new [`OneOf`] component.
     pub fn new() -> Self {
         Self {
             ..Default::default()
         }
     }
 
+    /// Construct a new [`OneOf`] component with given capacity.
+    ///
+    /// OneOf component is then able to contain number of components without
+    /// reallocating.
+    ///
+    /// # Examples
+    ///
+    /// Create [`OneOf`] component with initial capacity of 5.
+    /// ```rust
+    /// # use utoipa::openapi::schema::OneOf;
+    /// let one_of = OneOf::with_capacity(5);
+    /// ```
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
         }
     }
+}
 
-    pub fn append<I: Into<Component>>(mut self, component: I) -> Self {
+impl OneOfBuilder {
+    /// Adds a given [`Component`] to [`OneOf`] [Discriminator Object][discriminator]
+    ///
+    /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
+    pub fn item<I: Into<Component>>(mut self, component: I) -> Self {
         self.items.push(component.into());
 
         self
     }
 }
-
 impl From<OneOf> for Component {
     fn from(one_of: OneOf) -> Self {
         Self::OneOf(one_of)
@@ -405,27 +467,48 @@ impl From<Ref> for Component {
 
 impl ToArray for Ref {}
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Array {
-    #[serde(rename = "type")]
-    component_type: ComponentType,
+builder! {
+    ArrayBuilder;
 
-    items: Box<Component>,
+    /// Component represents [`Vec`] or [`slice`] type  of items.
+    ///
+    /// See [`Component::Array`] for more details.
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Array {
+        /// Type will always be [`ComponentType::Array`]
+        #[serde(rename = "type")]
+        component_type: ComponentType,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max_items: Option<usize>,
+        /// Component representing the array items type.
+        pub items: Box<Component>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    min_items: Option<usize>,
+        /// Max length of the array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub max_items: Option<usize>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    xml: Option<Xml>,
+        /// Min lenght of the array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub min_items: Option<usize>,
+
+        /// Xml format of the array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub xml: Option<Xml>,
+    }
 }
 
 impl Array {
+    /// Construct a new [`Array`] component from given [`Component`].
+    ///
+    /// # Examples
+    ///
+    /// Create a `String` array component.
+    /// ```rust
+    /// # use utoipa::openapi::schema::{Component, Array, ComponentType, Property};
+    /// let string_array = Array::new(Property::new(ComponentType::String));
+    /// ```
     pub fn new<I: Into<Component>>(component: I) -> Self {
         Self {
             component_type: ComponentType::Array,
@@ -434,22 +517,31 @@ impl Array {
         }
     }
 
-    pub fn with_max_items(mut self, max_items: usize) -> Self {
-        self.max_items = Some(max_items);
+    /// Convert this [`Array`] to [`ArrayBuilder`].
+    pub fn to_builder(self) -> ArrayBuilder {
+        self.into()
+    }
+}
 
-        self
+impl ArrayBuilder {
+    /// Set [`Component`] type for the [`Array`].
+    pub fn items<I: Into<Component>>(mut self, component: I) -> Self {
+        add_value!(self items Box::new(component.into()))
     }
 
-    pub fn with_min_items(mut self, min_items: usize) -> Self {
-        self.min_items = Some(min_items);
-
-        self
+    /// Set maximun allowed lenght for [`Array`].
+    pub fn max_items(mut self, max_items: Option<usize>) -> Self {
+        add_value!(self max_items max_items)
     }
 
-    pub fn with_xml(mut self, xml: Xml) -> Self {
-        self.xml = Some(xml);
+    /// Set minimum allowed lenght for [`Array`].
+    pub fn min_items(mut self, min_items: Option<usize>) -> Self {
+        add_value!(self min_items min_items)
+    }
 
-        self
+    /// Set [`Xml`] formatting for [`Array`].
+    pub fn xml(mut self, xml: Option<Xml>) -> Self {
+        add_value!(self xml xml)
     }
 }
 
@@ -519,9 +611,9 @@ mod tests {
             .info(Info::new("My api", "1.0.0"))
             .paths(Paths::new())
             .components(Some(
-                Components::new()
-                    .with_component("Person", Ref::new("#/components/PersonModel"))
-                    .with_component(
+                ComponentsBuilder::new()
+                    .component("Person", Ref::new("#/components/PersonModel"))
+                    .component(
                         "Credential",
                         Object::new()
                             .with_property(
@@ -553,7 +645,8 @@ mod tests {
                                 Array::new(Ref::from_component_name("UpdateHistory")),
                             )
                             .with_property("tags", Property::new(ComponentType::String).to_array()),
-                    ),
+                    )
+                    .build(),
             ))
             .build();
 
