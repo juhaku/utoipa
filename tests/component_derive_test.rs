@@ -515,7 +515,6 @@ fn derive_complex_enum_with_named_and_unnamed_fields() {
             UnnamedFields(Foo),
         }
     };
-    dbg!(&complex_enum);
 
     common::assert_json_array_len(complex_enum.get("oneOf").unwrap(), 3);
     assert_value! {complex_enum=>

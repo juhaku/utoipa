@@ -53,7 +53,6 @@ impl ToTokens for Component<'_> {
         tokens.extend(quote! {
             impl #impl_generics utoipa::Component for #ident #ty_generics #where_clause {
                 fn component() -> utoipa::openapi::schema::Component {
-                    use utoipa::openapi::ToArray;
                     #variant.into()
                 }
             }
@@ -124,7 +123,7 @@ struct NamedStructComponent<'a> {
 
 impl ToTokens for NamedStructComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.extend(quote! { utoipa::openapi::Object::new() });
+        tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() });
         self.fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
 
@@ -148,18 +147,18 @@ impl ToTokens for NamedStructComponent<'_> {
             );
 
             tokens.extend(quote! {
-                .with_property(#field_name, #component)
+                .property(#field_name, #component)
             });
 
             if !component.is_option() {
                 tokens.extend(quote! {
-                    .with_required(#field_name)
+                    .required(#field_name)
                 })
             }
         });
 
         if let Some(deprecated) = get_deprecated(self.attributes) {
-            tokens.extend(quote! { .with_deprecated(#deprecated) });
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
         let attrs = ComponentAttr::<attr::Struct>::from_attributes_validated(self.attributes);
@@ -172,7 +171,7 @@ impl ToTokens for NamedStructComponent<'_> {
             .first()
         {
             tokens.extend(quote! {
-                .with_description(#comment)
+                .description(Some(#comment))
             })
         }
     }
@@ -211,11 +210,11 @@ impl ToTokens for UnnamedStructComponent<'_> {
             // Typically OpenAPI does not support multi type arrays thus we simply consider the case
             // as generic object array
             tokens.extend(quote! {
-                utoipa::openapi::Object::new()
+                utoipa::openapi::ObjectBuilder::new()
             });
 
             if let Some(deprecated) = deprecated {
-                tokens.extend(quote! { .with_deprecated(#deprecated) });
+                tokens.extend(quote! { .deprecated(Some(#deprecated)) });
             }
 
             if let Some(attrs) = attrs {
@@ -228,13 +227,13 @@ impl ToTokens for UnnamedStructComponent<'_> {
             .first()
         {
             tokens.extend(quote! {
-                .with_description(#comment)
+                .description(Some(#comment))
             })
         }
 
         if fields_len > 1 {
             tokens.extend(
-                quote! { .to_array().to_builder().max_items(Some(#fields_len)).min_items(Some(#fields_len)).build() },
+                quote! { .to_array_builder().max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
             )
         }
     }
@@ -285,12 +284,12 @@ impl ToTokens for SimpleEnum<'_> {
             .iter()
             .filter(|variant| matches!(variant.fields, Fields::Unit))
             .map(|variant| variant.ident.to_string())
-            .collect::<Array<String>>()
-            .into_referenced_array();
+            .collect::<Array<String>>();
 
         tokens.extend(quote! {
-            utoipa::openapi::Property::new(utoipa::openapi::ComponentType::String)
-            .with_enum_values(#enum_values)
+            utoipa::openapi::PropertyBuilder::new()
+            .component_type(utoipa::openapi::ComponentType::String)
+            .enum_values(Some(#enum_values))
         });
 
         let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
@@ -299,7 +298,7 @@ impl ToTokens for SimpleEnum<'_> {
         }
 
         if let Some(deprecated) = get_deprecated(self.attributes) {
-            tokens.extend(quote! { .with_deprecated(#deprecated) });
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
         if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
@@ -307,7 +306,7 @@ impl ToTokens for SimpleEnum<'_> {
             .first()
         {
             tokens.extend(quote! {
-                .with_description(#comment)
+                .description(Some(#comment))
             })
         }
     }
@@ -350,8 +349,8 @@ impl ToTokens for ComplexEnum<'_> {
                     let name = &*variant.ident.to_string();
 
                     quote! {
-                        utoipa::openapi::schema::Object::new()
-                            .with_property(#name, #named_enum)
+                        utoipa::openapi::schema::ObjectBuilder::new()
+                            .property(#name, #named_enum)
                     }
                 }
                 Fields::Unnamed(unnamed_fields) => {
@@ -362,8 +361,8 @@ impl ToTokens for ComplexEnum<'_> {
                     let name = &*variant.ident.to_string();
 
                     quote! {
-                        utoipa::openapi::schema::Object::new()
-                            .with_property(#name, #unnamed_enum)
+                        utoipa::openapi::schema::ObjectBuilder::new()
+                            .property(#name, #unnamed_enum)
                     }
                 }
                 Fields::Unit => {
@@ -382,8 +381,6 @@ impl ToTokens for ComplexEnum<'_> {
                     .item(#inline_variant)
                 })
             });
-
-        tokens.extend(quote! { .build() })
     }
 }
 
@@ -569,13 +566,13 @@ where
             Some(GenericType::Map) => {
                 // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
                 tokens.extend(quote! {
-                    utoipa::openapi::Object::new()
+                    utoipa::openapi::ObjectBuilder::new()
                 });
 
                 if let Some(description) = self.comments.and_then(|attributes| attributes.0.first())
                 {
                     tokens.extend(quote! {
-                        .with_description(#description)
+                        .description(Some(#description))
                     })
                 }
             }
@@ -589,13 +586,13 @@ where
                 );
 
                 tokens.extend(quote! {
-                    #component_property.to_array()
+                    #component_property.to_array_builder()
                 });
 
                 if let Some(xml_value) = self.xml {
                     match xml_value {
                         Xml::Slice { vec, value: _ } => tokens.extend(quote! {
-                            .to_builder().xml(Some(#vec)).build()
+                            .xml(Some(#vec))
                         }),
                         Xml::NonSlice(_) => (),
                     }
@@ -620,13 +617,13 @@ where
                     let component_type = ComponentType(self.component_part.ident);
 
                     tokens.extend(quote! {
-                        utoipa::openapi::Property::new(#component_type)
+                        utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                     });
 
                     let format = ComponentFormat(self.component_part.ident);
                     if format.is_known_format() {
                         tokens.extend(quote! {
-                            .with_format(#format)
+                            .format(Some(#format))
                         })
                     }
 
@@ -634,12 +631,12 @@ where
                         self.comments.and_then(|attributes| attributes.0.first())
                     {
                         tokens.extend(quote! {
-                            .with_description(#description)
+                            .description(Some(#description))
                         })
                     }
 
                     if let Some(deprecated) = self.deprecated {
-                        tokens.extend(quote! { .with_deprecated(#deprecated) });
+                        tokens.extend(quote! { .deprecated(Some(#deprecated)) });
                     }
 
                     if let Some(attributes) = self.attrs {
@@ -649,10 +646,10 @@ where
                     if let Some(xml_value) = self.xml {
                         match xml_value {
                             Xml::Slice { vec: _, value } => tokens.extend(quote! {
-                                .with_xml(#value)
+                                .xml(Some(#value))
                             }),
                             Xml::NonSlice(xml) => tokens.extend(quote! {
-                                .with_xml(#xml)
+                                .xml(Some(#xml))
                             }),
                         }
                     }

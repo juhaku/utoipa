@@ -249,26 +249,28 @@ pub trait OpenApi {
 /// impl utoipa::Component for Pet {
 ///     fn component() -> utoipa::openapi::schema::Component {
 ///         use utoipa::openapi::ToArray;
-///         utoipa::openapi::Object::new()
-///             .with_property(
+///         utoipa::openapi::ObjectBuilder::new()
+///             .property(
 ///                 "id",
-///                 utoipa::openapi::Property::new(utoipa::openapi::ComponentType::Integer)
-///                     .with_format(utoipa::openapi::ComponentFormat::Int64),
+///                 utoipa::openapi::PropertyBuilder::new()
+///                     .component_type(utoipa::openapi::ComponentType::Integer)
+///                     .format(Some(utoipa::openapi::ComponentFormat::Int64)),
 ///             )
-///             .with_required("id")
-///             .with_property(
+///             .required("id")
+///             .property(
 ///                 "name",
 ///                 utoipa::openapi::Property::new(utoipa::openapi::ComponentType::String),
 ///             )
-///             .with_required("name")
-///             .with_property(
+///             .required("name")
+///             .property(
 ///                 "age",
-///                 utoipa::openapi::Property::new(utoipa::openapi::ComponentType::Integer)
-///                     .with_format(utoipa::openapi::ComponentFormat::Int32),
+///                 utoipa::openapi::PropertyBuilder::new()
+///                     .component_type(utoipa::openapi::ComponentType::Integer)
+///                     .format(Some(utoipa::openapi::ComponentFormat::Int32)),
 ///             )
-///             .with_example(serde_json::json!({
-///               "name":"bob the cat","id":1
-///             }))
+///             .example(Some(serde_json::json!({
+///               "name": "bob the cat", "id": 1
+///             })))
 ///             .into()
 ///     }
 /// }
@@ -345,8 +347,9 @@ pub trait Component {
 ///                         .with_deprecated(utoipa::openapi::Deprecated::False)
 ///                         .with_description("Pet database id to get Pet for")
 ///                         .with_schema(
-///                             utoipa::openapi::Property::new(utoipa::openapi::ComponentType::Integer)
-///                                 .with_format(utoipa::openapi::ComponentFormat::Int64),
+///                             utoipa::openapi::PropertyBuilder::new()
+///                                 .component_type(utoipa::openapi::ComponentType::Integer)
+///                                 .format(Some(utoipa::openapi::ComponentFormat::Int64)),
 ///                         )
 ///                         .with_required(utoipa::openapi::Required::True),
 ///                 )

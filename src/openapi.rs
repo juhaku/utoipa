@@ -11,7 +11,8 @@ pub use self::{
     response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
         Array, ArrayBuilder, Component, ComponentFormat, ComponentType, Components,
-        ComponentsBuilder, Object, OneOf, OneOfBuilder, Property, Ref, ToArray,
+        ComponentsBuilder, Object, ObjectBuilder, OneOf, OneOfBuilder, Property, PropertyBuilder,
+        Ref, ToArray,
     },
     security::SecurityRequirement,
     server::Server,
@@ -318,7 +319,6 @@ macro_rules! build_fn {
                 $(
                     $field: self.$field,
                 )*
-                ..Default::default()
             }
         }
     };

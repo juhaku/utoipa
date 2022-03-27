@@ -1,3 +1,7 @@
+//! Implements [OpenAPI Schema Object][schema] types which can be
+//! used to define field properties, enum values, array or object types.
+//! 
+//! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -7,6 +11,25 @@ use serde_json::Value;
 use super::{
     add_value, build_fn, builder, from, new, security::SecuritySchema, xml::Xml, Deprecated,
 };
+
+macro_rules! component_from_builder {
+    ( $name:ident ) => {
+        impl From<$name> for Component {
+            fn from(builder: $name) -> Self {
+                builder.build().into()
+            }
+        }
+    };
+}
+
+macro_rules! to_array_builder {
+    () => {
+        /// Construct a new [`ArrayBuilder`] with this component set to [`ArrayBuilder::items`].
+        pub fn to_array_builder(self) -> ArrayBuilder {
+            ArrayBuilder::from(Array::new(self))
+        }
+    };
+}
 
 builder! {
     ComponentsBuilder;
@@ -198,56 +221,78 @@ impl OneOfBuilder {
 
         self
     }
+
+    to_array_builder!();
 }
+
+
 impl From<OneOf> for Component {
     fn from(one_of: OneOf) -> Self {
         Self::OneOf(one_of)
     }
 }
 
+component_from_builder!(OneOfBuilder);
+
+/// Implements special subset of [OpenAPI Schema Object][schema] which can be
+/// used to define field property or enum values or type for array items.
+/// 
+/// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[derive(Default, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Property {
+    /// Type of the property e.g [`ComponentType::String`].
     #[serde(rename = "type")]
-    component_type: ComponentType,
+    pub component_type: ComponentType,
 
+    /// Additional format for detailing the component type.
     #[serde(skip_serializing_if = "Option::is_none")]
-    format: Option<ComponentFormat>,
+    pub format: Option<ComponentFormat>,
 
+    /// Description of the property. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 
+    /// Default value for the property which is provided when user has not provided the input.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "serde_json")]
-    default: Option<Value>,
+    pub default: Option<Value>,
 
+    /// Default value for the property which is provided when user has not provided the input.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
-    default: Option<String>,
+    pub default: Option<String>,
 
+    /// Enum type property possible variants.
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    enum_values: Option<Vec<String>>,
+    pub enum_values: Option<Vec<String>>,
 
+    /// Example shown in UI of the value for richier documentation.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
-
+    pub example: Option<String>,
+    
+    /// Example shown in UI of the value for richier documentation.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "serde_json")]
-    example: Option<Value>,
+    pub example: Option<Value>,
 
+    /// Changes the [`Property`] deprecated status.
     #[serde(skip_serializing_if = "Option::is_none")]
-    deprecated: Option<Deprecated>,
+    pub deprecated: Option<Deprecated>,
 
+    /// Write only property will be only sent in _write_ requests like _POST, PUT_.
     #[serde(skip_serializing_if = "Option::is_none")]
-    write_only: Option<bool>,
+    pub write_only: Option<bool>,
 
+    /// Read only property will be only sent in _read_ requests like _GET_.
     #[serde(skip_serializing_if = "Option::is_none")]
-    read_only: Option<bool>,
+    pub read_only: Option<bool>,
 
+    /// Additional [`Xml`] formatting of the [`Property`].
     #[serde(skip_serializing_if = "Option::is_none")]
-    xml: Option<Xml>,
+    pub xml: Option<Xml>,
 }
 
 impl Property {
@@ -256,81 +301,6 @@ impl Property {
             component_type,
             ..Default::default()
         }
-    }
-
-    pub fn with_format(mut self, format: ComponentFormat) -> Self {
-        self.format = Some(format);
-
-        self
-    }
-
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
-    }
-
-    #[cfg(feature = "serde_json")]
-    pub fn with_default(mut self, default: Value) -> Self {
-        self.default = Some(default);
-
-        self
-    }
-
-    #[cfg(not(feature = "serde_json"))]
-    pub fn with_default<I: Into<String>>(mut self, default: I) -> Self {
-        self.default = Some(default.into());
-
-        self
-    }
-
-    pub fn with_enum_values<S: AsRef<str>>(mut self, enum_values: &[S]) -> Self {
-        self.enum_values = Some(
-            enum_values
-                .iter()
-                .map(|str| str.as_ref().to_string())
-                .collect(),
-        );
-
-        self
-    }
-
-    #[cfg(not(feature = "serde_json"))]
-    pub fn with_example<I: Into<String>>(mut self, example: I) -> Self {
-        self.example = Some(example.into());
-
-        self
-    }
-
-    #[cfg(feature = "serde_json")]
-    pub fn with_example(mut self, example: Value) -> Self {
-        self.example = Some(example);
-
-        self
-    }
-
-    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
-        self.deprecated = Some(deprecated);
-
-        self
-    }
-
-    pub fn with_write_only(mut self, write_only: bool) -> Self {
-        self.write_only = Some(write_only);
-
-        self
-    }
-
-    pub fn with_read_only(mut self, read_only: bool) -> Self {
-        self.read_only = Some(read_only);
-
-        self
-    }
-
-    pub fn with_xml(mut self, xml: Xml) -> Self {
-        self.xml = Some(xml);
-
-        self
     }
 }
 
@@ -342,36 +312,162 @@ impl From<Property> for Component {
 
 impl ToArray for Property {}
 
+/// Builder for [`Property`] with chainable configuration methods to create a new [`Property`].
+#[derive(Default)]
+pub struct PropertyBuilder {
+    component_type: ComponentType,
+
+    format: Option<ComponentFormat>,
+
+    description: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    default: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    default: Option<String>,
+
+    enum_values: Option<Vec<String>>,
+
+    #[cfg(not(feature = "serde_json"))]
+    example: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    example: Option<Value>,
+
+    deprecated: Option<Deprecated>,
+
+    write_only: Option<bool>,
+
+    read_only: Option<bool>,
+
+    xml: Option<Xml>,
+}
+
+from!(Property PropertyBuilder 
+    component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+
+impl PropertyBuilder {
+    new!(pub PropertyBuilder);
+
+    /// Add or change type of the property e.g [`ComponentType::String`].
+    pub fn component_type(mut self, component_type: ComponentType) -> Self {
+        add_value!(self component_type component_type)
+    }
+
+    /// Add or change additional format for detailing the component type.
+    pub fn format(mut self, format: Option<ComponentFormat>) -> Self {
+        add_value!(self format format)
+    }
+
+    /// Add or change description of the property. Markdown syntax is supported.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        add_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add or change default value for the property which is provided when user has not provided the input.
+    #[cfg(feature = "serde_json")]
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        add_value!(self default default)
+    }
+
+    /// Add or change default value for the property which is provided when user has not provided the input.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
+        add_value!(self default default.map(|default| default.into()))
+    }
+
+    /// Add or change enum property variants.
+    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<String>>(
+        mut self,
+        enum_values: Option<I>,
+    ) -> Self {
+        add_value!(self enum_values 
+            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
+        add_value!(self example example.map(|example| example.into()))
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(feature = "serde_json")]
+    pub fn example(mut self, example: Option<Value>) -> Self {
+        add_value!(self example example)
+    }
+
+    /// Add or change deprecated status for [`Property`].
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        add_value!(self deprecated deprecated)
+    }
+
+    /// Add or change write only flag for [`Property`].
+    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
+        add_value!(self write_only write_only)
+    }
+
+    /// Add or change read only flag for [`Property`].
+    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
+        add_value!(self read_only read_only)
+    }
+
+    /// Add or change additional [`Xml`] formatting of the [`Property`].
+    pub fn xml(mut self, xml: Option<Xml>) -> Self {
+        add_value!(self xml xml)
+    }
+
+    to_array_builder!();
+
+    build_fn!(pub Property 
+        component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+}
+
+component_from_builder!(PropertyBuilder);
+
+/// Implements subset of [OpenAPI Schema Object][schema] which allows 
+/// adding other [`Component`]s as **properties** to this [`Component`].
+/// 
+/// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
+    /// Data type of [`Object`]. Will always be [`ComponentType::Object`]
     #[serde(rename = "type")]
     component_type: ComponentType,
 
+    /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    required: Vec<String>,
+    pub required: Vec<String>,
 
+    /// Map of fields with their [`Component`] types.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
-    properties: HashMap<String, Component>,
+    pub properties: HashMap<String, Component>,
 
+    /// Description of the [`Object`]. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 
+    /// Changes the [`Object`] deprecated status.
     #[serde(skip_serializing_if = "Option::is_none")]
-    deprecated: Option<Deprecated>,
+    pub deprecated: Option<Deprecated>,
 
+    /// Example shown in UI of the value for richier documentation.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "serde_json")]
-    example: Option<Value>,
+    pub example: Option<Value>,
 
+    /// Example shown in UI of the value for richier documentation.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
+    pub example: Option<String>,
 
+    /// Additional [`Xml`] formatting of the [`Object`].
     #[serde(skip_serializing_if = "Option::is_none")]
-    xml: Option<Xml>,
+    pub xml: Option<Xml>,
 }
 
 impl Object {
@@ -379,55 +475,6 @@ impl Object {
         Self {
             ..Default::default()
         }
-    }
-
-    pub fn with_property<S: AsRef<str>, I: Into<Component>>(
-        mut self,
-        property_name: S,
-        component: I,
-    ) -> Self {
-        self.properties
-            .insert(property_name.as_ref().to_string(), component.into());
-
-        self
-    }
-
-    pub fn with_required<S: AsRef<str>>(mut self, required_field: S) -> Self {
-        self.required.push(required_field.as_ref().to_string());
-
-        self
-    }
-
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
-    }
-
-    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
-        self.deprecated = Some(deprecated);
-
-        self
-    }
-
-    #[cfg(feature = "serde_json")]
-    pub fn with_example(mut self, example: Value) -> Self {
-        self.example = Some(example);
-
-        self
-    }
-
-    #[cfg(not(feature = "serde_json"))]
-    pub fn with_example<I: Into<String>>(mut self, example: I) -> Self {
-        self.example = Some(example.into());
-
-        self
-    }
-
-    pub fn with_xml(mut self, xml: Xml) -> Self {
-        self.xml = Some(xml);
-
-        self
     }
 }
 
@@ -439,24 +486,116 @@ impl From<Object> for Component {
 
 impl ToArray for Object {}
 
+/// Builder for [`Object`] with chainable configuration methods to create a new [`Object`].
+#[derive(Default)]
+pub struct ObjectBuilder {
+    component_type: ComponentType,
+
+    required: Vec<String>,
+
+    properties: HashMap<String, Component>,
+
+    description: Option<String>,
+
+    deprecated: Option<Deprecated>,
+
+    #[cfg(feature = "serde_json")]
+    example: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    example: Option<String>,
+
+    xml: Option<Xml>,
+}
+
+impl ObjectBuilder {
+    new!(pub ObjectBuilder);
+    
+    /// Add new property to the [`Object`]. 
+    /// 
+    /// Method accepts property name and property component as an arguments.
+    pub fn property<S: Into<String>, I: Into<Component>>(
+        mut self,
+        property_name: S,
+        component: I,
+    ) -> Self {
+        self.properties
+            .insert(property_name.into(), component.into());
+
+        self
+    }
+
+    /// Add field to the required fields of [`Object`].
+    pub fn required<I: Into<String>>(mut self, required_field: I) -> Self {
+        self.required.push(required_field.into());
+
+        self
+    }
+
+    /// Add or change description of the property. Markdown syntax is supported.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        add_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add or change deprecated status for [`Object`].
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        add_value!(self deprecated deprecated)
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(feature = "serde_json")]
+    pub fn example(mut self, example: Option<Value>) -> Self {
+        add_value!(self example example)
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
+        add_value!(self example example.map(|example| example.into()))
+    }
+
+    /// Add or change additional [`Xml`] formatting of the [`Object`].
+    pub fn xml(mut self, xml: Option<Xml>) -> Self {
+        add_value!(self xml xml)
+    }
+    
+    to_array_builder!();
+
+    build_fn!(pub Object component_type, required, properties, description, deprecated, example, xml);
+}
+
+from!(Object ObjectBuilder component_type, required, properties, description, deprecated, example, xml);
+component_from_builder!(ObjectBuilder);
+
+/// Implements [OpenAPI Reference Object][reference] that can be used to reference 
+/// reusable components.
+/// 
+/// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Ref {
+    /// Reference location of the actual component.
     #[serde(rename = "$ref")]
-    ref_location: String,
+    pub ref_location: String,
 }
 
 impl Ref {
-    pub fn new<S: AsRef<str>>(ref_location: S) -> Self {
+    /// Construct a new [`Ref`] with custom ref location. In most cases this is not necessary 
+    /// and [`Ref::from_component_name`] could be used instead.
+    pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
-            ref_location: ref_location.as_ref().to_string(),
+            ref_location: ref_location.into(),
         }
     }
 
-    pub fn from_component_name<S: AsRef<str>>(component_name: S) -> Self {
-        Self::new(&format!("#/components/schemas/{}", component_name.as_ref()))
+    /// Construct a new [`Ref`] from provided component name. This will create a [`Ref`] that 
+    /// references the the reusable schemas.
+    pub fn from_component_name<I: Into<String>>(component_name: I) -> Self {
+        Self::new(&format!("#/components/schemas/{}", component_name.into()))
     }
+
+    to_array_builder!();
 }
 
 impl From<Ref> for Component {
@@ -543,7 +682,11 @@ impl ArrayBuilder {
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         add_value!(self xml xml)
     }
+
+    to_array_builder!();
 }
+
+component_from_builder!(ArrayBuilder);
 
 impl From<Array> for Component {
     fn from(array: Array) -> Self {
@@ -563,15 +706,24 @@ where
     }
 }
 
+/// Represents data type of [`Component`].
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum ComponentType {
+    /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have 
+    /// _component_type_ [`ComponentType::Object`].
     Object,
+    /// Indicates string type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     String,
+    /// Indicates integer type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     Integer,
+    /// Indicates floating point number type of content. Typically used with 
+    /// [`Property`] and [`PropertyBuilder`].
     Number,
+    /// Indicates boolean type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     Boolean,
+    /// Used with [`Array`] and [`ArrayBuilder`]. Indicates array type of content.
     Array,
 }
 
@@ -581,19 +733,30 @@ impl Default for ComponentType {
     }
 }
 
+/// Additional format for [`ComponentType`] to fine tune the data type used. If the **format** is not 
+/// supported by the UI it may default back to [`ComponentType`] alone.
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum ComponentFormat {
+    /// 32 bit integer.
     Int32,
+    /// 64 bit integer.
     Int64,
+    /// floating point number.
     Float,
+    /// double (floating point) number.
     Double,
+    /// base64 encoded chars.
     Byte,
+    /// binary data (octec).
     Binary,
+    /// ISO-8601 full date [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     Date,
+    /// ISO-8601 full date time [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     #[serde(rename = "date-time")]
     DateTime,
+    /// Hint to UI to obsucre input.
     Password,
 }
 
@@ -615,36 +778,39 @@ mod tests {
                     .component("Person", Ref::new("#/components/PersonModel"))
                     .component(
                         "Credential",
-                        Object::new()
-                            .with_property(
+                        ObjectBuilder::new()
+                            .property(
                                 "id",
-                                Property::new(ComponentType::Integer)
-                                    .with_format(ComponentFormat::Int32)
-                                    .with_description("Id of credential")
-                                    .with_default(json!(1)),
+                                PropertyBuilder::new()
+                                    .component_type(ComponentType::Integer)
+                                    .format(Some(ComponentFormat::Int32))
+                                    .description(Some("Id of credential"))
+                                    .default(Some(json!(1i32))),
                             )
-                            .with_property(
+                            .property(
                                 "name",
-                                Property::new(ComponentType::String)
-                                    .with_description("Name of credential"),
+                                PropertyBuilder::new()
+                                    .component_type(ComponentType::String)
+                                    .description(Some("Name of credential")),
                             )
-                            .with_property(
+                            .property(
                                 "status",
-                                Property::new(ComponentType::String)
-                                    .with_default(json!("Active"))
-                                    .with_description("Credential status")
-                                    .with_enum_values(&[
+                                PropertyBuilder::new()
+                                    .component_type(ComponentType::String)
+                                    .default(Some(json!("Active")))
+                                    .description(Some("Credential status"))
+                                    .enum_values(Some([
                                         "Active",
                                         "NotActive",
                                         "Locked",
                                         "Expired",
-                                    ]),
+                                    ])),
                             )
-                            .with_property(
+                            .property(
                                 "history",
                                 Array::new(Ref::from_component_name("UpdateHistory")),
                             )
-                            .with_property("tags", Property::new(ComponentType::String).to_array()),
+                            .property("tags", Property::new(ComponentType::String).to_array()),
                     )
                     .build(),
             ))
@@ -717,7 +883,7 @@ mod tests {
     #[test]
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
-        let json_value = Object::new().with_example(json!({"age": 20, "name": "bob the cat"}));
+        let json_value = ObjectBuilder::new().example(Some(json!({"age": 20, "name": "bob the cat"}))).build();
 
         let value_string = serde_json::to_string(&json_value).unwrap();
         assert_eq!(

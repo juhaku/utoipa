@@ -24,15 +24,13 @@ impl ToTokens for Property<'_> {
         if self.component_type.is_primitive() {
             let component_type = &self.component_type;
             let mut component = quote! {
-                utoipa::openapi::Property::new(
-                    #component_type
-                )
+                utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
             };
 
             let format = ComponentFormat(self.component_type.0);
             if format.is_known_format() {
                 component.extend(quote! {
-                    .with_format(#format)
+                    .format(Some(#format))
                 })
             }
 
@@ -47,7 +45,7 @@ impl ToTokens for Property<'_> {
 
         if self.is_array {
             tokens.extend(quote! {
-                .to_array()
+                .to_array_builder()
             });
         }
     }
