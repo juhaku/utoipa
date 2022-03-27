@@ -395,7 +395,7 @@ impl ToTokens for Path {
                     use utoipa::openapi::ToArray;
                     utoipa::openapi::PathItem::new(
                         #path_operation,
-                        #operation.with_tag(*[Some(#tag), default_tag, Some("crate")].iter()
+                        #operation.tag(*[Some(#tag), default_tag, Some("crate")].iter()
                             .flatten()
                             .find(|t| !t.is_empty()).unwrap()
                         )
@@ -419,28 +419,26 @@ struct Operation<'a> {
 
 impl ToTokens for Operation<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        tokens.extend(quote! { utoipa::openapi::path::Operation::new() });
+        tokens.extend(quote! { utoipa::openapi::path::OperationBuilder::new() });
 
         if let Some(request_body) = self.request_body {
             tokens.extend(quote! {
-                .with_request_body(#request_body)
+                .request_body(Some(#request_body))
             })
         }
 
         let responses = Responses(self.responses);
         tokens.extend(quote! {
-            .with_responses(#responses)
+            .responses(#responses)
         });
         if let Some(security_requirements) = self.security {
             tokens.extend(quote! {
-                .with_securities(#security_requirements)
+                .securities(Some(#security_requirements))
             })
         }
         let operation_id = self.operation_id;
         tokens.extend(quote! {
-            .with_operation_id(
-                #operation_id
-            )
+            .operation_id(Some(#operation_id))
         });
 
         let deprecated = self
@@ -449,12 +447,12 @@ impl ToTokens for Operation<'_> {
             .or(Some(Deprecated::False))
             .unwrap();
         tokens.extend(quote! {
-           .with_deprecated(#deprecated)
+           .deprecated(Some(#deprecated))
         });
 
         if let Some(summary) = self.summary {
             tokens.extend(quote! {
-                .with_summary(#summary)
+                .summary(Some(#summary))
             })
         }
 
@@ -466,14 +464,14 @@ impl ToTokens for Operation<'_> {
                 .join("");
 
             tokens.extend(quote! {
-                .with_description(#description)
+                .description(Some(#description))
             })
         }
 
         if let Some(parameters) = self.parameters {
             parameters
                 .iter()
-                .for_each(|parameter| tokens.extend(quote! { .with_parameter(#parameter) }));
+                .for_each(|parameter| tokens.extend(quote! { .parameter(#parameter) }));
         }
     }
 }

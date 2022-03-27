@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
-use super::{add_value, build_fn, builder, from, header::Header, new, Content};
+use super::{build_fn, builder, from, header::Header, new, set_value, Content};
 
 builder! {
     ResponsesBuilder;
@@ -34,8 +34,8 @@ impl Responses {
 
 impl ResponsesBuilder {
     /// Add response to responses.
-    pub fn response<S: Into<String>>(mut self, code: S, response: Response) -> Self {
-        self.responses.insert(code.into(), response);
+    pub fn response<S: Into<String>, R: Into<Response>>(mut self, code: S, response: R) -> Self {
+        self.responses.insert(code.into(), response.into());
 
         self
     }
@@ -96,7 +96,7 @@ impl Response {
 impl ResponseBuilder {
     /// Add description. Description supports markdown syntax.
     pub fn description<I: Into<String>>(mut self, description: I) -> Self {
-        add_value!(self description description.into())
+        set_value!(self description description.into())
     }
 
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json`.

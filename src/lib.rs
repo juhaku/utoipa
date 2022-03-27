@@ -318,12 +318,12 @@ pub trait Component {
 ///
 /// Example of what would manual implementation roughly look like of above `#[utoipa::path(...)]` macro.
 /// ```rust
-/// utoipa::openapi::Paths::new().append(
+/// utoipa::openapi::PathsBuilder::new().path(
 ///         "/pets/{id}",
 ///         utoipa::openapi::PathItem::new(
 ///             utoipa::openapi::PathItemType::Get,
-///             utoipa::openapi::path::Operation::new()
-///                 .with_responses(
+///             utoipa::openapi::path::OperationBuilder::new()
+///                 .responses(
 ///                     utoipa::openapi::ResponsesBuilder::new()
 ///                         .response(
 ///                             "200",
@@ -333,27 +333,28 @@ pub trait Component {
 ///                                     utoipa::openapi::Content::new(
 ///                                         utoipa::openapi::Ref::from_component_name("Pet"),
 ///                                     ),
-///                             ).build(),
+///                             ),
 ///                         )
-///                         .response("404", utoipa::openapi::Response::new("Pet was not found")).build(),
+///                         .response("404", utoipa::openapi::Response::new("Pet was not found")),
 ///                 )
-///                 .with_operation_id("get_pet_by_id")
-///                 .with_deprecated(utoipa::openapi::Deprecated::False)
-///                 .with_summary("Get pet by id")
-///                 .with_description("Get pet by id\n\nGet pet from database by pet database id\n")
-///                 .with_parameter(
-///                     utoipa::openapi::path::Parameter::new("id")
-///                         .with_in(utoipa::openapi::path::ParameterIn::Path)
-///                         .with_deprecated(utoipa::openapi::Deprecated::False)
-///                         .with_description("Pet database id to get Pet for")
-///                         .with_schema(
-///                             utoipa::openapi::PropertyBuilder::new()
+///                 .operation_id(Some("get_pet_by_id"))
+///                 .deprecated(Some(utoipa::openapi::Deprecated::False))
+///                 .summary(Some("Get pet by id"))
+///                 .description(Some("Get pet by id\n\nGet pet from database by pet database id\n"))
+///                 .parameter(
+///                     utoipa::openapi::path::ParameterBuilder::new()
+///                         .name("id")
+///                         .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                         .required(utoipa::openapi::Required::True)
+///                         .deprecated(Some(utoipa::openapi::Deprecated::False))
+///                         .description(Some("Pet database id to get Pet for"))
+///                         .schema(
+///                             Some(utoipa::openapi::PropertyBuilder::new()
 ///                                 .component_type(utoipa::openapi::ComponentType::Integer)
-///                                 .format(Some(utoipa::openapi::ComponentFormat::Int64)),
-///                         )
-///                         .with_required(utoipa::openapi::Required::True),
+///                                 .format(Some(utoipa::openapi::ComponentFormat::Int64))),
+///                         ),
 ///                 )
-///                 .with_tag("pet_api"),
+///                 .tag("pet_api"),
 ///         ),
 ///     );
 /// ```

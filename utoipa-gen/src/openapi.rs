@@ -308,7 +308,7 @@ fn impl_components(
 
 fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
     handler_paths.iter().fold(
-        quote! { utoipa::openapi::path::Paths::new() },
+        quote! { utoipa::openapi::path::PathsBuilder::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn_name = &*segments.last().unwrap().ident.to_string();
@@ -336,7 +336,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
             .unwrap();
 
             paths.extend(quote! {
-                .append(#usage::path(), #usage::path_item(Some(#tag)))
+                .path(#usage::path(), #usage::path_item(Some(#tag)))
             });
 
             paths

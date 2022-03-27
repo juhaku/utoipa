@@ -3,7 +3,7 @@
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 use serde::{Deserialize, Serialize};
 
-use super::{add_value, build_fn, builder, external_docs::ExternalDocs, from, new};
+use super::{build_fn, builder, external_docs::ExternalDocs, from, new, set_value};
 
 builder! {
     TagBuilder;
@@ -44,16 +44,16 @@ impl Tag {
 impl TagBuilder {
     /// Add name fo the tag.
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
-        add_value!(self name name.into())
+        set_value!(self name name.into())
     }
 
     /// Add additional description for the tag.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        add_value!(self description description.map(|description| description.into()))
+        set_value!(self description description.map(|description| description.into()))
     }
 
     /// Add additional external documentation for the tag.
     pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
-        add_value!(self external_docs external_docs)
+        set_value!(self external_docs external_docs)
     }
 }

@@ -8,7 +8,7 @@
 //! [derive]: ../../derive.OpenApi.html
 use serde::{Deserialize, Serialize};
 
-use super::{add_value, build_fn, builder, from, new};
+use super::{build_fn, builder, from, new, set_value};
 
 builder! {
     /// # Examples
@@ -93,32 +93,32 @@ impl Info {
 impl InfoBuilder {
     /// Add title of the API.
     pub fn title<I: Into<String>>(mut self, title: I) -> Self {
-        add_value!(self title title.into())
+        set_value!(self title title.into())
     }
 
     /// Add version of the api document typically the API version.
     pub fn version<I: Into<String>>(mut self, version: I) -> Self {
-        add_value!(self version version.into())
+        set_value!(self version version.into())
     }
 
     /// Add description of the API.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        add_value!(self description description.map(|description| description.into()))
+        set_value!(self description description.map(|description| description.into()))
     }
 
     /// Add url for terms of the API.
     pub fn terms_of_service<S: Into<String>>(mut self, terms_of_service: Option<S>) -> Self {
-        add_value!(self terms_of_service terms_of_service.map(|terms_of_service| terms_of_service.into()))
+        set_value!(self terms_of_service terms_of_service.map(|terms_of_service| terms_of_service.into()))
     }
 
     /// Add contact information of the API.
     pub fn contact(mut self, contact: Option<Contact>) -> Self {
-        add_value!(self contact contact)
+        set_value!(self contact contact)
     }
 
     /// Add licence of the API.
     pub fn license(mut self, license: Option<License>) -> Self {
-        add_value!(self license license)
+        set_value!(self license license)
     }
 }
 
@@ -161,17 +161,17 @@ impl Contact {
 impl ContactBuilder {
     /// Add name contact person or organization of the API.
     pub fn name<S: Into<String>>(mut self, name: Option<S>) -> Self {
-        add_value!(self name name.map(|name| name.into()))
+        set_value!(self name name.map(|name| name.into()))
     }
 
     /// Add url pointing to the contact information of the API.
     pub fn url<S: Into<String>>(mut self, url: Option<S>) -> Self {
-        add_value!(self url url.map(|url| url.into()))
+        set_value!(self url url.map(|url| url.into()))
     }
 
     /// Add email of the contact person or organization of the API.
     pub fn email<S: Into<String>>(mut self, email: Option<S>) -> Self {
-        add_value!(self email email.map(|email| email.into()))
+        set_value!(self email email.map(|email| email.into()))
     }
 }
 
@@ -210,11 +210,11 @@ impl License {
 impl LicenseBuilder {
     /// Add name of the license used in API.
     pub fn name<S: Into<String>>(mut self, name: S) -> Self {
-        add_value!(self name name.into())
+        set_value!(self name name.into())
     }
 
     /// Add url pointing to the license used in API.
     pub fn url<S: Into<String>>(mut self, url: Option<S>) -> Self {
-        add_value!(self url url.map(|url| url.into()))
+        set_value!(self url url.map(|url| url.into()))
     }
 }

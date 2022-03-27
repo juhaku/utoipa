@@ -1,187 +1,293 @@
-use std::collections::BTreeMap;
+//! Implements [OpenAPI Path Object][paths] types.
+//!
+//! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
+use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
 use super::{
+    build_fn, builder, from, new,
     request_body::RequestBody,
     response::{Response, Responses},
-    Component, Deprecated, ExternalDocs, Required, SecurityRequirement, Server,
+    set_value, Component, Deprecated, ExternalDocs, Required, SecurityRequirement, Server,
 };
 
-#[non_exhaustive]
-#[derive(Default)]
-pub struct Paths {
-    inner: Vec<(String, PathItem)>,
+builder! {
+    PathsBuilder;
+
+    /// Implements [OpenAPI Paths Object][paths].
+    ///
+    /// Holds relative paths to matching endpoints and operations. The path is appended to the url
+    /// from [`Server`] object to construct a full url for endpoint.
+    ///
+    /// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Paths {
+        /// Map of relative paths with [`PathItem`]s holding [`Operation`]s matching
+        /// api endpoints.
+        pub paths: BTreeMap<String, PathItem>,
+    }
 }
 
 impl Paths {
+    /// Construct a new [`Paths`] object.
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn append<S: AsRef<str>>(mut self, path: S, item: PathItem) -> Self {
-        self.inner.push((path.as_ref().to_string(), item));
+    /// Return [`Option<&PathItem>`] by given relative path if one exists
+    /// in [`Paths::paths`] map. Otherwise will return `None`.
+    pub fn get_path_item<P: AsRef<str>>(&self, path: P) -> Option<&PathItem> {
+        self.paths.get(path.as_ref())
+    }
+
+    /// Return [`Option<&Operation>`] from map of paths or `None` if not found.
+    ///
+    /// * First will try to find [`PathItem`] by given relative path.
+    /// * Then tries to find [`Operation`] from [`PathItem`]'s operations by given [`PathItemType`].
+    pub fn get_path_operation<P: AsRef<str>>(
+        &self,
+        path: P,
+        item_type: PathItemType,
+    ) -> Option<&Operation> {
+        self.paths
+            .get(path.as_ref())
+            .and_then(|path| path.operations.get(&item_type))
+    }
+}
+
+impl PathsBuilder {
+    /// Append [`PathItem`] with path to map of paths. If path already exists it will merge [`Operation`]s of
+    /// [`PathItem`] with already found path item operations.
+    pub fn path<I: Into<String>>(mut self, path: I, mut item: PathItem) -> Self {
+        let path_string = path.into();
+        if let Some(existing_item) = self.paths.get_mut(&path_string) {
+            existing_item.operations.append(&mut item.operations);
+        } else {
+            self.paths.insert(path_string, item);
+        }
 
         self
     }
-
-    pub fn to_map(self) -> BTreeMap<String, PathItem> {
-        self.fold(BTreeMap::new(), |mut acc, (path, path_item)| {
-            if let Some(item) = acc.get_mut(&path) {
-                item.merge_operations(path_item);
-            } else {
-                acc.insert(path, path_item);
-            }
-
-            acc
-        })
-    }
 }
 
-impl Iterator for Paths {
-    type Item = (String, PathItem);
+builder! {
+    PathItemBuilder;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.inner.is_empty() {
-            None
-        } else {
-            Some(self.inner.remove(0))
-        }
+    /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s availabe on
+    /// a single path.
+    ///
+    /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct PathItem {
+        /// Optional summary intented to apply all operations in this [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub summary: Option<String>,
+
+        /// Optional description intented to apply all operations in this [`PathItem`].
+        /// Description supports markdown syntax.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+
+        /// Alternative [`Server`] array to serve all [`Operation`]s in this [`PathItem`] overriding
+        /// the global server array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub servers: Option<Vec<Server>>,
+
+        /// List of [`Parameter`]s common to all [`Operation`]s in this [`PathItem`]. Parameters cannot
+        /// contain duplicate parameters. They can be overridden in [`Operation`] level but cannot be
+        /// removed there.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub parameters: Option<Vec<Parameter>>,
+
+        /// Map of operations in this [`PathItem`]. Operations can hold only one operation
+        /// per [`PathItemType`].
+        #[serde(flatten)]
+        pub operations: BTreeMap<PathItemType, Operation>,
     }
-}
-
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct PathItem {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Server>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<Vec<Parameter>>,
-
-    #[serde(flatten)]
-    pub operations: BTreeMap<PathItemType, Operation>,
 }
 
 impl PathItem {
-    pub fn new(path_item_type: PathItemType, operation: Operation) -> Self {
-        let mut operations = BTreeMap::new();
-
-        operations.insert(path_item_type, operation);
+    /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`PathItemType`].
+    pub fn new<O: Into<Operation>>(path_item_type: PathItemType, operation: O) -> Self {
+        let operations = BTreeMap::from_iter(iter::once((path_item_type, operation.into())));
 
         Self {
             operations,
             ..Default::default()
         }
     }
+}
 
-    pub fn with_summary<S: AsRef<str>>(mut self, summary: S) -> Self {
-        self.summary = Some(summary.as_ref().to_string());
-
-        self
-    }
-
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
-    }
-
-    pub fn with_servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        self.servers = Some(servers.into_iter().collect());
+impl PathItemBuilder {
+    /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
+    /// hold only one operation per [`PathItemType`].
+    pub fn operation<O: Into<Operation>>(
+        mut self,
+        path_item_type: PathItemType,
+        operation: O,
+    ) -> Self {
+        self.operations.insert(path_item_type, operation.into());
 
         self
     }
 
-    pub fn with_parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
-        self.parameters = Some(parameters.into_iter().collect());
-
-        self
+    /// Add or change summary intented to apply all operations in this [`PathItem`].
+    pub fn summary<S: Into<String>>(mut self, summary: Option<S>) -> Self {
+        set_value!(self summary summary.map(|summary| summary.into()))
     }
 
-    fn merge_operations(&mut self, mut another: PathItem) {
-        self.operations.append(&mut another.operations);
+    /// Add or change optional description intented to apply all operations in this [`PathItem`].
+    /// Description supports markdown syntax.
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add list of alternative [`Server`]s to serve all [`Operation`]s in this [`PathItem`] overriding
+    /// the global server array.
+    pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
+        set_value!(self servers servers.map(|servers| servers.into_iter().collect()))
+    }
+
+    /// Append list of [`Parameter`]s common to all [`Operation`]s to this [`PathItem`].
+    pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: Option<I>) -> Self {
+        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().collect()))
     }
 }
 
+/// Path item operation type.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum PathItemType {
+    /// Type mapping for HTTP _GET_ request.
     Get,
+    /// Type mapping for HTTP _POST_ request.
     Post,
+    /// Type mapping for HTTP _PUT_ request.
     Put,
+    /// Type mapping for HTTP _DELETE_ request.
     Delete,
+    /// Type mapping for HTTP _OPTIONS_ request.
     Options,
+    /// Type mapping for HTTP _HEAD_ request.
     Head,
+    /// Type mapping for HTTP _PATCH_ request.
     Patch,
+    /// Type mapping for HTTP _TRACE_ request.
     Trace,
+    /// Type mapping for HTTP _CONNECT_ request.
     Connect,
 }
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Operation {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<String>>,
+builder! {
+    OperationBuilder;
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<String>,
+    /// Implements [OpenAPI Operation Object][operation] object.
+    ///
+    /// [operation]: https://spec.openapis.org/oas/latest.html#operation-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Operation {
+        /// List of tags used for groupping operations.
+        ///
+        /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the default
+        /// value used will be resolved from handler path provided in `#[openapi(handlers(...))]` with
+        /// [`#[derive(OpenApi)]`][derive_openapi] macro. If path resolves to `None` value `crate` will
+        /// be used by default.
+        ///
+        /// [derive_path]: ../../attr.path.html
+        /// [derive_openapi]: ../../derive.OpenApi.html
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub tags: Option<Vec<String>>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+        /// Short summary what [`Operation`] does.
+        ///
+        /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the value
+        /// is taken from **first line** of doc comment.
+        ///
+        /// [derive_path]: ../../attr.path.html
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub summary: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub operation_id: Option<String>,
+        /// Long explanation of [`Operation`] behaviour. Markdown syntax is supported.
+        ///
+        /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the
+        /// doc comment is used as value for description.
+        ///
+        /// [derive_path]: ../../attr.path.html
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub external_docs: Option<ExternalDocs>,
+        /// Unique identifier for the API [`Operation`]. Most typically this is mapped to handler function name.
+        ///
+        /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the handler function
+        /// name will be used by default.
+        ///
+        /// [derive_path]: ../../attr.path.html
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub operation_id: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<Vec<Parameter>>,
+        /// Additional external documentation for this operation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub external_docs: Option<ExternalDocs>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub request_body: Option<RequestBody>,
+        /// List of applicable parameters for this [`Operation`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub parameters: Option<Vec<Parameter>>,
 
-    pub responses: Responses,
+        /// Optional request body for this [`Operation`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub request_body: Option<RequestBody>,
 
-    // TODO
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub callbacks: Option<String>,
+        /// List of possible responses returned by the [`Operation`].
+        pub responses: Responses,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<Deprecated>,
+        // TODO
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub callbacks: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<SecurityRequirement>>,
+        /// Define whether the operation is deprecated or not and thus should be avoided consuming.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub deprecated: Option<Deprecated>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Vec<Server>>,
+        /// Declaration which security mechanishms can be used for for the operation. Only one
+        /// [`SecurityRequirement`] must be met.
+        ///
+        /// Security for the [`Operation`] can be set to optional by adding emty security with
+        /// [`SecurityRequirement::default`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub security: Option<Vec<SecurityRequirement>>,
+
+        /// Alternative [`Server`]s for this [`Operation`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub servers: Option<Vec<Server>>,
+    }
 }
 
 impl Operation {
+    /// Construct a new API [`Operation`].
     pub fn new() -> Self {
         Default::default()
     }
+}
 
-    pub fn with_tags<I: IntoIterator<Item = String>>(mut self, tags: I) -> Self {
-        self.tags = Some(tags.into_iter().collect());
-
-        self
+impl OperationBuilder {
+    /// Add or change tags of the [`Operation`].
+    pub fn tags<I: IntoIterator<Item = String>>(mut self, tags: Option<I>) -> Self {
+        set_value!(self tags tags.map(|tags| tags.into_iter().collect()))
     }
 
-    pub fn with_tag<S: AsRef<str>>(mut self, tag: S) -> Self {
-        let tag_string = tag.as_ref().to_string();
+    /// Append tag to [`Operation`] tags.
+    pub fn tag<S: Into<String>>(mut self, tag: S) -> Self {
+        let tag_string = tag.into();
         match self.tags {
             Some(ref mut tags) => tags.push(tag_string),
             None => {
@@ -192,133 +298,164 @@ impl Operation {
         self
     }
 
-    pub fn with_summary<S: AsRef<str>>(mut self, summary: S) -> Self {
-        self.summary = Some(summary.as_ref().to_string());
-
-        self
+    /// Add or change short summary of the [`Operation`].
+    pub fn summary<S: Into<String>>(mut self, summary: Option<S>) -> Self {
+        set_value!(self summary summary.map(|summary| summary.into()))
     }
 
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
+    /// Add or change description of the [`Operation`].
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
     }
 
-    pub fn with_operation_id<S: AsRef<str>>(mut self, operation_id: S) -> Self {
-        self.operation_id = Some(operation_id.as_ref().to_string());
-
-        self
+    /// Add or change operation id of the [`Operation`].
+    pub fn operation_id<S: Into<String>>(mut self, operation_id: Option<S>) -> Self {
+        set_value!(self operation_id operation_id.map(|operation_id| operation_id.into()))
     }
 
-    pub fn with_parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: I) -> Self {
-        self.parameters = Some(parameters.into_iter().collect());
-
-        self
+    /// Add or change parameters of the [`Operation`].
+    pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: Option<I>) -> Self {
+        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().collect()))
     }
 
-    pub fn with_parameter(mut self, parameter: Parameter) -> Self {
+    /// Append parameter to [`Operation`] parameters.
+    pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         match self.parameters {
-            Some(ref mut parameters) => parameters.push(parameter),
+            Some(ref mut parameters) => parameters.push(parameter.into()),
             None => {
-                self.parameters = Some(vec![parameter]);
+                self.parameters = Some(vec![parameter.into()]);
             }
         }
 
         self
     }
 
-    pub fn with_request_body(mut self, request_body: RequestBody) -> Self {
-        self.request_body = Some(request_body);
-
-        self
+    /// Add or change request body of the [`Operation`].
+    pub fn request_body(mut self, request_body: Option<RequestBody>) -> Self {
+        set_value!(self request_body request_body)
     }
 
-    pub fn with_responses(mut self, responses: Responses) -> Self {
-        self.responses = responses;
-
-        self
+    /// Add or change responses of the [`Operation`].
+    pub fn responses<R: Into<Responses>>(mut self, responses: R) -> Self {
+        set_value!(self responses responses.into())
     }
 
-    pub fn with_response<S: Into<String>>(mut self, code: S, response: Response) -> Self {
+    /// Append status code and a [`Response`] to the [`Operation`] responses map.
+    ///
+    /// * `code` must be valid HTTP status code.
+    /// * `response` is instances of [`Response`].
+    pub fn response<S: Into<String>>(mut self, code: S, response: Response) -> Self {
         self.responses.responses.insert(code.into(), response);
 
         self
     }
 
-    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
-        self.deprecated = Some(deprecated);
-
-        self
+    /// Add or change deprecated status of the [`Operation`].
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        set_value!(self deprecated deprecated)
     }
 
-    /// Add list of [`SecurityRequirement`]s that are globally available for all operations.
-    pub fn with_securities<I: IntoIterator<Item = SecurityRequirement>>(
+    /// Add or change list of [`SecurityRequirement`]s that are available for [`Operation`].
+    pub fn securities<I: IntoIterator<Item = SecurityRequirement>>(
         mut self,
-        securities: I,
+        securities: Option<I>,
     ) -> Self {
-        self.security = Some(securities.into_iter().collect());
+        set_value!(self security securities.map(|securities| securities.into_iter().collect()))
+    }
+
+    /// Append [`SecurityRequirement`] to [`Operation`] security requirements.
+    pub fn security(mut self, security: SecurityRequirement) -> Self {
+        if let Some(ref mut securities) = self.security {
+            securities.push(security);
+        } else {
+            self.security = Some(vec![security]);
+        }
 
         self
     }
 
-    /// Add [`SecurityRequirement`] that is globally available for all operations.
-    pub fn with_security(mut self, security: SecurityRequirement) -> Self {
-        self.security.as_mut().unwrap().push(security);
-
-        self
+    /// Add or change list of [`Server`]s of the [`Operation`].
+    pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
+        set_value!(self servers servers.map(|servers| servers.into_iter().collect()))
     }
 
-    pub fn with_servers<I: IntoIterator<Item = Server>>(mut self, servers: I) -> Self {
-        self.servers = Some(servers.into_iter().collect());
-
-        self
-    }
-
-    pub fn with_server(mut self, server: Server) -> Self {
-        self.servers.as_mut().unwrap().push(server);
+    /// Append a new [`Server`] to the [`Operation`] servers.
+    pub fn server(mut self, server: Server) -> Self {
+        if let Some(ref mut servers) = self.servers {
+            servers.push(server);
+        } else {
+            self.servers = Some(vec![server]);
+        }
 
         self
     }
 }
 
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Parameter {
-    pub name: String,
+builder! {
+    ParameterBuilder;
 
-    #[serde(rename = "in")]
-    pub parameter_in: ParameterIn,
+    /// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
+    ///
+    /// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Parameter {
+        /// Name of the parameter.
+        ///
+        /// * For [`ParameterIn::Path`] this must in accordance to path templating.
+        /// * For [`ParameterIn::Query`] `Content-Type` or `Authorization` value will be ignored.
+        pub name: String,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+        /// Parameter location.
+        #[serde(rename = "in")]
+        pub parameter_in: ParameterIn,
 
-    pub required: Required,
+        /// Markdown supported description of the parameter.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<Deprecated>,
-    // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub schema: Option<Component>,
+        /// Declares whether the parameter is required or not for api.
+        ///
+        /// * For [`ParameterIn::Path`] this must and will be [`Required::True`].
+        pub required: Required,
+
+        /// Delcares the parameter deprecated status.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub deprecated: Option<Deprecated>,
+        // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
+
+        /// Schema of the parameter. Typically [`Component::Property`] is used.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub schema: Option<Component>,
+    }
 }
 
 impl Parameter {
-    pub fn new<S: AsRef<str>>(name: S) -> Self {
+    /// Constructs a new required [`Parameter`] with given name.
+    pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
-            name: name.as_ref().to_string(),
+            name: name.into(),
             required: Required::True,
             ..Default::default()
         }
     }
-
-    pub fn with_in(mut self, parameter_in: ParameterIn) -> Self {
-        self.parameter_in = parameter_in;
-
-        self
+}
+impl ParameterBuilder {
+    /// Add name of the [`Parameter`].
+    pub fn name<I: Into<String>>(mut self, name: I) -> Self {
+        set_value!(self name name.into())
     }
 
-    pub fn with_required(mut self, required: Required) -> Self {
+    /// Add in of the [`Parameter`].
+    pub fn parameter_in(mut self, parameter_in: ParameterIn) -> Self {
+        set_value!(self parameter_in parameter_in)
+    }
+
+    /// Add required declaration of the [`Parameter`]. If [`ParameterIn::Path`] is
+    /// defined this is always [`Required::True`].
+    pub fn required(mut self, required: Required) -> Self {
         self.required = required;
         // required must be true, if parameter_in is Path
         if self.parameter_in == ParameterIn::Path {
@@ -328,32 +465,34 @@ impl Parameter {
         self
     }
 
-    pub fn with_description<S: AsRef<str>>(mut self, description: S) -> Self {
-        self.description = Some(description.as_ref().to_string());
-
-        self
+    /// Add or change description of the [`Parameter`].
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
     }
 
-    pub fn with_deprecated(mut self, deprecated: Deprecated) -> Self {
-        self.deprecated = Some(deprecated);
-
-        self
+    /// Add or change [`Parameter`] deprecated declaration.
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        set_value!(self deprecated deprecated)
     }
 
-    pub fn with_schema<I: Into<Component>>(mut self, component: I) -> Self {
-        self.schema = Some(component.into());
-
-        self
+    /// Add or change [`Parameter`]s schema.
+    pub fn schema<I: Into<Component>>(mut self, component: Option<I>) -> Self {
+        set_value!(self schema component.map(|component| component.into()))
     }
 }
 
+/// In definition of [`Parameter`].
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {
+    /// Delcares that parameter is used as query parameter.
     Query,
+    /// Delcares that parameter is used as path parameter.
     Path,
+    /// Delcares that parameter is used as header value.
     Header,
+    /// Delcares that parameter is used as cookie value.
     Cookie,
 }
 

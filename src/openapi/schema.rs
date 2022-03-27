@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    add_value, build_fn, builder, from, new, security::SecuritySchema, xml::Xml, Deprecated,
+    set_value, build_fn, builder, from, new, security::SecuritySchema, xml::Xml, Deprecated,
 };
 
 macro_rules! component_from_builder {
@@ -352,29 +352,29 @@ impl PropertyBuilder {
 
     /// Add or change type of the property e.g [`ComponentType::String`].
     pub fn component_type(mut self, component_type: ComponentType) -> Self {
-        add_value!(self component_type component_type)
+        set_value!(self component_type component_type)
     }
 
     /// Add or change additional format for detailing the component type.
     pub fn format(mut self, format: Option<ComponentFormat>) -> Self {
-        add_value!(self format format)
+        set_value!(self format format)
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
     pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        add_value!(self description description.map(|description| description.into()))
+        set_value!(self description description.map(|description| description.into()))
     }
 
     /// Add or change default value for the property which is provided when user has not provided the input.
     #[cfg(feature = "serde_json")]
     pub fn default(mut self, default: Option<Value>) -> Self {
-        add_value!(self default default)
+        set_value!(self default default)
     }
 
     /// Add or change default value for the property which is provided when user has not provided the input.
     #[cfg(not(feature = "serde_json"))]
     pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
-        add_value!(self default default.map(|default| default.into()))
+        set_value!(self default default.map(|default| default.into()))
     }
 
     /// Add or change enum property variants.
@@ -382,40 +382,40 @@ impl PropertyBuilder {
         mut self,
         enum_values: Option<I>,
     ) -> Self {
-        add_value!(self enum_values 
+        set_value!(self enum_values 
             enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
     }
 
     /// Add or change example shown in UI of the value for richier documentation.
     #[cfg(not(feature = "serde_json"))]
     pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        add_value!(self example example.map(|example| example.into()))
+        set_value!(self example example.map(|example| example.into()))
     }
 
     /// Add or change example shown in UI of the value for richier documentation.
     #[cfg(feature = "serde_json")]
     pub fn example(mut self, example: Option<Value>) -> Self {
-        add_value!(self example example)
+        set_value!(self example example)
     }
 
     /// Add or change deprecated status for [`Property`].
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        add_value!(self deprecated deprecated)
+        set_value!(self deprecated deprecated)
     }
 
     /// Add or change write only flag for [`Property`].
     pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        add_value!(self write_only write_only)
+        set_value!(self write_only write_only)
     }
 
     /// Add or change read only flag for [`Property`].
     pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        add_value!(self read_only read_only)
+        set_value!(self read_only read_only)
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Property`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
-        add_value!(self xml xml)
+        set_value!(self xml xml)
     }
 
     to_array_builder!();
@@ -534,29 +534,29 @@ impl ObjectBuilder {
 
     /// Add or change description of the property. Markdown syntax is supported.
     pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        add_value!(self description description.map(|description| description.into()))
+        set_value!(self description description.map(|description| description.into()))
     }
 
     /// Add or change deprecated status for [`Object`].
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        add_value!(self deprecated deprecated)
+        set_value!(self deprecated deprecated)
     }
 
     /// Add or change example shown in UI of the value for richier documentation.
     #[cfg(feature = "serde_json")]
     pub fn example(mut self, example: Option<Value>) -> Self {
-        add_value!(self example example)
+        set_value!(self example example)
     }
 
     /// Add or change example shown in UI of the value for richier documentation.
     #[cfg(not(feature = "serde_json"))]
     pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        add_value!(self example example.map(|example| example.into()))
+        set_value!(self example example.map(|example| example.into()))
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Object`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
-        add_value!(self xml xml)
+        set_value!(self xml xml)
     }
     
     to_array_builder!();
@@ -665,22 +665,22 @@ impl Array {
 impl ArrayBuilder {
     /// Set [`Component`] type for the [`Array`].
     pub fn items<I: Into<Component>>(mut self, component: I) -> Self {
-        add_value!(self items Box::new(component.into()))
+        set_value!(self items Box::new(component.into()))
     }
 
     /// Set maximun allowed lenght for [`Array`].
     pub fn max_items(mut self, max_items: Option<usize>) -> Self {
-        add_value!(self max_items max_items)
+        set_value!(self max_items max_items)
     }
 
     /// Set minimum allowed lenght for [`Array`].
     pub fn min_items(mut self, min_items: Option<usize>) -> Self {
-        add_value!(self min_items min_items)
+        set_value!(self min_items min_items)
     }
 
     /// Set [`Xml`] formatting for [`Array`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
-        add_value!(self xml xml)
+        set_value!(self xml xml)
     }
 
     to_array_builder!();

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{add_value, build_fn, builder, from, new, Content, Required};
+use super::{build_fn, builder, from, new, set_value, Content, Required};
 
 builder! {
     RequestBodyBuilder;
@@ -41,12 +41,12 @@ impl RequestBody {
 impl RequestBodyBuilder {
     /// Add description for [`RequestBody`].
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        add_value!(self description description.map(|description| description.into()))
+        set_value!(self description description.map(|description| description.into()))
     }
 
     /// Define [`RequestBody`] required.
     pub fn required(mut self, required: Option<Required>) -> Self {
-        add_value!(self required required)
+        set_value!(self required required)
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].

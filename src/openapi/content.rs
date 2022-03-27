@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::{add_value, build_fn, from, new, Component};
+use super::{build_fn, from, new, set_value, Component};
 
 /// Content holds request body content or response content.
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -53,19 +53,19 @@ impl ContentBuilder {
 
     /// Add schema.
     pub fn schema<I: Into<Component>>(mut self, component: I) -> Self {
-        add_value!(self schema component.into())
+        set_value!(self schema component.into())
     }
 
     /// Add example of schema.
     #[cfg(feature = "serde_json")]
     pub fn example(mut self, example: Option<Value>) -> Self {
-        add_value!(self example example)
+        set_value!(self example example)
     }
 
     /// Add example of schema.
     #[cfg(not(feature = "serde_json"))]
     pub fn example<S: Into<String>>(mut self, example: Option<S>) -> Self {
-        add_value!(self example example.map(|example| example.into()))
+        set_value!(self example example.map(|example| example.into()))
     }
 
     build_fn!(pub Content schema, example);
