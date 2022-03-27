@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{add_value, build_fn, builder, from, new, Component, ComponentType, Property};
+use super::{build_fn, builder, from, new, set_value, Component, ComponentType, Property};
 
 builder! {
     HeaderBuilder;
@@ -64,11 +64,11 @@ impl Default for Header {
 impl HeaderBuilder {
     /// Add schema of header.
     pub fn schema<I: Into<Component>>(mut self, component: I) -> Self {
-        add_value!(self schema component.into())
+        set_value!(self schema component.into())
     }
 
     /// Add additional description for header.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
-        add_value!(self description description.map(|description| description.into()))
+        set_value!(self description description.map(|description| description.into()))
     }
 }

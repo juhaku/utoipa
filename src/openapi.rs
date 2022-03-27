@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
@@ -7,11 +5,12 @@ pub use self::{
     external_docs::ExternalDocs,
     header::{Header, HeaderBuilder},
     info::{Contact, ContactBuilder, Info, InfoBuilder, License, LicenseBuilder},
-    path::{PathItem, PathItemType, Paths},
+    path::{PathItem, PathItemType, Paths, PathsBuilder},
     response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
-        Array, Component, ComponentFormat, ComponentType, Components, Object, OneOf, Property, Ref,
-        ToArray,
+        Array, ArrayBuilder, Component, ComponentFormat, ComponentType, Components,
+        ComponentsBuilder, Object, ObjectBuilder, OneOf, OneOfBuilder, Property, PropertyBuilder,
+        Ref, ToArray,
     },
     security::SecurityRequirement,
     server::Server,
@@ -79,7 +78,8 @@ builder! {
         /// Available paths and operations for the API.
         ///
         /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
-        pub paths: BTreeMap<String, PathItem>,
+        #[serde(flatten)]
+        pub paths: Paths,
 
         /// Holds various reusable schemas for the OpenAPI document.
         ///
@@ -124,10 +124,10 @@ impl OpenApi {
     /// #
     /// let openapi = OpenApi::new(Info::new("pet api", "0.1.0"), Paths::new());
     /// ```
-    pub fn new(info: Info, paths: Paths) -> Self {
+    pub fn new<P: Into<Paths>>(info: Info, paths: P) -> Self {
         Self {
             info,
-            paths: paths.to_map(),
+            paths: paths.into(),
             ..Default::default()
         }
     }
@@ -152,22 +152,22 @@ impl OpenApi {
 impl OpenApiBuilder {
     /// Add [`Info`] metadata of the API.
     pub fn info(mut self, info: Info) -> Self {
-        add_value!(self info info)
+        set_value!(self info info)
     }
 
     /// Add iterator of [`Server`]s to configure target servers.
     pub fn servers<I: IntoIterator<Item = Server>>(mut self, servers: Option<I>) -> Self {
-        add_value!(self servers servers.map(|servers| servers.into_iter().collect()))
+        set_value!(self servers servers.map(|servers| servers.into_iter().collect()))
     }
 
     /// Add [`Paths`] to configure operations and endpoints of the API.
-    pub fn paths(mut self, paths: Paths) -> Self {
-        add_value!(self paths paths.to_map())
+    pub fn paths<P: Into<Paths>>(mut self, paths: P) -> Self {
+        set_value!(self paths paths.into())
     }
 
     /// Add [`Components`] to configure reusable schemas.
     pub fn components(mut self, components: Option<Components>) -> Self {
-        add_value!(self components components)
+        set_value!(self components components)
     }
 
     /// Add iterator of [`SecurityRequirement`]s that are globally available for all operations.
@@ -175,17 +175,17 @@ impl OpenApiBuilder {
         mut self,
         security: Option<I>,
     ) -> Self {
-        add_value!(self security security.map(|security| security.into_iter().collect()))
+        set_value!(self security security.map(|security| security.into_iter().collect()))
     }
 
     /// Add iterator of [`Tag`]s to add additional documentation for **operations** tags.
     pub fn tags<I: IntoIterator<Item = Tag>>(mut self, tags: Option<I>) -> Self {
-        add_value!(self tags tags.map(|tags| tags.into_iter().collect()))
+        set_value!(self tags tags.map(|tags| tags.into_iter().collect()))
     }
 
     /// Add [`ExternalDocs`] for refering additional documentation.
     pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
-        add_value!(self external_docs external_docs)
+        set_value!(self external_docs external_docs)
     }
 }
 
@@ -318,21 +318,20 @@ macro_rules! build_fn {
                 $(
                     $field: self.$field,
                 )*
-                ..Default::default()
             }
         }
     };
 }
 pub(crate) use build_fn;
 
-macro_rules! add_value {
+macro_rules! set_value {
     ( $self:ident $field:ident $value:expr ) => {{
         $self.$field = $value;
 
         $self
     }};
 }
-pub(crate) use add_value;
+pub(crate) use set_value;
 
 macro_rules! new {
     ( $vis:vis $name:ident ) => {
@@ -406,7 +405,10 @@ pub(crate) use builder;
 #[cfg(test)]
 #[cfg(feature = "serde_json")]
 mod tests {
-    use crate::openapi::info::InfoBuilder;
+    use crate::openapi::{
+        info::InfoBuilder,
+        path::{OperationBuilder, PathsBuilder},
+    };
 
     use super::{path::Operation, response::Response, *};
 
@@ -447,26 +449,26 @@ mod tests {
     fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
         let openapi = OpenApi::new(
             Info::new("My big api", "1.1.0"),
-            Paths::new()
-                .append(
+            PathsBuilder::new()
+                .path(
                     "/api/v1/users",
                     PathItem::new(
                         PathItemType::Get,
-                        Operation::new().with_response("200", Response::new("Get users list")),
+                        OperationBuilder::new().response("200", Response::new("Get users list")),
                     ),
                 )
-                .append(
+                .path(
                     "/api/v1/users",
                     PathItem::new(
                         PathItemType::Post,
-                        Operation::new().with_response("200", Response::new("Post new user")),
+                        OperationBuilder::new().response("200", Response::new("Post new user")),
                     ),
                 )
-                .append(
+                .path(
                     "/api/v1/users/{id}",
                     PathItem::new(
                         PathItemType::Get,
-                        Operation::new().with_response("200", Response::new("Get user by id")),
+                        OperationBuilder::new().response("200", Response::new("Get user by id")),
                     ),
                 ),
         );

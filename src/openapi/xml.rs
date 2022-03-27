@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
-use super::{add_value, build_fn, builder, from, new};
+use super::{build_fn, builder, from, new, set_value};
 
 builder! {
     /// # Examples
@@ -70,34 +70,34 @@ impl XmlBuilder {
     ///
     /// Builder style chainable consuming add name method.
     pub fn name<S: Into<Cow<'static, str>>>(mut self, name: Option<S>) -> Self {
-        add_value!(self name name.map(|name| name.into()))
+        set_value!(self name name.map(|name| name.into()))
     }
 
     /// Add [`Xml::namespace`] to xml object.
     ///
     /// Builder style chainable consuming add namespace method.
     pub fn namespace<S: Into<Cow<'static, str>>>(mut self, namespace: Option<S>) -> Self {
-        add_value!(self namespace namespace.map(|namespace| namespace.into()))
+        set_value!(self namespace namespace.map(|namespace| namespace.into()))
     }
 
     /// Add [`Xml::prefix`] to xml object.
     ///
     /// Builder style chainable consuming add prefix method.
     pub fn prefix<S: Into<Cow<'static, str>>>(mut self, prefix: Option<S>) -> Self {
-        add_value!(self prefix prefix.map(|prefix| prefix.into()))
+        set_value!(self prefix prefix.map(|prefix| prefix.into()))
     }
 
     /// Mark [`Xml`] object as attribute. See [`Xml::attribute`]
     ///
     /// Builder style chainable consuming add attribute method.
     pub fn attribute(mut self, attribute: Option<bool>) -> Self {
-        add_value!(self attribute attribute)
+        set_value!(self attribute attribute)
     }
 
     /// Mark [`Xml`] object wrapped. See [`Xml::wrapped`]
     ///
     /// Builder style chainable consuming add wrapped method.
     pub fn wrapped(mut self, wrapped: Option<bool>) -> Self {
-        add_value!(self wrapped wrapped)
+        set_value!(self wrapped wrapped)
     }
 }

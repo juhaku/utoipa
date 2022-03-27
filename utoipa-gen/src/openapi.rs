@@ -269,8 +269,8 @@ fn impl_components(
     tokens: &mut TokenStream,
 ) -> Option<TokenStream> {
     if !components.is_empty() {
-        Some(components.iter().fold(
-            quote! { utoipa::openapi::Components::new() },
+        let mut components_tokens = components.iter().fold(
+            quote! { utoipa::openapi::ComponentsBuilder::new() },
             |mut schema, component| {
                 let ident = &component.ty;
                 let span = ident.span();
@@ -293,12 +293,14 @@ fn impl_components(
                     Some(ty_generics)
                 };
                 schema.extend(quote! {
-                    .with_component(#component_name, <#ident #ty_generics>::component())
+                    .component(#component_name, <#ident #ty_generics>::component())
                 });
 
                 schema
             },
-        ))
+        );
+        components_tokens.extend(quote! { .build() });
+        Some(components_tokens)
     } else {
         None
     }
@@ -306,7 +308,7 @@ fn impl_components(
 
 fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
     handler_paths.iter().fold(
-        quote! { utoipa::openapi::path::Paths::new() },
+        quote! { utoipa::openapi::path::PathsBuilder::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn_name = &*segments.last().unwrap().ident.to_string();
@@ -334,7 +336,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
             .unwrap();
 
             paths.extend(quote! {
-                .append(#usage::path(), #usage::path_item(Some(#tag)))
+                .path(#usage::path(), #usage::path_item(Some(#tag)))
             });
 
             paths

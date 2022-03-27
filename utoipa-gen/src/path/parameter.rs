@@ -108,22 +108,24 @@ impl Parse for Parameter {
 impl ToTokens for Parameter {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &*self.name;
-        tokens.extend(quote! { utoipa::openapi::path::Parameter::new(#name) });
+        tokens.extend(quote! { 
+            utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name)) 
+        });
         let parameter_in = &self.parameter_in;
-        tokens.extend(quote! { .with_in(#parameter_in) });
+        tokens.extend(quote! { .parameter_in(#parameter_in) });
 
         let deprecated: Deprecated = self.deprecated.into();
-        tokens.extend(quote! { .with_deprecated(#deprecated) });
+        tokens.extend(quote! { .deprecated(Some(#deprecated)) });
 
         if let Some(ref description) = self.description {
-            tokens.extend(quote! { .with_description(#description) });
+            tokens.extend(quote! { .description(Some(#description)) });
         }
 
         if let Some(ref parameter_type) = self.parameter_type {
             let property = Property::new(parameter_type.is_array, &parameter_type.ty);
             let required: Required = (!parameter_type.is_option).into();
 
-            tokens.extend(quote! { .with_schema(#property).with_required(#required) });
+            tokens.extend(quote! { .schema(Some(#property)).required(#required) });
         }
     }
 }

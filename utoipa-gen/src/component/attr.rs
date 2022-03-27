@@ -362,13 +362,13 @@ impl ToTokens for Enum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(#default)
+                .default(Some(#default))
             })
         }
 
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
-                .with_example(#example)
+                .example(Some(#example))
             })
         }
     }
@@ -378,12 +378,12 @@ impl ToTokens for Struct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
-                .with_example(#example)
+                .example(Some(#example))
             })
         }
         if let Some(ref xml) = self.xml_attr {
             tokens.extend(quote!(
-                 .with_xml(#xml)
+                 .xml(Some(#xml))
             ))
         }
     }
@@ -393,13 +393,13 @@ impl ToTokens for UnnamedFieldStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(#default)
+                .default(Some(#default))
             })
         }
 
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
-                .with_example(#example)
+                .example(Some(#example))
             })
         }
     }
@@ -409,31 +409,31 @@ impl ToTokens for NamedField {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ref default) = self.default {
             tokens.extend(quote! {
-                .with_default(#default)
+                .default(Some(#default))
             })
         }
 
         if let Some(ref format) = self.format {
             tokens.extend(quote! {
-                .with_format(#format)
+                .format(Some(#format))
             })
         }
 
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
-                .with_example(#example)
+                .example(Some(#example))
             })
         }
 
         if let Some(ref write_only) = self.write_only {
             tokens.extend(quote! {
-                .with_write_only(#write_only)
+                .write_only(Some(#write_only))
             })
         }
 
         if let Some(ref read_only) = self.read_only {
             tokens.extend(quote! {
-                .with_read_only(#read_only)
+                .read_only(Some(#read_only))
             })
         }
     }
