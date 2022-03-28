@@ -384,7 +384,7 @@ pub trait Path {
 /// Add custom JWT [`SecuritySchema`][security_schema] to [`OpenApi`][`openapi::OpenApi`].
 /// ```rust
 /// # use utoipa::{OpenApi, Modify};
-/// # use utoipa::openapi::security::{SecuritySchema, Http, HttpAuthenticationType};
+/// # use utoipa::openapi::security::{SecuritySchema, HttpBuilder, HttpAuthScheme};
 /// #[derive(OpenApi)]
 /// #[openapi(modifiers(&SecurityAddon))]
 /// struct ApiDoc;
@@ -392,17 +392,22 @@ pub trait Path {
 /// struct SecurityAddon;
 ///
 /// impl Modify for SecurityAddon {
-///    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-///        if let Some(components) = openapi.components.as_mut() {
-///            components.add_security_schema(
-///                "api_jwt_token",
-///                SecuritySchema::Http(
-///                    Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
-///                ),
-///            )
-///        }
-///    }
-///}
+///     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+///          openapi.components = Some(
+///              utoipa::openapi::ComponentsBuilder::new()
+///                  .security_schema(
+///                      "api_jwt_token",
+///                      SecuritySchema::Http(
+///                          HttpBuilder::new()
+///                              .scheme(HttpAuthScheme::Bearer)
+///                              .bearer_format("JWT")
+///                              .build(),
+///                      ),
+///                  )
+///                  .build(),
+///          )
+///      }
+/// }
 /// ```
 pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);

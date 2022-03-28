@@ -410,7 +410,7 @@ mod tests {
         path::{OperationBuilder, PathsBuilder},
     };
 
-    use super::{path::Operation, response::Response, *};
+    use super::{response::Response, *};
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {

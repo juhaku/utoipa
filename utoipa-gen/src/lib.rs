@@ -603,20 +603,9 @@ where
     T: Sized + ToTokens,
 {
     Owned(Vec<T>),
-    Referenced(Vec<T>),
 }
 
-impl<T> Array<T>
-where
-    T: ToTokens + Sized,
-{
-    fn into_referenced_array(self) -> Self {
-        match self {
-            Array::Owned(values) => Self::Referenced(values),
-            Array::Referenced(_) => self,
-        }
-    }
-}
+impl<T> Array<T> where T: ToTokens + Sized {}
 
 impl<V> FromIterator<V> for Array<V>
 where
@@ -632,14 +621,7 @@ where
     T: Sized + ToTokens,
 {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let (add_and, values) = match self {
-            Array::Owned(values) => (false, values),
-            Array::Referenced(values) => (true, values),
-        };
-
-        if add_and {
-            tokens.append(Punct::new('&', proc_macro2::Spacing::Joint));
-        }
+        let Array::Owned(values) = self;
 
         tokens.append(Group::new(
             proc_macro2::Delimiter::Bracket,
