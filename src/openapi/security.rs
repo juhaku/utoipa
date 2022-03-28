@@ -7,6 +7,8 @@ use std::{collections::HashMap, iter};
 
 use serde::{Deserialize, Serialize};
 
+use super::{build_fn, builder, from, new};
+
 /// OpenAPI [security requirment][security] object.
 ///
 /// Security requirement holds list of required [`SecuritySchema`] *names* and possible *scopes* required
@@ -74,26 +76,25 @@ impl SecurityRequirement {
 ///
 /// Create implicit oauth2 flow security schema for path operations.
 /// ```rust
-/// # use utoipa::openapi::security::{SecuritySchema, Oauth2, Implicit, Flow};
-/// # use std::collections::HashMap;
-/// SecuritySchema::Oauth2(
-///     Oauth2::new([Flow::Implicit(
+/// # use utoipa::openapi::security::{SecuritySchema, OAuth2, Implicit, Flow, Scopes};
+/// SecuritySchema::OAuth2(
+///     OAuth2::with_description([Flow::Implicit(
 ///         Implicit::new(
-///             "http://localhost/auth/dialog",
-///             HashMap::from([
-///                 ("edit:items".to_string(), "edit my items".to_string()),
-///                 ("read:items".to_string(), "read my items".to_string()
-///             )]),
+///             "https://localhost/auth/dialog",
+///             Scopes::from_iter([
+///                 ("edit:items", "edit my items"),
+///                 ("read:items", "read my items")
+///             ]),
 ///         ),
-///     )]).with_description("my oauth2 flow")
+///     )], "my oauth2 flow")
 /// );
 /// ```
 ///
 /// Create JWT header authetication.
 /// ```rust
-/// # use utoipa::openapi::security::{SecuritySchema, HttpAuthenticationType, Http};
+/// # use utoipa::openapi::security::{SecuritySchema, HttpAuthScheme, HttpBuilder};
 /// SecuritySchema::Http(
-///     Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT")
+///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
 /// );
 /// ```
 #[derive(Serialize, Deserialize, Clone)]
@@ -101,7 +102,8 @@ impl SecurityRequirement {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SecuritySchema {
     /// Oauth flow authentication.
-    Oauth2(Oauth2),
+    #[serde(rename = "oauth2")]
+    OAuth2(OAuth2),
     /// Api key authentication sent in *`header`*, *`cookie`* or *`query`*.
     ApiKey(ApiKey),
     /// Http authentication such as *`bearer`* or *`basic`*.
@@ -119,72 +121,87 @@ pub enum SecuritySchema {
 }
 
 /// Api key authentication [`SecuritySchema`].
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(tag = "in", rename_all = "lowercase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub enum ApiKey {
+    /// Create api key which is placed in HTTP header.
+    Header(ApiKeyValue),
+    /// Create api key which is placed in query parameters.
+    Query(ApiKeyValue),
+    /// Create api key which is placed in cookie value.
+    Cookie(ApiKeyValue),
+}
+
+/// Value object for [`ApiKey`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ApiKey {
-    name: String,
+pub struct ApiKeyValue {
+    /// Name of the [`ApiKey`] parameter.
+    pub name: String,
 
-    #[serde(rename = "in")]
-    api_key_in: ApiKeyIn,
-
+    /// Description of the the [`ApiKey`] [`SecuritySchema`]. Supports markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 }
 
-impl ApiKey {
-    /// Constructs new api key authentication schema.
-    ///
-    /// Accepts two arguments: one which is the name of parameter and second which defines where
-    /// the parameter is defined in.
+impl ApiKeyValue {
+    /// Constructs new api key value.
     ///
     /// # Examples
     ///
-    /// Create new api key security schema with parameter name `api_key` which must be present with value in
-    /// header.
+    /// Create new api key security schema with name `api_key`.
     /// ```rust
-    /// # use utoipa::openapi::security::{ApiKey, ApiKeyIn};
-    /// let api_key = ApiKey::new("api_key", ApiKeyIn::Header);
+    /// # use utoipa::openapi::security::ApiKeyValue;
+    /// let api_key = ApiKeyValue::new("api_key");
     /// ```
-    pub fn new<S: Into<String>>(name: S, api_key_in: ApiKeyIn) -> Self {
+    pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             name: name.into(),
-            api_key_in,
             description: None,
         }
     }
 
-    /// Optional description supporting markdown syntax.
-    pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
-        self.description = Some(description.into());
-
-        self
+    /// Construct a new api key with optional description supporting markdown syntax.
+    ///
+    /// # Examples
+    ///
+    /// Create new api key security schema with name `api_key` with description.
+    /// ```rust
+    /// # use utoipa::openapi::security::ApiKeyValue;
+    /// let api_key = ApiKeyValue::with_description("api_key", "my api_key token");
+    /// ```
+    pub fn with_description<S: Into<String>>(name: S, description: S) -> Self {
+        Self {
+            name: name.into(),
+            description: Some(description.into()),
+        }
     }
 }
 
-/// Define the location where api key must be provided.
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub enum ApiKeyIn {
-    Header,
-    Query,
-    Cookie,
-}
+builder! {
+    HttpBuilder;
 
-/// Http authentication [`SecuritySchema`].
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Http {
-    scheme: HttpAuthenticationType,
+    /// Http authentication [`SecuritySchema`] builder.
+    ///
+    /// Methods can be chained to configure _bearer_format_ or to add _description_.
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Clone)]
+    #[serde(rename_all = "camelCase")]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Http {
+        /// Http authorization scheme in HTTP `Authorization` header value.
+        pub scheme: HttpAuthScheme,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bearer_format: Option<String>,
+        /// Optional hint to client how the bearer token is formatted. Valid only with [`HttpAuthScheme::Bearer`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub bearer_format: Option<String>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+        /// Optional description of [`Http`] [`SecuritySchema`] supporting markdown syntax.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+    }
 }
 
 impl Http {
@@ -194,41 +211,57 @@ impl Http {
     ///
     /// # Examples
     ///
-    /// Create http securith schema with basic authentication.
+    /// Create http security schema with basic authentication.
     /// ```rust
-    /// # use utoipa::openapi::security::{SecuritySchema, Http, HttpAuthenticationType};
-    /// SecuritySchema::Http(Http::new(HttpAuthenticationType::Basic));
+    /// # use utoipa::openapi::security::{SecuritySchema, Http, HttpAuthScheme};
+    /// SecuritySchema::Http(Http::new(HttpAuthScheme::Basic));
     /// ```
-    pub fn new(scheme: HttpAuthenticationType) -> Self {
+    pub fn new(scheme: HttpAuthScheme) -> Self {
         Self {
             scheme,
             bearer_format: None,
             description: None,
         }
     }
+}
 
-    /// Add informative bearer format for http security schema.
+impl HttpBuilder {
+    /// Add or change http authentication scheme used.
     ///
-    /// This is no-op in any other [`HttpAuthenticationType`] than [`HttpAuthenticationType::Bearer`].
+    /// # Examples
+    ///
+    /// Create new [`Http`] [`SecuritySchema`] via [`HttpBuilder`].
+    /// ```rust
+    /// # use utoipa::openapi::security::{HttpBuilder, HttpAuthScheme};
+    /// let http = HttpBuilder::new().scheme(HttpAuthScheme::Basic).build();
+    /// ```
+    pub fn scheme(mut self, scheme: HttpAuthScheme) -> Self {
+        self.scheme = scheme;
+
+        self
+    }
+    /// Add or change informative bearer format for http security schema.
+    ///
+    /// This is only applicable to [`HttpAuthScheme::Bearer`].
     ///
     /// # Examples
     ///
     /// Add JTW bearer format for security schema.
     /// ```rust
-    /// # use utoipa::openapi::security::{Http, HttpAuthenticationType};
-    /// Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT");
+    /// # use utoipa::openapi::security::{HttpBuilder, HttpAuthScheme};
+    /// HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build();
     /// ```
-    pub fn with_bearer_format<S: Into<String>>(mut self, bearer_format: S) -> Self {
-        if self.scheme == HttpAuthenticationType::Bearer {
+    pub fn bearer_format<S: Into<String>>(mut self, bearer_format: S) -> Self {
+        if self.scheme == HttpAuthScheme::Bearer {
             self.bearer_format = Some(bearer_format.into());
         }
 
         self
     }
 
-    /// Optional description supporting markdown syntax.
-    pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
-        self.description = Some(description.into());
+    /// Add or change optional description supporting markdown syntax.
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        self.description = description.map(|description| description.into());
 
         self
     }
@@ -240,7 +273,7 @@ impl Http {
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
-pub enum HttpAuthenticationType {
+pub enum HttpAuthScheme {
     Basic,
     Bearer,
     Digest,
@@ -255,16 +288,24 @@ pub enum HttpAuthenticationType {
     Vapid,
 }
 
+impl Default for HttpAuthScheme {
+    fn default() -> Self {
+        Self::Basic
+    }
+}
+
 /// Open id connect [`SecuritySchema`]
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenIdConnect {
-    open_id_connect_url: String,
+    /// Url of the [`OpenIdConnect`] to discover OAuth2 connect values.
+    pub open_id_connect_url: String,
 
+    /// Description of [`OpenIdConnect`] [`SecuritySchema`] supporting markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 }
 
 impl OpenIdConnect {
@@ -274,7 +315,7 @@ impl OpenIdConnect {
     ///
     /// ```rust
     /// # use utoipa::openapi::security::OpenIdConnect;
-    /// OpenIdConnect::new("http://localhost/openid");
+    /// OpenIdConnect::new("https://localhost/openid");
     /// ```
     pub fn new<S: Into<String>>(open_id_connect_url: S) -> Self {
         Self {
@@ -283,11 +324,20 @@ impl OpenIdConnect {
         }
     }
 
-    /// Optional description supporting markdown syntax.
-    pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
-        self.description = Some(description.into());
-
-        self
+    /// Construct a new [`OpenIdConnect`] [`SecuritySchema`] with optional description
+    /// supporting markdown syntax.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::security::OpenIdConnect;
+    /// OpenIdConnect::with_description("https://localhost/openid", "my pet api open id connect");
+    /// ```
+    pub fn with_description<S: Into<String>>(open_id_connect_url: S, description: S) -> Self {
+        Self {
+            open_id_connect_url: open_id_connect_url.into(),
+            description: Some(description.into()),
+        }
     }
 }
 
@@ -295,15 +345,17 @@ impl OpenIdConnect {
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Oauth2 {
-    flows: HashMap<String, Flow>,
+pub struct OAuth2 {
+    /// Map of supported OAuth2 flows.
+    pub flows: HashMap<String, Flow>,
 
+    /// Optional description for the [`OAuth2`] [`Flow`] [`SecuritySchema`].
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
 }
 
-impl Oauth2 {
-    /// Construct a new Oauth2 security schema configuration object.
+impl OAuth2 {
+    /// Construct a new OAuth2 security schema configuration object.
     ///
     /// Oauth flow accepts slice of [`Flow`] configuration objects and can be optionally provided with description.
     ///
@@ -312,25 +364,26 @@ impl Oauth2 {
     /// Create new OAuth2 flow with multiple authentication flows.
     /// ```rust
     /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::{Oauth2, Flow, Password, AuthorizationCode};
-    /// Oauth2::new([Flow::Password(
-    ///     Password::new(
-    ///         "http://localhost/oauth/token",
-    ///         HashMap::from([
-    ///             ("edit:items".to_string(), "edit my items".to_string()),
-    ///             ("read:items".to_string(), "read my items".to_string()
-    ///         )]),
-    ///     ).with_refresh_url("http://localhost/refresh/token")),
+    /// # use utoipa::openapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
+    /// OAuth2::new([Flow::Password(
+    ///     Password::with_refresh_url(
+    ///         "https://localhost/oauth/token",
+    ///         Scopes::from_iter([
+    ///             ("edit:items", "edit my items"),
+    ///             ("read:items", "read my items")
+    ///         ]),
+    ///         "https://localhost/refresh/token"
+    ///     )),
     ///     Flow::AuthorizationCode(
     ///         AuthorizationCode::new(
-    ///         "http://localhost/authorization/token",
-    ///         "http://localhost/token/url",
-    ///         HashMap::from([
-    ///             ("edit:items".to_string(), "edit my items".to_string()),
-    ///             ("read:items".to_string(), "read my items".to_string()
-    ///         )])),
+    ///         "https://localhost/authorization/token",
+    ///         "https://localhost/token/url",
+    ///         Scopes::from_iter([
+    ///             ("edit:items", "edit my items"),
+    ///             ("read:items", "read my items")
+    ///         ])),
     ///    ),
-    /// ]).with_description("my oauth2 flow");
+    /// ]);
     /// ```
     pub fn new<I: IntoIterator<Item = Flow>>(flows: I) -> Self {
         Self {
@@ -343,15 +396,51 @@ impl Oauth2 {
         }
     }
 
-    /// Optional description supporting markdown syntax.
-    pub fn with_description<S: Into<String>>(mut self, description: S) -> Self {
-        self.description = Some(description.into());
-
-        self
+    /// Construct a new OAuth2 flow with optional description supporting markdown syntax.
+    ///
+    /// # Examples
+    ///
+    /// Create new OAuth2 flow with multiple authentication flows with description.
+    /// ```rust
+    /// # use std::collections::HashMap;
+    /// # use utoipa::openapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
+    /// OAuth2::with_description([Flow::Password(
+    ///     Password::with_refresh_url(
+    ///         "https://localhost/oauth/token",
+    ///         Scopes::from_iter([
+    ///             ("edit:items", "edit my items"),
+    ///             ("read:items", "read my items")
+    ///         ]),
+    ///         "https://localhost/refresh/token"
+    ///     )),
+    ///     Flow::AuthorizationCode(
+    ///         AuthorizationCode::new(
+    ///         "https://localhost/authorization/token",
+    ///         "https://localhost/token/url",
+    ///         Scopes::from_iter([
+    ///             ("edit:items", "edit my items"),
+    ///             ("read:items", "read my items")
+    ///         ])
+    ///      ),
+    ///    ),
+    /// ], "my oauth2 flow");
+    /// ```
+    pub fn with_description<I: IntoIterator<Item = Flow>, S: Into<String>>(
+        flows: I,
+        description: S,
+    ) -> Self {
+        Self {
+            flows: HashMap::from_iter(
+                flows
+                    .into_iter()
+                    .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
+            ),
+            description: Some(description.into()),
+        }
     }
 }
 
-/// [`Oauth2`] flow configuration object.
+/// [`OAuth2`] flow configuration object.
 ///
 ///
 /// See more details at <https://spec.openapis.org/oas/latest.html#oauth-flows-object>.
@@ -382,18 +471,22 @@ impl Flow {
     }
 }
 
-/// Implicit [`Flow`] configuration for [`Oauth2`].
+/// Implicit [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Implicit {
-    authorization_url: String,
+    /// Authorization token url for the flow.
+    pub authorization_url: String,
 
+    /// Optional refresh token url for the flow.
     #[serde(skip_serializing_if = "Option::is_none")]
-    refresh_url: Option<String>,
+    pub refresh_url: Option<String>,
 
-    scopes: HashMap<String, String>,
+    /// Scopes required by the flow.
+    #[serde(flatten)]
+    pub scopes: Scopes,
 }
 
 impl Implicit {
@@ -406,27 +499,25 @@ impl Implicit {
     ///
     /// Create new implicit flow with scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::Implicit;
+    /// # use utoipa::openapi::security::{Implicit, Scopes};
     /// Implicit::new(
-    ///     "http://localhost/auth/dialog",
-    ///     HashMap::from([
-    ///         ("edit:items".to_string(), "edit my items".to_string()),
-    ///         ("read:items".to_string(), "read my items".to_string()
-    ///     )]),
+    ///     "https://localhost/auth/dialog",
+    ///     Scopes::from_iter([
+    ///         ("edit:items", "edit my items"),
+    ///         ("read:items", "read my items")
+    ///     ]),
     /// );
     /// ```
     ///
     /// Create new implicit flow without any scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::Implicit;
+    /// # use utoipa::openapi::security::{Implicit, Scopes};
     /// Implicit::new(
-    ///     "http://localhost/auth/dialog",
-    ///     HashMap::new(),
+    ///     "https://localhost/auth/dialog",
+    ///     Scopes::new(),
     /// );
     /// ```
-    pub fn new<S: Into<String>>(authorization_url: S, scopes: HashMap<String, String>) -> Self {
+    pub fn new<S: Into<String>>(authorization_url: S, scopes: Scopes) -> Self {
         Self {
             authorization_url: authorization_url.into(),
             refresh_url: None,
@@ -434,27 +525,53 @@ impl Implicit {
         }
     }
 
-    /// Add refresh url for getting refresh tokens.
-    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
-        self.refresh_url = Some(refresh_url.into());
-
-        self
+    /// Construct a new implicit oauth2 flow with refresh url for getting refresh tokens.
+    ///
+    /// This is essentially same as [`Implicit::new`] but allows defining `refresh_url` for the [`Implicit`]
+    /// oauth2 flow.
+    ///
+    /// # Examples
+    ///
+    /// Create a new implicit oauth2 flow with refresh token.
+    /// ```rust
+    /// # use utoipa::openapi::security::{Implicit, Scopes};
+    /// Implicit::with_refresh_url(
+    ///     "https://localhost/auth/dialog",
+    ///     Scopes::new(),
+    ///     "https://localhost/refresh-token"
+    /// );
+    /// ```
+    pub fn with_refresh_url<S: Into<String>>(
+        authorization_url: S,
+        scopes: Scopes,
+        refresh_url: S,
+    ) -> Self {
+        Self {
+            authorization_url: authorization_url.into(),
+            refresh_url: Some(refresh_url.into()),
+            scopes,
+        }
     }
 }
 
-/// Authorization code [`Flow`] configuration for [`Oauth2`].
+/// Authorization code [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AuthorizationCode {
-    authorization_url: String,
-    token_url: String,
+    /// Url for authorization token.
+    pub authorization_url: String,
+    /// Token url for the flow.
+    pub token_url: String,
 
+    /// Optional refresh token url for the flow.
     #[serde(skip_serializing_if = "Option::is_none")]
-    refresh_url: Option<String>,
+    pub refresh_url: Option<String>,
 
-    scopes: HashMap<String, String>,
+    /// Scopes required by the flow.
+    #[serde(flatten)]
+    pub scopes: Scopes,
 }
 
 impl AuthorizationCode {
@@ -467,32 +584,30 @@ impl AuthorizationCode {
     ///
     /// Create new authorization code flow with scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::AuthorizationCode;
+    /// # use utoipa::openapi::security::{AuthorizationCode, Scopes};
     /// AuthorizationCode::new(
-    ///     "http://localhost/auth/dialog",
-    ///     "http://localhost/token",
-    ///     HashMap::from([
-    ///         ("edit:items".to_string(), "edit my items".to_string()),
-    ///         ("read:items".to_string(), "read my items".to_string()
-    ///     )]),
+    ///     "https://localhost/auth/dialog",
+    ///     "https://localhost/token",
+    ///     Scopes::from_iter([
+    ///         ("edit:items", "edit my items"),
+    ///         ("read:items", "read my items")
+    ///     ]),
     /// );
     /// ```
     ///
     /// Create new authorization code flow without any scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::AuthorizationCode;
+    /// # use utoipa::openapi::security::{AuthorizationCode, Scopes};
     /// AuthorizationCode::new(
-    ///     "http://localhost/auth/dialog",
-    ///     "http://localhost/token",
-    ///     HashMap::new(),
+    ///     "https://localhost/auth/dialog",
+    ///     "https://localhost/token",
+    ///     Scopes::new(),
     /// );
     /// ```
     pub fn new<A: Into<String>, T: Into<String>>(
         authorization_url: A,
         token_url: T,
-        scopes: HashMap<String, String>,
+        scopes: Scopes,
     ) -> Self {
         Self {
             authorization_url: authorization_url.into(),
@@ -502,23 +617,54 @@ impl AuthorizationCode {
         }
     }
 
-    /// Add refresh url for getting refresh tokens.
-    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
-        self.refresh_url = Some(refresh_url.into());
-
-        self
+    /// Construct a new  [`AuthorizationCode`] OAuth2 flow with additional refresh token url.
+    ///
+    /// This is essentially same as [`AuthorizationCode::new`] but allows defining extra parameter `refresh_url`
+    /// for fetching refresh token.
+    ///
+    /// # Examples
+    ///
+    /// Create [`AuthorizationCode`] OAuth2 flow with refresh url.
+    /// ```rust
+    /// # use utoipa::openapi::security::{AuthorizationCode, Scopes};
+    /// AuthorizationCode::with_refresh_url(
+    ///     "https://localhost/auth/dialog",
+    ///     "https://localhost/token",
+    ///     Scopes::new(),
+    ///     "https://localhost/refresh-token"
+    /// );
+    /// ```
+    pub fn with_refresh_url<S: Into<String>>(
+        authorization_url: S,
+        token_url: S,
+        scopes: Scopes,
+        refresh_url: S,
+    ) -> Self {
+        Self {
+            authorization_url: authorization_url.into(),
+            token_url: token_url.into(),
+            refresh_url: Some(refresh_url.into()),
+            scopes,
+        }
     }
 }
 
-/// Password [`Flow`] configuration for [`Oauth2`].
+/// Password [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Password {
-    token_url: String,
-    refresh_url: Option<String>,
-    scopes: HashMap<String, String>,
+    /// Token url for this OAuth2 flow. OAuth2 standard requires TLS.
+    pub token_url: String,
+
+    /// Optional refresh token url.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+
+    /// Scopes required by the flow.
+    #[serde(flatten)]
+    pub scopes: Scopes,
 }
 
 impl Password {
@@ -531,27 +677,25 @@ impl Password {
     ///
     /// Create new password flow with scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::Password;
+    /// # use utoipa::openapi::security::{Password, Scopes};
     /// Password::new(
-    ///     "http://localhost/token",
-    ///     HashMap::from([
-    ///         ("edit:items".to_string(), "edit my items".to_string()),
-    ///         ("read:items".to_string(), "read my items".to_string()
-    ///     )]),
+    ///     "https://localhost/token",
+    ///     Scopes::from_iter([
+    ///         ("edit:items", "edit my items"),
+    ///         ("read:items", "read my items")
+    ///     ]),
     /// );
     /// ```
     ///
     /// Create new password flow without any scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::Password;
+    /// # use utoipa::openapi::security::{Password, Scopes};
     /// Password::new(
-    ///     "http://localhost/token",
-    ///     HashMap::new(),
+    ///     "https://localhost/token",
+    ///     Scopes::new(),
     /// );
     /// ```
-    pub fn new<S: Into<String>>(token_url: S, scopes: HashMap<String, String>) -> Self {
+    pub fn new<S: Into<String>>(token_url: S, scopes: Scopes) -> Self {
         Self {
             token_url: token_url.into(),
             refresh_url: None,
@@ -559,23 +703,50 @@ impl Password {
         }
     }
 
-    /// Add refresh url for getting refresh tokens.
-    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
-        self.refresh_url = Some(refresh_url.into());
-
-        self
+    /// Construct a new password oauth flow with additional refresh url.
+    ///
+    /// This is essentially same as [`Password::new`] but allows defining thrird parameter for `refresh_url`
+    /// for fetching refresh tokens.
+    ///
+    /// # Examples
+    ///
+    /// Create new password flow with refresh url.
+    /// ```rust
+    /// # use utoipa::openapi::security::{Password, Scopes};
+    /// Password::with_refresh_url(
+    ///     "https://localhost/token",
+    ///     Scopes::from_iter([
+    ///         ("edit:items", "edit my items"),
+    ///         ("read:items", "read my items")
+    ///     ]),
+    ///     "https://localhost/refres-token"
+    /// );
+    /// ```
+    pub fn with_refresh_url<S: Into<String>>(token_url: S, scopes: Scopes, refresh_url: S) -> Self {
+        Self {
+            token_url: token_url.into(),
+            refresh_url: Some(refresh_url.into()),
+            scopes,
+        }
     }
 }
 
-/// Client credentials [`Flow`] configuration for [`Oauth2`].
+/// Client credentials [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ClientCredentials {
-    token_url: String,
-    refresh_url: Option<String>,
-    scopes: HashMap<String, String>,
+    /// Token url used for [`ClientCredentials`] flow. OAuth2 standard requires TLS.
+    pub token_url: String,
+
+    /// Optional refresh token url.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+
+    /// Scopes required by the flow.
+    #[serde(flatten)]
+    pub scopes: Scopes,
 }
 
 impl ClientCredentials {
@@ -589,26 +760,26 @@ impl ClientCredentials {
     /// Create new client credentials flow with scopes.
     /// ```rust
     /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::ClientCredentials;
+    /// # use utoipa::openapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::new(
-    ///     "http://localhost/token",
-    ///     HashMap::from([
-    ///         ("edit:items".to_string(), "edit my items".to_string()),
-    ///         ("read:items".to_string(), "read my items".to_string()
-    ///     )]),
+    ///     "https://localhost/token",
+    ///     Scopes::from_iter([
+    ///         ("edit:items", "edit my items"),
+    ///         ("read:items", "read my items")
+    ///     ]),
     /// );
     /// ```
     ///
     /// Create new client credentials flow without any scopes.
     /// ```rust
     /// # use std::collections::HashMap;
-    /// # use utoipa::openapi::security::ClientCredentials;
+    /// # use utoipa::openapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::new(
-    ///     "http://localhost/token",
-    ///     HashMap::new(),
+    ///     "https://localhost/token",
+    ///     Scopes::new(),
     /// );
     /// ```
-    pub fn new<S: Into<String>>(token_url: S, scopes: HashMap<String, String>) -> Self {
+    pub fn new<S: Into<String>>(token_url: S, scopes: Scopes) -> Self {
         Self {
             token_url: token_url.into(),
             refresh_url: None,
@@ -616,11 +787,118 @@ impl ClientCredentials {
         }
     }
 
-    /// Add refresh url for getting refresh tokens.
-    pub fn with_refresh_url<S: Into<String>>(mut self, refresh_url: S) -> Self {
-        self.refresh_url = Some(refresh_url.into());
+    /// Construct a new client crendentials oauth flow with additional refresh url.
+    ///
+    /// This is essentially same as [`ClientCredentials::new`] but allows defining third paramter for
+    /// `refresh_url`.
+    ///
+    /// # Examples
+    ///
+    /// Create new client credentials for with refresh url.
+    /// ```rust
+    /// # use utoipa::openapi::security::{ClientCredentials, Scopes};
+    /// ClientCredentials::with_refresh_url(
+    ///     "https://localhost/token",
+    ///     Scopes::from_iter([
+    ///         ("edit:items", "edit my items"),
+    ///         ("read:items", "read my items")
+    ///     ]),
+    ///     "https://localhost/refresh-url"
+    /// );
+    /// ```
+    pub fn with_refresh_url<S: Into<String>>(token_url: S, scopes: Scopes, refresh_url: S) -> Self {
+        Self {
+            token_url: token_url.into(),
+            refresh_url: Some(refresh_url.into()),
+            scopes,
+        }
+    }
+}
 
-        self
+/// [`OAuth2`] flow scopes object defines required permissions for oauh flow.
+///
+/// Scopes must be given to oauth2 flow but depending on need one of few initialization methods
+/// could be used.
+///
+/// * Create empty map of scopes you can use [`Scopes::new`].
+/// * Create map with only one scope you can use [`Scopes::one`].
+/// * Create mutliple scopes from iterator with [`Scopes::from_iter`].
+///
+/// # Examples
+///
+/// Create empty map of scopes.
+/// ```rust
+/// # use utoipa::openapi::security::Scopes;
+/// let scopes = Scopes::new();
+/// ```
+///
+/// Create [`Scopes`] holding one scope.
+/// ```rust
+/// # use utoipa::openapi::security::Scopes;
+/// let scopes = Scopes::one("edit:item", "edit pets");
+/// ```
+///
+/// Create map of scopes from iterator.
+/// ```rust
+/// # use utoipa::openapi::security::Scopes;
+/// let scopes = Scopes::from_iter([
+///     ("edit:items", "edit my items"),
+///     ("read:items", "read my items")
+/// ]);
+/// ```
+#[derive(Default, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Scopes {
+    scopes: HashMap<String, String>,
+}
+
+impl Scopes {
+    /// Construct new [`Scopes`] with empty map of scopes. This is useful if oauth flow does not need
+    /// any permission scopes.
+    ///
+    /// # Examples
+    ///
+    /// Create empty map of scopes.
+    /// ```rust
+    /// # use utoipa::openapi::security::Scopes;
+    /// let scopes = Scopes::new();
+    /// ```
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    /// Construct new [`Scopes`] with hodling one scope.
+    ///
+    /// * `scope` Is be the permission required.
+    /// * `description` Short description about the permission.
+    ///
+    /// # Examples
+    ///
+    /// Create map of scopes with one scope item.
+    /// ```rust
+    /// # use utoipa::openapi::security::Scopes;
+    /// let scopes = Scopes::one("edit:item", "edit items");
+    /// ```
+    pub fn one<S: Into<String>>(scope: S, description: S) -> Self {
+        Self {
+            scopes: HashMap::from_iter(iter::once_with(|| (scope.into(), description.into()))),
+        }
+    }
+}
+
+impl<I> FromIterator<(I, I)> for Scopes
+where
+    I: Into<String>,
+{
+    fn from_iter<T: IntoIterator<Item = (I, I)>>(iter: T) -> Self {
+        Self {
+            scopes: iter
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect(),
+        }
     }
 }
 
@@ -653,7 +931,7 @@ mod tests {
     test_fn! {
     security_schema_correct_http_bearer_json:
     SecuritySchema::Http(
-        Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT")
+        HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
     );
     r###"{
   "type": "http",
@@ -664,7 +942,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_basic_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::Basic));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::Basic));
         r###"{
   "type": "http",
   "scheme": "basic"
@@ -673,7 +951,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_digest_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::Digest));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::Digest));
         r###"{
   "type": "http",
   "scheme": "digest"
@@ -682,7 +960,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_hoba_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::Hoba));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::Hoba));
         r###"{
   "type": "http",
   "scheme": "hoba"
@@ -691,7 +969,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_mutual_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::Mutual));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::Mutual));
         r###"{
   "type": "http",
   "scheme": "mutual"
@@ -700,7 +978,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_negotiate_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::Negotiate));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::Negotiate));
         r###"{
   "type": "http",
   "scheme": "negotiate"
@@ -709,7 +987,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_oauth_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::OAuth));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::OAuth));
         r###"{
   "type": "http",
   "scheme": "oauth"
@@ -718,7 +996,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_scram_sha1_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::ScramSha1));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::ScramSha1));
         r###"{
   "type": "http",
   "scheme": "scram-sha-1"
@@ -727,7 +1005,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_scram_sha256_auth:
-        SecuritySchema::Http(Http::new(HttpAuthenticationType::ScramSha256));
+        SecuritySchema::Http(Http::new(HttpAuthScheme::ScramSha256));
         r###"{
   "type": "http",
   "scheme": "scram-sha-256"
@@ -736,7 +1014,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_api_key_cookie_auth:
-        SecuritySchema::ApiKey(ApiKey::new(String::from("api_key"), ApiKeyIn::Cookie));
+        SecuritySchema::ApiKey(ApiKey::Cookie(ApiKeyValue::new(String::from("api_key"))));
         r###"{
   "type": "apiKey",
   "name": "api_key",
@@ -746,7 +1024,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_api_key_header_auth:
-        SecuritySchema::ApiKey(ApiKey::new("api_key", ApiKeyIn::Header));
+        SecuritySchema::ApiKey(ApiKey::Header(ApiKeyValue::new("api_key")));
         r###"{
   "type": "apiKey",
   "name": "api_key",
@@ -756,7 +1034,7 @@ mod tests {
 
     test_fn! {
         security_schema_correct_api_key_query_auth:
-        SecuritySchema::ApiKey(ApiKey::new(String::from("api_key"), ApiKeyIn::Query));
+        SecuritySchema::ApiKey(ApiKey::Query(ApiKeyValue::new(String::from("api_key"))));
         r###"{
   "type": "apiKey",
   "name": "api_key",
@@ -766,31 +1044,31 @@ mod tests {
 
     test_fn! {
         security_schema_correct_open_id_connect_auth:
-        SecuritySchema::OpenIdConnect(OpenIdConnect::new("http://localhost/openid"));
+        SecuritySchema::OpenIdConnect(OpenIdConnect::new("https://localhost/openid"));
         r###"{
   "type": "openIdConnect",
-  "openIdConnectUrl": "http://localhost/openid"
+  "openIdConnectUrl": "https://localhost/openid"
 }"###
     }
 
     test_fn! {
         security_schema_correct_oauth2_implicit:
-        SecuritySchema::Oauth2(
-            Oauth2::new([Flow::Implicit(
+        SecuritySchema::OAuth2(
+            OAuth2::with_description([Flow::Implicit(
                 Implicit::new(
-                    "http://localhost/auth/dialog",
-                    HashMap::from([
-                        ("edit:items".to_string(), "edit my items".to_string()),
-                        ("read:items".to_string(), "read my items".to_string()
-                    )]),
+                    "https://localhost/auth/dialog",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ]),
                 ),
-            )]).with_description("my oauth2 flow")
+            )], "my oauth2 flow")
         );
         r###"{
   "type": "oauth2",
   "flows": {
     "implicit": {
-      "authorizationUrl": "http://localhost/auth/dialog",
+      "authorizationUrl": "https://localhost/auth/dialog",
       "scopes": {
         "edit:items": "edit my items",
         "read:items": "read my items"
@@ -803,23 +1081,24 @@ mod tests {
 
     test_fn! {
         security_schema_correct_oauth2_password:
-        SecuritySchema::Oauth2(
-            Oauth2::new([Flow::Password(
-                Password::new(
-                    "http://localhost/oauth/token",
-                    HashMap::from([
-                        ("edit:items".to_string(), "edit my items".to_string()),
-                        ("read:items".to_string(), "read my items".to_string()
-                    )]),
-                ).with_refresh_url("http://localhost/refresh/token"),
-            )]).with_description("my oauth2 flow")
+        SecuritySchema::OAuth2(
+            OAuth2::with_description([Flow::Password(
+                Password::with_refresh_url(
+                    "https://localhost/oauth/token",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ]),
+                    "https://localhost/refresh/token"
+                ),
+            )], "my oauth2 flow")
         );
         r###"{
   "type": "oauth2",
   "flows": {
     "password": {
-      "tokenUrl": "http://localhost/oauth/token",
-      "refreshUrl": "http://localhost/refresh/token",
+      "tokenUrl": "https://localhost/oauth/token",
+      "refreshUrl": "https://localhost/refresh/token",
       "scopes": {
         "edit:items": "edit my items",
         "read:items": "read my items"
@@ -832,82 +1111,83 @@ mod tests {
 
     test_fn! {
         security_schema_correct_oauth2_client_credentials:
-        SecuritySchema::Oauth2(
-            Oauth2::new([Flow::ClientCredentials(
-                ClientCredentials::new(
-                    "http://localhost/oauth/token",
-                    HashMap::from([
-                        ("edit:items".to_string(), "edit my items".to_string()),
-                        ("read:items".to_string(), "read my items".to_string()
-                    )]),
-                ).with_refresh_url("http://localhost/refresh/token"),
-            )]).with_description("my oauth2 flow")
+        SecuritySchema::OAuth2(
+            OAuth2::new([Flow::ClientCredentials(
+                ClientCredentials::with_refresh_url(
+                    "https://localhost/oauth/token",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ]),
+                    "https://localhost/refresh/token"
+                ),
+            )])
         );
         r###"{
   "type": "oauth2",
   "flows": {
     "clientCredentials": {
-      "tokenUrl": "http://localhost/oauth/token",
-      "refreshUrl": "http://localhost/refresh/token",
+      "tokenUrl": "https://localhost/oauth/token",
+      "refreshUrl": "https://localhost/refresh/token",
       "scopes": {
         "edit:items": "edit my items",
         "read:items": "read my items"
       }
     }
-  },
-  "description": "my oauth2 flow"
+  }
 }"###
     }
 
     test_fn! {
         security_schema_correct_oauth2_authorization_code:
-        SecuritySchema::Oauth2(
-            Oauth2::new([Flow::AuthorizationCode(
-                AuthorizationCode::new(
-                    "http://localhost/authorization/token",
-                    "http://localhost/token/url",
-                    HashMap::from([
-                        ("edit:items".to_string(), "edit my items".to_string()),
-                        ("read:items".to_string(), "read my items".to_string()
-                    )]),
-                ).with_refresh_url("http://localhost/refresh/token"),
-            )]).with_description("my oauth2 flow")
-        );
-        r###"{
-  "type": "oauth2",
-  "flows": {
-    "authorizationCode": {
-      "authorizationUrl": "http://localhost/authorization/token",
-      "tokenUrl": "http://localhost/token/url",
-      "refreshUrl": "http://localhost/refresh/token",
-      "scopes": {
-        "edit:items": "edit my items",
-        "read:items": "read my items"
-      }
-    }
-  },
-  "description": "my oauth2 flow"
-}"###
-    }
-
-    test_fn! {
-        security_schema_correct_oauth2_authorization_code_no_scopes:
-        SecuritySchema::Oauth2(
-            Oauth2::new([Flow::AuthorizationCode(
-                AuthorizationCode::new(
-                    "http://localhost/authorization/token",
-                    "http://localhost/token/url",
-                    HashMap::new(),
-                ).with_refresh_url("http://localhost/refresh/token"),
+        SecuritySchema::OAuth2(
+            OAuth2::new([Flow::AuthorizationCode(
+                AuthorizationCode::with_refresh_url(
+                    "https://localhost/authorization/token",
+                    "https://localhost/token/url",
+                    Scopes::from_iter([
+                        ("edit:items", "edit my items"),
+                        ("read:items", "read my items")
+                    ]),
+                    "https://localhost/refresh/token"
+                ),
             )])
         );
         r###"{
   "type": "oauth2",
   "flows": {
     "authorizationCode": {
-      "authorizationUrl": "http://localhost/authorization/token",
-      "tokenUrl": "http://localhost/token/url",
-      "refreshUrl": "http://localhost/refresh/token",
+      "authorizationUrl": "https://localhost/authorization/token",
+      "tokenUrl": "https://localhost/token/url",
+      "refreshUrl": "https://localhost/refresh/token",
+      "scopes": {
+        "edit:items": "edit my items",
+        "read:items": "read my items"
+      }
+    }
+  }
+}"###
+    }
+
+    test_fn! {
+        security_schema_correct_oauth2_authorization_code_no_scopes:
+        SecuritySchema::OAuth2(
+            OAuth2::new([Flow::AuthorizationCode(
+                AuthorizationCode::with_refresh_url(
+                    "https://localhost/authorization/token",
+                    "https://localhost/token/url",
+                    Scopes::new(),
+                    "https://localhost/refresh/token"
+                ),
+            )])
+        );
+        r###"{
+  "type": "oauth2",
+  "flows": {
+    "authorizationCode": {
+      "authorizationUrl": "https://localhost/authorization/token",
+      "tokenUrl": "https://localhost/token/url",
+      "refreshUrl": "https://localhost/refresh/token",
       "scopes": {}
     }
   }

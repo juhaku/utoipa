@@ -47,7 +47,7 @@
 //!         App::new()
 //!             .service(
 //!                 SwaggerUi::new("/swagger-ui/{_:.*}")
-//!                     .with_url("/api-doc/openapi.json", ApiDoc::openapi()),
+//!                     .url("/api-doc/openapi.json", ApiDoc::openapi()),
 //!             )
 //!     })
 //!     .bind(format!("{}:{}", Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
@@ -67,7 +67,8 @@ use utoipa::openapi::OpenApi;
 #[folder = "$UTOIPA_SWAGGER_DIR/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
 pub struct SwaggerUiDist;
 
-/// Entry point for serving Swagger UI and api docs in application.
+/// Entry point for serving Swagger UI and api docs in application. It uses provides
+/// builder style chainable configuration methods for configuring api doc urls.
 #[non_exhaustive]
 #[derive(Clone)]
 pub struct SwaggerUi {
@@ -101,13 +102,15 @@ impl SwaggerUi {
     /// Method takes two arguments where first one is path which exposes the [`OpenApi`] to the user.
     /// Second argument is the actual Rust implementation of the OpenAPI doc which is being exposed.
     ///
+    /// Calling this again will add another url to the Swagger UI.
+    ///
     /// # Examples
     ///
     /// Expose manually created OpenAPI doc.
     /// ```rust
     /// # use utoipa_swagger_ui::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .with_url("/api-doc/openapi.json", utoipa::openapi::OpenApi::new(
+    ///     .url("/api-doc/openapi.json", utoipa::openapi::OpenApi::new(
     ///        utoipa::openapi::Info::new("my application", "0.1.0"),
     ///        utoipa::openapi::Paths::new(),
     /// ));
@@ -121,9 +124,9 @@ impl SwaggerUi {
     /// # #[openapi(handlers())]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .with_url("/api-doc/openapi.json", ApiDoc::openapi());
+    ///     .url("/api-doc/openapi.json", ApiDoc::openapi());
     /// ```
-    pub fn with_url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
+    pub fn url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
         self.urls.push((url.into(), openapi));
 
         self
@@ -149,14 +152,14 @@ impl SwaggerUi {
     /// # #[openapi(handlers())]
     /// # struct ApiDoc2;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .with_urls(
+    ///     .urls(
     ///       vec![
     ///          (Url::with_primary("api doc 1", "/api-doc/openapi.json", true), ApiDoc::openapi()),
     ///          (Url::new("api doc 2", "/api-doc/openapi2.json"), ApiDoc2::openapi())
     ///     ]
     /// );
     /// ```
-    pub fn with_urls(mut self, urls: Vec<(Url<'static>, OpenApi)>) -> Self {
+    pub fn urls(mut self, urls: Vec<(Url<'static>, OpenApi)>) -> Self {
         self.urls = urls;
 
         self
@@ -171,7 +174,7 @@ impl HttpServiceFactory for SwaggerUi {
             .into_iter()
             .map(|url| {
                 let (url, openapi) = url;
-                register_api_doc_url_resource((url.url.as_ref(), openapi), config);
+                register_api_doc_url_resource(url.url.as_ref(), openapi, config);
                 url
             })
             .collect::<Vec<_>>();
@@ -186,15 +189,12 @@ impl HttpServiceFactory for SwaggerUi {
 }
 
 #[cfg(feature = "actix-web")]
-fn register_api_doc_url_resource(url: (&str, OpenApi), config: &mut actix_web::dev::AppService) {
+fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web::dev::AppService) {
     pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl Responder {
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
-    let url_resource = Resource::new(url.0)
-        .guard(Get())
-        .data(url.1)
-        .to(get_api_doc);
+    let url_resource = Resource::new(url).guard(Get()).data(api).to(get_api_doc);
     HttpServiceFactory::register(url_resource, config);
 }
 

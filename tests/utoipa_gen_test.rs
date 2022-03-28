@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{
     openapi::{
         self,
-        security::{Http, HttpAuthenticationType, SecuritySchema},
+        security::{Http, HttpAuthScheme, SecuritySchema, HttpBuilder},
     },
     Component, Modify, OpenApi,
 };
@@ -104,7 +104,7 @@ impl Modify for Foo {
             schema.add_security_schema(
                 "token_jwt",
                 SecuritySchema::Http(
-                    Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
+                    HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build(),
                 ),
             )
         }

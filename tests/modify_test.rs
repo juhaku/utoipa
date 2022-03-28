@@ -3,7 +3,7 @@
 use utoipa::{
     openapi::{
         self,
-        security::{Http, HttpAuthenticationType, SecuritySchema},
+        security::{HttpAuthScheme, HttpBuilder, SecuritySchema},
     },
     Modify, OpenApi,
 };
@@ -25,7 +25,10 @@ fn modify_openapi_add_security_schema() {
                     .security_schema(
                         "api_jwt_token",
                         SecuritySchema::Http(
-                            Http::new(HttpAuthenticationType::Bearer).with_bearer_format("JWT"),
+                            HttpBuilder::new()
+                                .scheme(HttpAuthScheme::Bearer)
+                                .bearer_format("JWT")
+                                .build(),
                         ),
                     )
                     .build(),
