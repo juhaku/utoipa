@@ -393,6 +393,7 @@ impl ToTokens for Path {
 
                 fn path_item(default_tag: Option<&str>) -> utoipa::openapi::path::PathItem {
                     use utoipa::openapi::ToArray;
+                    use std::iter::FromIterator;
                     utoipa::openapi::PathItem::new(
                         #path_operation,
                         #operation.tag(*[Some(#tag), default_tag, Some("crate")].iter()

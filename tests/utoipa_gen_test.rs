@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{
     openapi::{
         self,
-        security::{Http, HttpAuthScheme, SecuritySchema, HttpBuilder},
+        security::{HttpAuthScheme, SecuritySchema, HttpBuilder},
     },
     Component, Modify, OpenApi,
 };
