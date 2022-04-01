@@ -23,8 +23,8 @@
 //!
 //! # What's up with the word play?
 //!
-//! The name comes from words `utopic` and `api` where `uto` is the first three letters of utopic
-//! and the `ipa` is api reversed.
+//! The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
+//! and the `ipa` is _api_ reversed.
 //!
 //! # Features
 //!
