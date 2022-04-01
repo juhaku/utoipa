@@ -33,15 +33,18 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new<S: AsRef<str>>(name: S, parameter_type: &Ident, parameter_in: ParameterIn) -> Self {
+
+    #[cfg(feature = "actix_extras")]
+    pub fn new<S: Into<String>>(name: S, parameter_type: &Ident, parameter_in: ParameterIn) -> Self {
         Self {
-            name: name.as_ref().to_string(),
+            name: name.into(),
             parameter_type: Some(Type::new(parameter_type.clone())),
             parameter_in,
             ..Default::default()
         }
     }
 
+    #[cfg(feature = "actix_extras")]
     pub fn update_parameter_type(&mut self, ident: &Ident) {
         self.parameter_type = Some(Type::new(ident.clone()));
     }

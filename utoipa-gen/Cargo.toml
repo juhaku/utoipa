@@ -22,7 +22,7 @@ lazy_static = { version = "1.4", optional = true }
 [dev-dependencies]
 utoipa = { path = ".." }
 serde_json = "1"
-actix-web = { version = "3.3" }
+actix-web = { version = "4" }
 
 
 [features]

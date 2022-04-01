@@ -1,3 +1,4 @@
+#![allow(unused)]
 use proc_macro2::Ident;
 use syn::{punctuated::Punctuated, token::Comma, Attribute, FnArg, ItemFn};
 
@@ -6,7 +7,7 @@ pub mod actix;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Argument<'a> {
-    pub name: Option<String>,
+    pub name: Option<&'a str>,
     pub argument_in: ArgumentIn,
     pub ident: &'a Ident,
 }
@@ -23,20 +24,28 @@ pub enum ArgumentIn {
     Path,
 }
 
+pub struct ResolvedPath {
+    pub path: String,
+    pub args: Vec<String>,
+}
+
 pub trait ArgumentResolver {
-    fn resolve_path_arguments(_: &Punctuated<FnArg, Comma>) -> Option<Vec<Argument<'_>>> {
+    fn resolve_path_arguments<'a>(
+        _: &'a Punctuated<FnArg, Comma>,
+        _: &'a Option<ResolvedPath>,
+    ) -> Option<Vec<Argument<'a>>> {
         None
     }
 }
 
 pub trait PathResolver {
-    fn resolve_path(_: &Option<&Attribute>) -> Option<String> {
+    fn resolve_path(_: &Option<String>) -> Option<ResolvedPath> {
         None
     }
 }
 
 pub trait PathOperationResolver {
-    fn resolve_attribute(_: &ItemFn) -> Option<&Attribute> {
+    fn resolve_operation(_: &ItemFn) -> Option<&Attribute> {
         None
     }
 }

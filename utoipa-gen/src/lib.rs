@@ -10,7 +10,7 @@
 use component::Component;
 use doc_comment::CommentAttributes;
 
-use ext::{ArgumentResolver, PathOperationResolver, PathOperations, PathResolver};
+use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
@@ -22,7 +22,7 @@ use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ItemFn, Token,
+    DeriveInput, ItemFn, LitStr, Token,
 };
 
 mod component;
@@ -34,6 +34,9 @@ mod path;
 mod security_requirement;
 
 use crate::path::{Path, PathAttr, PathOperation};
+
+#[cfg(feature = "actix_extras")]
+use ext::ArgumentResolver;
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
@@ -425,8 +428,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///     )
 /// )]
 /// #[get("/pet/{id}")]
-/// async fn get_pet_by_id(web::Path(id): web::Path<i32>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id) }))
+/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
 ///
@@ -444,8 +447,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// )]
 /// #[get("/pet/{id}")]
 /// #[deprecated]
-/// async fn get_pet_by_id(web::Path(id): web::Path<i32>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id) }))
+/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
 ///
@@ -459,26 +462,35 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// [^actix_extras]: **actix_extras** feature need to be enabled and **actix-web** framework must be declared in your `Cargo.toml`.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
+    #[cfg(feature = "actix_extras")]
     let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
+    #[cfg(not(feature = "actix_extras"))]
+    let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs);
+    let operation_attribute = &PathOperations::resolve_operation(&ast_fn);
+    let resolved_path = PathOperations::resolve_path(
+        &operation_attribute
+            .map(|attribute| attribute.parse_args::<LitStr>().unwrap_or_abort().value())
+            .or_else(|| path_attribute.path.as_ref().map(String::to_string)),
+    );
 
     #[cfg(feature = "actix_extras")]
-    path_attribute.update_parameters(arguments);
-
-    let operation_attribute = &PathOperations::resolve_attribute(&ast_fn);
-    let path_provider = || PathOperations::resolve_path(operation_attribute);
+    {
+        let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, &resolved_path);
+        path_attribute.update_parameters(arguments);
+    }
 
     let path = Path::new(path_attribute, fn_name)
-        .with_path_operation(operation_attribute.map(|attribute| {
+        .path_operation(operation_attribute.map(|attribute| {
             let ident = attribute.path.get_ident().unwrap();
             PathOperation::from_ident(ident)
         }))
-        .with_path(path_provider)
-        .with_doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
-        .with_deprecated(ast_fn.attrs.iter().find_map(|attr| {
+        .path(|| resolved_path.map(|path| path.path))
+        .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
+        .deprecated(ast_fn.attrs.iter().find_map(|attr| {
             if !matches!(attr.path.get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
             {
                 None
@@ -702,6 +714,7 @@ struct Type {
 }
 
 impl Type {
+    #[cfg(feature = "actix_extras")]
     pub fn new(ident: Ident) -> Self {
         Self {
             ty: ident,

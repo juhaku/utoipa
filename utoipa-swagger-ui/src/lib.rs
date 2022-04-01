@@ -57,7 +57,9 @@
 use std::borrow::Cow;
 
 #[cfg(feature = "actix-web")]
-use actix_web::{dev::HttpServiceFactory, guard::Get, web, HttpResponse, Resource, Responder};
+use actix_web::{
+    dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource, Responder,
+};
 
 use rust_embed::RustEmbed;
 use utoipa::openapi::OpenApi;
@@ -181,7 +183,7 @@ impl HttpServiceFactory for SwaggerUi {
 
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
-            .data(urls)
+            .app_data(Data::new(urls))
             .to(serve_swagger_ui);
 
         HttpServiceFactory::register(swagger_resource, config);
@@ -194,7 +196,10 @@ fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
-    let url_resource = Resource::new(url).guard(Get()).data(api).to(get_api_doc);
+    let url_resource = Resource::new(url)
+        .guard(Get())
+        .app_data(Data::new(api))
+        .to(get_api_doc);
     HttpServiceFactory::register(url_resource, config);
 }
 
@@ -273,10 +278,8 @@ impl From<String> for Url<'_> {
 }
 
 #[cfg(feature = "actix-web")]
-async fn serve_swagger_ui(
-    web::Path(mut part): web::Path<String>,
-    data: web::Data<Vec<Url<'_>>>,
-) -> HttpResponse {
+async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Vec<Url<'_>>>) -> HttpResponse {
+    let mut part = path.into_inner();
     if part.is_empty() || part == "/" {
         part = "index.html".to_string()
     }

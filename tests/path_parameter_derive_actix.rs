@@ -24,7 +24,8 @@ mod derive_params_multiple_actix {
         )
     )]
     #[allow(unused)]
-    async fn get_foo_by_id(web::Path((id, digest)): web::Path<(i32, String)>) -> impl Responder {
+    async fn get_foo_by_id(path: web::Path<(i32, String)>) -> impl Responder {
+        let (id, digest) = path.into_inner();
         HttpResponse::Ok().json(json!({ "foo": format!("{:?}{:?}", &id, &digest) }))
     }
 }
@@ -124,7 +125,8 @@ mod derive_params_from_method_args_actix {
         ),
     )]
     #[allow(unused)]
-    async fn get_foo_by_id(web::Path((id, digest)): web::Path<(i32, String)>) -> impl Responder {
+    async fn get_foo_by_id(path: web::Path<(i32, String)>) -> impl Responder {
+        let (id, digest) = path.into_inner();
         HttpResponse::Ok().json(json!({ "foo": format!("{:?}{:?}", &id, &digest) }))
     }
 }
