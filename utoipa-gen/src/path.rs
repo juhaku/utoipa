@@ -5,19 +5,20 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{parenthesized, parse::Parse, Token};
 
-use crate::{
-    component_type::ComponentType,
-    ext::{Argument, ArgumentIn},
-    security_requirement::SecurityRequirementAttr,
-    Array,
-};
+use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
 use crate::{parse_utils, Deprecated};
 
 use self::{
-    parameter::{Parameter, ParameterIn},
+    parameter::Parameter,
     request_body::RequestBodyAttr,
     response::{Response, Responses},
 };
+
+#[cfg(feature = "actix_extras")]
+use self::parameter::ParameterIn;
+
+#[cfg(feature = "actix_extras")]
+use crate::ext::{Argument, ArgumentIn};
 
 pub mod parameter;
 mod property;
@@ -62,7 +63,7 @@ pub struct PathAttr {
     path_operation: Option<PathOperation>,
     request_body: Option<RequestBodyAttr>,
     responses: Vec<Response>,
-    path: Option<String>,
+    pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
     params: Option<Vec<Parameter>>,
@@ -75,7 +76,7 @@ impl PathAttr {
         if let Some(arguments) = arguments {
             let new_parameter = |argument: &Argument| {
                 Parameter::new(
-                    &argument.name.as_ref().unwrap(),
+                    *argument.name.as_ref().unwrap(),
                     argument.ident,
                     if argument.argument_in == ArgumentIn::Path {
                         ParameterIn::Path
@@ -89,7 +90,7 @@ impl PathAttr {
                 parameters.iter_mut().for_each(|parameter| {
                     if let Some(argument) = arguments
                         .iter()
-                        .find(|argument| argument.name.as_ref() == Some(&parameter.name))
+                        .find(|argument| argument.name.as_ref() == Some(&&*parameter.name))
                     {
                         parameter.update_parameter_type(argument.ident)
                     }
@@ -103,7 +104,7 @@ impl PathAttr {
                         // cannot use filter() for mutli borrow situation. :(
                         if !parameters
                             .iter()
-                            .any(|parameter| Some(&parameter.name) == argument.name.as_ref())
+                            .any(|parameter| Some(&&*parameter.name) == argument.name.as_ref())
                         {
                             // if parameters does not contain argument
                             parameters.push(new_parameter(argument))
@@ -283,25 +284,25 @@ impl Path {
         }
     }
 
-    pub fn with_path_operation(mut self, path_operation: Option<PathOperation>) -> Self {
+    pub fn path_operation(mut self, path_operation: Option<PathOperation>) -> Self {
         self.path_operation = path_operation;
 
         self
     }
 
-    pub fn with_path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
+    pub fn path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
         self.path = path_provider();
 
         self
     }
 
-    pub fn with_doc_comments(mut self, doc_commens: Vec<String>) -> Self {
+    pub fn doc_comments(mut self, doc_commens: Vec<String>) -> Self {
         self.doc_comments = Some(doc_commens);
 
         self
     }
 
-    pub fn with_deprecated(mut self, deprecated: Option<bool>) -> Self {
+    pub fn deprecated(mut self, deprecated: Option<bool>) -> Self {
         self.deprecated = deprecated;
 
         self

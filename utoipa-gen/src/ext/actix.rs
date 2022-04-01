@@ -1,4 +1,4 @@
-#![cfg(feature = "actix_extras")]
+use std::borrow::Cow;
 
 use lazy_static::lazy_static;
 use proc_macro2::Ident;
@@ -11,41 +11,30 @@ use syn::{
 
 use super::{
     Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
+    ResolvedPath,
 };
 
 impl ArgumentResolver for PathOperations {
-    fn resolve_path_arguments(fn_args: &Punctuated<FnArg, Comma>) -> Option<Vec<Argument<'_>>> {
-        if let Some((pat_type, path_segment)) = Self::find_path_pat_type_and_segment(fn_args) {
-            let names = Self::get_argument_names(pat_type);
-            let types = Self::get_argument_types(path_segment);
+    fn resolve_path_arguments<'a>(
+        fn_args: &'a Punctuated<FnArg, Comma>,
+        resolved_path: &'a Option<ResolvedPath>,
+    ) -> Option<Vec<Argument<'a>>> {
+        resolved_path
+            .as_ref()
+            .zip(Self::find_path_pat_type_and_segment(fn_args))
+            .map(|(path, (_, path_segment))| {
+                let types = Self::get_argument_types(path_segment);
 
-            if names.len() != types.len() {
-                Some(
-                    types
-                        .into_iter()
-                        .map(|ty| Argument {
-                            argument_in: ArgumentIn::Path,
-                            ident: ty,
-                            name: None,
-                        })
-                        .collect::<Vec<_>>(),
-                )
-            } else {
-                Some(
-                    names
-                        .into_iter()
-                        .zip(types.into_iter())
-                        .map(|(name, ty)| Argument {
-                            argument_in: ArgumentIn::Path,
-                            ident: ty,
-                            name: Some(name.to_string()),
-                        })
-                        .collect::<Vec<_>>(),
-                )
-            }
-        } else {
-            None
-        }
+                path.args
+                    .iter()
+                    .zip(types.into_iter())
+                    .map(|(name, ty)| Argument {
+                        argument_in: ArgumentIn::Path,
+                        ident: ty,
+                        name: Some(name),
+                    })
+                    .collect::<Vec<_>>()
+            })
     }
 }
 
@@ -141,15 +130,9 @@ impl PathOperations {
 }
 
 impl PathOperationResolver for PathOperations {
-    fn resolve_attribute(item_fn: &ItemFn) -> Option<&Attribute> {
+    fn resolve_operation(item_fn: &ItemFn) -> Option<&Attribute> {
         item_fn.attrs.iter().find_map(|attribute| {
-            if is_valid_request_type(
-                &attribute
-                    .path
-                    .get_ident()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
-            ) {
+            if is_valid_request_type(attribute.path.get_ident()) {
                 Some(attribute)
             } else {
                 None
@@ -159,45 +142,44 @@ impl PathOperationResolver for PathOperations {
 }
 
 impl PathResolver for PathOperations {
-    fn resolve_path(operation_attribute: &Option<&Attribute>) -> Option<String> {
-        operation_attribute.map(|attribute| {
-            let lit = attribute.parse_args::<LitStr>().unwrap();
-            format_path(&lit.value())
+    fn resolve_path(path: &Option<String>) -> Option<ResolvedPath> {
+        path.as_ref().map(|path| {
+            lazy_static! {
+                static ref RE: Regex = Regex::new(r"\{[a-zA-Z0-9_][^{}]*}").unwrap();
+            }
+
+            let mut args = Vec::<String>::with_capacity(RE.find_iter(path).count());
+            ResolvedPath {
+                path: RE
+                    .replace_all(path, |captures: &Captures| {
+                        let mut capture = captures.get(0).unwrap().as_str().to_string();
+
+                        if capture.contains("_:") {
+                            // replace unnamed capture with generic 'arg0' name
+                            args.push(String::from("arg0"));
+                            "{arg0}".to_string()
+                        } else if let Some(colon) = capture.find(':') {
+                            //  replace colon (:) separated regexp with empty string
+                            let end = capture.len() - 1;
+                            capture.replace_range(colon..end, "");
+
+                            args.push(String::from(&capture[1..capture.len() - 1]));
+
+                            capture
+                        } else {
+                            args.push(String::from(&capture[1..capture.len() - 1]));
+                            // otherwise return the capture itself
+                            capture
+                        }
+                    })
+                    .to_string(),
+                args,
+            }
         })
     }
 }
 
-fn format_path(path: &str) -> String {
-    lazy_static! {
-        static ref RE: Regex = Regex::new(r"\{[a-zA-Z0-9_]*:[^{}]*}").unwrap();
-    }
-
-    RE.replace_all(path, |captures: &Captures| {
-        let mut capture = captures.get(0).unwrap().as_str().to_string();
-
-        if capture.contains("_:") {
-            // replace unnamed capture with generic 'arg0' name
-            "{arg0}".to_string()
-        } else if capture.contains(':') {
-            //  replace colon (:) separated regexp with empty string
-            let colon = capture.find(':').unwrap();
-            let end = capture.len() - 1;
-            capture.replace_range(colon..end, "");
-
-            capture
-        } else {
-            // otherwise return the capture itself
-            capture
-        }
-    })
-    .to_string()
-}
-
-fn is_valid_request_type(s: &str) -> bool {
-    match s {
-        "get" | "post" | "put" | "delete" | "head" | "connect" | "options" | "trace" | "patch" => {
-            true
-        }
-        _ => false,
-    }
+fn is_valid_request_type(ident: Option<&Ident>) -> bool {
+    matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
+        .iter().any(|expected_operation| operation == expected_operation))
 }

@@ -23,8 +23,8 @@ mod mod_derive_path_actix {
     )]
     #[get("/foo/{id}")]
     #[allow(unused)]
-    async fn get_foo_by_id(web::Path(id): web::Path<i32>) -> impl Responder {
-        HttpResponse::Ok().json(json!({ "foo": format!("{:?}", &id) }))
+    async fn get_foo_by_id(id: web::Path<i32>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "foo": format!("{:?}", &id.into_inner()) }))
     }
 }
 
@@ -132,6 +132,102 @@ fn derive_path_with_named_regex_actix_success() {
         "[0].deprecated" = r#"false"#, "Parameter deprecated"
         "[0].schema.type" = r#""string""#, "Parameter schema type"
         "[0].schema.format" = r#"null"#, "Parameter schema format"
+    };
+}
+
+#[test]
+fn derive_path_with_multiple_args() {
+    mod mod_derive_path_multiple_args {
+        use actix_web::{get, web, HttpResponse, Responder};
+        use serde_json::json;
+
+        #[utoipa::path(
+            responses(
+                (status = 200, description = "success response")
+            ),
+        )]
+        #[get("/foo/{id}/bar/{digest}")]
+        #[allow(unused)]
+        async fn get_foo_by_id(path: web::Path<(i64, String)>) -> impl Responder {
+            let (id, digest) = path.into_inner();
+            HttpResponse::Ok().json(json!({ "id": &format!("{:?} {:?}", id, digest) }))
+        }
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(mod_derive_path_multiple_args::get_foo_by_id))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}/bar/{digest}.get.parameters");
+
+    common::assert_json_array_len(parameters, 2);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#"null"#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int64""#, "Parameter schema format"
+
+        "[1].in" = r#""path""#, "Parameter in"
+        "[1].name" = r#""digest""#, "Parameter name"
+        "[1].description" = r#"null"#, "Parameter description"
+        "[1].required" = r#"true"#, "Parameter required"
+        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+    };
+}
+
+#[test]
+fn derive_path_with_multiple_args_with_descriptions() {
+    mod mod_derive_path_multiple_args {
+        use actix_web::{get, web, HttpResponse, Responder};
+        use serde_json::json;
+
+        #[utoipa::path(
+            responses(
+                (status = 200, description = "success response")
+            ),
+            params(
+                ("id", description = "Foo id"),
+                ("digest", description = "Foo digest")
+            )
+        )]
+        #[get("/foo/{id}/bar/{digest}")]
+        #[allow(unused)]
+        async fn get_foo_by_id(path: web::Path<(i64, String)>) -> impl Responder {
+            let (id, digest) = path.into_inner();
+            HttpResponse::Ok().json(json!({ "id": &format!("{:?} {:?}", id, digest) }))
+        }
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(mod_derive_path_multiple_args::get_foo_by_id))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}/bar/{digest}.get.parameters");
+
+    common::assert_json_array_len(parameters, 2);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#""Foo id""#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int64""#, "Parameter schema format"
+
+        "[1].in" = r#""path""#, "Parameter in"
+        "[1].name" = r#""digest""#, "Parameter name"
+        "[1].description" = r#""Foo digest""#, "Parameter description"
+        "[1].required" = r#"true"#, "Parameter required"
+        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
     };
 }
 

@@ -27,7 +27,7 @@ serde_json = { version = "1.0", optional = true }
 utoipa-gen = { version = "0.1.0-beta7", path = "./utoipa-gen" }
 
 [dev-dependencies]
-actix-web = { version = "3.3" }
+actix-web = { version = "4" }
 paste = "1.0.6"
 
 [workspace]
