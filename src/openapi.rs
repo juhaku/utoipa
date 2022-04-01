@@ -1,3 +1,5 @@
+//! Rust implementation of Openapi Spec V3
+
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
 pub use self::{
@@ -13,7 +15,7 @@ pub use self::{
         Ref, ToArray,
     },
     security::SecurityRequirement,
-    server::Server,
+    server::{Server, ServerBuilder, ServerVariable, ServerVariableBuilder},
     tag::Tag,
 };
 

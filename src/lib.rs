@@ -164,7 +164,6 @@
 //!
 //! [security]: openapi/security/index.html
 
-/// Rust implementation of Openapi Spec V3
 pub mod openapi;
 
 pub use utoipa_gen::*;
@@ -409,6 +408,26 @@ pub trait Path {
 ///      }
 /// }
 /// ```
+///
+/// Add [OpenAPI Server Object][server] to alter the target server url. This can be used to give context
+/// path for api operations.
+/// ```rust
+/// # use utoipa::{OpenApi, Modify};
+/// # use utoipa::openapi::Server;
+/// #[derive(OpenApi)]
+/// #[openapi(modifiers(&ServerAddon))]
+/// struct ApiDoc;
+///
+/// struct ServerAddon;
+///
+/// impl Modify for ServerAddon {
+///     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+///         openapi.servers = Some(vec![Server::new("/api")])
+///     }
+/// }
+/// ```
+///
+/// [server]: https://spec.openapis.org/oas/latest.html#server-object
 pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }

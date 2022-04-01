@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{
     openapi::{
         self,
-        security::{HttpAuthScheme, SecuritySchema, HttpBuilder},
+        security::{HttpAuthScheme, SecuritySchema, HttpBuilder},  server::{ServerBuilder, ServerVariableBuilder},
     },
     Component, Modify, OpenApi,
 };
@@ -108,6 +108,15 @@ impl Modify for Foo {
                 ),
             )
         }
+
+
+        openapi.servers = Some(vec![
+            ServerBuilder::new()
+            .url("/api/bar/{username}")
+            .description(Some("this is description of the server"))
+            .parameter("username", 
+                ServerVariableBuilder::new().default_value("the_user").description(Some("this is user"))).build()
+        ]);
     }
 }
 
