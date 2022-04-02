@@ -91,11 +91,7 @@ struct ApiDoc;
 #[test]
 #[ignore = "this is just a test bed to run macros"]
 fn derive_openapi() {
-    utoipa::openapi::OpenApi::new(
-        utoipa::openapi::Info::new("my application", "0.1.0"),
-        utoipa::openapi::Paths::new(),
-    );
-    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+  println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 }
 
 impl Modify for Foo {
