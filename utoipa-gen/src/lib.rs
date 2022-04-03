@@ -223,6 +223,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///   _`get, post, put, delete, head, options, connect, patch, trace`_.
 /// * **path** Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
 /// * **operation_id** Unique operation id for the enpoint. By default this is mapped to function name.
+/// * **context_path** Can add optional scope for **path**. The **context_path** will be prepended to begining of **path**.
+///   This is particularly useful when **path** does not contain the full path to the endpoint. For example if web framework
+///   allows operation to be defined under some context path or scope which does not reflect to the resolved path then this
+///   **context_path** can become handy to alter the path.
 /// * **tag** Can be used to group operations. Operations with same tag are groupped together. By default
 ///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
 ///   then default value _`crate`_ is used instead.
@@ -232,9 +236,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * **params** Slice of params that the endpoint accepts.
 /// * **security** List of [`SecurityRequirement`][security]s local to the path operation.
 ///
-/// > **Note!** when **actix_extras** feature is enabled the **operation** and **path** declaration may be omitted since they
-/// > are resolved from **actix-web** attributes. Also **params** may leave the **type** definition out since it will be derived from
-/// > function arguments. See the example in examples section.
+/// > **Note!** when **actix_extras** feature is enabled the **operation**, **path** and **params** declaration
+/// > may be omitted since they are resolved from **actix-web** attributes namely **path** and function arguments.
+/// > To define description or other parameter info then **params** still need to be defined manually. See the example
+/// > in [examples section](#examples).
 ///
 /// # Request Body Attributes
 ///
@@ -433,6 +438,24 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// With **actix_extras** you may also not to list any _**parmas**_ if you do not want to specify any description for them. Params are resolved from
+/// path and the argument types of handler.
+/// ```rust
+/// use actix_web::{get, web, HttpResponse, Responder};
+/// use serde_json::json;
+///
+/// /// Get Pet by id
+/// #[utoipa::path(
+///     responses(
+///         (status = 200, description = "Pet found from database")
+///     )
+/// )]
+/// #[get("/pet/{id}")]
+/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
+/// }
+/// ```
+///
 /// Use of Rust's own `#[deprecated]` attribute will refect to the generated OpenAPI spec and mark this operation as deprecated.
 /// ```rust
 /// # use actix_web::{get, web, HttpResponse, Responder};
@@ -452,6 +475,21 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Define context path for endpoint. The resolved **path** shown in OpenAPI doc will be `/api/pet/{id}`.
+/// ```rust
+/// # use actix_web::{get, web, HttpResponse, Responder};
+/// # use serde_json::json;
+/// #[utoipa::path(
+///     context_path = "/api",
+///     responses(
+///         (status = 200, description = "Pet found from database")
+///     )
+/// )]
+/// #[get("/pet/{id}")]
+/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
+/// }
+/// ```
 /// [path]: trait.Path.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html

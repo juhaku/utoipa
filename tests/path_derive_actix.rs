@@ -231,6 +231,33 @@ fn derive_path_with_multiple_args_with_descriptions() {
     };
 }
 
+#[test]
+fn derive_path_with_context_path() {
+    use actix_web::{get, HttpResponse, Responder};
+    use serde_json::json;
+
+    #[utoipa::path(
+        context_path = "/api",
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo")]
+    #[allow(unused)]
+    async fn get_foo() -> impl Responder {
+        HttpResponse::Ok().json(json!({ "id": "foo" }))
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let path = common::get_json_path(&doc, "paths./api/foo.get");
+
+    assert_ne!(path, &Value::Null, "expected path with context path /api");
+}
+
 macro_rules! test_derive_path_operations {
     ( $( $name:ident, $mod:ident: $operation:ident)* ) => {
         $(

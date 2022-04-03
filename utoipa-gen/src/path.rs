@@ -68,6 +68,7 @@ pub struct PathAttr {
     tag: Option<String>,
     params: Option<Vec<Parameter>>,
     security: Option<Array<SecurityRequirementAttr>>,
+    context_path: Option<String>,
 }
 
 impl PathAttr {
@@ -126,7 +127,7 @@ impl PathAttr {
 
 impl Parse for PathAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security, context_path";
         let mut path_attr = PathAttr::default();
 
         while !input.is_empty() {
@@ -166,6 +167,9 @@ impl Parse for PathAttr {
                     let security;
                     parenthesized!(security in input);
                     path_attr.security = Some(parse_utils::parse_groups(&security)?)
+                }
+                "context_path" => {
+                    path_attr.context_path = Some(parse_utils::parse_next_literal_str(input)?)
                 }
                 _ => {
                     // any other case it is expected to be path operation
@@ -349,6 +353,7 @@ impl ToTokens for Path {
                     help =? help
                 }
             });
+
         let path = self
             .path_attr
             .path
@@ -368,6 +373,13 @@ impl ToTokens for Path {
                     help =? help
                 }
             });
+
+        let path_with_context_path = self
+            .path_attr
+            .context_path
+            .as_ref()
+            .map(|context_path| format!("{context_path}{path}"))
+            .unwrap_or_else(|| path.to_string());
 
         let operation = Operation {
             deprecated: &self.deprecated,
@@ -389,7 +401,7 @@ impl ToTokens for Path {
 
             impl utoipa::Path for #path_struct {
                 fn path() -> &'static str {
-                    #path
+                    #path_with_context_path
                 }
 
                 fn path_item(default_tag: Option<&str>) -> utoipa::openapi::path::PathItem {
