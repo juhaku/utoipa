@@ -79,7 +79,7 @@ impl Parse for OpenApiAttr {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap_or_abort();
+                input.parse::<Token![,]>()?;
             }
         }
 
@@ -171,7 +171,7 @@ impl Parse for Tag {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap();
+                input.parse::<Token![,]>()?;
             }
         }
 

@@ -78,7 +78,7 @@ impl Parse for XmlAttr {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap();
+                input.parse::<Token![,]>()?;
             }
         }
 

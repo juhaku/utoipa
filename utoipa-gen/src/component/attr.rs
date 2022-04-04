@@ -96,7 +96,7 @@ impl Parse for ComponentAttr<Enum> {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap();
+                input.parse::<Token![,]>()?;
             }
         }
         Ok(Self { inner: enum_attr })
@@ -152,7 +152,7 @@ impl Parse for ComponentAttr<Struct> {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap();
+                input.parse::<Token![,]>()?;
             }
         }
 
@@ -190,7 +190,7 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap();
+                input.parse::<Token![,]>()?;
             }
         }
 
@@ -291,7 +291,7 @@ impl Parse for ComponentAttr<NamedField> {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>().unwrap();
+                input.parse::<Token![,]>()?;
             }
         }
 
