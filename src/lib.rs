@@ -383,7 +383,7 @@ pub trait Path {
 /// Add custom JWT [`SecuritySchema`][security_schema] to [`OpenApi`][`openapi::OpenApi`].
 /// ```rust
 /// # use utoipa::{OpenApi, Modify};
-/// # use utoipa::openapi::security::{SecuritySchema, HttpBuilder, HttpAuthScheme};
+/// # use utoipa::openapi::security::{SecurityScheme, HttpBuilder, HttpAuthScheme};
 /// #[derive(OpenApi)]
 /// #[openapi(modifiers(&SecurityAddon))]
 /// struct ApiDoc;
@@ -396,7 +396,7 @@ pub trait Path {
 ///              utoipa::openapi::ComponentsBuilder::new()
 ///                  .security_schema(
 ///                      "api_jwt_token",
-///                      SecuritySchema::Http(
+///                      SecurityScheme::Http(
 ///                          HttpBuilder::new()
 ///                              .scheme(HttpAuthScheme::Bearer)
 ///                              .bearer_format("JWT")

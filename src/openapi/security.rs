@@ -92,7 +92,7 @@ impl SecurityRequirement {
 ///
 /// Create JWT header authetication.
 /// ```rust
-/// # use utoipa::openapi::security::{SecuritySchema, HttpAuthScheme, HttpBuilder};
+/// # use utoipa::openapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
 /// SecurityScheme::Http(
 ///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
 /// );
@@ -213,8 +213,8 @@ impl Http {
     ///
     /// Create http security schema with basic authentication.
     /// ```rust
-    /// # use utoipa::openapi::security::{SecuritySchema, Http, HttpAuthScheme};
-    /// SecuritySchema::Http(Http::new(HttpAuthScheme::Basic));
+    /// # use utoipa::openapi::security::{SecurityScheme, Http, HttpAuthScheme};
+    /// SecurityScheme::Http(Http::new(HttpAuthScheme::Basic));
     /// ```
     pub fn new(scheme: HttpAuthScheme) -> Self {
         Self {
