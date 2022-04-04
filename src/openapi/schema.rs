@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    set_value, build_fn, builder, from, new, security::SecuritySchema, xml::Xml, Deprecated,
+    set_value, build_fn, builder, from, new, security::SecurityScheme, xml::Xml, Deprecated,
 };
 
 macro_rules! component_from_builder {
@@ -53,7 +53,7 @@ builder! {
         ///
         /// [security_schema]: https://spec.openapis.org/oas/latest.html#security-scheme-object
         #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub security_schemas: HashMap<String, SecuritySchema>,
+        pub security_schemes: HashMap<String, SecurityScheme>,
     }
 }
 
@@ -70,12 +70,12 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_schema<N: Into<String>, S: Into<SecuritySchema>>(
+    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         &mut self,
         name: N,
         security_schema: S,
     ) {
-        self.security_schemas
+        self.security_schemes
             .insert(name.into(), security_schema.into());
     }
 
@@ -85,15 +85,15 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_schemas_from_iter<
+    pub fn add_security_schemes_from_iter<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
-        S: Into<SecuritySchema>,
+        S: Into<SecurityScheme>,
     >(
         &mut self,
         schemas: I,
     ) {
-        self.security_schemas.extend(
+        self.security_schemes.extend(
             schemas
                 .into_iter()
                 .map(|(name, item)| (name.into(), item.into())),
@@ -117,12 +117,12 @@ impl ComponentsBuilder {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_schema<N: Into<String>, S: Into<SecuritySchema>>(
+    pub fn security_schema<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
         security_schema: S,
     ) -> Self {
-        self.security_schemas
+        self.security_schemes
             .insert(name.into(), security_schema.into());
 
         self

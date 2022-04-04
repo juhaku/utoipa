@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::{
     openapi::{
         self,
-        security::{HttpAuthScheme, SecuritySchema, HttpBuilder},  server::{ServerBuilder, ServerVariableBuilder},
+        security::{HttpAuthScheme, SecurityScheme, HttpBuilder},  server::{ServerBuilder, ServerVariableBuilder},
     },
     Component, Modify, OpenApi,
 };
@@ -101,9 +101,9 @@ fn derive_openapi() {
 impl Modify for Foo {
     fn modify(&self, openapi: &mut openapi::OpenApi) {
         if let Some(schema) = openapi.components.as_mut() {
-            schema.add_security_schema(
+            schema.add_security_scheme(
                 "token_jwt",
-                SecuritySchema::Http(
+                SecurityScheme::Http(
                     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build(),
                 ),
             )
