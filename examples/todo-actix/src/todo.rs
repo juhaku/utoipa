@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use actix_web::{
     delete, get, post, put,
-    web::{Data, Json, Path, ServiceConfig},
+    web::{Data, Json, Path, Query, ServiceConfig},
     HttpRequest, HttpResponse, Responder,
 };
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,7 @@ pub(super) fn configure(store: Data<TodoStore>) -> impl FnOnce(&mut ServiceConfi
     |config: &mut ServiceConfig| {
         config
             .app_data(store)
+            .service(search_todos)
             .service(get_todos)
             .service(create_todo)
             .service(delete_todo)
@@ -82,7 +83,7 @@ pub(super) async fn get_todos(todo_store: Data<TodoStore>) -> impl Responder {
     HttpResponse::Ok().json(todos.clone())
 }
 
-/// Create new `Todo` to shared in-memory storage.
+/// Create new Todo to shared in-memory storage.
 ///
 /// Post a new `Todo` in request body as json to store it. Api will return
 /// created `Todo` on success or `ErrorResponse::Conflict` if todo with same id already exists.
@@ -122,7 +123,7 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
         })
 }
 
-/// Delete `Todo` by given path variable id.
+/// Delete Todo by given path variable id.
 ///
 /// This ednpoint needs `api_key` authentication in order to call. Api key can be found from README.md.
 ///
@@ -131,7 +132,7 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
 #[utoipa::path(
     responses(
         (status = 200, description = "Todo deleted successfully"),
-        (status = 401, description = "Unauthorized to delete Todo"),
+        (status = 401, description = "Unauthorized to delete Todo", body = ErrorResponse, example = json!(ErrorResponse::Unauhtorized(String::from("missing api key")))),
         (status = 404, description = "Todo not found by id", body = ErrorResponse, example = json!(ErrorResponse::NotFound(String::from("id = 1"))))
     ),
     params(
@@ -177,7 +178,7 @@ pub(super) async fn delete_todo(
     }
 }
 
-/// Get `Todo` by given todo id.
+/// Get Todo by given todo id.
 ///
 /// Return found `Todo` with status 200 or 404 not found if `Todo` is not found from shared in-memory storage.
 #[utoipa::path(
@@ -203,7 +204,7 @@ pub(super) async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -
         })
 }
 
-/// Update `Todo` with given id.
+/// Update Todo with given id.
 ///
 /// This endpoint supports optional authentication.
 ///
@@ -259,4 +260,39 @@ pub(super) async fn update_todo(
         .unwrap_or_else(|| {
             HttpResponse::NotFound().json(ErrorResponse::NotFound(format!("id = {id}")))
         })
+}
+
+/// Search todos Query
+#[derive(Deserialize, Debug)]
+pub(super) struct SearchTodos {
+    value: String,
+}
+
+/// Search Todos with by value
+///
+/// Perform search from `Todo`s present in in-memory storage by matching Todo's value to
+/// value provided as query paramter. Returns 200 and matching `Todo` items.
+#[utoipa::path(
+    responses(
+        (status = 200, description = "Search Todos did not result error", body = [Todo]),
+    ),
+    params(
+        ("value" = String, query, description = "Content that should be found from Todo's value field")
+    ),
+)]
+#[get("/todo/search")]
+pub(super) async fn search_todos(
+    query: Query<SearchTodos>,
+    todo_store: Data<TodoStore>,
+) -> impl Responder {
+    let todos = todo_store.todos.lock().unwrap();
+    log::debug!("search: {:#?}", &query);
+
+    HttpResponse::Ok().json(
+        todos
+            .iter()
+            .filter(|todo| todo.value.contains(&query.value))
+            .cloned()
+            .collect::<Vec<_>>(),
+    )
 }

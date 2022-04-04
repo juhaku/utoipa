@@ -22,7 +22,8 @@ async fn main() -> Result<(), impl Error> {
             todo::create_todo,
             todo::delete_todo,
             todo::get_todo_by_id,
-            todo::update_todo
+            todo::update_todo,
+            todo::search_todos
         ),
         components(Todo, TodoUpdateRequest, ErrorResponse),
         tags(
