@@ -381,6 +381,15 @@ impl ToTokens for ComplexEnum<'_> {
                     .item(#inline_variant)
                 })
             });
+
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
+            .0
+            .first()
+        {
+            tokens.extend(quote! {
+                .description(Some(#comment))
+            })
+        }
     }
 }
 

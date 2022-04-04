@@ -182,6 +182,9 @@ builder! {
         /// Components of _OneOf_ component.
         #[serde(rename = "oneOf")]
         pub items: Vec<Component>,
+
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
     }
 }
 
@@ -208,6 +211,7 @@ impl OneOf {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
+            description: None
         }
     }
 }
@@ -220,6 +224,11 @@ impl OneOfBuilder {
         self.items.push(component.into());
 
         self
+    }
+
+    /// Add or change optional description for `OneOf` component.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
     }
 
     to_array_builder!();
