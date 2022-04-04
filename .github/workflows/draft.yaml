@@ -59,7 +59,7 @@ jobs:
 
     - name: Check existing release
       run: |
-        if git tag | grep ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} > /dev/null; then 
+        if git tag | grep -e ^${{ matrix.crate }}-${{ steps.release_info.outputs.version }}$ > /dev/null; then 
           echo "Tag tag with ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} already exists, cannot draft a release for already existing tag!, Consider upgrading versions to Cargo.toml file" && exit 1
         fi
 
