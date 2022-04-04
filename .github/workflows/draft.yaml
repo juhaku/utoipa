@@ -16,7 +16,6 @@ jobs:
           - utoipa
           - utoipa-gen
           - utoipa-swagger-ui
-      fail-fast: true
     runs-on: ubuntu-latest
 
     steps:
