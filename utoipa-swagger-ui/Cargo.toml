@@ -16,7 +16,7 @@ debug = []
 rust-embed = { version = "6.3", features = ["interpolate-folder-path"] }
 mime_guess = { version = "2.0" }
 actix-web =  { version = "4", optional = true }
-utoipa = { version = "0.2.0", path = "..", default-features = false, features = [] }
+utoipa = { version = "0.1.0", path = "..", default-features = false, features = [] }
 
 [package.metadata.docs.rs]
 features = ["actix-web"]
