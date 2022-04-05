@@ -30,10 +30,10 @@ if [[ "$crate" == "" ]]; then
 fi
 
 from_commit=HEAD
-last_release=$(git tag | grep -E "$crate-[0-9]*\.[0-9]*\.[0-9]*" | sort -r | head -1)
+last_release=$(git tag --sort=-committerdate | grep -E "$crate-[0-9]*\.[0-9]*\.[0-9]*" | head -1)
 echo "Found tag: $last_release"
 if [[ "$last_release" == "" ]]; then
-  last_release=$(git tag | sort -r | head -1) # get last tag
+  last_release=$(git tag --sort=-committerdate | head -1) # get last tag
   echo "Using latest tag: $last_release"
 fi
 
