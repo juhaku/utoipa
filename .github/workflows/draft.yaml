@@ -67,14 +67,14 @@ jobs:
         fi
 
     - name: Remove previous release
-      if: steps.existing_release.outputs.is_new == true
+      if: ${{ steps.existing_release.outputs.is_new == 'true' }}
       run: |
         echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
         gh release delete ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} -y || true
 
     - name: Create release
       id: create_release
-      if: steps.existing_release.outputs.is_new == true
+      if: ${{ steps.existing_release.outputs.is_new == 'true' }}
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
