@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-swagger-ui"
 description = "Swagger UI for utoipa"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -20,3 +20,6 @@ utoipa = { version = "0.1.0", path = "..", default-features = false, features = 
 
 [package.metadata.docs.rs]
 features = ["actix-web"]
+
+[build-dependencies]
+zip = "0.6"

@@ -287,7 +287,7 @@ async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Vec<Url<'_>>>
     if let Some(file) = SwaggerUiDist::get(&part) {
         let mut bytes = file.data.into_owned();
 
-        if part == "index.html" {
+        if part == "swagger-initializer.js" {
             let mut index = match String::from_utf8(bytes.to_vec()) {
                 Ok(index) => index,
                 Err(error) => return HttpResponse::InternalServerError().body(error.to_string()),
