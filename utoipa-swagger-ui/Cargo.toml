@@ -1,13 +1,16 @@
 [package]
 name = "utoipa-swagger-ui"
 description = "Swagger UI for utoipa"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["swagger-ui", "openapi", "documentation"]
 repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
+authors = [
+  "Juha Kukkonen <juha7kukkonen@gmail.com>"
+]
 
 [features]
 debug = []
@@ -16,7 +19,7 @@ debug = []
 rust-embed = { version = "6.3", features = ["interpolate-folder-path"] }
 mime_guess = { version = "2.0" }
 actix-web =  { version = "4", optional = true }
-utoipa = { version = "0.1.0", path = "..", default-features = false, features = [] }
+utoipa = { version = "0.1.1", path = "..", default-features = false, features = [] }
 
 [package.metadata.docs.rs]
 features = ["actix-web"]

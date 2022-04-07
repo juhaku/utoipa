@@ -47,7 +47,7 @@ HttpServer::new(move || {
                 .url("/api-doc/openapi.json", ApiDoc::openapi()),
         )
   })
-  .bind(format!("{}:{}", Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
+  .bind((Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
   .run();
 ```
 **actix-web** feature need to be enabled.

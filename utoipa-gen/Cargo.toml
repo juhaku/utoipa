@@ -1,12 +1,15 @@
 [package]
 name = "utoipa-gen"
 description = "Code generation implementation for utoipa"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["openapi", "codegen", "proc-macro", "documentation", "compile-time"]
 repository = "https://github.com/juhaku/utoipa"
+authors = [
+  "Juha Kukkonen <juha7kukkonen@gmail.com>"
+]
 
 [lib]
 proc-macro = true
