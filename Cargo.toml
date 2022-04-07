@@ -39,7 +39,8 @@ members = [
   "utoipa-gen",
   "utoipa-swagger-ui",
 
-  "examples/todo-actix"
+  "examples/todo-actix",
+  "examples/todo-warp"
 ]
 
 [package.metadata.docs.rs]
