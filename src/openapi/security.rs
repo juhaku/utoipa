@@ -1,6 +1,6 @@
 //! Implements [OpenAPI Security Schema][security] types.
 //!
-//! Refer to [`SecuritySchema`] for usage and more details.
+//! Refer to [`SecurityScheme`] for usage and more details.
 //!
 //! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
 use std::{collections::HashMap, iter};
@@ -11,7 +11,7 @@ use super::{build_fn, builder, from, new};
 
 /// OpenAPI [security requirment][security] object.
 ///
-/// Security requirement holds list of required [`SecuritySchema`] *names* and possible *scopes* required
+/// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes* required
 /// to execute the operation. They can be defined in [`#[utoipa::path(...)]`][path] or in `#[openapi(...)]`
 /// of [`OpenApi`][openapi].
 ///
@@ -33,9 +33,9 @@ pub struct SecurityRequirement {
 impl SecurityRequirement {
     /// Construct a new [`SecurityRequirement`]
     ///
-    /// Accepts name for the security requirement which must match to the name of available [`SecuritySchema`].
+    /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
     /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
-    /// Scopes must match to the ones defined in [`SecuritySchema`].
+    /// Scopes must match to the ones defined in [`SecurityScheme`].
     ///
     /// # Examples
     ///
@@ -120,7 +120,7 @@ pub enum SecurityScheme {
     },
 }
 
-/// Api key authentication [`SecuritySchema`].
+/// Api key authentication [`SecurityScheme`].
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "in", rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -141,7 +141,7 @@ pub struct ApiKeyValue {
     /// Name of the [`ApiKey`] parameter.
     pub name: String,
 
-    /// Description of the the [`ApiKey`] [`SecuritySchema`]. Supports markdown syntax.
+    /// Description of the the [`ApiKey`] [`SecurityScheme`]. Supports markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
@@ -183,7 +183,7 @@ impl ApiKeyValue {
 builder! {
     HttpBuilder;
 
-    /// Http authentication [`SecuritySchema`] builder.
+    /// Http authentication [`SecurityScheme`] builder.
     ///
     /// Methods can be chained to configure _bearer_format_ or to add _description_.
     #[non_exhaustive]
@@ -198,7 +198,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub bearer_format: Option<String>,
 
-        /// Optional description of [`Http`] [`SecuritySchema`] supporting markdown syntax.
+        /// Optional description of [`Http`] [`SecurityScheme`] supporting markdown syntax.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
     }
@@ -230,7 +230,7 @@ impl HttpBuilder {
     ///
     /// # Examples
     ///
-    /// Create new [`Http`] [`SecuritySchema`] via [`HttpBuilder`].
+    /// Create new [`Http`] [`SecurityScheme`] via [`HttpBuilder`].
     /// ```rust
     /// # use utoipa::openapi::security::{HttpBuilder, HttpAuthScheme};
     /// let http = HttpBuilder::new().scheme(HttpAuthScheme::Basic).build();
@@ -294,7 +294,7 @@ impl Default for HttpAuthScheme {
     }
 }
 
-/// Open id connect [`SecuritySchema`]
+/// Open id connect [`SecurityScheme`]
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -303,7 +303,7 @@ pub struct OpenIdConnect {
     /// Url of the [`OpenIdConnect`] to discover OAuth2 connect values.
     pub open_id_connect_url: String,
 
-    /// Description of [`OpenIdConnect`] [`SecuritySchema`] supporting markdown syntax.
+    /// Description of [`OpenIdConnect`] [`SecurityScheme`] supporting markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
@@ -324,7 +324,7 @@ impl OpenIdConnect {
         }
     }
 
-    /// Construct a new [`OpenIdConnect`] [`SecuritySchema`] with optional description
+    /// Construct a new [`OpenIdConnect`] [`SecurityScheme`] with optional description
     /// supporting markdown syntax.
     ///
     /// # Examples
@@ -341,7 +341,7 @@ impl OpenIdConnect {
     }
 }
 
-/// OAuth2 [`Flow`] configuration for [`SecuritySchema`].
+/// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -349,7 +349,7 @@ pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
     pub flows: HashMap<String, Flow>,
 
-    /// Optional description for the [`OAuth2`] [`Flow`] [`SecuritySchema`].
+    /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }

@@ -4,12 +4,13 @@
 //!
 //! [utoipa]: <https://docs.rs/utoipa/>
 //!
-//! **Currently supported frameworks:**
+//! **Currently implemented boiler plate for:**
 //!
 //! * **actix-web**
 //!
-//! Serving Swagger UI is framework independant thus [`SwaggerUi`] and [`Url`] of this create
-//! could be used similarly to serve the Swagger UI in other frameworks as well.
+//! Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI in with
+//! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
+//! more details at [`serve`].
 //!
 //! # Features
 //!
@@ -21,13 +22,13 @@
 //! Use only the raw types without any boiler plate implementation.
 //! ```text
 //! [dependencies]
-//! utoipa-swagger-ui = "0.1.2"
+//! utoipa-swagger-ui = "0.2.0"
 //!
 //! ```
 //! Enable actix-web framework with Swagger UI you could define the dependency as follows.
 //! ```text
 //! [dependencies]
-//! utoipa-swagger-ui = { version = "0.1.2", features = ["actix-web"] }
+//! utoipa-swagger-ui = { version = "0.2.0", features = ["actix-web"] }
 //! ```
 //!
 //! **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
@@ -50,11 +51,11 @@
 //!                     .url("/api-doc/openapi.json", ApiDoc::openapi()),
 //!             )
 //!     })
-//!     .bind(format!("{}:{}", Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
+//!     .bind((Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
 //!     .run();
 //! ```
 //! [^actix]: **actix-web** feature need to be enabled.
-use std::borrow::Cow;
+use std::{borrow::Cow, error::Error, sync::Arc};
 
 #[cfg(feature = "actix-web")]
 use actix_web::{
@@ -62,22 +63,26 @@ use actix_web::{
 };
 
 use rust_embed::RustEmbed;
+#[cfg(feature = "actix-web")]
 use utoipa::openapi::OpenApi;
 
-#[doc(hidden)]
 #[derive(RustEmbed)]
 #[folder = "$UTOIPA_SWAGGER_DIR/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
-pub struct SwaggerUiDist;
+struct SwaggerUiDist;
 
 /// Entry point for serving Swagger UI and api docs in application. It uses provides
-/// builder style chainable configuration methods for configuring api doc urls.
+/// builder style chainable configuration methods for configuring api doc urls. **In actix-web only** [^actix]
+///
+/// [^actix]: **actix-web** feature need to be enabled.
 #[non_exhaustive]
 #[derive(Clone)]
+#[cfg(feature = "actix-web")]
 pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
 }
 
+#[cfg(feature = "actix-web")]
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
     ///
@@ -183,7 +188,7 @@ impl HttpServiceFactory for SwaggerUi {
 
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
-            .app_data(Data::new(urls))
+            .app_data(Data::new(Config::new(urls)))
             .to(serve_swagger_ui);
 
         HttpServiceFactory::register(swagger_resource, config);
@@ -205,7 +210,7 @@ fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web
 
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Url<'a> {
     name: Cow<'a, str>,
     url: Cow<'a, str>,
@@ -257,6 +262,18 @@ impl<'a> Url<'a> {
             primary,
         }
     }
+
+    fn to_json_object_string(&self) -> String {
+        format!(
+            r#"{{name: "{}", url: "{}"}}"#,
+            if self.name.is_empty() {
+                &self.url
+            } else {
+                &self.name
+            },
+            self.url
+        )
+    }
 }
 
 impl<'a> From<&'a str> for Url<'a> {
@@ -278,54 +295,258 @@ impl From<String> for Url<'_> {
 }
 
 #[cfg(feature = "actix-web")]
-async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Vec<Url<'_>>>) -> HttpResponse {
-    let mut part = path.into_inner();
-    if part.is_empty() || part == "/" {
-        part = "index.html".to_string()
+async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) -> HttpResponse {
+    match serve(&*path.into_inner(), data.into_inner()) {
+        Ok(swagger_file) => swagger_file
+            .map(|file| {
+                HttpResponse::Ok()
+                    .content_type(file.content_type)
+                    .body(file.bytes.to_vec())
+            })
+            .unwrap_or_else(|| HttpResponse::NotFound().finish()),
+        Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
+    }
+}
+
+/// Object used to alter Swagger UI settings.
+///
+/// # Examples
+///
+/// Simple case is to create config directly from url that points to the api doc json.
+/// ```rust
+/// # use utoipa_swagger_ui::Config;
+/// let config = Config::from("/api-doc.json");
+/// ```
+///
+/// If there is multiple api docs to serve config can be also directly created with [`Config::new`]
+/// ```rust
+/// # use utoipa_swagger_ui::Config;
+/// let config = Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]);
+/// ```
+///
+/// Or same as above but more verbose syntax.
+/// ```rust
+/// # use utoipa_swagger_ui::{Config, Url};
+/// let config = Config::new([
+///     Url::new("api1", "/api-doc/openapi1.json"),
+///     Url::new("api2", "/api-doc/openapi2.json")
+/// ]);
+/// ```
+#[non_exhaustive]
+#[derive(Default, Clone)]
+pub struct Config<'a> {
+    /// [`Url`]s the Swagger UI is serving.
+    urls: Vec<Url<'a>>,
+}
+
+impl<'a> Config<'a> {
+    /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
+    ///
+    /// # Examples
+    /// Create new config with 2 api doc urls.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]);
+    /// ```
+    pub fn new<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(urls: I) -> Self {
+        Self {
+            urls: urls.into_iter().map(|url| url.into()).collect(),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for Config<'a> {
+    fn from(s: &'a str) -> Self {
+        Self {
+            urls: vec![Url::from(s)],
+        }
+    }
+}
+
+impl From<String> for Config<'_> {
+    fn from(s: String) -> Self {
+        Self {
+            urls: vec![Url::from(s)],
+        }
+    }
+}
+
+/// Represents servealbe file of Swagger UI. This is used together with [`serve`] function
+/// to serve Swagger UI files via web server.
+#[non_exhaustive]
+pub struct SwaggerFile<'a> {
+    /// Content of the file as [`Cow`] [`slice`] of bytes.
+    pub bytes: Cow<'a, [u8]>,
+    /// Content type of the file e.g `"text/xml"`.
+    pub content_type: String,
+}
+
+/// User friendly way to serve Swagger UI and its content via web server.
+///
+/// * **path** Should be the relative path to Swagger UI resource within the web server.
+/// * **config** Swagger [`Config`] to use for the Swagger UI. Currently supported configuration
+///   options are managing [`Url`]s.
+///
+/// Typpically this function is implemented _**within**_ handler what handles _**GET**_ operations related to the
+/// Swagger UI. Handler itself must match to user defined path that points to the root of the Swagger UI and
+/// matches everything relatively from the root of the Swagger UI. The relative path from root of the Swagger UI
+/// must be taken to `tail` path variable which is used to serve [`SwaggerFile`]s. If Swagger UI
+/// is served from path `/swagger-ui/` then the `tail` is everything under the `/swagger-ui/` prefix.
+///
+/// _There are also implementations in [examples of utoipa repoistory][examples]._
+///
+/// [examples]: https://github.com/juhaku/utoipa/tree/master/examples
+///
+/// # Examples
+///
+/// Reference implementation with `actix-web`.
+/// ```rust
+/// # use actix_web::HttpResponse;
+/// # use std::sync::Arc;
+/// # use utoipa_swagger_ui::Config;
+/// // The config should be created in main function or in initialization before
+/// // creation of the handler which will handle serving the Swagger UI.
+/// let config = Arc::new(Config::from("/api-doc.json"));
+/// // This "/" is for demostrative purposes only. The actual path should point to
+/// // file within Swagger UI. In real implementation this is the `tail` path from root of the
+/// // Swagger UI to the file served.
+/// let path = "/";
+///
+/// match utoipa_swagger_ui::serve(path, config) {
+///     Ok(swagger_file) => swagger_file
+///         .map(|file| {
+///             HttpResponse::Ok()
+///                 .content_type(file.content_type)
+///                 .body(file.bytes.to_vec())
+///         })
+///         .unwrap_or_else(|| HttpResponse::NotFound().finish()),
+///     Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
+/// };
+/// ```
+pub fn serve<'a>(
+    path: &str,
+    config: Arc<Config<'a>>,
+) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error>> {
+    let mut file_path = path;
+
+    if file_path.is_empty() || file_path == "/" {
+        file_path = "index.html";
     }
 
-    if let Some(file) = SwaggerUiDist::get(&part) {
-        let mut bytes = file.data.into_owned();
+    if let Some(file) = SwaggerUiDist::get(file_path) {
+        let mut bytes = file.data;
 
-        if part == "swagger-initializer.js" {
-            let mut index = match String::from_utf8(bytes.to_vec()) {
+        if file_path == "swagger-initializer.js" {
+            let mut file = match String::from_utf8(bytes.to_vec()) {
                 Ok(index) => index,
-                Err(error) => return HttpResponse::InternalServerError().body(error.to_string()),
+                Err(error) => return Err(Box::new(error)),
             };
+            file = format_swagger_config_urls(&mut config.urls.iter(), file);
 
-            if data.len() > 1 {
-                let mut urls = String::from("urls: [");
-                data.as_ref().iter().for_each(|url| {
-                    urls.push_str(&format!(
-                        "{{name: \"{}\", url: \"{}\"}},",
-                        if url.name.is_empty() {
-                            &url.url
-                        } else {
-                            &url.name
-                        },
-                        url.url
-                    ));
-                });
-                urls.push(']');
-                if let Some(primary) = data.as_ref().iter().find(|url| url.primary) {
-                    urls.push_str(&format!(", \"urls.primaryName\": \"{}\"", primary.name));
-                }
-                index = index.replace(r"{{urls}}", &urls);
-            } else if let Some(url) = data.first() {
-                index = index.replace(r"{{urls}}", &format!("url: \"{}\"", url.url));
-            }
-
-            bytes = index.as_bytes().to_vec();
+            bytes = Cow::Owned(file.as_bytes().to_vec())
         };
 
-        HttpResponse::Ok()
-            .content_type(
-                mime_guess::from_path(&part)
-                    .first_or_octet_stream()
-                    .to_string(),
-            )
-            .body(bytes)
+        Ok(Some(SwaggerFile {
+            bytes,
+            content_type: mime_guess::from_path(&file_path)
+                .first_or_octet_stream()
+                .to_string(),
+        }))
     } else {
-        HttpResponse::NotFound().finish()
+        Ok(None)
+    }
+}
+
+#[inline]
+fn format_swagger_config_urls<'a, U: ExactSizeIterator<Item = &'a Url<'a>>>(
+    urls: &mut U,
+    file: String,
+) -> String {
+    if urls.len() > 1 {
+        let mut primary = None::<Cow<'a, str>>;
+        let mut urls_string = format!(
+            "urls: [{}],",
+            &urls
+                .inspect(|url| if url.primary {
+                    primary = Some(Cow::Borrowed(url.name.as_ref()))
+                })
+                .map(Url::to_json_object_string)
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+
+        if let Some(primary) = primary {
+            urls_string.push_str(&format!(r#""urls.primaryName": "{}","#, primary));
+        }
+        file.replace(r"{{urls}},", &urls_string)
+    } else if let Some(url) = urls.next() {
+        file.replace(r"{{urls}}", &format!(r#"url: "{}""#, url.url))
+    } else {
+        file
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_CONTENT: &str = r###""window.ui = SwaggerUIBundle({
+    {{urls}},
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    presets: [
+      SwaggerUIBundle.presets.apis,
+      SwaggerUIStandalonePreset
+    ],
+    plugins: [
+      SwaggerUIBundle.plugins.DownloadUrl
+    ],
+    layout: "StandaloneLayout"
+  });""###;
+
+    #[test]
+    fn format_swagger_config_urls_with_one_url() {
+        let config = Config::from("/api-doc.json");
+        let file =
+            super::format_swagger_config_urls(&mut config.urls.iter(), TEST_CONTENT.to_string());
+
+        assert!(
+            file.contains(r#"url: "/api-doc.json","#),
+            "expected file to contain {}",
+            r#"url: "/api-doc.json","#
+        )
+    }
+
+    #[test]
+    fn format_swagger_config_urls_multiple() {
+        let config = Config::new(["/api-doc.json", "/api-doc2.json"]);
+        let file =
+            super::format_swagger_config_urls(&mut config.urls.iter(), TEST_CONTENT.to_string());
+
+        assert!(
+            file.contains(r#"urls: [{name: "/api-doc.json", url: "/api-doc.json"},{name: "/api-doc2.json", url: "/api-doc2.json"}],"#),
+            "expected file to contain {}",
+            r#"urls: [{name: "/api-doc.json", url: "/api-doc.json"}, {name: "/api-doc2.json", url: "/api-doc2.json"}],"#
+        )
+    }
+    #[test]
+    fn format_swagger_config_urls_with_primary() {
+        let config = Config::new([
+            Url::new("api1", "/api-doc.json"),
+            Url::with_primary("api2", "/api-doc2.json", true),
+        ]);
+        let file =
+            super::format_swagger_config_urls(&mut config.urls.iter(), TEST_CONTENT.to_string());
+
+        assert!(
+            file.contains(r#"urls: [{name: "api1", url: "/api-doc.json"},{name: "api2", url: "/api-doc2.json"}],"#),
+            "expected file to contain {}",
+            r#"urls: [{name: "api1", url: "/api-doc.json"}, {name: "api2", url: "/api-doc2.json"}],"#
+        );
+        assert!(
+            file.contains(r#""urls.primaryName": "api2","#),
+            "expected file to contain {}",
+            r#""urls.primaryName": "api2","#
+        )
     }
 }

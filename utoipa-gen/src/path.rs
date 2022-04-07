@@ -397,6 +397,7 @@ impl ToTokens for Path {
 
         tokens.extend(quote! {
             #[allow(non_camel_case_types)]
+            #[doc(hidden)]
             pub struct #path_struct;
 
             impl utoipa::Path for #path_struct {

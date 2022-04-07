@@ -64,10 +64,10 @@ impl Components {
             ..Default::default()
         }
     }
-    /// Add [`SecuritySchema`] to [`Components`]
+    /// Add [`SecurityScheme`] to [`Components`]
     ///
-    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
@@ -79,10 +79,10 @@ impl Components {
             .insert(name.into(), security_schema.into());
     }
 
-    /// Add iterator of [`SecuritySchema`]s to [`Components`].
+    /// Add iterator of [`SecurityScheme`]s to [`Components`].
     ///
-    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn add_security_schemes_from_iter<
@@ -111,10 +111,10 @@ impl ComponentsBuilder {
         self
     }
 
-    /// Add [`SecuritySchema`] to [`Components`].
+    /// Add [`SecurityScheme`] to [`Components`].
     ///
-    /// Accepts two arguments where first is the name of the [`SecuritySchema`]. This is later when
-    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecuritySchema`].
+    /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
+    /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
     pub fn security_schema<N: Into<String>, S: Into<SecurityScheme>>(
