@@ -19,3 +19,5 @@ log = "0.4"
 futures = "0.3"
 utoipa = { path = "../..", features = ["actix_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
+
+[workspace]
