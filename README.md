@@ -34,7 +34,7 @@ Existing [examples](./examples) for following frameworks:
 
 **actix-web** has support support for actix specific parsing via **actix_extras** feature.
 
-Even if there is no example for your favourite framework `utoipa` is portable and can be used with any 
+Even if there is no example for your favourite framework `utoipa` can be used with any 
 web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
 
 ## What's up with the word play?
