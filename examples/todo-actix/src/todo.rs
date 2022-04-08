@@ -60,7 +60,7 @@ pub(super) enum ErrorResponse {
     /// When there is a conflict storing a new todo.
     Conflict(String),
     /// When todo enpoint was called without correct credentials
-    Unauhtorized(String),
+    Unauthorized(String),
 }
 
 /// Get list of todos.
@@ -132,7 +132,7 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
 #[utoipa::path(
     responses(
         (status = 200, description = "Todo deleted successfully"),
-        (status = 401, description = "Unauthorized to delete Todo", body = ErrorResponse, example = json!(ErrorResponse::Unauhtorized(String::from("missing api key")))),
+        (status = 401, description = "Unauthorized to delete Todo", body = ErrorResponse, example = json!(ErrorResponse::Unauthorized(String::from("missing api key")))),
         (status = 404, description = "Todo not found by id", body = ErrorResponse, example = json!(ErrorResponse::NotFound(String::from("id = 1"))))
     ),
     params(
@@ -150,13 +150,13 @@ pub(super) async fn delete_todo(
 ) -> impl Responder {
     match request.headers().get(API_KEY_NAME) {
         Some(key) if key != API_KEY => {
-            return HttpResponse::Unauthorized().json(ErrorResponse::Unauhtorized(String::from(
+            return HttpResponse::Unauthorized().json(ErrorResponse::Unauthorized(String::from(
                 "incorrect api key",
             )))
         }
         None => {
             return HttpResponse::Unauthorized()
-                .json(ErrorResponse::Unauhtorized(String::from("missing api key")))
+                .json(ErrorResponse::Unauthorized(String::from("missing api key")))
         }
         _ => (), // just passthrough
     }
