@@ -1,6 +1,9 @@
 use std::{net::Ipv4Addr, sync::Arc};
 
-use utoipa::OpenApi;
+use utoipa::{
+    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
+    Modify, OpenApi,
+};
 use utoipa_swagger_ui::Config;
 use warp::{
     hyper::{Response, StatusCode},
@@ -20,11 +23,24 @@ async fn main() {
     #[openapi(
         handlers(todo::list_todos, todo::create_todo, todo::delete_todo),
         components(Todo),
+        modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")
         )
     )]
     struct ApiDoc;
+
+    struct SecurityAddon;
+
+    impl Modify for SecurityAddon {
+        fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+            let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
+            components.add_security_scheme(
+                "api_key",
+                SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
+            )
+        }
+    }
 
     let api_doc = warp::path("api-doc.json")
         .and(warp::get())
@@ -109,6 +125,7 @@ mod todo {
             .and(warp::delete())
             .and(warp::path::end())
             .and(with_store(store))
+            .and(warp::header::header("todo_apikey"))
             .and_then(delete_todo);
 
         list.or(create).or(delete)
@@ -172,13 +189,26 @@ mod todo {
         path = "/todo/{id}",
         responses(
             (status = 200, description = "Delete successful"),
-            (status = 404, description = "Todo not found to delete")
+            (status = 400, description = "Missing todo_apikey request header"),
+            (status = 401, description = "Unauthorized to delete todo"),
+            (status = 404, description = "Todo not found to delete"),
         ),
         params(
             ("id" = i64, path, description = "Todo's unique id")
+        ),
+        security(
+            ("api_key" = [])
         )
     )]
-    pub async fn delete_todo(id: i64, store: Store) -> Result<impl Reply, Infallible> {
+    pub async fn delete_todo(
+        id: i64,
+        store: Store,
+        api_key: String,
+    ) -> Result<impl Reply, Infallible> {
+        if api_key != "utoipa-rocks" {
+            return Ok(StatusCode::UNAUTHORIZED);
+        }
+
         let mut todos = store.lock().unwrap();
 
         let size = todos.len();

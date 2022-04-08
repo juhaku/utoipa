@@ -122,7 +122,7 @@ mod todo {
         get,
         path = "/api/todo",
         responses(
-            (status = 200, description = "List all todos successfully")
+            (status = 200, description = "List all todos successfully", body = [Todo])
         )
     )]
     pub(super) async fn list_todos(req: Request<Store>) -> tide::Result<Response> {
@@ -139,7 +139,7 @@ mod todo {
         path = "/api/todo",
         request_body = Todo,
         responses(
-            (status = 201, description = "Todo created successfully"),
+            (status = 201, description = "Todo created successfully", body = Todo),
             (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Config(String::from("id = 1"))))
         )
     )]

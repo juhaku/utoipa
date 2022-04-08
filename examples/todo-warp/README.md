@@ -9,6 +9,8 @@ supported in no matter the framework.
 Purpose of this `warp` demo is to mainly demonstrate how `utoipa` and `utoipa-swagger-ui` can be integrated
 with other frameworks as well.
 
+For security restricted endpoints the super secret api key is: `utoipa-rocks`.
+
 Just run command below to run the demo application and browse to `http://localhost:8080/swagger-ui/`.
 ```bash
 cargo run
