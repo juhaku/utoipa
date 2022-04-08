@@ -8,12 +8,14 @@ This crate implements necessary boiler plate code to serve Swagger UI via web se
 works as a bridge for serving the OpenAPI documetation created with 
 [utoipa](https://docs.rs/utoipa/) libarary in the Swagger UI.
 
-**Currently supported frameworks:**
+**Currently implemented boiler plate for:**
 
 * **actix-web** `version >= 4`
 
-Serving Swagger UI is framework independant thus `SwaggerUi` and `Url` of this create
-could be used similarly to serve the Swagger UI in other frameworks as well.
+Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
+other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
+more details at [serve](https://docs.rs/utoipa-swagger-ui/0.2.0/utoipa_swagger_ui/fn.serve.html) or 
+[examples](https://github.com/juhaku/utoipa/tree/master/examples).
 
 # Features
 
