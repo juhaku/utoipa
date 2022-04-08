@@ -37,10 +37,7 @@ paste = "1"
 [workspace]
 members = [
   "utoipa-gen",
-  "utoipa-swagger-ui",
-
-  "examples/todo-actix",
-  "examples/todo-warp"
+  "utoipa-swagger-ui"
 ]
 
 [package.metadata.docs.rs]
