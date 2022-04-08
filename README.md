@@ -24,13 +24,23 @@ codebase.
 Utoipa is framework agnostic and could be used together with any web framework or even without one. While 
 being portable and standalone one of it's key aspects is simple integration with web frameworks. 
 
-Currently utoipa provides simple integration with actix-web framework but is not limited to the actix-web 
-framework. All functionalities are not restricted to any specific framework.
+## Choose your flavor and document your API with ice cold IPA
+
+Existing [examples](./examples) for following frameworks:
+
+* **actix-web** 
+* **warp**
+* **tide**
+
+**actix-web** has support support for actix specific parsing via **actix_extras** feature.
+
+Even if there is no example for your favourite framework `utoipa` is portable and can be used with any 
+web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
 
 ## What's up with the word play?
 
 The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
-and the `ipa` is _api_ reversed.
+and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :beer:.
 
 ## Features
 

@@ -8,9 +8,11 @@
 //!
 //! * **actix-web**
 //!
-//! Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI in with
+//! Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
-//! more details at [`serve`].
+//! more details at [`serve`] or [`examples`][examples].
+//!
+//! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
 //!
 //! # Features
 //!
