@@ -214,7 +214,7 @@ This would produce api doc something similar to:
 ## Go beyond the surface
 
 * See how to serve OpenAPI doc via Swagger UI check [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate for more details.
-* Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensinve examples.
+* Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
 * Modify generated OpenAPI at runtime check [Modify](https://docs.rs/utoipa/0.1.1/utoipa/trait.Modify.html) trait for more details.
 * More about OpenAPI security in [security documentation](https://docs.rs/utoipa/0.1.1/utoipa/openapi/security/index.html).
 

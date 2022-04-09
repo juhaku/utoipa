@@ -339,7 +339,7 @@ impl ToTokens for Path {
             .path_attr
             .path_operation
             .as_ref()
-            .or_else(|| self.path_operation.as_ref())
+            .or(self.path_operation.as_ref())
             .unwrap_or_else(|| {
                 #[cfg(feature = "actix_extras")]
                 let help =
@@ -359,7 +359,7 @@ impl ToTokens for Path {
             .path_attr
             .path
             .as_ref()
-            .or_else(|| self.path.as_ref())
+            .or(self.path.as_ref())
             .unwrap_or_else(|| {
                 #[cfg(feature = "actix_extras")]
                 let help =
