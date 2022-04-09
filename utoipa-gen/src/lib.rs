@@ -7,6 +7,8 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::mem;
+
 use component::Component;
 use doc_comment::CommentAttributes;
 
@@ -22,7 +24,7 @@ use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ItemFn, LitStr, Token,
+    DeriveInput, ItemFn, Token,
 };
 
 mod component;
@@ -536,19 +538,20 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// [^actix_extras]: **actix_extras** feature need to be enabled and **actix-web** framework must be declared in your `Cargo.toml`.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
-    #[cfg(feature = "actix_extras")]
-    let mut path_attribute = syn::parse_macro_input!(attr as PathAttr);
-    #[cfg(not(feature = "actix_extras"))]
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
+
+    #[cfg(feature = "actix_extras")]
+    let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    let operation_attribute = &PathOperations::resolve_operation(&ast_fn);
+    let resolved_operation = &mut PathOperations::resolve_operation(&ast_fn);
     let resolved_path = PathOperations::resolve_path(
-        &operation_attribute
-            .map(|attribute| attribute.parse_args::<LitStr>().unwrap_or_abort().value())
-            .or_else(|| path_attribute.path.as_ref().map(String::to_string)),
+        &resolved_operation
+            .as_mut()
+            .map(|operation| mem::take(&mut operation.path))
+            .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
 
     #[cfg(feature = "actix_extras")]
@@ -558,10 +561,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let path = Path::new(path_attribute, fn_name)
-        .path_operation(operation_attribute.map(|attribute| {
-            let ident = attribute.path.get_ident().unwrap();
-            PathOperation::from_ident(ident)
-        }))
+        .path_operation(
+            resolved_operation.as_mut().map(|operation| {
+                mem::replace(&mut operation.path_operation, PathOperation::Options)
+            }),
+        )
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.iter().find_map(|attr| {

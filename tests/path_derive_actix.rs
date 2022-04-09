@@ -182,6 +182,45 @@ fn derive_path_with_multiple_args() {
 }
 
 #[test]
+fn derive_complex_actix_web_path() {
+    mod mod_derive_complex_actix_path {
+        use actix_web::{get, web, HttpResponse, Responder};
+        use serde_json::json;
+
+        #[utoipa::path(
+            responses(
+                (status = 200, description = "success response")
+            ),
+        )]
+        #[get("/foo/{id}", name = "api_name")]
+        #[allow(unused)]
+        async fn get_foo_by_id(path: web::Path<i64>) -> impl Responder {
+            let id = path.into_inner();
+            HttpResponse::Ok().json(json!({ "id": &format!("{}", id) }))
+        }
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(mod_derive_complex_actix_path::get_foo_by_id))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    dbg!(&doc);
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+
+    common::assert_json_array_len(parameters, 1);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#"null"#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int64""#, "Parameter schema format"
+    };
+}
+
+#[test]
 fn derive_path_with_multiple_args_with_descriptions() {
     mod mod_derive_path_multiple_args {
         use actix_web::{get, web, HttpResponse, Responder};
