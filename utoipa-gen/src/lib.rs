@@ -217,7 +217,7 @@ use ext::ArgumentResolver;
 /// # use utoipa::Component;
 /// #[derive(Component)]
 /// #[component(value_type = String)]
-/// struct Value(i62);
+/// struct Value(i64);
 /// ```
 ///
 /// [c]: trait.Component.html
