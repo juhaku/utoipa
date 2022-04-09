@@ -1,6 +1,7 @@
 #![cfg(feature = "serde_json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, vec};
 
+use chrono::{Date, DateTime, Duration, Utc};
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
 
@@ -599,5 +600,59 @@ fn derive_struct_xml() {
         "properties.photos_urls.items.xml.prefix" = r###"null"###, "User photos_urls xml items prefix"
         "properties.photos_urls.items.xml.namespace" = r###"null"###, "User photos_urls xml items namespace"
         "properties.photos_urls.items.xml.wrapped" = r###"null"###, "User photos_urls links xml items wrapped"
+    }
+}
+
+#[cfg(feature = "chrono_types_with_format")]
+#[test]
+fn derive_component_with_chrono_types_with_chrono_with_format_feature() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            value: String,
+            datetime: DateTime<Utc>,
+            date: Date<Utc>,
+            duration: Duration,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.datetime.type" = r#""string""#, "Post datetime type"
+        "properties.datetime.format" = r#""date-time""#, "Post datetime format"
+        "properties.date.type" = r#""string""#, "Post date type"
+        "properties.date.format" = r#""date""#, "Post date format"
+        "properties.duration.type" = r#""string""#, "Post duration type"
+        "properties.duration.format" = r#"null"#, "Post duration format"
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.value.type" = r#""string""#, "Post value type"
+        "properties.value.format" = r#"null"#, "Post value format"
+    }
+}
+
+#[cfg(feature = "chrono_types")]
+#[test]
+fn derive_component_with_chrono_types_with_chrono_feature() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            value: String,
+            datetime: DateTime<Utc>,
+            date: Date<Utc>,
+            duration: Duration,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.datetime.type" = r#""string""#, "Post datetime type"
+        "properties.datetime.format" = r#"null"#, "Post datetime format"
+        "properties.date.type" = r#""string""#, "Post date type"
+        "properties.date.format" = r#"null"#, "Post date format"
+        "properties.duration.type" = r#""string""#, "Post duration type"
+        "properties.duration.format" = r#"null"#, "Post duration format"
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.value.type" = r#""string""#, "Post value type"
+        "properties.value.format" = r#"null"#, "Post value format"
     }
 }

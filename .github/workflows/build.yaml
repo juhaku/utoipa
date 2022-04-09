@@ -65,6 +65,8 @@ jobs:
           cargo test --test path_response_derive_test_no_serde_json --no-default-features
           cargo test --test component_derive_no_serde_json --no-default-features
           cargo test --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
+          cargo test --test component_derive_test --features chrono_types
+          cargo test --test component_derive_test --features chrono_types_with_format
         elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
           cargo test -p utoipa-gen --features actix_extras
         elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then

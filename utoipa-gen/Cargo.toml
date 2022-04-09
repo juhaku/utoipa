@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-gen"
 description = "Code generation implementation for utoipa"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -30,4 +30,6 @@ actix-web = { version = "4" }
 [features]
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static"]
+chrono_types = []
+chrono_types_with_format = []
 json = []

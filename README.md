@@ -50,6 +50,12 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
   from actix web macro attributes and types. See the [path attribute macro](https://docs.rs/utoipa/0.1.1/utoipa/attr.path.html) for more details.
 * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
+* **chrono_types** Add support for _**chrono**_ `DateTime`, `Date` and `Duration` types. By default these types
+  are parsed to `string` types without additional format. If you want to have formats added to the types
+  use **chrono_types_with_format** feature. This is useful because OpenAPI 3.1 spec does not have date-time formats.
+* **chrono_types_with_format** Add support to _**chrono**_ types described above with additional `format`
+  information type. `date-time` for `DateTime` and `date` for `Date` according
+  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`.
 
 ## Install
 
