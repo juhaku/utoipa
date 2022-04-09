@@ -57,35 +57,35 @@ use ext::ArgumentResolver;
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
 /// # Struct Optional Configuration Options
-/// * **example** Can be either `json!(...)` or literal string that can be parsed to json. `json!`
+/// * `example = ...` Can be either `json!(...)` or literal string that can be parsed to json. `json!`
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
-/// * **xml** Can be used to define [`Xml`][xml] object properties applicable to Structs.
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 ///  
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
 /// # Enum Optional Configuration Options
-/// * **example** Can be method reference or literal value. [^json2]
-/// * **default** Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be method reference or literal value. [^json2]
+/// * `default = ...` Can be method reference or literal value. [^json2]
 ///
 /// # Unnamed Field Struct Optional Configuration Options
-/// * **example** Can be method reference or literal value. [^json2]
-/// * **default** Can be method reference or literal value. [^json2]
-/// * **format**  [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `example = ...` Can be method reference or literal value. [^json2]
+/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
-/// * **value_type** Can be used to override default type derived from type of the field used in OpenAPI spec.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases the where default type does not correspond to the actual type e.g. when
 ///   any thrid-party types are used which are not components nor primitive types. With **value_type** we can enforce
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// # Named Fields Optional Configuration Options
-/// * **example** Can be method reference or literal value. [^json2]
-/// * **default** Can be method reference or literal value. [^json2]
-/// * **format**  [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `example = ...` Can be method reference or literal value. [^json2]
+/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
-/// * **write_only** Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
-/// * **read_only** Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
-/// * **xml** Can be used to define [`Xml`][xml] object properties applicable to named fields.
-/// * **value_type** Can be used to override default type derived from type of the field used in OpenAPI spec.
+/// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+/// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases the where default type does not correspond to the actual type e.g. when
 ///   any thrid-party types are used which are not components nor primitive types. With **value_type** we can enforce
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
@@ -257,22 +257,22 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Path Attributes
 ///
-/// * **operation** _**Must be first parameter!**_ Accepted values are known http operations suchs as
+/// * `operation` _**Must be first parameter!**_ Accepted values are known http operations suchs as
 ///   _`get, post, put, delete, head, options, connect, patch, trace`_.
-/// * **path** Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
-/// * **operation_id** Unique operation id for the enpoint. By default this is mapped to function name.
-/// * **context_path** Can add optional scope for **path**. The **context_path** will be prepended to begining of **path**.
+/// * `path = "..."` Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
+/// * `operation_id = "..."` Unique operation id for the enpoint. By default this is mapped to function name.
+/// * `context_path = "..."` Can add optional scope for **path**. The **context_path** will be prepended to begining of **path**.
 ///   This is particularly useful when **path** does not contain the full path to the endpoint. For example if web framework
 ///   allows operation to be defined under some context path or scope which does not reflect to the resolved path then this
 ///   **context_path** can become handy to alter the path.
-/// * **tag** Can be used to group operations. Operations with same tag are groupped together. By default
+/// * `tag = "..."` Can be used to group operations. Operations with same tag are groupped together. By default
 ///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
 ///   then default value _`crate`_ is used instead.
-/// * **request_body** Defining request body indicates that the request is expecting request body within
+/// * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
 ///   the performed request.
-/// * **responses** Slice of responses the endpoint is going to possibly return to the caller.
-/// * **params** Slice of params that the endpoint accepts.
-/// * **security** List of [`SecurityRequirement`][security]s local to the path operation.
+/// * `responses(...)` Slice of responses the endpoint is going to possibly return to the caller.
+/// * `params(...)` Slice of params that the endpoint accepts.
+/// * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 ///
 /// > **Note!** when **actix_extras** feature is enabled the **operation**, **path** and **params** declaration
 /// > may be omitted since they are resolved from **actix-web** attributes namely **path** and function arguments.
@@ -281,10 +281,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Request Body Attributes
 ///
-/// * **content** Can be used to define the content object. Should be an identifier, slice or option
+/// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
 ///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_.
-/// * **description** Define the description for the request body object as str.
-/// * **content_type** Can be used to override the default behaviour of auto resolving the content type
+/// * `description = "..."` Define the description for the request body object as str.
+/// * `content_type = "..."` Can be used to override the default behaviour of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
@@ -303,19 +303,19 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Responses Attributes
 ///
-/// * **status** Is valid http status code. E.g. _`200`_
-/// * **description** Define description for the response as str.
-/// * **body** Optional response body object type. When left empty response does not expect to send any
+/// * `status = ...` Is valid http status code. E.g. _`200`_
+/// * `description = "..."` Define description for the response as str.
+/// * `body = ...` Optional response body object type. When left empty response does not expect to send any
 ///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_
-/// * **content_type** Can be used to override the default behaviour of auto resolving the content type
+/// * `content_type = "..." | content_type = [...]` Can be used to override the default behaviour of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///  _`json`_ and _`xml`_ formats.
-/// * **headers** Slice of response headers that are returned back to a caller.
-/// * **example** Can be either `json!(...)` or literal str that can be parsed to json. `json!`
+/// * `headers(...)` Slice of response headers that are returned back to a caller.
+/// * `example = ...` Can be either `json!(...)` or literal str that can be parsed to json. `json!`
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
 ///
 /// **Minimal response format:**
@@ -338,10 +338,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Response Header Attributes
 ///
-/// * **name** Name of the header. E.g. _`x-csrf-token`_
-/// * **type** Addtional type of the header value. Type is defined after `name` with equals sign before the type.
+/// * `name` Name of the header. E.g. _`x-csrf-token`_
+/// * `type` Addtional type of the header value. Type is defined after `name` with equals sign before the type.
 ///   Type should be identifer or slice of identifiers. E.g. _`String`_ or _`[String]`_
-/// * **description** Can be used to define optional description for the response header as str.
+/// * `description = "..."` Can be used to define optional description for the response header as str.
 ///
 /// **Header supported formats:**
 ///
@@ -352,14 +352,14 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Params Attributes
 ///
-/// * **name** _**Must be the first argument**_. Define the name for parameter.
-/// * **parameter_type** Define possible type for the parameter. Type should be an identifer, slice or option.
+/// * `name` _**Must be the first argument**_. Define the name for parameter.
+/// * `parameter_type` Define possible type for the parameter. Type should be an identifer, slice or option.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
-/// * **in** _**Must be placed after name or parameter_type**_. Define the place of the parameter.
+/// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
 ///   E.g. _`path, query, header, cookie`_
-/// * **deprecated** Define whether the parameter is deprecated or not.
-/// * **description** Define possible description for the parameter as str.
+/// * `deprecated` Define whether the parameter is deprecated or not.
+/// * `description = "..."` Define possible description for the parameter as str.
 ///
 /// **Params supports following representation formats:**
 ///
@@ -370,9 +370,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Security Requirement Attributes
 ///
-/// * **name** Define the name for security requirement. This must match to name of existing
+/// * `name` Define the name for security requirement. This must match to name of existing
 ///   [`SecuritySchema`][security_schema].
-/// * **scopes** Define the list of scopes needed. These must be scopes defined already in
+/// * `scopes = [...]` Define the list of scopes needed. These must be scopes defined already in
 ///   existing [`SecuritySchema`][security_schema].
 ///
 /// **Security Requirement supported formats:**
@@ -592,17 +592,17 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// **Accepted argument attributes:**
 ///
-/// * **handlers**  List of method references having attribute [`#[utoipa::path]`][path] macro.
-/// * **components**  List of [`Component`][component]s in OpenAPI schema.
-/// * **modifiers** List of items implemeting [`Modify`][modify] trait for runtime OpenApi modification.
+/// * `handlers(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
+/// * `components(...)`  List of [`Component`][component]s in OpenAPI schema.
+/// * `modifiers(...)` List of items implemeting [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
-/// * **security** List of [`SecurityRequirement`][security]s global to all operations.
+/// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
 ///   See more details in [`#[utoipa::path(...)]`][path] [attribute macro security options][path_security].
-/// * **tags** List of [`Tag`][tags] which must match the tag _**path operation**_. By default
+/// * `tags(...)` List of [`Tag`][tags] which must match the tag _**path operation**_. By default
 ///   the tag is derived from path given to **handlers** list or if undefined then `crate` is used by default.
 ///   Alternatively the tag name can be given to path operation via [`#[utoipa::path(...)]`][path] macro.
 ///   Tag can be used to define extra information for the api to produce richer documentation.
-/// * **external_docs** Can be used to reference external resource to the OpenAPI doc for extended documentation.
+/// * `external_docs(...)` Can be used to reference external resource to the OpenAPI doc for extended documentation.
 ///   External docs can be in [`OpenApi`][openapi_struct] or in [`Tag`][tags] level.
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo

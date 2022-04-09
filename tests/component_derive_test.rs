@@ -736,3 +736,44 @@ fn derive_unnamed_struct_component_type_override_with_format() {
         "format" = r#""byte""#, "Value format"
     }
 }
+
+#[cfg(feature = "decimal")]
+#[test]
+fn derive_struct_with_rust_decimal() {
+    use rust_decimal::Decimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            rating: Decimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""string""#, "Post rating type"
+        "properties.rating.format" = r#"null"#, "Post rating format"
+    }
+}
+
+#[cfg(feature = "decimal")]
+#[test]
+fn derive_struct_with_rust_decimal_with_type_override() {
+    use rust_decimal::Decimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[component(value_type = f64)]
+            rating: Decimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""number""#, "Post rating type"
+        "properties.rating.format" = r#""float""#, "Post rating format"
+    }
+}
