@@ -603,7 +603,7 @@ fn derive_struct_xml() {
     }
 }
 
-#[cfg(feature = "chrono_with_format")]
+#[cfg(feature = "chrono_types_with_format")]
 #[test]
 fn derive_component_with_chrono_types_with_chrono_with_format_feature() {
     let post = api_doc! {
@@ -630,7 +630,7 @@ fn derive_component_with_chrono_types_with_chrono_with_format_feature() {
     }
 }
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "chrono_types")]
 #[test]
 fn derive_component_with_chrono_types_with_chrono_feature() {
     let post = api_doc! {

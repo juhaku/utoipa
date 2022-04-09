@@ -24,8 +24,8 @@ default = ["json"]
 debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]
 json = ["serde_json", "utoipa-gen/json"]
-chrono = ["utoipa-gen/chrono"]
-chrono_with_format = ["utoipa-gen/chrono_with_format"]
+chrono_types = ["utoipa-gen/chrono_types"]
+chrono_types_with_format = ["utoipa-gen/chrono_types_with_format"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -30,6 +30,6 @@ actix-web = { version = "4" }
 [features]
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static"]
-chrono = []
-chrono_with_format = []
+chrono_types = []
+chrono_types_with_format = []
 json = []
