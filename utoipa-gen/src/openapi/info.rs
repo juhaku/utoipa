@@ -28,7 +28,7 @@ fn get_parsed_author(author: Option<&str>) -> Option<(&str, String)> {
 
             let name = author_iter.next().unwrap_or_default();
             let mut email = author_iter.next().unwrap_or_default().to_string();
-            email = email.replace("<", "").replace(">", "");
+            email = email.replace('<', "").replace('>', "");
 
             (name.trim_end(), email)
         } else {

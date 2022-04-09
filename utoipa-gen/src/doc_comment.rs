@@ -12,9 +12,9 @@ impl CommentAttributes {
     /// Creates new [`CommentAttributes`] instance from [`Attribute`] slice filtering out all
     /// other attributes which are not `doc` comments
     pub(crate) fn from_attributes(attributes: &[Attribute]) -> Self {
-        Self {
-            0: Self::as_string_vec(attributes.iter().filter(Self::is_doc_attribute)),
-        }
+        Self(Self::as_string_vec(
+            attributes.iter().filter(Self::is_doc_attribute),
+        ))
     }
 
     fn is_doc_attribute(attribute: &&Attribute) -> bool {

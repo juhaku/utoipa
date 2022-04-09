@@ -79,7 +79,7 @@ impl PathOperations {
             PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed
                 .args
                 .iter()
-                .map(|arg| match arg {
+                .flat_map(|arg| match arg {
                     GenericArgument::Type(ty) => match ty {
                         Type::Path(path) => vec![path],
                         Type::Tuple(tuple) => tuple.elems.iter().map(Self::get_type_path).collect(),
@@ -93,9 +93,7 @@ impl PathOperations {
                         )
                     }
                 })
-                .flatten()
-                .map(|type_path| type_path.path.get_ident())
-                .flatten()
+                .flat_map(|type_path| type_path.path.get_ident())
                 .collect::<Vec<_>>(),
             _ => {
                 abort_call_site!("unexpected argument type, expected Path<...> with angle brakets")
