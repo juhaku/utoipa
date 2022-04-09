@@ -2,6 +2,8 @@
 use proc_macro2::Ident;
 use syn::{punctuated::Punctuated, token::Comma, Attribute, FnArg, ItemFn};
 
+use crate::path::PathOperation;
+
 #[cfg(feature = "actix_extras")]
 pub mod actix;
 
@@ -29,6 +31,11 @@ pub struct ResolvedPath {
     pub args: Vec<String>,
 }
 
+pub struct ResolvedOperation {
+    pub path_operation: PathOperation,
+    pub path: String,
+}
+
 pub trait ArgumentResolver {
     fn resolve_path_arguments<'a>(
         _: &'a Punctuated<FnArg, Comma>,
@@ -45,7 +52,7 @@ pub trait PathResolver {
 }
 
 pub trait PathOperationResolver {
-    fn resolve_operation(_: &ItemFn) -> Option<&Attribute> {
+    fn resolve_operation(_: &ItemFn) -> Option<ResolvedOperation> {
         None
     }
 }

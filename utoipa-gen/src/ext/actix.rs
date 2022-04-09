@@ -1,17 +1,20 @@
 use std::borrow::Cow;
 
 use lazy_static::lazy_static;
-use proc_macro2::Ident;
-use proc_macro_error::abort_call_site;
+use proc_macro::TokenTree;
+use proc_macro2::{Ident, Literal};
+use proc_macro_error::{abort, abort_call_site};
 use regex::{Captures, Regex};
 use syn::{
-    punctuated::Punctuated, token::Comma, Attribute, FnArg, GenericArgument, ItemFn, LitStr, Pat,
-    PatType, PathArguments, PathSegment, Type, TypePath,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, FnArg, GenericArgument, ItemFn,
+    LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypePath,
 };
+
+use crate::path::PathOperation;
 
 use super::{
     Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedPath,
+    ResolvedOperation, ResolvedPath,
 };
 
 impl ArgumentResolver for PathOperations {
@@ -128,14 +131,53 @@ impl PathOperations {
 }
 
 impl PathOperationResolver for PathOperations {
-    fn resolve_operation(item_fn: &ItemFn) -> Option<&Attribute> {
+    fn resolve_operation(item_fn: &ItemFn) -> Option<ResolvedOperation> {
         item_fn.attrs.iter().find_map(|attribute| {
             if is_valid_request_type(attribute.path.get_ident()) {
-                Some(attribute)
+                match attribute.parse_args::<Path>() {
+                    Ok(path) => Some(ResolvedOperation {
+                        path: path.path,
+                        path_operation: PathOperation::from_ident(
+                            attribute.path.get_ident().unwrap(),
+                        ),
+                    }),
+                    Err(error) => abort!(
+                        error.span(),
+                        "parse path of path operation attribute: {}",
+                        error
+                    ),
+                }
             } else {
                 None
             }
         })
+    }
+}
+
+struct Path {
+    path: String,
+}
+
+impl Parse for Path {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut path = String::new();
+
+        input.step(|cursor| {
+            let mut rest = *cursor;
+
+            // parse only first literal item and ignore rest of the tokens from actix_web path attribute macro
+            while let Some((tt, next)) = rest.token_tree() {
+                if let proc_macro2::TokenTree::Literal(literal) = tt {
+                    if path.is_empty() {
+                        path.push_str(&literal.to_string().replace('\"', ""));
+                    }
+                }
+                rest = next;
+            }
+            Ok(((), rest))
+        });
+
+        Ok(Self { path })
     }
 }
 
