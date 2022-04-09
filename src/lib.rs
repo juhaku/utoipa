@@ -49,7 +49,7 @@
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 //! * **chrono_types** Add support for _**chrono**_ `DateTime`, `Date` and `Duration` types. By default these types
 //!   are parsed to `string` types without
-//!   additional format. If you want to have formats added to the types use **chrono_with_format** feature.
+//!   additional format. If you want to have formats added to the types use _chrono_with_format_ feature.
 //!   This is useful because OpenAPI 3.1 spec does not have date-time formats.
 //! * **chrono_types_with_format** Add support to _**chrono**_ types described above with additional `format`
 //!   information type. `date-time` for `DateTime` and `date` for `Date` according

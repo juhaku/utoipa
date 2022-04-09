@@ -50,6 +50,8 @@ pub struct Struct {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
+    pub(super) ty: Option<Ident>,
+    format: Option<ExprPath>,
     default: Option<TokenStream>,
     example: Option<TokenStream>,
 }
@@ -58,6 +60,7 @@ pub struct UnnamedFieldStruct {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
     example: Option<TokenStream>,
+    pub(super) ty: Option<Ident>,
     format: Option<ExprPath>,
     default: Option<TokenStream>,
     write_only: Option<bool>,
@@ -163,7 +166,7 @@ impl Parse for ComponentAttr<Struct> {
 impl Parse for ComponentAttr<UnnamedFieldStruct> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: default, example";
+            "unexpected attribute, expected any of: default, example, format, value_type";
         let mut unnamed_struct = UnnamedFieldStruct::default();
 
         while !input.is_empty() {
@@ -186,6 +189,11 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                         parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
+                "format" => unnamed_struct.format = Some(parse_format(input)?),
+                "value_type" => {
+                    unnamed_struct.ty =
+                        Some(parse_utils::parse_next(input, || input.parse::<Ident>())?)
+                }
                 _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
@@ -205,47 +213,57 @@ impl ComponentAttr<NamedField> {
         attributes: &[Attribute],
         component_part: &ComponentPart,
     ) -> Option<Self> {
-        parse_component_attr::<ComponentAttr<NamedField>>(attributes).map(|attrs| {
-            if !matches!(
-                component_part.generic_type,
-                Some(crate::component::GenericType::Vec)
-            ) {
-                if let Some(ref wrapped_ident) = attrs
-                    .as_ref()
-                    .xml_attr
-                    .as_ref()
-                    .and_then(|xml| xml.is_wrapped.as_ref())
-                {
-                    abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
-                        help = "Try removing `wrapped` attribute or make your field `Vec`"
+        parse_component_attr::<ComponentAttr<NamedField>>(attributes)
+            .map(|attrs| {
+                is_valid_xml_attr(&attrs, component_part);
+
+                attrs
+            })
+            .map(|mut attrs| {
+                if matches!(component_part.generic_type, Some(super::GenericType::Vec)) {
+                    if let Some(ref mut xml) = attrs.inner.xml_attr {
+                        let mut value_xml = mem::take(xml);
+                        let vec_xml = XmlAttr::with_wrapped(
+                            mem::take(&mut value_xml.is_wrapped),
+                            mem::take(&mut value_xml.wrap_name),
+                        );
+
+                        attrs.inner.xml = Some(Xml::Slice {
+                            vec: vec_xml,
+                            value: value_xml,
+                        });
                     }
+                } else if let Some(ref mut xml) = attrs.inner.xml_attr {
+                    attrs.inner.xml = Some(Xml::NonSlice(mem::take(xml)));
                 }
+
+                attrs
+            })
+    }
+}
+
+#[inline]
+fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &ComponentPart) {
+    if !matches!(
+        component_part.generic_type,
+        Some(crate::component::GenericType::Vec)
+    ) {
+        if let Some(wrapped_ident) = attrs
+            .as_ref()
+            .xml_attr
+            .as_ref()
+            .and_then(|xml| xml.is_wrapped.as_ref())
+        {
+            abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
+                help = "Try removing `wrapped` attribute or make your field `Vec`"
             }
-
-            attrs
-        })
-        .map(|mut attrs| {
-            if matches!(component_part.generic_type, Some(super::GenericType::Vec)) {
-                if let Some(ref mut xml) = attrs.inner.xml_attr {
-                    let mut value_xml = mem::take(xml);
-                    let vec_xml = XmlAttr::with_wrapped(
-                        mem::take(&mut value_xml.is_wrapped),
-                        mem::take(&mut value_xml.wrap_name));
-
-                    attrs.inner.xml = Some(Xml::Slice{vec: vec_xml, value: value_xml});
-                }
-            } else if let Some(ref mut xml) = attrs.inner.xml_attr {
-                attrs.inner.xml = Some(Xml::NonSlice(mem::take(xml)));
-            }
-
-            attrs
-        })
+        }
     }
 }
 
 impl Parse for ComponentAttr<NamedField> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml, value_type";
         let mut field = NamedField::default();
 
         while !input.is_empty() {
@@ -263,18 +281,7 @@ impl Parse for ComponentAttr<NamedField> {
                         parse_lit_or_fn_ref_as_token_stream(input, name)
                     }));
                 }
-                "format" => {
-                    let format = parse_utils::parse_next(input, || input.parse::<ExprPath>())
-                        .map_err(|error| Error::new(error.span(), 
-                        format!("unparseable format expected expression path e.g. ComponentFormat::String, {}", error)))?;
-
-                    if format.path.segments.first().unwrap().ident != "utoipa" {
-                        let appended_path: ExprPath = syn::parse_quote!(utoipa::openapi::#format);
-                        field.format = Some(appended_path);
-                    } else {
-                        field.format = Some(format);
-                    }
-                }
+                "format" => field.format = Some(parse_format(input)?),
                 "default" => {
                     field.default = Some(parse_utils::parse_next(input, || {
                         parse_lit_or_fn_ref_as_token_stream(input, name)
@@ -286,6 +293,9 @@ impl Parse for ComponentAttr<NamedField> {
                     let xml;
                     parenthesized!(xml in input);
                     field.xml_attr = Some(xml.parse()?)
+                }
+                "value_type" => {
+                    field.ty = Some(parse_utils::parse_next(input, || input.parse::<Ident>())?)
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
@@ -299,6 +309,27 @@ impl Parse for ComponentAttr<NamedField> {
     }
 }
 
+#[inline]
+fn parse_format(input: &ParseBuffer) -> Result<ExprPath, Error> {
+    let format = parse_utils::parse_next(input, || input.parse::<ExprPath>()).map_err(|error| {
+        Error::new(
+            error.span(),
+            format!(
+                "unparseable format expected expression path e.g. ComponentFormat::String, {}",
+                error
+            ),
+        )
+    })?;
+
+    if format.path.segments.first().unwrap().ident != "utoipa" {
+        let appended_path: ExprPath = syn::parse_quote!(utoipa::openapi::#format);
+        Ok(appended_path)
+    } else {
+        Ok(format)
+    }
+}
+
+#[inline]
 fn parse_lit_or_fn_ref_as_token_stream(input: &ParseBuffer, name: &str) -> TokenStream {
     if input.peek(Lit) {
         let literal = input.parse::<Lit>().unwrap();
@@ -400,6 +431,12 @@ impl ToTokens for UnnamedFieldStruct {
         if let Some(ref example) = self.example {
             tokens.extend(quote! {
                 .example(Some(#example))
+            })
+        }
+
+        if let Some(ref format) = self.format {
+            tokens.extend(quote! {
+                .format(Some(#format))
             })
         }
     }
