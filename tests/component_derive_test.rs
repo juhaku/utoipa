@@ -656,3 +656,83 @@ fn derive_component_with_chrono_types_with_chrono_feature() {
         "properties.value.format" = r#"null"#, "Post value format"
     }
 }
+
+#[test]
+fn derive_struct_component_field_type_override() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[component(value_type = String)]
+            value: i64,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.value.type" = r#""string""#, "Post value type"
+        "properties.value.format" = r#"null"#, "Post value format"
+    }
+}
+
+#[test]
+fn derive_struct_component_field_type_override_with_format() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[component(value_type = String, format = ComponentFormat::Byte)]
+            value: i64,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.value.type" = r#""string""#, "Post value type"
+        "properties.value.format" = r#""byte""#, "Post value format"
+    }
+}
+
+#[test]
+fn derive_struct_component_field_type_override_with_format_with_vec() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[component(value_type = String, format = ComponentFormat::Binary)]
+            value: Vec<u8>,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.value.type" = r#""string""#, "Post value type"
+        "properties.value.format" = r#""binary""#, "Post value format"
+    }
+}
+
+#[test]
+fn derive_unnamed_struct_component_type_override() {
+    let value = api_doc! {
+        #[component(value_type = String)]
+        struct Value(i64);
+    };
+
+    assert_value! {value=>
+        "type" = r#""string""#, "Value type"
+        "format" = r#"null"#, "Value format"
+    }
+}
+
+#[test]
+fn derive_unnamed_struct_component_type_override_with_format() {
+    let value = api_doc! {
+        #[component(value_type = String, format = ComponentFormat::Byte)]
+        struct Value(i64);
+    };
+
+    assert_value! {value=>
+        "type" = r#""string""#, "Value type"
+        "format" = r#""byte""#, "Value format"
+    }
+}

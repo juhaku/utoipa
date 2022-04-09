@@ -61,9 +61,19 @@ use ext::ArgumentResolver;
 ///  
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
-/// # Enum & Unnamed Field Struct Optional Configuration Options
+/// # Enum Optional Configuration Options
 /// * **example** Can be method reference or literal value. [^json2]
 /// * **default** Can be method reference or literal value. [^json2]
+///
+/// # Unnamed Field Struct Optional Configuration Options
+/// * **example** Can be method reference or literal value. [^json2]
+/// * **default** Can be method reference or literal value. [^json2]
+/// * **format**  [`ComponentFormat`][format] to use for the property. By default the format is derived from
+///   the type of the property according OpenApi spec.
+/// * **value_type** Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases the where default type does not correspond to the actual type e.g. when
+///   any thrid-party types are used which are not components nor primitive types. With **value_type** we can enforce
+///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// # Named Fields Optional Configuration Options
 /// * **example** Can be method reference or literal value. [^json2]
@@ -73,6 +83,10 @@ use ext::ArgumentResolver;
 /// * **write_only** Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * **read_only** Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * **xml** Can be used to define [`Xml`][xml] object properties applicable to named fields.
+/// * **value_type** Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases the where default type does not correspond to the actual type e.g. when
+///   any thrid-party types are used which are not components nor primitive types. With **value_type** we can enforce
+///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -186,9 +200,31 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
+/// Enforce type being used in OpenAPI spec to String with `value_type` and set format to octect stream
+/// with [`ComponentFormat::Binary`][binary].
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// struct Post {
+///     id: i32,
+///     #[component(value_type = String, format = ComponentFormat::Binary)]
+///     value: Vec<u8>,
+/// }
+/// ```
+///
+/// Enforce type being used in OpenAPI spec to String with `value_type` option.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// #[component(value_type = String)]
+/// struct Value(i62);
+/// ```
+///
 /// [c]: trait.Component.html
 /// [format]: openapi/schema/enum.ComponentFormat.html
+/// [binary]: openapi/schema/enum.ComponentFormat.html#variant.Binary
 /// [xml]: openapi/xml/struct.Xml.html
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

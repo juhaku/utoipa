@@ -133,6 +133,11 @@ impl ToTokens for NamedStructComponent<'_> {
                 &field.attrs,
                 component_part,
             );
+
+            let type_override = attrs
+                .as_ref()
+                .and_then(|field| field.as_ref().ty.as_ref())
+                .map(ComponentPart::from_ident);
             let xml_value = attrs
                 .as_ref()
                 .and_then(|named_field| named_field.as_ref().xml.as_ref());
@@ -144,6 +149,7 @@ impl ToTokens for NamedStructComponent<'_> {
                 attrs.as_ref(),
                 deprecated.as_ref(),
                 xml_value,
+                type_override.as_ref(),
             );
 
             tokens.extend(quote! {
@@ -200,9 +206,20 @@ impl ToTokens for UnnamedStructComponent<'_> {
             attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = get_deprecated(self.attributes);
         if all_fields_are_same {
+            let type_override = attrs
+                .as_ref()
+                .and_then(|unnamed_struct| unnamed_struct.as_ref().ty.as_ref())
+                .map(ComponentPart::from_ident);
             tokens.extend(
-                ComponentProperty::new(first_part, None, attrs.as_ref(), deprecated.as_ref(), None)
-                    .to_token_stream(),
+                ComponentProperty::new(
+                    first_part,
+                    None,
+                    attrs.as_ref(),
+                    deprecated.as_ref(),
+                    None,
+                    type_override.as_ref(),
+                )
+                .to_token_stream(),
             );
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.
@@ -429,6 +446,19 @@ impl<'a> ComponentPart<'a> {
         )
     }
 
+    fn from_ident(ty: &'a Ident) -> ComponentPart<'a> {
+        ComponentPart {
+            child: None,
+            generic_type: None,
+            ident: ty,
+            value_type: if ComponentType(ty).is_primitive() {
+                ValueType::Primitive
+            } else {
+                ValueType::Object
+            },
+        }
+    }
+
     fn from_type_path(
         type_path: &'a TypePath,
         op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
@@ -541,6 +571,7 @@ struct ComponentProperty<'a, T> {
     attrs: Option<&'a ComponentAttr<T>>,
     deprecated: Option<&'a Deprecated>,
     xml: Option<&'a Xml>,
+    type_override: Option<&'a ComponentPart<'a>>,
 }
 
 impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
@@ -550,6 +581,7 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
         attrs: Option<&'a ComponentAttr<T>>,
         deprecated: Option<&'a Deprecated>,
         xml: Option<&'a Xml>,
+        type_override: Option<&'a ComponentPart<'a>>,
     ) -> Self {
         Self {
             component_part,
@@ -557,6 +589,7 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
             attrs,
             deprecated,
             xml,
+            type_override,
         }
     }
 
@@ -592,19 +625,24 @@ where
                     self.attrs,
                     self.deprecated,
                     self.xml,
+                    self.type_override,
                 );
 
-                tokens.extend(quote! {
-                    #component_property.to_array_builder()
-                });
+                if self.type_override.is_none() {
+                    tokens.extend(quote! {
+                        #component_property.to_array_builder()
+                    });
 
-                if let Some(xml_value) = self.xml {
-                    match xml_value {
-                        Xml::Slice { vec, value: _ } => tokens.extend(quote! {
-                            .xml(Some(#vec))
-                        }),
-                        Xml::NonSlice(_) => (),
+                    if let Some(xml_value) = self.xml {
+                        match xml_value {
+                            Xml::Slice { vec, value: _ } => tokens.extend(quote! {
+                                .xml(Some(#vec))
+                            }),
+                            Xml::NonSlice(_) => (),
+                        }
                     }
+                } else {
+                    tokens.extend(quote! { #component_property })
                 }
             }
             Some(GenericType::Option)
@@ -617,60 +655,65 @@ where
                     self.attrs,
                     self.deprecated,
                     self.xml,
+                    self.type_override,
                 );
 
                 tokens.extend(component_property.into_token_stream())
             }
-            None => match self.component_part.value_type {
-                ValueType::Primitive => {
-                    let component_type = ComponentType(self.component_part.ident);
+            None => {
+                let component_part = self.type_override.unwrap_or(self.component_part);
 
-                    tokens.extend(quote! {
-                        utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
-                    });
+                match component_part.value_type {
+                    ValueType::Primitive => {
+                        let component_type = ComponentType(component_part.ident);
 
-                    let format = ComponentFormat(self.component_part.ident);
-                    if format.is_known_format() {
                         tokens.extend(quote! {
-                            .format(Some(#format))
-                        })
-                    }
+                            utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
+                        });
 
-                    if let Some(description) =
-                        self.comments.and_then(|attributes| attributes.0.first())
-                    {
-                        tokens.extend(quote! {
-                            .description(Some(#description))
-                        })
-                    }
+                        let format = ComponentFormat(component_part.ident);
+                        if format.is_known_format() {
+                            tokens.extend(quote! {
+                                .format(Some(#format))
+                            })
+                        }
 
-                    if let Some(deprecated) = self.deprecated {
-                        tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-                    }
+                        if let Some(description) =
+                            self.comments.and_then(|attributes| attributes.0.first())
+                        {
+                            tokens.extend(quote! {
+                                .description(Some(#description))
+                            })
+                        }
 
-                    if let Some(attributes) = self.attrs {
-                        tokens.extend(attributes.to_token_stream())
-                    }
+                        if let Some(deprecated) = self.deprecated {
+                            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+                        }
 
-                    if let Some(xml_value) = self.xml {
-                        match xml_value {
-                            Xml::Slice { vec: _, value } => tokens.extend(quote! {
-                                .xml(Some(#value))
-                            }),
-                            Xml::NonSlice(xml) => tokens.extend(quote! {
-                                .xml(Some(#xml))
-                            }),
+                        if let Some(attributes) = self.attrs {
+                            tokens.extend(attributes.to_token_stream())
+                        }
+
+                        if let Some(xml_value) = self.xml {
+                            match xml_value {
+                                Xml::Slice { vec: _, value } => tokens.extend(quote! {
+                                    .xml(Some(#value))
+                                }),
+                                Xml::NonSlice(xml) => tokens.extend(quote! {
+                                    .xml(Some(#xml))
+                                }),
+                            }
                         }
                     }
-                }
-                ValueType::Object => {
-                    let name = &*self.component_part.ident.to_string();
+                    ValueType::Object => {
+                        let name = &*self.component_part.ident.to_string();
 
-                    tokens.extend(quote! {
-                        utoipa::openapi::Ref::from_component_name(#name)
-                    })
+                        tokens.extend(quote! {
+                            utoipa::openapi::Ref::from_component_name(#name)
+                        })
+                    }
                 }
-            },
+            }
         }
     }
 }
