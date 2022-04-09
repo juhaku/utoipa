@@ -23,6 +23,11 @@ where
             primitive = is_primitive_chrono(name);
         }
 
+        #[cfg(feature = "decimal")]
+        if !primitive {
+            primitive = is_primitive_rust_decimal(name);
+        }
+
         primitive
     }
 }
@@ -58,6 +63,12 @@ fn is_primitive_chrono(name: &str) -> bool {
     matches!(name, "DateTime" | "Date" | "Duration")
 }
 
+#[inline]
+#[cfg(feature = "chrono_types")]
+fn is_primitive_rust_decimal(name: &str) -> bool {
+    matches!(name, "Decimal")
+}
+
 impl<'a, T> ToTokens for ComponentType<'a, T>
 where
     T: Display,
@@ -69,15 +80,17 @@ where
             "String" | "str" | "char" => {
                 tokens.extend(quote! {utoipa::openapi::ComponentType::String})
             }
-            "bool" => tokens.extend(quote! {utoipa::openapi::ComponentType::Boolean}),
+            "bool" => tokens.extend(quote! { utoipa::openapi::ComponentType::Boolean }),
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => tokens.extend(quote! {utoipa::openapi::ComponentType::Integer}),
-            "f32" | "f64" => tokens.extend(quote! {utoipa::openapi::ComponentType::Number}),
+            | "u128" | "usize" => tokens.extend(quote! { utoipa::openapi::ComponentType::Integer }),
+            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::ComponentType::Number }),
             #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
             "DateTime" | "Date" | "Duration" => {
                 tokens.extend(quote! { utoipa::openapi::ComponentType::String })
             }
-            _ => tokens.extend(quote! {utoipa::openapi::ComponentType::Object}),
+            #[cfg(feature = "decimal")]
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
+            _ => tokens.extend(quote! { utoipa::openapi::ComponentType::Object }),
         }
     }
 }
@@ -118,14 +131,14 @@ impl<T: Display> ToTokens for ComponentFormat<T> {
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
-                tokens.extend(quote! {utoipa::openapi::ComponentFormat::Int32})
+                tokens.extend(quote! { utoipa::openapi::ComponentFormat::Int32 })
             }
-            "i64" | "u64" => tokens.extend(quote! {utoipa::openapi::ComponentFormat::Int64}),
-            "f32" | "f64" => tokens.extend(quote! {utoipa::openapi::ComponentFormat::Float}),
+            "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Int64 }),
+            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Float }),
             #[cfg(feature = "chrono_types_with_format")]
-            "DateTime" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::DateTime}),
+            "DateTime" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::DateTime }),
             #[cfg(feature = "chrono_types_with_format")]
-            "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date}),
+            "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date }),
             _ => (),
         }
     }

@@ -47,13 +47,16 @@
 //! * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
 //!   from actix web macro attributes and types. See [`utoipa::path(...)`][path] for more details.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
-//! * **chrono_types** Add support for _**chrono**_ `DateTime`, `Date` and `Duration` types. By default these types
+//! * **chrono_types** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration` types. By default these types
 //!   are parsed to `string` types without
 //!   additional format. If you want to have formats added to the types use _chrono_with_format_ feature.
 //!   This is useful because OpenAPI 3.1 spec does not have date-time formats.
-//! * **chrono_types_with_format** Add support to _**chrono**_ types described above with additional `format`
+//! * **chrono_types_with_format** Add support to [chrono](https://crates.io/crates/chrono) types described above with additional `format`
 //!   information type. `date-time` for `DateTime` and `date` for `Date` according
 //!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`.
+//! * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
+//!   it is interpreted as `String`. If you wish to change the format you need to override the type.
+//!   See the `value_type` in [component derive docs][component_derive].
 //!
 //! # Install
 //!
@@ -183,6 +186,7 @@
 //! [path]: attr.path.html
 //!
 //! [security]: openapi/security/index.html
+//! [component_derive]: derive.Component.html
 
 pub mod openapi;
 
