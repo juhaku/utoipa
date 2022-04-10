@@ -136,7 +136,7 @@ impl PathOperationResolver for PathOperations {
             if is_valid_request_type(attribute.path.get_ident()) {
                 match attribute.parse_args::<Path>() {
                     Ok(path) => Some(ResolvedOperation {
-                        path: path.path,
+                        path: path.0,
                         path_operation: PathOperation::from_ident(
                             attribute.path.get_ident().unwrap(),
                         ),
@@ -154,30 +154,22 @@ impl PathOperationResolver for PathOperations {
     }
 }
 
-struct Path {
-    path: String,
-}
+struct Path(String);
 
 impl Parse for Path {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut path = String::new();
+        let path = input.parse::<LitStr>()?.value();
 
         input.step(|cursor| {
             let mut rest = *cursor;
-
-            // parse only first literal item and ignore rest of the tokens from actix_web path attribute macro
+            // ignore rest of the tokens from actix_web path attribute macro
             while let Some((tt, next)) = rest.token_tree() {
-                if let proc_macro2::TokenTree::Literal(literal) = tt {
-                    if path.is_empty() {
-                        path.push_str(&literal.to_string().replace('\"', ""));
-                    }
-                }
                 rest = next;
             }
             Ok(((), rest))
         });
 
-        Ok(Self { path })
+        Ok(Self(path))
     }
 }
 
