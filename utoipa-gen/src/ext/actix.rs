@@ -10,31 +10,39 @@ use syn::{
     LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypePath,
 };
 
-use crate::path::PathOperation;
+use crate::{ext::ArgValue, path::PathOperation};
 
 use super::{
     Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedOperation, ResolvedPath,
+    ResolvedArg, ResolvedOperation, ResolvedPath,
 };
 
 impl ArgumentResolver for PathOperations {
-    fn resolve_path_arguments<'a>(
-        fn_args: &'a Punctuated<FnArg, Comma>,
-        resolved_path: &'a Option<ResolvedPath>,
-    ) -> Option<Vec<Argument<'a>>> {
+    fn resolve_path_arguments(
+        fn_args: &Punctuated<FnArg, Comma>,
+        resolved_path: Option<Vec<ResolvedArg>>,
+    ) -> Option<Vec<Argument<'_>>> {
         resolved_path
-            .as_ref()
             .zip(Self::find_path_pat_type_and_segment(fn_args))
-            .map(|(path, (_, path_segment))| {
+            .map(|(resolved_args, (_, path_segment))| {
                 let types = Self::get_argument_types(path_segment);
 
-                path.args
-                    .iter()
+                resolved_args
+                    .into_iter()
                     .zip(types.into_iter())
-                    .map(|(name, ty)| Argument {
-                        argument_in: ArgumentIn::Path,
-                        ident: ty,
-                        name: Some(name),
+                    .map(|(resolved_arg, ty)| {
+                        let name = match resolved_arg {
+                            ResolvedArg::Path(path) => path.name,
+                            ResolvedArg::Query(query) => query.name,
+                        };
+
+                        Argument {
+                            argument_in: ArgumentIn::Path,
+                            ident: Some(ty),
+                            name: Some(Cow::Owned(name)),
+                            is_array: false,
+                            is_option: false,
+                        }
                     })
                     .collect::<Vec<_>>()
             })
@@ -180,28 +188,37 @@ impl PathResolver for PathOperations {
                 static ref RE: Regex = Regex::new(r"\{[a-zA-Z0-9_][^{}]*}").unwrap();
             }
 
-            let mut args = Vec::<String>::with_capacity(RE.find_iter(path).count());
+            let mut args = Vec::<ResolvedArg>::with_capacity(RE.find_iter(path).count());
             ResolvedPath {
                 path: RE
                     .replace_all(path, |captures: &Captures| {
-                        let mut capture = captures.get(0).unwrap().as_str().to_string();
+                        let mut capture = &captures[0];
+                        let original_name = String::from(capture);
 
                         if capture.contains("_:") {
                             // replace unnamed capture with generic 'arg0' name
-                            args.push(String::from("arg0"));
+                            args.push(ResolvedArg::Path(ArgValue {
+                                name: String::from("arg0"),
+                                original_name,
+                            }));
                             "{arg0}".to_string()
                         } else if let Some(colon) = capture.find(':') {
                             //  replace colon (:) separated regexp with empty string
-                            let end = capture.len() - 1;
-                            capture.replace_range(colon..end, "");
+                            capture = &capture[1..colon];
 
-                            args.push(String::from(&capture[1..capture.len() - 1]));
+                            args.push(ResolvedArg::Path(ArgValue {
+                                name: String::from(capture),
+                                original_name,
+                            }));
 
-                            capture
+                            format!("{{{capture}}}")
                         } else {
-                            args.push(String::from(&capture[1..capture.len() - 1]));
+                            args.push(ResolvedArg::Path(ArgValue {
+                                name: String::from(&capture[1..capture.len() - 1]),
+                                original_name,
+                            }));
                             // otherwise return the capture itself
-                            capture
+                            capture.to_string()
                         }
                     })
                     .to_string(),
@@ -211,6 +228,7 @@ impl PathResolver for PathOperations {
     }
 }
 
+#[inline]
 fn is_valid_request_type(ident: Option<&Ident>) -> bool {
     matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
         .iter().any(|expected_operation| operation == expected_operation))

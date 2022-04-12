@@ -121,6 +121,7 @@ fn derive_path_with_named_regex_actix_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
     let parameters = common::get_json_path(&doc, "paths./foo/{tail}.get.parameters");
 
     common::assert_json_array_len(parameters, 1);

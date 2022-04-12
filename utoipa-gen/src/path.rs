@@ -15,11 +15,8 @@ use self::{
     response::{Response, Responses},
 };
 
-#[cfg(feature = "actix_extras")]
-use self::parameter::ParameterIn;
-
-#[cfg(feature = "actix_extras")]
-use crate::ext::{Argument, ArgumentIn};
+#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+use crate::ext::Argument;
 
 pub mod parameter;
 mod property;
@@ -60,65 +57,58 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 /// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct PathAttr {
+pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
-    request_body: Option<RequestBodyAttr>,
-    responses: Vec<Response>,
+    request_body: Option<RequestBodyAttr<'p>>,
+    responses: Vec<Response<'p>>,
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    params: Option<Vec<Parameter>>,
+    params: Option<Vec<Parameter<'p>>>,
     security: Option<Array<SecurityRequirementAttr>>,
     context_path: Option<String>,
 }
 
-impl PathAttr {
-    #[cfg(feature = "actix_extras")]
-    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument>>) {
-        if let Some(arguments) = arguments {
-            let new_parameter = |argument: &Argument| {
-                Parameter::new(
-                    *argument.name.as_ref().unwrap(),
-                    argument.ident,
-                    if argument.argument_in == ArgumentIn::Path {
-                        ParameterIn::Path
-                    } else {
-                        ParameterIn::Query
-                    },
-                )
-            };
+impl<'p> PathAttr<'p> {
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
+        use std::borrow::Cow;
 
+        if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
+                // update existing parameters with resolved type from fn arguments
                 parameters.iter_mut().for_each(|parameter| {
-                    if let Some(argument) = arguments
-                        .iter()
-                        .find(|argument| argument.name.as_ref() == Some(&&*parameter.name))
-                    {
-                        parameter.update_parameter_type(argument.ident)
+                    if let Some(argument) = arguments.iter().find(|argument| {
+                        argument.name.as_ref() == Some(&Cow::Borrowed(&*parameter.name))
+                    }) {
+                        parameter.update_parameter_type(
+                            argument.ident,
+                            argument.is_array,
+                            argument.is_option,
+                        )
                     }
                 });
 
                 // add argument to the parameters if argument has a name and it does not exists in parameters
                 arguments
-                    .iter()
+                    .into_iter()
                     .filter(|argument| argument.has_name())
                     .for_each(|argument| {
                         // cannot use filter() for mutli borrow situation. :(
-                        if !parameters
-                            .iter()
-                            .any(|parameter| Some(&&*parameter.name) == argument.name.as_ref())
-                        {
+                        if !parameters.iter().any(|parameter| {
+                            argument.name.as_ref() == Some(&Cow::Borrowed(&*parameter.name))
+                        }) {
                             // if parameters does not contain argument
-                            parameters.push(new_parameter(argument))
+                            parameters.push(argument.into())
                         }
                     });
             } else {
                 // no parameters at all, add arguments to the parameters if argument has a name
                 let mut params = Vec::with_capacity(arguments.len());
                 arguments
-                    .iter()
+                    .into_iter()
                     .filter(|argument| argument.has_name())
-                    .map(new_parameter)
+                    .map(Parameter::from)
                     .for_each(|parameter| params.push(parameter));
                 self.params = Some(params);
             }
@@ -126,7 +116,7 @@ impl PathAttr {
     }
 }
 
-impl Parse for PathAttr {
+impl Parse for PathAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security, context_path";
         let mut path_attr = PathAttr::default();
@@ -268,8 +258,8 @@ impl ToTokens for PathOperation {
         tokens.extend(path_item_type);
     }
 }
-pub struct Path {
-    path_attr: PathAttr,
+pub struct Path<'p> {
+    path_attr: PathAttr<'p>,
     fn_name: String,
     path_operation: Option<PathOperation>,
     path: Option<String>,
@@ -277,8 +267,8 @@ pub struct Path {
     deprecated: Option<bool>,
 }
 
-impl Path {
-    pub fn new(path_attr: PathAttr, fn_name: &str) -> Self {
+impl<'p> Path<'p> {
+    pub fn new(path_attr: PathAttr<'p>, fn_name: &str) -> Self {
         Self {
             path_attr,
             fn_name: fn_name.to_string(),
@@ -314,7 +304,7 @@ impl Path {
     }
 }
 
-impl ToTokens for Path {
+impl ToTokens for Path<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self
@@ -427,9 +417,9 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Vec<Parameter>>,
-    request_body: Option<&'a RequestBodyAttr>,
-    responses: &'a Vec<Response>,
+    parameters: Option<&'a Vec<Parameter<'a>>>,
+    request_body: Option<&'a RequestBodyAttr<'a>>,
+    responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
 }
 
