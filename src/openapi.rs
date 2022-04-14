@@ -149,6 +149,14 @@ impl OpenApi {
     pub fn to_pretty_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
+
+    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method. [^yaml]
+    ///
+    /// [^yaml]: **serde_yaml** feature is needed.
+    #[cfg(feature = "serde_yaml")]
+    pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
+        serde_yaml::to_string(self)
+    }
 }
 
 impl OpenApiBuilder {
