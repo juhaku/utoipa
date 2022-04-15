@@ -15,16 +15,16 @@ use super::{property::Property, ContentTypeResolver};
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Response {
+pub struct Response<'r> {
     status_code: i32,
     description: String,
-    response_type: Option<Type>,
+    response_type: Option<Type<'r>>,
     content_type: Option<Vec<String>>,
-    headers: Vec<Header>,
+    headers: Vec<Header<'r>>,
     example: Option<Example>,
 }
 
-impl Parse for Response {
+impl Parse for Response<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers";
         let mut response = Response::default();
@@ -104,7 +104,7 @@ impl Parse for Response {
     }
 }
 
-impl ToTokens for Response {
+impl ToTokens for Response<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let description = &self.description;
         tokens.extend(quote! {
@@ -150,9 +150,9 @@ impl ToTokens for Response {
     }
 }
 
-impl ContentTypeResolver for Response {}
+impl ContentTypeResolver for Response<'_> {}
 
-pub struct Responses<'a>(pub &'a [Response]);
+pub struct Responses<'a>(pub &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -229,13 +229,13 @@ impl ToTokens for Responses<'_> {
 /// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Header {
+struct Header<'h> {
     name: String,
-    value_type: Option<Type>,
+    value_type: Option<Type<'h>>,
     description: Option<String>,
 }
 
-impl Parse for Header {
+impl Parse for Header<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut header = Header {
             name: input.parse::<LitStr>()?.value(),
@@ -283,7 +283,7 @@ impl Parse for Header {
     }
 }
 
-impl ToTokens for Header {
+impl ToTokens for Header<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(ref header_type) = self.value_type {
             // header property with custom type

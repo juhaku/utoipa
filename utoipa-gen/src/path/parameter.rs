@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, borrow::Cow};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -7,7 +7,7 @@ use syn::{
     Error, LitStr, Token,
 };
 
-use crate::{parse_utils, Deprecated, Required, Type};
+use crate::{parse_utils, Deprecated, Required, Type, ext::{Argument, ArgumentIn}};
 
 use super::property::Property;
 
@@ -24,40 +24,45 @@ use super::property::Property;
 /// The `= String` type statement is optional if automatic resolvation is supported.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Parameter {
-    pub name: String,
+pub struct Parameter<'a> {
+    pub name: Cow<'a, str>,
     parameter_in: ParameterIn,
     deprecated: bool,
     description: Option<String>,
-    parameter_type: Option<Type>,
+    parameter_type: Option<Type<'a>>,
 }
 
-impl Parameter {
+impl<'p> Parameter<'p> {
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    pub fn update_parameter_type(&mut self, ident: Option<&'p Ident>, is_array: bool, is_option: bool) {
+        self.parameter_type = ident.map(|ty| Type::new(Cow::Borrowed(ty), is_array, is_option));
+    }
+}
 
-    #[cfg(feature = "actix_extras")]
-    pub fn new<S: Into<String>>(name: S, parameter_type: &Ident, parameter_in: ParameterIn) -> Self {
+#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+impl<'a> From<Argument<'a>> for Parameter<'a> {
+    fn from(argument: Argument<'a>) -> Self {
         Self {
-            name: name.into(),
-            parameter_type: Some(Type::new(parameter_type.clone())),
-            parameter_in,
+            name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
+            parameter_in: if argument.argument_in == ArgumentIn::Path {
+                ParameterIn::Path
+            } else {
+                ParameterIn::Query
+            },
+            parameter_type: argument.ident.map(|ty| Type::new(Cow::Borrowed(ty), argument.is_array, argument.is_option)),
             ..Default::default()
         }
     }
-
-    #[cfg(feature = "actix_extras")]
-    pub fn update_parameter_type(&mut self, ident: &Ident) {
-        self.parameter_type = Some(Type::new(ident.clone()));
-    }
 }
 
-impl Parse for Parameter {
+impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut parameter = Parameter::default();
 
         if input.peek(LitStr) {
             // parse name
             let name = input.parse::<LitStr>()?.value();
-            parameter.name = name;
+            parameter.name = Cow::Owned(name);
 
             if input.peek(Token![=]) {
                 parameter.parameter_type = Some(parse_utils::parse_next(input, || {
@@ -108,7 +113,7 @@ impl Parse for Parameter {
     }
 }
 
-impl ToTokens for Parameter {
+impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &*self.name;
         tokens.extend(quote! { 

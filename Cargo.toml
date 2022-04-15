@@ -23,6 +23,7 @@ exclude = [
 default = ["json"]
 debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]
+rocket_extras = ["utoipa-gen/rocket_extras"]
 json = ["serde_json", "utoipa-gen/json"]
 chrono_types = ["utoipa-gen/chrono_types"]
 chrono_types_with_format = ["utoipa-gen/chrono_types_with_format"]
@@ -38,6 +39,7 @@ actix-web = { version = "4" }
 paste = "1"
 chrono = { version  = "0.4", features = ["serde"] }
 rust_decimal = "1"
+rocket = "0.5.0-rc.1"
 
 [workspace]
 members = [

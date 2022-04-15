@@ -45,13 +45,13 @@ use super::{property::Property, ContentTypeResolver};
 /// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct RequestBodyAttr {
-    content: Option<Type>,
+pub struct RequestBodyAttr<'r> {
+    content: Option<Type<'r>>,
     content_type: Option<String>,
     description: Option<String>,
 }
 
-impl Parse for RequestBodyAttr {
+impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: content, content_type, description";
@@ -118,9 +118,9 @@ impl Parse for RequestBodyAttr {
     }
 }
 
-impl ContentTypeResolver for RequestBodyAttr {}
+impl ContentTypeResolver for RequestBodyAttr<'_> {}
 
-impl ToTokens for RequestBodyAttr {
+impl ToTokens for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(ref body_type) = self.content {
             let property = Property::new(body_type.is_array, &body_type.ty);

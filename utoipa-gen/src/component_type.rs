@@ -15,7 +15,11 @@ where
 
         let primitive = is_primitive(name);
 
-        #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
+        #[cfg(any(
+            feature = "chrono_types",
+            feature = "chrono_types_with_format",
+            feature = "rocket_extras"
+        ))]
         let mut primitive = primitive;
 
         #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
@@ -26,6 +30,11 @@ where
         #[cfg(feature = "decimal")]
         if !primitive {
             primitive = is_primitive_rust_decimal(name);
+        }
+
+        #[cfg(feature = "rocket_extras")]
+        if !primitive {
+            primitive = matches!(name, "PathBuf");
         }
 
         primitive
@@ -90,6 +99,8 @@ where
             }
             #[cfg(feature = "decimal")]
             "Decimal" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
+            #[cfg(feature = "rocket_extras")]
+            "PathBuf" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
             _ => tokens.extend(quote! { utoipa::openapi::ComponentType::Object }),
         }
     }
