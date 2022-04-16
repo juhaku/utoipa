@@ -57,15 +57,27 @@
 //!     .run();
 //! ```
 //! [^actix]: **actix-web** feature need to be enabled.
-use std::{borrow::Cow, error::Error, sync::Arc};
+use std::{borrow::Cow, error::Error, io::Cursor, sync::Arc};
 
 #[cfg(feature = "actix-web")]
 use actix_web::{
     dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource, Responder,
 };
 
+#[cfg(feature = "rocket")]
+use rocket::{
+    http::{Header, Status},
+    response::{
+        status::{self, NotFound},
+        Responder,
+    },
+    route::{Handler, Outcome},
+    serde::json::Json,
+    Data, Request, Response, Route,
+};
+
 use rust_embed::RustEmbed;
-#[cfg(feature = "actix-web")]
+#[cfg(any(feature = "actix-web", feature = "rocket"))]
 use utoipa::openapi::OpenApi;
 
 #[derive(RustEmbed)]
@@ -78,13 +90,13 @@ struct SwaggerUiDist;
 /// [^actix]: **actix-web** feature need to be enabled.
 #[non_exhaustive]
 #[derive(Clone)]
-#[cfg(feature = "actix-web")]
+#[cfg(any(feature = "actix-web", feature = "rocket"))]
 pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
 }
 
-#[cfg(feature = "actix-web")]
+#[cfg(any(feature = "actix-web", feature = "rocket"))]
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
     ///
@@ -210,6 +222,82 @@ fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web
     HttpServiceFactory::register(url_resource, config);
 }
 
+#[cfg(feature = "rocket")]
+impl From<SwaggerUi> for Vec<Route> {
+    fn from(swagger_ui: SwaggerUi) -> Self {
+        let mut routes = Vec::<Route>::with_capacity(swagger_ui.urls.len() + 1);
+        let mut api_docs = Vec::<Route>::with_capacity(swagger_ui.urls.len());
+
+        let urls = swagger_ui.urls.into_iter().map(|(url, openapi)| {
+            api_docs.push(Route::new(
+                rocket::http::Method::Get,
+                url.url.as_ref(),
+                ServeApiDoc(openapi),
+            ));
+            url
+        });
+
+        routes.push(Route::new(
+            rocket::http::Method::Get,
+            swagger_ui.path.as_ref(),
+            ServeSwagger(swagger_ui.path.clone(), Arc::new(Config::new(urls))),
+        ));
+        routes.extend(api_docs);
+
+        routes
+    }
+}
+
+#[cfg(feature = "rocket")]
+#[derive(Clone)]
+struct ServeApiDoc(utoipa::openapi::OpenApi);
+
+#[cfg(feature = "rocket")]
+#[rocket::async_trait]
+impl Handler for ServeApiDoc {
+    async fn handle<'r>(&self, request: &'r Request<'_>, _: Data<'r>) -> Outcome<'r> {
+        Outcome::from(request, Json(self.0.clone()))
+    }
+}
+
+#[cfg(feature = "rocket")]
+#[derive(Clone)]
+struct ServeSwagger(Cow<'static, str>, Arc<Config<'static>>);
+
+#[cfg(feature = "rocket")]
+#[rocket::async_trait]
+impl Handler for ServeSwagger {
+    async fn handle<'r>(&self, request: &'r Request<'_>, _: Data<'r>) -> Outcome<'r> {
+        let mut path = self.0.as_ref();
+        if let Some(index) = self.0.find('<') {
+            path = &path[..index];
+        }
+
+        match serve(&request.uri().path().as_str()[path.len()..], self.1.clone()) {
+            Ok(swagger_file) => swagger_file
+                .map(|file| Outcome::from(request, file))
+                .unwrap_or_else(|| Outcome::from(request, NotFound("Swagger UI file not found"))),
+            Err(error) => Outcome::from(
+                request,
+                status::Custom(Status::InternalServerError, error.to_string()),
+            ),
+        }
+    }
+}
+
+#[cfg(feature = "rocket")]
+impl<'r, 'o: 'r> Responder<'r, 'o> for SwaggerFile<'o> {
+    fn respond_to(self, _: &'r Request<'_>) -> rocket::response::Result<'o> {
+        rocket::response::Result::Ok(
+            Response::build()
+                .header(Header::new("Content-Type", self.content_type))
+                .sized_body(self.bytes.len(), Cursor::new(self.bytes.to_vec()))
+                .status(Status::Ok)
+                .finalize(),
+        )
+    }
+}
+
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
 #[derive(Default, Clone, Debug)]
@@ -291,6 +379,15 @@ impl From<String> for Url<'_> {
     fn from(url: String) -> Self {
         Self {
             url: Cow::Owned(url),
+            ..Default::default()
+        }
+    }
+}
+
+impl<'a> From<Cow<'static, str>> for Url<'a> {
+    fn from(url: Cow<'static, str>) -> Self {
+        Self {
+            url,
             ..Default::default()
         }
     }

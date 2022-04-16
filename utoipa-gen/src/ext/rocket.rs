@@ -6,9 +6,11 @@ use proc_macro_error::{abort, abort_call_site};
 use regex::{Captures, Regex};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, FnArg, LitStr, PatIdent, Token, Type,
+    TypePath,
 };
 
 use crate::{
+    component_type::ComponentType,
     ext::{ArgValue, ArgumentIn, ResolvedArg},
     path::PathOperation,
 };
@@ -87,6 +89,7 @@ impl PathOperations {
     fn get_fn_args(fn_args: &Punctuated<FnArg, Comma>) -> impl Iterator<Item = Arg> + '_ {
         let mut ordered_args = fn_args
             .into_iter()
+            .filter(Self::is_supported_type)
             .map(|arg| match arg {
                 FnArg::Typed(pat_type) => {
                     let ident = match pat_type.pat.as_ref() {
@@ -150,6 +153,32 @@ impl PathOperations {
             _ => abort_call_site!(
                 "unexpected pat type, expected one of: Type::Path, Type::Reference"
             ),
+        }
+    }
+
+    fn get_type_path(ty: &Type) -> &TypePath {
+        match ty {
+            Type::Path(path) => path,
+            Type::Reference(reference) => Self::get_type_path(reference.elem.as_ref()),
+            _ => abort_call_site!("unexpected type, expected one of: Type::Path, Type::Reference"),
+        }
+    }
+
+    fn is_supported_type(arg: &&FnArg) -> bool {
+        match arg {
+            FnArg::Typed(pat_type) => {
+                let path = Self::get_type_path(pat_type.ty.as_ref());
+                let segment = &path.path.segments.first().unwrap();
+
+                let mut is_supported = ComponentType(&segment.ident).is_primitive();
+
+                if !is_supported {
+                    is_supported = matches!(&*segment.ident.to_string(), "Vec" | "Option")
+                }
+
+                is_supported
+            }
+            _ => abort_call_site!("unexpected FnArg, expected FnArg::Typed"),
         }
     }
 }
