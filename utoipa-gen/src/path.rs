@@ -331,11 +331,11 @@ impl ToTokens for Path<'_> {
             .as_ref()
             .or(self.path_operation.as_ref())
             .unwrap_or_else(|| {
-                #[cfg(feature = "actix_extras")]
+                #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
                 let help =
                     Some("Did you forget to define operation path attribute macro e.g #[get(...)]");
 
-                #[cfg(not(feature = "actix_extras"))]
+                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
                 let help = None::<&str>;
 
                 abort! {
@@ -351,11 +351,11 @@ impl ToTokens for Path<'_> {
             .as_ref()
             .or(self.path.as_ref())
             .unwrap_or_else(|| {
-                #[cfg(feature = "actix_extras")]
+                #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
                 let help =
                     Some("Did you forget to define operation path attribute macro e.g #[get(...)]");
 
-                #[cfg(not(feature = "actix_extras"))]
+                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
                 let help = None::<&str>;
 
                 abort! {
