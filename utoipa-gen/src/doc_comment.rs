@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span};
-use proc_macro_error::{abort_call_site, emit_warning, OptionExt, ResultExt};
+use proc_macro_error::{abort_call_site, emit_warning, ResultExt};
 use syn::{Attribute, Lit, Meta};
 
 const DOC_ATTRIBUTE_TYPE: &str = "doc";
@@ -18,14 +18,14 @@ impl CommentAttributes {
     }
 
     fn is_doc_attribute(attribute: &&Attribute) -> bool {
-        &*Self::get_attribute_ident(attribute).to_string() == DOC_ATTRIBUTE_TYPE
+        match Self::get_attribute_ident(attribute) {
+            Some(attribute) => attribute == DOC_ATTRIBUTE_TYPE,
+            None => false,
+        }
     }
 
-    fn get_attribute_ident(attribute: &Attribute) -> &Ident {
-        attribute
-            .path
-            .get_ident()
-            .expect_or_abort("Expected doc attribute with one path segment")
+    fn get_attribute_ident(attribute: &Attribute) -> Option<&Ident> {
+        attribute.path.get_ident()
     }
 
     fn as_string_vec<'a, I: Iterator<Item = &'a Attribute>>(attributes: I) -> Vec<String> {
@@ -38,7 +38,6 @@ impl CommentAttributes {
     fn parse_doc_comment(attribute: &Attribute) -> Option<String> {
         let meta = attribute.parse_meta().unwrap_or_abort();
 
-        // TODO find a correct span?
         match meta {
             Meta::NameValue(name_value) => {
                 if let Lit::Str(doc_comment) = name_value.lit {

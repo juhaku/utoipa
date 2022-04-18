@@ -45,8 +45,11 @@
 //! * **json** Enables **serde_json** what allow to use json values in OpenAPI specification values.
 //!   This is enabled by default.
 //! * **yaml** Enables **serde_yaml** serialization of OpenApi objects.
-//! * **actix_extras** Enhances actix-web intgration with being able to parse some documentation
-//!   from actix web macro attributes and types. See [`utoipa::path(...)`][path] for more details.
+//! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) intgration with being able to
+//!   parse `path` and `path parameters` from actix web path attribute macros. See [`utoipa::path(...)`][path]
+//!   for more details.
+//! * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
+//!   able to parse `path`, `path and query parameters` from rocket path attribute macros.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 //! * **chrono_types** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration` types. By default these types
 //!   are parsed to `string` types without

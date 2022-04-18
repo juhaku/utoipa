@@ -1,7 +1,9 @@
 #![cfg(feature = "serde_json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, vec};
 
+#[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
 use chrono::{Date, DateTime, Duration, Utc};
+
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
 
