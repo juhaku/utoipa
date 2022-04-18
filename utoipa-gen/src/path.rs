@@ -89,25 +89,21 @@ impl<'p> PathAttr<'p> {
                     }
                 });
 
-                // add argument to the parameters if argument has a name and it does not exists in parameters
-                arguments
-                    .into_iter()
-                    .filter(|argument| argument.has_name())
-                    .for_each(|argument| {
-                        // cannot use filter() for mutli borrow situation. :(
-                        if !parameters.iter().any(|parameter| {
-                            argument.name.as_ref() == Some(&Cow::Borrowed(&*parameter.name))
-                        }) {
-                            // if parameters does not contain argument
-                            parameters.push(argument.into())
-                        }
-                    });
+                // add argument to the parameters if argument does not exists in parameters
+                arguments.into_iter().for_each(|argument| {
+                    // cannot use filter() for mutli borrow situation. :(
+                    if !parameters.iter().any(|parameter| {
+                        argument.name.as_ref() == Some(&Cow::Borrowed(&*parameter.name))
+                    }) {
+                        // if parameters does not contain argument
+                        parameters.push(argument.into())
+                    }
+                });
             } else {
-                // no parameters at all, add arguments to the parameters if argument has a name
+                // no parameters at all, add arguments to the parameters
                 let mut params = Vec::with_capacity(arguments.len());
                 arguments
                     .into_iter()
-                    .filter(|argument| argument.has_name())
                     .map(Parameter::from)
                     .for_each(|parameter| params.push(parameter));
                 self.params = Some(params);

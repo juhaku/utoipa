@@ -29,7 +29,7 @@ impl ArgumentResolver for PathOperations {
 
                 resolved_args
                     .into_iter()
-                    .zip(types.into_iter())
+                    .zip(types)
                     .map(|(resolved_arg, ty)| {
                         let name = match resolved_arg {
                             ResolvedArg::Path(path) => path.name,
@@ -57,35 +57,7 @@ impl PathOperations {
         }
     }
 
-    fn get_argument_names(pat_type: &PatType) -> Vec<&Ident> {
-        match pat_type.pat.as_ref() {
-            Pat::Ident(pat_ident) => {
-                vec![&pat_ident.ident]
-            }
-            Pat::TupleStruct(tuple) => tuple
-                .pat
-                .elems
-                .iter()
-                .flat_map(|pat| match pat {
-                    Pat::Ident(pat_ident) => vec![&pat_ident.ident],
-                    Pat::Tuple(tuple) => tuple
-                        .elems
-                        .iter()
-                        .map(|pat| match pat {
-                            Pat::Ident(pat_ident) => &pat_ident.ident,
-                            _ => abort_call_site!(
-                                "unexpected pat ident in Pat::Tuple expected Pat::Ident"
-                            ),
-                        })
-                        .collect(),
-                    _ => abort_call_site!("unexpected pat type expected Pat::Ident"),
-                })
-                .collect::<Vec<_>>(),
-            _ => abort_call_site!("unexpected pat type expected Pat::Ident or Pat::Tuple"),
-        }
-    }
-
-    fn get_argument_types(path_segment: &PathSegment) -> Vec<&Ident> {
+    fn get_argument_types(path_segment: &PathSegment) -> impl Iterator<Item = &Ident> {
         match &path_segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed
                 .args
@@ -104,8 +76,7 @@ impl PathOperations {
                         )
                     }
                 })
-                .flat_map(|type_path| type_path.path.get_ident())
-                .collect::<Vec<_>>(),
+                .flat_map(|type_path| type_path.path.get_ident()),
             _ => {
                 abort_call_site!("unexpected argument type, expected Path<...> with angle brakets")
             }
@@ -168,9 +139,9 @@ impl Parse for Path {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let path = input.parse::<LitStr>()?.value();
 
+        // ignore rest of the tokens from actix-web path attribute macro
         input.step(|cursor| {
             let mut rest = *cursor;
-            // ignore rest of the tokens from actix_web path attribute macro
             while let Some((tt, next)) = rest.token_tree() {
                 rest = next;
             }

@@ -20,13 +20,6 @@ pub struct Argument<'a> {
     pub is_option: bool,
 }
 
-impl Argument<'_> {
-    #[deprecated(since = "0.2.0", note = "There should not be nameless arguments")]
-    pub fn has_name(&self) -> bool {
-        self.name.is_some()
-    }
-}
-
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq)]
 pub enum ArgumentIn {
