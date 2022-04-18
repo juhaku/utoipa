@@ -27,3 +27,5 @@ features = ["actix-web", "rocket"]
 
 [build-dependencies]
 zip = "0.6"
+regex = "1.5"  
+lazy_static = "1.4"

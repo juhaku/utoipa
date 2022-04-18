@@ -83,13 +83,16 @@
 //! [^actix]: **actix-web** feature need to be enabled.
 //!
 //! [^rocket]: **rocket** feature need to be enabled.
-use std::{borrow::Cow, error::Error, io::Cursor, sync::Arc};
+use std::{borrow::Cow, error::Error, sync::Arc};
 
 #[cfg(feature = "actix-web")]
 use actix_web::{
     dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource,
     Responder as ActixResponder,
 };
+
+#[cfg(feature = "rocket")]
+use std::io::Cursor;
 
 #[cfg(feature = "rocket")]
 use rocket::{

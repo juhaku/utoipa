@@ -4,9 +4,10 @@ use std::{
     fs::{self, File},
     io,
     path::PathBuf,
-    process::Command,
 };
 
+use lazy_static::lazy_static;
+use regex::Regex;
 use zip::{result::ZipError, ZipArchive};
 
 const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.10.3";
@@ -41,17 +42,7 @@ fn main() {
     let mut zip = ZipArchive::new(swagger_ui_zip).unwrap();
     extract_within_path(&mut zip, [SWAGGER_UI_DIST_ZIP, "dist"], &target_dir).unwrap();
 
-    Command::new("sed")
-        .args(&[
-            "-i",
-            r#"s|url: ".*",|{{urls}},|"#,
-            &format!(
-                "{}/{}/dist/swagger-initializer.js",
-                &target_dir, SWAGGER_UI_DIST_ZIP
-            ),
-        ])
-        .status()
-        .unwrap();
+    replace_default_url(&target_dir);
 }
 
 fn extract_within_path<const N: usize>(
@@ -98,4 +89,25 @@ fn extract_within_path<const N: usize>(
     }
 
     Ok(())
+}
+
+fn replace_default_url(target_dir: &str) {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r#"url: ".*","#).unwrap();
+    }
+
+    let path = [
+        target_dir,
+        SWAGGER_UI_DIST_ZIP,
+        "dist",
+        "swagger-initializer.js",
+    ]
+    .iter()
+    .collect::<PathBuf>();
+
+    let swagger_initializer = fs::read_to_string(&path).unwrap();
+
+    let replaced_swagger_initializer = RE.replace(&swagger_initializer, "{{urls}},");
+
+    fs::write(&path, replaced_swagger_initializer.as_ref()).unwrap();
 }
