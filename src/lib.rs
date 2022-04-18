@@ -43,7 +43,8 @@
 //!
 //! * **default** Default enabled features are **json**.
 //! * **json** Enables **serde_json** what allow to use json values in OpenAPI specification values.
-//!   Thus is enabled by default.
+//!   This is enabled by default.
+//! * **yaml** Enables **serde_yaml** serialization of OpenApi objects.
 //! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) intgration with being able to
 //!   parse `path` and `path parameters` from actix web path attribute macros. See [`utoipa::path(...)`][path]
 //!   for more details.

@@ -136,18 +136,26 @@ impl OpenApi {
 
     /// Converts this [`OpenApi`] to JSON String. This method essentially calls [`serde_json::to_string`] method. [^json]
     ///
-    /// [^json]: **serde_json** feature is needed.
-    #[cfg(feature = "serde_json")]
+    /// [^json]: **json** feature is needed.
+    #[cfg(feature = "json")]
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
 
     /// Converts this [`OpenApi`] to pretty JSON String. This method essentially calls [`serde_json::to_string_pretty`] method. [^json]
     ///
-    /// [^json]: **serde_json** feature is needed.
-    #[cfg(feature = "serde_json")]
+    /// [^json]: **json** feature is needed.
+    #[cfg(feature = "json")]
     pub fn to_pretty_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
+    }
+
+    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method. [^yaml]
+    ///
+    /// [^yaml]: **yaml** feature is needed.
+    #[cfg(feature = "yaml")]
+    pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
+        serde_yaml::to_string(self)
     }
 }
 
