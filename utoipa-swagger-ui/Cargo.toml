@@ -23,7 +23,7 @@ rocket = { version = "0.5.0-rc.1", features = ["json"], optional = true }
 utoipa = { version = "0.1", path = "..", default-features = false, features = [] }
 
 [package.metadata.docs.rs]
-features = ["actix-web"]
+features = ["actix-web", "rocket"]
 
 [build-dependencies]
 zip = "0.6"

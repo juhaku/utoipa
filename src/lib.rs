@@ -28,8 +28,7 @@
 //! * **actix-web**
 //! * **warp**
 //! * **tide**
-//!
-//! **actix-web** has support support for actix specific parsing via **actix_extras** feature.
+//! * **rocket**
 //!
 //! Even if there is no example for your favourite framework `utoipa` can be used with any
 //! web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
@@ -46,10 +45,11 @@
 //!   This is enabled by default.
 //! * **yaml** Enables **serde_yaml** serialization of OpenApi objects.
 //! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) intgration with being able to
-//!   parse `path` and `path parameters` from actix web path attribute macros. See [`utoipa::path(...)`][path]
-//!   for more details.
+//!   parse `path` and `path parameters` from actix web path attribute macros. See [actix extras support][actix_path] or
+//!   [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
 //! * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
-//!   able to parse `path`, `path and query parameters` from rocket path attribute macros.
+//!   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [rocket extras support][rocket_path]
+//!   or [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 //! * **chrono_types** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration` types. By default these types
 //!   are parsed to `string` types without
@@ -188,6 +188,8 @@
 //! * More about OpenAPI security in [security documentation][security].
 //!
 //! [path]: attr.path.html
+//! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
+//! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
 //!
 //! [security]: openapi/security/index.html
 //! [component_derive]: derive.Component.html

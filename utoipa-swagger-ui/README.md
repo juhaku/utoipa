@@ -11,6 +11,7 @@ works as a bridge for serving the OpenAPI documetation created with
 **Currently implemented boiler plate for:**
 
 * **actix-web** `version >= 4`
+* **rocket** `version >=0.5.0-rc.1`
 
 Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
 other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -21,6 +22,8 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/0.2.0/utoipa_swagger_u
 
 * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
   users to use the Swagger UI without a hazzle.
+* **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI 
+  and api doc without a hazzle.
 
 # Install
 
@@ -53,6 +56,19 @@ HttpServer::new(move || {
   .run();
 ```
 **actix-web** feature need to be enabled.
+
+Serve Swagger UI with api doc via rocket.
+```rust
+#[rocket::launch]
+fn rocket() -> Rocket<Build> {
+    rocket::build()
+        .mount(
+            "/",
+            SwaggerUi::new("/swagger-ui/<_..>").url("/api-doc/openapi.json", ApiDoc::openapi()),
+        )
+}
+```
+**rocket** feature need to be enabled.
 
 # License
 
