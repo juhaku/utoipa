@@ -7,6 +7,7 @@
 //! **Currently implemented boiler plate for:**
 //!
 //! * **actix-web**
+//! * **rocket** `version >=0.5.0-rc.1`
 //!
 //! Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -18,6 +19,8 @@
 //!
 //! * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
 //!   users to use the Swagger UI without a hazzle.
+//! * **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI
+//!   and api doc without a hazzle.
 //!
 //! # Install
 //!
@@ -56,12 +59,36 @@
 //!     .bind((Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
 //!     .run();
 //! ```
+//!
+//! Serve Swagger UI with api doc via rocket [^rocket]
+//! ```no_run
+//! # use rocket::{Build, Rocket};
+//! # use utoipa_swagger_ui::SwaggerUi;
+//! # use utoipa::OpenApi;
+//! #[rocket::launch]
+//! fn rocket() -> Rocket<Build> {
+//! #
+//! #     #[derive(OpenApi)]
+//! #     #[openapi()]
+//! #     struct ApiDoc;
+//! #
+//!     rocket::build()
+//!         .mount(
+//!             "/",
+//!             SwaggerUi::new("/swagger-ui/<_..>").url("/api-doc/openapi.json", ApiDoc::openapi()),
+//!         )
+//! }
+//! ```
+//!
 //! [^actix]: **actix-web** feature need to be enabled.
+//!
+//! [^rocket]: **rocket** feature need to be enabled.
 use std::{borrow::Cow, error::Error, io::Cursor, sync::Arc};
 
 #[cfg(feature = "actix-web")]
 use actix_web::{
-    dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource, Responder,
+    dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource,
+    Responder as ActixResponder,
 };
 
 #[cfg(feature = "rocket")]
@@ -69,11 +96,11 @@ use rocket::{
     http::{Header, Status},
     response::{
         status::{self, NotFound},
-        Responder,
+        Responder as RocketResponder,
     },
     route::{Handler, Outcome},
     serde::json::Json,
-    Data, Request, Response, Route,
+    Data as RocketData, Request, Response, Route,
 };
 
 use rust_embed::RustEmbed;
@@ -211,7 +238,7 @@ impl HttpServiceFactory for SwaggerUi {
 
 #[cfg(feature = "actix-web")]
 fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web::dev::AppService) {
-    pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl Responder {
+    pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl ActixResponder {
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
@@ -255,7 +282,7 @@ struct ServeApiDoc(utoipa::openapi::OpenApi);
 #[cfg(feature = "rocket")]
 #[rocket::async_trait]
 impl Handler for ServeApiDoc {
-    async fn handle<'r>(&self, request: &'r Request<'_>, _: Data<'r>) -> Outcome<'r> {
+    async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
         Outcome::from(request, Json(self.0.clone()))
     }
 }
@@ -267,7 +294,7 @@ struct ServeSwagger(Cow<'static, str>, Arc<Config<'static>>);
 #[cfg(feature = "rocket")]
 #[rocket::async_trait]
 impl Handler for ServeSwagger {
-    async fn handle<'r>(&self, request: &'r Request<'_>, _: Data<'r>) -> Outcome<'r> {
+    async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
         let mut path = self.0.as_ref();
         if let Some(index) = self.0.find('<') {
             path = &path[..index];
@@ -286,7 +313,7 @@ impl Handler for ServeSwagger {
 }
 
 #[cfg(feature = "rocket")]
-impl<'r, 'o: 'r> Responder<'r, 'o> for SwaggerFile<'o> {
+impl<'r, 'o: 'r> RocketResponder<'r, 'o> for SwaggerFile<'o> {
     fn respond_to(self, _: &'r Request<'_>) -> rocket::response::Result<'o> {
         rocket::response::Result::Ok(
             Response::build()

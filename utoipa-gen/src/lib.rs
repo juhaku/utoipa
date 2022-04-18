@@ -386,6 +386,65 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// Leaving empty _`()`_ creates an empty [`SecurityRequirement`][security] this is useful when
 /// security requirement is optional for operation.
 ///
+/// # actix_extras support for actix-web
+///
+/// **actix_extas** feature gives **utoipa** ability to use **actix-web** path operation macros such as `#[get(...)]` to
+/// resolve path for `#[utoipa::path]`. Also it is able to parse the the `path` parameters with types from function arguments
+/// of operation which are defined within type `web::Path<...>`. Allowing you leave out types of parameters in `params(...)`
+/// section of even leave out the section if description is not needed for parameters. Utoipa is only able to resolve
+/// [primitive types][primitive] and [`String`] type. Using other types is undefined behaviour.
+///
+/// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
+///
+/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parmater types** [^actix_extras].
+/// ```rust
+/// use actix_web::{get, web, HttpResponse, Responder};
+/// use serde_json::json;
+///
+/// /// Get Pet by id
+/// #[utoipa::path(
+///     responses(
+///         (status = 200, description = "Pet found from database")
+///     ),
+///     params(
+///         ("id", description = "Pet id"),
+///     )
+/// )]
+/// #[get("/pet/{id}")]
+/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
+/// }
+/// ```
+///
+/// With **actix_extras** you may also not to list any _**parmas**_ if you do not want to specify any description for them. Params are resolved from
+/// path and the argument types of handler. [^actix_extras]
+/// ```rust
+/// use actix_web::{get, web, HttpResponse, Responder};
+/// use serde_json::json;
+///
+/// /// Get Pet by id
+/// #[utoipa::path(
+///     responses(
+///         (status = 200, description = "Pet found from database")
+///     )
+/// )]
+/// #[get("/pet/{id}")]
+/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
+/// }
+/// ```
+///
+/// # rocket_extras support for rocket
+///
+/// **rocket_extras** feature give **utoipa** ability to use **rocket** path operation macros such as `#[get(...)]` to
+/// resolve path for `#[utoipa::path]`.  Also it is able to parse the `path` and `query` parameters from path operation macro
+/// combined with function arguments of the operation. Allowing you leave out types from parameters in `params(...)` section
+/// or even leave out the section if description is not needed for parameters. Utoipa is only able to parse parameter types
+/// for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`] type. Other function arguments are
+/// simply ignored.
+///
+/// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
+///
 /// # Examples
 ///
 /// Example with all possible arguments.
@@ -453,44 +512,6 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         id: 4,
 ///         name: "bob the cat".to_string(),
 ///     }
-/// }
-/// ```
-///
-/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parmater types** [^actix_extras].
-/// ```rust
-/// use actix_web::{get, web, HttpResponse, Responder};
-/// use serde_json::json;
-///
-/// /// Get Pet by id
-/// #[utoipa::path(
-///     responses(
-///         (status = 200, description = "Pet found from database")
-///     ),
-///     params(
-///         ("id", description = "Pet id"),
-///     )
-/// )]
-/// #[get("/pet/{id}")]
-/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
-/// }
-/// ```
-///
-/// With **actix_extras** you may also not to list any _**parmas**_ if you do not want to specify any description for them. Params are resolved from
-/// path and the argument types of handler.
-/// ```rust
-/// use actix_web::{get, web, HttpResponse, Responder};
-/// use serde_json::json;
-///
-/// /// Get Pet by id
-/// #[utoipa::path(
-///     responses(
-///         (status = 200, description = "Pet found from database")
-///     )
-/// )]
-/// #[get("/pet/{id}")]
-/// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
 ///
