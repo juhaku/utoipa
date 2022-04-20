@@ -28,10 +28,10 @@ being portable and standalone one of it's key aspects is simple integration with
 
 Existing [examples](./examples) for following frameworks:
 
-* **actix-web** 
-* **warp**
-* **tide**
-* **rocket**
+* **[actix-web](https://github.com/actix/actix-web)** 
+* **[warp](https://github.com/seanmonstar/warp)**
+* **[tide](https://github.com/http-rs/tide)**
+* **[rocket](https://github.com/SergioBenitez/Rocket)**
 
 Even if there is no example for your favourite framework `utoipa` can be used with any 
 web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
