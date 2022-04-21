@@ -3,14 +3,14 @@ use std::fmt::Display;
 use quote::{quote, ToTokens};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub(crate) struct ComponentType<'a, T: Display>(pub &'a T);
+pub struct ComponentType<'a, T: Display>(pub &'a T);
 
 impl<'a, T> ComponentType<'a, T>
 where
     T: Display,
 {
     /// Check whether type is known to be primitive in wich case returns true.
-    pub(crate) fn is_primitive(&self) -> bool {
+    pub fn is_primitive(&self) -> bool {
         let name = &*self.0.to_string();
 
         let primitive = is_primitive(name);
@@ -107,11 +107,11 @@ where
 }
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
-pub(crate) struct ComponentFormat<T: Display>(pub(crate) T);
+pub struct ComponentFormat<T: Display>(pub(crate) T);
 
 impl<T: Display> ComponentFormat<T> {
     /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
-    pub(crate) fn is_known_format(&self) -> bool {
+    pub fn is_known_format(&self) -> bool {
         let name = &*self.0.to_string();
 
         let known_format = is_known_format(name);

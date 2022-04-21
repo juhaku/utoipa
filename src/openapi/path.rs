@@ -314,8 +314,23 @@ impl OperationBuilder {
     }
 
     /// Add or change parameters of the [`Operation`].
-    pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: Option<I>) -> Self {
-        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().collect()))
+    pub fn parameters<I: IntoIterator<Item = P>, P: Into<Parameter>>(
+        mut self,
+        parameters: Option<I>,
+    ) -> Self {
+        self.parameters = parameters.map(|parameters| {
+            if let Some(mut params) = self.parameters {
+                params.extend(parameters.into_iter().map(|parameter| parameter.into()));
+                params
+            } else {
+                parameters
+                    .into_iter()
+                    .map(|parameter| parameter.into())
+                    .collect()
+            }
+        });
+
+        self
     }
 
     /// Append parameter to [`Operation`] parameters.

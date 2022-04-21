@@ -1,8 +1,16 @@
 #![cfg(feature = "actix_extras")]
 #![cfg(feature = "serde_json")]
 
+use actix_web::web::{Path, Query};
+use serde::Deserialize;
 use serde_json::Value;
-use utoipa::OpenApi;
+use utoipa::{
+    openapi::{
+        path::{Parameter, ParameterBuilder, ParameterIn},
+        Array, ComponentFormat, PropertyBuilder,
+    },
+    IntoParams, OpenApi,
+};
 
 mod common;
 
@@ -206,7 +214,6 @@ fn derive_complex_actix_web_path() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    dbg!(&doc);
     let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
 
     common::assert_json_array_len(parameters, 1);
@@ -296,6 +303,108 @@ fn derive_path_with_context_path() {
     let path = common::get_json_path(&doc, "paths./api/foo.get");
 
     assert_ne!(path, &Value::Null, "expected path with context path /api");
+}
+
+#[test]
+fn path_with_struct_variables_with_into_params() {
+    use actix_web::{get, HttpResponse, Responder};
+    use serde_json::json;
+
+    #[derive(Deserialize)]
+    #[allow(unused)]
+    struct Person {
+        id: i64,
+        name: String,
+    }
+
+    impl IntoParams for Person {
+        fn into_params() -> Vec<Parameter> {
+            let parameter_in = Self::default_parameters_in().unwrap_or_default();
+
+            vec![
+                ParameterBuilder::new()
+                    .name("name")
+                    .schema(Some(
+                        PropertyBuilder::new()
+                            .component_type(utoipa::openapi::ComponentType::String),
+                    ))
+                    .parameter_in(parameter_in.clone())
+                    .build(),
+                ParameterBuilder::new()
+                    .name("id")
+                    .schema(Some(
+                        PropertyBuilder::new()
+                            .component_type(utoipa::openapi::ComponentType::Integer)
+                            .format(Some(ComponentFormat::Int64)),
+                    ))
+                    .parameter_in(parameter_in)
+                    .build(),
+            ]
+        }
+    }
+
+    #[derive(Deserialize)]
+    #[allow(unused)]
+    struct Filter {
+        age: Vec<String>,
+    }
+
+    impl IntoParams for Filter {
+        fn default_parameters_in() -> Option<utoipa::openapi::path::ParameterIn> {
+            Some(ParameterIn::Query)
+        }
+
+        fn into_params() -> Vec<Parameter> {
+            let parameter_in = Self::default_parameters_in().unwrap_or_default();
+
+            vec![ParameterBuilder::new()
+                .name("age")
+                .schema(Some(Array::new(
+                    PropertyBuilder::new().component_type(utoipa::openapi::ComponentType::String),
+                )))
+                .parameter_in(parameter_in)
+                .build()]
+        }
+    }
+
+    #[utoipa::path(
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo/{id}/{name}")]
+    #[allow(unused)]
+    async fn get_foo(person: Path<Person>, query: Query<Filter>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "id": "foo" }))
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+
+    common::assert_json_array_len(parameters, 3);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""name""#, "Parameter name"
+        "[0].required" = r#"false"#, "Parameter required"
+        "[0].schema.type" = r#""string""#, "Parameter schema type"
+        "[0].schema.format" = r#"null"#, "Parameter schema format"
+
+        "[1].in" = r#""path""#, "Parameter in"
+        "[1].name" = r#""id""#, "Parameter name"
+        "[1].required" = r#"false"#, "Parameter required"
+        "[1].schema.type" = r#""integer""#, "Parameter schema type"
+        "[1].schema.format" = r#""int64""#, "Parameter schema format"
+
+        "[2].in" = r#""query""#, "Parameter in"
+        "[2].name" = r#""age""#, "Parameter name"
+        "[2].required" = r#"false"#, "Parameter required"
+        "[2].schema.type" = r#""array""#, "Parameter schema type"
+        "[2].schema.items.type" = r#""string""#, "Parameter items schema type"
+    }
 }
 
 macro_rules! test_derive_path_operations {

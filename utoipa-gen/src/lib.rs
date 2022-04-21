@@ -699,10 +699,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     );
 
     let openapi = OpenApi(openapi_attributes, ident);
-    quote! {
-        #openapi
-    }
-    .into()
+
+    openapi.to_token_stream().into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)

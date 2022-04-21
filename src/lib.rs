@@ -196,6 +196,7 @@
 
 pub mod openapi;
 
+use openapi::path::{Parameter, ParameterBuilder};
 pub use utoipa_gen::*;
 
 /// Trait for implementing OpenAPI specification in Rust.
@@ -460,4 +461,13 @@ pub trait Path {
 /// [server]: https://spec.openapis.org/oas/latest.html#server-object
 pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);
+}
+
+#[cfg(feature = "actix_extras")]
+pub trait IntoParams {
+    fn default_parameters_in() -> Option<openapi::path::ParameterIn> {
+        None
+    }
+
+    fn into_params() -> Vec<Parameter>;
 }

@@ -22,9 +22,15 @@ use super::property::Property;
 /// * ("id", path, deprecated, description = "Users database id"),
 ///
 /// The `= String` type statement is optional if automatic resolvation is supported.
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub enum Parameter<'a> {
+    Value(ParameterValue<'a>),
+    TokenStream(TokenStream),
+}
+
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Parameter<'a> {
+pub struct ParameterValue<'a> {
     pub name: Cow<'a, str>,
     parameter_in: ParameterIn,
     deprecated: bool,
@@ -32,7 +38,8 @@ pub struct Parameter<'a> {
     parameter_type: Option<Type<'a>>,
 }
 
-impl<'p> Parameter<'p> {
+
+impl<'p> ParameterValue<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn update_parameter_type(&mut self, ident: Option<&'p Ident>, is_array: bool, is_option: bool) {
         self.parameter_type = ident.map(|ty| Type::new(Cow::Borrowed(ty), is_array, is_option));
@@ -42,22 +49,30 @@ impl<'p> Parameter<'p> {
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
 impl<'a> From<Argument<'a>> for Parameter<'a> {
     fn from(argument: Argument<'a>) -> Self {
-        Self {
-            name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
-            parameter_in: if argument.argument_in == ArgumentIn::Path {
+        match argument {
+            Argument::Value(value) => {
+                Self::Value(ParameterValue {
+            name: value.name.unwrap_or_else(|| Cow::Owned(String::new())),
+            parameter_in: if value.argument_in == ArgumentIn::Path {
                 ParameterIn::Path
             } else {
                 ParameterIn::Query
             },
-            parameter_type: argument.ident.map(|ty| Type::new(Cow::Borrowed(ty), argument.is_array, argument.is_option)),
+            parameter_type: value.ident.map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
             ..Default::default()
+        })
+            },
+            Argument::TokenStream(stream) => {
+                Self::TokenStream(stream)
+            }
         }
+        
     }
 }
 
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut parameter = Parameter::default();
+        let mut parameter = ParameterValue::default();
 
         if input.peek(LitStr) {
             // parse name
@@ -109,32 +124,36 @@ impl Parse for Parameter<'_> {
             }
         }
 
-        Ok(parameter)
+        Ok(Parameter::Value(parameter))
     }
 }
 
 impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let name = &*self.name;
-        tokens.extend(quote! { 
-            utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name)) 
-        });
-        let parameter_in = &self.parameter_in;
-        tokens.extend(quote! { .parameter_in(#parameter_in) });
+        if let Parameter::Value(parameter) = self {
+            let name = &*parameter.name;
+            tokens.extend(quote! { 
+                utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name)) 
+            });
+            let parameter_in = &parameter.parameter_in;
+            tokens.extend(quote! { .parameter_in(#parameter_in) });
 
-        let deprecated: Deprecated = self.deprecated.into();
-        tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+            let deprecated: Deprecated = parameter.deprecated.into();
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
 
-        if let Some(ref description) = self.description {
-            tokens.extend(quote! { .description(Some(#description)) });
-        }
+            if let Some(ref description) = parameter.description {
+                tokens.extend(quote! { .description(Some(#description)) });
+            }
 
-        if let Some(ref parameter_type) = self.parameter_type {
-            let property = Property::new(parameter_type.is_array, &parameter_type.ty);
-            let required: Required = (!parameter_type.is_option).into();
+            if let Some(ref parameter_type) = parameter.parameter_type {
+                let property = Property::new(parameter_type.is_array, &parameter_type.ty);
+                let required: Required = (!parameter_type.is_option).into();
 
-            tokens.extend(quote! { .schema(Some(#property)).required(#required) });
-        }
+                tokens.extend(quote! { .schema(Some(#property)).required(#required) });
+            }
+        } else if let Parameter::TokenStream(stream) = self {
+            tokens.extend(quote! { #stream });
+        };
     }
 }
 

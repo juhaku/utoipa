@@ -2,54 +2,103 @@ use std::borrow::Cow;
 
 use lazy_static::lazy_static;
 use proc_macro::TokenTree;
-use proc_macro2::{Ident, Literal};
+use proc_macro2::{Ident, Literal, Punct};
 use proc_macro_error::{abort, abort_call_site};
+use quote::{format_ident, quote};
 use regex::{Captures, Regex};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, FnArg, GenericArgument, ItemFn,
-    LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypePath,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, FnArg,
+    GenericArgument, ItemFn, LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypePath,
 };
 
-use crate::{ext::ArgValue, path::PathOperation};
+use crate::{
+    component_type::ComponentType,
+    ext::{ArgValue, ArgumentValue},
+    path::{self, PathOperation},
+};
 
 use super::{
     Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
     ResolvedArg, ResolvedOperation, ResolvedPath,
 };
 
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum Arg<'a> {
+    Query(&'a Ident),
+    Path(&'a Ident),
+}
+
 impl ArgumentResolver for PathOperations {
     fn resolve_path_arguments(
         fn_args: &Punctuated<FnArg, Comma>,
-        resolved_path: Option<Vec<ResolvedArg>>,
+        resolved_path_args: Option<Vec<ResolvedArg>>,
     ) -> Option<Vec<Argument<'_>>> {
-        resolved_path
-            .zip(Self::find_path_pat_type_and_segment(fn_args))
-            .map(|(resolved_args, (_, path_segment))| {
-                let types = Self::get_argument_types(path_segment);
+        let (primitive_args, non_primitive_args): (Vec<Arg>, Vec<Arg>) = Self::get_fn_args(fn_args)
+            .partition(|arg| matches!(arg, Arg::Path(ty) if ComponentType(ty).is_primitive()));
 
-                resolved_args
-                    .into_iter()
-                    .zip(types)
-                    .map(|(resolved_arg, ty)| {
-                        let name = match resolved_arg {
-                            ResolvedArg::Path(path) => path.name,
-                            ResolvedArg::Query(query) => query.name,
-                        };
+        if let Some(resolved_args) = resolved_path_args {
+            let primitive_args = Self::to_value_args(resolved_args, primitive_args);
 
-                        Argument {
-                            argument_in: ArgumentIn::Path,
-                            ident: Some(ty),
-                            name: Some(Cow::Owned(name)),
-                            is_array: false,
-                            is_option: false,
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
+            Some(
+                primitive_args
+                    .chain(Self::to_token_stream_args(non_primitive_args))
+                    .collect(),
+            )
+        } else {
+            Some(Self::to_token_stream_args(non_primitive_args).collect())
+        }
     }
 }
 
 impl PathOperations {
+    fn to_token_stream_args<'a, I: IntoIterator<Item = Arg<'a>>>(
+        arguments: I,
+    ) -> impl Iterator<Item = Argument<'a>> {
+        arguments.into_iter().map(|path_arg| {
+            let ty = match path_arg {
+                Arg::Path(arg) => arg,
+                Arg::Query(arg) => arg,
+            };
+
+            let assert_ty = format_ident!("_Assert{}", &ty);
+            Argument::TokenStream(quote! {
+                {
+                    struct #assert_ty where #ty : utoipa::IntoParams;
+
+                    <#ty>::into_params()
+                }
+            })
+        })
+    }
+
+    fn to_value_args<'a, R: IntoIterator<Item = ResolvedArg>, P: IntoIterator<Item = Arg<'a>>>(
+        resolved_args: R,
+        primitive_args: P,
+    ) -> impl Iterator<Item = Argument<'a>> {
+        resolved_args
+            .into_iter()
+            .zip(primitive_args)
+            .map(|(resolved_arg, primitive_arg)| {
+                Argument::Value(ArgumentValue {
+                    name: match resolved_arg {
+                        ResolvedArg::Path(path) => Some(Cow::Owned(path.name)),
+                        _ => unreachable!(
+                            "ResolvedArg::Query is not reachable with primitive path type"
+                        ),
+                    },
+                    ident: match primitive_arg {
+                        Arg::Path(value) => Some(value),
+                        _ => {
+                            unreachable!("Arg::Query is not reachable with primitive type")
+                        }
+                    },
+                    is_array: false,
+                    is_option: false,
+                    argument_in: ArgumentIn::Path,
+                })
+            })
+    }
+
     fn get_type_path(ty: &Type) -> &TypePath {
         match ty {
             Type::Path(path) => path,
@@ -83,29 +132,36 @@ impl PathOperations {
         }
     }
 
-    fn find_path_pat_type_and_segment(
-        fn_args: &Punctuated<FnArg, Comma>,
-    ) -> Option<(&PatType, &PathSegment)> {
-        fn_args.iter().find_map(|arg| {
-            match arg {
-                FnArg::Typed(pat_type) => {
-                    let segment = Self::get_type_path(pat_type.ty.as_ref())
-                        .path
-                        .segments
-                        .iter()
-                        .find_map(|segment| {
-                            if &*segment.ident.to_string() == "Path" {
-                                Some(segment)
-                            } else {
-                                None
-                            }
-                        });
+    fn get_fn_args(fn_args: &Punctuated<FnArg, Comma>) -> impl Iterator<Item = Arg> {
+        fn_args
+            .iter()
+            .filter_map(Self::get_fn_arg_segment)
+            .flat_map(|path_segment| {
+                let op = if path_segment.ident == "Path" {
+                    Arg::Path
+                } else {
+                    Arg::Query
+                };
+                Self::get_argument_types(path_segment).map(op)
+            })
+    }
 
-                    segment.map(|segment| (pat_type, segment))
-                }
-                _ => abort_call_site!("unexpected fn argument type, expected FnArg::Typed(...)"), // should not get here
-            }
-        })
+    fn get_fn_arg_segment(fn_arg: &FnArg) -> Option<&PathSegment> {
+        let pat_type = Self::get_fn_arg_pat_type(fn_arg);
+        let type_path = Self::get_type_path(pat_type.ty.as_ref());
+
+        type_path
+            .path
+            .segments
+            .iter()
+            .find(|segment| segment.ident == "Path" || segment.ident == "Query")
+    }
+
+    fn get_fn_arg_pat_type(fn_arg: &FnArg) -> &PatType {
+        match fn_arg {
+            FnArg::Typed(value) => value,
+            _ => abort_call_site!("unexpected fn argument type, expected FnArg::Typed"),
+        }
     }
 }
 
