@@ -1,7 +1,7 @@
 #![allow(unused)]
 use std::{borrow::Cow, cmp::Ordering};
 
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenStream};
 use syn::{punctuated::Punctuated, token::Comma, Attribute, FnArg, ItemFn};
 
 use crate::path::PathOperation;
@@ -12,7 +12,13 @@ pub mod actix;
 pub mod rocket;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Argument<'a> {
+pub enum Argument<'a> {
+    Value(ArgumentValue<'a>),
+    TokenStream(TokenStream),
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ArgumentValue<'a> {
     pub name: Option<Cow<'a, str>>,
     pub argument_in: ArgumentIn,
     pub ident: Option<&'a Ident>,

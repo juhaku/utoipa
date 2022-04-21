@@ -11,7 +11,7 @@ use syn::{
 
 use crate::{
     component_type::ComponentType,
-    ext::{ArgValue, ArgumentIn, ResolvedArg},
+    ext::{ArgValue, ArgumentIn, ArgumentValue, ResolvedArg},
     path::PathOperation,
 };
 
@@ -44,13 +44,13 @@ impl ArgumentResolver for PathOperations {
                         ResolvedArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
                     };
 
-                    Argument {
+                    Argument::Value(ArgumentValue {
                         name: Some(Cow::Owned(name)),
                         argument_in,
                         ident: Some(arg.ty),
                         is_array: arg.is_array,
                         is_option: arg.is_option,
-                    }
+                    })
                 })
                 .chain(anonymous_args.into_iter().map(|anonymous_arg| {
                     let (name, argument_in) = match anonymous_arg {
@@ -58,13 +58,13 @@ impl ArgumentResolver for PathOperations {
                         ResolvedArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
                     };
 
-                    Argument {
+                    Argument::Value(ArgumentValue {
                         name: Some(Cow::Owned(name)),
                         argument_in,
                         ident: None,
                         is_array: false,
                         is_option: false,
-                    }
+                    })
                 }))
                 .collect()
         })

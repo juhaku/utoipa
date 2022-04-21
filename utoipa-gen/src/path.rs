@@ -72,33 +72,12 @@ pub struct PathAttr<'p> {
 impl<'p> PathAttr<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
-        use std::borrow::Cow;
-
         if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
-                // update existing parameters with resolved type from fn arguments
-                parameters.iter_mut().for_each(|parameter| {
-                    if let Some(argument) = arguments.iter().find(|argument| {
-                        argument.name.as_ref() == Some(&Cow::Borrowed(&*parameter.name))
-                    }) {
-                        parameter.update_parameter_type(
-                            argument.ident,
-                            argument.is_array,
-                            argument.is_option,
-                        )
-                    }
-                });
+                PathAttr::update_existing_parameters_parameter_types(parameters, &arguments);
 
-                // add argument to the parameters if argument does not exists in parameters
-                arguments.into_iter().for_each(|argument| {
-                    // cannot use filter() for mutli borrow situation. :(
-                    if !parameters.iter().any(|parameter| {
-                        argument.name.as_ref() == Some(&Cow::Borrowed(&*parameter.name))
-                    }) {
-                        // if parameters does not contain argument
-                        parameters.push(argument.into())
-                    }
-                });
+                let new_params = &mut PathAttr::get_new_parameters(parameters, arguments);
+                parameters.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
                 let mut params = Vec::with_capacity(arguments.len());
@@ -109,6 +88,69 @@ impl<'p> PathAttr<'p> {
                 self.params = Some(params);
             }
         }
+    }
+
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    fn update_existing_parameters_parameter_types<'a>(
+        parameters: &mut [Parameter<'a>],
+        arguments: &[Argument<'a>],
+    ) {
+        use std::borrow::Cow;
+        parameters
+            .iter_mut()
+            .filter_map(|parameter| match parameter {
+                Parameter::Value(value) => Some(value),
+                Parameter::TokenStream(_) => None,
+            })
+            .for_each(|parameter| {
+                if let Some(argument) = arguments.iter().find_map(|argument| match argument {
+                    Argument::Value(value)
+                        if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
+                    {
+                        Some(value)
+                    }
+                    _ => None,
+                }) {
+                    parameter.update_parameter_type(
+                        argument.ident,
+                        argument.is_array,
+                        argument.is_option,
+                    )
+                }
+            });
+    }
+
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    fn get_new_parameters<'a>(
+        parameters: &[Parameter<'a>],
+        arguments: Vec<Argument<'a>>,
+    ) -> Vec<Parameter<'a>> {
+        use std::borrow::Cow;
+
+        let exists_in_parameters = |argument: &Argument, parameters: &[Parameter]| -> bool {
+            parameters.iter().any(|parameter| match parameter {
+                Parameter::Value(parameter_value)
+                    if match argument {
+                        Argument::Value(value) => value.name.as_ref(),
+                        _ => None,
+                    } == Some(&*Cow::Borrowed(&parameter_value.name)) =>
+                {
+                    true
+                }
+                _ => false,
+            })
+        };
+
+        arguments
+            .into_iter()
+            .filter_map(|argument| {
+                if !exists_in_parameters(&argument, parameters) {
+                    Some(Parameter::from(argument))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
     }
 }
 
@@ -471,9 +513,10 @@ impl ToTokens for Operation<'_> {
         }
 
         if let Some(parameters) = self.parameters {
-            parameters
-                .iter()
-                .for_each(|parameter| tokens.extend(quote! { .parameter(#parameter) }));
+            parameters.iter().for_each(|parameter| match parameter {
+                Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
+                Parameter::TokenStream(_) => tokens.extend(quote! { .parameters(Some(#parameter))}),
+            });
         }
     }
 }
