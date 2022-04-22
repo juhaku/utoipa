@@ -410,7 +410,7 @@ impl ToTokens for ComplexEnum<'_> {
     }
 }
 
-fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
+pub(crate) fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     attributes.iter().find_map(|attribute| {
         if *attribute.path.get_ident().unwrap() == "deprecated" {
             Some(Deprecated::True)
@@ -423,15 +423,15 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 #[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
-struct ComponentPart<'a> {
-    ident: &'a Ident,
-    value_type: ValueType,
-    generic_type: Option<GenericType>,
-    child: Option<Rc<ComponentPart<'a>>>,
+pub struct ComponentPart<'a> {
+    pub ident: &'a Ident,
+    pub value_type: ValueType,
+    pub generic_type: Option<GenericType>,
+    pub child: Option<Rc<ComponentPart<'a>>>,
 }
 
 impl<'a> ComponentPart<'a> {
-    fn from_type(ty: &'a Type) -> ComponentPart<'a> {
+    pub fn from_type(ty: &'a Type) -> ComponentPart<'a> {
         ComponentPart::from_type_path(
             match ty {
                 Type::Path(path) => path,
@@ -544,14 +544,14 @@ impl<'a> ComponentPart<'a> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
-enum ValueType {
+pub enum ValueType {
     Primitive,
     Object,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Clone, Copy)]
-enum GenericType {
+pub enum GenericType {
     Vec,
     Map,
     Option,

@@ -319,8 +319,6 @@ fn path_with_struct_variables_with_into_params() {
 
     impl IntoParams for Person {
         fn into_params() -> Vec<Parameter> {
-            let parameter_in = Self::default_parameters_in().unwrap_or_default();
-
             vec![
                 ParameterBuilder::new()
                     .name("name")
@@ -328,7 +326,7 @@ fn path_with_struct_variables_with_into_params() {
                         PropertyBuilder::new()
                             .component_type(utoipa::openapi::ComponentType::String),
                     ))
-                    .parameter_in(parameter_in.clone())
+                    .parameter_in(ParameterIn::Path)
                     .build(),
                 ParameterBuilder::new()
                     .name("id")
@@ -337,7 +335,7 @@ fn path_with_struct_variables_with_into_params() {
                             .component_type(utoipa::openapi::ComponentType::Integer)
                             .format(Some(ComponentFormat::Int64)),
                     ))
-                    .parameter_in(parameter_in)
+                    .parameter_in(ParameterIn::Path)
                     .build(),
             ]
         }
@@ -350,19 +348,13 @@ fn path_with_struct_variables_with_into_params() {
     }
 
     impl IntoParams for Filter {
-        fn default_parameters_in() -> Option<utoipa::openapi::path::ParameterIn> {
-            Some(ParameterIn::Query)
-        }
-
         fn into_params() -> Vec<Parameter> {
-            let parameter_in = Self::default_parameters_in().unwrap_or_default();
-
             vec![ParameterBuilder::new()
                 .name("age")
                 .schema(Some(Array::new(
                     PropertyBuilder::new().component_type(utoipa::openapi::ComponentType::String),
                 )))
-                .parameter_in(parameter_in)
+                .parameter_in(ParameterIn::Query)
                 .build()]
         }
     }
@@ -402,6 +394,74 @@ fn path_with_struct_variables_with_into_params() {
         "[2].in" = r#""query""#, "Parameter in"
         "[2].name" = r#""age""#, "Parameter name"
         "[2].required" = r#"false"#, "Parameter required"
+        "[2].schema.type" = r#""array""#, "Parameter schema type"
+        "[2].schema.items.type" = r#""string""#, "Parameter items schema type"
+    }
+}
+
+#[test]
+fn derive_path_with_struct_variables_with_into_params() {
+    use actix_web::{get, HttpResponse, Responder};
+    use serde_json::json;
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Person {
+        /// Id of person
+        id: i64,
+        /// Name of person
+        name: String,
+    }
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Filter {
+        /// Age filter for user
+        #[deprecated]
+        age: Vec<String>,
+    }
+
+    #[utoipa::path(
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo/{id}/{name}")]
+    #[allow(unused)]
+    async fn get_foo(person: Path<Person>, query: Query<Filter>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "id": "foo" }))
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+
+    common::assert_json_array_len(parameters, 3);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#""Id of person""#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int64""#, "Parameter schema format"
+
+        "[1].in" = r#""path""#, "Parameter in"
+        "[1].name" = r#""name""#, "Parameter name"
+        "[1].description" = r#""Name of person""#, "Parameter description"
+        "[1].required" = r#"true"#, "Parameter required"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+
+        "[2].in" = r#""query""#, "Parameter in"
+        "[2].name" = r#""age""#, "Parameter name"
+        "[2].description" = r#""Age filter for user""#, "Parameter description"
+        "[2].required" = r#"true"#, "Parameter required"
+        "[2].deprecated" = r#"true"#, "Parameter deprecated"
         "[2].schema.type" = r#""array""#, "Parameter schema type"
         "[2].schema.items.type" = r#""string""#, "Parameter items schema type"
     }

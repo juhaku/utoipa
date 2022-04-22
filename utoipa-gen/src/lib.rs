@@ -13,6 +13,8 @@ use component::Component;
 use doc_comment::CommentAttributes;
 
 use ext::{PathOperationResolver, PathOperations, PathResolver};
+#[cfg(feature = "actix_extras")]
+use into_params::IntoParams;
 use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
@@ -31,6 +33,8 @@ mod component;
 mod component_type;
 mod doc_comment;
 mod ext;
+#[cfg(feature = "actix_extras")]
+mod into_params;
 mod openapi;
 mod path;
 mod security_requirement;
@@ -701,6 +705,27 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     let openapi = OpenApi(openapi_attributes, ident);
 
     openapi.to_token_stream().into()
+}
+
+#[cfg(feature = "actix_extras")]
+#[proc_macro_error]
+#[proc_macro_derive(IntoParams)]
+/// IntoParams derive macro
+pub fn into_params(input: TokenStream) -> TokenStream {
+    let DeriveInput {
+        ident,
+        generics,
+        data,
+        ..
+    } = syn::parse_macro_input!(input);
+
+    let into_params = IntoParams {
+        generics,
+        data,
+        ident,
+    };
+
+    into_params.to_token_stream().into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
