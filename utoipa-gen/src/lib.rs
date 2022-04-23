@@ -278,10 +278,6 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `params(...)` Slice of params that the endpoint accepts.
 /// * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 ///
-/// > **Note!** when **actix_extras** feature is enabled the **operation**, **path** and **params** declaration
-/// > may be omitted since they are resolved from **actix-web** attributes namely **path** and function arguments.
-/// > To define description or other parameter info then **params** still need to be defined manually. See the example
-/// > in [examples section](#examples).
 ///
 /// # Request Body Attributes
 ///
@@ -392,11 +388,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # actix_extras support for actix-web
 ///
-/// **actix_extas** feature gives **utoipa** ability to use **actix-web** path operation macros such as `#[get(...)]` to
-/// resolve path for `#[utoipa::path]`. Also it is able to parse the the `path` parameters with types from function arguments
-/// of operation which are defined within type `web::Path<...>`. Allowing you leave out types of parameters in `params(...)`
-/// section of even leave out the section if description is not needed for parameters. Utoipa is only able to resolve
-/// [primitive types][primitive] and [`String`] type. Using other types is undefined behaviour.
+/// **actix_extras** featue gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
+///
+/// 1. Ability to parse `path` from **actix-web** path attribute macros e.g. _`#[get(...)]`_.
+/// 2. Ability to parse [`std::primitive`]  or [`String`] or [`tuple`] typed `path` parameters from **actix-web** _`web::Path<...>`_.
+/// 3. Ability to parse `path` and `query` parameters form **actix-web** _`web::Path<...>`_, _`web::Query<...>`_ types
+///    with [`IntoParams`][into_params] trait.
 ///
 /// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ///
@@ -440,7 +437,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # rocket_extras support for rocket
 ///
-/// **rocket_extras** feature give **utoipa** ability to use **rocket** path operation macros such as `#[get(...)]` to
+/// **rocket_extras** feature gives **utoipa** ability to use **rocket** path operation macros such as _`#[get(...)]`_ to
 /// resolve path for `#[utoipa::path]`.  Also it is able to parse the `path` and `query` parameters from path operation macro
 /// combined with function arguments of the operation. Allowing you leave out types from parameters in `params(...)` section
 /// or even leave out the section if description is not needed for parameters. Utoipa is only able to parse parameter types
@@ -558,6 +555,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+/// [into_params]: trait.IntoParams.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///

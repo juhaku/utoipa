@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use proc_macro::TokenTree;
 use proc_macro2::{Ident, Literal, Punct};
 use proc_macro_error::{abort, abort_call_site};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 use regex::{Captures, Regex};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, FnArg,
@@ -61,7 +61,7 @@ impl PathOperations {
             };
 
             let assert_ty = format_ident!("_Assert{}", &ty);
-            Argument::TokenStream(quote! {
+            Argument::TokenStream(quote_spanned! {ty.span()=>
                 {
                     struct #assert_ty where #ty : utoipa::IntoParams;
 

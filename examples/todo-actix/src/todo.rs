@@ -3,13 +3,12 @@ use std::sync::Mutex;
 use actix_web::{
     delete, get, post, put,
     web::{Data, Json, Path, Query, ServiceConfig},
-    HttpRequest, HttpResponse, Responder,
+    HttpResponse, Responder,
 };
 use serde::{Deserialize, Serialize};
-use utoipa::Component;
+use utoipa::{Component, IntoParams};
 
-const API_KEY_NAME: &str = "todo_apikey";
-const API_KEY: &str = "utoipa-rocks";
+use crate::{LogApiKey, RequireApiKey};
 
 #[derive(Default)]
 pub(super) struct TodoStore {
@@ -142,25 +141,8 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
         ("api_key" = [])
     )
 )]
-#[delete("/todo/{id}")]
-pub(super) async fn delete_todo(
-    id: Path<i32>,
-    request: HttpRequest,
-    todo_store: Data<TodoStore>,
-) -> impl Responder {
-    match request.headers().get(API_KEY_NAME) {
-        Some(key) if key != API_KEY => {
-            return HttpResponse::Unauthorized().json(ErrorResponse::Unauthorized(String::from(
-                "incorrect api key",
-            )))
-        }
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(ErrorResponse::Unauthorized(String::from("missing api key")))
-        }
-        _ => (), // just passthrough
-    }
-
+#[delete("/todo/{id}", wrap = "RequireApiKey")]
+pub(super) async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
     let mut todos = todo_store.todos.lock().unwrap();
     let id = id.into_inner();
 
@@ -225,21 +207,12 @@ pub(super) async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -
         ("api_key" = [])
     )
 )]
-#[put("/todo/{id}")]
+#[put("/todo/{id}", wrap = "LogApiKey")]
 pub(super) async fn update_todo(
     id: Path<i32>,
     todo: Json<TodoUpdateRequest>,
-    request: HttpRequest,
     todo_store: Data<TodoStore>,
 ) -> impl Responder {
-    match request.headers().get(API_KEY_NAME) {
-        Some(key) if key == API_KEY => log::info!(
-            "Performing update as authenticated user: {}",
-            key.to_str().unwrap()
-        ),
-        _ => log::info!("Performing update as unauthenticated user!"),
-    }
-
     let mut todos = todo_store.todos.lock().unwrap();
     let id = id.into_inner();
     let todo = todo.into_inner();
@@ -263,8 +236,9 @@ pub(super) async fn update_todo(
 }
 
 /// Search todos Query
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, IntoParams)]
 pub(super) struct SearchTodos {
+    /// Content that should be found from Todo's value field
     value: String,
 }
 
@@ -275,10 +249,7 @@ pub(super) struct SearchTodos {
 #[utoipa::path(
     responses(
         (status = 200, description = "Search Todos did not result error", body = [Todo]),
-    ),
-    params(
-        ("value" = String, query, description = "Content that should be found from Todo's value field")
-    ),
+    )
 )]
 #[get("/todo/search")]
 pub(super) async fn search_todos(
@@ -286,12 +257,15 @@ pub(super) async fn search_todos(
     todo_store: Data<TodoStore>,
 ) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
-    log::debug!("search: {:#?}", &query);
 
     HttpResponse::Ok().json(
         todos
             .iter()
-            .filter(|todo| todo.value.contains(&query.value))
+            .filter(|todo| {
+                todo.value
+                    .to_lowercase()
+                    .contains(&query.value.to_lowercase())
+            })
             .cloned()
             .collect::<Vec<_>>(),
     )
