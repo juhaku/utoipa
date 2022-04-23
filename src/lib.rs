@@ -462,14 +462,81 @@ pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
+/// Trait used to convert implementing type to OpenAPI parameters for **actix-web** framework.
+///
+/// This trait is [deriveable][derive] for structs which are used to describe `path` or `query` parameters.
+/// For more details of `#[derive(IntoParams)]` refer to [derive documentation][derive].
+///
+/// # Examples
+///
+/// Derive [`IntoParams`] implementation. This example will fail to compile because [`IntoParams`] cannot
+/// be used alone and it need to be used together with endpoint using the params as well. See
+/// [derive documentation][derive] for more details.
+/// ```compile_fail
+/// use utoipa::{IntoParams};
+///
+/// #[derive(IntoParams)]
+/// struct PetParams {
+///     /// Id of pet
+///     id: i64,
+///     /// Name of pet
+///     name: String,
+/// }
+/// ```
+///
+/// Roughly equal manual implementation of [`IntoParams`] trait.
+/// ```rust
+/// # struct PetParams {
+/// #    /// Id of pet
+/// #    id: i64,
+/// #    /// Name of pet
+/// #    name: String,
+/// # }
+/// impl utoipa::IntoParams for PetParams {
+///     fn into_params() -> Vec<utoipa::openapi::path::Parameter> {
+///         vec![
+///             utoipa::openapi::path::ParameterBuilder::new()
+///                 .name("id")
+///                 .required(utoipa::openapi::Required::True)
+///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .description(Some("Id of pet"))
+///                 .schema(Some(
+///                     utoipa::openapi::PropertyBuilder::new()
+///                         .component_type(utoipa::openapi::ComponentType::Integer)
+///                         .format(Some(utoipa::openapi::ComponentFormat::Int64)),
+///                 ))
+///                 .build(),
+///             utoipa::openapi::path::ParameterBuilder::new()
+///                 .name("name")
+///                 .required(utoipa::openapi::Required::True)
+///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .description(Some("Name of pet"))
+///                 .schema(Some(
+///                     utoipa::openapi::PropertyBuilder::new()
+///                         .component_type(utoipa::openapi::ComponentType::String),
+///                 ))
+///                 .build(),
+///         ]
+///     }
+/// }
+/// ```
+/// [derive]: derive.IntoParams.html
 #[cfg(feature = "actix_extras")]
 pub trait IntoParams {
+    /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `utoipa-gen` library to
+    /// provide OpenAPI parameter information for the endpoint using the parameters.
     fn into_params() -> Vec<openapi::path::Parameter>;
 }
 
+/// Internal trait used to provide [`ParameterIn`] definition for implementer type.
+///
+/// This is typically used in tandem with [`IntoParams`] trait and only from `utoipa-gen` library.
+/// In manual implementation there is typially never a need to implement this trait since
+/// manual implementations can directly define the [`ParameterIn`] definition they see fit to the purpose.
 #[cfg(feature = "actix_extras")]
 #[doc(hidden)]
 pub trait ParameterIn {
+    /// Provide [`ParameterIn`] declaration for caller. Default implementation returns [`None`].
     fn parameter_in() -> Option<openapi::path::ParameterIn> {
         None
     }

@@ -418,7 +418,7 @@ fn derive_path_with_struct_variables_with_into_params() {
     struct Filter {
         /// Age filter for user
         #[deprecated]
-        age: Vec<String>,
+        age: Option<Vec<String>>,
     }
 
     #[utoipa::path(
@@ -460,7 +460,7 @@ fn derive_path_with_struct_variables_with_into_params() {
         "[2].in" = r#""query""#, "Parameter in"
         "[2].name" = r#""age""#, "Parameter name"
         "[2].description" = r#""Age filter for user""#, "Parameter description"
-        "[2].required" = r#"true"#, "Parameter required"
+        "[2].required" = r#"false"#, "Parameter required"
         "[2].deprecated" = r#"true"#, "Parameter deprecated"
         "[2].schema.type" = r#""array""#, "Parameter schema type"
         "[2].schema.items.type" = r#""string""#, "Parameter items schema type"

@@ -206,7 +206,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Enforce type being used in OpenAPI spec to String with `value_type` and set format to octect stream
+/// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octect stream
 /// with [`ComponentFormat::Binary`][binary].
 /// ```rust
 /// # use utoipa::Component;
@@ -218,7 +218,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Enforce type being used in OpenAPI spec to String with `value_type` option.
+/// Enforce type being used in OpenAPI spec to [`String`] with `value_type` option.
 /// ```rust
 /// # use utoipa::Component;
 /// #[derive(Component)]
@@ -710,7 +710,65 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 #[cfg(feature = "actix_extras")]
 #[proc_macro_error]
 #[proc_macro_derive(IntoParams)]
-/// IntoParams derive macro
+/// IntoParams derive macro for **actix-web** only.
+///
+/// This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
+///
+/// Typically path parameters need to be defined within [`#[utoipa::path(...params(...))]`][path_params] section
+/// for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
+/// Still [`std::primitive`] and [`String`] path parameters or [`tuple`] style path parameters need to be defined
+/// within `params(...)` section if description or other than default configuration need to be given.
+///
+/// You can use the Rust's own `#[deprecated]` attribute on field to mark it as
+/// deprecated and it will reflect to the generated OpenAPI spec.
+///
+/// `#[deprecated]` attribute supports adding addtional details such as a reason and or since version
+/// but this is is not supported in OpenAPI. OpenAPI has only a boolean flag to determine deprecation.
+/// While it is totally okay to declare deprecated with reason
+/// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
+///
+/// # Examples
+///
+/// Demonstrate [`IntoParams`][into_params] usage with resolving `path` and `query` parameters
+/// for `get_pet` endpoint. [^actix]
+/// ```rust
+/// use actix_web::{get, HttpResponse, Responder};
+/// use actix_web::web::{Path, Query};
+/// use serde::Deserialize;
+/// use serde_json::json;
+/// use utoipa::IntoParams;
+///
+/// #[derive(Deserialize, IntoParams)]
+/// struct PetPathArgs {
+///     /// Id of pet
+///     id: i64,
+///     /// Name of pet
+///     name: String,
+/// }
+///
+/// #[derive(Deserialize, IntoParams)]
+/// struct Filter {
+///     /// Age filter for pets
+///     #[deprecated]
+///     age: Option<Vec<String>>,
+/// }
+///
+/// #[utoipa::path(
+///     responses(
+///         (status = 200, description = "success response")
+///     )
+/// )]
+/// #[get("/pet/{id}/{name}")]
+/// async fn get_pet(person: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "id": "id" }))
+/// }
+/// ```
+///
+/// [into_params]: trait.IntoParams.html
+/// [path_params]: attr.path.html#params-attributes
+/// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
+///
+/// [^actix]: Feature **actix_extras** need to be enabled
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         ident,
@@ -796,6 +854,7 @@ impl ToTokens for Deprecated {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum Required {
     True,
     False,

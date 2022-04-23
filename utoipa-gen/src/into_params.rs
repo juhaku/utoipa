@@ -40,12 +40,12 @@ impl ToTokens for IntoParams {
 impl IntoParams {
     fn get_struct_fields(&self) -> impl Iterator<Item = &Field> {
         let ident = &self.ident;
-        let abort = |help: &str| {
+        let abort = |note: &str| {
             abort! {
-                ident.span(),
+                ident,
                 "unsupported data type, expected struct with named fields `struct {} {{...}}`",
                 ident.to_string();
-                help = help
+                note = note
             }
         };
 
@@ -75,8 +75,8 @@ impl ToTokens for Param<'_> {
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
             .name(#name)
-            .required(#required)
             .parameter_in(<Self as utoipa::ParameterIn>::parameter_in().unwrap_or_default())
+            .required(#required)
         });
 
         if let Some(deprecated) = component::get_deprecated(&field.attrs) {
@@ -127,7 +127,7 @@ impl ToTokens for ParamType<'_> {
                     }
                 }
                 ValueType::Object => abort!(
-                    self.ty.ident.span(),
+                    self.ty.ident,
                     "unsupported type, only primitive and String types are supported"
                 ),
             },
