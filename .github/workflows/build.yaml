@@ -69,7 +69,7 @@ jobs:
           cargo test --test component_derive_test --features chrono_types_with_format
           cargo test --test path_derive_rocket --features rocket_extras,json
         elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
-          cargo test -p utoipa-gen --features actix_extras
+          cargo test -p utoipa-gen --features utoipa/actix_extras
         elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
           cargo test -p utoipa-swagger-ui --features actix-web,rocket
         fi

@@ -55,15 +55,21 @@ impl PathOperations {
         arguments: I,
     ) -> impl Iterator<Item = Argument<'a>> {
         arguments.into_iter().map(|path_arg| {
-            let ty = match path_arg {
-                Arg::Path(arg) => arg,
-                Arg::Query(arg) => arg,
+            let (ty, parameter_in) = match path_arg {
+                Arg::Path(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Path }),
+                Arg::Query(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Query }),
             };
 
             let assert_ty = format_ident!("_Assert{}", &ty);
             Argument::TokenStream(quote! {
                 {
                     struct #assert_ty where #ty : utoipa::IntoParams;
+
+                    impl utoipa::ParameterIn for #ty {
+                        fn parameter_in() -> Option<utoipa::openapi::path::ParameterIn> {
+                            Some(#parameter_in)
+                        }
+                    }
 
                     <#ty>::into_params()
                 }
