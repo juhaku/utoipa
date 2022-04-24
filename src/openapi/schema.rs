@@ -1,6 +1,6 @@
 //! Implements [OpenAPI Schema Object][schema] types which can be
 //! used to define field properties, enum values, array or object types.
-//! 
+//!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 use std::collections::HashMap;
 
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    set_value, build_fn, builder, from, new, security::SecurityScheme, xml::Xml, Deprecated,
+    build_fn, builder, from, new, security::SecurityScheme, set_value, xml::Xml, Deprecated,
 };
 
 macro_rules! component_from_builder {
@@ -211,7 +211,7 @@ impl OneOf {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
-            description: None
+            description: None,
         }
     }
 }
@@ -234,7 +234,6 @@ impl OneOfBuilder {
     to_array_builder!();
 }
 
-
 impl From<OneOf> for Component {
     fn from(one_of: OneOf) -> Self {
         Self::OneOf(one_of)
@@ -245,7 +244,7 @@ component_from_builder!(OneOfBuilder);
 
 /// Implements special subset of [OpenAPI Schema Object][schema] which can be
 /// used to define field property or enum values or type for array items.
-/// 
+///
 /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[derive(Default, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -281,7 +280,7 @@ pub struct Property {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
     pub example: Option<String>,
-    
+
     /// Example shown in UI of the value for richier documentation.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "serde_json")]
@@ -353,7 +352,7 @@ pub struct PropertyBuilder {
     xml: Option<Xml>,
 }
 
-from!(Property PropertyBuilder 
+from!(Property PropertyBuilder
     component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 
 impl PropertyBuilder {
@@ -391,7 +390,7 @@ impl PropertyBuilder {
         mut self,
         enum_values: Option<I>,
     ) -> Self {
-        set_value!(self enum_values 
+        set_value!(self enum_values
             enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
     }
 
@@ -429,15 +428,15 @@ impl PropertyBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Property 
+    build_fn!(pub Property
         component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 }
 
 component_from_builder!(PropertyBuilder);
 
-/// Implements subset of [OpenAPI Schema Object][schema] which allows 
+/// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Component`]s as **properties** to this [`Component`].
-/// 
+///
 /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -519,9 +518,9 @@ pub struct ObjectBuilder {
 
 impl ObjectBuilder {
     new!(pub ObjectBuilder);
-    
-    /// Add new property to the [`Object`]. 
-    /// 
+
+    /// Add new property to the [`Object`].
+    ///
     /// Method accepts property name and property component as an arguments.
     pub fn property<S: Into<String>, I: Into<Component>>(
         mut self,
@@ -567,7 +566,7 @@ impl ObjectBuilder {
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         set_value!(self xml xml)
     }
-    
+
     to_array_builder!();
 
     build_fn!(pub Object component_type, required, properties, description, deprecated, example, xml);
@@ -576,9 +575,9 @@ impl ObjectBuilder {
 from!(Object ObjectBuilder component_type, required, properties, description, deprecated, example, xml);
 component_from_builder!(ObjectBuilder);
 
-/// Implements [OpenAPI Reference Object][reference] that can be used to reference 
+/// Implements [OpenAPI Reference Object][reference] that can be used to reference
 /// reusable components.
-/// 
+///
 /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -590,7 +589,7 @@ pub struct Ref {
 }
 
 impl Ref {
-    /// Construct a new [`Ref`] with custom ref location. In most cases this is not necessary 
+    /// Construct a new [`Ref`] with custom ref location. In most cases this is not necessary
     /// and [`Ref::from_component_name`] could be used instead.
     pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
@@ -598,7 +597,7 @@ impl Ref {
         }
     }
 
-    /// Construct a new [`Ref`] from provided component name. This will create a [`Ref`] that 
+    /// Construct a new [`Ref`] from provided component name. This will create a [`Ref`] that
     /// references the the reusable schemas.
     pub fn from_component_name<I: Into<String>>(component_name: I) -> Self {
         Self::new(&format!("#/components/schemas/{}", component_name.into()))
@@ -720,14 +719,14 @@ where
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum ComponentType {
-    /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have 
+    /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
     /// _component_type_ [`ComponentType::Object`].
     Object,
     /// Indicates string type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     String,
     /// Indicates integer type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     Integer,
-    /// Indicates floating point number type of content. Typically used with 
+    /// Indicates floating point number type of content. Typically used with
     /// [`Property`] and [`PropertyBuilder`].
     Number,
     /// Indicates boolean type of content. Typically used with [`Property`] and [`PropertyBuilder`].
@@ -742,7 +741,7 @@ impl Default for ComponentType {
     }
 }
 
-/// Additional format for [`ComponentType`] to fine tune the data type used. If the **format** is not 
+/// Additional format for [`ComponentType`] to fine tune the data type used. If the **format** is not
 /// supported by the UI it may default back to [`ComponentType`] alone.
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -892,7 +891,9 @@ mod tests {
     #[test]
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
-        let json_value = ObjectBuilder::new().example(Some(json!({"age": 20, "name": "bob the cat"}))).build();
+        let json_value = ObjectBuilder::new()
+            .example(Some(json!({"age": 20, "name": "bob the cat"})))
+            .build();
 
         let value_string = serde_json::to_string(&json_value).unwrap();
         assert_eq!(

@@ -707,7 +707,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 
 #[cfg(feature = "actix_extras")]
 #[proc_macro_error]
-#[proc_macro_derive(IntoParams)]
+#[proc_macro_derive(IntoParams, attributes(param))]
 /// IntoParams derive macro for **actix-web** only.
 ///
 /// This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
@@ -1022,13 +1022,13 @@ impl ToTokens for Example {
 mod parse_utils {
     use proc_macro2::{Group, Ident, TokenStream};
     use proc_macro_error::{abort, ResultExt};
-    use quote::ToTokens;
+    use quote::{quote, ToTokens};
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
         token::Comma,
-        Error, LitBool, LitStr, Token,
+        Error, ExprPath, Lit, LitBool, LitStr, Token,
     };
 
     use crate::Example;
@@ -1121,5 +1121,52 @@ mod parse_utils {
             help = r#"Try defining example = json!({{"key": "value"}})"#;
             }
         })
+    }
+
+    #[inline]
+    pub(crate) fn parse_lit_or_fn_ref_as_token_stream(
+        input: ParseStream,
+        name: &str,
+    ) -> TokenStream {
+        if input.peek(Lit) {
+            let literal = input.parse::<Lit>().unwrap();
+
+            #[cfg(feature = "json")]
+            {
+                quote! {
+                    serde_json::json!(#literal)
+                }
+            }
+
+            #[cfg(not(feature = "json"))]
+            {
+                quote! {
+                    format!("{}", #literal)
+                }
+            }
+        } else {
+            let method = input.parse::<ExprPath>().unwrap_or_else(|error| {
+                let message = &format!("unparseable {}, expected literal or expresssion path", name);
+                abort! {
+                    error.span(), message;
+                    help = "Try to define {} = value", name;
+                    help = r#"You should define either literal value e.g. {} = 1 or {} = "value""#, name, name;
+                    help = r#"You can also use function reference e.g {} = String::default"#, name
+                }
+            });
+
+            #[cfg(feature = "json")]
+            {
+                quote! {
+                    serde_json::json!(#method())
+                }
+            }
+            #[cfg(not(feature = "json"))]
+            {
+                quote! {
+                    format!("{}", #method())
+                }
+            }
+        }
     }
 }

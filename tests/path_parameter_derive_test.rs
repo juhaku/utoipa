@@ -253,3 +253,42 @@ fn derive_params_without_fn_args() {
         "[0].schema.format" = r#""int32""#, "Parameter schema format"
     };
 }
+
+#[test]
+fn derive_params_with_params_ext() {
+    #[utoipa::path(
+        get,
+        path = "/foo",
+        responses(
+            (status = 200, description = "success"),
+        ),
+        params(
+            ("value" = Option<[String]>, query, description = "Foo value description", style = Form, allow_reserved, deprecated, explode)
+        )
+    )]
+    #[allow(unused)]
+    async fn get_foo_by_id() -> String {
+        "".to_string()
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo_by_id))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo.get.parameters");
+
+    common::assert_json_array_len(parameters, 1);
+    assert_value! {parameters=>
+        "[0].in" = r#""query""#, "Parameter in"
+        "[0].name" = r#""value""#, "Parameter name"
+        "[0].description" = r#""Foo value description""#, "Parameter description"
+        "[0].required" = r#"false"#, "Parameter required"
+        "[0].deprecated" = r#"true"#, "Parameter deprecated"
+        "[0].schema.type" = r#""array""#, "Parameter schema type"
+        "[0].schema.items.type" = r#""string""#, "Parameter schema items type"
+        "[0].style" = r#""form""#, "Parameter style"
+        "[0].allowReserved" = r#"true"#, "Parameter allowReserved"
+        "[0].explode" = r#"true"#, "Parameter explode"
+    };
+}

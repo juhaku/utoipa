@@ -467,6 +467,87 @@ fn derive_path_with_struct_variables_with_into_params() {
     }
 }
 
+#[test]
+fn derive_into_params_with_custom_attributes() {
+    use actix_web::{get, HttpResponse, Responder};
+    use serde_json::json;
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Person {
+        /// Id of person
+        id: i64,
+        /// Name of person
+        #[param(style = Simple, example = "John")]
+        name: String,
+    }
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Filter {
+        /// Age filter for user
+        #[param(style = Form, explode, allow_reserved)]
+        age: Option<Vec<String>>,
+    }
+
+    #[utoipa::path(
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo/{id}/{name}")]
+    #[allow(unused)]
+    async fn get_foo(person: Path<Person>, query: Query<Filter>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "id": "foo" }))
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+
+    common::assert_json_array_len(parameters, 3);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].description" = r#""Id of person""#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
+        "[0].style" = r#"null"#, "Parameter style"
+        "[0].example" = r#"null"#, "Parameter example"
+        "[0].allowReserved" = r#"null"#, "Parameter allowReserved"
+        "[0].explode" = r#"null"#, "Parameter explode"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int64""#, "Parameter schema format"
+
+        "[1].in" = r#""path""#, "Parameter in"
+        "[1].name" = r#""name""#, "Parameter name"
+        "[1].description" = r#""Name of person""#, "Parameter description"
+        "[1].required" = r#"true"#, "Parameter required"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
+        "[1].style" = r#""simple""#, "Parameter style"
+        "[1].allowReserved" = r#"null"#, "Parameter allowReserved"
+        "[1].explode" = r#"null"#, "Parameter explode"
+        "[1].example" = r#""John""#, "Parameter example"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+
+        "[2].in" = r#""query""#, "Parameter in"
+        "[2].name" = r#""age""#, "Parameter name"
+        "[2].description" = r#""Age filter for user""#, "Parameter description"
+        "[2].required" = r#"false"#, "Parameter required"
+        "[2].deprecated" = r#"null"#, "Parameter deprecated"
+        "[2].style" = r#""form""#, "Parameter style"
+        "[2].example" = r#"null"#, "Parameter example"
+        "[2].allowReserved" = r#"true"#, "Parameter allowReserved"
+        "[2].explode" = r#"true"#, "Parameter explode"
+        "[2].schema.type" = r#""array""#, "Parameter schema type"
+        "[2].schema.items.type" = r#""string""#, "Parameter items schema type"
+    }
+}
+
 macro_rules! test_derive_path_operations {
     ( $( $name:ident, $mod:ident: $operation:ident)* ) => {
         $(

@@ -6,7 +6,7 @@ use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer},
-    Attribute, Error, ExprPath, Lit, Token,
+    Attribute, Error, ExprPath, Token,
 };
 
 use crate::{parse_utils, Example};
@@ -87,12 +87,12 @@ impl Parse for ComponentAttr<Enum> {
             match name {
                 "default" => {
                     enum_attr.default = Some(parse_utils::parse_next(input, || {
-                        parse_lit_or_fn_ref_as_token_stream(input, name)
+                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "example" => {
                     enum_attr.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_or_fn_ref_as_token_stream(input, name)
+                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -181,12 +181,12 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
             match name {
                 "default" => {
                     unnamed_struct.default = Some(parse_utils::parse_next(input, || {
-                        parse_lit_or_fn_ref_as_token_stream(input, name)
+                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "example" => {
                     unnamed_struct.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_or_fn_ref_as_token_stream(input, name)
+                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "format" => unnamed_struct.format = Some(parse_format(input)?),
@@ -278,13 +278,13 @@ impl Parse for ComponentAttr<NamedField> {
             match name {
                 "example" => {
                     field.example = Some(parse_utils::parse_next(input, || {
-                        parse_lit_or_fn_ref_as_token_stream(input, name)
+                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
                     }));
                 }
                 "format" => field.format = Some(parse_format(input)?),
                 "default" => {
                     field.default = Some(parse_utils::parse_next(input, || {
-                        parse_lit_or_fn_ref_as_token_stream(input, name)
+                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
                     }))
                 }
                 "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)?),
@@ -326,50 +326,6 @@ fn parse_format(input: &ParseBuffer) -> Result<ExprPath, Error> {
         Ok(appended_path)
     } else {
         Ok(format)
-    }
-}
-
-#[inline]
-fn parse_lit_or_fn_ref_as_token_stream(input: &ParseBuffer, name: &str) -> TokenStream {
-    if input.peek(Lit) {
-        let literal = input.parse::<Lit>().unwrap();
-
-        #[cfg(feature = "json")]
-        {
-            quote! {
-                serde_json::json!(#literal)
-            }
-        }
-
-        #[cfg(not(feature = "json"))]
-        {
-            quote! {
-                format!("{}", #literal)
-            }
-        }
-    } else {
-        let method = input.parse::<ExprPath>().unwrap_or_else(|error| {
-            let message = &format!("unparseable {}, expected literal or expresssion path", name);
-            abort! {
-                error.span(), message;
-                help = "Try to define {} = value", name;
-                help = r#"You should define either literal value e.g. {} = 1 or {} = "value""#, name, name;
-                help = r#"You can also use function reference e.g {} = String::default"#, name
-            }
-        });
-
-        #[cfg(feature = "json")]
-        {
-            quote! {
-                serde_json::json!(#method())
-            }
-        }
-        #[cfg(not(feature = "json"))]
-        {
-            quote! {
-                format!("{}", #method())
-            }
-        }
     }
 }
 

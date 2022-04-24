@@ -1,11 +1,12 @@
-use proc_macro_error::abort;
+use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{Data, Field, Generics, Ident};
+use syn::{Attribute, Data, Field, Generics, Ident};
 
 use crate::{
     component::{self, ComponentPart, GenericType, ValueType},
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
+    path::parameter::ParameterExt,
     Array, Required,
 };
 
@@ -89,37 +90,52 @@ impl ToTokens for Param<'_> {
             })
         }
 
-        let param_type = ParamType {
-            ty: &component_part,
-        };
+        let parameter_ext = field
+            .attrs
+            .iter()
+            .find(|attribute| attribute.path.is_ident("param"))
+            .map(|attribute| attribute.parse_args::<ParameterExt>().unwrap_or_abort());
 
+        if let Some(ext) = parameter_ext {
+            if let Some(ref style) = ext.style {
+                tokens.extend(quote! { .style(Some(#style)) });
+            }
+            if let Some(ref explode) = ext.explode {
+                tokens.extend(quote! { .explode(Some(#explode)) });
+            }
+            if let Some(ref allow_reserved) = ext.allow_reserved {
+                tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
+            }
+            if let Some(ref example) = ext.example {
+                tokens.extend(quote! { .example(Some(#example)) });
+            }
+        }
+
+        let param_type = ParamType(&component_part);
         tokens.extend(quote! { .schema(Some(#param_type)).build() });
     }
 }
 
-struct ParamType<'a> {
-    ty: &'a ComponentPart<'a>,
-}
+struct ParamType<'a>(&'a ComponentPart<'a>);
 
 impl ToTokens for ParamType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match &self.ty.generic_type {
+        let ty = self.0;
+        match &ty.generic_type {
             Some(GenericType::Vec) => {
-                let param_type = ParamType {
-                    ty: self.ty.child.as_ref().unwrap(),
-                };
+                let param_type = ParamType(ty.child.as_ref().unwrap());
 
                 tokens.extend(quote! { #param_type.to_array_builder() });
             }
-            None => match self.ty.value_type {
+            None => match ty.value_type {
                 ValueType::Primitive => {
-                    let component_type = ComponentType(self.ty.ident);
+                    let component_type = ComponentType(ty.ident);
 
                     tokens.extend(quote! {
                         utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                     });
 
-                    let format = ComponentFormat(self.ty.ident);
+                    let format = ComponentFormat(ty.ident);
                     if format.is_known_format() {
                         tokens.extend(quote! {
                             .format(Some(#format))
@@ -127,7 +143,7 @@ impl ToTokens for ParamType<'_> {
                     }
                 }
                 ValueType::Object => abort!(
-                    self.ty.ident,
+                    ty.ident,
                     "unsupported type, only primitive and String types are supported"
                 ),
             },
@@ -135,16 +151,13 @@ impl ToTokens for ParamType<'_> {
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let param_type = ParamType {
-                    ty: self.ty.child.as_ref().unwrap(),
-                };
+                let param_type = ParamType(ty.child.as_ref().unwrap());
 
                 tokens.extend(param_type.into_token_stream())
             }
-            Some(GenericType::Map) => abort!(
-                self.ty.ident,
-                "maps are not supported parameter receiver types"
-            ),
+            Some(GenericType::Map) => {
+                abort!(ty.ident, "maps are not supported parameter receiver types")
+            }
         };
     }
 }
