@@ -249,6 +249,7 @@ impl PathOperation {
     /// Create path operation from ident
     ///
     /// Ident must have value of http request type as lower case string such as `get`.
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn from_ident(ident: &Ident) -> Self {
         match ident.to_string().as_str().parse::<PathOperation>() {
             Ok(operation) => operation,

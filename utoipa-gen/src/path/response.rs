@@ -8,7 +8,7 @@ use syn::{
     Error, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, Example, Type};
+use crate::{parse_utils, AnyValue, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -21,7 +21,7 @@ pub struct Response<'r> {
     response_type: Option<Type<'r>>,
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
-    example: Option<Example>,
+    example: Option<AnyValue>,
 }
 
 impl Parse for Response<'_> {
@@ -88,9 +88,9 @@ impl Parse for Response<'_> {
                     response.headers = parse_utils::parse_groups(&headers)?;
                 }
                 "example" => {
-                    response.example = Some(parse_utils::parse_next_lit_str_or_json_example(
-                        input, &ident,
-                    ));
+                    response.example = Some(parse_utils::parse_next(input, || {
+                        AnyValue::parse_lit_str_or_json(input)
+                    })?);
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }

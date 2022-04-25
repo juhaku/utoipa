@@ -26,7 +26,7 @@ use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ItemFn, Token,
+    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
 };
 
 mod component;
@@ -61,19 +61,19 @@ use ext::ArgumentResolver;
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
 /// # Struct Optional Configuration Options
-/// * `example = ...` Can be either `json!(...)` or literal string that can be parsed to json. `json!`
-///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+/// * `example = ...` Can be either _`json!(...)`_ or literal string that can be parsed to json. _`json!`_
+///   should be something that _`serde_json::json!`_ can parse as a _`serde_json::Value`_. [^json]
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 ///  
-/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
+/// [^json]: **json** feature need to be enabled for _`json!(...)`_ type to work.
 ///
 /// # Enum Optional Configuration Options
-/// * `example = ...` Can be method reference or literal value. [^json2]
-/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 ///
 /// # Unnamed Field Struct Optional Configuration Options
-/// * `example = ...` Can be method reference or literal value. [^json2]
-/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
@@ -82,8 +82,8 @@ use ext::ArgumentResolver;
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// # Named Fields Optional Configuration Options
-/// * `example = ...` Can be method reference or literal value. [^json2]
-/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
@@ -360,12 +360,18 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///   E.g. _`path, query, header, cookie`_
 /// * `deprecated` Define whether the parameter is deprecated or not.
 /// * `description = "..."` Define possible description for the parameter as str.
+/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `allow_reserved` Defines whether reserved charachers _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
+///   will override any example in underlying parameter type.
 ///
 /// **Params supports following representation formats:**
 ///
 /// ```text
 /// ("id" = String, path, deprecated, description = "Pet database id"),
 /// ("id", path, deprecated, description = "Pet database id"),
+/// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
 /// ```
 ///
 /// # Security Requirement Attributes
@@ -556,6 +562,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
+/// [style]: openapi/path/enum.ParameterStyle.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
@@ -571,12 +578,15 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
 
-    let mut resolved_path = PathOperations::resolve_path(
+    let resolved_path = PathOperations::resolve_path(
         &resolved_operation
             .as_mut()
             .map(|operation| mem::take(&mut operation.path))
             .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
+
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    let mut resolved_path = resolved_path;
 
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     {
@@ -707,7 +717,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 
 #[cfg(feature = "actix_extras")]
 #[proc_macro_error]
-#[proc_macro_derive(IntoParams)]
+#[proc_macro_derive(IntoParams, attributes(param))]
 /// IntoParams derive macro for **actix-web** only.
 ///
 /// This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
@@ -724,6 +734,14 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// but this is is not supported in OpenAPI. OpenAPI has only a boolean flag to determine deprecation.
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
+///
+/// # IntoParams Attributes for `#[param(...)]`
+///
+/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `allow_reserved` Defines whether reserved charachers _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
+///   will override any example in underlying parameter type.
 ///
 /// # Examples
 ///
@@ -748,7 +766,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// struct Filter {
 ///     /// Age filter for pets
 ///     #[deprecated]
-///     age: Option<Vec<String>>,
+///     #[param(style = Form, explode, allow_reserved, example = json!([10]))]
+///     age: Option<Vec<i32>>,
 /// }
 ///
 /// #[utoipa::path(
@@ -757,16 +776,19 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     )
 /// )]
 /// #[get("/pet/{id}/{name}")]
-/// async fn get_pet(person: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "id": "id" }))
+/// async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "id": pet.id }))
 /// }
 /// ```
 ///
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
+/// [style]: openapi/path/enum.ParameterStyle.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
+///
+/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         ident,
@@ -1001,19 +1023,102 @@ impl ToTokens for ExternalDocs {
     }
 }
 
+/// Represents OpenAPI Any value used in example and defualt fields.
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum Example {
+pub(self) enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),
+    #[cfg(not(feature = "json"))]
+    Literal(TokenStream2),
 }
 
-impl ToTokens for Example {
+impl AnyValue {
+    // TODO
+    fn parse_any(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Lit) {
+            if input.peek(LitStr) {
+                let lit_str = input.parse::<LitStr>().unwrap().to_token_stream();
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(lit_str))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::String(lit_str))
+                }
+            } else {
+                let lit = input.parse::<Lit>().unwrap().to_token_stream();
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(lit))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::Literal(lit))
+                }
+            }
+        } else {
+            let fork = input.fork();
+            let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
+                let ident = fork.parse::<Ident>().unwrap();
+                ident == "json"
+            } else {
+                false
+            };
+
+            if is_json {
+                let json = parse_utils::parse_json_token_stream(input)?;
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(json))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::Literal(json))
+                }
+            } else {
+                let method = input.parse::<ExprPath>().map_err(|error| {
+                    syn::Error::new(
+                        error.span(),
+                        "expected literal value, json!(...) or method reference",
+                    )
+                })?;
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(quote! { #method() }))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::Literal(quote! { #method() }))
+                }
+            }
+        }
+    }
+
+    fn parse_lit_str_or_json(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(LitStr) {
+            Ok(AnyValue::String(
+                input.parse::<LitStr>().unwrap().to_token_stream(),
+            ))
+        } else {
+            Ok(AnyValue::Json(parse_utils::parse_json_token_stream(input)?))
+        }
+    }
+}
+
+impl ToTokens for AnyValue {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
             Self::Json(json) => tokens.extend(quote! {
                 serde_json::json!(#json)
             }),
             Self::String(string) => tokens.extend(string.to_owned()),
+            #[cfg(not(feature = "json"))]
+            Self::Literal(literal) => tokens.extend(quote! { format!("{}", #literal) }),
         }
     }
 }
@@ -1021,8 +1126,7 @@ impl ToTokens for Example {
 /// Parsing utils
 mod parse_utils {
     use proc_macro2::{Group, Ident, TokenStream};
-    use proc_macro_error::{abort, ResultExt};
-    use quote::ToTokens;
+    use proc_macro_error::ResultExt;
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
@@ -1030,8 +1134,6 @@ mod parse_utils {
         token::Comma,
         Error, LitBool, LitStr, Token,
     };
-
-    use crate::Example;
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
@@ -1097,29 +1199,5 @@ mod parse_utils {
                 "unexpected token, expected json!(...)",
             ))
         }
-    }
-
-    fn parse_next_lit_str_or_json(input: ParseStream, abort_op: impl FnOnce(&Error)) -> Example {
-        if input.peek2(LitStr) {
-            Example::String(parse_next(input, || {
-                input.parse::<LitStr>().unwrap().to_token_stream()
-            }))
-        } else {
-            Example::Json(parse_next(input, || {
-                parse_json_token_stream(input).unwrap_or_else(|error| {
-                    abort_op(&error);
-                    // hacky way to tell rust that we are having a "never" type here
-                    unreachable!("oops! unreachable code we should have aborted here");
-                })
-            }))
-        }
-    }
-
-    pub(crate) fn parse_next_lit_str_or_json_example(input: ParseStream, ident: &Ident) -> Example {
-        parse_next_lit_str_or_json(input, |error| {
-            abort! {ident, "unparseable example, expected json!(), {}", error;
-            help = r#"Try defining example = json!({{"key": "value"}})"#;
-            }
-        })
     }
 }
