@@ -48,7 +48,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
   OpenAPI values e.g. within `example` value. This is enabled by default.
 * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) intgration with being able to 
-  parse `path` and `path parameters` from actix web path attribute macros. See 
+  parse `path` and `path and query parameters` from actix web path attribute macros. See 
   [docs](https://docs.rs/utoipa/0.2.0/utoipa/attr.path.html#actix_extras-support-for-actix-web) or [examples](./examples) for more details.
 * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [docs](https://docs.rs/utoipa/0.2.0/utoipa/attr.path.html#rocket_extras-support-for-rocket)

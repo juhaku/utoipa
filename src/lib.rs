@@ -45,7 +45,7 @@
 //!   OpenAPI values e.g. within `example` value. This is enabled by default.
 //! * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 //! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) intgration with being able to
-//!   parse `path` and `path parameters` from actix web path attribute macros. See [actix extras support][actix_path] or
+//!   parse `path` and `path and query parameters` from actix web path attribute macros. See [actix extras support][actix_path] or
 //!   [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
 //! * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
 //!   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [rocket extras support][rocket_path]

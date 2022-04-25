@@ -486,7 +486,7 @@ fn derive_into_params_with_custom_attributes() {
     #[allow(unused)]
     struct Filter {
         /// Age filter for user
-        #[param(style = Form, explode, allow_reserved, example = json!(["9"]))]
+        #[param(style = Form, explode, allow_reserved, example = json!(["10"]))]
         age: Option<Vec<String>>,
     }
 
