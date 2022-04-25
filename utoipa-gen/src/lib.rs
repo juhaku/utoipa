@@ -61,19 +61,19 @@ use ext::ArgumentResolver;
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
 /// # Struct Optional Configuration Options
-/// * `example = ...` Can be either `json!(...)` or literal string that can be parsed to json. `json!`
-///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+/// * `example = ...` Can be either _`json!(...)`_ or literal string that can be parsed to json. _`json!`_
+///   should be something that _`serde_json::json!`_ can parse as a _`serde_json::Value`_. [^json]
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 ///  
-/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
+/// [^json]: **json** feature need to be enabled for _`json!(...)`_ type to work.
 ///
 /// # Enum Optional Configuration Options
-/// * `example = ...` Can be method reference or literal value. [^json2]
-/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 ///
 /// # Unnamed Field Struct Optional Configuration Options
-/// * `example = ...` Can be method reference or literal value. [^json2]
-/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
@@ -82,8 +82,8 @@ use ext::ArgumentResolver;
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// # Named Fields Optional Configuration Options
-/// * `example = ...` Can be method reference or literal value. [^json2]
-/// * `default = ...` Can be method reference or literal value. [^json2]
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
@@ -360,12 +360,18 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///   E.g. _`path, query, header, cookie`_
 /// * `deprecated` Define whether the parameter is deprecated or not.
 /// * `description = "..."` Define possible description for the parameter as str.
+/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `allow_reserved` Defines whether reserved charachers _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
+///   will override any example in underlying parameter type.
 ///
 /// **Params supports following representation formats:**
 ///
 /// ```text
 /// ("id" = String, path, deprecated, description = "Pet database id"),
 /// ("id", path, deprecated, description = "Pet database id"),
+/// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
 /// ```
 ///
 /// # Security Requirement Attributes
@@ -556,6 +562,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
+/// [style]: openapi/path/enum.ParameterStyle.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
@@ -728,6 +735,14 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
+/// # IntoParams Attributes for `#[param(...)]`
+///
+/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `allow_reserved` Defines whether reserved charachers _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
+///   will override any example in underlying parameter type.
+///
 /// # Examples
 ///
 /// Demonstrate [`IntoParams`][into_params] usage with resolving `path` and `query` parameters
@@ -751,7 +766,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// struct Filter {
 ///     /// Age filter for pets
 ///     #[deprecated]
-///     age: Option<Vec<String>>,
+///     #[param(style = Form, explode, allow_reserved, example = json!([10]))]
+///     age: Option<Vec<i32>>,
 /// }
 ///
 /// #[utoipa::path(
@@ -760,16 +776,19 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     )
 /// )]
 /// #[get("/pet/{id}/{name}")]
-/// async fn get_pet(person: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
-///     HttpResponse::Ok().json(json!({ "id": "id" }))
+/// async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
+///     HttpResponse::Ok().json(json!({ "id": pet.id }))
 /// }
 /// ```
 ///
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
+/// [style]: openapi/path/enum.ParameterStyle.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
+///
+/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         ident,

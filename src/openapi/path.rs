@@ -626,7 +626,8 @@ pub enum ParameterStyle {
     /// e.g _`.color=blue`_.
     /// Allowed with [`ParameterIn::Path`].
     Label,
-    /// Default value for [`ParameterIn::Query`] [`ParameterIn::Cookie`].
+    /// Form style parameters defined by [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570#section-3.2.8)
+    /// e.g. _`color=blue`_. Default value for [`ParameterIn::Query`] [`ParameterIn::Cookie`].
     /// Allowed with [`ParameterIn::Query`] or [`ParameterIn::Cookie`].
     Form,
     /// Default value for [`ParameterIn::Path`] [`ParameterIn::Header`]. e.g. _`blue`_.
