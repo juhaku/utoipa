@@ -9,7 +9,7 @@ use syn::{
     Attribute, Error, ExprPath, Token,
 };
 
-use crate::{parse_utils, Example};
+use crate::{parse_utils, AnyValue};
 
 use super::{
     xml::{Xml, XmlAttr},
@@ -36,14 +36,14 @@ where
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Enum {
-    default: Option<TokenStream>,
-    example: Option<TokenStream>,
+    default: Option<AnyValue>,
+    example: Option<AnyValue>,
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Struct {
-    example: Option<Example>,
+    example: Option<AnyValue>,
     xml_attr: Option<XmlAttr>,
 }
 
@@ -52,17 +52,17 @@ pub struct Struct {
 pub struct UnnamedFieldStruct {
     pub(super) ty: Option<Ident>,
     format: Option<ExprPath>,
-    default: Option<TokenStream>,
-    example: Option<TokenStream>,
+    default: Option<AnyValue>,
+    example: Option<AnyValue>,
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
-    example: Option<TokenStream>,
+    example: Option<AnyValue>,
     pub(super) ty: Option<Ident>,
     format: Option<ExprPath>,
-    default: Option<TokenStream>,
+    default: Option<AnyValue>,
     write_only: Option<bool>,
     read_only: Option<bool>,
     xml_attr: Option<XmlAttr>,
@@ -87,13 +87,13 @@ impl Parse for ComponentAttr<Enum> {
             match name {
                 "default" => {
                     enum_attr.default = Some(parse_utils::parse_next(input, || {
-                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                    }))
+                        AnyValue::parse_any(input)
+                    })?)
                 }
                 "example" => {
                     enum_attr.example = Some(parse_utils::parse_next(input, || {
-                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                    }))
+                        AnyValue::parse_any(input)
+                    })?)
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
@@ -142,9 +142,9 @@ impl Parse for ComponentAttr<Struct> {
 
             match name {
                 "example" => {
-                    struct_.example = Some(parse_utils::parse_next_lit_str_or_json_example(
-                        input, &ident,
-                    ));
+                    struct_.example = Some(parse_utils::parse_next(input, || {
+                        AnyValue::parse_lit_str_or_json(input)
+                    })?);
                 }
                 "xml" => {
                     let xml;
@@ -181,13 +181,13 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
             match name {
                 "default" => {
                     unnamed_struct.default = Some(parse_utils::parse_next(input, || {
-                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                    }))
+                        AnyValue::parse_any(input)
+                    })?)
                 }
                 "example" => {
                     unnamed_struct.example = Some(parse_utils::parse_next(input, || {
-                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                    }))
+                        AnyValue::parse_any(input)
+                    })?)
                 }
                 "format" => unnamed_struct.format = Some(parse_format(input)?),
                 "value_type" => {
@@ -278,14 +278,14 @@ impl Parse for ComponentAttr<NamedField> {
             match name {
                 "example" => {
                     field.example = Some(parse_utils::parse_next(input, || {
-                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                    }));
+                        AnyValue::parse_any(input)
+                    })?);
                 }
                 "format" => field.format = Some(parse_format(input)?),
                 "default" => {
                     field.default = Some(parse_utils::parse_next(input, || {
-                        parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                    }))
+                        AnyValue::parse_any(input)
+                    })?)
                 }
                 "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)?),
                 "read_only" => field.read_only = Some(parse_utils::parse_bool_or_true(input)?),

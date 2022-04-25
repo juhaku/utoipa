@@ -26,7 +26,7 @@ use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ItemFn, Token,
+    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
 };
 
 mod component;
@@ -571,12 +571,15 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
 
-    let mut resolved_path = PathOperations::resolve_path(
+    let resolved_path = PathOperations::resolve_path(
         &resolved_operation
             .as_mut()
             .map(|operation| mem::take(&mut operation.path))
             .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
+
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    let mut resolved_path = resolved_path;
 
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     {
@@ -1001,19 +1004,102 @@ impl ToTokens for ExternalDocs {
     }
 }
 
+/// Represents OpenAPI Any value used in example and defualt fields.
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum Example {
+pub(self) enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),
+    #[cfg(not(feature = "json"))]
+    Literal(TokenStream2),
 }
 
-impl ToTokens for Example {
+impl AnyValue {
+    // TODO
+    fn parse_any(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Lit) {
+            if input.peek(LitStr) {
+                let lit_str = input.parse::<LitStr>().unwrap().to_token_stream();
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(lit_str))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::String(lit_str))
+                }
+            } else {
+                let lit = input.parse::<Lit>().unwrap().to_token_stream();
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(lit))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::Literal(lit))
+                }
+            }
+        } else {
+            let fork = input.fork();
+            let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {
+                let ident = fork.parse::<Ident>().unwrap();
+                ident == "json"
+            } else {
+                false
+            };
+
+            if is_json {
+                let json = parse_utils::parse_json_token_stream(input)?;
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(json))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::Literal(json))
+                }
+            } else {
+                let method = input.parse::<ExprPath>().map_err(|error| {
+                    syn::Error::new(
+                        error.span(),
+                        "expected literal value, json!(...) or method reference",
+                    )
+                })?;
+
+                #[cfg(feature = "json")]
+                {
+                    Ok(AnyValue::Json(quote! { #method() }))
+                }
+                #[cfg(not(feature = "json"))]
+                {
+                    Ok(AnyValue::Literal(quote! { #method() }))
+                }
+            }
+        }
+    }
+
+    fn parse_lit_str_or_json(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(LitStr) {
+            Ok(AnyValue::String(
+                input.parse::<LitStr>().unwrap().to_token_stream(),
+            ))
+        } else {
+            Ok(AnyValue::Json(parse_utils::parse_json_token_stream(input)?))
+        }
+    }
+}
+
+impl ToTokens for AnyValue {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
             Self::Json(json) => tokens.extend(quote! {
                 serde_json::json!(#json)
             }),
             Self::String(string) => tokens.extend(string.to_owned()),
+            #[cfg(not(feature = "json"))]
+            Self::Literal(literal) => tokens.extend(quote! { format!("{}", #literal) }),
         }
     }
 }
@@ -1021,17 +1107,14 @@ impl ToTokens for Example {
 /// Parsing utils
 mod parse_utils {
     use proc_macro2::{Group, Ident, TokenStream};
-    use proc_macro_error::{abort, ResultExt};
-    use quote::{quote, ToTokens};
+    use proc_macro_error::ResultExt;
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
         token::Comma,
-        Error, ExprPath, Lit, LitBool, LitStr, Token,
+        Error, LitBool, LitStr, Token,
     };
-
-    use crate::Example;
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
@@ -1096,77 +1179,6 @@ mod parse_utils {
                 input.span(),
                 "unexpected token, expected json!(...)",
             ))
-        }
-    }
-
-    fn parse_next_lit_str_or_json(input: ParseStream, abort_op: impl FnOnce(&Error)) -> Example {
-        if input.peek2(LitStr) {
-            Example::String(parse_next(input, || {
-                input.parse::<LitStr>().unwrap().to_token_stream()
-            }))
-        } else {
-            Example::Json(parse_next(input, || {
-                parse_json_token_stream(input).unwrap_or_else(|error| {
-                    abort_op(&error);
-                    // hacky way to tell rust that we are having a "never" type here
-                    unreachable!("oops! unreachable code we should have aborted here");
-                })
-            }))
-        }
-    }
-
-    pub(crate) fn parse_next_lit_str_or_json_example(input: ParseStream, ident: &Ident) -> Example {
-        parse_next_lit_str_or_json(input, |error| {
-            abort! {ident, "unparseable example, expected json!(), {}", error;
-            help = r#"Try defining example = json!({{"key": "value"}})"#;
-            }
-        })
-    }
-
-    #[inline]
-    pub(crate) fn parse_lit_or_fn_ref_as_token_stream(
-        input: ParseStream,
-        name: &str,
-    ) -> TokenStream {
-        if input.peek(Lit) {
-            let literal = input.parse::<Lit>().unwrap();
-
-            #[cfg(feature = "json")]
-            {
-                quote! {
-                    serde_json::json!(#literal)
-                }
-            }
-
-            #[cfg(not(feature = "json"))]
-            {
-                quote! {
-                    format!("{}", #literal)
-                }
-            }
-        } else {
-            let method = input.parse::<ExprPath>().unwrap_or_else(|error| {
-                let message = &format!("unparseable {}, expected literal or expresssion path", name);
-                abort! {
-                    error.span(), message;
-                    help = "Try to define {} = value", name;
-                    help = r#"You should define either literal value e.g. {} = 1 or {} = "value""#, name, name;
-                    help = r#"You can also use function reference e.g {} = String::default"#, name
-                }
-            });
-
-            #[cfg(feature = "json")]
-            {
-                quote! {
-                    serde_json::json!(#method())
-                }
-            }
-            #[cfg(not(feature = "json"))]
-            {
-                quote! {
-                    format!("{}", #method())
-                }
-            }
         }
     }
 }

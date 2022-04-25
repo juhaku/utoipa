@@ -486,7 +486,7 @@ fn derive_into_params_with_custom_attributes() {
     #[allow(unused)]
     struct Filter {
         /// Age filter for user
-        #[param(style = Form, explode, allow_reserved)]
+        #[param(style = Form, explode, allow_reserved, example = json!(["10"]))]
         age: Option<Vec<String>>,
     }
 
@@ -507,6 +507,8 @@ fn derive_into_params_with_custom_attributes() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+
+    dbg!(&parameters);
 
     common::assert_json_array_len(parameters, 3);
     assert_value! {parameters=>
@@ -540,7 +542,7 @@ fn derive_into_params_with_custom_attributes() {
         "[2].required" = r#"false"#, "Parameter required"
         "[2].deprecated" = r#"null"#, "Parameter deprecated"
         "[2].style" = r#""form""#, "Parameter style"
-        "[2].example" = r#"null"#, "Parameter example"
+        "[2].example" = r#"["10"]"#, "Parameter example"
         "[2].allowReserved" = r#"true"#, "Parameter allowReserved"
         "[2].explode" = r#"true"#, "Parameter explode"
         "[2].schema.type" = r#""array""#, "Parameter schema type"

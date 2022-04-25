@@ -1,6 +1,6 @@
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{Attribute, Data, Field, Generics, Ident};
+use syn::{Data, Field, Generics, Ident};
 
 use crate::{
     component::{self, ComponentPart, GenericType, ValueType},

@@ -7,10 +7,9 @@ use syn::{
     Error, LitStr, Token,
 };
 
-use crate::{
-    ext::{Argument, ArgumentIn},
-    parse_utils, Deprecated, Required, Type,
-};
+#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+use crate::ext::{Argument, ArgumentIn};
+use crate::{parse_utils, AnyValue, Deprecated, Required, Type};
 
 use super::property::Property;
 
@@ -28,6 +27,7 @@ use super::property::Property;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Parameter<'a> {
     Value(ParameterValue<'a>),
+    #[cfg(feature = "actix_extras")]
     TokenStream(TokenStream),
 }
 
@@ -155,7 +155,7 @@ impl Parse for Parameter<'_> {
 
 impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        if let Parameter::Value(parameter) = self {
+        let mut handle_single_parameter = |parameter: &ParameterValue| {
             let name = &*parameter.name;
             tokens.extend(quote! {
                 utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name))
@@ -191,9 +191,15 @@ impl ToTokens for Parameter<'_> {
 
                 tokens.extend(quote! { .schema(Some(#property)).required(#required) });
             }
-        } else if let Parameter::TokenStream(stream) = self {
-            tokens.extend(quote! { #stream });
         };
+
+        match self {
+            Parameter::Value(parameter) => handle_single_parameter(parameter),
+            #[cfg(feature = "actix_extras")]
+            Parameter::TokenStream(stream) => {
+                tokens.extend(quote! { #stream });
+            }
+        }
     }
 }
 
@@ -251,7 +257,7 @@ pub struct ParameterExt {
     pub style: Option<ParameterStyle>,
     pub explode: Option<bool>,
     pub allow_reserved: Option<bool>,
-    pub example: Option<TokenStream>,
+    pub(crate) example: Option<AnyValue>,
 }
 
 impl ParameterExt {
@@ -299,8 +305,8 @@ impl ParameterExt {
             },
             "example" => ParameterExt {
                 example: Some(parse_utils::parse_next(input, || {
-                    parse_utils::parse_lit_or_fn_ref_as_token_stream(input, name)
-                })),
+                    AnyValue::parse_any(input)
+                })?),
                 ..Default::default()
             },
             _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),

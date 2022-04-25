@@ -13,31 +13,42 @@ where
     pub fn is_primitive(&self) -> bool {
         let name = &*self.0.to_string();
 
-        let primitive = is_primitive(name);
+        #[cfg(not(any(
+            feature = "chrono_types",
+            feature = "chrono_types_with_format",
+            feature = "decimal",
+            feature = "rocket_extras"
+        )))]
+        {
+            is_primitive(name)
+        }
 
         #[cfg(any(
             feature = "chrono_types",
             feature = "chrono_types_with_format",
+            feature = "decimal",
             feature = "rocket_extras"
         ))]
-        let mut primitive = primitive;
+        {
+            let mut primitive = is_primitive(name);
 
-        #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
-        if !primitive {
-            primitive = is_primitive_chrono(name);
+            #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
+            if !primitive {
+                primitive = is_primitive_chrono(name);
+            }
+
+            #[cfg(feature = "decimal")]
+            if !primitive {
+                primitive = is_primitive_rust_decimal(name);
+            }
+
+            #[cfg(feature = "rocket_extras")]
+            if !primitive {
+                primitive = matches!(name, "PathBuf");
+            }
+
+            primitive
         }
-
-        #[cfg(feature = "decimal")]
-        if !primitive {
-            primitive = is_primitive_rust_decimal(name);
-        }
-
-        #[cfg(feature = "rocket_extras")]
-        if !primitive {
-            primitive = matches!(name, "PathBuf");
-        }
-
-        primitive
     }
 }
 
@@ -114,17 +125,21 @@ impl<T: Display> ComponentFormat<T> {
     pub fn is_known_format(&self) -> bool {
         let name = &*self.0.to_string();
 
-        let known_format = is_known_format(name);
-
-        #[cfg(feature = "chrono_types_with_format")]
-        let mut known_format = known_format;
-
-        #[cfg(feature = "chrono_types_with_format")]
-        if !known_format {
-            known_format = matches!(name, "DateTime" | "Date");
+        #[cfg(not(feature = "chrono_types_with_format"))]
+        {
+            is_known_format(name)
         }
 
-        known_format
+        #[cfg(feature = "chrono_types_with_format")]
+        {
+            let mut known_format = is_known_format(name);
+
+            if !known_format {
+                known_format = matches!(name, "DateTime" | "Date");
+            }
+
+            known_format
+        }
     }
 }
 
