@@ -516,7 +516,6 @@ impl ToTokens for Operation<'_> {
         if let Some(parameters) = self.parameters {
             parameters.iter().for_each(|parameter| match parameter {
                 Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
-                #[cfg(feature = "actix_extras")]
                 Parameter::TokenStream(_) => tokens.extend(quote! { .parameters(Some(#parameter))}),
             });
         }
