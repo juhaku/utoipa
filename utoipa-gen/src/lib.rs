@@ -9,16 +9,16 @@
 
 use std::{borrow::Cow, mem};
 
-use component::Component;
 use doc_comment::CommentAttributes;
+use schema::component::Component;
 
 use ext::{PathOperationResolver, PathOperations, PathResolver};
-#[cfg(feature = "actix_extras")]
-use into_params::IntoParams;
 use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
+#[cfg(feature = "actix_extras")]
+use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
@@ -29,14 +29,12 @@ use syn::{
     DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
 };
 
-mod component;
 mod component_type;
 mod doc_comment;
 mod ext;
-#[cfg(feature = "actix_extras")]
-mod into_params;
 mod openapi;
 mod path;
+mod schema;
 mod security_requirement;
 
 use crate::path::{Path, PathAttr};
@@ -1033,7 +1031,6 @@ pub(self) enum AnyValue {
 }
 
 impl AnyValue {
-    // TODO
     fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
             if input.peek(LitStr) {

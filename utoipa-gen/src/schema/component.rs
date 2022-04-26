@@ -1,12 +1,9 @@
-use std::rc::Rc;
-
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use proc_macro_error::{abort, abort_call_site};
+use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, token::Comma, AngleBracketedGenericArguments, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, GenericArgument, Generics, PathArguments, PathSegment,
-    Type, TypePath, Variant,
+    punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields, FieldsNamed,
+    FieldsUnnamed, Generics, Variant,
 };
 
 use crate::{
@@ -19,6 +16,8 @@ use self::{
     attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct},
     xml::Xml,
 };
+
+use super::{ComponentPart, GenericType, ValueType};
 
 mod attr;
 mod xml;
@@ -124,11 +123,12 @@ struct NamedStructComponent<'a> {
 impl ToTokens for NamedStructComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() });
+
         self.fields.iter().for_each(|field| {
             let field_name = &*field.ident.as_ref().unwrap().to_string();
 
             let component_part = &ComponentPart::from_type(&field.ty);
-            let deprecated = get_deprecated(&field.attrs);
+            let deprecated = super::get_deprecated(&field.attrs);
             let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
                 &field.attrs,
                 component_part,
@@ -163,7 +163,7 @@ impl ToTokens for NamedStructComponent<'_> {
             }
         });
 
-        if let Some(deprecated) = get_deprecated(self.attributes) {
+        if let Some(deprecated) = super::get_deprecated(self.attributes) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
@@ -204,7 +204,7 @@ impl ToTokens for UnnamedStructComponent<'_> {
 
         let attrs =
             attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
-        let deprecated = get_deprecated(self.attributes);
+        let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
             let type_override = attrs
                 .as_ref()
@@ -314,7 +314,7 @@ impl ToTokens for SimpleEnum<'_> {
             tokens.extend(attributes.to_token_stream());
         }
 
-        if let Some(deprecated) = get_deprecated(self.attributes) {
+        if let Some(deprecated) = super::get_deprecated(self.attributes) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
@@ -408,156 +408,6 @@ impl ToTokens for ComplexEnum<'_> {
             })
         }
     }
-}
-
-pub(crate) fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
-    attributes.iter().find_map(|attribute| {
-        if *attribute.path.get_ident().unwrap() == "deprecated" {
-            Some(Deprecated::True)
-        } else {
-            None
-        }
-    })
-}
-
-#[derive(PartialEq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-/// Linked list of implementing types of a field in a struct.
-pub struct ComponentPart<'a> {
-    pub ident: &'a Ident,
-    pub value_type: ValueType,
-    pub generic_type: Option<GenericType>,
-    pub child: Option<Rc<ComponentPart<'a>>>,
-}
-
-impl<'a> ComponentPart<'a> {
-    pub fn from_type(ty: &'a Type) -> ComponentPart<'a> {
-        ComponentPart::from_type_path(
-            match ty {
-                Type::Path(path) => path,
-                Type::Reference(reference) => match reference.elem.as_ref() {
-                    Type::Path(path) => path,
-                    _ => abort_call_site!("unexpected type in reference, expected Type:Path"),
-                },
-                _ => abort_call_site!("unexpected type, expected Type::Path"),
-            },
-            ComponentPart::convert,
-            ComponentPart::resolve_component_type,
-        )
-    }
-
-    fn from_ident(ty: &'a Ident) -> ComponentPart<'a> {
-        ComponentPart {
-            child: None,
-            generic_type: None,
-            ident: ty,
-            value_type: if ComponentType(ty).is_primitive() {
-                ValueType::Primitive
-            } else {
-                ValueType::Object
-            },
-        }
-    }
-
-    fn from_type_path(
-        type_path: &'a TypePath,
-        op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
-        or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
-    ) -> ComponentPart<'a> {
-        let segment = type_path.path.segments.first().unwrap();
-
-        type_path
-            .path
-            .get_ident()
-            .map(|ident| op(ident, segment))
-            .unwrap_or_else(|| or_else(segment))
-    }
-
-    // Only when type is a generic type we get to this function.
-    fn resolve_component_type(segment: &'a PathSegment) -> ComponentPart<'a> {
-        if segment.arguments.is_empty() {
-            abort!(
-                segment.ident,
-                "expected at least one angle bracket argument but was 0"
-            );
-        };
-
-        let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
-
-        generic_component_type.child = Some(Rc::new(ComponentPart::from_type(
-            match &segment.arguments {
-                PathArguments::AngleBracketed(angle_bracketed_args) => {
-                    ComponentPart::get_generic_arg_type(0, angle_bracketed_args)
-                }
-                _ => abort!(
-                    segment.ident,
-                    "unexpected path argument, expected angle bracketed path argument"
-                ),
-            },
-        )));
-
-        generic_component_type
-    }
-
-    fn get_generic_arg_type(index: usize, args: &'a AngleBracketedGenericArguments) -> &'a Type {
-        let generic_arg = args.args.iter().nth(index);
-
-        match generic_arg {
-            Some(GenericArgument::Type(generic_type)) => generic_type,
-            Some(GenericArgument::Lifetime(_)) => {
-                ComponentPart::get_generic_arg_type(index + 1, args)
-            }
-            _ => abort!(
-                generic_arg,
-                "expected generic argument type or generic argument lifetime"
-            ),
-        }
-    }
-
-    fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentPart<'a> {
-        let generic_type = ComponentPart::get_generic(segment);
-
-        Self {
-            ident,
-            value_type: if ComponentType(ident).is_primitive() {
-                ValueType::Primitive
-            } else {
-                ValueType::Object
-            },
-            generic_type,
-            child: None,
-        }
-    }
-
-    fn get_generic(segment: &PathSegment) -> Option<GenericType> {
-        match &*segment.ident.to_string() {
-            "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
-            "Vec" => Some(GenericType::Vec),
-            "Option" => Some(GenericType::Option),
-            "Cow" => Some(GenericType::Cow),
-            "Box" => Some(GenericType::Box),
-            "RefCell" => Some(GenericType::RefCell),
-            _ => None,
-        }
-    }
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq)]
-pub enum ValueType {
-    Primitive,
-    Object,
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Clone, Copy)]
-pub enum GenericType {
-    Vec,
-    Map,
-    Option,
-    Cow,
-    Box,
-    RefCell,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

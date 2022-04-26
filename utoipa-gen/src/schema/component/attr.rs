@@ -9,12 +9,13 @@ use syn::{
     Attribute, Error, ExprPath, Token,
 };
 
-use crate::{parse_utils, AnyValue};
-
-use super::{
-    xml::{Xml, XmlAttr},
-    ComponentPart,
+use crate::{
+    parse_utils,
+    schema::{ComponentPart, GenericType},
+    AnyValue,
 };
+
+use super::xml::{Xml, XmlAttr};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentAttr<T>
@@ -220,7 +221,7 @@ impl ComponentAttr<NamedField> {
                 attrs
             })
             .map(|mut attrs| {
-                if matches!(component_part.generic_type, Some(super::GenericType::Vec)) {
+                if matches!(component_part.generic_type, Some(GenericType::Vec)) {
                     if let Some(ref mut xml) = attrs.inner.xml_attr {
                         let mut value_xml = mem::take(xml);
                         let vec_xml = XmlAttr::with_wrapped(
@@ -246,7 +247,7 @@ impl ComponentAttr<NamedField> {
 fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &ComponentPart) {
     if !matches!(
         component_part.generic_type,
-        Some(crate::component::GenericType::Vec)
+        Some(crate::schema::GenericType::Vec)
     ) {
         if let Some(wrapped_ident) = attrs
             .as_ref()
