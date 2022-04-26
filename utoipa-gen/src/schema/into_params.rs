@@ -85,7 +85,7 @@ impl ToTokens for Param<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        if let Some(comment) = CommentAttributes::from_attributes(&field.attrs).0.first() {
+        if let Some(comment) = CommentAttributes::from_attributes(&field.attrs).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
             })

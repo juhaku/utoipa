@@ -65,8 +65,10 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default** 
   it is interpreted as `String`. If you wish to change the format you need to override the type. 
   See the `value_type` in [component derive docs](https://docs.rs/utoipa/0.2.0/utoipa/derive.Component.html).
-* **uuid** Add support for [UUID](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
+* **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
+
+Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/0.2.0/utoipa/derive.Component.html#partial-serde-attributes-support) for more details.
 
 ## Install
 

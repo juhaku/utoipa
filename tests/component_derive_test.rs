@@ -1,9 +1,10 @@
 #![cfg(feature = "serde_json")]
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, vec};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
 use chrono::{Date, DateTime, Duration, Utc};
 
+use serde::Serialize;
 use serde_json::Value;
 use utoipa::{Component, OpenApi};
 
@@ -794,5 +795,79 @@ fn derive_struct_with_uuid_type() {
     assert_value! {post=>
         "properties.id.type" = r#""string""#, "Post id type"
         "properties.id.format" = r#""uuid""#, "Post id format"
+    }
+}
+
+#[test]
+fn derive_parse_serde_field_attributes() {
+    struct S;
+    let post = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Post<S> {
+            #[serde(rename = "uuid")]
+            id: String,
+            #[serde(skip)]
+            _p: PhantomData<S>,
+            long_field_num: i64,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.uuid.type" = r#""string""#, "Post id type"
+        "properties.longFieldNum.type" = r#""integer""#, "Post long_field_num type"
+        "properties.longFieldNum.format" = r#""int64""#, "Post logn_field_num format"
+    }
+}
+
+#[test]
+fn derive_parse_serde_simple_enum_attributes() {
+    let value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        enum Value {
+            A,
+            B,
+            #[serde(skip)]
+            C,
+        }
+    };
+
+    assert_value! {value=>
+        "enum" = r#"["a","b"]"#, "Value enum variants"
+    }
+}
+
+#[test]
+fn derive_parse_serde_complex_enum() {
+    #[derive(Serialize)]
+    struct Foo;
+    let complex_enum = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        enum Bar {
+            UnitValue,
+            #[serde(rename_all = "camelCase")]
+            NamedFields {
+                #[serde(rename = "id")]
+                named_id: &'static str,
+                name_list: Option<Vec<String>>
+            },
+            UnnamedFields(Foo),
+            #[serde(skip)]
+            Random,
+        }
+    };
+
+    assert_value! {complex_enum=>
+        "oneOf.[0].enum" = r#"["unitValue"]"#, "Unit value enum"
+        "oneOf.[0].type" = r#""string""#, "Unit value type"
+
+        "oneOf.[1].properties.namedFields.properties.id.type" = r#""string""#, "Named fields id type"
+        "oneOf.[1].properties.namedFields.properties.nameList.type" = r#""array""#, "Named fields nameList type"
+        "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
+        "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
+
+        "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
     }
 }

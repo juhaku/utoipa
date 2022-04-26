@@ -1,3 +1,5 @@
+use std::mem;
+
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
@@ -17,7 +19,10 @@ use self::{
     xml::Xml,
 };
 
-use super::{ComponentPart, GenericType, ValueType};
+use super::{
+    serde::{self, RenameRule, Serde},
+    ComponentPart, GenericType, ValueType,
+};
 
 mod attr;
 mod xml;
@@ -122,46 +127,61 @@ struct NamedStructComponent<'a> {
 
 impl ToTokens for NamedStructComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let mut container_rules = serde::parse_container(self.attributes);
+
         tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() });
 
-        self.fields.iter().for_each(|field| {
-            let field_name = &*field.ident.as_ref().unwrap().to_string();
+        self.fields
+            .iter()
+            .filter_map(|field| {
+                let field_rule = serde::parse_value(&field.attrs);
 
-            let component_part = &ComponentPart::from_type(&field.ty);
-            let deprecated = super::get_deprecated(&field.attrs);
-            let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
-                &field.attrs,
-                component_part,
-            );
+                if is_not_skipped(&field_rule) {
+                    Some((field, field_rule))
+                } else {
+                    None
+                }
+            })
+            .for_each(|(field, mut field_rule)| {
+                let field_name = &*field.ident.as_ref().unwrap().to_string();
+                let name = &rename_field(&mut container_rules, &mut field_rule, field_name)
+                    .unwrap_or_else(|| String::from(field_name));
 
-            let type_override = attrs
-                .as_ref()
-                .and_then(|field| field.as_ref().ty.as_ref())
-                .map(ComponentPart::from_ident);
-            let xml_value = attrs
-                .as_ref()
-                .and_then(|named_field| named_field.as_ref().xml.as_ref());
-            let comments = CommentAttributes::from_attributes(&field.attrs);
+                let component_part = &ComponentPart::from_type(&field.ty);
+                let deprecated = super::get_deprecated(&field.attrs);
+                let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
+                    &field.attrs,
+                    component_part,
+                );
 
-            let component = ComponentProperty::new(
-                component_part,
-                Some(&comments),
-                attrs.as_ref(),
-                deprecated.as_ref(),
-                xml_value,
-                type_override.as_ref(),
-            );
+                let type_override = attrs
+                    .as_ref()
+                    .and_then(|field| field.as_ref().ty.as_ref())
+                    .map(ComponentPart::from_ident);
+                let xml_value = attrs
+                    .as_ref()
+                    .and_then(|named_field| named_field.as_ref().xml.as_ref());
+                let comments = CommentAttributes::from_attributes(&field.attrs);
 
-            tokens.extend(quote! {
-                .property(#field_name, #component)
-            });
+                let component = ComponentProperty::new(
+                    component_part,
+                    Some(&comments),
+                    attrs.as_ref(),
+                    deprecated.as_ref(),
+                    xml_value,
+                    type_override.as_ref(),
+                );
 
-            if !component.is_option() {
                 tokens.extend(quote! {
-                    .required(#field_name)
-                })
-            }
-        });
+                    .property(#name, #component)
+                });
+
+                if !component.is_option() {
+                    tokens.extend(quote! {
+                        .required(#name)
+                    })
+                }
+            });
 
         if let Some(deprecated) = super::get_deprecated(self.attributes) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
@@ -172,10 +192,7 @@ impl ToTokens for NamedStructComponent<'_> {
             tokens.extend(attrs.to_token_stream());
         }
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
-            .0
-            .first()
-        {
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -239,10 +256,7 @@ impl ToTokens for UnnamedStructComponent<'_> {
             }
         };
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
-            .0
-            .first()
-        {
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -296,17 +310,30 @@ struct SimpleEnum<'a> {
 
 impl ToTokens for SimpleEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let mut container_rules = serde::parse_container(self.attributes);
+
         let enum_values = self
             .variants
             .iter()
-            .filter(|variant| matches!(variant.fields, Fields::Unit))
-            .map(|variant| variant.ident.to_string())
+            .filter_map(|variant| {
+                let mut variant_rules = serde::parse_value(&variant.attrs);
+
+                if is_not_skipped(&variant_rules) {
+                    let name = &*variant.ident.to_string();
+                    let renamed = rename_variant(&mut container_rules, &mut variant_rules, name);
+
+                    renamed.or_else(|| Some(String::from(name)))
+                } else {
+                    None
+                }
+            })
             .collect::<Array<String>>();
+        let len = enum_values.len();
 
         tokens.extend(quote! {
             utoipa::openapi::PropertyBuilder::new()
             .component_type(utoipa::openapi::ComponentType::String)
-            .enum_values(Some(#enum_values))
+            .enum_values::<[&str; #len], &str>(Some(#enum_values))
         });
 
         let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
@@ -318,10 +345,7 @@ impl ToTokens for SimpleEnum<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
-            .0
-            .first()
-        {
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -354,10 +378,20 @@ impl ToTokens for ComplexEnum<'_> {
             Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capasity))
         });
 
+        let mut container_rule = serde::parse_container(self.attributes);
+
         // serde, externally tagged format supported by now
         self.variants
             .iter()
-            .map(|variant| match &variant.fields {
+            .filter_map(|variant| {
+                let variant_rules = serde::parse_value(&variant.attrs);
+                if is_not_skipped(&variant_rules) {
+                    Some((variant, variant_rules))
+                } else {
+                    None
+                }
+            })
+            .map(|(variant, mut variant_rule)| match &variant.fields {
                 Fields::Named(named_fields) => {
                     let named_enum = NamedStructComponent {
                         attributes: &variant.attrs,
@@ -365,9 +399,12 @@ impl ToTokens for ComplexEnum<'_> {
                     };
                     let name = &*variant.ident.to_string();
 
+                    let renamed = rename_variant(&mut container_rule, &mut variant_rule, name)
+                        .unwrap_or_else(|| String::from(name));
+
                     quote! {
                         utoipa::openapi::schema::ObjectBuilder::new()
-                            .property(#name, #named_enum)
+                            .property(#renamed, #named_enum)
                     }
                 }
                 Fields::Unnamed(unnamed_fields) => {
@@ -376,10 +413,12 @@ impl ToTokens for ComplexEnum<'_> {
                         fields: &unnamed_fields.unnamed,
                     };
                     let name = &*variant.ident.to_string();
+                    let renamed = rename_variant(&mut container_rule, &mut variant_rule, name)
+                        .unwrap_or_else(|| String::from(name));
 
                     quote! {
                         utoipa::openapi::schema::ObjectBuilder::new()
-                            .property(#name, #unnamed_enum)
+                            .property(#renamed, #unnamed_enum)
                     }
                 }
                 Fields::Unit => {
@@ -387,7 +426,7 @@ impl ToTokens for ComplexEnum<'_> {
                     enum_values.push(variant.clone());
 
                     SimpleEnum {
-                        attributes: &variant.attrs,
+                        attributes: self.attributes,
                         variants: &enum_values,
                     }
                     .to_token_stream()
@@ -399,10 +438,7 @@ impl ToTokens for ComplexEnum<'_> {
                 })
             });
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes)
-            .0
-            .first()
-        {
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -566,4 +602,48 @@ where
             }
         }
     }
+}
+
+#[inline]
+fn is_not_skipped(rule: &Option<Serde>) -> bool {
+    rule.as_ref()
+        .map(|rule| matches!(rule, Serde::Value(value) if value.skip == None))
+        .unwrap_or(true)
+}
+
+#[inline]
+fn rename_field<'a>(
+    container_rule: &'a mut Option<Serde>,
+    field_rule: &'a mut Option<Serde>,
+    field: &str,
+) -> Option<String> {
+    rename(container_rule, field_rule, &|rule| rule.rename(field))
+}
+
+#[inline]
+fn rename_variant<'a>(
+    container_rule: &'a mut Option<Serde>,
+    field_rule: &'a mut Option<Serde>,
+    field: &str,
+) -> Option<String> {
+    rename(container_rule, field_rule, &|rule| {
+        rule.rename_variant(field)
+    })
+}
+
+#[inline]
+fn rename<'a>(
+    container_rule: &'a mut Option<Serde>,
+    field_rule: &'a mut Option<Serde>,
+    rename_op: &impl Fn(&RenameRule) -> String,
+) -> Option<String> {
+    let rename = |rule: &mut Serde| match rule {
+        Serde::Container(container) => container.rename_all.as_ref().map(rename_op),
+        Serde::Value(ref mut value) => mem::take(&mut value.rename),
+    };
+
+    field_rule
+        .as_mut()
+        .and_then(rename)
+        .or_else(|| container_rule.as_mut().and_then(rename))
 }
