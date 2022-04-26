@@ -61,6 +61,8 @@
 //! * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `String`. If you wish to change the format you need to override the type.
 //!   See the `value_type` in [component derive docs][component_derive].
+//! * **uuid** Add support for [UUID](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
+//!   format `uuid` in OpenAPI spec.
 //!
 //! # Install
 //!

@@ -21,6 +21,7 @@ quote = "1.0"
 proc-macro-error = "1.0"
 regex = { version = "1.5", optional = true } 
 lazy_static = { version = "1.4", optional = true }
+uuid = { version = "1", optional = true }
 
 [dev-dependencies]
 utoipa = { path = ".." }
@@ -36,3 +37,4 @@ chrono_types_with_format = []
 json = []
 decimal = []
 rocket_extras = ["regex", "lazy_static"]
+uuid = ["dep:uuid"]

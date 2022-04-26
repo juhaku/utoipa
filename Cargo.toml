@@ -29,6 +29,7 @@ chrono_types = ["utoipa-gen/chrono_types"]
 chrono_types_with_format = ["utoipa-gen/chrono_types_with_format"]
 decimal = ["utoipa-gen/decimal"]
 yaml = ["serde_yaml"]
+uuid = ["utoipa-gen/uuid"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -42,6 +43,7 @@ paste = "1"
 chrono = { version  = "0.4", features = ["serde"] }
 rust_decimal = "1"
 rocket = "0.5.0-rc.1"
+uuid = "1"
 
 [workspace]
 members = [
