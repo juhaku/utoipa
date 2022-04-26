@@ -6,7 +6,7 @@
 //!
 //! **Currently implemented boiler plate for:**
 //!
-//! * **actix-web**
+//! * **actix-web** `version >= 4`
 //! * **rocket** `version >=0.5.0-rc.1`
 //!
 //! Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
