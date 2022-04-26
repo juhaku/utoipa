@@ -230,3 +230,37 @@ fn derive_path_with_security_requirements() {
         "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
     }
 }
+
+#[cfg(feature = "uuid")]
+#[test]
+fn derive_path_with_uuid() {
+    use uuid::Uuid;
+
+    #[utoipa::path(
+        get,
+        path = "/items/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = Uuid, description = "Foo uuid"),
+        )
+    )]
+    #[allow(unused)]
+    fn get_items(id: Uuid) -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items/{id}"
+    };
+
+    assert_value! {operation=>
+        "parameters.[0].schema.type" = r#""string""#, "Parameter id type"
+        "parameters.[0].schema.format" = r#""uuid""#, "Parameter id format"
+        "parameters.[0].description" = r#""Foo uuid""#, "Parameter id description"
+        "parameters.[0].name" = r#""id""#, "Parameter id id"
+        "parameters.[0].in" = r#""path""#, "Parameter in"
+    }
+}

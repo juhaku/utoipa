@@ -779,3 +779,20 @@ fn derive_struct_with_rust_decimal_with_type_override() {
         "properties.rating.format" = r#""float""#, "Post rating format"
     }
 }
+
+#[cfg(feature = "uuid")]
+#[test]
+fn derive_struct_with_uuid_type() {
+    use uuid::Uuid;
+
+    let post = api_doc! {
+        struct Post {
+            id: Uuid,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""string""#, "Post id type"
+        "properties.id.format" = r#""uuid""#, "Post id format"
+    }
+}

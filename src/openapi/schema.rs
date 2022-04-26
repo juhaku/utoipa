@@ -766,6 +766,11 @@ pub enum ComponentFormat {
     DateTime,
     /// Hint to UI to obsucre input.
     Password,
+    /// Used with [`String`] values to indicate value is in UUID format.
+    ///
+    /// **uuid** feature need to be enabled.
+    #[cfg(feature = "uuid")]
+    Uuid,
 }
 
 #[cfg(test)]
