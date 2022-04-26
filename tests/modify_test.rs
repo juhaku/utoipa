@@ -22,7 +22,7 @@ fn modify_openapi_add_security_schema() {
         fn modify(&self, openapi: &mut openapi::OpenApi) {
             openapi.components = Some(
                 utoipa::openapi::ComponentsBuilder::new()
-                    .security_schema(
+                    .security_scheme(
                         "api_jwt_token",
                         SecurityScheme::Http(
                             HttpBuilder::new()

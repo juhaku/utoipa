@@ -117,7 +117,7 @@ impl ComponentsBuilder {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_schema<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
         security_schema: S,
