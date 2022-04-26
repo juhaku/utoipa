@@ -426,7 +426,7 @@ pub trait Path {
 ///     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
 ///          openapi.components = Some(
 ///              utoipa::openapi::ComponentsBuilder::new()
-///                  .security_schema(
+///                  .security_scheme(
 ///                      "api_jwt_token",
 ///                      SecurityScheme::Http(
 ///                          HttpBuilder::new()
