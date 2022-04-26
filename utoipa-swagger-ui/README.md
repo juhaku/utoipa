@@ -64,7 +64,8 @@ fn rocket() -> Rocket<Build> {
     rocket::build()
         .mount(
             "/",
-            SwaggerUi::new("/swagger-ui/<_..>").url("/api-doc/openapi.json", ApiDoc::openapi()),
+            SwaggerUi::new("/swagger-ui/<_..>")
+                .url("/api-doc/openapi.json", ApiDoc::openapi()),
         )
 }
 ```
