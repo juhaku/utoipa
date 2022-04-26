@@ -3,12 +3,13 @@ use quote::{quote, ToTokens};
 use syn::{Data, Field, Generics, Ident};
 
 use crate::{
-    component::{self, ComponentPart, GenericType, ValueType},
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
     path::parameter::ParameterExt,
     Array, Required,
 };
+
+use super::{ComponentPart, GenericType, ValueType};
 
 pub struct IntoParams {
     pub generics: Generics,
@@ -80,7 +81,7 @@ impl ToTokens for Param<'_> {
             .required(#required)
         });
 
-        if let Some(deprecated) = component::get_deprecated(&field.attrs) {
+        if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
