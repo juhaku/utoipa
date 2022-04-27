@@ -14,8 +14,8 @@ where
         let name = &*self.0.to_string();
 
         #[cfg(not(any(
-            feature = "chrono_types",
-            feature = "chrono_types_with_format",
+            feature = "chrono",
+            feature = "chrono_with_format",
             feature = "decimal",
             feature = "rocket_extras",
             feature = "uuid"
@@ -25,8 +25,8 @@ where
         }
 
         #[cfg(any(
-            feature = "chrono_types",
-            feature = "chrono_types_with_format",
+            feature = "chrono",
+            feature = "chrono_with_format",
             feature = "decimal",
             feature = "rocket_extras",
             feature = "uuid",
@@ -34,7 +34,7 @@ where
         {
             let mut primitive = is_primitive(name);
 
-            #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
+            #[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
             if !primitive {
                 primitive = is_primitive_chrono(name);
             }
@@ -85,13 +85,13 @@ fn is_primitive(name: &str) -> bool {
 }
 
 #[inline]
-#[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
+#[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
 fn is_primitive_chrono(name: &str) -> bool {
     matches!(name, "DateTime" | "Date" | "Duration")
 }
 
 #[inline]
-#[cfg(feature = "chrono_types")]
+#[cfg(feature = "chrono")]
 fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
@@ -111,7 +111,7 @@ where
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
             | "u128" | "usize" => tokens.extend(quote! { utoipa::openapi::ComponentType::Integer }),
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::ComponentType::Number }),
-            #[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
+            #[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
             "DateTime" | "Date" | "Duration" => {
                 tokens.extend(quote! { utoipa::openapi::ComponentType::String })
             }
@@ -134,16 +134,16 @@ impl<T: Display> ComponentFormat<T> {
     pub fn is_known_format(&self) -> bool {
         let name = &*self.0.to_string();
 
-        #[cfg(not(any(feature = "chrono_types_with_format", feature = "uuid")))]
+        #[cfg(not(any(feature = "chrono_with_format", feature = "uuid")))]
         {
             is_known_format(name)
         }
 
-        #[cfg(any(feature = "chrono_types_with_format", feature = "uuid"))]
+        #[cfg(any(feature = "chrono_with_format", feature = "uuid"))]
         {
             let mut known_format = is_known_format(name);
 
-            #[cfg(feature = "chrono_types_with_format")]
+            #[cfg(feature = "chrono_with_format")]
             if !known_format {
                 known_format = matches!(name, "DateTime" | "Date");
             }
@@ -176,9 +176,9 @@ impl<T: Display> ToTokens for ComponentFormat<T> {
             }
             "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Int64 }),
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Float }),
-            #[cfg(feature = "chrono_types_with_format")]
+            #[cfg(feature = "chrono_with_format")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::DateTime }),
-            #[cfg(feature = "chrono_types_with_format")]
+            #[cfg(feature = "chrono_with_format")]
             "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Uuid }),
