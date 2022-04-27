@@ -858,12 +858,6 @@ fn derive_parse_serde_complex_enum() {
             Random,
         }
     };
-    #[derive(Serialize, Component)]
-    #[serde(rename_all = "")]
-    pub enum MyType {
-        CaseOne,
-        CaseTwo,
-    };
 
     assert_value! {complex_enum=>
         "oneOf.[0].enum" = r#"["unitValue"]"#, "Unit value enum"
