@@ -143,10 +143,12 @@ impl ToTokens for ParamType<'_> {
                         })
                     }
                 }
-                ValueType::Object => abort!(
-                    ty.ident,
-                    "unsupported type, only primitive and String types are supported"
-                ),
+                ValueType::Object => {
+                    let name = ty.ident.to_string();
+                    tokens.extend(quote! {
+                        utoipa::openapi::Ref::from_component_name(#name)
+                    });
+                }
             },
             Some(GenericType::Option)
             | Some(GenericType::Cow)

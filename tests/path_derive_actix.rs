@@ -9,7 +9,7 @@ use utoipa::{
         path::{Parameter, ParameterBuilder, ParameterIn},
         Array, ComponentFormat, PropertyBuilder,
     },
-    IntoParams, OpenApi,
+    Component, IntoParams, OpenApi,
 };
 
 mod common;
@@ -488,6 +488,13 @@ fn derive_into_params_with_custom_attributes() {
         /// Age filter for user
         #[param(style = Form, explode, allow_reserved, example = json!(["10"]))]
         age: Option<Vec<String>>,
+        sort: Sort,
+    }
+
+    #[derive(Deserialize, Component)]
+    enum Sort {
+        Asc,
+        Desc,
     }
 
     #[utoipa::path(
@@ -502,15 +509,13 @@ fn derive_into_params_with_custom_attributes() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(handlers(get_foo), components(Sort))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
 
-    dbg!(&parameters);
-
-    common::assert_json_array_len(parameters, 3);
+    common::assert_json_array_len(parameters, 4);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""id""#, "Parameter name"
@@ -547,6 +552,13 @@ fn derive_into_params_with_custom_attributes() {
         "[2].explode" = r#"true"#, "Parameter explode"
         "[2].schema.type" = r#""array""#, "Parameter schema type"
         "[2].schema.items.type" = r#""string""#, "Parameter items schema type"
+
+        "[3].in" = r#""query""#, "Parameter in"
+        "[3].name" = r#""sort""#, "Parameter name"
+        "[3].description" = r#"null"#, "Parameter description"
+        "[3].required" = r#"true"#, "Parameter required"
+        "[3].deprecated" = r#"null"#, "Parameter deprecated"
+        "[3].schema.$ref" = r###""#/components/schemas/Sort""###, "Parameter schema type"
     }
 }
 
