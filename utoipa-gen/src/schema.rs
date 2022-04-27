@@ -374,7 +374,7 @@ pub mod serde {
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             [
-                ("lowecase", RenameRule::Lower),
+                ("lowercase", RenameRule::Lower),
                 ("UPPERCASE", RenameRule::Upper),
                 ("Pascal", RenameRule::Pascal),
                 ("camelCase", RenameRule::Camel),
@@ -461,5 +461,21 @@ mod tests {
         RenameRule::ScreamingSnake=> "MultiValue" = "MULTI_VALUE"
         RenameRule::Kebab=> "MultiValue" = "multi-value"
         RenameRule::ScreamingKebab=> "MultiValue" = "MULTI-VALUE"
+    }
+
+    #[test]
+    fn test_serde_rename_rule_from_str() {
+        for s in [
+            "lowercase",
+            "UPPERCASE",
+            "Pascal",
+            "camelCase",
+            "snake_case",
+            "SCREAMING_SNAKE_CASE",
+            "kebab-case",
+            "SCREAMING-KEBAB-CASE",
+        ] {
+            s.parse::<RenameRule>().unwrap();
+        }
     }
 }
