@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use proc_macro2::{Ident, Span};
 use proc_macro_error::{abort_call_site, emit_warning, ResultExt};
 use syn::{Attribute, Lit, Meta};
@@ -52,5 +54,13 @@ impl CommentAttributes {
             }
             _ => abort_call_site!("Exected only Meta::NameValue type"),
         }
+    }
+}
+
+impl Deref for CommentAttributes {
+    type Target = Vec<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

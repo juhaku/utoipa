@@ -7,7 +7,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::{borrow::Cow, mem};
+use std::{borrow::Cow, mem, ops::Deref};
 
 use doc_comment::CommentAttributes;
 use schema::component::Component;
@@ -104,6 +104,40 @@ use ext::ArgumentResolver;
 /// * `xml(wrapped(name = "wrap_name"))` Will override the wrapper elements name.
 ///
 /// See [`Xml`][xml] for more details.
+///
+/// # Partial `#[serde(...)]` attributes support
+///
+/// Component derive has partial support for [serde attributes](https://serde.rs/attributes.html). These supported attributes will reflect to the
+/// generated OpenAPI doc. For example if _`#[serde(skip)]`_ is defined the attribute will not show up in the OpenAPI spec at all since it will not never
+/// be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
+///
+/// * `rename_all = "..."` Supported in container level.
+/// * `rename = "..."` Supported **only** in field or variant level.
+/// * `skip = "..."` Supported  **only** in field or variant level.
+///
+/// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
+///
+/// ```rust
+/// # use serde::Serialize;
+/// # use utoipa::Component;
+/// #[derive(Serialize, Component)]
+/// struct Foo(String);
+///
+/// #[derive(Serialize, Component)]
+/// #[serde(rename_all = "camelCase")]
+/// enum Bar {
+///     UnitValue,
+///     #[serde(rename_all = "camelCase")]
+///     NamedFields {
+///         #[serde(rename = "id")]
+///         named_id: &'static str,
+///         name_list: Option<Vec<String>>
+///     },
+///     UnnamedFields(Foo),
+///     #[serde(skip)]
+///     SkipMe,
+/// }
+/// ```
 ///
 /// # Examples
 ///
@@ -822,6 +856,19 @@ where
 {
     fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
         Self::Owned(iter.into_iter().collect())
+    }
+}
+
+impl<T> Deref for Array<T>
+where
+    T: Sized + ToTokens,
+{
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(vec) => vec,
+        }
     }
 }
 
