@@ -1,7 +1,7 @@
 #![cfg(feature = "serde_json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
-#[cfg(any(feature = "chrono_types", feature = "chrono_types_with_format"))]
+#[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
 use chrono::{Date, DateTime, Duration, Utc};
 
 use serde::Serialize;
@@ -606,9 +606,9 @@ fn derive_struct_xml() {
     }
 }
 
-#[cfg(feature = "chrono_types_with_format")]
+#[cfg(feature = "chrono_with_format")]
 #[test]
-fn derive_component_with_chrono_types_with_chrono_with_format_feature() {
+fn derive_component_with_chrono_with_chrono_with_format_feature() {
     let post = api_doc! {
         struct Post {
             id: i32,
@@ -633,9 +633,9 @@ fn derive_component_with_chrono_types_with_chrono_with_format_feature() {
     }
 }
 
-#[cfg(feature = "chrono_types")]
+#[cfg(feature = "chrono")]
 #[test]
-fn derive_component_with_chrono_types_with_chrono_feature() {
+fn derive_component_with_chrono_with_chrono_feature() {
     let post = api_doc! {
         struct Post {
             id: i32,
