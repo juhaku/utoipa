@@ -119,8 +119,9 @@ use ext::ArgumentResolver;
 ///
 /// ```rust
 /// # use serde::Serialize;
+/// # use utoipa::Component;
 /// #[derive(Serialize, Component)]
-/// struct Foo;
+/// struct Foo(String);
 ///
 /// #[derive(Serialize, Component)]
 /// #[serde(rename_all = "camelCase")]
