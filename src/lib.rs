@@ -26,6 +26,7 @@
 //! Existing [examples](https://github.com/juhaku/utoipa/tree/master/examples) for following frameworks:
 //!
 //! * **actix-web**
+//! * **axum**
 //! * **warp**
 //! * **tide**
 //! * **rocket**
