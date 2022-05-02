@@ -643,3 +643,52 @@ pub enum ParameterStyle {
     /// Allowed with [`ParameterIn::Query`].
     DeepObject,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Operation, OperationBuilder};
+    use crate::openapi::{security::SecurityRequirement, server::Server};
+
+    #[test]
+    fn operation_new() {
+        let operation = Operation::new();
+
+        assert!(operation.tags.is_none());
+        assert!(operation.summary.is_none());
+        assert!(operation.description.is_none());
+        assert!(operation.operation_id.is_none());
+        assert!(operation.external_docs.is_none());
+        assert!(operation.parameters.is_none());
+        assert!(operation.request_body.is_none());
+        assert!(operation.responses.responses.len() == 0);
+        assert!(operation.callbacks.is_none());
+        assert!(operation.deprecated.is_none());
+        assert!(operation.security.is_none());
+        assert!(operation.servers.is_none());
+    }
+
+    #[test]
+    fn operation_builder_security() {
+        let security_requirement1 =
+            SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
+        let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
+        let operation = OperationBuilder::new()
+            .security(security_requirement1)
+            .security(security_requirement2)
+            .build();
+
+        assert!(operation.security.is_some());
+    }
+
+    #[test]
+    fn operation_builder_server() {
+        let server1 = Server::new("/api");
+        let server2 = Server::new("/admin");
+        let operation = OperationBuilder::new()
+            .server(server1)
+            .server(server2)
+            .build();
+
+        assert!(operation.servers.is_some());
+    }
+}

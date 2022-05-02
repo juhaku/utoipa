@@ -218,3 +218,17 @@ impl LicenseBuilder {
         set_value!(self url url.map(|url| url.into()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Contact;
+
+    #[test]
+    fn contact_new() {
+        let contact = Contact::new();
+
+        assert!(contact.name.is_none());
+        assert!(contact.url.is_none());
+        assert!(contact.email.is_none());
+    }
+}
