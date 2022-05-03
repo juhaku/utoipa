@@ -108,7 +108,7 @@ impl PathOperations {
     fn get_type_path(ty: &Type) -> &TypePath {
         match ty {
             Type::Path(path) => path,
-            _ => abort_call_site!("unexpected type, expected Type::Path"), // should not get here by any means with current types
+            _ => abort_call_site!("unexpected type in actix path operations, expected Type::Path"), // should not get here by any means with current types
         }
     }
 

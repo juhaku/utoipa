@@ -39,17 +39,24 @@ struct ComponentPart<'a> {
 impl<'a> ComponentPart<'a> {
     pub fn from_type(ty: &'a Type) -> ComponentPart<'a> {
         ComponentPart::from_type_path(
-            match ty {
-                Type::Path(path) => path,
-                Type::Reference(reference) => match reference.elem.as_ref() {
-                    Type::Path(path) => path,
-                    _ => abort_call_site!("unexpected type in reference, expected Type:Path"),
-                },
-                _ => abort_call_site!("unexpected type, expected Type::Path"),
-            },
+            Self::get_type_path(ty),
             ComponentPart::convert,
             ComponentPart::resolve_component_type,
         )
+    }
+
+    fn get_type_path(ty: &'a Type) -> &'a TypePath {
+        match ty {
+            Type::Path(path) => path,
+            Type::Reference(reference) => match reference.elem.as_ref() {
+                Type::Path(path) => path,
+                _ => abort_call_site!("unexpected type in reference, expected Type:Path"),
+            },
+            Type::Group(group) => Self::get_type_path(group.elem.as_ref()),
+            _ => abort_call_site!(
+                "unexpected type in component part get type path, expected one of: Path, Reference, Group"
+            ),
+        }
     }
 
     fn from_ident(ty: &'a Ident) -> ComponentPart<'a> {

@@ -49,7 +49,7 @@ mod pet_api {
 
     /// Get pet by id
     ///
-    /// Get pet from database by pet database id  
+    /// Get pet from database by pet database id
     #[utoipa::path(
         get,
         path = "/pets/{id}",
@@ -78,9 +78,9 @@ mod pet_api {
 
 #[derive(Default, OpenApi)]
 #[openapi(
-    handlers(pet_api::get_pet_by_id), 
-    components(Pet), 
-    modifiers(&Foo), 
+    handlers(pet_api::get_pet_by_id),
+    components(Pet),
+    modifiers(&Foo),
     security(
         (),
         ("my_auth" = ["read:items", "edit:items"]),
@@ -88,6 +88,16 @@ mod pet_api {
     )
 )]
 struct ApiDoc;
+
+macro_rules! build_foo {
+    ($typ: ident, $d: ty, $r: ty) => {
+        #[derive(Debug, Serialize, Component)]
+        struct $typ {
+            data: $d,
+            resources: $r,
+        }
+    };
+}
 
 #[test]
 #[ignore = "this is just a test bed to run macros"]
@@ -97,6 +107,8 @@ fn derive_openapi() {
         utoipa::openapi::Paths::new(),
     );
     println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+
+    build_foo!(GetFooBody, Foo, FooResources);
 }
 
 impl Modify for Foo {
@@ -126,4 +138,8 @@ impl Modify for Foo {
     }
 }
 
+#[derive(Debug, Serialize)]
 struct Foo;
+
+#[derive(Debug, Serialize)]
+struct FooResources;
