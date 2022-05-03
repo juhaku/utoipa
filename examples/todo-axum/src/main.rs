@@ -64,7 +64,6 @@ async fn main() -> Result<(), Error> {
             "/todo",
             routing::get(todo::list_todos)
                 .post(todo::create_todo)
-                .put(todo::mark_done),
         )
         .route(
             "/todo/:id",
