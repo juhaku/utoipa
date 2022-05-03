@@ -27,6 +27,7 @@ use super::property::Property;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Parameter<'a> {
     Value(ParameterValue<'a>),
+    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     TokenStream(TokenStream),
 }
 
@@ -194,6 +195,7 @@ impl ToTokens for Parameter<'_> {
 
         match self {
             Parameter::Value(parameter) => handle_single_parameter(parameter),
+            #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
             Parameter::TokenStream(stream) => {
                 tokens.extend(quote! { #stream });
             }
