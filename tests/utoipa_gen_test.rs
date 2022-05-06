@@ -8,7 +8,7 @@ use utoipa::{
         security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
         server::{ServerBuilder, ServerVariableBuilder},
     },
-    Component, Modify, OpenApi,
+    Component, GenericComponent, Modify, OpenApi,
 };
 
 #[derive(Deserialize, Serialize, Component)]
@@ -79,7 +79,7 @@ mod pet_api {
 #[derive(Default, OpenApi)]
 #[openapi(
     handlers(pet_api::get_pet_by_id),
-    components(Pet),
+    components(Pet, C<A, B>),
     modifiers(&Foo),
     security(
         (),
@@ -99,6 +99,23 @@ macro_rules! build_foo {
     };
 }
 
+#[derive(Deserialize, Serialize, Component)]
+struct A {
+    a: String,
+}
+
+#[derive(Deserialize, Serialize, Component)]
+struct B {
+    b: i64,
+}
+
+#[derive(Deserialize, Serialize, Component)]
+#[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
+struct C<T, R> {
+    field_1: R,
+    field_2: T,
+}
+
 #[test]
 #[ignore = "this is just a test bed to run macros"]
 fn derive_openapi() {
@@ -109,6 +126,65 @@ fn derive_openapi() {
     println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 
     build_foo!(GetFooBody, Foo, FooResources);
+
+    // utoipa::component!(
+    //     type GenericC = C<A, B>;
+    // );
+
+    // #[
+    //     aliases(type GenericC = C<A, B>; type GenericB = C<D, E>;)
+    // ]
+    // impl utoipa::GenericComponent for C<A, B>
+    // where
+    //     Self: utoipa::Component,
+    // {
+    //     fn component() -> utoipa::openapi::schema::Component {
+    //         dbg!("generic component");
+    //         <Self as Component>::component()
+    //     }
+    // }
+
+    // dbg!(<C::<A, B> as GenericComponent>::component());
+
+    // utoipa::component!(GenericC {
+    //     field_1: B { b: 0 },
+    //     field_2: A { a: String::new() },
+    // });
+    let mut openapi = utoipa::openapi::OpenApiBuilder::new()
+        .info(
+            utoipa::openapi::InfoBuilder::new()
+                .title("utoipa")
+                .version("1.0.2")
+                .description(Some(""))
+                .license(Some(utoipa::openapi::License::new("")))
+                .contact(Some(
+                    utoipa::openapi::ContactBuilder::new()
+                        .name(Some(""))
+                        .email(Some(""))
+                        .build(),
+                ))
+                .build(),
+        )
+        .components(Some(
+            utoipa::openapi::ComponentsBuilder::new()
+                .component("Pet", <Pet>::component())
+                .components_from_iter(<Pet>::aliases())
+                // .component("C", C::component())
+                // .components_from_iter(C::aliases())
+                .build(),
+        ))
+        .security(Some([
+            utoipa::openapi::security::SecurityRequirement::default(),
+            utoipa::openapi::security::SecurityRequirement::new::<&str, [&str; 2usize], &str>(
+                "my_auth",
+                ["read:items", "edit:items"],
+            ),
+            utoipa::openapi::security::SecurityRequirement::new::<&str, [&str; 0usize], &str>(
+                "token_jwt",
+                [],
+            ),
+        ]))
+        .build();
 }
 
 impl Modify for Foo {

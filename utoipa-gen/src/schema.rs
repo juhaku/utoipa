@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
 
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
@@ -33,7 +33,7 @@ struct ComponentPart<'a> {
     pub ident: &'a Ident,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
-    pub child: Option<Rc<ComponentPart<'a>>>,
+    pub child: Option<Box<ComponentPart<'a>>>,
 }
 
 impl<'a> ComponentPart<'a> {
@@ -105,7 +105,7 @@ impl<'a> ComponentPart<'a> {
 
         let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
 
-        generic_component_type.child = Some(Rc::new(ComponentPart::from_type(
+        generic_component_type.child = Some(Box::new(ComponentPart::from_type(
             match &segment.arguments {
                 PathArguments::AngleBracketed(angle_bracketed_args) => {
                     ComponentPart::get_generic_arg_type(0, angle_bracketed_args)
@@ -160,6 +160,36 @@ impl<'a> ComponentPart<'a> {
             "RefCell" => Some(GenericType::RefCell),
             _ => None,
         }
+    }
+
+    fn find_mut_by_ident(&mut self, ident: &'a Ident) -> Option<&mut Self> {
+        match self.generic_type {
+            Some(GenericType::Map) => None,
+            Some(GenericType::Vec)
+            | Some(GenericType::Option)
+            | Some(GenericType::Cow)
+            | Some(GenericType::Box)
+            | Some(GenericType::RefCell) => {
+                Self::find_mut_by_ident(self.child.as_mut().unwrap().as_mut(), ident)
+            }
+            None => {
+                if ident == self.ident {
+                    Some(self)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn update_ident(&mut self, ident: &'a Ident) {
+        self.ident = ident
+    }
+}
+
+impl<'a> AsMut<ComponentPart<'a>> for ComponentPart<'a> {
+    fn as_mut(&mut self) -> &mut ComponentPart<'a> {
+        self
     }
 }
 

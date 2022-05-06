@@ -294,6 +294,7 @@ fn impl_components(
                 };
                 schema.extend(quote! {
                     .component(#component_name, <#ident #ty_generics>::component())
+                    .components_from_iter(<#ident #ty_generics>::aliases())
                 });
 
                 schema

@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{Data, Field, Generics, Ident};
@@ -124,7 +126,7 @@ impl ToTokens for ParamType<'_> {
         let ty = self.0;
         match &ty.generic_type {
             Some(GenericType::Vec) => {
-                let param_type = ParamType(ty.child.as_ref().unwrap());
+                let param_type = ParamType(ty.child.as_ref().unwrap().as_ref());
 
                 tokens.extend(quote! { #param_type.to_array_builder() });
             }
@@ -154,7 +156,7 @@ impl ToTokens for ParamType<'_> {
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let param_type = ParamType(ty.child.as_ref().unwrap());
+                let param_type = ParamType(&ty.child.as_ref().unwrap().as_ref());
 
                 tokens.extend(param_type.into_token_stream())
             }
