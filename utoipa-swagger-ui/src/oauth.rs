@@ -65,7 +65,7 @@ mod tests {
             client_id: Some(String::from("my-special-client")),
             ..Default::default()
         };
-        let file = super::format_swagger_config(&config, TEST_CONTENT.to_string());
+        let file = super::format_swagger_config(&config, TEST_CONTENT.to_string()).unwrap();
 
         let expected = r#"
 ui.initOAuth({
