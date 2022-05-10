@@ -229,19 +229,18 @@ impl SwaggerUi {
     ///
     /// Enable pkce with default client_id.
     /// ```rust
-    /// # use utoipa_swagger_ui::SwaggerUi;
+    /// # use utoipa_swagger_ui::{SwaggerUi, oauth};
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
     /// # #[openapi(handlers())]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
-    ///     .oauth(utoipa_swagger_ui::oauth::Config {
-    ///         client_id: Some(std::env::var("OKTA_CLIENT_ID").unwrap()),
-    ///         scopes: Some(vec![String::from("openid")]),
-    ///         use_pkce_with_authorization_code_grant: Some(true),
-    ///         ..Default::default()
-    ///     });
+    ///     .oauth(oauth::Config::new()
+    ///         .client_id("client-id")
+    ///         .scopes(vec![String::from("openid")])
+    ///         .use_pkce_with_authorization_code_grant(true)
+    ///     );
     /// ```
     pub fn oauth(mut self, oauth: oauth::Config) -> Self {
         self.oauth = Some(oauth);
@@ -306,7 +305,13 @@ impl From<SwaggerUi> for Vec<Route> {
         routes.push(Route::new(
             rocket::http::Method::Get,
             swagger_ui.path.as_ref(),
-            ServeSwagger(swagger_ui.path.clone(), Arc::new(Config::new(urls))),
+            ServeSwagger(
+                swagger_ui.path.clone(),
+                Arc::new(Config {
+                    urls: urls.collect(),
+                    oauth: swagger_ui.oauth,
+                }),
+            ),
         ));
         routes.extend(api_docs);
 
@@ -497,11 +502,21 @@ async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) 
 ///     Url::new("api2", "/api-doc/openapi2.json")
 /// ]);
 /// ```
+///
+/// With oauth config
+/// ```rust
+/// # use utoipa_swagger_ui::{Config, oauth};
+/// let config = Config::with_oauth_config(
+///     ["/api-doc/openapi1.json", "/api-doc/openapi2.json"],
+///     oauth::Config::new(),
+/// );
+/// ```
 #[non_exhaustive]
 #[derive(Default, Clone)]
 pub struct Config<'a> {
     /// [`Url`]s the Swagger UI is serving.
     urls: Vec<Url<'a>>,
+    /// [`oauth::Config`] the Swagger UI is using for auth flow.
     oauth: Option<oauth::Config>,
 }
 
@@ -518,6 +533,27 @@ impl<'a> Config<'a> {
         Self {
             urls: urls.into_iter().map(|url| url.into()).collect(),
             oauth: None,
+        }
+    }
+
+    /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
+    ///
+    /// # Examples
+    /// Create new config with oauth config
+    /// ```rust
+    /// # use utoipa_swagger_ui::{Config, oauth};
+    /// let config = Config::with_oauth_config(
+    ///     ["/api-doc/openapi1.json", "/api-doc/openapi2.json"],
+    ///     oauth::Config::new(),
+    /// );
+    /// ```
+    pub fn with_oauth_config<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(
+        urls: I,
+        oauth_config: oauth::Config,
+    ) -> Self {
+        Self {
+            urls: urls.into_iter().map(|url| url.into()).collect(),
+            oauth: Some(oauth_config),
         }
     }
 }
