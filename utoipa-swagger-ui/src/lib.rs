@@ -86,6 +86,8 @@
 //! [^rocket]: **rocket** feature need to be enabled.
 use std::{borrow::Cow, error::Error, sync::Arc};
 
+pub mod oauth;
+
 #[cfg(feature = "actix-web")]
 use actix_web::{
     dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource,
@@ -125,6 +127,7 @@ struct SwaggerUiDist;
 pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
+    oauth: Option<oauth::Config>,
 }
 
 #[cfg(any(feature = "actix-web", feature = "rocket"))]
@@ -146,6 +149,7 @@ impl SwaggerUi {
         Self {
             path: path.into(),
             urls: Vec::new(),
+            oauth: None,
         }
     }
 
@@ -216,6 +220,33 @@ impl SwaggerUi {
 
         self
     }
+
+    /// Add oauth [`oauth::Config`] into [`SwaggerUi`].
+    ///
+    /// Method takes one argument which exposes the [`oauth::Config`] to the user.
+    ///
+    /// # Examples
+    ///
+    /// Enable pkce with default client_id.
+    /// ```rust
+    /// # use utoipa_swagger_ui::{SwaggerUi, oauth};
+    /// # use utoipa::OpenApi;
+    /// # #[derive(OpenApi)]
+    /// # #[openapi(handlers())]
+    /// # struct ApiDoc;
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
+    ///     .oauth(oauth::Config::new()
+    ///         .client_id("client-id")
+    ///         .scopes(vec![String::from("openid")])
+    ///         .use_pkce_with_authorization_code_grant(true)
+    ///     );
+    /// ```
+    pub fn oauth(mut self, oauth: oauth::Config) -> Self {
+        self.oauth = Some(oauth);
+
+        self
+    }
 }
 
 #[cfg(feature = "actix-web")]
@@ -233,7 +264,10 @@ impl HttpServiceFactory for SwaggerUi {
 
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
-            .app_data(Data::new(Config::new(urls)))
+            .app_data(Data::new(Config {
+                urls: urls,
+                oauth: self.oauth,
+            }))
             .to(serve_swagger_ui);
 
         HttpServiceFactory::register(swagger_resource, config);
@@ -271,7 +305,13 @@ impl From<SwaggerUi> for Vec<Route> {
         routes.push(Route::new(
             rocket::http::Method::Get,
             swagger_ui.path.as_ref(),
-            ServeSwagger(swagger_ui.path.clone(), Arc::new(Config::new(urls))),
+            ServeSwagger(
+                swagger_ui.path.clone(),
+                Arc::new(Config {
+                    urls: urls.collect(),
+                    oauth: swagger_ui.oauth,
+                }),
+            ),
         ));
         routes.extend(api_docs);
 
@@ -462,11 +502,22 @@ async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) 
 ///     Url::new("api2", "/api-doc/openapi2.json")
 /// ]);
 /// ```
+///
+/// With oauth config
+/// ```rust
+/// # use utoipa_swagger_ui::{Config, oauth};
+/// let config = Config::with_oauth_config(
+///     ["/api-doc/openapi1.json", "/api-doc/openapi2.json"],
+///     oauth::Config::new(),
+/// );
+/// ```
 #[non_exhaustive]
 #[derive(Default, Clone)]
 pub struct Config<'a> {
     /// [`Url`]s the Swagger UI is serving.
     urls: Vec<Url<'a>>,
+    /// [`oauth::Config`] the Swagger UI is using for auth flow.
+    oauth: Option<oauth::Config>,
 }
 
 impl<'a> Config<'a> {
@@ -481,6 +532,28 @@ impl<'a> Config<'a> {
     pub fn new<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(urls: I) -> Self {
         Self {
             urls: urls.into_iter().map(|url| url.into()).collect(),
+            oauth: None,
+        }
+    }
+
+    /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
+    ///
+    /// # Examples
+    /// Create new config with oauth config
+    /// ```rust
+    /// # use utoipa_swagger_ui::{Config, oauth};
+    /// let config = Config::with_oauth_config(
+    ///     ["/api-doc/openapi1.json", "/api-doc/openapi2.json"],
+    ///     oauth::Config::new(),
+    /// );
+    /// ```
+    pub fn with_oauth_config<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(
+        urls: I,
+        oauth_config: oauth::Config,
+    ) -> Self {
+        Self {
+            urls: urls.into_iter().map(|url| url.into()).collect(),
+            oauth: Some(oauth_config),
         }
     }
 }
@@ -489,6 +562,7 @@ impl<'a> From<&'a str> for Config<'a> {
     fn from(s: &'a str) -> Self {
         Self {
             urls: vec![Url::from(s)],
+            oauth: None,
         }
     }
 }
@@ -497,6 +571,7 @@ impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
         Self {
             urls: vec![Url::from(s)],
+            oauth: None,
         }
     }
 }
@@ -572,6 +647,13 @@ pub fn serve<'a>(
                 Err(error) => return Err(Box::new(error)),
             };
             file = format_swagger_config_urls(&mut config.urls.iter(), file);
+
+            if let Some(oauth) = &config.oauth {
+                match oauth::format_swagger_config(oauth, file) {
+                    Ok(oauth_file) => file = oauth_file,
+                    Err(error) => return Err(Box::new(error)),
+                }
+            }
 
             bytes = Cow::Owned(file.as_bytes().to_vec())
         };
