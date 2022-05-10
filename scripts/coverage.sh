@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/bash
 
 if ! which grcov; then
   echo "Error: grcov not found. Try |cargo install grcov|"
