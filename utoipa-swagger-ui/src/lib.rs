@@ -1,5 +1,5 @@
 //! This crate implements necessary boiler plate code to serve Swagger UI via web server. It
-//! works as a bridge for serving the OpenAPI documetation created with [`utoipa`][utoipa] libarary in the
+//! works as a bridge for serving the OpenAPI documentation created with [`utoipa`][utoipa] library in the
 //! Swagger UI.
 //!
 //! [utoipa]: <https://docs.rs/utoipa/>
@@ -9,7 +9,7 @@
 //! * **actix-web** `version >= 4`
 //! * **rocket** `version >=0.5.0-rc.1`
 //!
-//! Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
+//! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
 //! more details at [`serve`] or [`examples`][examples].
 //!
@@ -18,9 +18,9 @@
 //! # Features
 //!
 //! * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
-//!   users to use the Swagger UI without a hazzle.
+//!   users to use the Swagger UI without a hassle.
 //! * **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI
-//!   and api doc without a hazzle.
+//!   and api doc without a hassle.
 //!
 //! # Install
 //!
@@ -192,7 +192,7 @@ impl SwaggerUi {
     ///
     /// Takes one [`Vec`] argument containing tuples of [`Url`] and [`OpenApi`].
     ///
-    /// Situations where this comes handy is when there is a need or wish to seprate different parts
+    /// Situations where this comes handy is when there is a need or wish to separate different parts
     /// of the api to separate api docs.
     ///
     /// # Examples
@@ -401,7 +401,7 @@ impl<'a> Url<'a> {
 
     /// Create new [`Url`] with primary flag.
     ///
-    /// Primary flag allows users to override the default behaviour of the Swagger UI for selecting the primary
+    /// Primary flag allows users to override the default behavior of the Swagger UI for selecting the primary
     /// doc to display. By default when there are multiple docs in Swagger UI the first one in the list
     /// will be the primary.
     ///
@@ -576,7 +576,7 @@ impl From<String> for Config<'_> {
     }
 }
 
-/// Represents servealbe file of Swagger UI. This is used together with [`serve`] function
+/// Represents servable file of Swagger UI. This is used together with [`serve`] function
 /// to serve Swagger UI files via web server.
 #[non_exhaustive]
 pub struct SwaggerFile<'a> {
@@ -592,13 +592,13 @@ pub struct SwaggerFile<'a> {
 /// * **config** Swagger [`Config`] to use for the Swagger UI. Currently supported configuration
 ///   options are managing [`Url`]s.
 ///
-/// Typpically this function is implemented _**within**_ handler what handles _**GET**_ operations related to the
+/// Typically this function is implemented _**within**_ handler what handles _**GET**_ operations related to the
 /// Swagger UI. Handler itself must match to user defined path that points to the root of the Swagger UI and
 /// matches everything relatively from the root of the Swagger UI. The relative path from root of the Swagger UI
 /// must be taken to `tail` path variable which is used to serve [`SwaggerFile`]s. If Swagger UI
 /// is served from path `/swagger-ui/` then the `tail` is everything under the `/swagger-ui/` prefix.
 ///
-/// _There are also implementations in [examples of utoipa repoistory][examples]._
+/// _There are also implementations in [examples of utoipa repository][examples]._
 ///
 /// [examples]: https://github.com/juhaku/utoipa/tree/master/examples
 ///
@@ -612,7 +612,7 @@ pub struct SwaggerFile<'a> {
 /// // The config should be created in main function or in initialization before
 /// // creation of the handler which will handle serving the Swagger UI.
 /// let config = Arc::new(Config::from("/api-doc.json"));
-/// // This "/" is for demostrative purposes only. The actual path should point to
+/// // This "/" is for demonstrative purposes only. The actual path should point to
 /// // file within Swagger UI. In real implementation this is the `tail` path from root of the
 /// // Swagger UI to the file served.
 /// let path = "/";

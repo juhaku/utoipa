@@ -61,7 +61,7 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct OpenApi {
-        /// OpenAPI document verison.
+        /// OpenAPI document version.
         pub openapi: OpenApiVersion,
 
         /// Provides metadata about the API.
@@ -91,7 +91,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub components: Option<Components>,
 
-        /// Declaration of global security mechanishms that can be used accros the API. The individual operaitons
+        /// Declaration of global security mechanisms that can be used across the API. The individual operations
         /// can override the declarations. You can use `SecurityRequirement::default()` if you wish to make security
         /// optional by adding it to the list of securities.
         ///
@@ -105,7 +105,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub tags: Option<Vec<Tag>>,
 
-        /// Optional global additional documentation referece.
+        /// Optional global additional documentation reference.
         ///
         /// See more details at <https://spec.openapis.org/oas/latest.html#external-documentation-object>.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -116,8 +116,8 @@ builder! {
 impl OpenApi {
     /// Construct a new [`OpenApi`] object.
     ///
-    /// Function accepts two arguments one whichs is [`Info`] metadata of the API; two which is [`Paths`]
-    /// containging operations for the API.
+    /// Function accepts two arguments one which is [`Info`] metadata of the API; two which is [`Paths`]
+    /// containing operations for the API.
     ///
     /// # Examples
     ///
@@ -193,7 +193,7 @@ impl OpenApiBuilder {
         set_value!(self tags tags.map(|tags| tags.into_iter().collect()))
     }
 
-    /// Add [`ExternalDocs`] for refering additional documentation.
+    /// Add [`ExternalDocs`] for referring additional documentation.
     pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
         set_value!(self external_docs external_docs)
     }
@@ -205,7 +205,7 @@ impl OpenApiBuilder {
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.0.3` the latest from 3.0 serie.
+    /// Will serialize to `3.0.3` the latest from 3.0 serde.
     #[serde(rename = "3.0.3")]
     Version3,
 }
