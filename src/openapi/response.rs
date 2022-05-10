@@ -113,3 +113,15 @@ impl ResponseBuilder {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Responses;
+
+    #[test]
+    fn responses_new() {
+        let responses = Responses::new();
+
+        assert!(responses.responses.is_empty());
+    }
+}

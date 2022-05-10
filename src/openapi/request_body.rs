@@ -56,3 +56,17 @@ impl RequestBodyBuilder {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::RequestBody;
+
+    #[test]
+    fn request_body_new() {
+        let request_body = RequestBody::new();
+
+        assert!(request_body.content.is_empty());
+        assert_eq!(request_body.description, None);
+        assert!(request_body.required.is_none());
+    }
+}
