@@ -660,7 +660,7 @@ mod tests {
         assert!(operation.external_docs.is_none());
         assert!(operation.parameters.is_none());
         assert!(operation.request_body.is_none());
-        assert!(operation.responses.responses.len() == 0);
+        assert!(operation.responses.responses.is_empty());
         assert!(operation.callbacks.is_none());
         assert!(operation.deprecated.is_none());
         assert!(operation.security.is_none());
