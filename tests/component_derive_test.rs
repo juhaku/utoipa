@@ -871,3 +871,18 @@ fn derive_parse_serde_complex_enum() {
         "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
     }
 }
+
+#[test]
+fn derive_component_with_generic_types_having_path_expression() {
+    let ty = api_doc! {
+        struct Bar {
+            args: Vec<std::vec::Vec<std::string::String>>
+        }
+    };
+
+    assert_value! {ty=>
+        "properties.args.items.items.type" = r#""string""#, "Args items items type"
+        "properties.args.items.type" = r#""array""#, "Args items type"
+        "properties.args.type" = r#""array""#, "Args type"
+    }
+}
