@@ -3,8 +3,8 @@ use std::rc::Rc;
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use syn::{
-    AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments, PathSegment, Type,
-    TypePath,
+    punctuated::Pair, AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments,
+    PathSegment, Type, TypePath,
 };
 
 use crate::{component_type::ComponentType, Deprecated};
@@ -77,13 +77,21 @@ impl<'a> ComponentPart<'a> {
         op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
         or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
     ) -> ComponentPart<'a> {
-        let segment = type_path.path.segments.first().unwrap();
-
-        type_path
+        let segment = type_path
             .path
-            .get_ident()
-            .map(|ident| op(ident, segment))
-            .unwrap_or_else(|| or_else(segment))
+            .segments
+            .pairs()
+            .find_map(|pair| match pair {
+                Pair::Punctuated(_, _) => None,
+                Pair::End(segment) => Some(segment),
+            })
+            .unwrap();
+
+        if segment.arguments.is_empty() {
+            op(&segment.ident, segment)
+        } else {
+            or_else(segment)
+        }
     }
 
     // Only when type is a generic type we get to this function.
