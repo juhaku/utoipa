@@ -1,7 +1,7 @@
 //! This is **private** utoipa codegen library and is not used alone.
 //!
 //! The library contains macro implementations for utoipa library. Content
-//! of the libarary documentation is available through **utoipa** library itself.
+//! of the library documentation is available through **utoipa** library itself.
 //! Consider browsing via the **utoipa** crate so all links will work correctly.
 
 #![warn(missing_docs)]
@@ -44,17 +44,17 @@ use ext::ArgumentResolver;
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component))]
-/// Component dervice macro
+/// Component derive macro
 ///
 /// This is `#[derive]` implementation for [`Component`][c] trait. The macro accepts one `component`
 /// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 /// at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
 /// not have any effect.
 ///
-/// You can use the Rust's own `#[deprecated]` attribute on any struct, emun or field to mark it as deprecated and it will
+/// You can use the Rust's own `#[deprecated]` attribute on any struct, enum or field to mark it as deprecated and it will
 /// reflect to the generated OpenAPI spec.
 ///
-/// `#[deprecated]` attribute supports adding addtional details such as a reason and or since version but this is is not supported in
+/// `#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is is not supported in
 /// OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
@@ -76,7 +76,7 @@ use ext::ArgumentResolver;
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any thrid-party types are used which are not components nor primitive types. With **value_type** we can enforce
+///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// # Named Fields Optional Configuration Options
@@ -89,7 +89,7 @@ use ext::ArgumentResolver;
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any thrid-party types are used which are not components nor primitive types. With **value_type** we can enforce
+///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
@@ -187,7 +187,7 @@ use ext::ArgumentResolver;
 /// # use utoipa::Component;
 /// #[derive(Component)]
 /// #[component(example = "Bus")]
-/// enum VechileType {
+/// enum VehicleType {
 ///     Rocket, Car, Bus, Submarine
 /// }
 /// ```
@@ -238,7 +238,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octect stream
+/// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
 /// with [`ComponentFormat::Binary`][binary].
 /// ```rust
 /// # use utoipa::Component;
@@ -287,21 +287,21 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// You can use the Rust's own `#[deprecated]` attribute on functions to mark it as deprecated and it will
 /// reflect to the generated OpenAPI spec. Only **parameters** has a special **deprecated** attribute to define them as deprecated.
 ///
-/// `#[deprecated]` attribute supports adding addtional details such as a reason and or since version but this is is not supported in
+/// `#[deprecated]` attribute supports adding additional details such as a reason and or since version but this is is not supported in
 /// OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
 /// # Path Attributes
 ///
-/// * `operation` _**Must be first parameter!**_ Accepted values are known http operations suchs as
+/// * `operation` _**Must be first parameter!**_ Accepted values are known http operations such as
 ///   _`get, post, put, delete, head, options, connect, patch, trace`_.
 /// * `path = "..."` Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
-/// * `operation_id = "..."` Unique operation id for the enpoint. By default this is mapped to function name.
-/// * `context_path = "..."` Can add optional scope for **path**. The **context_path** will be prepended to begining of **path**.
+/// * `operation_id = "..."` Unique operation id for the endpoint. By default this is mapped to function name.
+/// * `context_path = "..."` Can add optional scope for **path**. The **context_path** will be prepended to beginning of **path**.
 ///   This is particularly useful when **path** does not contain the full path to the endpoint. For example if web framework
 ///   allows operation to be defined under some context path or scope which does not reflect to the resolved path then this
 ///   **context_path** can become handy to alter the path.
-/// * `tag = "..."` Can be used to group operations. Operations with same tag are groupped together. By default
+/// * `tag = "..."` Can be used to group operations. Operations with same tag are grouped together. By default
 ///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
 ///   then default value _`crate`_ is used instead.
 /// * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
@@ -316,7 +316,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
 ///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_.
 /// * `description = "..."` Define the description for the request body object as str.
-/// * `content_type = "..."` Can be used to override the default behaviour of auto resolving the content type
+/// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
@@ -339,7 +339,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
 ///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_
-/// * `content_type = "..." | content_type = [...]` Can be used to override the default behaviour of auto resolving the content type
+/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
@@ -371,21 +371,21 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Response Header Attributes
 ///
 /// * `name` Name of the header. E.g. _`x-csrf-token`_
-/// * `type` Addtional type of the header value. Type is defined after `name` with equals sign before the type.
-///   Type should be identifer or slice of identifiers. E.g. _`String`_ or _`[String]`_
+/// * `type` Additional type of the header value. Type is defined after `name` with equals sign before the type.
+///   Type should be identifier or slice of identifiers. E.g. _`String`_ or _`[String]`_
 /// * `description = "..."` Can be used to define optional description for the response header as str.
 ///
 /// **Header supported formats:**
 ///
 /// ```text
-/// ("x-csfr-token"),
-/// ("x-csrf-token" = String, description = "New csfr token"),
+/// ("x-csrf-token"),
+/// ("x-csrf-token" = String, description = "New csrf token"),
 /// ```
 ///
 /// # Params Attributes
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifer, slice or option.
+/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice or option.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -394,7 +394,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define possible description for the parameter as str.
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
 /// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
-/// * `allow_reserved` Defines whether reserved charachers _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+/// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
 ///   will override any example in underlying parameter type.
 ///
@@ -426,7 +426,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # actix_extras support for actix-web
 ///
-/// **actix_extras** featue gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
+/// **actix_extras** feature gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
 ///
 /// 1. Ability to parse `path` from **actix-web** path attribute macros e.g. _`#[get(...)]`_.
 /// 2. Ability to parse [`std::primitive`]  or [`String`] or [`tuple`] typed `path` parameters from **actix-web** _`web::Path<...>`_.
@@ -435,7 +435,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ///
-/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parmater types** [^actix_extras].
+/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parameter types** [^actix_extras].
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -455,7 +455,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// With **actix_extras** you may also not to list any _**parmas**_ if you do not want to specify any description for them. Params are resolved from
+/// With **actix_extras** you may also not to list any _**params**_ if you do not want to specify any description for them. Params are resolved from
 /// path and the argument types of handler. [^actix_extras]
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
@@ -554,7 +554,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Use of Rust's own `#[deprecated]` attribute will refect to the generated OpenAPI spec and mark this operation as deprecated.
+/// Use of Rust's own `#[deprecated]` attribute will reflect to the generated OpenAPI spec and mark this operation as deprecated.
 /// ```rust
 /// # use actix_web::{get, web, HttpResponse, Responder};
 /// # use serde_json::json;
@@ -658,7 +658,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// * `handlers(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
 /// * `components(...)`  List of [`Component`][component]s in OpenAPI schema.
-/// * `modifiers(...)` List of items implemeting [`Modify`][modify] trait for runtime OpenApi modification.
+/// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
 /// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
 ///   See more details in [`#[utoipa::path(...)]`][path] [attribute macro security options][path_security].
@@ -762,7 +762,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// You can use the Rust's own `#[deprecated]` attribute on field to mark it as
 /// deprecated and it will reflect to the generated OpenAPI spec.
 ///
-/// `#[deprecated]` attribute supports adding addtional details such as a reason and or since version
+/// `#[deprecated]` attribute supports adding additional details such as a reason and or since version
 /// but this is is not supported in OpenAPI. OpenAPI has only a boolean flag to determine deprecation.
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
@@ -771,7 +771,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
 /// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
-/// * `allow_reserved` Defines whether reserved charachers _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+/// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
 ///
@@ -1068,7 +1068,7 @@ impl ToTokens for ExternalDocs {
     }
 }
 
-/// Represents OpenAPI Any value used in example and defualt fields.
+/// Represents OpenAPI Any value used in example and default fields.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub(self) enum AnyValue {
     String(TokenStream2),
@@ -1182,7 +1182,7 @@ mod parse_utils {
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
             .parse::<Token![=]>()
-            .expect_or_abort("expected equals token before value assigment");
+            .expect_or_abort("expected equals token before value assignment");
         next()
     }
 
