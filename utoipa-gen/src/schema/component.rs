@@ -4,11 +4,8 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{
-    parse::Parse,
-    punctuated::Punctuated,
-    token::{Comma, Semi},
-    Attribute, Data, Field, Fields, FieldsNamed, FieldsUnnamed, Generics, Token, Variant,
-    Visibility,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
+    FieldsNamed, FieldsUnnamed, Generics, Token, Variant, Visibility,
 };
 
 use crate::{
@@ -143,8 +140,6 @@ impl<'a> ComponentVariant<'a> {
         generics: &'a Generics,
         alias: Option<&'a AliasComponent>,
     ) -> ComponentVariant<'a> {
-        dbg!("component variant generics", &generics);
-
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
@@ -230,14 +225,12 @@ impl ToTokens for NamedStructComponent<'_> {
                             if let Some(generic_type) =
                                 component_part.find_mut_by_ident(&generic.ident)
                             {
-                                dbg!("update generic type");
                                 generic_type.update_ident(
                                     &alias.generics.type_params().nth(index).unwrap().ident,
                                 );
                             };
                         })
                 }
-                dbg!("component part named arg", &component_part);
 
                 let deprecated = super::get_deprecated(&field.attrs);
                 let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
@@ -583,8 +576,6 @@ where
     T: Sized + quote::ToTokens,
 {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        dbg!("to tokens component part", &self.component_part);
-
         match self.component_part.generic_type {
             Some(GenericType::Map) => {
                 // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
@@ -743,15 +734,6 @@ fn rename<'a>(
         .or_else(|| container_rule.as_mut().and_then(rename))
 }
 
-// #[cfg_attr(feature = "debug", derive(Debug))]
-// pub struct Aliases(pub Punctuated<AliasComponent, Semi>);
-
-// impl Parse for Aliases {
-//     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-//         Ok(Self(Punctuated::parse_terminated(input)?))
-//     }
-// }
-
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AliasComponent {
     pub name: String,
@@ -782,50 +764,3 @@ fn parse_aliases(attributes: &[Attribute]) -> Option<Punctuated<AliasComponent, 
                 .unwrap_or_abort()
         })
 }
-// TokenStream [
-//     Ident {
-//         ident: "type",
-//         span: #0 bytes(2772..2776),
-//     },
-//     Ident {
-//         ident: "GenericC",
-//         span: #0 bytes(2777..2785),
-//     },
-//     Punct {
-//         ch: '=',
-//         spacing: Alone,
-//         span: #0 bytes(2786..2787),
-//     },
-//     Ident {
-//         ident: "C",
-//         span: #0 bytes(2788..2789),
-//     },
-//     Punct {
-//         ch: '<',
-//         spacing: Alone,
-//         span: #0 bytes(2789..2790),
-//     },
-//     Ident {
-//         ident: "A",
-//         span: #0 bytes(2790..2791),
-//     },
-//     Punct {
-//         ch: ',',
-//         spacing: Alone,
-//         span: #0 bytes(2791..2792),
-//     },
-//     Ident {
-//         ident: "B",
-//         span: #0 bytes(2793..2794),
-//     },
-//     Punct {
-//         ch: '>',
-//         spacing: Joint,
-//         span: #0 bytes(2794..2795),
-//     },
-//     Punct {
-//         ch: ';',
-//         spacing: Alone,
-//         span: #0 bytes(2795..2796),
-//     },
-// ]

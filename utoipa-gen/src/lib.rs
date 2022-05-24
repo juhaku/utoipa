@@ -838,38 +838,6 @@ pub fn into_params(input: TokenStream) -> TokenStream {
     into_params.to_token_stream().into()
 }
 
-#[proc_macro]
-pub fn component(input: TokenStream) -> TokenStream {
-    dbg!(&input);
-
-    let i = input.clone();
-
-    let input: TokenStream2 = input.into();
-    let mut tokens = quote! {
-        #input
-    };
-
-    // for alias in aliases.0 {
-    //     let ty = alias.ty;
-    //     let generics = &alias.generics;
-    //     let (_, type_generic, _) = &generics.split_for_impl();
-
-    //     tokens.extend(quote! {
-    //         impl utoipa::GenericComponent for #ty #type_generic where Self: utoipa::Component {
-    //             fn component() -> utoipa::openapi::schema::Component {
-    //                 dbg!("generic component");
-    //                 <Self as Component>::component();
-    //             }
-    //         }
-    //     });
-    //     alias.generics.type_params().for_each(|g| {
-    //         dbg!("alias generic type", g);
-    //     });
-    // }
-
-    tokens.into_token_stream().into()
-}
-
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
 /// or without correctly to OpenAPI JSON.
 #[cfg_attr(feature = "debug", derive(Debug))]

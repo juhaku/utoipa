@@ -551,7 +551,3 @@ pub trait ParameterIn {
         None
     }
 }
-
-pub trait GenericComponent: Component {
-    fn component() -> openapi::schema::Component;
-}
