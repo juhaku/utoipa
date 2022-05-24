@@ -43,7 +43,7 @@ use crate::path::{Path, PathAttr};
 use ext::ArgumentResolver;
 
 #[proc_macro_error]
-#[proc_macro_derive(Component, attributes(component))]
+#[proc_macro_derive(Component, attributes(component, aliases))]
 /// Component derive macro
 ///
 /// This is `#[derive]` implementation for [`Component`][c] trait. The macro accepts one `component`
@@ -58,18 +58,18 @@ use ext::ArgumentResolver;
 /// OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
-/// # Struct Optional Configuration Options
+/// # Struct Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be either _`json!(...)`_ or literal string that can be parsed to json. _`json!`_
 ///   should be something that _`serde_json::json!`_ can parse as a _`serde_json::Value`_. [^json]
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 ///  
 /// [^json]: **json** feature need to be enabled for _`json!(...)`_ type to work.
 ///
-/// # Enum Optional Configuration Options
+/// # Enum Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 ///
-/// # Unnamed Field Struct Optional Configuration Options
+/// # Unnamed Field Struct Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
@@ -79,7 +79,7 @@ use ext::ArgumentResolver;
 ///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
 ///
-/// # Named Fields Optional Configuration Options
+/// # Named Fields Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
@@ -138,6 +138,35 @@ use ext::ArgumentResolver;
 ///     SkipMe,
 /// }
 /// ```
+///
+/// # Generic components with aliases
+///
+/// Components can also be generic which allows reusing types. This enables certain behaviour patters
+/// where super type delcares common code for type aliases.
+///
+/// In this example we have common `Status` type which accepts one generic type. It is then defined
+/// with `#[aliases(...)]` that it is going to be used with [`std::string::String`] and [`i32`] values.
+/// The generic argument could also be another [`Component`][c] as well.
+/// ```rust
+/// # use utoipa::{Component, OpenApi};
+/// #[derive(Component)]
+/// #[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
+/// struct Status<T> {
+///     value: T
+/// }
+///
+/// #[derive(OpenApi)]
+/// #[openapi(
+///     components(StatusMessage, StatusNumber)
+/// )]
+/// struct ApiDoc;
+/// ```
+///
+/// The `#[aliases(...)]` is just syntatic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)
+/// behind the scenes which then can be later referenced anywhere in code.
+///
+/// **Note!** You should never register generic type itself in `components(...)` so according above example `Status<...>` should not be registered
+/// because it will not render the type correctly and will cause an error in generated OpenAPI spec.
 ///
 /// # Examples
 ///
@@ -269,10 +298,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
         ident,
         data,
         generics,
-        ..
+        vis,
     } = syn::parse_macro_input!(input);
 
-    let component = Component::new(&data, &attrs, &ident, &generics);
+    let component = Component::new(&data, &attrs, &ident, &generics, &vis);
 
     component.to_token_stream().into()
 }

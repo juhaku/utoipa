@@ -111,6 +111,39 @@ impl ComponentsBuilder {
         self
     }
 
+    /// Add [`Component`]s from iterator.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
+    /// #    PropertyBuilder, ComponentType};
+    /// ComponentsBuilder::new().components_from_iter([(
+    ///     "Pet",
+    ///     ObjectBuilder::new()
+    ///         .property(
+    ///             "name",
+    ///             PropertyBuilder::new().component_type(ComponentType::String),
+    ///         )
+    ///         .required("name"),
+    /// )]);
+    /// ```
+    pub fn components_from_iter<
+        I: IntoIterator<Item = (S, C)>,
+        C: Into<Component>,
+        S: Into<String>,
+    >(
+        mut self,
+        components: I,
+    ) -> Self {
+        self.schemas.extend(
+            components
+                .into_iter()
+                .map(|(name, component)| (name.into(), component.into())),
+        );
+
+        self
+    }
+
     /// Add [`SecurityScheme`] to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when

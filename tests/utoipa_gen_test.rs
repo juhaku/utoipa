@@ -79,7 +79,7 @@ mod pet_api {
 #[derive(Default, OpenApi)]
 #[openapi(
     handlers(pet_api::get_pet_by_id),
-    components(Pet),
+    components(Pet, GenericC, GenericD),
     modifiers(&Foo),
     security(
         (),
@@ -97,6 +97,23 @@ macro_rules! build_foo {
             resources: $r,
         }
     };
+}
+
+#[derive(Deserialize, Serialize, Component)]
+struct A {
+    a: String,
+}
+
+#[derive(Deserialize, Serialize, Component)]
+struct B {
+    b: i64,
+}
+
+#[derive(Deserialize, Serialize, Component)]
+#[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
+struct C<T, R> {
+    field_1: R,
+    field_2: T,
 }
 
 #[test]

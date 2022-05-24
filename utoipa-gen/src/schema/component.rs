@@ -1,11 +1,11 @@
 use std::mem;
 
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use proc_macro_error::abort;
+use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields, FieldsNamed,
-    FieldsUnnamed, Generics, Variant,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
+    FieldsNamed, FieldsUnnamed, Generics, Token, Variant, Visibility,
 };
 
 use crate::{
@@ -29,8 +29,11 @@ mod xml;
 
 pub struct Component<'a> {
     ident: &'a Ident,
-    variant: ComponentVariant<'a>,
+    attributes: &'a [Attribute],
     generics: &'a Generics,
+    aliases: Option<Punctuated<AliasComponent, Comma>>,
+    data: &'a Data,
+    vis: &'a Visibility,
 }
 
 impl<'a> Component<'a> {
@@ -39,11 +42,21 @@ impl<'a> Component<'a> {
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
+        vis: &'a Visibility,
     ) -> Self {
+        let aliases = if generics.type_params().count() > 0 {
+            parse_aliases(attributes)
+        } else {
+            None
+        };
+
         Self {
+            data,
             ident,
-            variant: ComponentVariant::new(data, attributes, ident),
+            attributes,
             generics,
+            aliases,
+            vis,
         }
     }
 }
@@ -51,15 +64,63 @@ impl<'a> Component<'a> {
 impl ToTokens for Component<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let ident = self.ident;
-        let variant = &self.variant;
+        let variant = ComponentVariant::new(self.data, self.attributes, ident, self.generics, None);
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+
+        let aliases = self.aliases.as_ref().map(|aliases| {
+            let alias_components = aliases
+                .iter()
+                .map(|alias| {
+                    let name = &*alias.name;
+
+                    let variant = ComponentVariant::new(
+                        self.data,
+                        self.attributes,
+                        ident,
+                        self.generics,
+                        Some(alias),
+                    );
+                    quote! { (#name, #variant.into()) }
+                })
+                .collect::<Array<TokenStream2>>();
+
+            quote! {
+                fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Component)> {
+                    #alias_components.to_vec()
+                }
+            }
+        });
+
+        let type_aliases = self.aliases.as_ref().map(|aliases| {
+            aliases
+                .iter()
+                .map(|alias| {
+                    let name = quote::format_ident!("{}", alias.name);
+                    let ty = &alias.ty;
+                    let (_, alias_type_generics, _) = &alias.generics.split_for_impl();
+                    let vis = self.vis;
+
+                    quote! {
+                        #vis type #name = #ty #alias_type_generics;
+                    }
+                })
+                .fold(quote! {}, |mut tokens, alias| {
+                    tokens.extend(alias);
+
+                    tokens
+                })
+        });
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::Component for #ident #ty_generics #where_clause {
                 fn component() -> utoipa::openapi::schema::Component {
                     #variant.into()
                 }
+
+                #aliases
             }
+
+            #type_aliases
         })
     }
 }
@@ -75,6 +136,8 @@ impl<'a> ComponentVariant<'a> {
         data: &'a Data,
         attributes: &'a [Attribute],
         ident: &'a Ident,
+        generics: &'a Generics,
+        alias: Option<&'a AliasComponent>,
     ) -> ComponentVariant<'a> {
         match data {
             Data::Struct(content) => match &content.fields {
@@ -90,6 +153,8 @@ impl<'a> ComponentVariant<'a> {
                     Self::Named(NamedStructComponent {
                         attributes,
                         fields: named,
+                        generics: Some(generics),
+                        alias,
                     })
                 }
                 Fields::Unit => abort!(
@@ -123,6 +188,8 @@ impl ToTokens for ComponentVariant<'_> {
 struct NamedStructComponent<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
+    generics: Option<&'a Generics>,
+    alias: Option<&'a AliasComponent>,
 }
 
 impl ToTokens for NamedStructComponent<'_> {
@@ -147,7 +214,23 @@ impl ToTokens for NamedStructComponent<'_> {
                 let name = &rename_field(&mut container_rules, &mut field_rule, field_name)
                     .unwrap_or_else(|| String::from(field_name));
 
-                let component_part = &ComponentPart::from_type(&field.ty);
+                let component_part = &mut ComponentPart::from_type(&field.ty);
+
+                if let Some((generic_types, alias)) = self.generics.zip(self.alias) {
+                    generic_types
+                        .type_params()
+                        .enumerate()
+                        .for_each(|(index, generic)| {
+                            if let Some(generic_type) =
+                                component_part.find_mut_by_ident(&generic.ident)
+                            {
+                                generic_type.update_ident(
+                                    &alias.generics.type_params().nth(index).unwrap().ident,
+                                );
+                            };
+                        })
+                }
+
                 let deprecated = super::get_deprecated(&field.attrs);
                 let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
                     &field.attrs,
@@ -396,6 +479,8 @@ impl ToTokens for ComplexEnum<'_> {
                     let named_enum = NamedStructComponent {
                         attributes: &variant.attrs,
                         fields: &named_fields.named,
+                        generics: None,
+                        alias: None,
                     };
                     let name = &*variant.ident.to_string();
 
@@ -506,7 +591,7 @@ where
             }
             Some(GenericType::Vec) => {
                 let component_property = ComponentProperty::new(
-                    self.component_part.child.as_ref().unwrap(),
+                    self.component_part.child.as_ref().unwrap().as_ref(),
                     self.comments,
                     self.attrs,
                     self.deprecated,
@@ -536,7 +621,7 @@ where
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
                 let component_property = ComponentProperty::new(
-                    self.component_part.child.as_ref().unwrap(),
+                    self.component_part.child.as_ref().unwrap().as_ref(),
                     self.comments,
                     self.attrs,
                     self.deprecated,
@@ -646,4 +731,35 @@ fn rename<'a>(
         .as_mut()
         .and_then(rename)
         .or_else(|| container_rule.as_mut().and_then(rename))
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct AliasComponent {
+    pub name: String,
+    pub ty: Ident,
+    pub generics: Generics,
+}
+
+impl Parse for AliasComponent {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name = input.parse::<Ident>()?;
+        input.parse::<Token![=]>()?;
+
+        Ok(Self {
+            name: name.to_string(),
+            ty: input.parse::<Ident>()?,
+            generics: input.parse()?,
+        })
+    }
+}
+
+fn parse_aliases(attributes: &[Attribute]) -> Option<Punctuated<AliasComponent, Comma>> {
+    attributes
+        .iter()
+        .find(|attribute| attribute.path.is_ident("aliases"))
+        .map(|aliases| {
+            aliases
+                .parse_args_with(Punctuated::<AliasComponent, Comma>::parse_terminated)
+                .unwrap_or_abort()
+        })
 }

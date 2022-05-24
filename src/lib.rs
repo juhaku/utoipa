@@ -312,6 +312,10 @@ pub trait OpenApi {
 /// ```
 pub trait Component {
     fn component() -> openapi::schema::Component;
+
+    fn aliases() -> Vec<(&'static str, openapi::schema::Component)> {
+        Vec::new()
+    }
 }
 
 /// Trait for implementing OpenAPI PathItem object with path.
