@@ -67,7 +67,6 @@ impl ToTokens for Component<'_> {
         let variant = ComponentVariant::new(self.data, self.attributes, ident, self.generics, None);
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        // if generics and aliases defined? implement aliases
         let aliases = self.aliases.as_ref().map(|aliases| {
             let alias_components = aliases
                 .iter()
