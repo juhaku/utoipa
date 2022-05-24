@@ -886,3 +886,27 @@ fn derive_component_with_generic_types_having_path_expression() {
         "properties.args.type" = r#""array""#, "Args type"
     }
 }
+
+#[test]
+fn derive_component_with_aliases() {
+    struct A;
+
+    #[derive(Debug, OpenApi)]
+    #[openapi(components(MyAlias))]
+    struct ApiDoc;
+
+    #[derive(Component)]
+    #[aliases(MyAlias = Bar<A>)]
+    struct Bar<R> {
+        #[allow(dead_code)]
+        bar: R,
+    }
+
+    let doc = ApiDoc::openapi();
+    let doc_value = &serde_json::to_value(doc).unwrap();
+
+    let value = common::get_json_path(doc_value, "components.schemas");
+    assert_value! {value=>
+        "MyAlias.properties.bar.$ref" = r###""#/components/schemas/A""###, "MyAlias aliased property"
+    }
+}

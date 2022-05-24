@@ -86,7 +86,7 @@ impl ToTokens for Component<'_> {
                 .collect::<Array<TokenStream2>>();
 
             quote! {
-                fn aliases() -> Vec<(&'static str, openapi::schema::Component)> {
+                fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Component)> {
                     #alias_components.to_vec()
                 }
             }
