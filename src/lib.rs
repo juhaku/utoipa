@@ -535,19 +535,7 @@ pub trait Modify {
 pub trait IntoParams {
     /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `utoipa-gen` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.
-    fn into_params() -> Vec<openapi::path::Parameter>;
-}
-
-/// Internal trait used to provide [`ParameterIn`] definition for implementer type.
-///
-/// This is typically used in tandem with [`IntoParams`] trait and only from `utoipa-gen` library.
-/// In manual implementation there is typically never a need to implement this trait since
-/// manual implementations can directly define the [`ParameterIn`] definition they see fit to the purpose.
-#[cfg(feature = "actix_extras")]
-#[doc(hidden)]
-pub trait ParameterIn {
-    /// Provide [`ParameterIn`] declaration for caller. Default implementation returns [`None`].
-    fn parameter_in() -> Option<openapi::path::ParameterIn> {
-        None
-    }
+    fn into_params(
+        parameter_in_provider: impl Fn() -> Option<openapi::path::ParameterIn>,
+    ) -> Vec<openapi::path::Parameter>;
 }

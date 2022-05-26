@@ -30,7 +30,7 @@ impl ToTokens for IntoParams {
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
 
-                fn into_params() -> Vec<utoipa::openapi::path::Parameter> {
+                fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
                     #params.to_vec()
                 }
 
@@ -77,7 +77,7 @@ impl ToTokens for Param<'_> {
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
             .name(#name)
-            .parameter_in(<Self as utoipa::ParameterIn>::parameter_in().unwrap_or_default())
+            .parameter_in(parameter_in_provider().unwrap_or_default())
             .required(#required)
         });
 
