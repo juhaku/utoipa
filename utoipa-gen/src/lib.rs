@@ -778,7 +778,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 
 #[cfg(feature = "actix_extras")]
 #[proc_macro_error]
-#[proc_macro_derive(IntoParams, attributes(param))]
+#[proc_macro_derive(IntoParams, attributes(param, into_params))]
 /// IntoParams derive macro for **actix-web** only.
 ///
 /// This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
@@ -804,6 +804,29 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
 ///
+/// # IntoParams Attributes for `#[into_params(...)]`
+///
+/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
+///
+/// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
+///
+/// Use `names` to define name for single unnamed argument.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(names("id"))]
+/// struct Id(u64);
+/// ```
+///
+/// Use `names` to define names for multiple unnamed arguments.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(names("id", "name"))]
+/// struct IdAndName(u64, String);
+/// ```
 /// # Examples
 ///
 /// Demonstrate [`IntoParams`][into_params] usage with resolving `path` and `query` parameters
@@ -855,6 +878,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
         ident,
         generics,
         data,
+        attrs,
         ..
     } = syn::parse_macro_input!(input);
 
@@ -862,6 +886,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
         generics,
         data,
         ident,
+        attrs,
     };
 
     into_params.to_token_stream().into()

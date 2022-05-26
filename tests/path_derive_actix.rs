@@ -318,7 +318,9 @@ fn path_with_struct_variables_with_into_params() {
     }
 
     impl IntoParams for Person {
-        fn into_params() -> Vec<Parameter> {
+        fn into_params(
+            _: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>,
+        ) -> Vec<Parameter> {
             vec![
                 ParameterBuilder::new()
                     .name("name")
@@ -348,7 +350,9 @@ fn path_with_struct_variables_with_into_params() {
     }
 
     impl IntoParams for Filter {
-        fn into_params() -> Vec<Parameter> {
+        fn into_params(
+            _: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>,
+        ) -> Vec<Parameter> {
             vec![ParameterBuilder::new()
                 .name("age")
                 .schema(Some(Array::new(
@@ -473,6 +477,7 @@ fn derive_path_with_multiple_instances_same_path_params() {
     use serde_json::json;
 
     #[derive(Deserialize, Serialize, Component, IntoParams)]
+    #[into_params(names("id"))]
     struct Id(u64);
 
     #[utoipa::path(
@@ -498,17 +503,58 @@ fn derive_path_with_multiple_instances_same_path_params() {
     }
 
     #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo, delete_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    for operation in ["get", "delete"] {
+        let parameters =
+            common::get_json_path(&doc, &format!("paths./foo/{{id}}.{operation}.parameters"));
+
+        common::assert_json_array_len(parameters, 1);
+        assert_value! {parameters=>
+            "[0].in" = r#""path""#, "Parameter in"
+            "[0].name" = r#""id""#, "Parameter name"
+            "[0].required" = r#"true"#, "Parameter required"
+            "[0].deprecated" = r#"null"#, "Parameter deprecated"
+            "[0].schema.type" = r#""integer""#, "Parameter schema type"
+            "[0].schema.format" = r#""int64""#, "Parameter schema format"
+        }
+    }
+}
+
+#[test]
+fn derive_path_with_multiple_into_params_names() {
+    use actix_web::{get, HttpResponse, Responder};
+
+    #[derive(Deserialize, Serialize, IntoParams)]
+    #[into_params(names("id", "name"))]
+    struct IdAndName(u64, String);
+
+    #[utoipa::path(
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo/{id}/{name}")]
+    #[allow(unused)]
+    async fn get_foo(path: Path<IdAndName>) -> impl Responder {
+        HttpResponse::Ok()
+    }
+
+    #[derive(OpenApi, Default)]
     #[openapi(handlers(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
     let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
 
-    common::assert_json_array_len(parameters, 3);
+    common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""id""#, "Parameter name"
-        "[0].description" = r#""Id of person""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
         "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
@@ -516,19 +562,10 @@ fn derive_path_with_multiple_instances_same_path_params() {
 
         "[1].in" = r#""path""#, "Parameter in"
         "[1].name" = r#""name""#, "Parameter name"
-        "[1].description" = r#""Name of person""#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
         "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
-
-        "[2].in" = r#""query""#, "Parameter in"
-        "[2].name" = r#""age""#, "Parameter name"
-        "[2].description" = r#""Age filter for user""#, "Parameter description"
-        "[2].required" = r#"false"#, "Parameter required"
-        "[2].deprecated" = r#"true"#, "Parameter deprecated"
-        "[2].schema.type" = r#""array""#, "Parameter schema type"
-        "[2].schema.items.type" = r#""string""#, "Parameter items schema type"
     }
 }
 
