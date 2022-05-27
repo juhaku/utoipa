@@ -413,14 +413,11 @@ impl ToTokens for SimpleEnum<'_> {
             .collect::<Array<String>>();
         let len = enum_values.len();
 
-        match container_rules {
+        tokens.extend(match container_rules {
             // Handle the serde enum tag = "<tag>" property
             Some(Serde::Container(container)) if container.tag.is_some() => {
                 let tag = container.tag.expect("Expected tag to be present");
-                tokens.extend(quote! {
-                    Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
-                });
-                enum_values
+                let items: TokenStream2 = enum_values
                     .iter()
                     .map(|enum_value: &String| {
                         quote! {
@@ -436,23 +433,26 @@ impl ToTokens for SimpleEnum<'_> {
                                 .build()
                         }
                     })
-                    .for_each(|object: TokenStream2| {
-                        tokens.extend(quote! {
+                    .map(|object: TokenStream2| {
+                        quote! {
                             .item(#object)
-                        })
-                    });
-                tokens.extend(quote! {
-                    .build()
-                });
+                        }
+                    })
+                    .collect();
+                quote! {
+                    Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                        #items
+                        .build()
+                }
             }
             _ => {
-                tokens.extend(quote! {
+                quote! {
                     utoipa::openapi::PropertyBuilder::new()
                     .component_type(utoipa::openapi::ComponentType::String)
                     .enum_values::<[&str; #len], &str>(Some(#enum_values))
-                });
+                }
             }
-        }
+        });
 
         let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
         if let Some(attributes) = attrs {
