@@ -1,11 +1,12 @@
 #![cfg(feature = "serde_json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
+use assert_json_diff::assert_json_eq;
 #[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
 use chrono::{Date, DateTime, Duration, Utc};
 
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use utoipa::{Component, OpenApi};
 
 use crate::common::get_json_path;
@@ -531,6 +532,237 @@ fn derive_complex_enum_with_named_and_unnamed_fields() {
         "oneOf.[2].type" = r###""object""###, "Complex enum unnamed fields type"
         "oneOf.[2].properties.UnnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Complex enum unnamed fields type"
     }
+}
+
+#[test]
+fn derive_complex_enum_without_serde_tag() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all = "snake_case")]
+        enum Bar {
+            UnitValue,
+            NamedFields {
+                id: &'static str,
+                names: Option<Vec<String>>
+            },
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "enum": [
+                        "unit_value"
+                    ],
+                    "type": "string"
+                },
+                {
+                    "properties": {
+                        "named_fields": {
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "names": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                }
+                            },
+                            "required": [
+                                "id"
+                            ],
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "unnamed_fields": {
+                            "$ref": "#/components/schemas/Foo"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        })
+    );
+}
+
+#[test]
+fn derive_simple_enum_without_serde_tag() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            A,
+            B,
+            C,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "enum": [
+                "A",
+                "B",
+                "C",
+            ],
+            "type": "string",
+        })
+    );
+}
+
+#[test]
+fn derive_simple_enum_with_serde_tag() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag")]
+        enum Bar {
+            A,
+            B,
+            C,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "A",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "B",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "C",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+#[ignore = "todo"]
+fn derive_complex_enum_with_serde_tag() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", rename_all = "snake_case")]
+        enum Bar {
+            UnitValue,
+            NamedFields {
+                id: &'static str,
+                names: Option<Vec<String>>
+            },
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "enum": [
+                              "unit_value"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                        },
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "named_fields"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string"
+                        },
+                        "unnamed_fields": {
+                            "$ref": "#/components/schemas/Foo"
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "unnamed_fields",
+                    ]
+                }
+            ]
+        })
+    );
 }
 
 #[test]

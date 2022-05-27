@@ -413,11 +413,46 @@ impl ToTokens for SimpleEnum<'_> {
             .collect::<Array<String>>();
         let len = enum_values.len();
 
-        tokens.extend(quote! {
-            utoipa::openapi::PropertyBuilder::new()
-            .component_type(utoipa::openapi::ComponentType::String)
-            .enum_values::<[&str; #len], &str>(Some(#enum_values))
-        });
+        match container_rules {
+            // Handle the serde enum tag = "<tag>" property
+            Some(Serde::Container(container)) if container.tag.is_some() => {
+                let tag = container.tag.expect("Expected tag to be present");
+                tokens.extend(quote! {
+                    Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                });
+                enum_values
+                    .iter()
+                    .map(|enum_value: &String| {
+                        quote! {
+                            utoipa::openapi::schema::ObjectBuilder::new()
+                                .property(
+                                    #tag,
+                                    utoipa::openapi::schema::PropertyBuilder::new()
+                                        .component_type(utoipa::openapi::ComponentType::String)
+                                        .enum_values::<[&str; 1], &str>(Some([#enum_value]))
+                                        .build()
+                                )
+                                .required(#tag)
+                                .build()
+                        }
+                    })
+                    .for_each(|object: TokenStream2| {
+                        tokens.extend(quote! {
+                            .item(#object)
+                        })
+                    });
+                tokens.extend(quote! {
+                    .build()
+                });
+            }
+            _ => {
+                tokens.extend(quote! {
+                    utoipa::openapi::PropertyBuilder::new()
+                    .component_type(utoipa::openapi::ComponentType::String)
+                    .enum_values::<[&str; #len], &str>(Some(#enum_values))
+                });
+            }
+        }
 
         let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
         if let Some(attributes) = attrs {
@@ -456,9 +491,9 @@ impl ToTokens for ComplexEnum<'_> {
             );
         }
 
-        let capasity = self.variants.len();
+        let capacity = self.variants.len();
         tokens.extend(quote! {
-            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capasity))
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
         });
 
         let mut container_rule = serde::parse_container(self.attributes);

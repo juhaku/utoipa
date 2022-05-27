@@ -38,6 +38,7 @@ serde_yaml = { version = "0.8", optional = true }
 utoipa-gen = { version = "1.0.2", path = "./utoipa-gen" }
 
 [dev-dependencies]
+assert-json-diff = "2"
 actix-web = { version = "4" }
 paste = "1"
 chrono = { version  = "0.4", features = ["serde"] }
