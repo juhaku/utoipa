@@ -731,6 +731,10 @@ fn is_not_skipped(rule: &Option<Serde>) -> bool {
         .unwrap_or(true)
 }
 
+/// Resolves the appropriate [`RenameRule`] to apply to the specified `struct` `field` name given a
+/// `container_rule` (`struct` or `enum` level) and `field_rule` (`struct` field or `enum` variant
+/// level). Returns `Some` of the result of the `rename_op` if a rename is required by the supplied
+/// rules.
 #[inline]
 fn rename_field<'a>(
     container_rule: &'a mut Option<Serde>,
@@ -740,14 +744,18 @@ fn rename_field<'a>(
     rename(container_rule, field_rule, &|rule| rule.rename(field))
 }
 
+/// Resolves the appropriate [`RenameRule`] to apply to the specified `enum` `variant` name given a
+/// `container_rule` (`struct` or `enum` level) and `field_rule` (`struct` field or `enum` variant
+/// level). Returns `Some` of the result of the `rename_op` if a rename is required by the supplied
+/// rules.
 #[inline]
 fn rename_variant<'a>(
     container_rule: &'a mut Option<Serde>,
     field_rule: &'a mut Option<Serde>,
-    field: &str,
+    variant: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| {
-        rule.rename_variant(field)
+        rule.rename_variant(variant)
     })
 }
 
