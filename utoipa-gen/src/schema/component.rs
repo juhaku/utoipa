@@ -751,6 +751,9 @@ fn rename_variant<'a>(
     })
 }
 
+/// Resolves the appropriate [`RenameRule`] to apply during a `rename_op` given a `container_rule`
+/// (`struct` or `enum` level) and `field_rule` (`struct` field or `enum` variant level). Returns
+/// `Some` of the result of the `rename_op` if a rename is required by the supplied rules.
 #[inline]
 fn rename<'a>(
     container_rule: &'a mut Option<Serde>,
