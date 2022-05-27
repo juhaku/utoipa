@@ -535,69 +535,6 @@ fn derive_complex_enum_with_named_and_unnamed_fields() {
 }
 
 #[test]
-fn derive_complex_enum_without_serde_tag() {
-    #[derive(Serialize)]
-    struct Foo(String);
-
-    let value: Value = api_doc! {
-        #[derive(Serialize)]
-        #[serde(rename_all = "snake_case")]
-        enum Bar {
-            UnitValue,
-            NamedFields {
-                id: &'static str,
-                names: Option<Vec<String>>
-            },
-            UnnamedFields(Foo),
-        }
-    };
-
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "enum": [
-                        "unit_value"
-                    ],
-                    "type": "string"
-                },
-                {
-                    "properties": {
-                        "named_fields": {
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                },
-                                "names": {
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "type": "array"
-                                }
-                            },
-                            "required": [
-                                "id"
-                            ],
-                            "type": "object"
-                        }
-                    },
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "unnamed_fields": {
-                            "$ref": "#/components/schemas/Foo"
-                        }
-                    },
-                    "type": "object"
-                }
-            ]
-        })
-    );
-}
-
-#[test]
 fn derive_simple_enum_without_serde_tag() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
@@ -685,7 +622,69 @@ fn derive_simple_enum_with_serde_tag() {
 }
 
 #[test]
-#[ignore = "todo"]
+fn derive_complex_enum_without_serde_tag() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all = "snake_case")]
+        enum Bar {
+            UnitValue,
+            NamedFields {
+                id: &'static str,
+                names: Option<Vec<String>>
+            },
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [
+                        "unit_value",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "named_fields": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                },
+                                "names": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                    },
+                                },
+                            },
+                            "required": [
+                                "id",
+                            ],
+                        },
+                    },
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "unnamed_fields": {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_with_serde_tag() {
     #[derive(Serialize)]
     struct Foo(String);
@@ -711,11 +710,11 @@ fn derive_complex_enum_with_serde_tag() {
                     "type": "object",
                     "properties": {
                         "tag": {
+                            "type": "string",
                             "enum": [
-                              "unit_value"
+                                "unit_value",
                             ],
-                            "type": "string"
-                        }
+                        },
                     },
                     "required": [
                         "tag",
@@ -725,20 +724,20 @@ fn derive_complex_enum_with_serde_tag() {
                     "type": "object",
                     "properties": {
                         "id": {
-                            "type": "string"
+                            "type": "string",
                         },
                         "names": {
                             "type": "array",
                             "items": {
-                                "type": "string"
+                                "type": "string",
                             },
                         },
                         "tag": {
                             "type": "string",
                             "enum": [
-                                "named_fields"
-                            ]
-                        }
+                                "named_fields",
+                            ],
+                        },
                     },
                     "required": [
                         "id",
@@ -749,18 +748,18 @@ fn derive_complex_enum_with_serde_tag() {
                     "type": "object",
                     "properties": {
                         "tag": {
-                            "type": "string"
+                            "type": "string",
                         },
                         "unnamed_fields": {
-                            "$ref": "#/components/schemas/Foo"
-                        }
+                            "$ref": "#/components/schemas/Foo",
+                        },
                     },
                     "required": [
                         "id",
                         "unnamed_fields",
-                    ]
-                }
-            ]
+                    ],
+                },
+            ],
         })
     );
 }
