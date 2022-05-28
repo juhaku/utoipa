@@ -522,7 +522,7 @@ impl ToTokens for ComplexEnum<'_> {
             })
             .map(|(variant, mut variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
-                let renamed_variant =
+                let variant_name =
                     rename_variant(&mut container_rule, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
 
@@ -537,7 +537,7 @@ impl ToTokens for ComplexEnum<'_> {
 
                         quote! {
                             utoipa::openapi::schema::ObjectBuilder::new()
-                                .property(#renamed_variant, #named_enum)
+                                .property(#variant_name, #named_enum)
                         }
                     }
                     Fields::Unnamed(unnamed_fields) => {
@@ -548,14 +548,14 @@ impl ToTokens for ComplexEnum<'_> {
 
                         quote! {
                             utoipa::openapi::schema::ObjectBuilder::new()
-                                .property(#renamed_variant, #unnamed_enum)
+                                .property(#variant_name, #unnamed_enum)
                         }
                     }
                     Fields::Unit => {
                         quote! {
                             utoipa::openapi::PropertyBuilder::new()
                                 .component_type(utoipa::openapi::ComponentType::String)
-                                .enum_values::<[&str; 1], &str>(Some([#renamed_variant]))
+                                .enum_values::<[&str; 1], &str>(Some([#variant_name]))
                         }
                     }
                 }
