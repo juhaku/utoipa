@@ -581,7 +581,6 @@ impl ToTokens for ComplexEnum<'_> {
         let capacity = self.variants.len();
         tokens.extend(quote! {});
 
-        // TODO: refactor this to return Option<SerdeContainer>
         let mut container_rules = serde::parse_container(self.attributes);
         let tag: Option<String> =
             if let Some(Serde::Container(serde_container)) = &mut container_rules {
