@@ -427,10 +427,8 @@ impl ToTokens for SimpleEnum<'_> {
                                     utoipa::openapi::schema::PropertyBuilder::new()
                                         .component_type(utoipa::openapi::ComponentType::String)
                                         .enum_values::<[&str; 1], &str>(Some([#enum_value]))
-                                        .build()
                                 )
                                 .required(#tag)
-                                .build()
                         }
                     })
                     .map(|object: TokenStream2| {
@@ -442,7 +440,6 @@ impl ToTokens for SimpleEnum<'_> {
                 quote! {
                     Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
                         #items
-                        .build()
                 }
             }
             _ => {
@@ -501,7 +498,7 @@ impl ToTokens for ComplexEnum<'_> {
         // serde, externally tagged format supported by now
         self.variants
             .iter()
-            .filter_map(|variant| {
+            .filter_map(|variant: &Variant| {
                 let variant_rules = serde::parse_value(&variant.attrs);
                 if is_not_skipped(&variant_rules) {
                     Some((variant, variant_rules))
@@ -509,47 +506,44 @@ impl ToTokens for ComplexEnum<'_> {
                     None
                 }
             })
-            .map(|(variant, mut variant_rule)| match &variant.fields {
-                Fields::Named(named_fields) => {
-                    let named_enum = NamedStructComponent {
-                        attributes: &variant.attrs,
-                        fields: &named_fields.named,
-                        generics: None,
-                        alias: None,
-                    };
-                    let name = &*variant.ident.to_string();
+            .map(|(variant, mut variant_rule)| {
+                let variant_name = &*variant.ident.to_string();
+                let renamed_variant =
+                    rename_variant(&mut container_rule, &mut variant_rule, variant_name)
+                        .unwrap_or_else(|| String::from(variant_name));
 
-                    let renamed = rename_variant(&mut container_rule, &mut variant_rule, name)
-                        .unwrap_or_else(|| String::from(name));
+                match &variant.fields {
+                    Fields::Named(named_fields) => {
+                        let named_enum = NamedStructComponent {
+                            attributes: &variant.attrs,
+                            fields: &named_fields.named,
+                            generics: None,
+                            alias: None,
+                        };
 
-                    quote! {
-                        utoipa::openapi::schema::ObjectBuilder::new()
-                            .property(#renamed, #named_enum)
+                        quote! {
+                            utoipa::openapi::schema::ObjectBuilder::new()
+                                .property(#renamed_variant, #named_enum)
+                        }
                     }
-                }
-                Fields::Unnamed(unnamed_fields) => {
-                    let unnamed_enum = UnnamedStructComponent {
-                        attributes: &variant.attrs,
-                        fields: &unnamed_fields.unnamed,
-                    };
-                    let name = &*variant.ident.to_string();
-                    let renamed = rename_variant(&mut container_rule, &mut variant_rule, name)
-                        .unwrap_or_else(|| String::from(name));
+                    Fields::Unnamed(unnamed_fields) => {
+                        let unnamed_enum = UnnamedStructComponent {
+                            attributes: &variant.attrs,
+                            fields: &unnamed_fields.unnamed,
+                        };
 
-                    quote! {
-                        utoipa::openapi::schema::ObjectBuilder::new()
-                            .property(#renamed, #unnamed_enum)
+                        quote! {
+                            utoipa::openapi::schema::ObjectBuilder::new()
+                                .property(#renamed_variant, #unnamed_enum)
+                        }
                     }
-                }
-                Fields::Unit => {
-                    let mut enum_values = Punctuated::<Variant, Comma>::new();
-                    enum_values.push(variant.clone());
-
-                    SimpleEnum {
-                        attributes: self.attributes,
-                        variants: &enum_values,
+                    Fields::Unit => {
+                        quote! {
+                            utoipa::openapi::PropertyBuilder::new()
+                                .component_type(utoipa::openapi::ComponentType::String)
+                                .enum_values::<[&str; 1], &str>(Some([#renamed_variant]))
+                        }
                     }
-                    .to_token_stream()
                 }
             })
             .for_each(|inline_variant| {
