@@ -392,6 +392,8 @@ struct SimpleEnum<'a> {
 }
 
 impl SimpleEnum<'_> {
+    /// Produce tokens that represent each variant for the situation where the serde enum tag =
+    /// "<tag>" attribute applies.
     fn tagged_variants_tokens(
         enum_values: Array<String>,
         serde_container: serde::SerdeContainer,
@@ -424,6 +426,7 @@ impl SimpleEnum<'_> {
         }
     }
 
+    /// Produce tokens that represent each variant.
     fn variants_tokens(enum_values: Array<String>) -> TokenStream2 {
         let len = enum_values.len();
         quote! {
@@ -456,7 +459,6 @@ impl ToTokens for SimpleEnum<'_> {
             .collect::<Array<String>>();
 
         tokens.extend(match container_rules {
-            // Handle the serde enum tag = "<tag>" property
             Some(Serde::Container(serde_container)) if serde_container.tag.is_some() => {
                 Self::tagged_variants_tokens(enum_values, serde_container)
             }
