@@ -391,6 +391,49 @@ struct SimpleEnum<'a> {
     attributes: &'a [Attribute],
 }
 
+impl SimpleEnum<'_> {
+    fn tagged_variants_tokens(
+        enum_values: Array<String>,
+        serde_container: serde::SerdeContainer,
+    ) -> TokenStream2 {
+        let len = enum_values.len();
+        let tag = serde_container.tag.expect("Expected tag to be present");
+        let items: TokenStream2 = enum_values
+            .iter()
+            .map(|enum_value: &String| {
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(
+                            #tag,
+                            utoipa::openapi::schema::PropertyBuilder::new()
+                                .component_type(utoipa::openapi::ComponentType::String)
+                                .enum_values::<[&str; 1], &str>(Some([#enum_value]))
+                        )
+                        .required(#tag)
+                }
+            })
+            .map(|object: TokenStream2| {
+                quote! {
+                    .item(#object)
+                }
+            })
+            .collect();
+        quote! {
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                #items
+        }
+    }
+
+    fn variants_tokens(enum_values: Array<String>) -> TokenStream2 {
+        let len = enum_values.len();
+        quote! {
+            utoipa::openapi::PropertyBuilder::new()
+            .component_type(utoipa::openapi::ComponentType::String)
+            .enum_values::<[&str; #len], &str>(Some(#enum_values))
+        }
+    }
+}
+
 impl ToTokens for SimpleEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let mut container_rules = serde::parse_container(self.attributes);
@@ -411,44 +454,13 @@ impl ToTokens for SimpleEnum<'_> {
                 }
             })
             .collect::<Array<String>>();
-        let len = enum_values.len();
 
         tokens.extend(match container_rules {
             // Handle the serde enum tag = "<tag>" property
-            Some(Serde::Container(container)) if container.tag.is_some() => {
-                let tag = container.tag.expect("Expected tag to be present");
-                let items: TokenStream2 = enum_values
-                    .iter()
-                    .map(|enum_value: &String| {
-                        quote! {
-                            utoipa::openapi::schema::ObjectBuilder::new()
-                                .property(
-                                    #tag,
-                                    utoipa::openapi::schema::PropertyBuilder::new()
-                                        .component_type(utoipa::openapi::ComponentType::String)
-                                        .enum_values::<[&str; 1], &str>(Some([#enum_value]))
-                                )
-                                .required(#tag)
-                        }
-                    })
-                    .map(|object: TokenStream2| {
-                        quote! {
-                            .item(#object)
-                        }
-                    })
-                    .collect();
-                quote! {
-                    Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
-                        #items
-                }
+            Some(Serde::Container(serde_container)) if serde_container.tag.is_some() => {
+                Self::tagged_variants_tokens(enum_values, serde_container)
             }
-            _ => {
-                quote! {
-                    utoipa::openapi::PropertyBuilder::new()
-                    .component_type(utoipa::openapi::ComponentType::String)
-                    .enum_values::<[&str; #len], &str>(Some(#enum_values))
-                }
-            }
+            _ => Self::variants_tokens(enum_values),
         });
 
         let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
