@@ -1,5 +1,3 @@
-use std::mem;
-
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
@@ -20,7 +18,7 @@ use self::{
 };
 
 use super::{
-    serde::{self, RenameRule, Serde},
+    serde::{self, RenameRule, SerdeContainer, SerdeValue},
     ComponentPart, GenericType, ValueType,
 };
 
@@ -455,7 +453,7 @@ impl ToTokens for SimpleEnum<'_> {
             .collect::<Array<String>>();
 
         tokens.extend(match container_rules {
-            Some(Serde::Container(serde_container)) if serde_container.tag.is_some() => {
+            Some(serde_container) if serde_container.tag.is_some() => {
                 let tag = serde_container.tag.expect("Expected tag to be present");
                 Self::tagged_variants_tokens(tag, enum_values)
             }
@@ -582,12 +580,11 @@ impl ToTokens for ComplexEnum<'_> {
         tokens.extend(quote! {});
 
         let mut container_rules = serde::parse_container(self.attributes);
-        let tag: Option<String> =
-            if let Some(Serde::Container(serde_container)) = &mut container_rules {
-                serde_container.tag.take()
-            } else {
-                None
-            };
+        let tag: Option<String> = if let Some(serde_container) = &mut container_rules {
+            serde_container.tag.take()
+        } else {
+            None
+        };
 
         // serde, externally tagged format supported by now
         let items: TokenStream2 = self
@@ -794,9 +791,9 @@ where
 }
 
 #[inline]
-fn is_not_skipped(rule: &Option<Serde>) -> bool {
+fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
     rule.as_ref()
-        .map(|rule| matches!(rule, Serde::Value(value) if value.skip == None))
+        .map(|value| value.skip.is_none())
         .unwrap_or(true)
 }
 
@@ -806,8 +803,8 @@ fn is_not_skipped(rule: &Option<Serde>) -> bool {
 /// rules.
 #[inline]
 fn rename_field<'a>(
-    container_rule: &'a mut Option<Serde>,
-    field_rule: &'a mut Option<Serde>,
+    container_rule: &'a mut Option<SerdeContainer>,
+    field_rule: &'a mut Option<SerdeValue>,
     field: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| rule.rename(field))
@@ -819,8 +816,8 @@ fn rename_field<'a>(
 /// rules.
 #[inline]
 fn rename_variant<'a>(
-    container_rule: &'a mut Option<Serde>,
-    field_rule: &'a mut Option<Serde>,
+    container_rule: &'a mut Option<SerdeContainer>,
+    field_rule: &'a mut Option<SerdeValue>,
     variant: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| {
@@ -833,19 +830,18 @@ fn rename_variant<'a>(
 /// `Some` of the result of the `rename_op` if a rename is required by the supplied rules.
 #[inline]
 fn rename<'a>(
-    container_rule: &'a mut Option<Serde>,
-    field_rule: &'a mut Option<Serde>,
+    container_rule: &'a mut Option<SerdeContainer>,
+    field_rule: &'a mut Option<SerdeValue>,
     rename_op: &impl Fn(&RenameRule) -> String,
 ) -> Option<String> {
-    let rename = |rule: &mut Serde| match rule {
-        Serde::Container(container) => container.rename_all.as_ref().map(rename_op),
-        Serde::Value(ref mut value) => mem::take(&mut value.rename),
-    };
-
     field_rule
         .as_mut()
-        .and_then(rename)
-        .or_else(|| container_rule.as_mut().and_then(rename))
+        .and_then(|value| value.rename.take())
+        .or_else(|| {
+            container_rule
+                .as_mut()
+                .and_then(|container| container.rename_all.as_ref().map(rename_op))
+        })
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
