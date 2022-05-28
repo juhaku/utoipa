@@ -394,12 +394,8 @@ struct SimpleEnum<'a> {
 impl SimpleEnum<'_> {
     /// Produce tokens that represent each variant for the situation where the serde enum tag =
     /// "<tag>" attribute applies.
-    fn tagged_variants_tokens(
-        enum_values: Array<String>,
-        serde_container: serde::SerdeContainer,
-    ) -> TokenStream2 {
+    fn tagged_variants_tokens(tag: String, enum_values: Array<String>) -> TokenStream2 {
         let len = enum_values.len();
-        let tag = serde_container.tag.expect("Expected tag to be present");
         let items: TokenStream2 = enum_values
             .iter()
             .map(|enum_value: &String| {
@@ -460,7 +456,8 @@ impl ToTokens for SimpleEnum<'_> {
 
         tokens.extend(match container_rules {
             Some(Serde::Container(serde_container)) if serde_container.tag.is_some() => {
-                Self::tagged_variants_tokens(enum_values, serde_container)
+                let tag = serde_container.tag.expect("Expected tag to be present");
+                Self::tagged_variants_tokens(tag, enum_values)
             }
             _ => Self::variants_tokens(enum_values),
         });
@@ -487,6 +484,85 @@ struct ComplexEnum<'a> {
     attributes: &'a [Attribute],
 }
 
+impl ComplexEnum<'_> {
+    fn unit_variant_tokens(variant_name: String) -> TokenStream2 {
+        quote! {
+            utoipa::openapi::PropertyBuilder::new()
+                .component_type(utoipa::openapi::ComponentType::String)
+                .enum_values::<[&str; 1], &str>(Some([#variant_name]))
+        }
+    }
+    /// Produce tokens that represent a variant of a [`ComplexEnum`].
+    fn variant_tokens(variant_name: String, variant: &Variant) -> TokenStream2 {
+        match &variant.fields {
+            Fields::Named(named_fields) => {
+                let named_enum = NamedStructComponent {
+                    attributes: &variant.attrs,
+                    fields: &named_fields.named,
+                    generics: None,
+                    alias: None,
+                };
+
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(#variant_name, #named_enum)
+                }
+            }
+            Fields::Unnamed(unnamed_fields) => {
+                let unnamed_enum = UnnamedStructComponent {
+                    attributes: &variant.attrs,
+                    fields: &unnamed_fields.unnamed,
+                };
+
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(#variant_name, #unnamed_enum)
+                }
+            }
+            Fields::Unit => Self::unit_variant_tokens(variant_name),
+        }
+    }
+
+    /// Produce tokens that represent a variant of a [`ComplexEnum`] where serde enum attribute
+    /// `tag = ` applies.
+    fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream2 {
+        match &variant.fields {
+            Fields::Named(named_fields) => {
+                let named_enum = NamedStructComponent {
+                    attributes: &variant.attrs,
+                    fields: &named_fields.named,
+                    generics: None,
+                    alias: None,
+                };
+
+                let variant_name_tokens = Self::unit_variant_tokens(variant_name);
+
+                quote! {
+                    #named_enum
+                        .property(#tag, #variant_name_tokens)
+                        .required(#tag)
+                }
+            }
+            Fields::Unnamed(_) => {
+                abort!(
+                    variant,
+                    "Unnamed (tuple) enum variants are unsupported for internally tagged enums using the `tag = ` serde attribute";
+
+                    help = "Try using a different serde enum representation";
+                );
+            }
+            Fields::Unit => {
+                let variant_tokens = Self::unit_variant_tokens(variant_name);
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(#tag, #variant_tokens)
+                        .required(#tag)
+                }
+            }
+        }
+    }
+}
+
 impl ToTokens for ComplexEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if self
@@ -503,14 +579,20 @@ impl ToTokens for ComplexEnum<'_> {
         }
 
         let capacity = self.variants.len();
-        tokens.extend(quote! {
-            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
-        });
+        tokens.extend(quote! {});
 
-        let mut container_rule = serde::parse_container(self.attributes);
+        // TODO: refactor this to return Option<SerdeContainer>
+        let mut container_rules = serde::parse_container(self.attributes);
+        let tag: Option<String> =
+            if let Some(Serde::Container(serde_container)) = &mut container_rules {
+                serde_container.tag.take()
+            } else {
+                None
+            };
 
         // serde, externally tagged format supported by now
-        self.variants
+        let items: TokenStream2 = self
+            .variants
             .iter()
             .filter_map(|variant: &Variant| {
                 let variant_serde_rules = serde::parse_value(&variant.attrs);
@@ -523,48 +605,28 @@ impl ToTokens for ComplexEnum<'_> {
             .map(|(variant, mut variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
                 let variant_name =
-                    rename_variant(&mut container_rule, &mut variant_serde_rules, variant_name)
+                    rename_variant(&mut container_rules, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
 
-                match &variant.fields {
-                    Fields::Named(named_fields) => {
-                        let named_enum = NamedStructComponent {
-                            attributes: &variant.attrs,
-                            fields: &named_fields.named,
-                            generics: None,
-                            alias: None,
-                        };
-
-                        quote! {
-                            utoipa::openapi::schema::ObjectBuilder::new()
-                                .property(#variant_name, #named_enum)
-                        }
-                    }
-                    Fields::Unnamed(unnamed_fields) => {
-                        let unnamed_enum = UnnamedStructComponent {
-                            attributes: &variant.attrs,
-                            fields: &unnamed_fields.unnamed,
-                        };
-
-                        quote! {
-                            utoipa::openapi::schema::ObjectBuilder::new()
-                                .property(#variant_name, #unnamed_enum)
-                        }
-                    }
-                    Fields::Unit => {
-                        quote! {
-                            utoipa::openapi::PropertyBuilder::new()
-                                .component_type(utoipa::openapi::ComponentType::String)
-                                .enum_values::<[&str; 1], &str>(Some([#variant_name]))
-                        }
-                    }
+                if let Some(tag) = &tag {
+                    Self::tagged_variant_tokens(&tag, variant_name, variant)
+                } else {
+                    Self::variant_tokens(variant_name, variant)
                 }
             })
-            .for_each(|inline_variant| {
-                tokens.extend(quote! {
+            .map(|inline_variant| {
+                quote! {
                     .item(#inline_variant)
-                })
-            });
+                }
+            })
+            .collect();
+
+        tokens.extend(
+            quote! {
+                Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
+                    #items
+            }
+        );
 
         if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
             tokens.extend(quote! {

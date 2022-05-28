@@ -628,6 +628,68 @@ fn derive_complex_enum() {
 
     let value: Value = api_doc! {
         #[derive(Serialize)]
+        enum Bar {
+            UnitValue,
+            NamedFields {
+                id: &'static str,
+                names: Option<Vec<String>>
+            },
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [
+                        "UnitValue",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "NamedFields": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                },
+                                "names": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                    },
+                                },
+                            },
+                            "required": [
+                                "id",
+                            ],
+                        },
+                    },
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "UnnamedFields": {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_serde_rename_all() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
         #[serde(rename_all = "snake_case")]
         enum Bar {
             UnitValue,
@@ -751,7 +813,6 @@ fn derive_complex_enum_serde_rename_variant() {
     );
 }
 
-#[ignore = "todo"]
 #[test]
 fn derive_complex_enum_serde_tag() {
     #[derive(Serialize)]
@@ -766,7 +827,6 @@ fn derive_complex_enum_serde_tag() {
                 id: &'static str,
                 names: Option<Vec<String>>
             },
-            UnnamedFields(Foo),
         }
     };
 
@@ -810,24 +870,6 @@ fn derive_complex_enum_serde_tag() {
                     "required": [
                         "id",
                         "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "UnnamedFields",
-                            ],
-                        },
-                        "UnnamedFields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": [
-                        "tag",
-                        "UnnamedFields",
                     ],
                 },
             ],
