@@ -513,17 +513,17 @@ impl ToTokens for ComplexEnum<'_> {
         self.variants
             .iter()
             .filter_map(|variant: &Variant| {
-                let variant_rules = serde::parse_value(&variant.attrs);
-                if is_not_skipped(&variant_rules) {
-                    Some((variant, variant_rules))
+                let variant_serde_rules = serde::parse_value(&variant.attrs);
+                if is_not_skipped(&variant_serde_rules) {
+                    Some((variant, variant_serde_rules))
                 } else {
                     None
                 }
             })
-            .map(|(variant, mut variant_rule)| {
+            .map(|(variant, mut variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
                 let renamed_variant =
-                    rename_variant(&mut container_rule, &mut variant_rule, variant_name)
+                    rename_variant(&mut container_rule, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
 
                 match &variant.fields {
