@@ -508,33 +508,6 @@ fn derive_with_box_and_refcell() {
 }
 
 #[test]
-fn derive_complex_enum_with_named_and_unnamed_fields() {
-    struct Foo;
-    let complex_enum = api_doc! {
-        enum Bar {
-            UnitValue,
-            NamedFields {
-                id: &'static str,
-                names: Option<Vec<String>>
-            },
-            UnnamedFields(Foo),
-        }
-    };
-
-    common::assert_json_array_len(complex_enum.get("oneOf").unwrap(), 3);
-    assert_value! {complex_enum=>
-        "oneOf.[0].type" = r###""string""###, "Complex enum unit value type"
-        "oneOf.[0].enum" = r###"["UnitValue"]"###, "Complex enum unit value enum"
-        "oneOf.[1].type" = r###""object""###, "Complex enum named fields type"
-        "oneOf.[1].properties.NamedFields.type" = r###""object""###, "Complex enum named fields object type"
-        "oneOf.[1].properties.NamedFields.properties.id.type" = r###""string""###, "Complex enum named fields id type"
-        "oneOf.[1].properties.NamedFields.properties.names.type" = r###""array""###, "Complex enum named fields names type"
-        "oneOf.[2].type" = r###""object""###, "Complex enum unnamed fields type"
-        "oneOf.[2].properties.UnnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Complex enum unnamed fields type"
-    }
-}
-
-#[test]
 fn derive_simple_enum() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
@@ -621,6 +594,7 @@ fn derive_simple_enum_serde_tag() {
     );
 }
 
+/// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_enum() {
     #[derive(Serialize)]
@@ -813,6 +787,8 @@ fn derive_complex_enum_serde_rename_variant() {
     );
 }
 
+/// Derive a complex enum with the serde `tag` container attribute applied for internal tagging.
+/// Note that tuple fields are not supported.
 #[test]
 fn derive_complex_enum_serde_tag() {
     #[derive(Serialize)]
