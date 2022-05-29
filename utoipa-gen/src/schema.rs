@@ -214,16 +214,14 @@ pub mod serde {
 
     use std::str::FromStr;
 
-    use proc_macro2::{Span, TokenTree, Ident};
+    use proc_macro2::{Ident, Span, TokenTree};
     use proc_macro_error::ResultExt;
     use syn::{buffer::Cursor, Attribute, Error};
 
     fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
         match next.token_tree() {
             Some((tt, next)) => match tt {
-                TokenTree::Punct(punct) if punct.as_char() == '=' => {
-                    parse_next_lit_str(next)
-                }
+                TokenTree::Punct(punct) if punct.as_char() == '=' => parse_next_lit_str(next),
                 TokenTree::Literal(literal) => {
                     Some((literal.to_string().replace('\"', ""), literal.span()))
                 }
@@ -274,7 +272,11 @@ pub mod serde {
     }
 
     impl SerdeContainer {
-        fn parse_ident(ident: Ident, next: Cursor, container: &mut SerdeContainer) -> syn::Result<()> {
+        fn parse_ident(
+            ident: Ident,
+            next: Cursor,
+            container: &mut SerdeContainer,
+        ) -> syn::Result<()> {
             match ident.to_string().as_str() {
                 "rename_all" => {
                     if let Some((literal, span)) = parse_next_lit_str(next) {
@@ -290,7 +292,7 @@ pub mod serde {
                         container.tag = Some(literal)
                     }
                 }
-                _ => {},
+                _ => {}
             }
             Ok(())
         }
