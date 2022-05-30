@@ -1,5 +1,8 @@
 #![cfg(feature = "serde_json")]
+use assert_json_diff::assert_json_eq;
 use paste::paste;
+use serde_json::{json, Value};
+use utoipa::IntoParams;
 
 mod common;
 
@@ -229,6 +232,93 @@ fn derive_path_with_security_requirements() {
         "security.[1].api_oauth.[1]" = r###""edit:items""###, "api_oauth second scope"
         "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
     }
+}
+
+#[test]
+fn derive_path_params_intoparams() {
+    #[derive(serde::Deserialize, IntoParams)]
+    struct MyParams {
+        /// Foo database id.
+        #[param(style = Form, example = 1)]
+        #[allow(unused)]
+        id: u64,
+        /// Datetime since foo is updated.
+        #[param(style = Form, example = "2020-04-12T10:23:00Z")]
+        #[allow(unused)]
+        since: Option<String>,
+    }
+
+    impl utoipa::ParameterIn for MyParams {
+        fn parameter_in() -> Option<utoipa::openapi::path::ParameterIn> {
+            Some(utoipa::openapi::path::ParameterIn::Query)
+        }
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/list",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(MyParams),
+    )]
+    #[allow(unused)]
+    fn list(params: MyParams) -> String {
+        "".to_string()
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(list))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/list"
+    };
+
+    assert_json_eq!(
+        operation,
+        json!({
+            "deprecated": false,
+            "description": "",
+            "operationId": "list",
+            "parameters": [
+                {
+                    "description": "Foo database id.",
+                    "example": 1,
+                    "in": "query",
+                    "name": "id",
+                    "required": true,
+                    "schema": {
+                        "format": "int64",
+                        "type": "integer"
+                    },
+                    "style": "form"
+                },
+                {
+                    "description": "Datetime since foo is updated.",
+                    "example": "2020-04-12T10:23:00Z",
+                    "in": "query",
+                    "name": "since",
+                    "required": false,
+                    "schema": {
+                        "type": "string"
+                    },
+                    "style": "form"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "success response"
+                }
+            },
+            "tags": [
+                "crate"
+            ]
+        })
+    )
 }
 
 #[cfg(feature = "uuid")]
