@@ -472,7 +472,7 @@ pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
-/// Trait used to convert implementing type to OpenAPI parameters for **actix-web** framework.
+/// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
 /// For more details of `#[derive(IntoParams)]` refer to [derive documentation][derive].
@@ -531,7 +531,6 @@ pub trait Modify {
 /// }
 /// ```
 /// [derive]: derive.IntoParams.html
-#[cfg(feature = "actix_extras")]
 pub trait IntoParams {
     /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `utoipa-gen` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.

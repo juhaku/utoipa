@@ -155,7 +155,7 @@ impl Parse for Parameter<'_> {
 
 impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut handle_single_parameter = |parameter: &ParameterValue| {
+        fn handle_single_parameter(tokens: &mut TokenStream, parameter: &ParameterValue) {
             let name = &*parameter.name;
             tokens.extend(quote! {
                 utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name))
@@ -191,10 +191,10 @@ impl ToTokens for Parameter<'_> {
 
                 tokens.extend(quote! { .schema(Some(#property)).required(#required) });
             }
-        };
+        }
 
         match self {
-            Parameter::Value(parameter) => handle_single_parameter(parameter),
+            Parameter::Value(parameter) => handle_single_parameter(tokens, parameter),
             #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
             Parameter::TokenStream(stream) => {
                 tokens.extend(quote! { #stream });

@@ -94,7 +94,7 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::Component;
+    use utoipa::{openapi::path::ParameterIn, Component, IntoParams};
     use warp::{hyper::StatusCode, Filter, Reply};
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
@@ -110,6 +110,19 @@ mod todo {
         value: String,
     }
 
+    #[derive(Debug, Deserialize, IntoParams)]
+    pub struct ListQueryParams {
+        /// Filters the returned `Todo` items according to whether they contain the specified string.
+        #[param(style = Form, example = json!("task"))]
+        contains: Option<String>,
+    }
+
+    impl utoipa::ParameterIn for ListQueryParams {
+        fn parameter_in() -> Option<utoipa::openapi::path::ParameterIn> {
+            Some(ParameterIn::Query)
+        }
+    }
+
     pub fn handlers() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         let store = Store::default();
 
@@ -117,6 +130,7 @@ mod todo {
             .and(warp::get())
             .and(warp::path::end())
             .and(with_store(store.clone()))
+            .and(warp::query::<ListQueryParams>())
             .and_then(list_todos);
 
         let create = warp::path("todo")
@@ -146,14 +160,28 @@ mod todo {
     #[utoipa::path(
         get,
         path = "/todo",
+        params(ListQueryParams),
         responses(
             (status = 200, description = "List todos successfully", body = [Todo])
         )
     )]
-    pub async fn list_todos(store: Store) -> Result<impl Reply, Infallible> {
+    pub async fn list_todos(
+        store: Store,
+        query: ListQueryParams,
+    ) -> Result<impl Reply, Infallible> {
         let todos = store.lock().unwrap();
 
-        Ok(warp::reply::json(&todos.clone()))
+        let todos: Vec<Todo> = if let Some(contains) = query.contains {
+            todos
+                .iter()
+                .filter(|todo| todo.value.contains(&contains))
+                .cloned()
+                .collect()
+        } else {
+            todos.clone()
+        };
+
+        Ok(warp::reply::json(&todos))
     }
 
     /// Create new todo item.

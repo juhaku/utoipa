@@ -4,6 +4,7 @@ use std::{io::Error, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
+use syn::parse::ParseBuffer;
 use syn::{parenthesized, parse::Parse, Token};
 
 use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
@@ -64,9 +65,29 @@ pub struct PathAttr<'p> {
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    params: Option<Vec<Parameter<'p>>>,
+    params: Option<Params<'p>>,
     security: Option<Array<SecurityRequirementAttr>>,
     context_path: Option<String>,
+}
+
+/// The [`PathAttr::params`] field definition.
+enum Params<'p> {
+    /// A list of tuples of attributes that defines a parameter.
+    List(Vec<Parameter<'p>>),
+    /// Identifier for a struct that implements `IntoParams` trait.
+    Struct(Ident),
+}
+
+impl Parse for Params<'_> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let params: ParseBuffer;
+        parenthesized!(params in input);
+        if params.peek(syn::Ident) {
+            params.parse::<Ident>().map(Self::Struct)
+        } else {
+            parse_utils::parse_groups(&params).map(Self::List)
+        }
+    }
 }
 
 impl<'p> PathAttr<'p> {
@@ -185,9 +206,7 @@ impl Parse for PathAttr<'_> {
                         parse_utils::parse_groups::<Response, Vec<_>>(&responses)?;
                 }
                 "params" => {
-                    let params;
-                    parenthesized!(params in input);
-                    path_attr.params = Some(parse_utils::parse_groups(&params)?);
+                    path_attr.params = Some(input.parse::<Params>()?);
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -456,7 +475,7 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Vec<Parameter<'a>>>,
+    parameters: Option<&'a Params<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
@@ -512,12 +531,20 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        if let Some(parameters) = self.parameters {
-            parameters.iter().for_each(|parameter| match parameter {
-                Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
-                #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                Parameter::TokenStream(_) => tokens.extend(quote! { .parameters(Some(#parameter))}),
-            });
+        match self.parameters {
+            Some(Params::List(parameters)) => {
+                parameters.iter().for_each(|parameter| match parameter {
+                    Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
+                    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+                    Parameter::TokenStream(_) => {
+                        tokens.extend(quote! { .parameters(Some(#parameter))})
+                    }
+                });
+            }
+            Some(Params::Struct(parameters)) => tokens.extend(quote! {
+                .parameters(Some(<#parameters as utoipa::IntoParams>::into_params()))
+            }),
+            None => {}
         }
     }
 }

@@ -17,7 +17,6 @@ use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
-#[cfg(feature = "actix_extras")]
 use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
@@ -436,6 +435,14 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Params Attributes
 ///
+/// The `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParams
+/// Type](#intoparams-type).
+///
+/// ## Tuples
+///
+/// In the tuples format, paramters are specified using the following attributes inside a list of
+/// tuples seperated by commas:
+///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
 /// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice or option.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
@@ -450,12 +457,23 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
 ///   will override any example in underlying parameter type.
 ///
-/// **Params supports following representation formats:**
+/// **For example:**
 ///
 /// ```text
 /// ("id" = String, path, deprecated, description = "Pet database id"),
 /// ("id", path, deprecated, description = "Pet database id"),
 /// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
+/// ```
+///
+/// ## IntoParams Type
+///
+/// In the IntoParams paramters format, the paramters are specified using an identifier for a type
+/// that implements [`IntoParams`](./trait.IntoParams.html).
+///
+/// **For example:**
+///
+/// ```text
+/// MyParamters
 /// ```
 ///
 /// # Security Requirement Attributes
@@ -799,7 +817,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     openapi.to_token_stream().into()
 }
 
-#[cfg(feature = "actix_extras")]
 #[proc_macro_error]
 #[proc_macro_derive(IntoParams, attributes(param, into_params))]
 /// IntoParams derive macro for **actix-web** only.
@@ -1263,11 +1280,11 @@ mod parse_utils {
         next()
     }
 
-    pub fn parse_next_literal_str(input: ParseStream) -> Result<String, Error> {
+    pub fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
-    pub fn parse_groups<T, R>(input: ParseStream) -> Result<R, Error>
+    pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
     where
         T: Sized,
         T: Parse,
@@ -1277,13 +1294,13 @@ mod parse_utils {
             groups
                 .into_iter()
                 .map(|group| syn::parse2::<T>(group.stream()))
-                .collect::<Result<R, Error>>()
+                .collect::<syn::Result<R>>()
         })
     }
 
     pub fn parse_punctuated_within_parenthesis<T>(
         input: ParseStream,
-    ) -> Result<Punctuated<T, Comma>, Error>
+    ) -> syn::Result<Punctuated<T, Comma>>
     where
         T: Parse,
     {
@@ -1292,7 +1309,7 @@ mod parse_utils {
         Punctuated::<T, Comma>::parse_terminated(&content)
     }
 
-    pub fn parse_bool_or_true(input: ParseStream) -> Result<bool, syn::Error> {
+    pub fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
         if input.peek(Token![=]) && input.peek2(LitBool) {
             input.parse::<Token![=]>()?;
 
@@ -1302,7 +1319,7 @@ mod parse_utils {
         }
     }
 
-    pub fn parse_json_token_stream(input: ParseStream) -> Result<TokenStream, Error> {
+    pub fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
         if input.peek(syn::Ident) && input.peek2(Token![!]) {
             input.parse::<Ident>().and_then(|ident| {
                 if ident != "json" {
