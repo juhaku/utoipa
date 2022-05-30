@@ -278,46 +278,35 @@ fn derive_path_params_intoparams() {
         path: "/list"
     };
 
+    let parameters = operation.get("parameters").unwrap();
+
     assert_json_eq!(
-        operation,
-        json!({
-            "deprecated": false,
-            "description": "",
-            "operationId": "list",
-            "parameters": [
-                {
-                    "description": "Foo database id.",
-                    "example": 1,
-                    "in": "query",
-                    "name": "id",
-                    "required": true,
-                    "schema": {
-                        "format": "int64",
-                        "type": "integer"
-                    },
-                    "style": "form"
+        parameters,
+        json!([
+            {
+                "description": "Foo database id.",
+                "example": 1,
+                "in": "query",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
                 },
-                {
-                    "description": "Datetime since foo is updated.",
-                    "example": "2020-04-12T10:23:00Z",
-                    "in": "query",
-                    "name": "since",
-                    "required": false,
-                    "schema": {
-                        "type": "string"
-                    },
-                    "style": "form"
-                }
-            ],
-            "responses": {
-                "200": {
-                    "description": "success response"
-                }
+                "style": "form"
             },
-            "tags": [
-                "crate"
-            ]
-        })
+            {
+                "description": "Datetime since foo is updated.",
+                "example": "2020-04-12T10:23:00Z",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                },
+                "style": "form"
+            }
+        ])
     )
 }
 
