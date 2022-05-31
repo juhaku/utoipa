@@ -468,8 +468,10 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// ## IntoParams Type
 ///
 /// In the IntoParams paramters format, the paramters are specified using an identifier for a type
-/// that implements [`IntoParams`](./trait.IntoParams.html).
+/// that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
+/// example.
 ///
+/// [into_params]: ./trait.IntoParams.html 
 /// **For example:**
 ///
 /// ```text
@@ -919,18 +921,26 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)] container attribute:`:
+/// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)]` container attribute to
+/// be used as a path query:
 /// ```rust
 /// use serde::Deserialize;
 /// use utoipa::IntoParams;
 ///
 /// #[derive(Deserialize, IntoParams)]
 /// #[param(style = Form, parameter_in = Query)]
-/// struct PetPathArgs {
-///     /// Id of pet
-///     id: i64,
+/// struct PetQuery {
 ///     /// Name of pet
-///     name: String,
+///     name: Option<String>,
+///     /// Age of pet
+///     age: Option<i32>,
+/// }
+///
+/// #[utoipa::path(
+///     params(PetQuery)
+/// )]
+/// async get_pet(query: PetQuery) {
+///     // ...
 /// }
 /// ```
 ///
