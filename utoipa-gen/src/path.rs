@@ -71,6 +71,7 @@ pub struct PathAttr<'p> {
 }
 
 /// The [`PathAttr::params`] field definition.
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum Params<'p> {
     /// A list of tuples of attributes that defines a parameter.
     List(Vec<Parameter<'p>>),
@@ -541,6 +542,7 @@ impl ToTokens for Operation<'_> {
                     }
                 });
             }
+            // TODO: adjust this for the new into_params() signature. 
             Some(Params::Struct(parameters)) => tokens.extend(quote! {
                 .parameters(Some(<#parameters as utoipa::IntoParams>::into_params()))
             }),

@@ -915,18 +915,18 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
+        attrs,
         ident,
         generics,
         data,
-        attrs,
         ..
     } = syn::parse_macro_input!(input);
 
     let into_params = IntoParams {
+        attrs,
         generics,
         data,
         ident,
-        attrs,
     };
 
     into_params.to_token_stream().into()

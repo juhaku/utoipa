@@ -9,7 +9,10 @@ use syn::{
 
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
 use crate::ext::{Argument, ArgumentIn};
-use crate::{parse_utils, AnyValue, Deprecated, Required, Type};
+use crate::{
+    parse_utils, schema::into_params::{IntoParamsAttr, FieldParamContainerAttributes}, AnyValue, Deprecated, Required,
+    Type,
+};
 
 use super::property::Property;
 
@@ -260,8 +263,17 @@ pub struct ParameterExt {
     pub(crate) example: Option<AnyValue>,
 }
 
+impl From<&'_ FieldParamContainerAttributes<'_>> for ParameterExt {
+    fn from(attributes: &FieldParamContainerAttributes) -> Self {
+        Self {
+            style: attributes.style,
+            ..ParameterExt::default()
+        }
+    }
+}
+
 impl ParameterExt {
-    fn merge(&mut self, from: ParameterExt) {
+    pub fn merge(&mut self, from: ParameterExt) {
         if from.style.is_some() {
             self.style = from.style
         }
@@ -334,6 +346,7 @@ impl Parse for ParameterExt {
 }
 
 /// See definitions from `utoipa` crate path.rs
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterStyle {
     Matrix,

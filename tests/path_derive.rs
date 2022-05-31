@@ -237,21 +237,16 @@ fn derive_path_with_security_requirements() {
 #[test]
 fn derive_path_params_intoparams() {
     #[derive(serde::Deserialize, IntoParams)]
+    #[param(style = Form)]
     struct MyParams {
         /// Foo database id.
-        #[param(style = Form, example = 1)]
+        #[param(example = 1)]
         #[allow(unused)]
         id: u64,
         /// Datetime since foo is updated.
-        #[param(style = Form, example = "2020-04-12T10:23:00Z")]
+        #[param(example = "2020-04-12T10:23:00Z")]
         #[allow(unused)]
         since: Option<String>,
-    }
-
-    impl utoipa::ParameterIn for MyParams {
-        fn parameter_in() -> Option<utoipa::openapi::path::ParameterIn> {
-            Some(utoipa::openapi::path::ParameterIn::Query)
-        }
     }
 
     #[utoipa::path(

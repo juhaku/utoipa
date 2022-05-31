@@ -9,47 +9,81 @@ use crate::{
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
     parse_utils,
-    path::parameter::ParameterExt,
+    path::parameter::{ParameterExt, ParameterStyle},
     Array, Required,
 };
 
 use super::{ComponentPart, GenericType, ValueType};
 
+/// Container attribute `#[into_params(...)]`.
+#[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct IntoParamsAttr {
+    /// See [`ParameterStyle`].
+    style: Option<ParameterStyle>,
+    /// Specify names of unnamed fields with `names(...) attribute.`
     names: Vec<String>,
+}
+
+impl IntoParamsAttr {
+    fn merge(&mut self, other: Self) -> &Self {
+        if other.style.is_some() {
+            self.style = other.style;
+        }
+
+        if !other.names.is_empty() {
+            self.names = other.names;
+        }
+
+        self
+    }
 }
 
 impl Parse for IntoParamsAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected: names";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: names, style";
 
-        input
-            .parse::<Ident>()
-            .map_err(|error| Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}")))
-            .and_then(|ident| {
-                if ident != "names" {
-                    Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE))
-                } else {
-                    Ok(ident)
-                }
+        let mut attributes = Self::default();
+
+        while !input.is_empty() {
+            let ident: Ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
             })?;
 
-        Ok(IntoParamsAttr {
-            names: parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
-                .into_iter()
-                .map(|name| name.value())
-                .collect(),
-        })
+            attributes.merge(match ident.to_string().as_str() {
+                "names" => Ok(IntoParamsAttr {
+                    names: parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
+                        .into_iter()
+                        .map(|name| name.value())
+                        .collect(),
+                    ..IntoParamsAttr::default()
+                }),
+                "style" => {
+                    let style: ParameterStyle =
+                        parse_utils::parse_next(input, || input.parse::<ParameterStyle>())?;
+                    Ok(IntoParamsAttr {
+                        style: Some(style),
+                        ..IntoParamsAttr::default()
+                    })
+                }
+                _ => Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
+            }?);
+        }
+
+        Ok(attributes)
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct IntoParams {
-    pub generics: Generics,
-    pub data: Data,
-    pub ident: Ident,
+    /// Attributes tagged on the whole struct or enum.
     pub attrs: Vec<Attribute>,
+    /// Generics required to complete the definition.
+    pub generics: Generics,
+    /// Data within the struct or enum.
+    pub data: Data,
+    /// Name of the struct or enum.
+    pub ident: Ident,
 }
 
 impl ToTokens for IntoParams {
@@ -71,12 +105,16 @@ impl ToTokens for IntoParams {
             )
             .enumerate()
             .map(|(index, field)| {
-                Param(
+                Param {
                     field,
-                    into_params_attrs
-                        .as_ref()
-                        .and_then(|param| param.names.get(index)),
-                )
+                    container_attributes: FieldParamContainerAttributes {
+                        style: into_params_attrs.as_ref().and_then(|attrs| attrs.style),
+                        // TODO: turn this into an error.
+                        name: into_params_attrs
+                            .as_ref()
+                            .map(|attrs| attrs.names.get(index).unwrap()),
+                    },
+                }
             })
             .collect::<Array<Param>>();
 
@@ -155,17 +193,31 @@ impl IntoParams {
     }
 }
 
-struct Param<'a>(&'a Field, Option<&'a String>);
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct FieldParamContainerAttributes<'a> {
+    /// See [`IntoParamsAttr::style`].
+    pub style: Option<ParameterStyle>,
+    /// See [`IntoParamsAttr::names`]. The name that applies to this field.
+    pub name: Option<&'a String>,
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Param<'a> {
+    /// Field in the container used to create a single parameter.
+    field: &'a Field,
+    /// Attributes on the container which are relevant for this macro.
+    container_attributes: FieldParamContainerAttributes<'a>,
+}
 
 impl ToTokens for Param<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let unnamed_field_name = self.1;
-        let field = self.0;
+        let field = self.field;
         let ident = &field.ident;
         let name = ident
             .as_ref()
             .map(|ident| ident.to_string())
-            .or_else(|| unnamed_field_name.map(ToString::to_string))
+            // TODO: add proper error handling
+            .or_else(|| self.container_attributes.name.cloned())
             .unwrap_or_default();
         let component_part = ComponentPart::from_type(&field.ty);
         let required: Required =
@@ -187,25 +239,27 @@ impl ToTokens for Param<'_> {
             })
         }
 
-        let parameter_ext = field
+        let mut parameter_ext = ParameterExt::from(&self.container_attributes);
+
+        // Apply the field attributes if they exist.
+        field
             .attrs
             .iter()
             .find(|attribute| attribute.path.is_ident("param"))
-            .map(|attribute| attribute.parse_args::<ParameterExt>().unwrap_or_abort());
+            .map(|attribute| attribute.parse_args::<ParameterExt>().unwrap_or_abort())
+            .map(|p| parameter_ext.merge(p));
 
-        if let Some(ext) = parameter_ext {
-            if let Some(ref style) = ext.style {
-                tokens.extend(quote! { .style(Some(#style)) });
-            }
-            if let Some(ref explode) = ext.explode {
-                tokens.extend(quote! { .explode(Some(#explode)) });
-            }
-            if let Some(ref allow_reserved) = ext.allow_reserved {
-                tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
-            }
-            if let Some(ref example) = ext.example {
-                tokens.extend(quote! { .example(Some(#example)) });
-            }
+        if let Some(ref style) = parameter_ext.style {
+            tokens.extend(quote! { .style(Some(#style)) });
+        }
+        if let Some(ref explode) = parameter_ext.explode {
+            tokens.extend(quote! { .explode(Some(#explode)) });
+        }
+        if let Some(ref allow_reserved) = parameter_ext.allow_reserved {
+            tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
+        }
+        if let Some(ref example) = parameter_ext.example {
+            tokens.extend(quote! { .example(Some(#example)) });
         }
 
         let param_type = ParamType(&component_part);
