@@ -243,14 +243,14 @@ impl FromStr for ParameterIn {
 
 impl Parse for ParameterIn {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_STYLE: &str = "unexpected in, expected one of: path, query, header, cookie";
+        const EXPECTED_STYLE: &str = "unexpected in, expected one of: Path, Query, Header, Cookie";
         let style = input.parse::<Ident>()?;
 
         match &*style.to_string() {
-            "path" => Ok(Self::Path),
-            "query" => Ok(Self::Query),
-            "header" => Ok(Self::Header),
-            "cookie" => Ok(Self::Cookie),
+            "Path" => Ok(Self::Path),
+            "Query" => Ok(Self::Query),
+            "Header" => Ok(Self::Header),
+            "Cookie" => Ok(Self::Cookie),
             _ => Err(Error::new(style.span(), EXPECTED_STYLE)),
         }
     }

@@ -925,7 +925,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// use utoipa::IntoParams;
 ///
 /// #[derive(Deserialize, IntoParams)]
-/// #[param(style = Form, parameter_in = query)]
+/// #[param(style = Form, parameter_in = Query)]
 /// struct PetPathArgs {
 ///     /// Id of pet
 ///     id: i64,
