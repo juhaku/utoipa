@@ -9,7 +9,7 @@ use crate::{
     component_type::{ComponentFormat, ComponentType},
     doc_comment::CommentAttributes,
     parse_utils,
-    path::parameter::{ParameterExt, ParameterStyle},
+    path::parameter::{ParameterExt, ParameterIn, ParameterStyle},
     Array, Required,
 };
 
@@ -23,6 +23,8 @@ pub struct IntoParamsAttr {
     style: Option<ParameterStyle>,
     /// Specify names of unnamed fields with `names(...) attribute.`
     names: Vec<String>,
+    /// See [`ParameterIn`].
+    parameter_in: Option<ParameterIn>,
 }
 
 impl IntoParamsAttr {
@@ -35,13 +37,17 @@ impl IntoParamsAttr {
             self.names = other.names;
         }
 
+        if other.parameter_in.is_some() {
+            self.parameter_in = other.parameter_in;
+        }
+
         self
     }
 }
 
 impl Parse for IntoParamsAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: names, style";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: names, style, parameter_in";
 
         let mut attributes = Self::default();
 
@@ -63,6 +69,15 @@ impl Parse for IntoParamsAttr {
                         parse_utils::parse_next(input, || input.parse::<ParameterStyle>())?;
                     Ok(IntoParamsAttr {
                         style: Some(style),
+                        ..IntoParamsAttr::default()
+                    })
+                }
+                "parameter_in" => {
+                    let parameter_in: ParameterIn =
+                        parse_utils::parse_next(input, || input.parse::<ParameterIn>())?;
+
+                    Ok(IntoParamsAttr {
+                        parameter_in: Some(parameter_in),
                         ..IntoParamsAttr::default()
                     })
                 }
@@ -226,6 +241,20 @@ impl ToTokens for Param<'_> {
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
             .name(#name)
             .parameter_in(parameter_in_provider().unwrap_or_default())
+        });
+
+        // TODO: Remove if no longer required
+        // if let Some(parameter_in) = &self.container_attributes.parameter_in {
+        //     tokens.extend(quote! {
+        //         .parameter_in(#parameter_in)
+        //     })
+        // } else {
+        //     tokens.extend(quote! {
+        //         .parameter_in(<Self as utoipa::ParameterIn>::parameter_in().unwrap_or_default())
+        //     })
+        // }
+
+        tokens.extend(quote! {
             .required(#required)
         });
 

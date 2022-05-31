@@ -241,6 +241,21 @@ impl FromStr for ParameterIn {
     }
 }
 
+impl Parse for ParameterIn {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_STYLE: &str = "unexpected in, expected one of: path, query, header, cookie";
+        let style = input.parse::<Ident>()?;
+
+        match &*style.to_string() {
+            "path" => Ok(Self::Path),
+            "query" => Ok(Self::Query),
+            "header" => Ok(Self::Header),
+            "cookie" => Ok(Self::Cookie),
+            _ => Err(Error::new(style.span(), EXPECTED_STYLE)),
+        }
+    }
+}
+
 impl ToTokens for ParameterIn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(match self {
@@ -266,7 +281,7 @@ pub struct ParameterExt {
 impl From<&'_ FieldParamContainerAttributes<'_>> for ParameterExt {
     fn from(attributes: &FieldParamContainerAttributes) -> Self {
         Self {
-            style: attributes.style,
+            style: attributes.parameter_style,
             ..ParameterExt::default()
         }
     }

@@ -237,7 +237,7 @@ fn derive_path_with_security_requirements() {
 #[test]
 fn derive_path_params_intoparams() {
     #[derive(serde::Deserialize, IntoParams)]
-    #[param(style = Form)]
+    #[param(style = Form, parameter_in = query)]
     struct MyParams {
         /// Foo database id.
         #[param(example = 1)]
