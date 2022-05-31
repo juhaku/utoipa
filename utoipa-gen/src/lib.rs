@@ -836,9 +836,23 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
-/// # IntoParams Attributes for `#[param(...)]`
+/// # IntoParams Container Attributes for `#[param(...)]`
 ///
-/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+/// The following attributes are available for use in on the container attribute `#[param(...)]` for the struct
+/// deriving `IntoParams`:
+///
+/// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
+///    values are based on _`parameter_in`_ attribute.
+/// * `parameter_in = ...` =  Defines where the parameters of this field are used by
+///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
+///    supplied, then one must implement [`ParameterIn`][in_trait] trait for the struct performing
+///    this derive.
+///
+/// # IntoParams Field Attributes for `#[param(...)]`
+///
+/// The following attributes are available for use in the `#[param(...)]` on struct fields:
+///
+/// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 /// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
@@ -905,10 +919,27 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)] container attribute:`:
+/// ```rust
+/// use serde::Deserialize;
+/// use utoipa::IntoParams;
+///
+/// #[derive(Deserialize, IntoParams)]
+/// #[param(style = Form, parameter_in = query)]
+/// struct PetPathArgs {
+///     /// Id of pet
+///     id: i64,
+///     /// Name of pet
+///     name: String,
+/// }
+/// ```
+///
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
+/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
+/// [in_trait]: utoipa/trait.ParameterIn.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
