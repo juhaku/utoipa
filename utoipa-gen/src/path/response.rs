@@ -8,7 +8,7 @@ use syn::{
     Error, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, AnyValue, Type};
+use crate::{parse_utils, AnyValue, Type, TypeDefinition};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -18,7 +18,7 @@ use super::{property::Property, ContentTypeResolver};
 pub struct Response<'r> {
     status_code: i32,
     description: String,
-    response_type: Option<Type<'r>>,
+    response_type: Option<TypeDefinition<'r>>,
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
     example: Option<AnyValue>,
@@ -49,17 +49,7 @@ impl Parse for Response<'_> {
                 }
                 "body" => {
                     response.response_type = Some(
-                        parse_utils::parse_next(input, || input.parse::<Type>()).map_err(
-                            |error| {
-                                Error::new(
-                                    ident.span(),
-                                    format!(
-                                        "unexpected token, expected type such as String, {}",
-                                        error
-                                    ),
-                                )
-                            },
-                        )?,
+                        parse_utils::parse_next(input, || input.parse::<TypeDefinition>())?,
                     );
                 }
                 "content_type" => {
@@ -111,31 +101,38 @@ impl ToTokens for Response<'_> {
             utoipa::openapi::ResponseBuilder::new().description(#description)
         });
 
-        if let Some(ref body_type) = self.response_type {
-            let body_ty = &body_type.ty;
+        if let Some(response_type) = &self.response_type {
+            match response_type {
+                TypeDefinition::Component(body_type) => {
+                    let body_type_ident = &body_type.ty;
 
-            let component = Property::new(body_type.is_array, body_ty);
-            let mut content = quote! {
-                utoipa::openapi::ContentBuilder::new().schema(#component)
-            };
+                    let component = Property::new(body_type.is_array, body_type_ident);
+                    let mut content = quote! {
+                        utoipa::openapi::ContentBuilder::new().schema(#component)
+                    };
 
-            if let Some(ref example) = self.example {
-                content.extend(quote! {
-                    .example(Some(#example))
-                })
-            }
+                    if let Some(ref example) = self.example {
+                        content.extend(quote! {
+                            .example(Some(#example))
+                        })
+                    }
 
-            if let Some(content_types) = self.content_type.as_ref() {
-                content_types.iter().for_each(|content_type| {
-                    tokens.extend(quote! {
-                        .content(#content_type, #content.build())
-                    })
-                })
-            } else {
-                let default_type = self.resolve_content_type(None, &component.component_type);
-                tokens.extend(quote! {
-                    .content(#default_type, #content.build())
-                });
+                    if let Some(content_types) = self.content_type.as_ref() {
+                        content_types.iter().for_each(|content_type| {
+                            tokens.extend(quote! {
+                                .content(#content_type, #content.build())
+                            })
+                        })
+                    } else {
+                        let default_type = self.resolve_content_type(None, &component.component_type);
+                        tokens.extend(quote! {
+                            .content(#default_type, #content.build())
+                        });
+                    }
+                },
+                TypeDefinition::Inline(_body_type) => {
+                    todo!()
+                }
             }
         }
 

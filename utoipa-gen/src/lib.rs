@@ -7,7 +7,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::{borrow::Cow, mem, ops::Deref};
+use std::{borrow::Cow, mem, ops::Deref, any::type_name};
 
 use doc_comment::CommentAttributes;
 use schema::component::Component;
@@ -20,13 +20,13 @@ use quote::{quote, ToTokens, TokenStreamExt};
 #[cfg(feature = "actix_extras")]
 use schema::into_params::IntoParams;
 
-use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2, Span};
 use syn::{
     bracketed,
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
+    DeriveInput, ExprPath, ItemFn, Lit, LitStr, MetaList, Token, NestedMeta, Meta,
 };
 
 mod component_type;
@@ -1086,6 +1086,68 @@ impl Parse for Type<'_> {
             is_array,
             is_option,
         })
+    }
+}
+
+
+/// A place where a type defenition is required. The type schema can either be a referenced
+/// component or provided inline.
+enum TypeDefinition<'a> {
+    Component(Type<'a>),
+    Inline(Type<'a>),
+}
+
+struct InlineType<'a>(Type<'a>);
+
+impl Parse for InlineType<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str =
+            "unexpected attribute, expected any of inline(Type)";
+        let ident: Ident = input.parse().map_err(|error| {
+            syn::Error::new(
+                error.span(),
+                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+            )
+        })?;
+
+        match &*ident.to_string() {
+            "inline" => {
+                let content;
+                syn::parenthesized!(content in input);
+
+                let t: Type = content.parse().map_err(|error| {
+                    syn::Error::new(
+                        error.span(),
+                        format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                    )
+                })?;
+
+                Ok(Self(t))
+            },
+            _ => {
+                Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION))
+            }
+        }
+    }
+}
+
+impl Parse for TypeDefinition<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str =
+            "unexpected attribute, expected any of inline(Type), Type";
+        if input.fork().parse::<InlineType>().is_ok() {
+            let inline_type: InlineType = input.parse()?;
+            return Ok(Self::Inline(inline_type.0));
+        }
+
+        let t: Type = input.parse().map_err(|error| {
+            syn::Error::new(
+                Span::call_site(),
+                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error)
+            )
+        })?;
+
+        Ok(Self::Component(t))
     }
 }
 
