@@ -22,47 +22,61 @@ impl<'a> Property<'a> {
     }
 
     pub fn component_type(&self) -> ComponentType<'a, Cow<Ident>> {
-        let t = match &self.type_definition {
+        ComponentType(&self.type_definition_type().ty)
+    }
+
+    pub fn type_definition_type(&self) -> &crate::Type<'a> {
+        match &self.type_definition {
             TypeDefinition::Component(t) => t,
             TypeDefinition::Inline(t) => t,
-        };
-        ComponentType(&t.ty)
+        }
     }
 }
 
 impl ToTokens for Property<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match &self.type_definition {
-            TypeDefinition::Component(component_type_definition) => {
-                let component_type = ComponentType(&component_type_definition.ty);
-                if component_type.is_primitive() {
-                    let mut component = quote! {
-                        utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
-                    };
+        let component_type: ComponentType<_> = self.component_type();
+        let type_definition_type = self.type_definition_type();
 
-                    let format = ComponentFormat(component_type.0);
-                    if format.is_known_format() {
-                        component.extend(quote! {
-                            .format(Some(#format))
-                        })
-                    }
+        if component_type.is_primitive() {
+            let mut component = quote! {
+                utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
+            };
 
-                    tokens.extend(component);
-                } else {
-                    let name = &*component_type.0.to_string();
+            let format = ComponentFormat(component_type.0);
+            if format.is_known_format() {
+                component.extend(quote! {
+                    .format(Some(#format))
+                })
+            }
 
+            if type_definition_type.is_array {
+                component.extend(quote! {
+                    .to_array_builder()
+                });
+            }
+
+            tokens.extend(component);
+        } else {
+            let component_name_ident: &Ident = &*component_type.0;
+            let name = component_name_ident.to_string();
+
+            match self.type_definition {
+                TypeDefinition::Component(_) => {
                     tokens.extend(quote! {
                         utoipa::openapi::Ref::from_component_name(#name)
-                    })
-                };
-
-                if component_type_definition.is_array {
-                    tokens.extend(quote! {
-                        .to_array_builder()
                     });
+
+                    if type_definition_type.is_array {
+                        tokens.extend(quote! {
+                            .to_array_builder()
+                        });
+                    }
                 }
+                TypeDefinition::Inline(_) => tokens.extend(quote! {
+                    <#component_name_ident as utoipa::Component>::component()
+                }),
             }
-            TypeDefinition::Inline(_) => todo!(),
         }
     }
 }

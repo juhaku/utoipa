@@ -1,10 +1,19 @@
 #![cfg(feature = "serde_json")]
+
+use assert_json_diff::assert_json_eq;
+use serde_json::{json, Value};
 mod common;
 
 macro_rules! test_fn {
     ( module: $name:ident, responses: $($responses:tt)* ) => {
         #[allow(unused)]
         mod $name {
+            #[allow(unused)]
+            #[derive(utoipa::Component)]
+            struct Foo {
+                name: String,
+            }
+
             #[utoipa::path(get,path = "/foo",responses $($responses)*)]
             fn get_foo() {}
         }
@@ -101,11 +110,6 @@ macro_rules! test_response_types {
             }
         )*
     };
-}
-
-#[allow(unused)]
-struct Foo {
-    name: String,
 }
 
 test_response_types! {
@@ -214,4 +218,50 @@ fn derive_reponse_multiple_content_types() {
         "responses.200.content.text/xml.example" = r###"null"###, "Response content example"
         "responses.200.headers" = r#"null"#, "Response headers"
     }
+}
+
+#[test]
+fn derive_response_body_inline_schema() {
+    test_fn! {
+        module: response_body_inline_schema,
+        responses: (
+            (status = 200, description = "success", body = inline(Foo), content_type = ["application/json"])
+        )
+    }
+
+    let doc: Value = api_doc!(module: response_body_inline_schema);
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "deprecated": false,
+            "description": "",
+            "operationId": "get_foo",
+            "responses": {
+                "200": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "description": "success"
+                }
+            },
+            "tags": [
+              "response_body_inline_schema"
+            ]
+        })
+    );
+
+    // panic!("{}", serde_json::to_string_pretty(&doc).unwrap())
 }

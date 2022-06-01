@@ -1092,6 +1092,8 @@ impl Parse for Type<'_> {
 
 /// A place where a type defenition is required. The type schema can either be a referenced
 /// component or provided inline.
+// TODO: perhaps this could be rolled into `Type` with a new is_inline function.
+#[derive(Clone)]
 enum TypeDefinition<'a> {
     Component(Type<'a>),
     Inline(Type<'a>),

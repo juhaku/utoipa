@@ -102,36 +102,29 @@ impl ToTokens for Response<'_> {
         });
 
         if let Some(response_type) = &self.response_type {
-            match response_type {
-                TypeDefinition::Component(body_type) => {
-                    let property = Property::new(TypeDefinition::Component(body_type.clone()));
-                    let mut content = quote! {
-                        utoipa::openapi::ContentBuilder::new().schema(#property)
-                    };
+            let property = Property::new(response_type.clone());
 
-                    if let Some(ref example) = self.example {
-                        content.extend(quote! {
-                            .example(Some(#example))
-                        })
-                    }
+            let mut content = quote! {
+                utoipa::openapi::ContentBuilder::new().schema(#property)
+            };
 
-                    if let Some(content_types) = self.content_type.as_ref() {
-                        content_types.iter().for_each(|content_type| {
-                            tokens.extend(quote! {
-                                .content(#content_type, #content.build())
-                            })
-                        })
-                    } else {
-                        let default_type =
-                            self.resolve_content_type(None, &property.component_type());
-                        tokens.extend(quote! {
-                            .content(#default_type, #content.build())
-                        });
-                    }
-                }
-                TypeDefinition::Inline(_body_type) => {
-                    todo!()
-                }
+            if let Some(ref example) = self.example {
+                content.extend(quote! {
+                    .example(Some(#example))
+                })
+            }
+
+            if let Some(content_types) = self.content_type.as_ref() {
+                content_types.iter().for_each(|content_type| {
+                    tokens.extend(quote! {
+                        .content(#content_type, #content.build())
+                    })
+                })
+            } else {
+                let default_type = self.resolve_content_type(None, &property.component_type());
+                tokens.extend(quote! {
+                    .content(#default_type, #content.build())
+                });
             }
         }
 
