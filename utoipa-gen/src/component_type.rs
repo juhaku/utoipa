@@ -3,6 +3,7 @@ use std::fmt::Display;
 use quote::{quote, ToTokens};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
+// TODO: see if this can't be unified with crate::Type
 pub struct ComponentType<'a, T: Display>(pub &'a T);
 
 impl<'a, T> ComponentType<'a, T>

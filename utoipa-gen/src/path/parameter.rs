@@ -9,7 +9,7 @@ use syn::{
 
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
 use crate::ext::{Argument, ArgumentIn};
-use crate::{parse_utils, AnyValue, Deprecated, Required, Type};
+use crate::{parse_utils, AnyValue, Deprecated, Required, Type, TypeDefinition};
 
 use super::property::Property;
 
@@ -185,8 +185,8 @@ impl ToTokens for Parameter<'_> {
                 }
             }
 
-            if let Some(ref parameter_type) = parameter.parameter_type {
-                let property = Property::new(parameter_type.is_array, &parameter_type.ty);
+            if let Some(parameter_type) = &parameter.parameter_type {
+                let property = Property::new(TypeDefinition::Component(parameter_type.clone()));
                 let required: Required = (!parameter_type.is_option).into();
 
                 tokens.extend(quote! { .schema(Some(#property)).required(#required) });

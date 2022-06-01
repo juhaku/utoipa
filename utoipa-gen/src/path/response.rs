@@ -48,9 +48,9 @@ impl Parse for Response<'_> {
                     response.description = parse_utils::parse_next_literal_str(input)?;
                 }
                 "body" => {
-                    response.response_type = Some(
-                        parse_utils::parse_next(input, || input.parse::<TypeDefinition>())?,
-                    );
+                    response.response_type = Some(parse_utils::parse_next(input, || {
+                        input.parse::<TypeDefinition>()
+                    })?);
                 }
                 "content_type" => {
                     response.content_type = Some(parse_utils::parse_next(input, || {
@@ -104,11 +104,9 @@ impl ToTokens for Response<'_> {
         if let Some(response_type) = &self.response_type {
             match response_type {
                 TypeDefinition::Component(body_type) => {
-                    let body_type_ident = &body_type.ty;
-
-                    let component = Property::new(body_type.is_array, body_type_ident);
+                    let property = Property::new(TypeDefinition::Component(body_type.clone()));
                     let mut content = quote! {
-                        utoipa::openapi::ContentBuilder::new().schema(#component)
+                        utoipa::openapi::ContentBuilder::new().schema(#property)
                     };
 
                     if let Some(ref example) = self.example {
@@ -124,12 +122,13 @@ impl ToTokens for Response<'_> {
                             })
                         })
                     } else {
-                        let default_type = self.resolve_content_type(None, &component.component_type);
+                        let default_type =
+                            self.resolve_content_type(None, &property.component_type());
                         tokens.extend(quote! {
                             .content(#default_type, #content.build())
                         });
                     }
-                },
+                }
                 TypeDefinition::Inline(_body_type) => {
                     todo!()
                 }
@@ -282,12 +281,13 @@ impl Parse for Header<'_> {
 
 impl ToTokens for Header<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        if let Some(ref header_type) = self.value_type {
+        if let Some(header_type) = &self.value_type {
+            let type_definition = TypeDefinition::Component(header_type.clone());
             // header property with custom type
-            let header_type = Property::new(header_type.is_array, &header_type.ty);
+            let header_type_property = Property::new(type_definition);
 
             tokens.extend(quote! {
-                utoipa::openapi::HeaderBuilder::new().schema(#header_type)
+                utoipa::openapi::HeaderBuilder::new().schema(#header_type_property)
             })
         } else {
             // default header (string type)
