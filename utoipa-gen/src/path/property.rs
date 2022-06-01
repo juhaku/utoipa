@@ -10,8 +10,6 @@ use crate::{
 
 /// Tokenizable object property. It is used as a object property for components or as property
 /// of request or response body or response header.
-// TODO: Switch this to support either references or inline definition.
-// file:///home/luke/programming/rust/utoipa/target/doc/utoipa/openapi/schema/enum.Component.html
 pub(crate) struct Property<'a> {
     type_definition: TypeDefinition<'a>,
 }
