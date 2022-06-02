@@ -946,4 +946,38 @@ mod tests {
             acc.get(fragment).unwrap_or(&serde_json::value::Value::Null)
         })
     }
+
+    #[test]
+    fn test_array_new() {
+        let array = Array::new(
+            ObjectBuilder::new().property(
+                "id",
+                PropertyBuilder::new()
+                    .component_type(ComponentType::Integer)
+                    .format(Some(ComponentFormat::Int32))
+                    .description(Some("Id of credential"))
+                    .default(Some(json!(1i32))),
+            ),
+        );
+
+        assert!(matches!(array.component_type, ComponentType::Array));
+    }
+
+    #[test]
+    fn test_array_builder() {
+        let array: Array = ArrayBuilder::new()
+            .items(
+                ObjectBuilder::new().property(
+                    "id",
+                    PropertyBuilder::new()
+                        .component_type(ComponentType::Integer)
+                        .format(Some(ComponentFormat::Int32))
+                        .description(Some("Id of credential"))
+                        .default(Some(json!(1i32))),
+                ),
+            )
+            .build();
+
+        assert!(matches!(array.component_type, ComponentType::Array));
+    }
 }
