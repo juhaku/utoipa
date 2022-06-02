@@ -654,7 +654,7 @@ builder! {
     ///
     /// See [`Component::Array`] for more details.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
@@ -679,6 +679,18 @@ builder! {
     }
 }
 
+impl Default for Array {
+    fn default() -> Self {
+        Self {
+            component_type: ComponentType::Array,
+            items: Default::default(),
+            max_items: Default::default(),
+            min_items: Default::default(),
+            xml: Default::default(),
+        }
+    }
+}
+
 impl Array {
     /// Construct a new [`Array`] component from given [`Component`].
     ///
@@ -691,7 +703,6 @@ impl Array {
     /// ```
     pub fn new<I: Into<Component>>(component: I) -> Self {
         Self {
-            component_type: ComponentType::Array,
             items: Box::new(component.into()),
             ..Default::default()
         }

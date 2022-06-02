@@ -396,10 +396,18 @@ macro_rules! builder {
         #[doc = concat!("Builder for [`", stringify!($name),
             "`] with chainable configuration methods to create a new [`", stringify!($name) , "`].")]
         $( #[$builder_meta] )*
-        #[derive(Default)]
         #[cfg_attr(feature = "debug", derive(Debug))]
         $vis $key $builder_name {
             $( $field: $field_ty, )*
+        }
+
+        impl Default for $builder_name {
+            fn default() -> Self {
+                let meta_default: $name = $name::default();
+                Self {
+                    $( $field: meta_default.$field, )*
+                }
+            }
         }
 
         impl $builder_name {
