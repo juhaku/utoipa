@@ -221,7 +221,7 @@ fn derive_reponse_multiple_content_types() {
 }
 
 #[test]
-fn derive_response_body_inline_schema() {
+fn derive_response_body_inline_schema_component() {
     test_fn! {
         module: response_body_inline_schema,
         responses: (
@@ -262,6 +262,4 @@ fn derive_response_body_inline_schema() {
             ]
         })
     );
-
-    // panic!("{}", serde_json::to_string_pretty(&doc).unwrap())
 }
