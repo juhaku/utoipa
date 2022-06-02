@@ -471,7 +471,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
 /// example.
 ///
-/// [into_params]: ./trait.IntoParams.html 
+/// [into_params]: ./trait.IntoParams.html
 /// **For example:**
 ///
 /// ```text
@@ -697,7 +697,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
         let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, args);
 
-        path_attribute.update_parameters(arguments);
+        path_attribute
+            .update_parameters(arguments)
+            .unwrap_or_abort();
     }
 
     let path = Path::new(path_attribute, fn_name)
@@ -937,9 +939,14 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(
-///     params(PetQuery)
+///     get,
+///     path = "/get_pet",
+///     params(PetQuery),
+///     responses(
+///         (status = 200, description = "success response")
+///     )
 /// )]
-/// async get_pet(query: PetQuery) {
+/// async fn get_pet(query: PetQuery) {
 ///     // ...
 /// }
 /// ```

@@ -72,11 +72,12 @@ pub struct PathAttr<'p> {
 
 /// The [`PathAttr::params`] field definition.
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum Params<'p> {
+#[derive(Default)]
+struct Params<'p> {
     /// A list of tuples of attributes that defines a parameter.
-    List(Vec<Parameter<'p>>),
+    pub list_params: Vec<Parameter<'p>>,
     /// Identifier for a struct that implements `IntoParams` trait.
-    Struct(Ident),
+    pub struct_ident: Option<Ident>,
 }
 
 impl Parse for Params<'_> {
@@ -84,18 +85,25 @@ impl Parse for Params<'_> {
         let params: ParseBuffer;
         parenthesized!(params in input);
         if params.peek(syn::Ident) {
-            params.parse::<Ident>().map(Self::Struct)
+            params.parse::<Ident>().map(|struct_ident| Self {
+                struct_ident: Some(struct_ident),
+                ..Self::default()
+            })
         } else {
-            parse_utils::parse_groups(&params).map(Self::List)
+            parse_utils::parse_groups(&params).map(|list_params| Self {
+                list_params,
+                ..Self::default()
+            })
         }
     }
 }
 
 impl<'p> PathAttr<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
+    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) -> syn::Result<()> {
         if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
+                let parameters = &mut parameters.list_params;
                 PathAttr::update_existing_parameters_parameter_types(parameters, &arguments);
 
                 let new_params = &mut PathAttr::get_new_parameters(parameters, arguments);
@@ -107,9 +115,14 @@ impl<'p> PathAttr<'p> {
                     .into_iter()
                     .map(Parameter::from)
                     .for_each(|parameter| params.push(parameter));
-                self.params = Some(params);
+                self.params = Some(Params {
+                    list_params: params,
+                    ..Params::default()
+                });
             }
         }
+
+        Ok(())
     }
 
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
@@ -533,19 +546,25 @@ impl ToTokens for Operation<'_> {
         }
 
         match self.parameters {
-            Some(Params::List(parameters)) => {
-                parameters.iter().for_each(|parameter| match parameter {
-                    Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
-                    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                    Parameter::TokenStream(_) => {
-                        tokens.extend(quote! { .parameters(Some(#parameter))})
-                    }
-                });
+            Some(parameters) => {
+                parameters
+                    .list_params
+                    .iter()
+                    .for_each(|parameter| match parameter {
+                        Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
+                        #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+                        Parameter::TokenStream(_) => {
+                            tokens.extend(quote! { .parameters(Some(#parameter))})
+                        }
+                    });
+
+                if let Some(struct_ident) = &parameters.struct_ident {
+                    // TODO: adjust this for new params signature
+                    tokens.extend(quote! {
+                        .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params()))
+                    })
+                }
             }
-            // TODO: adjust this for the new into_params() signature. 
-            Some(Params::Struct(parameters)) => tokens.extend(quote! {
-                .parameters(Some(<#parameters as utoipa::IntoParams>::into_params()))
-            }),
             None => {}
         }
     }
