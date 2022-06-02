@@ -8,7 +8,7 @@ use syn::{
     Error, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, AnyValue, Type, TypeDefinition};
+use crate::{parse_utils, AnyValue, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -18,7 +18,7 @@ use super::{property::Property, ContentTypeResolver};
 pub struct Response<'r> {
     status_code: i32,
     description: String,
-    response_type: Option<TypeDefinition<'r>>,
+    response_type: Option<Type<'r>>,
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
     example: Option<AnyValue>,
@@ -48,9 +48,8 @@ impl Parse for Response<'_> {
                     response.description = parse_utils::parse_next_literal_str(input)?;
                 }
                 "body" => {
-                    response.response_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypeDefinition>()
-                    })?);
+                    response.response_type =
+                        Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
                 }
                 "content_type" => {
                     response.content_type = Some(parse_utils::parse_next(input, || {
@@ -275,9 +274,8 @@ impl Parse for Header<'_> {
 impl ToTokens for Header<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(header_type) = &self.value_type {
-            let type_definition = TypeDefinition::Component(header_type.clone());
             // header property with custom type
-            let header_type_property = Property::new(type_definition);
+            let header_type_property = Property::new(header_type.clone());
 
             tokens.extend(quote! {
                 utoipa::openapi::HeaderBuilder::new().schema(#header_type_property)

@@ -5,36 +5,28 @@ use quote::{quote, ToTokens};
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
-    TypeDefinition,
+    Type,
 };
 
 /// Tokenizable object property. It is used as a object property for components or as property
 /// of request or response body or response header.
 pub(crate) struct Property<'a> {
-    type_definition: TypeDefinition<'a>,
+    type_definition: Type<'a>,
 }
 
 impl<'a> Property<'a> {
-    pub fn new(type_definition: TypeDefinition<'a>) -> Self {
+    pub fn new(type_definition: Type<'a>) -> Self {
         Self { type_definition }
     }
 
     pub fn component_type(&self) -> ComponentType<'a, Cow<Ident>> {
-        ComponentType(&self.type_definition_type().ty)
-    }
-
-    pub fn type_definition_type(&self) -> &crate::Type<'a> {
-        match &self.type_definition {
-            TypeDefinition::Component(t) => t,
-            TypeDefinition::Inline(t) => t,
-        }
+        ComponentType(&self.type_definition.ty)
     }
 }
 
 impl ToTokens for Property<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let component_type: ComponentType<_> = self.component_type();
-        let type_definition_type = self.type_definition_type();
 
         if component_type.is_primitive() {
             let mut component = quote! {
@@ -48,7 +40,7 @@ impl ToTokens for Property<'_> {
                 })
             }
 
-            if type_definition_type.is_array {
+            if self.type_definition.is_array {
                 component.extend(quote! {
                     .to_array_builder()
                 });
@@ -59,21 +51,20 @@ impl ToTokens for Property<'_> {
             let component_name_ident: &Ident = &*component_type.0;
             let name = component_name_ident.to_string();
 
-            match self.type_definition {
-                TypeDefinition::Component(_) => {
-                    tokens.extend(quote! {
-                        utoipa::openapi::Ref::from_component_name(#name)
-                    });
-
-                    if type_definition_type.is_array {
-                        tokens.extend(quote! {
-                            .to_array_builder()
-                        });
-                    }
-                }
-                TypeDefinition::Inline(_) => tokens.extend(quote! {
+            if self.type_definition.is_inline {
+                tokens.extend(quote! {
                     <#component_name_ident as utoipa::Component>::component()
-                }),
+                })
+            } else {
+                tokens.extend(quote! {
+                    utoipa::openapi::Ref::from_component_name(#name)
+                });
+
+                if self.type_definition.is_array {
+                    tokens.extend(quote! {
+                        .to_array_builder()
+                    });
+                }
             }
         }
     }

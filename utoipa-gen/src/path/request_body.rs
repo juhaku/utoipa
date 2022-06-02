@@ -2,7 +2,7 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
-use crate::{parse_utils, Required, Type, TypeDefinition};
+use crate::{parse_utils, Required, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -123,7 +123,7 @@ impl ContentTypeResolver for RequestBodyAttr<'_> {}
 impl ToTokens for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(body_type) = &self.content {
-            let property = Property::new(TypeDefinition::Component(body_type.clone()));
+            let property = Property::new(body_type.clone());
 
             let content_type =
                 self.resolve_content_type(self.content_type.as_ref(), &property.component_type());

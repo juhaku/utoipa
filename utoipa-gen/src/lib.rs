@@ -1034,6 +1034,7 @@ struct Type<'a> {
     ty: Cow<'a, Ident>,
     is_array: bool,
     is_option: bool,
+    is_inline: bool,
 }
 
 impl<'a> Type<'a> {
@@ -1047,7 +1048,48 @@ impl<'a> Type<'a> {
     }
 }
 
-impl Parse for Type<'_> {
+/// A parser for [`Type`] to parse as as `inline(Type)` where `Type` is anything parsed by
+/// [`ArrayOrOptionType`].
+struct InlineType<'a>(Type<'a>);
+
+impl Parse for InlineType<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str = "unexpected attribute, expected any of inline(Type)";
+        let ident: Ident = input.parse().map_err(|error| {
+            syn::Error::new(
+                error.span(),
+                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+            )
+        })?;
+
+        match &*ident.to_string() {
+            "inline" => {
+                let content;
+                syn::parenthesized!(content in input);
+
+                let mut t: Type = content
+                    .parse::<ArrayOrOptionType>()
+                    .map_err(|error| {
+                        syn::Error::new(
+                            error.span(),
+                            format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                        )
+                    })?
+                    .0;
+
+                t.is_inline = true;
+
+                Ok(Self(t))
+            }
+            _ => Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION)),
+        }
+    }
+}
+
+/// A parser for [`Type`] to parse as as `Type`, `[Type]` or `Option<Type>`)
+struct ArrayOrOptionType<'a>(Type<'a>);
+
+impl Parse for ArrayOrOptionType<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut is_array = false;
         let mut is_option = false;
@@ -1082,71 +1124,38 @@ impl Parse for Type<'_> {
             parse_array(input)
         }?;
 
-        Ok(Type {
+        Ok(Self(Type {
             ty: Cow::Owned(ty),
             is_array,
             is_option,
-        })
+            is_inline: false,
+        }))
     }
 }
 
-/// A place where a type defenition is required. The type schema can either be a referenced
-/// component or provided inline.
-// TODO: perhaps this could be rolled into `Type` with a new is_inline function.
-#[derive(Clone)]
-enum TypeDefinition<'a> {
-    Component(Type<'a>),
-    Inline(Type<'a>),
-}
-
-impl Parse for TypeDefinition<'_> {
+impl Parse for Type<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_TYPE_DEFINITION: &str =
-            "unexpected attribute, expected any of inline(Type), Type";
+            "unexpected attribute, expected `inline(Type)` or `Type`, where `Type` can be `Type`, `[Type]` or `Option<Type>`";
+
+        // Try parsing as `inline(Type)`
         if input.fork().parse::<InlineType>().is_ok() {
-            let inline_type: InlineType = input.parse()?;
-            return Ok(Self::Inline(inline_type.0));
+            let t: Self = input.parse::<InlineType>()?.0;
+            return Ok(t);
         }
 
-        let t: Type = input.parse().map_err(|error| {
-            syn::Error::new(
-                Span::call_site(),
-                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-            )
-        })?;
+        // Try parsing as `Type`, `[Type]` or `Option<Type>`)
+        let t: Type = input
+            .parse::<ArrayOrOptionType>()
+            .map_err(|error| {
+                syn::Error::new(
+                    Span::call_site(),
+                    format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                )
+            })?
+            .0;
 
-        Ok(Self::Component(t))
-    }
-}
-
-struct InlineType<'a>(Type<'a>);
-
-impl Parse for InlineType<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_TYPE_DEFINITION: &str = "unexpected attribute, expected any of inline(Type)";
-        let ident: Ident = input.parse().map_err(|error| {
-            syn::Error::new(
-                error.span(),
-                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-            )
-        })?;
-
-        match &*ident.to_string() {
-            "inline" => {
-                let content;
-                syn::parenthesized!(content in input);
-
-                let t: Type = content.parse().map_err(|error| {
-                    syn::Error::new(
-                        error.span(),
-                        format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-                    )
-                })?;
-
-                Ok(Self(t))
-            }
-            _ => Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION)),
-        }
+        Ok(t)
     }
 }
 
