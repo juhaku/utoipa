@@ -70,7 +70,8 @@ pub struct PathAttr<'p> {
     context_path: Option<String>,
 }
 
-/// The [`PathAttr::params`] field definition.
+/// The [`PathAttr::params`] field definition. This is parsed from the
+/// `#[utoipa::path(params(...))]` attribute.
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Default)]
 struct Params<'p> {
