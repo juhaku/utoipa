@@ -290,8 +290,6 @@ fn derive_request_body_complex_success_inline_array() {
             "required": true
         })
     );
-
-    // panic!("{}", serde_json::to_string_pretty(&request_body).unwrap());
 }
 
 test_fn! {

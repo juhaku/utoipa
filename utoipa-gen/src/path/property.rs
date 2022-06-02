@@ -52,9 +52,20 @@ impl ToTokens for Property<'_> {
             let name = component_name_ident.to_string();
 
             if self.type_definition.is_inline {
-                tokens.extend(quote! {
+                let component = quote! {
                     <#component_name_ident as utoipa::Component>::component()
-                })
+                };
+
+                if self.type_definition.is_array {
+                    let array_component = quote! {
+                        utoipa::openapi::schema::ArrayBuilder::new()
+                            .items(#component)
+                    };
+
+                    tokens.extend(array_component);
+                } else {
+                    tokens.extend(component);
+                }
             } else {
                 tokens.extend(quote! {
                     utoipa::openapi::Ref::from_component_name(#name)
