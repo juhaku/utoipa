@@ -1099,6 +1099,26 @@ enum TypeDefinition<'a> {
     Inline(Type<'a>),
 }
 
+impl Parse for TypeDefinition<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str =
+            "unexpected attribute, expected any of inline(Type), Type";
+        if input.fork().parse::<InlineType>().is_ok() {
+            let inline_type: InlineType = input.parse()?;
+            return Ok(Self::Inline(inline_type.0));
+        }
+
+        let t: Type = input.parse().map_err(|error| {
+            syn::Error::new(
+                Span::call_site(),
+                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+            )
+        })?;
+
+        Ok(Self::Component(t))
+    }
+}
+
 struct InlineType<'a>(Type<'a>);
 
 impl Parse for InlineType<'_> {
@@ -1127,26 +1147,6 @@ impl Parse for InlineType<'_> {
             }
             _ => Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION)),
         }
-    }
-}
-
-impl Parse for TypeDefinition<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_TYPE_DEFINITION: &str =
-            "unexpected attribute, expected any of inline(Type), Type";
-        if input.fork().parse::<InlineType>().is_ok() {
-            let inline_type: InlineType = input.parse()?;
-            return Ok(Self::Inline(inline_type.0));
-        }
-
-        let t: Type = input.parse().map_err(|error| {
-            syn::Error::new(
-                Span::call_site(),
-                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-            )
-        })?;
-
-        Ok(Self::Component(t))
     }
 }
 
