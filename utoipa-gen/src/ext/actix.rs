@@ -65,13 +65,7 @@ impl PathOperations {
                 {
                     struct #assert_ty where #ty : utoipa::IntoParams;
 
-                    impl utoipa::ParameterIn for #ty {
-                        fn parameter_in() -> Option<utoipa::openapi::path::ParameterIn> {
-                            Some(#parameter_in)
-                        }
-                    }
-
-                    <#ty>::into_params()
+                    <#ty>::into_params(|| Some(#parameter_in))
                 }
             })
         })
