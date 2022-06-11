@@ -89,7 +89,7 @@ impl Parse for OpenApiAttr {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Component {
-    ty: Ident,
+    path: ExprPath,
     generics: Generics,
 }
 
@@ -100,12 +100,16 @@ impl Component {
             .iter()
             .any(|generic| matches!(generic, GenericParam::Lifetime(_)))
     }
+
+    fn get_ident(&self) -> Option<&Ident> {
+        self.path.path.segments.last().map(|segment| &segment.ident)
+    }
 }
 
 impl Parse for Component {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Component {
-            ty: input.parse()?,
+            path: input.parse()?,
             generics: input.parse()?,
         })
     }
@@ -272,9 +276,11 @@ fn impl_components(
         let mut components_tokens = components.iter().fold(
             quote! { utoipa::openapi::ComponentsBuilder::new() },
             |mut schema, component| {
-                let ident = &component.ty;
+                let path = &component.path;
+                let ident = component.get_ident().unwrap();
                 let span = ident.span();
                 let component_name = &*ident.to_string();
+
                 let (_, ty_generics, _) = component.generics.split_for_impl();
 
                 let assert_ty_generics = if component.has_lifetime_generics() {
@@ -284,7 +290,7 @@ fn impl_components(
                 };
                 let assert_component = format_ident!("_AssertComponent{}", component_name);
                 tokens.extend(quote_spanned! {span=>
-                    struct #assert_component where #ident #assert_ty_generics: utoipa::Component;
+                    struct #assert_component where #path #assert_ty_generics: utoipa::Component;
                 });
 
                 let ty_generics = if component.has_lifetime_generics() {
@@ -292,9 +298,10 @@ fn impl_components(
                 } else {
                     Some(ty_generics)
                 };
+
                 schema.extend(quote! {
-                    .component(#component_name, <#ident #ty_generics>::component())
-                    .components_from_iter(<#ident #ty_generics>::aliases())
+                    .component(#component_name, <#path #ty_generics>::component())
+                    .components_from_iter(<#path #ty_generics>::aliases())
                 });
 
                 schema
