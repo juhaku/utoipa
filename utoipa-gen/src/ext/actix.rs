@@ -7,8 +7,9 @@ use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, quote_spanned};
 use regex::{Captures, Regex};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, FnArg,
-    GenericArgument, ItemFn, LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypePath,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, ExprPath, FnArg,
+    GenericArgument, ItemFn, LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypeInfer,
+    TypePath,
 };
 
 use crate::{
@@ -24,8 +25,8 @@ use super::{
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Arg<'a> {
-    Query(&'a Ident),
-    Path(&'a Ident),
+    Query(&'a TypePath),
+    Path(&'a TypePath),
 }
 
 impl ArgumentResolver for PathOperations {
@@ -34,13 +35,13 @@ impl ArgumentResolver for PathOperations {
         resolved_path_args: Option<Vec<ResolvedArg>>,
     ) -> Option<Vec<Argument<'_>>> {
         let (primitive_args, non_primitive_args): (Vec<Arg>, Vec<Arg>) = Self::get_fn_args(fn_args)
-            .partition(|arg| matches!(arg, Arg::Path(ty) if ComponentType(ty).is_primitive()));
+            .partition(|arg| matches!(arg, Arg::Path(ty) if ComponentType(get_last_ident(ty).unwrap()).is_primitive()));
 
         if let Some(resolved_args) = resolved_path_args {
-            let primitive_args = Self::to_value_args(resolved_args, primitive_args);
+            let primitive = Self::to_value_args(resolved_args, primitive_args);
 
             Some(
-                primitive_args
+                primitive
                     .chain(Self::to_token_stream_args(non_primitive_args))
                     .collect(),
             )
@@ -60,12 +61,14 @@ impl PathOperations {
                 Arg::Query(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Query }),
             };
 
-            let assert_ty = format_ident!("_Assert{}", &ty);
-            Argument::TokenStream(quote_spanned! {ty.span()=>
+            let ident = get_last_ident(ty).unwrap();
+            let path = ty;
+            let assert_ty = format_ident!("_Assert{}", ident);
+            Argument::TokenStream(quote_spanned! {ident.span()=>
                 {
-                    struct #assert_ty where #ty : utoipa::IntoParams;
+                    struct #assert_ty where #path : utoipa::IntoParams;
 
-                    <#ty>::into_params(|| Some(#parameter_in))
+                    <#path>::into_params(|| Some(#parameter_in))
                 }
             })
         })
@@ -87,7 +90,7 @@ impl PathOperations {
                         ),
                     },
                     ident: match primitive_arg {
-                        Arg::Path(value) => Some(value),
+                        Arg::Path(arg_type) => get_last_ident(arg_type),
                         _ => {
                             unreachable!("Arg::Query is not reachable with primitive type")
                         }
@@ -106,12 +109,10 @@ impl PathOperations {
         }
     }
 
-    fn get_argument_types(path_segment: &PathSegment) -> impl Iterator<Item = &Ident> {
+    fn get_argument_types(path_segment: &PathSegment) -> impl Iterator<Item = &TypePath> {
         match &path_segment.arguments {
-            PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed
-                .args
-                .iter()
-                .flat_map(|arg| match arg {
+            PathArguments::AngleBracketed(angle_bracketed) => {
+                angle_bracketed.args.iter().flat_map(|arg| match arg {
                     GenericArgument::Type(ty) => match ty {
                         Type::Path(path) => vec![path],
                         Type::Tuple(tuple) => tuple.elems.iter().map(Self::get_type_path).collect(),
@@ -125,7 +126,7 @@ impl PathOperations {
                         )
                     }
                 })
-                .flat_map(|type_path| type_path.path.get_ident()),
+            }
             _ => {
                 abort_call_site!("unexpected argument type, expected Path<...> with angle brakets")
             }
@@ -259,4 +260,9 @@ impl PathResolver for PathOperations {
 fn is_valid_request_type(ident: Option<&Ident>) -> bool {
     matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
         .iter().any(|expected_operation| operation == expected_operation))
+}
+
+#[inline]
+fn get_last_ident(type_path: &TypePath) -> Option<&Ident> {
+    type_path.path.segments.last().map(|segment| &segment.ident)
 }
