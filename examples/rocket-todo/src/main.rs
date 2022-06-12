@@ -7,7 +7,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::todo::{Todo, TodoError, TodoStore};
+use crate::todo::TodoStore;
 
 #[rocket::launch]
 fn rocket() -> Rocket<Build> {
@@ -22,7 +22,7 @@ fn rocket() -> Rocket<Build> {
             todo::delete_todo,
             todo::search_todos
         ),
-        components(Todo, TodoError),
+        components(todo::Todo, todo::TodoError),
         tags(
             (name = "todo", description = "Todo management endpoints.")
         ),

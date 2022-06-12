@@ -11,7 +11,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::Config;
 
-use crate::todo::{Store, Todo, TodoError};
+use crate::todo::Store;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -23,7 +23,7 @@ async fn main() -> Result<(), Error> {
             todo::mark_done,
             todo::delete_todo,
         ),
-        components(Todo, TodoError),
+        components(todo::Todo, todo::TodoError),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")
@@ -62,8 +62,7 @@ async fn main() -> Result<(), Error> {
         )
         .route(
             "/todo",
-            routing::get(todo::list_todos)
-                .post(todo::create_todo)
+            routing::get(todo::list_todos).post(todo::create_todo),
         )
         .route(
             "/todo/:id",

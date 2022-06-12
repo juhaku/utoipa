@@ -11,8 +11,6 @@ use warp::{
     Filter, Rejection, Reply,
 };
 
-use crate::todo::Todo;
-
 #[tokio::main]
 async fn main() {
     env_logger::init();
@@ -22,7 +20,7 @@ async fn main() {
     #[derive(OpenApi)]
     #[openapi(
         handlers(todo::list_todos, todo::create_todo, todo::delete_todo),
-        components(Todo),
+        components(todo::Todo),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")

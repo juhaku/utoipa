@@ -17,7 +17,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::todo::{ErrorResponse, Todo, TodoStore, TodoUpdateRequest};
+use crate::todo::{ErrorResponse, TodoStore};
 
 mod todo;
 
@@ -38,7 +38,7 @@ async fn main() -> Result<(), impl Error> {
             todo::update_todo,
             todo::search_todos
         ),
-        components(Todo, TodoUpdateRequest, ErrorResponse),
+        components(todo::Todo, todo::TodoUpdateRequest, todo::ErrorResponse),
         tags(
             (name = "todo", description = "Todo management endpoints.")
         ),

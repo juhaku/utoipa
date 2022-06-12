@@ -8,7 +8,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::Config;
 
-use crate::todo::{Store, Todo, TodoError};
+use crate::todo::Store;
 
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
@@ -24,7 +24,7 @@ async fn main() -> std::io::Result<()> {
             todo::delete_todo,
             todo::mark_done
         ),
-        components(Todo, TodoError),
+        components(todo::Todo, todo::TodoError),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management endpoints.")
