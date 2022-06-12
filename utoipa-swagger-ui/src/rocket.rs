@@ -13,7 +13,7 @@ use rocket::{
     Data as RocketData, Request, Response, Route,
 };
 
-use crate::{Config, SwaggerFile, SwaggerUi};
+use crate::{Config, SwaggerFile, SwaggerUi, Url};
 
 impl From<SwaggerUi> for Vec<Route> {
     fn from(swagger_ui: SwaggerUi) -> Self {
@@ -34,9 +34,11 @@ impl From<SwaggerUi> for Vec<Route> {
             swagger_ui.path.as_ref(),
             ServeSwagger(
                 swagger_ui.path.clone(),
-                Arc::new(Config {
-                    urls: urls.collect(),
-                    oauth: swagger_ui.oauth,
+                Arc::new(if let Some(mut config) = swagger_ui.config {
+                    config.urls = urls.collect();
+                    config
+                } else {
+                    Config::new(urls.collect::<Vec<Url>>())
                 }),
             ),
         ));
