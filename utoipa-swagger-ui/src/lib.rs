@@ -86,28 +86,9 @@
 //! [^rocket]: **rocket** feature need to be enabled.
 use std::{borrow::Cow, error::Error, sync::Arc};
 
+mod actix;
 pub mod oauth;
-
-#[cfg(feature = "actix-web")]
-use actix_web::{
-    dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource,
-    Responder as ActixResponder,
-};
-
-#[cfg(feature = "rocket")]
-use std::io::Cursor;
-
-#[cfg(feature = "rocket")]
-use rocket::{
-    http::{Header, Status},
-    response::{
-        status::{self, NotFound},
-        Responder as RocketResponder,
-    },
-    route::{Handler, Outcome},
-    serde::json::Json,
-    Data as RocketData, Request, Response, Route,
-};
+mod rocket;
 
 use rust_embed::RustEmbed;
 #[cfg(any(feature = "actix-web", feature = "rocket"))]
@@ -249,126 +230,6 @@ impl SwaggerUi {
     }
 }
 
-#[cfg(feature = "actix-web")]
-impl HttpServiceFactory for SwaggerUi {
-    fn register(self, config: &mut actix_web::dev::AppService) {
-        let urls = self
-            .urls
-            .into_iter()
-            .map(|url| {
-                let (url, openapi) = url;
-                register_api_doc_url_resource(url.url.as_ref(), openapi, config);
-                url
-            })
-            .collect::<Vec<_>>();
-
-        let swagger_resource = Resource::new(self.path.as_ref())
-            .guard(Get())
-            .app_data(Data::new(Config {
-                urls: urls,
-                oauth: self.oauth,
-            }))
-            .to(serve_swagger_ui);
-
-        HttpServiceFactory::register(swagger_resource, config);
-    }
-}
-
-#[cfg(feature = "actix-web")]
-fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web::dev::AppService) {
-    pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl ActixResponder {
-        HttpResponse::Ok().json(api_doc.as_ref())
-    }
-
-    let url_resource = Resource::new(url)
-        .guard(Get())
-        .app_data(Data::new(api))
-        .to(get_api_doc);
-    HttpServiceFactory::register(url_resource, config);
-}
-
-#[cfg(feature = "rocket")]
-impl From<SwaggerUi> for Vec<Route> {
-    fn from(swagger_ui: SwaggerUi) -> Self {
-        let mut routes = Vec::<Route>::with_capacity(swagger_ui.urls.len() + 1);
-        let mut api_docs = Vec::<Route>::with_capacity(swagger_ui.urls.len());
-
-        let urls = swagger_ui.urls.into_iter().map(|(url, openapi)| {
-            api_docs.push(Route::new(
-                rocket::http::Method::Get,
-                url.url.as_ref(),
-                ServeApiDoc(openapi),
-            ));
-            url
-        });
-
-        routes.push(Route::new(
-            rocket::http::Method::Get,
-            swagger_ui.path.as_ref(),
-            ServeSwagger(
-                swagger_ui.path.clone(),
-                Arc::new(Config {
-                    urls: urls.collect(),
-                    oauth: swagger_ui.oauth,
-                }),
-            ),
-        ));
-        routes.extend(api_docs);
-
-        routes
-    }
-}
-
-#[cfg(feature = "rocket")]
-#[derive(Clone)]
-struct ServeApiDoc(utoipa::openapi::OpenApi);
-
-#[cfg(feature = "rocket")]
-#[rocket::async_trait]
-impl Handler for ServeApiDoc {
-    async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
-        Outcome::from(request, Json(self.0.clone()))
-    }
-}
-
-#[cfg(feature = "rocket")]
-#[derive(Clone)]
-struct ServeSwagger(Cow<'static, str>, Arc<Config<'static>>);
-
-#[cfg(feature = "rocket")]
-#[rocket::async_trait]
-impl Handler for ServeSwagger {
-    async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
-        let mut path = self.0.as_ref();
-        if let Some(index) = self.0.find('<') {
-            path = &path[..index];
-        }
-
-        match serve(&request.uri().path().as_str()[path.len()..], self.1.clone()) {
-            Ok(swagger_file) => swagger_file
-                .map(|file| Outcome::from(request, file))
-                .unwrap_or_else(|| Outcome::from(request, NotFound("Swagger UI file not found"))),
-            Err(error) => Outcome::from(
-                request,
-                status::Custom(Status::InternalServerError, error.to_string()),
-            ),
-        }
-    }
-}
-
-#[cfg(feature = "rocket")]
-impl<'r, 'o: 'r> RocketResponder<'r, 'o> for SwaggerFile<'o> {
-    fn respond_to(self, _: &'r Request<'_>) -> rocket::response::Result<'o> {
-        rocket::response::Result::Ok(
-            Response::build()
-                .header(Header::new("Content-Type", self.content_type))
-                .sized_body(self.bytes.len(), Cursor::new(self.bytes.to_vec()))
-                .status(Status::Ok)
-                .finalize(),
-        )
-    }
-}
-
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
 #[derive(Default, Clone, Debug)]
@@ -461,20 +322,6 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
             url,
             ..Default::default()
         }
-    }
-}
-
-#[cfg(feature = "actix-web")]
-async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) -> HttpResponse {
-    match serve(&*path.into_inner(), data.into_inner()) {
-        Ok(swagger_file) => swagger_file
-            .map(|file| {
-                HttpResponse::Ok()
-                    .content_type(file.content_type)
-                    .body(file.bytes.to_vec())
-            })
-            .unwrap_or_else(|| HttpResponse::NotFound().finish()),
-        Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
     }
 }
 
@@ -643,7 +490,7 @@ pub fn serve<'a>(
 
         if file_path == "swagger-initializer.js" {
             let mut file = match String::from_utf8(bytes.to_vec()) {
-                Ok(index) => index,
+                Ok(file) => file,
                 Err(error) => return Err(Box::new(error)),
             };
             file = format_swagger_config_urls(&mut config.urls.iter(), file);
