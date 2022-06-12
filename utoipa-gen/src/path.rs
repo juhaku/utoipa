@@ -489,8 +489,7 @@ impl ToTokens for Operation<'_> {
         let deprecated = self
             .deprecated
             .map(Into::<Deprecated>::into)
-            .or(Some(Deprecated::False))
-            .unwrap();
+            .unwrap_or(Deprecated::False);
         tokens.extend(quote! {
            .deprecated(Some(#deprecated))
         });

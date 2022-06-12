@@ -664,6 +664,45 @@ fn derive_into_params_with_custom_attributes() {
     }
 }
 
+#[test]
+fn derive_into_params_in_another_module() {
+    use actix_web::{get, HttpResponse, Responder};
+    use utoipa::OpenApi;
+    pub mod params {
+        use serde::Deserialize;
+        use utoipa::IntoParams;
+
+        #[derive(Deserialize, IntoParams)]
+        pub struct FooParams {
+            pub id: String,
+        }
+    }
+
+    /// Foo test
+    #[utoipa::path(
+        responses(
+            (status = 200, description = "Todo foo operation success"),
+        )
+    )]
+    #[get("/todo/foo/{id}")]
+    pub async fn foo_todos(_path: Path<params::FooParams>) -> impl Responder {
+        HttpResponse::Ok()
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(foo_todos))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = common::get_json_path(&doc, "paths./todo/foo/{id}.get.parameters");
+
+    common::assert_json_array_len(parameters, 1);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+    }
+}
+
 macro_rules! test_derive_path_operations {
     ( $( $name:ident, $mod:ident: $operation:ident)* ) => {
         $(
