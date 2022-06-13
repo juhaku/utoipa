@@ -527,7 +527,7 @@ impl ParameterBuilder {
     new!(pub ParameterBuilder);
     /// Add name of the [`Parameter`].
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
-        set_value!(self name name.into())
+        set_value!(self name name.into().replace("r#", ""))
     }
 
     /// Add in of the [`Parameter`].
