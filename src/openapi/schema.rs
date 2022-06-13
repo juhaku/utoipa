@@ -561,14 +561,14 @@ impl ObjectBuilder {
         component: I,
     ) -> Self {
         self.properties
-            .insert(property_name.into(), component.into());
+            .insert(property_name.into().replace("r#", ""), component.into());
 
         self
     }
 
     /// Add field to the required fields of [`Object`].
     pub fn required<I: Into<String>>(mut self, required_field: I) -> Self {
-        self.required.push(required_field.into());
+        self.required.push(required_field.into().replace("r#", ""));
 
         self
     }
@@ -931,6 +931,24 @@ mod tests {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
         let json_value = ObjectBuilder::new()
             .example(Some(json!({"age": 20, "name": "bob the cat"})))
+            .build();
+
+        let value_string = serde_json::to_string(&json_value).unwrap();
+        assert_eq!(
+            value_string, expected,
+            "value string != expected string, {} != {}",
+            value_string, expected
+        );
+    }
+
+    #[test]
+    fn escape_raw_identifier() {
+        let expected = r#"{"type":"object","properties":{"type":{"type":"string"}}}"#;
+        let json_value = ObjectBuilder::new()
+            .property(
+                "r#type",
+                PropertyBuilder::new().component_type(ComponentType::String),
+            )
             .build();
 
         let value_string = serde_json::to_string(&json_value).unwrap();
