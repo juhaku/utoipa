@@ -3,8 +3,9 @@ use std::{net::Ipv4Addr, sync::Arc};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::Config;
 use warp::{
+    http::Uri,
     hyper::{Response, StatusCode},
-    path::Tail,
+    path::{FullPath, Tail},
     Filter, Rejection, Reply,
 };
 
@@ -32,6 +33,7 @@ async fn main() {
 
     let swagger_ui = warp::path("swagger-ui")
         .and(warp::get())
+        .and(warp::path::full())
         .and(warp::path::tail())
         .and(warp::any().map(move || config.clone()))
         .and_then(serve_swagger);
@@ -52,9 +54,14 @@ async fn main() {
 }
 
 async fn serve_swagger(
+    full_path: FullPath,
     tail: Tail,
     config: Arc<Config<'static>>,
 ) -> Result<Box<dyn Reply + 'static>, Rejection> {
+    if full_path.as_str() == "/swagger-ui" {
+        return Ok(Box::new(warp::redirect::found(Uri::from_static("/swagger-ui/"))));
+    }
+
     let path = tail.as_str();
     match utoipa_swagger_ui::serve(path, config) {
         Ok(file) => {
