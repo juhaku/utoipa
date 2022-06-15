@@ -23,9 +23,11 @@ impl HttpServiceFactory for SwaggerUi {
 
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
-            .app_data(Data::new(Config {
-                urls,
-                oauth: self.oauth,
+            .app_data(Data::new(if let Some(mut config) = self.config {
+                config.urls = urls;
+                config
+            } else {
+                Config::new(urls)
             }))
             .to(serve_swagger_ui);
 
