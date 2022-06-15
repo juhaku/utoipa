@@ -214,62 +214,34 @@ pub mod serde {
 
     use std::str::FromStr;
 
-    use proc_macro2::{Span, TokenTree};
+    use proc_macro2::{Ident, Span, TokenTree};
     use proc_macro_error::ResultExt;
     use syn::{buffer::Cursor, Attribute, Error};
 
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub enum Serde {
-        Container(SerdeContainer),
-        Value(SerdeValue),
+    #[inline]
+    fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
+        match next.token_tree() {
+            Some((tt, next)) => match tt {
+                TokenTree::Punct(punct) if punct.as_char() == '=' => parse_next_lit_str(next),
+                TokenTree::Literal(literal) => {
+                    Some((literal.to_string().replace('\"', ""), literal.span()))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
-    impl Serde {
-        #[inline]
-        fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
-            match next.token_tree() {
-                Some((tt, next)) => match tt {
-                    TokenTree::Punct(punct) if punct.as_char() == '=' => {
-                        Serde::parse_next_lit_str(next)
-                    }
-                    TokenTree::Literal(literal) => {
-                        Some((literal.to_string().replace('\"', ""), literal.span()))
-                    }
-                    _ => None,
-                },
-                _ => None,
-            }
-        }
+    #[derive(Default)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct SerdeValue {
+        pub skip: Option<bool>,
+        pub rename: Option<String>,
+    }
 
-        fn parse_container(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            let mut container = SerdeContainer::default();
-
-            input.step(|cursor| {
-                let mut rest = *cursor;
-                while let Some((tt, next)) = rest.token_tree() {
-                    match tt {
-                        TokenTree::Ident(ident) if ident == "rename_all" => {
-                            if let Some((literal, span)) = Serde::parse_next_lit_str(next) {
-                                container.rename_all = Some(
-                                    literal
-                                        .parse::<RenameRule>()
-                                        .map_err(|error| Error::new(span, error.to_string()))?,
-                                );
-                            };
-                        }
-                        _ => (),
-                    }
-
-                    rest = next;
-                }
-                Ok(((), rest))
-            })?;
-
-            Ok(Serde::Container(container))
-        }
-
-        fn parse_value(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            let mut value = SerdeValue::default();
+    impl SerdeValue {
+        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+            let mut value = Self::default();
 
             input.step(|cursor| {
                 let mut rest = *cursor;
@@ -277,7 +249,7 @@ pub mod serde {
                     match tt {
                         TokenTree::Ident(ident) if ident == "skip" => value.skip = Some(true),
                         TokenTree::Ident(ident) if ident == "rename" => {
-                            if let Some((literal, _)) = Serde::parse_next_lit_str(next) {
+                            if let Some((literal, _)) = parse_next_lit_str(next) {
                                 value.rename = Some(literal)
                             };
                         }
@@ -289,41 +261,81 @@ pub mod serde {
                 Ok(((), rest))
             })?;
 
-            Ok(Serde::Value(value))
+            Ok(value)
         }
     }
 
-    #[derive(Default)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct SerdeValue {
-        pub skip: Option<bool>,
-        pub rename: Option<String>,
-    }
-
+    /// Attributes defined within a `#[serde(...)]` container attribute.
     #[derive(Default)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct SerdeContainer {
         pub rename_all: Option<RenameRule>,
+        pub tag: Option<String>,
     }
 
-    pub fn parse_value(attributes: &[Attribute]) -> Option<Serde> {
+    impl SerdeContainer {
+        /// Parse a single serde attribute, currently `rename_all = ...` and `tag = ...` attributes
+        /// are supported.
+        fn parse_attribute(&mut self, ident: Ident, next: Cursor) -> syn::Result<()> {
+            match ident.to_string().as_str() {
+                "rename_all" => {
+                    if let Some((literal, span)) = parse_next_lit_str(next) {
+                        self.rename_all = Some(
+                            literal
+                                .parse::<RenameRule>()
+                                .map_err(|error| Error::new(span, error.to_string()))?,
+                        );
+                    };
+                }
+                "tag" => {
+                    if let Some((literal, _span)) = parse_next_lit_str(next) {
+                        self.tag = Some(literal)
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+
+        /// Parse the attributes inside a `#[serde(...)]` container attribute.
+        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+            let mut container = Self::default();
+
+            input.step(|cursor| {
+                let mut rest = *cursor;
+                while let Some((tt, next)) = rest.token_tree() {
+                    match tt {
+                        TokenTree::Ident(ident) => container.parse_attribute(ident, next)?,
+                        _ => (),
+                    }
+
+                    rest = next;
+                }
+                Ok(((), rest))
+            })?;
+
+            Ok(container)
+        }
+    }
+
+    pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
         attributes
             .iter()
             .find(|attribute| attribute.path.is_ident("serde"))
             .map(|serde_attribute| {
                 serde_attribute
-                    .parse_args_with(Serde::parse_value)
+                    .parse_args_with(SerdeValue::parse)
                     .unwrap_or_abort()
             })
     }
 
-    pub fn parse_container(attributes: &[Attribute]) -> Option<Serde> {
+    pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
         attributes
             .iter()
             .find(|attribute| attribute.path.is_ident("serde"))
             .map(|serde_attribute| {
                 serde_attribute
-                    .parse_args_with(Serde::parse_container)
+                    .parse_args_with(SerdeContainer::parse)
                     .unwrap_or_abort()
             })
     }
