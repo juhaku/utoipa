@@ -802,8 +802,8 @@ fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
 /// rules.
 #[inline]
 fn rename_field<'a>(
-    container_rule: &'a mut Option<SerdeContainer>,
-    field_rule: &'a mut Option<SerdeValue>,
+    container_rule: &'a Option<SerdeContainer>,
+    field_rule: &'a Option<SerdeValue>,
     field: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| rule.rename(field))
@@ -815,8 +815,8 @@ fn rename_field<'a>(
 /// rules.
 #[inline]
 fn rename_variant<'a>(
-    container_rule: &'a mut Option<SerdeContainer>,
-    field_rule: &'a mut Option<SerdeValue>,
+    container_rule: &'a Option<SerdeContainer>,
+    field_rule: &'a Option<SerdeValue>,
     variant: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| {
@@ -829,16 +829,16 @@ fn rename_variant<'a>(
 /// `Some` of the result of the `rename_op` if a rename is required by the supplied rules.
 #[inline]
 fn rename<'a>(
-    container_rule: &'a mut Option<SerdeContainer>,
-    field_rule: &'a mut Option<SerdeValue>,
+    container_rule: &'a Option<SerdeContainer>,
+    field_rule: &'a Option<SerdeValue>,
     rename_op: &impl Fn(&RenameRule) -> String,
 ) -> Option<String> {
     field_rule
-        .as_mut()
-        .and_then(|value| value.rename.take())
+        .as_ref()
+        .and_then(|value| value.rename.clone())
         .or_else(|| {
             container_rule
-                .as_mut()
+                .as_ref()
                 .and_then(|container| container.rename_all.as_ref().map(rename_op))
         })
 }
