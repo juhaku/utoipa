@@ -192,7 +192,7 @@ struct NamedStructComponent<'a> {
 
 impl ToTokens for NamedStructComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let mut container_rules = serde::parse_container(self.attributes);
+        let container_rules = serde::parse_container(self.attributes);
 
         tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() });
 
@@ -209,7 +209,7 @@ impl ToTokens for NamedStructComponent<'_> {
             })
             .for_each(|(field, mut field_rule)| {
                 let field_name = &*field.ident.as_ref().unwrap().to_string();
-                let name = &rename_field(&mut container_rules, &mut field_rule, field_name)
+                let name = &rename_field(&container_rules, &mut field_rule, field_name)
                     .unwrap_or_else(|| String::from(field_name));
 
                 let component_part = &mut ComponentPart::from_type(&field.ty);
@@ -433,7 +433,7 @@ impl SimpleEnum<'_> {
 
 impl ToTokens for SimpleEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let mut container_rules = serde::parse_container(self.attributes);
+        let container_rules = serde::parse_container(self.attributes);
 
         let enum_values = self
             .variants
@@ -443,7 +443,7 @@ impl ToTokens for SimpleEnum<'_> {
 
                 if is_not_skipped(&variant_rules) {
                     let name = &*variant.ident.to_string();
-                    let renamed = rename_variant(&mut container_rules, &mut variant_rules, name);
+                    let renamed = rename_variant(&container_rules, &mut variant_rules, name);
 
                     renamed.or_else(|| Some(String::from(name)))
                 } else {
@@ -600,11 +600,11 @@ impl ToTokens for ComplexEnum<'_> {
             .map(|(variant, mut variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
                 let variant_name =
-                    rename_variant(&mut container_rules, &mut variant_serde_rules, variant_name)
+                    rename_variant(&container_rules, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
 
                 if let Some(tag) = &tag {
-                    Self::tagged_variant_tokens(&tag, variant_name, variant)
+                    Self::tagged_variant_tokens(tag, variant_name, variant)
                 } else {
                     Self::variant_tokens(variant_name, variant)
                 }
@@ -803,7 +803,7 @@ fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
 #[inline]
 fn rename_field<'a>(
     container_rule: &'a Option<SerdeContainer>,
-    field_rule: &'a Option<SerdeValue>,
+    field_rule: &'a mut Option<SerdeValue>,
     field: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| rule.rename(field))
@@ -816,7 +816,7 @@ fn rename_field<'a>(
 #[inline]
 fn rename_variant<'a>(
     container_rule: &'a Option<SerdeContainer>,
-    field_rule: &'a Option<SerdeValue>,
+    field_rule: &'a mut Option<SerdeValue>,
     variant: &str,
 ) -> Option<String> {
     rename(container_rule, field_rule, &|rule| {
@@ -830,12 +830,12 @@ fn rename_variant<'a>(
 #[inline]
 fn rename<'a>(
     container_rule: &'a Option<SerdeContainer>,
-    field_rule: &'a Option<SerdeValue>,
+    field_rule: &'a mut Option<SerdeValue>,
     rename_op: &impl Fn(&RenameRule) -> String,
 ) -> Option<String> {
     field_rule
-        .as_ref()
-        .and_then(|value| value.rename.clone())
+        .as_mut()
+        .and_then(|value| value.rename.take())
         .or_else(|| {
             container_rule
                 .as_ref()

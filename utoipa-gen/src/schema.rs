@@ -304,9 +304,8 @@ pub mod serde {
             input.step(|cursor| {
                 let mut rest = *cursor;
                 while let Some((tt, next)) = rest.token_tree() {
-                    match tt {
-                        TokenTree::Ident(ident) => container.parse_attribute(ident, next)?,
-                        _ => (),
+                    if let TokenTree::Ident(ident) = tt {
+                        container.parse_attribute(ident, next)?
                     }
 
                     rest = next;

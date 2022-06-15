@@ -114,8 +114,13 @@ use ext::ArgumentResolver;
 /// * `rename_all = "..."` Supported in container level.
 /// * `rename = "..."` Supported **only** in field or variant level.
 /// * `skip = "..."` Supported  **only** in field or variant level.
+/// * `tag = "..."` Supported in container level.
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
+///
+/// **Note!** `tag` attribute has some limitations like it cannot be used
+/// with **unnamed field structs** and **tuple types**.  See more at
+/// [enum representation docs](https://serde.rs/enum-representations.html).
 ///
 /// ```rust
 /// # use serde::Serialize;
@@ -136,6 +141,18 @@ use ext::ArgumentResolver;
 ///     UnnamedFields(Foo),
 ///     #[serde(skip)]
 ///     SkipMe,
+/// }
+/// ```
+///
+/// Add custom `tag` to change JSON representation to be internally tagged.
+/// ```rust
+/// #[serde(tag = "tag")]
+/// enum Bar {
+///     UnitValue,
+///     NamedFields {
+///         id: &'static str,
+///         names: Option<Vec<String>>
+///     },
 /// }
 /// ```
 ///
