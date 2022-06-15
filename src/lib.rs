@@ -482,7 +482,7 @@ pub trait Modify {
 /// Derive [`IntoParams`] implementation. This example will fail to compile because [`IntoParams`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
-/// ```compile_fail
+/// ```
 /// use utoipa::{IntoParams};
 ///
 /// #[derive(IntoParams)]
@@ -503,12 +503,14 @@ pub trait Modify {
 /// #    name: String,
 /// # }
 /// impl utoipa::IntoParams for PetParams {
-///     fn into_params() -> Vec<utoipa::openapi::path::Parameter> {
+///     fn into_params(
+///         parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>
+///     ) -> Vec<utoipa::openapi::path::Parameter> {
 ///         vec![
 ///             utoipa::openapi::path::ParameterBuilder::new()
 ///                 .name("id")
 ///                 .required(utoipa::openapi::Required::True)
-///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
@@ -519,7 +521,7 @@ pub trait Modify {
 ///             utoipa::openapi::path::ParameterBuilder::new()
 ///                 .name("name")
 ///                 .required(utoipa::openapi::Required::True)
-///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
