@@ -218,6 +218,7 @@ pub mod serde {
     use proc_macro_error::ResultExt;
     use syn::{buffer::Cursor, Attribute, Error};
 
+    #[inline]
     fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
         match next.token_tree() {
             Some((tt, next)) => match tt {
@@ -264,6 +265,7 @@ pub mod serde {
         }
     }
 
+    /// Attributes defined within a `#[serde(...)]` container attribute.
     #[derive(Default)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct SerdeContainer {
@@ -272,15 +274,13 @@ pub mod serde {
     }
 
     impl SerdeContainer {
-        fn parse_ident(
-            ident: Ident,
-            next: Cursor,
-            container: &mut SerdeContainer,
-        ) -> syn::Result<()> {
+        /// Parse a single serde attribute, currently `rename_all = ...` and `tag = ...` attributes
+        /// are supported.
+        fn parse_attribute(&mut self, ident: Ident, next: Cursor) -> syn::Result<()> {
             match ident.to_string().as_str() {
                 "rename_all" => {
                     if let Some((literal, span)) = parse_next_lit_str(next) {
-                        container.rename_all = Some(
+                        self.rename_all = Some(
                             literal
                                 .parse::<RenameRule>()
                                 .map_err(|error| Error::new(span, error.to_string()))?,
@@ -289,7 +289,7 @@ pub mod serde {
                 }
                 "tag" => {
                     if let Some((literal, _span)) = parse_next_lit_str(next) {
-                        container.tag = Some(literal)
+                        self.tag = Some(literal)
                     }
                 }
                 _ => {}
@@ -297,6 +297,7 @@ pub mod serde {
             Ok(())
         }
 
+        /// Parse the attributes inside a `#[serde(...)]` container attribute.
         fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
             let mut container = Self::default();
 
@@ -304,7 +305,7 @@ pub mod serde {
                 let mut rest = *cursor;
                 while let Some((tt, next)) = rest.token_tree() {
                     match tt {
-                        TokenTree::Ident(ident) => Self::parse_ident(ident, next, &mut container)?,
+                        TokenTree::Ident(ident) => container.parse_attribute(ident, next)?,
                         _ => (),
                     }
 
