@@ -2,7 +2,7 @@ use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Error, Field, Generics,
-    Ident, LitStr,
+    Ident, LitStr, Token,
 };
 
 use crate::{
@@ -22,7 +22,7 @@ pub struct IntoParamsAttr {
     /// See [`ParameterStyle`].
     style: Option<ParameterStyle>,
     /// Specify names of unnamed fields with `names(...) attribute.`
-    names: Vec<String>,
+    names: Option<Vec<String>>,
     /// See [`ParameterIn`].
     parameter_in: Option<ParameterIn>,
 }
@@ -33,7 +33,7 @@ impl IntoParamsAttr {
             self.style = other.style;
         }
 
-        if !other.names.is_empty() {
+        if !other.names.is_some() {
             self.names = other.names;
         }
 
@@ -47,21 +47,30 @@ impl IntoParamsAttr {
 
 impl Parse for IntoParamsAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: names, style, parameter_in";
+        const EXPECTED_ATTRIBUTE: &str =
+            "unexpected token, expected any of: names, style, parameter_in";
 
         let mut attributes = Self::default();
 
+        let mut first: bool = true;
+
         while !input.is_empty() {
+            if !first {
+                input.parse::<Token![,]>()?;
+            }
+
             let ident: Ident = input.parse::<Ident>().map_err(|error| {
                 Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
             })?;
 
             attributes.merge(match ident.to_string().as_str() {
                 "names" => Ok(IntoParamsAttr {
-                    names: parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
-                        .into_iter()
-                        .map(|name| name.value())
-                        .collect(),
+                    names: Some(
+                        parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
+                            .into_iter()
+                            .map(|name| name.value())
+                            .collect(),
+                    ),
                     ..IntoParamsAttr::default()
                 }),
                 "style" => {
@@ -83,6 +92,8 @@ impl Parse for IntoParamsAttr {
                 }
                 _ => Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
             }?);
+
+            first = false;
         }
 
         Ok(attributes)
@@ -106,7 +117,7 @@ impl ToTokens for IntoParams {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let into_params_attrs = &mut self
+        let into_params_attrs: Option<IntoParamsAttr> = self
             .attrs
             .iter()
             .find(|attr| attr.path.is_ident("into_params"))
@@ -115,8 +126,8 @@ impl ToTokens for IntoParams {
         let params = self
             .get_struct_fields(
                 &into_params_attrs
-                    .as_mut()
-                    .map(|params| params.names.as_ref()),
+                    .as_ref()
+                    .and_then(|params| params.names.as_ref()),
             )
             .enumerate()
             .map(|(index, field)| {
@@ -124,10 +135,15 @@ impl ToTokens for IntoParams {
                     field,
                     container_attributes: FieldParamContainerAttributes {
                         style: into_params_attrs.as_ref().and_then(|attrs| attrs.style),
-                        // TODO: turn this into an error.
                         name: into_params_attrs
                             .as_ref()
-                            .map(|attrs| attrs.names.get(index).unwrap()),
+                            .and_then(|attrs| attrs.names.as_ref())
+                            .map(|names| names.get(index).unwrap_or_else(|| abort!(
+                                ident,
+                                "There is no name specified in the names(...) attribute for tuple struct field {}",
+                                index
+                            ))),
+                        parameter_in: into_params_attrs.as_ref().and_then(|attrs| attrs.parameter_in),
                     },
                 }
             })
@@ -135,11 +151,9 @@ impl ToTokens for IntoParams {
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
-
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
                     #params.to_vec()
                 }
-
             }
         });
     }
@@ -214,6 +228,8 @@ pub struct FieldParamContainerAttributes<'a> {
     pub style: Option<ParameterStyle>,
     /// See [`IntoParamsAttr::names`]. The name that applies to this field.
     pub name: Option<&'a String>,
+    /// See [`IntoParamsAttr::parameter_in`].
+    pub parameter_in: Option<ParameterIn>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -240,8 +256,19 @@ impl ToTokens for Param<'_> {
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
             .name(#name)
-            .parameter_in(parameter_in_provider().unwrap_or_default())
         });
+
+        tokens.extend(
+            if let Some(parameter_in) = self.container_attributes.parameter_in {
+                quote! {
+                    .parameter_in(#parameter_in)
+                }
+            } else {
+                quote! {
+                    .parameter_in(parameter_in_provider().unwrap_or_default())
+                }
+            },
+        );
 
         // TODO: Remove if no longer required
         // if let Some(parameter_in) = &self.container_attributes.parameter_in {

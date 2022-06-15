@@ -560,9 +560,8 @@ impl ToTokens for Operation<'_> {
                     });
 
                 if let Some(struct_ident) = &parameters.struct_ident {
-                    // TODO: adjust this for new params signature
                     tokens.extend(quote! {
-                        .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params()))
+                        .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params(|| None)))
                     })
                 }
             }

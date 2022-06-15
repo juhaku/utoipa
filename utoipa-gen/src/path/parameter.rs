@@ -10,8 +10,8 @@ use syn::{
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
 use crate::ext::{Argument, ArgumentIn};
 use crate::{
-    parse_utils, schema::into_params::{IntoParamsAttr, FieldParamContainerAttributes}, AnyValue, Deprecated, Required,
-    Type,
+    parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue, Deprecated,
+    Required, Type,
 };
 
 use super::property::Property;
@@ -207,7 +207,7 @@ impl ToTokens for Parameter<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum ParameterIn {
     Query,
     Path,
@@ -281,7 +281,7 @@ pub struct ParameterExt {
 impl From<&'_ FieldParamContainerAttributes<'_>> for ParameterExt {
     fn from(attributes: &FieldParamContainerAttributes) -> Self {
         Self {
-            style: attributes.parameter_style,
+            style: attributes.style,
             ..ParameterExt::default()
         }
     }
