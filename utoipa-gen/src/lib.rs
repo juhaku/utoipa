@@ -146,6 +146,12 @@ use ext::ArgumentResolver;
 ///
 /// Add custom `tag` to change JSON representation to be internally tagged.
 /// ```rust
+/// # use serde::Serialize;
+/// # use utoipa::Component;
+/// #[derive(Serialize, Component)]
+/// struct Foo(String);
+///
+/// #[derive(Serialize, Component)]
 /// #[serde(tag = "tag")]
 /// enum Bar {
 ///     UnitValue,
