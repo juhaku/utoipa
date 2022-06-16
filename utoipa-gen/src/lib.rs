@@ -936,6 +936,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
+/// * `inline` If set, the schema for this field's type needs to be a [`Component`][component], and
+///   the component schema definition will be inlined.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -995,10 +997,17 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)]` container attribute to
-/// be used as a path query:
+/// be used as a path query, and inlining a component query field:
 /// ```rust
 /// use serde::Deserialize;
-/// use utoipa::IntoParams;
+/// use utoipa::{IntoParams, Component};
+///
+/// #[derive(Deserialize, Component)]
+/// #[serde(rename_all = "snake_case")]
+/// enum PetKind {
+///     Dog,
+///     Cat,
+/// }
 ///
 /// #[derive(Deserialize, IntoParams)]
 /// #[param(style = Form, parameter_in = Query)]
@@ -1007,6 +1016,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     name: Option<String>,
 ///     /// Age of pet
 ///     age: Option<i32>,
+///     /// Kind of pet
+///     #[param(inline)]
+///     kind: PetKind
 /// }
 ///
 /// #[utoipa::path(
@@ -1021,7 +1033,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     // ...
 /// }
 /// ```
-///
+/// [component]: trait.Component.html
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html

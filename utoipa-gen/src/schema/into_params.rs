@@ -1,3 +1,4 @@
+use proc_macro2::TokenStream;
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{
@@ -236,7 +237,7 @@ struct Param<'a> {
 }
 
 impl ToTokens for Param<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let field = self.field;
         let ident = &field.ident;
         let name = ident
@@ -306,31 +307,41 @@ impl ToTokens for Param<'_> {
             tokens.extend(quote! { .example(Some(#example)) });
         }
 
-        let param_type = ParamType(&component_part);
-        tokens.extend(quote! { .schema(Some(#param_type)).build() });
+        let inline: bool = parameter_ext.inline.unwrap_or(false);
+        let schema = ParamType {
+            component: &component_part,
+            inline,
+        };
+        tokens.extend(quote! { .schema(Some(#schema)).build() });
     }
 }
 
-struct ParamType<'a>(&'a ComponentPart<'a>);
+struct ParamType<'a> {
+    component: &'a ComponentPart<'a>,
+    inline: bool,
+}
 
 impl ToTokens for ParamType<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ty = self.0;
-        match &ty.generic_type {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let component = self.component;
+        match &component.generic_type {
             Some(GenericType::Vec) => {
-                let param_type = ParamType(ty.child.as_ref().unwrap().as_ref());
+                let param_type = ParamType {
+                    component: component.child.as_ref().unwrap().as_ref(),
+                    inline: self.inline,
+                };
 
                 tokens.extend(quote! { #param_type.to_array_builder() });
             }
-            None => match ty.value_type {
+            None => match component.value_type {
                 ValueType::Primitive => {
-                    let component_type = ComponentType(ty.ident);
+                    let component_type = ComponentType(component.ident);
 
                     tokens.extend(quote! {
                         utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                     });
 
-                    let format = ComponentFormat(ty.ident);
+                    let format = ComponentFormat(component.ident);
                     if format.is_known_format() {
                         tokens.extend(quote! {
                             .format(Some(#format))
@@ -338,17 +349,27 @@ impl ToTokens for ParamType<'_> {
                     }
                 }
                 ValueType::Object => {
-                    let name = ty.ident.to_string();
-                    tokens.extend(quote! {
-                        utoipa::openapi::Ref::from_component_name(#name)
-                    });
+                    if self.inline {
+                        let struct_ident = &component.ident;
+                        tokens.extend(quote! {
+                            <#struct_ident as utoipa::Component>::component()
+                        })
+                    } else {
+                        let name = component.ident.to_string();
+                        tokens.extend(quote! {
+                            utoipa::openapi::Ref::from_component_name(#name)
+                        });
+                    }
                 }
             },
             Some(GenericType::Option)
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let param_type = ParamType(ty.child.as_ref().unwrap().as_ref());
+                let param_type = ParamType {
+                    component: component.child.as_ref().unwrap().as_ref(),
+                    inline: self.inline,
+                };
 
                 tokens.extend(param_type.into_token_stream())
             }

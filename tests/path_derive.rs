@@ -2,7 +2,7 @@
 use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
-use utoipa::IntoParams;
+use utoipa::{Component, IntoParams};
 
 mod common;
 
@@ -384,6 +384,14 @@ fn derive_path_with_parameter_inline_schema() {
 
 #[test]
 fn derive_path_params_intoparams() {
+    #[derive(serde::Deserialize, Component)]
+    #[component(default = "foo1", example = "foo1")]
+    #[serde(rename_all = "snake_case")]
+    enum Foo {
+        Foo1,
+        Foo2,
+    }
+
     #[derive(serde::Deserialize, IntoParams)]
     #[into_params(style = Form, parameter_in = Query)]
     struct MyParams {
@@ -395,6 +403,13 @@ fn derive_path_params_intoparams() {
         #[param(example = "2020-04-12T10:23:00Z")]
         #[allow(unused)]
         since: Option<String>,
+        /// A Foo item ref.
+        #[allow(unused)]
+        foo_ref: Foo,
+        /// A Foo item inline.
+        #[param(inline)]
+        #[allow(unused)]
+        foo_inline: Foo,
     }
 
     #[utoipa::path(
@@ -449,6 +464,29 @@ fn derive_path_params_intoparams() {
                 "required": false,
                 "schema": {
                     "type": "string"
+                },
+                "style": "form"
+            },
+            {
+                "description": "A Foo item ref.",
+                "in": "query",
+                "name": "foo_ref",
+                "required": true,
+                "schema": {
+                    "$ref": "#/components/schemas/Foo"
+                },
+                "style": "form"
+            },
+            {
+                "description": "A Foo item inline.",
+                "in": "query",
+                "name": "foo_inline",
+                "required": true,
+                "schema": {
+                    "default": "foo1",
+                    "example": "foo1",
+                    "enum": ["foo1", "foo2"],
+                    "type": "string",
                 },
                 "style": "form"
             },
