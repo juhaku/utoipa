@@ -403,20 +403,27 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// **Minimal response format:**
 /// ```text
-/// (status = 200, description = "success response")
+/// responses(
+///     (status = 200, description = "success response"),
+///     (status = 404, description = "resource missing"),
+/// )
 /// ```
 ///
 /// **Response with all possible values:**
 /// ```text
-/// (status = 200, description = "Success response", body = Pet, content_type = "application/json",
-///     headers(...),
-///     example = json!({"id": 1, "name": "bob the cat"})
+/// responses(
+///     (status = 200, description = "Success response", body = Pet, content_type = "application/json",
+///         headers(...),
+///         example = json!({"id": 1, "name": "bob the cat"})
+///     )
 /// )
 /// ```
 ///
 /// **Response with multiple response content types:**
 /// ```text
-/// (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+/// responses(
+///     (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+/// )
 /// ```
 ///
 /// # Response Header Attributes
@@ -435,7 +442,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Params Attributes
 ///
-/// The `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParams
+/// The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParams
 /// Type](#intoparams-type).
 ///
 /// ## Tuples
@@ -460,9 +467,20 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// **For example:**
 ///
 /// ```text
-/// ("id" = String, path, deprecated, description = "Pet database id"),
-/// ("id", path, deprecated, description = "Pet database id"),
-/// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
+/// params(
+///     ("id" = String, path, deprecated, description = "Pet database id"),
+///     ("name", path, deprecated, description = "Pet name"),
+///     (
+///         "value" = Option<[String]>,
+///         query,
+///         description = "Value description",
+///         style = Form,
+///         allow_reserved,
+///         deprecated,
+///         explode,
+///         example = json!(["Value"]))
+///     )
+/// )
 /// ```
 ///
 /// ## IntoParams Type
@@ -475,7 +493,18 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// **For example:**
 ///
 /// ```text
-/// MyParamters
+/// params(MyParamters)
+/// ```
+///
+/// Note that `MyParameters` can also be used in combination with the [tuples
+/// representation](#tuples) or other structs. **For example:**
+///
+/// ```text
+/// params(
+///     MyParameters1,
+///     MyParameters2,
+///     ("id" = String, path, deprecated, description = "Pet database id"),
+/// )
 /// ```
 ///
 /// # Security Requirement Attributes

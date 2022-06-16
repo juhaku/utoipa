@@ -4,8 +4,6 @@ use std::{io::Error, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::buffer::TokenBuffer;
-use syn::parse::ParseBuffer;
 use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
