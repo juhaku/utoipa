@@ -33,7 +33,7 @@ impl IntoParamsAttr {
             self.style = other.style;
         }
 
-        if !other.names.is_some() {
+        if other.names.is_some() {
             self.names = other.names;
         }
 
@@ -214,7 +214,7 @@ impl IntoParams {
             None => {
                 abort! {
                     ident,
-                    "struct with unnamed fields must have explisit name declarations.";
+                    "struct with unnamed fields must have explicit name declarations.";
                     help = "Try defining `#[into_params(names(...))]` over your type: {}", ident,
                 }
             }
