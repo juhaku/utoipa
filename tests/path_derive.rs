@@ -410,6 +410,10 @@ fn derive_path_params_intoparams() {
         #[param(inline)]
         #[allow(unused)]
         foo_inline: Foo,
+        /// An optional Foo item inline.
+        #[param(inline)]
+        #[allow(unused)]
+        foo_inline_option: Option<Foo>,
     }
 
     #[utoipa::path(
@@ -482,6 +486,19 @@ fn derive_path_params_intoparams() {
                 "in": "query",
                 "name": "foo_inline",
                 "required": true,
+                "schema": {
+                    "default": "foo1",
+                    "example": "foo1",
+                    "enum": ["foo1", "foo2"],
+                    "type": "string",
+                },
+                "style": "form"
+            },
+            {
+                "description": "An optional Foo item inline.",
+                "in": "query",
+                "name": "foo_inline_option",
+                "required": false,
                 "schema": {
                     "default": "foo1",
                     "example": "foo1",
