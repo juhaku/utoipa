@@ -5,7 +5,7 @@ use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, LitStr, Token,
+    Error, LitStr, Token, ExprPath,
 };
 
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
@@ -32,7 +32,7 @@ use super::property::Property;
 pub enum Parameter<'a> {
     Value(ParameterValue<'a>),
     /// Identifier for a struct that implements `IntoParams` trait.
-    Struct(Ident),
+    Struct(ExprPath),
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     TokenStream(TokenStream),
 }
