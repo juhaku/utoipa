@@ -526,19 +526,21 @@ impl<'a> Config<'a> {
         oauth_config: Option<oauth::Config>,
     ) -> Self {
         let urls = urls.into_iter().map(Into::into).collect::<Vec<Url<'a>>>();
-        let urls_len = &urls.len();
+        let urls_len = urls.len();
 
-        if urls_len == &1 {
-            Self::new_config_with_single_url(urls, oauth_config)
-        } else {
-            Self::new_config_with_multiple_urls(urls, oauth_config)
+        Self {
+            oauth: oauth_config,
+            deep_linking: Some(true),
+            dom_id: Some("#swagger-ui".to_string()),
+            ..if urls_len == 1 {
+                Self::new_config_with_single_url(urls)
+            } else {
+                Self::new_config_with_multiple_urls(urls)
+            }
         }
     }
 
-    fn new_config_with_multiple_urls(
-        urls: Vec<Url<'a>>,
-        oauth_config: Option<oauth::Config>,
-    ) -> Self {
+    fn new_config_with_multiple_urls(urls: Vec<Url<'a>>) -> Self {
         let primary_name = urls
             .iter()
             .find(|url| url.primary)
@@ -558,17 +560,11 @@ impl<'a> Config<'a> {
                     }
                 })
                 .collect(),
-            oauth: oauth_config,
-            deep_linking: Some(true),
-            dom_id: Some("#swagger-ui".to_string()),
             ..Default::default()
         }
     }
 
-    fn new_config_with_single_url(
-        mut urls: Vec<Url<'a>>,
-        oauth_config: Option<oauth::Config>,
-    ) -> Self {
+    fn new_config_with_single_url(mut urls: Vec<Url<'a>>) -> Self {
         let url = urls.get_mut(0).map(mem::take).unwrap();
         let primary_name = if url.primary {
             Some(url.name.to_string())
@@ -588,9 +584,6 @@ impl<'a> Config<'a> {
             } else {
                 Vec::new()
             },
-            oauth: oauth_config,
-            deep_linking: Some(true),
-            dom_id: Some("#swagger-ui".to_string()),
             ..Default::default()
         }
     }
@@ -623,6 +616,32 @@ impl<'a> Config<'a> {
         oauth_config: oauth::Config,
     ) -> Self {
         Self::new_(urls, Some(oauth_config))
+    }
+
+    /// Configure defaults for current [`Config`].
+    ///
+    /// A new [`Config`] will be created with given `urls` and its _**default values**_ and
+    /// _**url, urls and urls_primary_name**_ will be moved to the current [`Config`] the method
+    /// is called on.
+    ///
+    /// Current config will be returned with configured default values.
+    fn configure_defaults<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(mut self, urls: I) -> Self {
+        let Config {
+            dom_id,
+            deep_linking,
+            url,
+            urls,
+            urls_primary_name,
+            ..
+        } = Config::new(urls);
+
+        self.dom_id = dom_id;
+        self.deep_linking = deep_linking;
+        self.url = url;
+        self.urls = urls;
+        self.urls_primary_name = urls_primary_name;
+
+        self
     }
 
     /// Add url to fetch external configuration from.
@@ -1056,13 +1075,13 @@ impl<'a> Config<'a> {
 
 impl<'a> From<&'a str> for Config<'a> {
     fn from(s: &'a str) -> Self {
-        Self::new([s]) 
+        Self::new([s])
     }
 }
 
 impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
-        Self::new([s]) 
+        Self::new([s])
     }
 }
 
