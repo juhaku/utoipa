@@ -4,7 +4,9 @@ use std::{io::Error, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
+use syn::buffer::TokenBuffer;
 use syn::parse::ParseBuffer;
+use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
 use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
@@ -76,26 +78,23 @@ pub struct PathAttr<'p> {
 #[derive(Default)]
 struct Params<'p> {
     /// A list of tuples of attributes that defines a parameter.
-    pub list_params: Vec<Parameter<'p>>,
-    /// Identifier for a struct that implements `IntoParams` trait.
-    pub struct_ident: Option<Ident>,
+    pub parameters: Vec<Parameter<'p>>,
 }
 
 impl Parse for Params<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let params: ParseBuffer;
-        parenthesized!(params in input);
-        if params.peek(syn::Ident) {
-            params.parse::<Ident>().map(|struct_ident| Self {
-                struct_ident: Some(struct_ident),
-                ..Self::default()
-            })
-        } else {
-            parse_utils::parse_groups(&params).map(|list_params| Self {
-                list_params,
-                ..Self::default()
-            })
-        }
+        let params: Vec<Parameter> = Punctuated::<Parameter, Token![,]>::parse_terminated(input)
+            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
+
+        Ok(Self { parameters: params })
+    }
+}
+
+impl ToTokens for Params<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        self.parameters
+            .iter()
+            .for_each(|parameter| parameter.to_tokens(tokens));
     }
 }
 
@@ -221,7 +220,9 @@ impl Parse for PathAttr<'_> {
                         parse_utils::parse_groups::<Response, Vec<_>>(&responses)?;
                 }
                 "params" => {
-                    path_attr.params = Some(input.parse::<Params>()?);
+                    let params;
+                    parenthesized!(params in input);
+                    path_attr.params = Some(params.parse()?);
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -485,6 +486,7 @@ impl ToTokens for Path<'_> {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct Operation<'a> {
     operation_id: &'a String,
     summary: Option<&'a String>,
@@ -546,27 +548,8 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        match self.parameters {
-            Some(parameters) => {
-                parameters
-                    .list_params
-                    .iter()
-                    .for_each(|parameter| match parameter {
-                        Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
-                        #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                        Parameter::TokenStream(_) => {
-                            tokens.extend(quote! { .parameters(Some(#parameter))})
-                        }
-                    });
-
-                if let Some(struct_ident) = &parameters.struct_ident {
-                    tokens.extend(quote! {
-                        .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params(|| None)))
-                    })
-                }
-            }
-            None => {}
-        }
+        self.parameters
+            .map(|parameters| parameters.to_tokens(tokens));
     }
 }
 

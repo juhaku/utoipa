@@ -251,14 +251,17 @@ fn derive_path_params_intoparams() {
 
     #[utoipa::path(
         get,
-        path = "/list",
+        path = "/list/{id}",
         responses(
             (status = 200, description = "success response")
         ),
-        params(MyParams),
+        params(
+            MyParams,
+            ("id" = i64, path, description = "Id of some items to list")
+        )
     )]
     #[allow(unused)]
-    fn list(params: MyParams) -> String {
+    fn list(id: i64, params: MyParams) -> String {
         "".to_string()
     }
 
@@ -270,7 +273,7 @@ fn derive_path_params_intoparams() {
     let operation: Value = test_api_fn_doc! {
         list,
         operation: get,
-        path: "/list"
+        path: "/list/{id}"
     };
 
     let parameters = operation.get("parameters").unwrap();
@@ -300,6 +303,17 @@ fn derive_path_params_intoparams() {
                     "type": "string"
                 },
                 "style": "form"
+            },
+            {
+                "deprecated": false,
+                "description": "Id of some items to list",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
             }
         ])
     )

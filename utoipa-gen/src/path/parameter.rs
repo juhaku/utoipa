@@ -3,7 +3,8 @@ use std::{borrow::Cow, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    parse::{Parse, ParseStream},
+    parenthesized,
+    parse::{Parse, ParseBuffer, ParseStream},
     Error, LitStr, Token,
 };
 
@@ -30,8 +31,33 @@ use super::property::Property;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Parameter<'a> {
     Value(ParameterValue<'a>),
+    /// Identifier for a struct that implements `IntoParams` trait.
+    Struct(Ident),
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     TokenStream(TokenStream),
+}
+
+impl Parse for Parameter<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(syn::Ident) {
+            Ok(Self::Struct(input.parse()?))
+        } else {
+            Ok(Self::Value(input.parse()?))
+        }
+    }
+}
+
+impl ToTokens for Parameter<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Parameter::Value(parameter) => tokens.extend(quote! { .parameter(#parameter) }),
+            Parameter::Struct(struct_ident) => tokens.extend(quote! {
+                .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params(|| None)))
+            }),
+            #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+            Parameter::TokenStream(stream) => tokens.extend(quote! { .parameters(Some(#stream))}),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -57,29 +83,11 @@ impl<'p> ParameterValue<'p> {
     }
 }
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-impl<'a> From<Argument<'a>> for Parameter<'a> {
-    fn from(argument: Argument<'a>) -> Self {
-        match argument {
-            Argument::Value(value) => Self::Value(ParameterValue {
-                name: value.name.unwrap_or_else(|| Cow::Owned(String::new())),
-                parameter_in: if value.argument_in == ArgumentIn::Path {
-                    ParameterIn::Path
-                } else {
-                    ParameterIn::Query
-                },
-                parameter_type: value
-                    .ident
-                    .map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
-                ..Default::default()
-            }),
-            Argument::TokenStream(stream) => Self::TokenStream(stream),
-        }
-    }
-}
+impl Parse for ParameterValue<'_> {
+    fn parse(input_with_parens: ParseStream) -> syn::Result<Self> {
+        let input: ParseBuffer;
+        parenthesized!(input in input_with_parens);
 
-impl Parse for Parameter<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut parameter = ParameterValue::default();
 
         if input.peek(LitStr) {
@@ -88,7 +96,7 @@ impl Parse for Parameter<'_> {
             parameter.name = Cow::Owned(name);
 
             if input.peek(Token![=]) {
-                parameter.parameter_type = Some(parse_utils::parse_next(input, || {
+                parameter.parameter_type = Some(parse_utils::parse_next(&input, || {
                     input.parse().map_err(|error| {
                         Error::new(
                             error.span(),
@@ -138,10 +146,10 @@ impl Parse for Parameter<'_> {
                             .parse::<ParameterIn>()
                             .map_err(|error| Error::new(ident.span(), error))?;
                     }
-                    "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(input)?,
+                    "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(&input)?,
                     "description" => {
                         parameter.description = Some(
-                            parse_utils::parse_next(input, || input.parse::<LitStr>())?.value(),
+                            parse_utils::parse_next(&input, || input.parse::<LitStr>())?.value(),
                         )
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -152,56 +160,67 @@ impl Parse for Parameter<'_> {
             }
         }
 
-        Ok(Parameter::Value(parameter))
+        Ok(parameter)
     }
 }
 
-impl ToTokens for Parameter<'_> {
+impl ToTokens for ParameterValue<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        fn handle_single_parameter(tokens: &mut TokenStream, parameter: &ParameterValue) {
-            let name = &*parameter.name;
-            tokens.extend(quote! {
-                utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name))
-            });
-            let parameter_in = &parameter.parameter_in;
-            tokens.extend(quote! { .parameter_in(#parameter_in) });
+        let name = &*self.name;
+        tokens.extend(quote! {
+            utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name))
+        });
+        let parameter_in = &self.parameter_in;
+        tokens.extend(quote! { .parameter_in(#parameter_in) });
 
-            let deprecated: Deprecated = parameter.deprecated.into();
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        let deprecated: Deprecated = self.deprecated.into();
+        tokens.extend(quote! { .deprecated(Some(#deprecated)) });
 
-            if let Some(ref description) = parameter.description {
-                tokens.extend(quote! { .description(Some(#description)) });
+        if let Some(ref description) = self.description {
+            tokens.extend(quote! { .description(Some(#description)) });
+        }
+
+        if let Some(ref ext) = self.parameter_ext {
+            if let Some(ref style) = ext.style {
+                tokens.extend(quote! { .style(Some(#style)) });
             }
-
-            if let Some(ref ext) = parameter.parameter_ext {
-                if let Some(ref style) = ext.style {
-                    tokens.extend(quote! { .style(Some(#style)) });
-                }
-                if let Some(ref explode) = ext.explode {
-                    tokens.extend(quote! { .explode(Some(#explode)) });
-                }
-                if let Some(ref allow_reserved) = ext.allow_reserved {
-                    tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
-                }
-                if let Some(ref example) = ext.example {
-                    tokens.extend(quote! { .example(Some(#example)) });
-                }
+            if let Some(ref explode) = ext.explode {
+                tokens.extend(quote! { .explode(Some(#explode)) });
             }
-
-            if let Some(ref parameter_type) = parameter.parameter_type {
-                let property = Property::new(parameter_type.is_array, &parameter_type.ty);
-                let required: Required = (!parameter_type.is_option).into();
-
-                tokens.extend(quote! { .schema(Some(#property)).required(#required) });
+            if let Some(ref allow_reserved) = ext.allow_reserved {
+                tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
+            }
+            if let Some(ref example) = ext.example {
+                tokens.extend(quote! { .example(Some(#example)) });
             }
         }
 
-        match self {
-            Parameter::Value(parameter) => handle_single_parameter(tokens, parameter),
-            #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-            Parameter::TokenStream(stream) => {
-                tokens.extend(quote! { #stream });
-            }
+        if let Some(ref parameter_type) = self.parameter_type {
+            let property = Property::new(parameter_type.is_array, &parameter_type.ty);
+            let required: Required = (!parameter_type.is_option).into();
+
+            tokens.extend(quote! { .schema(Some(#property)).required(#required) });
+        }
+    }
+}
+
+#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+impl<'a> From<Argument<'a>> for Parameter<'a> {
+    fn from(argument: Argument<'a>) -> Self {
+        match argument {
+            Argument::Value(value) => Self::Value(ParameterValue {
+                name: value.name.unwrap_or_else(|| Cow::Owned(String::new())),
+                parameter_in: if value.argument_in == ArgumentIn::Path {
+                    ParameterIn::Path
+                } else {
+                    ParameterIn::Query
+                },
+                parameter_type: value
+                    .ident
+                    .map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
+                ..Default::default()
+            }),
+            Argument::TokenStream(stream) => Self::TokenStream(stream),
         }
     }
 }
