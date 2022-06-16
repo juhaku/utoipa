@@ -366,7 +366,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Request Body Attributes
 ///
 /// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_.
+///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`Component`][component], 
+///   it can also be  wrapped in `inline(...)` in order to inline the component schema definition. 
+///   E.g. _`inline(Pet)`_.
 /// * `description = "..."` Define the description for the request body object as str.
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
@@ -390,7 +392,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `status = ...` Is valid http status code. E.g. _`200`_
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_
+///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`Component`][component], 
+///   it can also be wrapped in `inline(...)` in order to inline the component schema definition. E.g. _`inline(Pet)`_.
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
@@ -437,7 +440,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Params Attributes
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice or option.
+/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`, 
+///   option `Option<Type>`. Where the type implments [`Component`][component], it can also be wrapped in `inline(MyComponent)`
+///   in order to inline the component schema definition.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -455,7 +460,16 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// ```text
 /// ("id" = String, path, deprecated, description = "Pet database id"),
 /// ("id", path, deprecated, description = "Pet database id"),
-/// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
+/// (
+///     "value" = inline(Option<[String]>),
+///     query,
+///     description = "Value description",
+///     style = Form,
+///     allow_reserved,
+///     deprecated,
+///     explode,
+///     example = json!(["Value"])
+/// )
 /// ```
 ///
 /// # Security Requirement Attributes
@@ -641,6 +655,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 /// [path]: trait.Path.html
+/// [component]: trait.Component.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
