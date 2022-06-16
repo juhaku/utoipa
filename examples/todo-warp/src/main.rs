@@ -63,7 +63,9 @@ async fn serve_swagger(
     config: Arc<Config<'static>>,
 ) -> Result<Box<dyn Reply + 'static>, Rejection> {
     if full_path.as_str() == "/swagger-ui" {
-        return Ok(Box::new(warp::redirect::found(Uri::from_static("/swagger-ui/"))));
+        return Ok(Box::new(warp::redirect::found(Uri::from_static(
+            "/swagger-ui/",
+        ))));
     }
 
     let path = tail.as_str();
@@ -94,7 +96,7 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{openapi::path::ParameterIn, Component, IntoParams};
+    use utoipa::{Component, IntoParams};
     use warp::{hyper::StatusCode, Filter, Reply};
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
@@ -111,16 +113,11 @@ mod todo {
     }
 
     #[derive(Debug, Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
     pub struct ListQueryParams {
         /// Filters the returned `Todo` items according to whether they contain the specified string.
         #[param(style = Form, example = json!("task"))]
         contains: Option<String>,
-    }
-
-    impl utoipa::ParameterIn for ListQueryParams {
-        fn parameter_in() -> Option<utoipa::openapi::path::ParameterIn> {
-            Some(ParameterIn::Query)
-        }
     }
 
     pub fn handlers() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
