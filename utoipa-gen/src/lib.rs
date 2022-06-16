@@ -1044,6 +1044,7 @@ impl<'a> Type<'a> {
             ty: ident,
             is_array,
             is_option,
+            is_inline: false,
         }
     }
 }
