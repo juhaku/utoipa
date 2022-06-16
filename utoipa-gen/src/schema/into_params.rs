@@ -140,7 +140,7 @@ impl ToTokens for IntoParams {
                             .and_then(|attrs| attrs.names.as_ref())
                             .map(|names| names.get(index).unwrap_or_else(|| abort!(
                                 ident,
-                                "There is no name specified in the names(...) attribute for tuple struct field {}",
+                                "There is no name specified in the names(...) container attribute for tuple struct field {}",
                                 index
                             ))),
                         parameter_in: into_params_attrs.as_ref().and_then(|attrs| attrs.parameter_in),
@@ -247,9 +247,11 @@ impl ToTokens for Param<'_> {
         let name = ident
             .as_ref()
             .map(|ident| ident.to_string())
-            // TODO: add proper error handling
             .or_else(|| self.container_attributes.name.cloned())
-            .unwrap_or_default();
+            .unwrap_or_else(|| abort!(
+                field, "No name specified for unnamed field.";
+                help = "Try adding #[into_params(names(...))] container attribute to specify the name for this field"
+            ));
         let component_part = ComponentPart::from_type(&field.ty);
         let required: Required =
             (!matches!(&component_part.generic_type, Some(GenericType::Option))).into();
@@ -269,17 +271,6 @@ impl ToTokens for Param<'_> {
                 }
             },
         );
-
-        // TODO: Remove if no longer required
-        // if let Some(parameter_in) = &self.container_attributes.parameter_in {
-        //     tokens.extend(quote! {
-        //         .parameter_in(#parameter_in)
-        //     })
-        // } else {
-        //     tokens.extend(quote! {
-        //         .parameter_in(<Self as utoipa::ParameterIn>::parameter_in().unwrap_or_default())
-        //     })
-        // }
 
         tokens.extend(quote! {
             .required(#required)
