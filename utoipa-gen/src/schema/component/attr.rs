@@ -17,6 +17,12 @@ use crate::{
 
 use super::xml::{Xml, XmlAttr};
 
+/// See [`IsInline::is_inline()`].
+pub(super) trait IsInline {
+    /// Returns `true` if a field's schema/type definition is to be inlined.
+    fn is_inline(&self) -> bool;
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentAttr<T>
 where
@@ -34,11 +40,26 @@ where
     }
 }
 
+impl<T> IsInline for ComponentAttr<T>
+where
+    T: IsInline,
+{
+    fn is_inline(&self) -> bool {
+        self.inner.is_inline()
+    }
+}
+
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Enum {
     default: Option<AnyValue>,
     example: Option<AnyValue>,
+}
+
+impl IsInline for Enum {
+    fn is_inline(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Default)]
@@ -48,6 +69,12 @@ pub struct Struct {
     xml_attr: Option<XmlAttr>,
 }
 
+impl IsInline for Struct {
+    fn is_inline(&self) -> bool {
+        false
+    }
+}
+
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
@@ -55,6 +82,12 @@ pub struct UnnamedFieldStruct {
     format: Option<ExprPath>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
+}
+
+impl IsInline for UnnamedFieldStruct {
+    fn is_inline(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Default)]
@@ -68,6 +101,13 @@ pub struct NamedField {
     read_only: Option<bool>,
     xml_attr: Option<XmlAttr>,
     pub(super) xml: Option<Xml>,
+    inline: bool,
+}
+
+impl IsInline for NamedField {
+    fn is_inline(&self) -> bool {
+        self.inline
+    }
 }
 
 impl Parse for ComponentAttr<Enum> {
@@ -264,7 +304,7 @@ fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &Compone
 
 impl Parse for ComponentAttr<NamedField> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml, value_type";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml, value_type, inline";
         let mut field = NamedField::default();
 
         while !input.is_empty() {
@@ -288,6 +328,7 @@ impl Parse for ComponentAttr<NamedField> {
                         AnyValue::parse_any(input)
                     })?)
                 }
+                "inline" => field.inline = parse_utils::parse_bool_or_true(input)?,
                 "write_only" => field.write_only = Some(parse_utils::parse_bool_or_true(input)?),
                 "read_only" => field.read_only = Some(parse_utils::parse_bool_or_true(input)?),
                 "xml" => {
@@ -342,7 +383,7 @@ where
     T: quote::ToTokens,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.inner.to_token_stream())
+        self.inner.to_tokens(tokens)
     }
 }
 

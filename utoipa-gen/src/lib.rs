@@ -91,6 +91,8 @@ use ext::ArgumentResolver;
 ///   This is useful in cases the where default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
 ///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
+/// * `inline` If the type of this field implements [`Component`][c], then the schema definition
+///   will be inlined. **warning:** Don't use this for recursive data types!
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -366,8 +368,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Request Body Attributes
 ///
 /// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`Component`][component], 
-///   it can also be  wrapped in `inline(...)` in order to inline the component schema definition. 
+///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`Component`][component],
+///   it can also be  wrapped in `inline(...)` in order to inline the component schema definition.
 ///   E.g. _`inline(Pet)`_.
 /// * `description = "..."` Define the description for the request body object as str.
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
@@ -392,7 +394,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `status = ...` Is valid http status code. E.g. _`200`_
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`Component`][component], 
+///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`Component`][component],
 ///   it can also be wrapped in `inline(...)` in order to inline the component schema definition. E.g. _`inline(Pet)`_.
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
@@ -440,7 +442,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Params Attributes
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`, 
+/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
 ///   option `Option<Type>`. Where the type implments [`Component`][component], it can also be wrapped in `inline(MyComponent)`
 ///   in order to inline the component schema definition.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with

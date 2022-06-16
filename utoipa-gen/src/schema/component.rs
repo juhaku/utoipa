@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
 use syn::{
@@ -13,7 +13,7 @@ use crate::{
 };
 
 use self::{
-    attr::{ComponentAttr, Enum, NamedField, UnnamedFieldStruct},
+    attr::{ComponentAttr, Enum, IsInline, NamedField, UnnamedFieldStruct},
     xml::Xml,
 };
 
@@ -60,7 +60,7 @@ impl<'a> Component<'a> {
 }
 
 impl ToTokens for Component<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let ident = self.ident;
         let variant = ComponentVariant::new(self.data, self.attributes, ident, self.generics, None);
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
@@ -80,7 +80,7 @@ impl ToTokens for Component<'_> {
                     );
                     quote! { (#name, #variant.into()) }
                 })
-                .collect::<Array<TokenStream2>>();
+                .collect::<Array<TokenStream>>();
 
             quote! {
                 fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Component)> {
@@ -173,7 +173,7 @@ impl<'a> ComponentVariant<'a> {
 }
 
 impl ToTokens for ComponentVariant<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Enum(component) => component.to_tokens(tokens),
             Self::Named(component) => component.to_tokens(tokens),
@@ -191,7 +191,7 @@ struct NamedStructComponent<'a> {
 }
 
 impl ToTokens for NamedStructComponent<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
 
         tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() });
@@ -288,7 +288,7 @@ struct UnnamedStructComponent<'a> {
 }
 
 impl ToTokens for UnnamedStructComponent<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let fields_len = self.fields.len();
         let first_field = self.fields.first().unwrap();
         let first_part = &ComponentPart::from_type(&first_field.ty);
@@ -358,7 +358,7 @@ struct EnumComponent<'a> {
 }
 
 impl ToTokens for EnumComponent<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         if self
             .variants
             .iter()
@@ -392,9 +392,9 @@ struct SimpleEnum<'a> {
 impl SimpleEnum<'_> {
     /// Produce tokens that represent each variant for the situation where the serde enum tag =
     /// "<tag>" attribute applies.
-    fn tagged_variants_tokens(tag: String, enum_values: Array<String>) -> TokenStream2 {
+    fn tagged_variants_tokens(tag: String, enum_values: Array<String>) -> TokenStream {
         let len = enum_values.len();
-        let items: TokenStream2 = enum_values
+        let items: TokenStream = enum_values
             .iter()
             .map(|enum_value: &String| {
                 quote! {
@@ -408,7 +408,7 @@ impl SimpleEnum<'_> {
                         .required(#tag)
                 }
             })
-            .map(|object: TokenStream2| {
+            .map(|object: TokenStream| {
                 quote! {
                     .item(#object)
                 }
@@ -421,7 +421,7 @@ impl SimpleEnum<'_> {
     }
 
     /// Produce tokens that represent each variant.
-    fn variants_tokens(enum_values: Array<String>) -> TokenStream2 {
+    fn variants_tokens(enum_values: Array<String>) -> TokenStream {
         let len = enum_values.len();
         quote! {
             utoipa::openapi::PropertyBuilder::new()
@@ -432,7 +432,7 @@ impl SimpleEnum<'_> {
 }
 
 impl ToTokens for SimpleEnum<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
 
         let enum_values = self
@@ -483,7 +483,7 @@ struct ComplexEnum<'a> {
 }
 
 impl ComplexEnum<'_> {
-    fn unit_variant_tokens(variant_name: String) -> TokenStream2 {
+    fn unit_variant_tokens(variant_name: String) -> TokenStream {
         quote! {
             utoipa::openapi::PropertyBuilder::new()
                 .component_type(utoipa::openapi::ComponentType::String)
@@ -491,7 +491,7 @@ impl ComplexEnum<'_> {
         }
     }
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
-    fn variant_tokens(variant_name: String, variant: &Variant) -> TokenStream2 {
+    fn variant_tokens(variant_name: String, variant: &Variant) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let named_enum = NamedStructComponent {
@@ -523,7 +523,7 @@ impl ComplexEnum<'_> {
 
     /// Produce tokens that represent a variant of a [`ComplexEnum`] where serde enum attribute
     /// `tag = ` applies.
-    fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream2 {
+    fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let named_enum = NamedStructComponent {
@@ -562,7 +562,7 @@ impl ComplexEnum<'_> {
 }
 
 impl ToTokens for ComplexEnum<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         if self
             .attributes
             .iter()
@@ -586,7 +586,7 @@ impl ToTokens for ComplexEnum<'_> {
         };
 
         // serde, externally tagged format supported by now
-        let items: TokenStream2 = self
+        let items: TokenStream = self
             .variants
             .iter()
             .filter_map(|variant: &Variant| {
@@ -672,9 +672,9 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
 
 impl<T> ToTokens for ComponentProperty<'_, T>
 where
-    T: Sized + quote::ToTokens,
+    T: Sized + quote::ToTokens + IsInline,
 {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self.component_part.generic_type {
             Some(GenericType::Map) => {
                 // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
@@ -777,11 +777,22 @@ where
                         }
                     }
                     ValueType::Object => {
-                        let name = &*self.component_part.ident.to_string();
+                        let is_inline: bool = self
+                            .attrs
+                            .map(|attributes| attributes.is_inline())
+                            .unwrap_or(false);
 
-                        tokens.extend(quote! {
-                            utoipa::openapi::Ref::from_component_name(#name)
-                        })
+                        if is_inline {
+                            let component_name_ident = &self.component_part.ident;
+                            tokens.extend(quote! {
+                                <#component_name_ident as utoipa::Component>::component()
+                            });
+                        } else {
+                            let name = &*self.component_part.ident.to_string();
+                            tokens.extend(quote! {
+                                utoipa::openapi::Ref::from_component_name(#name)
+                            })
+                        }
                     }
                 }
             }
