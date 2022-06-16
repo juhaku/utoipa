@@ -101,20 +101,20 @@ impl<'p> PathAttr<'p> {
     pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) -> syn::Result<()> {
         if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
-                let parameters = &mut parameters.list_params;
+                let parameters = &mut parameters.parameters;
                 PathAttr::update_existing_parameters_parameter_types(parameters, &arguments);
 
                 let new_params = &mut PathAttr::get_new_parameters(parameters, arguments);
                 parameters.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
-                let mut params = Vec::with_capacity(arguments.len());
+                let mut parameters = Vec::with_capacity(arguments.len());
                 arguments
                     .into_iter()
                     .map(Parameter::from)
-                    .for_each(|parameter| params.push(parameter));
+                    .for_each(|parameter| parameters.push(parameter));
                 self.params = Some(Params {
-                    list_params: params,
+                    parameters,
                     ..Params::default()
                 });
             }
@@ -131,25 +131,24 @@ impl<'p> PathAttr<'p> {
         use std::borrow::Cow;
         parameters
             .iter_mut()
-            .filter_map(|parameter| match parameter {
-                Parameter::Value(value) => Some(value),
-                Parameter::TokenStream(_) => None,
-            })
-            .for_each(|parameter| {
-                if let Some(argument) = arguments.iter().find_map(|argument| match argument {
-                    Argument::Value(value)
-                        if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
-                    {
-                        Some(value)
+            .for_each(|parameter: &mut Parameter<'a>| match parameter {
+                Parameter::Value(parameter) => {
+                    if let Some(argument) = arguments.iter().find_map(|argument| match argument {
+                        Argument::Value(value)
+                            if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
+                        {
+                            Some(value)
+                        }
+                        _ => None,
+                    }) {
+                        parameter.update_parameter_type(
+                            argument.ident,
+                            argument.is_array,
+                            argument.is_option,
+                        )
                     }
-                    _ => None,
-                }) {
-                    parameter.update_parameter_type(
-                        argument.ident,
-                        argument.is_array,
-                        argument.is_option,
-                    )
-                }
+                },
+                Parameter::Struct(_) | Parameter::TokenStream(_) => {},
             });
     }
 
