@@ -1056,19 +1056,13 @@ impl<'a> Config<'a> {
 
 impl<'a> From<&'a str> for Config<'a> {
     fn from(s: &'a str) -> Self {
-        Self {
-            urls: vec![Url::from(s)],
-            ..Default::default()
-        }
+        Self::new([s]) 
     }
 }
 
 impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
-        Self {
-            urls: vec![Url::from(s)],
-            ..Default::default()
-        }
+        Self::new([s]) 
     }
 }
 
