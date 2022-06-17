@@ -123,7 +123,7 @@
 //!             (status = 404, description = "Pet was not found")
 //!         ),
 //!         params(
-//!             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 //!         )
 //!     )]
 //!     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -159,7 +159,7 @@
 //! #             (status = 404, description = "Pet was not found")
 //! #         ),
 //! #         params(
-//! #             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//! #             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 //! #         )
 //! #     )]
 //! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -344,7 +344,7 @@ pub trait Component {
 ///         (status = 404, description = "Pet was not found")
 ///     ),
 ///     params(
-///         ("id" = u64, path, description = "Pet database id to get Pet for"),
+///         ("id" = u64, Path, description = "Pet database id to get Pet for"),
 ///     )
 /// )]
 /// async fn get_pet_by_id(pet_id: u64) -> Pet {

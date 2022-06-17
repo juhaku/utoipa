@@ -1,6 +1,6 @@
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, fmt::Display};
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
@@ -110,7 +110,19 @@ impl Parse for ParameterValue<'_> {
         }
 
         input.parse::<Token![,]>()?;
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: path, query, header, cookie, deprecated, description, style, explode, allow_reserved, example";
+
+        fn expected_attribute_message() -> String {
+            let parameter_in_variants = ParameterIn::VARIANTS
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            format!(
+                "unexpected attribute, expected any of: {}, deprecated, description, style, explode, allow_reserved, example",
+                parameter_in_variants
+            )
+        }
 
         while !input.is_empty() {
             let fork = input.fork();
@@ -132,28 +144,31 @@ impl Parse for ParameterValue<'_> {
 
                 ext.merge(parameter_ext);
             } else {
-                let ident = input.parse::<Ident>().map_err(|error| {
-                    Error::new(
-                        error.span(),
-                        format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
-                    )
-                })?;
-                let name = &*ident.to_string();
-
-                match name {
-                    "path" | "query" | "header" | "cookie" => {
-                        parameter.parameter_in = name
-                            .parse::<ParameterIn>()
-                            .map_err(|error| Error::new(ident.span(), error))?;
-                    }
-                    "deprecated" => parameter.deprecated = parse_utils::parse_bool_or_true(&input)?,
-                    "description" => {
-                        parameter.description = Some(
-                            parse_utils::parse_next(&input, || input.parse::<LitStr>())?.value(),
+                if input.fork().parse::<ParameterIn>().is_ok() {
+                    parameter.parameter_in = input.parse()?;
+                } else {
+                    let ident = input.parse::<Ident>().map_err(|error| {
+                        Error::new(
+                            error.span(),
+                            format!("{}, {}", expected_attribute_message(), error),
                         )
+                    })?;
+                    let name = &*ident.to_string();
+
+                    match name {
+                        "deprecated" => {
+                            parameter.deprecated = parse_utils::parse_bool_or_true(&input)?
+                        }
+                        "description" => {
+                            parameter.description = Some(
+                                parse_utils::parse_next(&input, || input.parse::<LitStr>())?
+                                    .value(),
+                            )
+                        }
+                        _ => return Err(Error::new(ident.span(), expected_attribute_message())),
                     }
-                    _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
+
                 if !input.is_empty() {
                     input.parse::<Token![,]>()?;
                 }
@@ -234,35 +249,37 @@ pub enum ParameterIn {
     Cookie,
 }
 
+impl ParameterIn {
+    pub const VARIANTS: &'static [Self] = &[Self::Query, Self::Path, Self::Header, Self::Cookie];
+}
+
+impl Display for ParameterIn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParameterIn::Query => write!(f, "Query"),
+            ParameterIn::Path => write!(f, "Path"),
+            ParameterIn::Header => write!(f, "Header"),
+            ParameterIn::Cookie => write!(f, "Cookie"),
+        }
+    }
+}
+
 impl Default for ParameterIn {
     fn default() -> Self {
         Self::Path
     }
 }
 
-impl FromStr for ParameterIn {
-    type Err = syn::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "path" => Ok(Self::Path),
-            "query" => Ok(Self::Query),
-            "header" => Ok(Self::Header),
-            "cookie" => Ok(Self::Cookie),
-            _ => Err(syn::Error::new(
-                Span::call_site(),
-                &format!(
-                    "unexpected str: {}, expected one of: path, query, header, cookie",
-                    s
-                ),
-            )),
-        }
-    }
-}
-
 impl Parse for ParameterIn {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_STYLE: &str = "unexpected in, expected one of: Path, Query, Header, Cookie";
+        fn expected_style() -> String {
+            let variants: String = ParameterIn::VARIANTS
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("unexpected in, expected one of: {}", variants)
+        }
         let style = input.parse::<Ident>()?;
 
         match &*style.to_string() {
@@ -270,7 +287,7 @@ impl Parse for ParameterIn {
             "Query" => Ok(Self::Query),
             "Header" => Ok(Self::Header),
             "Cookie" => Ok(Self::Cookie),
-            _ => Err(Error::new(style.span(), EXPECTED_STYLE)),
+            _ => Err(Error::new(style.span(), expected_style())),
         }
     }
 }

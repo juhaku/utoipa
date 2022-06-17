@@ -160,7 +160,7 @@ fn derive_path_with_defaults_success() {
     ),
     params(
         ("id" = u64, description = "Foo database id"),
-        ("since" = Option<String>, query, description = "Datetime since foo is updated")
+        ("since" = Option<String>, Query, description = "Datetime since foo is updated")
     )
 )]
 #[allow(unused)]
@@ -257,7 +257,7 @@ fn derive_path_params_intoparams() {
         ),
         params(
             MyParams,
-            ("id" = i64, path, description = "Id of some items to list")
+            ("id" = i64, Path, description = "Id of some items to list")
         )
     )]
     #[allow(unused)]

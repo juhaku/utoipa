@@ -16,7 +16,7 @@ mod derive_params_all_options {
             (status = 200, description = "success"),
         ),
         params(
-            ("id" = i32, path, deprecated, description = "Search foos by ids"),
+            ("id" = i32, Path, deprecated, description = "Search foos by ids"),
         )
     )]
     #[allow(unused)]
@@ -148,11 +148,11 @@ mod mod_derive_parameters_all_types {
             (status = 200, description = "success"),
         ),
         params(
-            ("id" = i32, path, description = "Foo id"),
-            ("since" = String, deprecated, query, description = "Datetime since"),
-            ("numbers" = Option<[u64]>, query, description = "Foo numbers list"),
-            ("token" = String, header, deprecated, description = "Token of foo"),
-            ("cookieval" = String, cookie, deprecated, description = "Foo cookie"),
+            ("id" = i32, Path, description = "Foo id"),
+            ("since" = String, deprecated, Query, description = "Datetime since"),
+            ("numbers" = Option<[u64]>, Query, description = "Foo numbers list"),
+            ("token" = String, Header, deprecated, description = "Token of foo"),
+            ("cookieval" = String, Cookie, deprecated, description = "Foo cookie"),
         )
     )]
     #[allow(unused)]
@@ -224,7 +224,7 @@ mod derive_params_without_args {
             (status = 200, description = "success"),
         ),
         params(
-            ("id" = i32, path, description = "Foo id"),
+            ("id" = i32, Path, description = "Foo id"),
         )
     )]
     #[allow(unused)]
@@ -263,7 +263,7 @@ fn derive_params_with_params_ext() {
             (status = 200, description = "success"),
         ),
         params(
-            ("value" = Option<[String]>, query, description = "Foo value description", style = Form, allow_reserved, deprecated, explode)
+            ("value" = Option<[String]>, Query, description = "Foo value description", style = Form, allow_reserved, deprecated, explode)
         )
     )]
     #[allow(unused)]

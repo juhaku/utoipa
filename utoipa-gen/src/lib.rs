@@ -455,7 +455,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
-///   E.g. _`path, query, header, cookie`_
+///   This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
+///   E.g. _`Path, Query, Header, Cookie`_
 /// * `deprecated` Define whether the parameter is deprecated or not.
 /// * `description = "..."` Define possible description for the parameter as str.
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
@@ -609,7 +610,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         ),
 ///    ),
 ///    params(
-///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
+///      ("x-csrf-token" = String, Header, deprecated, description = "Current csrf token of user"),
 ///    ),
 ///    security(
 ///        (),
@@ -644,7 +645,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         ),
 ///    ),
 ///    params(
-///      ("x-csrf-token", header, description = "Current csrf token of user"),
+///      ("x-csrf-token", Header, description = "Current csrf token of user"),
 ///    )
 /// )]
 /// fn post_pet(pet: Pet) -> Pet {
@@ -689,6 +690,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
+///
+/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
@@ -914,7 +917,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// ```
 /// # Examples
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with resolving `path` and `query` parameters
+/// Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
 /// for `get_pet` endpoint. [^actix]
 /// ```rust
 /// use actix_web::{get, HttpResponse, Responder};
