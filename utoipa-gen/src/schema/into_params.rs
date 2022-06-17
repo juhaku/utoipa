@@ -28,7 +28,7 @@ pub struct IntoParamsAttr {
 }
 
 impl IntoParamsAttr {
-    fn merge(&mut self, other: Self) -> &Self {
+    fn merge(mut self, other: Self) -> Self {
         if other.style.is_some() {
             self.style = other.style;
         }
@@ -50,51 +50,46 @@ impl Parse for IntoParamsAttr {
         const EXPECTED_ATTRIBUTE: &str =
             "unexpected token, expected any of: names, style, parameter_in";
 
-        let mut attributes = Self::default();
+        let punctuated =
+            Punctuated::<IntoParamsAttr, Token![,]>::parse_terminated_with(input, |input| {
+                let ident: Ident = input.parse::<Ident>().map_err(|error| {
+                    Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
+                })?;
 
-        let mut first: bool = true;
+                Ok(match ident.to_string().as_str() {
+                    "names" => IntoParamsAttr {
+                        names: Some(
+                            parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
+                                .into_iter()
+                                .map(|name| name.value())
+                                .collect(),
+                        ),
+                        ..IntoParamsAttr::default()
+                    },
+                    "style" => {
+                        let style: ParameterStyle =
+                            parse_utils::parse_next(input, || input.parse::<ParameterStyle>())?;
+                        IntoParamsAttr {
+                            style: Some(style),
+                            ..IntoParamsAttr::default()
+                        }
+                    }
+                    "parameter_in" => {
+                        let parameter_in: ParameterIn =
+                            parse_utils::parse_next(input, || input.parse::<ParameterIn>())?;
 
-        while !input.is_empty() {
-            if !first {
-                input.parse::<Token![,]>()?;
-            }
-
-            let ident: Ident = input.parse::<Ident>().map_err(|error| {
-                Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
+                        IntoParamsAttr {
+                            parameter_in: Some(parameter_in),
+                            ..IntoParamsAttr::default()
+                        }
+                    }
+                    _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
+                })
             })?;
 
-            attributes.merge(match ident.to_string().as_str() {
-                "names" => Ok(IntoParamsAttr {
-                    names: Some(
-                        parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
-                            .into_iter()
-                            .map(|name| name.value())
-                            .collect(),
-                    ),
-                    ..IntoParamsAttr::default()
-                }),
-                "style" => {
-                    let style: ParameterStyle =
-                        parse_utils::parse_next(input, || input.parse::<ParameterStyle>())?;
-                    Ok(IntoParamsAttr {
-                        style: Some(style),
-                        ..IntoParamsAttr::default()
-                    })
-                }
-                "parameter_in" => {
-                    let parameter_in: ParameterIn =
-                        parse_utils::parse_next(input, || input.parse::<ParameterIn>())?;
-
-                    Ok(IntoParamsAttr {
-                        parameter_in: Some(parameter_in),
-                        ..IntoParamsAttr::default()
-                    })
-                }
-                _ => Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
-            }?);
-
-            first = false;
-        }
+        let attributes: IntoParamsAttr = punctuated
+            .into_iter()
+            .fold(IntoParamsAttr::default(), |acc, next| acc.merge(next));
 
         Ok(attributes)
     }
