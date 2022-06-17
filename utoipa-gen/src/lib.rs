@@ -485,7 +485,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// ## IntoParams Type
 ///
-/// In the IntoParams paramters format, the paramters are specified using an identifier for a type
+/// In the IntoParams parameters format, the parameters are specified using an identifier for a type
 /// that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
 /// example.
 ///
