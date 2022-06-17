@@ -493,7 +493,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// **For example:**
 ///
 /// ```text
-/// params(MyParamters)
+/// params(MyParameters)
 /// ```
 ///
 /// Note that `MyParameters` can also be used in combination with the [tuples
