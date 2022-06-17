@@ -447,7 +447,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// ## Tuples
 ///
-/// In the tuples format, paramters are specified using the following attributes inside a list of
+/// In the tuples format, parameters are specified using the following attributes inside a list of
 /// tuples seperated by commas:
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
