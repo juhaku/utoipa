@@ -98,7 +98,7 @@ impl ToTokens for Params<'_> {
 
 impl<'p> PathAttr<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) -> syn::Result<()> {
+    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
         if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
                 let parameters = &mut parameters.parameters;
@@ -119,8 +119,6 @@ impl<'p> PathAttr<'p> {
                 });
             }
         }
-
-        Ok(())
     }
 
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
@@ -147,8 +145,8 @@ impl<'p> PathAttr<'p> {
                             argument.is_option,
                         )
                     }
-                },
-                Parameter::Struct(_) | Parameter::TokenStream(_) => {},
+                }
+                Parameter::Struct(_) | Parameter::TokenStream(_) => {}
             });
     }
 

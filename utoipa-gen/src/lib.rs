@@ -726,9 +726,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
         let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, args);
 
-        path_attribute
-            .update_parameters(arguments)
-            .unwrap_or_abort();
+        path_attribute.update_parameters(arguments)
     }
 
     let path = Path::new(path_attribute, fn_name)

@@ -5,7 +5,7 @@ use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, LitStr, Token, ExprPath,
+    Error, ExprPath, LitStr, Token,
 };
 
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
