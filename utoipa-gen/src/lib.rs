@@ -874,10 +874,10 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///    values are based on _`parameter_in`_ attribute.
-/// * `parameter_in = ...` =  Defines where the parameters of this field are used by
+/// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
 ///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
-///    supplied, then one must implement [`ParameterIn`][in_trait] trait for the struct performing
-///    this derive.
+///    supplied, then the value is determined by the `parameter_in_provider` in
+///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
 ///
 /// # IntoParams Field Attributes for `#[param(...)]`
 ///
@@ -983,7 +983,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
-/// [in_trait]: utoipa/trait.ParameterIn.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
