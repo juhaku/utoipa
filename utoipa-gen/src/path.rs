@@ -4,6 +4,7 @@ use std::{io::Error, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
+use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
 use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
@@ -64,9 +65,35 @@ pub struct PathAttr<'p> {
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    params: Option<Vec<Parameter<'p>>>,
+    params: Option<Params<'p>>,
     security: Option<Array<SecurityRequirementAttr>>,
     context_path: Option<String>,
+}
+
+/// The [`PathAttr::params`] field definition. This is parsed from the
+/// `#[utoipa::path(params(...))]` attribute.
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default)]
+struct Params<'p> {
+    /// A list of tuples of attributes that defines a parameter.
+    pub parameters: Vec<Parameter<'p>>,
+}
+
+impl Parse for Params<'_> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let params: Vec<Parameter> = Punctuated::<Parameter, Token![,]>::parse_terminated(input)
+            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
+
+        Ok(Self { parameters: params })
+    }
+}
+
+impl ToTokens for Params<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        self.parameters
+            .iter()
+            .for_each(|parameter| parameter.to_tokens(tokens));
+    }
 }
 
 impl<'p> PathAttr<'p> {
@@ -74,18 +101,22 @@ impl<'p> PathAttr<'p> {
     pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
         if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
+                let parameters = &mut parameters.parameters;
                 PathAttr::update_existing_parameters_parameter_types(parameters, &arguments);
 
                 let new_params = &mut PathAttr::get_new_parameters(parameters, arguments);
                 parameters.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
-                let mut params = Vec::with_capacity(arguments.len());
+                let mut parameters = Vec::with_capacity(arguments.len());
                 arguments
                     .into_iter()
                     .map(Parameter::from)
-                    .for_each(|parameter| params.push(parameter));
-                self.params = Some(params);
+                    .for_each(|parameter| parameters.push(parameter));
+                self.params = Some(Params {
+                    parameters,
+                    ..Params::default()
+                });
             }
         }
     }
@@ -98,25 +129,24 @@ impl<'p> PathAttr<'p> {
         use std::borrow::Cow;
         parameters
             .iter_mut()
-            .filter_map(|parameter| match parameter {
-                Parameter::Value(value) => Some(value),
-                Parameter::TokenStream(_) => None,
-            })
-            .for_each(|parameter| {
-                if let Some(argument) = arguments.iter().find_map(|argument| match argument {
-                    Argument::Value(value)
-                        if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
-                    {
-                        Some(value)
+            .for_each(|parameter: &mut Parameter<'a>| match parameter {
+                Parameter::Value(parameter) => {
+                    if let Some(argument) = arguments.iter().find_map(|argument| match argument {
+                        Argument::Value(value)
+                            if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
+                        {
+                            Some(value)
+                        }
+                        _ => None,
+                    }) {
+                        parameter.update_parameter_type(
+                            argument.ident,
+                            argument.is_array,
+                            argument.is_option,
+                        )
                     }
-                    _ => None,
-                }) {
-                    parameter.update_parameter_type(
-                        argument.ident,
-                        argument.is_array,
-                        argument.is_option,
-                    )
                 }
+                Parameter::Struct(_) | Parameter::TokenStream(_) => {}
             });
     }
 
@@ -187,7 +217,7 @@ impl Parse for PathAttr<'_> {
                 "params" => {
                     let params;
                     parenthesized!(params in input);
-                    path_attr.params = Some(parse_utils::parse_groups(&params)?);
+                    path_attr.params = Some(params.parse()?);
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -451,12 +481,13 @@ impl ToTokens for Path<'_> {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct Operation<'a> {
     operation_id: &'a String,
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Vec<Parameter<'a>>>,
+    parameters: Option<&'a Params<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
@@ -512,13 +543,8 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        if let Some(parameters) = self.parameters {
-            parameters.iter().for_each(|parameter| match parameter {
-                Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
-                #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                Parameter::TokenStream(_) => tokens.extend(quote! { .parameters(Some(#parameter))}),
-            });
-        }
+        self.parameters
+            .map(|parameters| parameters.to_tokens(tokens));
     }
 }
 

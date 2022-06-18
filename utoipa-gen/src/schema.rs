@@ -7,7 +7,6 @@ use syn::{
 
 use crate::{component_type::ComponentType, Deprecated};
 
-#[cfg(feature = "actix_extras")]
 pub mod into_params;
 
 pub mod component;

@@ -17,7 +17,6 @@ use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
-#[cfg(feature = "actix_extras")]
 use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
@@ -404,20 +403,27 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// **Minimal response format:**
 /// ```text
-/// (status = 200, description = "success response")
+/// responses(
+///     (status = 200, description = "success response"),
+///     (status = 404, description = "resource missing"),
+/// )
 /// ```
 ///
 /// **Response with all possible values:**
 /// ```text
-/// (status = 200, description = "Success response", body = Pet, content_type = "application/json",
-///     headers(...),
-///     example = json!({"id": 1, "name": "bob the cat"})
+/// responses(
+///     (status = 200, description = "Success response", body = Pet, content_type = "application/json",
+///         headers(...),
+///         example = json!({"id": 1, "name": "bob the cat"})
+///     )
 /// )
 /// ```
 ///
 /// **Response with multiple response content types:**
 /// ```text
-/// (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+/// responses(
+///     (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+/// )
 /// ```
 ///
 /// # Response Header Attributes
@@ -436,12 +442,21 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Params Attributes
 ///
+/// The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParams
+/// Type](#intoparams-type).
+///
+/// ## Tuples
+///
+/// In the tuples format, parameters are specified using the following attributes inside a list of
+/// tuples seperated by commas:
+///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
 /// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice or option.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
-///   E.g. _`path, query, header, cookie`_
+///   This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
+///   E.g. _`Path, Query, Header, Cookie`_
 /// * `deprecated` Define whether the parameter is deprecated or not.
 /// * `description = "..."` Define possible description for the parameter as str.
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
@@ -450,12 +465,47 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
 ///   will override any example in underlying parameter type.
 ///
-/// **Params supports following representation formats:**
+/// **For example:**
 ///
 /// ```text
-/// ("id" = String, path, deprecated, description = "Pet database id"),
-/// ("id", path, deprecated, description = "Pet database id"),
-/// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
+/// params(
+///     ("id" = String, path, deprecated, description = "Pet database id"),
+///     ("name", path, deprecated, description = "Pet name"),
+///     (
+///         "value" = Option<[String]>,
+///         query,
+///         description = "Value description",
+///         style = Form,
+///         allow_reserved,
+///         deprecated,
+///         explode,
+///         example = json!(["Value"]))
+///     )
+/// )
+/// ```
+///
+/// ## IntoParams Type
+///
+/// In the IntoParams parameters format, the parameters are specified using an identifier for a type
+/// that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
+/// example.
+///
+/// [into_params]: ./trait.IntoParams.html
+/// **For example:**
+///
+/// ```text
+/// params(MyParameters)
+/// ```
+///
+/// Note that `MyParameters` can also be used in combination with the [tuples
+/// representation](#tuples) or other structs. **For example:**
+///
+/// ```text
+/// params(
+///     MyParameters1,
+///     MyParameters2,
+///     ("id" = String, path, deprecated, description = "Pet database id"),
+/// )
 /// ```
 ///
 /// # Security Requirement Attributes
@@ -560,7 +610,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         ),
 ///    ),
 ///    params(
-///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
+///      ("x-csrf-token" = String, Header, deprecated, description = "Current csrf token of user"),
 ///    ),
 ///    security(
 ///        (),
@@ -595,7 +645,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         ),
 ///    ),
 ///    params(
-///      ("x-csrf-token", header, description = "Current csrf token of user"),
+///      ("x-csrf-token", Header, description = "Current csrf token of user"),
 ///    )
 /// )]
 /// fn post_pet(pet: Pet) -> Pet {
@@ -640,6 +690,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
+///
+/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
@@ -677,7 +729,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
         let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, args);
 
-        path_attribute.update_parameters(arguments);
+        path_attribute.update_parameters(arguments)
     }
 
     let path = Path::new(path_attribute, fn_name)
@@ -799,7 +851,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     openapi.to_token_stream().into()
 }
 
-#[cfg(feature = "actix_extras")]
 #[proc_macro_error]
 #[proc_macro_derive(IntoParams, attributes(param, into_params))]
 /// IntoParams derive macro for **actix-web** only.
@@ -819,17 +870,28 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
-/// # IntoParams Attributes for `#[param(...)]`
+/// # IntoParams Container Attributes for `#[into_params(...)]`
 ///
-/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+/// The following attributes are available for use in on the container attribute `#[into_params(...)]` for the struct
+/// deriving `IntoParams`:
+///
+/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
+/// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
+///    values are based on _`parameter_in`_ attribute.
+/// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
+///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
+///    supplied, then the value is determined by the `parameter_in_provider` in
+///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+///
+/// # IntoParams Field Attributes for `#[param(...)]`
+///
+/// The following attributes are available for use in the `#[param(...)]` on struct fields:
+///
+/// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 /// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
-///
-/// # IntoParams Attributes for `#[into_params(...)]`
-///
-/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -852,7 +914,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// ```
 /// # Examples
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with resolving `path` and `query` parameters
+/// Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
 /// for `get_pet` endpoint. [^actix]
 /// ```rust
 /// use actix_web::{get, HttpResponse, Responder};
@@ -888,28 +950,57 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)]` container attribute to
+/// be used as a path query:
+/// ```rust
+/// use serde::Deserialize;
+/// use utoipa::IntoParams;
+///
+/// #[derive(Deserialize, IntoParams)]
+/// #[param(style = Form, parameter_in = Query)]
+/// struct PetQuery {
+///     /// Name of pet
+///     name: Option<String>,
+///     /// Age of pet
+///     age: Option<i32>,
+/// }
+///
+/// #[utoipa::path(
+///     get,
+///     path = "/get_pet",
+///     params(PetQuery),
+///     responses(
+///         (status = 200, description = "success response")
+///     )
+/// )]
+/// async fn get_pet(query: PetQuery) {
+///     // ...
+/// }
+/// ```
+///
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
+/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
+        attrs,
         ident,
         generics,
         data,
-        attrs,
         ..
     } = syn::parse_macro_input!(input);
 
     let into_params = IntoParams {
+        attrs,
         generics,
         data,
         ident,
-        attrs,
     };
 
     into_params.to_token_stream().into()
@@ -1263,11 +1354,11 @@ mod parse_utils {
         next()
     }
 
-    pub fn parse_next_literal_str(input: ParseStream) -> Result<String, Error> {
+    pub fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
-    pub fn parse_groups<T, R>(input: ParseStream) -> Result<R, Error>
+    pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
     where
         T: Sized,
         T: Parse,
@@ -1277,13 +1368,13 @@ mod parse_utils {
             groups
                 .into_iter()
                 .map(|group| syn::parse2::<T>(group.stream()))
-                .collect::<Result<R, Error>>()
+                .collect::<syn::Result<R>>()
         })
     }
 
     pub fn parse_punctuated_within_parenthesis<T>(
         input: ParseStream,
-    ) -> Result<Punctuated<T, Comma>, Error>
+    ) -> syn::Result<Punctuated<T, Comma>>
     where
         T: Parse,
     {
@@ -1292,7 +1383,7 @@ mod parse_utils {
         Punctuated::<T, Comma>::parse_terminated(&content)
     }
 
-    pub fn parse_bool_or_true(input: ParseStream) -> Result<bool, syn::Error> {
+    pub fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
         if input.peek(Token![=]) && input.peek2(LitBool) {
             input.parse::<Token![=]>()?;
 
@@ -1302,7 +1393,7 @@ mod parse_utils {
         }
     }
 
-    pub fn parse_json_token_stream(input: ParseStream) -> Result<TokenStream, Error> {
+    pub fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
         if input.peek(syn::Ident) && input.peek2(Token![!]) {
             input.parse::<Ident>().and_then(|ident| {
                 if ident != "json" {

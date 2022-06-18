@@ -123,7 +123,7 @@
 //!             (status = 404, description = "Pet was not found")
 //!         ),
 //!         params(
-//!             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 //!         )
 //!     )]
 //!     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -159,7 +159,7 @@
 //! #             (status = 404, description = "Pet was not found")
 //! #         ),
 //! #         params(
-//! #             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//! #             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 //! #         )
 //! #     )]
 //! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -344,7 +344,7 @@ pub trait Component {
 ///         (status = 404, description = "Pet was not found")
 ///     ),
 ///     params(
-///         ("id" = u64, path, description = "Pet database id to get Pet for"),
+///         ("id" = u64, Path, description = "Pet database id to get Pet for"),
 ///     )
 /// )]
 /// async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -472,7 +472,7 @@ pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
-/// Trait used to convert implementing type to OpenAPI parameters for **actix-web** framework.
+/// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
 /// For more details of `#[derive(IntoParams)]` refer to [derive documentation][derive].
@@ -482,7 +482,7 @@ pub trait Modify {
 /// Derive [`IntoParams`] implementation. This example will fail to compile because [`IntoParams`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
-/// ```compile_fail
+/// ```
 /// use utoipa::{IntoParams};
 ///
 /// #[derive(IntoParams)]
@@ -503,12 +503,14 @@ pub trait Modify {
 /// #    name: String,
 /// # }
 /// impl utoipa::IntoParams for PetParams {
-///     fn into_params() -> Vec<utoipa::openapi::path::Parameter> {
+///     fn into_params(
+///         parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>
+///     ) -> Vec<utoipa::openapi::path::Parameter> {
 ///         vec![
 ///             utoipa::openapi::path::ParameterBuilder::new()
 ///                 .name("id")
 ///                 .required(utoipa::openapi::Required::True)
-///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
@@ -519,7 +521,7 @@ pub trait Modify {
 ///             utoipa::openapi::path::ParameterBuilder::new()
 ///                 .name("name")
 ///                 .required(utoipa::openapi::Required::True)
-///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
@@ -531,7 +533,6 @@ pub trait Modify {
 /// }
 /// ```
 /// [derive]: derive.IntoParams.html
-#[cfg(feature = "actix_extras")]
 pub trait IntoParams {
     /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `utoipa-gen` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.

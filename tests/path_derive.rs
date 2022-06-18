@@ -1,5 +1,8 @@
 #![cfg(feature = "serde_json")]
+use assert_json_diff::assert_json_eq;
 use paste::paste;
+use serde_json::{json, Value};
+use utoipa::IntoParams;
 
 mod common;
 
@@ -157,7 +160,7 @@ fn derive_path_with_defaults_success() {
     ),
     params(
         ("id" = u64, description = "Foo database id"),
-        ("since" = Option<String>, query, description = "Datetime since foo is updated")
+        ("since" = Option<String>, Query, description = "Datetime since foo is updated")
     )
 )]
 #[allow(unused)]
@@ -229,6 +232,91 @@ fn derive_path_with_security_requirements() {
         "security.[1].api_oauth.[1]" = r###""edit:items""###, "api_oauth second scope"
         "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
     }
+}
+
+#[test]
+fn derive_path_params_intoparams() {
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(style = Form, parameter_in = Query)]
+    struct MyParams {
+        /// Foo database id.
+        #[param(example = 1)]
+        #[allow(unused)]
+        id: u64,
+        /// Datetime since foo is updated.
+        #[param(example = "2020-04-12T10:23:00Z")]
+        #[allow(unused)]
+        since: Option<String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/list/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+            ("id" = i64, Path, description = "Id of some items to list")
+        )
+    )]
+    #[allow(unused)]
+    fn list(id: i64, params: MyParams) -> String {
+        "".to_string()
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(list))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/list/{id}"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "description": "Foo database id.",
+                "example": 1,
+                "in": "query",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                },
+                "style": "form"
+            },
+            {
+                "description": "Datetime since foo is updated.",
+                "example": "2020-04-12T10:23:00Z",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                },
+                "style": "form"
+            },
+            {
+                "deprecated": false,
+                "description": "Id of some items to list",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            }
+        ])
+    )
 }
 
 #[cfg(feature = "uuid")]
