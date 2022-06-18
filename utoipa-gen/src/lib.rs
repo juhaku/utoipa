@@ -870,11 +870,12 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
-/// # IntoParams Container Attributes for `#[param(...)]`
+/// # IntoParams Container Attributes for `#[into_params(...)]`
 ///
-/// The following attributes are available for use in on the container attribute `#[param(...)]` for the struct
+/// The following attributes are available for use in on the container attribute `#[into_params(...)]` for the struct
 /// deriving `IntoParams`:
 ///
+/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///    values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
@@ -891,10 +892,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
-///
-/// # IntoParams Attributes for `#[into_params(...)]`
-///
-/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
