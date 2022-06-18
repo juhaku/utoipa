@@ -88,6 +88,10 @@ utoipa = { version = "1", features = ["actix_extras"] }
 
 **Note!** To use `utoipa` together with Swagger UI you can use the [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate.
 
+## Breaking changes in next release 2.0.0
+
+Please read the incoming changes from here: https://github.com/juhaku/utoipa/discussions/181.
+
 ## Examples
 
 Create a struct or it could be an enum also. Add `Component` derive macro to it so it can be registered
