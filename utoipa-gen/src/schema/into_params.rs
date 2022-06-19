@@ -284,12 +284,14 @@ impl ToTokens for Param<'_> {
         let mut parameter_ext = ParameterExt::from(&self.container_attributes);
 
         // Apply the field attributes if they exist.
-        field
+        if let Some(p) = field
             .attrs
             .iter()
             .find(|attribute| attribute.path.is_ident("param"))
             .map(|attribute| attribute.parse_args::<ParameterExt>().unwrap_or_abort())
-            .map(|p| parameter_ext.merge(p));
+        {
+            parameter_ext.merge(p)
+        }
 
         if let Some(ref style) = parameter_ext.style {
             tokens.extend(quote! { .style(Some(#style)) });

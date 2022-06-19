@@ -193,7 +193,7 @@ mod todo {
             (status = 404, description = "Todo not found")
         ),
         params(
-            ("id" = i32, path, description = "Todo database id")
+            ("id" = i32, Path, description = "Todo database id")
         ),
         security(
             (), // <-- make optional authentication
@@ -234,7 +234,7 @@ mod todo {
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
         params(
-            ("id" = i32, path, description = "Todo database id")
+            ("id" = i32, Path, description = "Todo database id")
         ),
         security(
             ("api_key" = [])

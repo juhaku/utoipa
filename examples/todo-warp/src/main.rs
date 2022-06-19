@@ -224,7 +224,7 @@ mod todo {
             (status = 404, description = "Todo not found to delete"),
         ),
         params(
-            ("id" = i64, path, description = "Todo's unique id")
+            ("id" = i64, Path, description = "Todo's unique id")
         ),
         security(
             ("api_key" = [])

@@ -65,35 +65,9 @@ pub struct PathAttr<'p> {
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    params: Option<Params<'p>>,
+    params: Option<Vec<Parameter<'p>>>,
     security: Option<Array<SecurityRequirementAttr>>,
     context_path: Option<String>,
-}
-
-/// The [`PathAttr::params`] field definition. This is parsed from the
-/// `#[utoipa::path(params(...))]` attribute.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default)]
-struct Params<'p> {
-    /// A list of tuples of attributes that defines a parameter.
-    pub parameters: Vec<Parameter<'p>>,
-}
-
-impl Parse for Params<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let params: Vec<Parameter> = Punctuated::<Parameter, Token![,]>::parse_terminated(input)
-            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
-
-        Ok(Self { parameters: params })
-    }
-}
-
-impl ToTokens for Params<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        self.parameters
-            .iter()
-            .for_each(|parameter| parameter.to_tokens(tokens));
-    }
 }
 
 impl<'p> PathAttr<'p> {
@@ -101,7 +75,6 @@ impl<'p> PathAttr<'p> {
     pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
         if let Some(arguments) = arguments {
             if let Some(ref mut parameters) = self.params {
-                let parameters = &mut parameters.parameters;
                 PathAttr::update_existing_parameters_parameter_types(parameters, &arguments);
 
                 let new_params = &mut PathAttr::get_new_parameters(parameters, arguments);
@@ -113,10 +86,7 @@ impl<'p> PathAttr<'p> {
                     .into_iter()
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
-                self.params = Some(Params {
-                    parameters,
-                    ..Params::default()
-                });
+                self.params = Some(parameters);
             }
         }
     }
@@ -217,7 +187,10 @@ impl Parse for PathAttr<'_> {
                 "params" => {
                     let params;
                     parenthesized!(params in input);
-                    path_attr.params = Some(params.parse()?);
+                    path_attr.params = Some(
+                        Punctuated::<Parameter, Token![,]>::parse_terminated(&params)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?,
+                    );
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -487,7 +460,7 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Params<'a>>,
+    parameters: Option<&'a Vec<Parameter<'a>>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
@@ -543,8 +516,11 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        self.parameters
-            .map(|parameters| parameters.to_tokens(tokens));
+        if let Some(parameters) = self.parameters {
+            parameters
+                .iter()
+                .for_each(|parameter| parameter.to_tokens(tokens));
+        }
     }
 }
 
