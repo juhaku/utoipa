@@ -1092,6 +1092,57 @@ fn derive_unnamed_struct_component_type_override_with_format() {
     }
 }
 
+#[test]
+fn derive_struct_override_type_with_any_type() {
+    let value = api_doc! {
+        struct Value {
+            #[component(value_type = Any)]
+            field: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "object"
+                }
+            },
+            "required": ["field"]
+        })
+    )
+}
+
+#[test]
+fn derive_struct_override_type_with_a_reference() {
+    mod custom {
+        #[allow(dead_code)]
+        struct NewBar;
+    }
+
+    let value = api_doc! {
+        struct Value {
+            #[component(value_type = custom::NewBar)]
+            field: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "properties": {
+                "field": {
+                    "$ref": "#/components/schemas/NewBar"
+                }
+            },
+            "required": ["field"]
+        })
+    )
+}
+
 #[cfg(feature = "decimal")]
 #[test]
 fn derive_struct_with_rust_decimal() {

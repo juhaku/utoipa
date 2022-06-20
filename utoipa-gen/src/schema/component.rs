@@ -237,7 +237,8 @@ impl ToTokens for NamedStructComponent<'_> {
 
                 let type_override = attrs
                     .as_ref()
-                    .and_then(|field| field.as_ref().ty.as_ref())
+                    .and_then(|field| field.as_ref().value_type.as_ref())
+                    .and_then(|value_type| value_type.get_ident())
                     .map(ComponentPart::from_ident);
                 let xml_value = attrs
                     .as_ref()
@@ -308,7 +309,8 @@ impl ToTokens for UnnamedStructComponent<'_> {
         if all_fields_are_same {
             let type_override = attrs
                 .as_ref()
-                .and_then(|unnamed_struct| unnamed_struct.as_ref().ty.as_ref())
+                .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.as_ref())
+                .and_then(|value_type| value_type.get_ident())
                 .map(ComponentPart::from_ident);
 
             if type_override.is_some() {
@@ -789,11 +791,16 @@ where
                         }
                     }
                     ValueType::Object => {
-                        let name = &*self.component_part.ident.to_string();
+                        let name = &component_part.ident.to_string();
 
-                        tokens.extend(quote! {
-                            utoipa::openapi::Ref::from_component_name(#name)
-                        })
+                        // When users wishes to hinder the actual type with Any type render a generic `object`
+                        if component_part.is_any() {
+                            tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
+                        } else {
+                            tokens.extend(quote! {
+                                utoipa::openapi::Ref::from_component_name(#name)
+                            })
+                        }
                     }
                 }
             }
