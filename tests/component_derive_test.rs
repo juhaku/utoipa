@@ -596,6 +596,38 @@ fn derive_simple_enum_serde_tag() {
 
 /// Derive a complex enum with named and unnamed fields.
 #[test]
+fn derive_complex_unnamed_field_reference_with_comment() {
+    #[derive(Serialize)]
+    struct CommentedReference(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum EnumWithReference {
+            /// This is comment which will not be added to the document
+            /// since $ref cannot have comments
+            UnnamedFieldWithCommentReference(CommentedReference),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "UnnamedFieldWithCommentReference": {
+                            "$ref": "#/components/schemas/CommentedReference",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+/// Derive a complex enum with named and unnamed fields.
+#[test]
 fn derive_complex_enum() {
     #[derive(Serialize)]
     struct Foo(String);
