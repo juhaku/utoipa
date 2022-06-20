@@ -12,7 +12,7 @@ use syn::{
 use crate::{
     parse_utils,
     schema::{ComponentPart, GenericType},
-    AnyValue,
+    AnyValue, ValueType,
 };
 
 use super::xml::{Xml, XmlAttr};
@@ -51,7 +51,7 @@ pub struct Struct {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
-    pub(super) ty: Option<Ident>,
+    pub(super) value_type: Option<ValueType>,
     format: Option<ExprPath>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
@@ -61,7 +61,7 @@ pub struct UnnamedFieldStruct {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
     example: Option<AnyValue>,
-    pub(super) ty: Option<Ident>,
+    pub(super) value_type: Option<ValueType>,
     format: Option<ExprPath>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
@@ -192,8 +192,9 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                 }
                 "format" => unnamed_struct.format = Some(parse_format(input)?),
                 "value_type" => {
-                    unnamed_struct.ty =
-                        Some(parse_utils::parse_next(input, || input.parse::<Ident>())?)
+                    unnamed_struct.value_type = Some(parse_utils::parse_next(input, || {
+                        input.parse::<ValueType>()
+                    })?)
                 }
                 _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
@@ -296,7 +297,9 @@ impl Parse for ComponentAttr<NamedField> {
                     field.xml_attr = Some(xml.parse()?)
                 }
                 "value_type" => {
-                    field.ty = Some(parse_utils::parse_next(input, || input.parse::<Ident>())?)
+                    field.value_type = Some(parse_utils::parse_next(input, || {
+                        input.parse::<ValueType>()
+                    })?)
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }

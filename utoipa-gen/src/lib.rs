@@ -74,9 +74,12 @@ use ext::ArgumentResolver;
 /// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
-///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
-///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not components nor primitive types.
+///   Allowed one of a [`primitive`][primitive], [`std::string::String`], `Any`, or another [`Component`][c].
+///   Using type which is a [`Component`][c] will create a OpenAPI reference (_`$ref`_) to the `value_type` instead of the
+///   actual type of the field. `Any` type will render as a generic `object` type in OpenAPI spec.
+///   Types with generics are not allowed.
 ///
 /// # Named Fields Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
@@ -88,8 +91,11 @@ use ext::ArgumentResolver;
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
-///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
+///   any third-party types are used which are not components nor primitive types.
+///   Allowed one of a [`primitive`][primitive], [`std::string::String`], `Any`, or another [`Component`][c].
+///   Using type which is a [`Component`][c] will create a OpenAPI reference (_`$ref`_) to the `value_type` instead of the
+///   actual type of the field. `Any` type will render as a generic `object` type in OpenAPI spec.
+///   Types with generics are not allowed.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -307,6 +313,36 @@ use ext::ArgumentResolver;
 /// #[derive(Component)]
 /// #[component(value_type = String)]
 /// struct Value(i64);
+/// ```
+///
+/// Override the `Bar` reference with a `custom::NewBar` reference.
+/// ```rust
+/// # use utoipa::Component;
+/// #  mod custom {
+/// #      struct NewBar;
+/// #  }
+/// #
+/// # struct Bar;
+/// #[derive(Component)]
+/// struct Value {
+///     #[component(value_type = custom::NewBar)]
+///     field: Bar,
+/// };
+/// ```
+///
+/// Use a virtual `Any` type to render generic `object` in OpenAPI spec.
+/// ```rust
+/// # use utoipa::Component;
+/// # mod custom {
+/// #    struct NewBar;
+/// # }
+/// #
+/// # struct Bar;
+/// #[derive(Component)]
+/// struct Value {
+///     #[component(value_type = Any)]
+///     field: Bar,
+/// };
 /// ```
 ///
 /// [c]: trait.Component.html
@@ -1059,6 +1095,24 @@ where
                 })
                 .to_token_stream(),
         ));
+    }
+}
+
+/// Wrapper for `Ident` type which can be parsed with expression path e.g `path::to::Type`.
+/// This is typically used in component `value_type` when type of the field is overridden by the user.
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ValueType(ExprPath);
+
+impl ValueType {
+    /// Get the `Ident` of last segment of the [`syn::ExprPath`].
+    fn get_ident(&self) -> Option<&Ident> {
+        self.0.path.segments.last().map(|segment| &segment.ident)
+    }
+}
+
+impl Parse for ValueType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(input.parse()?))
     }
 }
 
