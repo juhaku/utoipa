@@ -293,6 +293,8 @@ impl ToTokens for UnnamedStructComponent<'_> {
         let first_field = self.fields.first().unwrap();
         let first_part = &ComponentPart::from_type(&first_field.ty);
 
+        let mut is_object = matches!(first_part.value_type, ValueType::Object);
+
         let all_fields_are_same = fields_len == 1
             || self.fields.iter().skip(1).all(|field| {
                 let component_part = &ComponentPart::from_type(&field.ty);
@@ -308,6 +310,14 @@ impl ToTokens for UnnamedStructComponent<'_> {
                 .as_ref()
                 .and_then(|unnamed_struct| unnamed_struct.as_ref().ty.as_ref())
                 .map(ComponentPart::from_ident);
+
+            if type_override.is_some() {
+                is_object = type_override
+                    .as_ref()
+                    .map(|override_type| matches!(override_type.value_type, ValueType::Object))
+                    .unwrap_or_default();
+            }
+
             tokens.extend(
                 ComponentProperty::new(
                     first_part,
@@ -338,9 +348,11 @@ impl ToTokens for UnnamedStructComponent<'_> {
         };
 
         if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
+            if !is_object {
+                tokens.extend(quote! {
+                    .description(Some(#comment))
+                })
+            }
         }
 
         if fields_len > 1 {
