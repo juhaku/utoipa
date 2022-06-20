@@ -3,11 +3,7 @@ use std::mem;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{
-    parenthesized,
-    parse::{Parse, ParseBuffer},
-    Attribute, Error, ExprPath, Token,
-};
+use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
     parse_utils,
@@ -52,7 +48,7 @@ pub struct Struct {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
     pub(super) value_type: Option<ValueType>,
-    format: Option<ExprPath>,
+    format: Option<ComponentFormat>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
 }
@@ -62,7 +58,7 @@ pub struct UnnamedFieldStruct {
 pub struct NamedField {
     example: Option<AnyValue>,
     pub(super) value_type: Option<ValueType>,
-    format: Option<ExprPath>,
+    format: Option<ComponentFormat>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
     read_only: Option<bool>,
@@ -190,7 +186,11 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                         AnyValue::parse_any(input)
                     })?)
                 }
-                "format" => unnamed_struct.format = Some(parse_format(input)?),
+                "format" => {
+                    unnamed_struct.format = Some(parse_utils::parse_next(input, || {
+                        input.parse::<ComponentFormat>()
+                    })?)
+                }
                 "value_type" => {
                     unnamed_struct.value_type = Some(parse_utils::parse_next(input, || {
                         input.parse::<ValueType>()
@@ -283,7 +283,11 @@ impl Parse for ComponentAttr<NamedField> {
                         AnyValue::parse_any(input)
                     })?);
                 }
-                "format" => field.format = Some(parse_format(input)?),
+                "format" => {
+                    field.format = Some(parse_utils::parse_next(input, || {
+                        input.parse::<ComponentFormat>()
+                    })?)
+                }
                 "default" => {
                     field.default = Some(parse_utils::parse_next(input, || {
                         AnyValue::parse_any(input)
@@ -313,23 +317,87 @@ impl Parse for ComponentAttr<NamedField> {
     }
 }
 
-#[inline]
-fn parse_format(input: &ParseBuffer) -> Result<ExprPath, Error> {
-    let format = parse_utils::parse_next(input, || input.parse::<ExprPath>()).map_err(|error| {
-        Error::new(
-            error.span(),
-            format!(
-                "unparseable format expected expression path e.g. ComponentFormat::String, {}",
-                error
-            ),
-        )
-    })?;
+/// [`Parse`] and [`ToTokens`] implementation for [`utoipa::openapi::schema::ComponentFormat`].
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub enum ComponentFormat {
+    Int32,
+    Int64,
+    Float,
+    Double,
+    Byte,
+    Binary,
+    Date,
+    DateTime,
+    Password,
+    #[cfg(feature = "uuid")]
+    Uuid,
+}
 
-    if format.path.segments.first().unwrap().ident != "utoipa" {
-        let appended_path: ExprPath = syn::parse_quote!(utoipa::openapi::#format);
-        Ok(appended_path)
-    } else {
-        Ok(format)
+impl Parse for ComponentFormat {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const FORMATS: [&str; 10] = [
+            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
+            "Uuid",
+        ];
+        let allowed_formats = FORMATS
+            .into_iter()
+            .filter(|_format| {
+                #[cfg(feature = "uuid")]
+                {
+                    true
+                }
+                #[cfg(not(feature = "uuid"))]
+                {
+                    _format != &"Uuid"
+                }
+            })
+            .collect::<Vec<_>>();
+        let expected_formats = format!(
+            "unexpected format, expected one of: {}",
+            allowed_formats.join(", ")
+        );
+        let format = input.parse::<Ident>()?;
+        let name = &*format.to_string();
+
+        match name {
+            "Int32" => Ok(Self::Int32),
+            "Int64" => Ok(Self::Int64),
+            "Float" => Ok(Self::Float),
+            "Double" => Ok(Self::Double),
+            "Byte" => Ok(Self::Byte),
+            "Binary" => Ok(Self::Binary),
+            "Date" => Ok(Self::Date),
+            "DateTime" => Ok(Self::DateTime),
+            "Password" => Ok(Self::Password),
+            #[cfg(feature = "uuid")]
+            "Uuid" => Ok(Self::Uuid),
+            _ => Err(Error::new(
+                format.span(),
+                format!("unexpected format: {name}, expected one of: {expected_formats}"),
+            )),
+        }
+    }
+}
+
+impl ToTokens for ComponentFormat {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Int32 => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Int32)),
+            Self::Int64 => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Int64)),
+            Self::Float => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Float)),
+            Self::Double => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Double)),
+            Self::Byte => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Byte)),
+            Self::Binary => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Binary)),
+            Self::Date => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Date)),
+            Self::DateTime => {
+                tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::DateTime))
+            }
+            Self::Password => {
+                tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Password))
+            }
+            #[cfg(feature = "uuid")]
+            Self::Uuid => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Uuid)),
+        };
     }
 }
 

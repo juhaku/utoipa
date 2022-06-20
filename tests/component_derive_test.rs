@@ -139,7 +139,7 @@ fn derive_struct_with_custom_properties_success() {
             #[component(
                 default = "testhash",
                 example = "base64 text",
-                format = ComponentFormat::Byte,
+                format = Byte,
             )]
             hash: String,
         }
@@ -1035,7 +1035,7 @@ fn derive_struct_component_field_type_override_with_format() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String, format = ComponentFormat::Byte)]
+            #[component(value_type = String, format = Byte)]
             value: i64,
         }
     };
@@ -1053,7 +1053,7 @@ fn derive_struct_component_field_type_override_with_format_with_vec() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String, format = ComponentFormat::Binary)]
+            #[component(value_type = String, format = Binary)]
             value: Vec<u8>,
         }
     };
@@ -1082,7 +1082,7 @@ fn derive_unnamed_struct_component_type_override() {
 #[test]
 fn derive_unnamed_struct_component_type_override_with_format() {
     let value = api_doc! {
-        #[component(value_type = String, format = ComponentFormat::Byte)]
+        #[component(value_type = String, format = Byte)]
         struct Value(i64);
     };
 

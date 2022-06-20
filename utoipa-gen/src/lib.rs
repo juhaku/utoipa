@@ -71,7 +71,7 @@ use ext::ArgumentResolver;
 /// # Unnamed Field Struct Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
@@ -84,7 +84,7 @@ use ext::ArgumentResolver;
 /// # Named Fields Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
@@ -302,7 +302,7 @@ use ext::ArgumentResolver;
 /// #[derive(Component)]
 /// struct Post {
 ///     id: i32,
-///     #[component(value_type = String, format = ComponentFormat::Binary)]
+///     #[component(value_type = String, format = Binary)]
 ///     value: Vec<u8>,
 /// }
 /// ```
