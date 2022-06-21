@@ -19,7 +19,7 @@ use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
 use schema::into_params::IntoParams;
 
-use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseBuffer, ParseStream},
@@ -1303,7 +1303,7 @@ impl Parse for Type<'_> {
             .parse::<ArrayOrOptionType>()
             .map_err(|error| {
                 syn::Error::new(
-                    Span::call_site(),
+                    error.span(),
                     format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
                 )
             })?
