@@ -105,13 +105,7 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
 
     todos
         .iter()
-        .find_map(|existing| {
-            if existing.id == todo.id {
-                Some(existing)
-            } else {
-                None
-            }
-        })
+        .find(|existing| existing.id == todo.id)
         .map(|existing| {
             HttpResponse::Conflict().json(ErrorResponse::Conflict(format!("id = {}", existing.id)))
         })
@@ -179,7 +173,7 @@ pub(super) async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -
 
     todos
         .iter()
-        .find_map(|todo| if todo.id == id { Some(todo) } else { None })
+        .find(|todo| todo.id == id)
         .map(|todo| HttpResponse::Ok().json(todo))
         .unwrap_or_else(|| {
             HttpResponse::NotFound().json(ErrorResponse::NotFound(format!("id = {id}")))

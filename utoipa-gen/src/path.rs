@@ -4,6 +4,7 @@ use std::{io::Error, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
+use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
 use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
@@ -80,12 +81,12 @@ impl<'p> PathAttr<'p> {
                 parameters.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
-                let mut params = Vec::with_capacity(arguments.len());
+                let mut parameters = Vec::with_capacity(arguments.len());
                 arguments
                     .into_iter()
                     .map(Parameter::from)
-                    .for_each(|parameter| params.push(parameter));
-                self.params = Some(params);
+                    .for_each(|parameter| parameters.push(parameter));
+                self.params = Some(parameters);
             }
         }
     }
@@ -98,25 +99,24 @@ impl<'p> PathAttr<'p> {
         use std::borrow::Cow;
         parameters
             .iter_mut()
-            .filter_map(|parameter| match parameter {
-                Parameter::Value(value) => Some(value),
-                Parameter::TokenStream(_) => None,
-            })
-            .for_each(|parameter| {
-                if let Some(argument) = arguments.iter().find_map(|argument| match argument {
-                    Argument::Value(value)
-                        if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
-                    {
-                        Some(value)
+            .for_each(|parameter: &mut Parameter<'a>| match parameter {
+                Parameter::Value(parameter) => {
+                    if let Some(argument) = arguments.iter().find_map(|argument| match argument {
+                        Argument::Value(value)
+                            if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
+                        {
+                            Some(value)
+                        }
+                        _ => None,
+                    }) {
+                        parameter.update_parameter_type(
+                            argument.ident,
+                            argument.is_array,
+                            argument.is_option,
+                        )
                     }
-                    _ => None,
-                }) {
-                    parameter.update_parameter_type(
-                        argument.ident,
-                        argument.is_array,
-                        argument.is_option,
-                    )
                 }
+                Parameter::Struct(_) | Parameter::TokenStream(_) => {}
             });
     }
 
@@ -187,7 +187,10 @@ impl Parse for PathAttr<'_> {
                 "params" => {
                     let params;
                     parenthesized!(params in input);
-                    path_attr.params = Some(parse_utils::parse_groups(&params)?);
+                    path_attr.params = Some(
+                        Punctuated::<Parameter, Token![,]>::parse_terminated(&params)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?,
+                    );
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -451,6 +454,7 @@ impl<'p> ToTokens for Path<'p> {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct Operation<'a> {
     operation_id: &'a String,
     summary: Option<&'a String>,
@@ -513,11 +517,9 @@ impl ToTokens for Operation<'_> {
         }
 
         if let Some(parameters) = self.parameters {
-            parameters.iter().for_each(|parameter| match parameter {
-                Parameter::Value(_) => tokens.extend(quote! { .parameter(#parameter) }),
-                #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                Parameter::TokenStream(_) => tokens.extend(quote! { .parameters(Some(#parameter))}),
-            });
+            parameters
+                .iter()
+                .for_each(|parameter| parameter.to_tokens(tokens));
         }
     }
 }

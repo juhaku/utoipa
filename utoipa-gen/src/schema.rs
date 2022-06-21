@@ -7,7 +7,6 @@ use syn::{
 
 use crate::{component_type::ComponentType, Deprecated};
 
-#[cfg(feature = "actix_extras")]
 pub mod into_params;
 
 pub mod component;
@@ -182,6 +181,12 @@ impl<'a> ComponentPart<'a> {
 
     fn update_ident(&mut self, ident: &'a Ident) {
         self.ident = ident
+    }
+
+    /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
+    /// with `value_override` attribute to hinder the actual type.
+    fn is_any(&self) -> bool {
+        &*self.ident == "Any"
     }
 }
 

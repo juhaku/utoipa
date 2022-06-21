@@ -58,7 +58,7 @@ mod pet_api {
             (status = 404, description = "Pet was not found")
         ),
         params(
-            ("id" = u64, path, description = "Pet database id to get Pet for"),
+            ("id" = u64, Path, description = "Pet database id to get Pet for"),
         ),
         security(
             (),

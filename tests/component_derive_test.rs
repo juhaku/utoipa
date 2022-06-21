@@ -139,7 +139,7 @@ fn derive_struct_with_custom_properties_success() {
             #[component(
                 default = "testhash",
                 example = "base64 text",
-                format = ComponentFormat::Byte,
+                format = Byte,
             )]
             hash: String,
         }
@@ -661,6 +661,38 @@ fn derive_simple_enum_serde_tag() {
 
 /// Derive a complex enum with named and unnamed fields.
 #[test]
+fn derive_complex_unnamed_field_reference_with_comment() {
+    #[derive(Serialize)]
+    struct CommentedReference(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum EnumWithReference {
+            /// This is comment which will not be added to the document
+            /// since $ref cannot have comments
+            UnnamedFieldWithCommentReference(CommentedReference),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "UnnamedFieldWithCommentReference": {
+                            "$ref": "#/components/schemas/CommentedReference",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+/// Derive a complex enum with named and unnamed fields.
+#[test]
 fn derive_complex_enum() {
     #[derive(Serialize)]
     struct Foo(String);
@@ -1068,7 +1100,7 @@ fn derive_struct_component_field_type_override_with_format() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String, format = ComponentFormat::Byte)]
+            #[component(value_type = String, format = Byte)]
             value: i64,
         }
     };
@@ -1086,7 +1118,7 @@ fn derive_struct_component_field_type_override_with_format_with_vec() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String, format = ComponentFormat::Binary)]
+            #[component(value_type = String, format = Binary)]
             value: Vec<u8>,
         }
     };
@@ -1115,7 +1147,7 @@ fn derive_unnamed_struct_component_type_override() {
 #[test]
 fn derive_unnamed_struct_component_type_override_with_format() {
     let value = api_doc! {
-        #[component(value_type = String, format = ComponentFormat::Byte)]
+        #[component(value_type = String, format = Byte)]
         struct Value(i64);
     };
 
@@ -1123,6 +1155,57 @@ fn derive_unnamed_struct_component_type_override_with_format() {
         "type" = r#""string""#, "Value type"
         "format" = r#""byte""#, "Value format"
     }
+}
+
+#[test]
+fn derive_struct_override_type_with_any_type() {
+    let value = api_doc! {
+        struct Value {
+            #[component(value_type = Any)]
+            field: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "object"
+                }
+            },
+            "required": ["field"]
+        })
+    )
+}
+
+#[test]
+fn derive_struct_override_type_with_a_reference() {
+    mod custom {
+        #[allow(dead_code)]
+        struct NewBar;
+    }
+
+    let value = api_doc! {
+        struct Value {
+            #[component(value_type = custom::NewBar)]
+            field: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "properties": {
+                "field": {
+                    "$ref": "#/components/schemas/NewBar"
+                }
+            },
+            "required": ["field"]
+        })
+    )
 }
 
 #[cfg(feature = "decimal")]

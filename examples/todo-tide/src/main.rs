@@ -174,7 +174,7 @@ mod todo {
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
         params(
-            ("id" = i32, path, description = "Id of todo item to delete")
+            ("id" = i32, Path, description = "Id of todo item to delete")
         ),
         security(
             ("api_key" = [])
@@ -215,7 +215,7 @@ mod todo {
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
         params(
-            ("id" = i32, path, description = "Id of todo item to mark done")
+            ("id" = i32, Path, description = "Id of todo item to mark done")
         )
     )]
     pub(super) async fn mark_done(req: Request<Store>) -> tide::Result<Response> {
