@@ -257,7 +257,7 @@ fn derive_path_with_parameter_schema() {
         ),
         params(
             ("id" = u64, description = "Foo database id"),
-            ("since" = Option<Since>, query, description = "Datetime since foo is updated")
+            ("since" = Option<Since>, Query, description = "Datetime since foo is updated")
         )
     )]
     #[allow(unused)]
@@ -324,7 +324,7 @@ fn derive_path_with_parameter_inline_schema() {
         ),
         params(
             ("id" = u64, description = "Foo database id"),
-            ("since" = inline(Option<Since>), query, description = "Datetime since foo is updated")
+            ("since" = inline(Option<Since>), Query, description = "Datetime since foo is updated")
         )
     )]
     #[allow(unused)]
