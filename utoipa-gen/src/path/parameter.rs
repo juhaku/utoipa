@@ -203,7 +203,6 @@ impl ToTokens for ParameterValue<'_> {
                 tokens.extend(quote! { .explode(Some(#explode)) });
             }
 
-
             if let Some(ref allow_reserved) = ext.allow_reserved {
                 tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
             }
