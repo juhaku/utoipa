@@ -806,7 +806,7 @@ where
                                     <#component_name_ident as utoipa::Component>::component()
                                 });
                             } else {
-                                let name = &*self.component_part.ident.to_string();
+                                let name = &component_part.ident.to_string();
                                 tokens.extend(quote! {
                                     utoipa::openapi::Ref::from_component_name(#name)
                                 })
