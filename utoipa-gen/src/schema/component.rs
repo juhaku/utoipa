@@ -801,7 +801,7 @@ where
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else {
                             if is_inline {
-                                let component_name_ident = &self.component_part.ident;
+                                let component_name_ident = component_part.ident;
                                 tokens.extend(quote! {
                                     <#component_name_ident as utoipa::Component>::component()
                                 });
