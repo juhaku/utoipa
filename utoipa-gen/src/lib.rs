@@ -512,11 +512,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// params(
-///     ("id" = String, path, deprecated, description = "Pet database id"),
-///     ("name", path, deprecated, description = "Pet name"),
+///     ("id" = String, Path, deprecated, description = "Pet database id"),
+///     ("name", Path, deprecated, description = "Pet name"),
 ///     (
 ///         "value" = inline(Option<[String]>),
-///         query,
+///         Query,
 ///         description = "Value description",
 ///         style = Form,
 ///         allow_reserved,
@@ -547,7 +547,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// params(
 ///     MyParameters1,
 ///     MyParameters2,
-///     ("id" = String, path, deprecated, description = "Pet database id"),
+///     ("id" = String, Path, deprecated, description = "Pet database id"),
 /// )
 /// ```
 ///
