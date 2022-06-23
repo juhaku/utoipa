@@ -291,6 +291,45 @@ fn derive_request_body_complex_success_inline_array() {
 }
 
 test_fn! {
+    module: derive_request_body_simple_inline,
+    body: = inline(Foo)
+}
+
+#[test]
+fn derive_request_body_simple_inline_success() {
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(derive_request_body_simple_inline::post_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
+
+    assert_json_eq!(
+        request_body,
+        json!({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "description": "Some struct",
+                        "properties": {
+                            "name": {
+                                "description": "Some name",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ],
+                        "type": "object"
+                    }
+                }
+            },
+            "required": true
+        })
+    );
+}
+
+test_fn! {
     module: derive_request_body_complex_required_explisit,
     body: (content = Option<Foo>, description = "Create new Foo", content_type = "text/xml")
 }
