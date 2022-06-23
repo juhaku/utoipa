@@ -346,10 +346,10 @@ impl<'p> Path<'p> {
     }
 }
 
-impl ToTokens for Path<'_> {
+impl<'p> ToTokens for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
-        let operation_id = self
+        let operation_id: &String = self
             .path_attr
             .operation_id
             .as_ref()
@@ -414,7 +414,7 @@ impl ToTokens for Path<'_> {
             .map(|context_path| format!("{context_path}{path}"))
             .unwrap_or_else(|| path.to_string());
 
-        let operation = Operation {
+        let operation: Operation = Operation {
             deprecated: &self.deprecated,
             operation_id,
             summary: self
@@ -450,7 +450,7 @@ impl ToTokens for Path<'_> {
                     )
                 }
             }
-        })
+        });
     }
 }
 

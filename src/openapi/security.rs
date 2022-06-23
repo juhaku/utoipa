@@ -187,7 +187,7 @@ builder! {
     ///
     /// Methods can be chained to configure _bearer_format_ or to add _description_.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, Default)]
     #[serde(rename_all = "camelCase")]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Http {

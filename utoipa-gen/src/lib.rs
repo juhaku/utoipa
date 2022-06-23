@@ -96,6 +96,8 @@ use ext::ArgumentResolver;
 ///   Using type which is a [`Component`][c] will create a OpenAPI reference (_`$ref`_) to the `value_type` instead of the
 ///   actual type of the field. `Any` type will render as a generic `object` type in OpenAPI spec.
 ///   Types with generics are not allowed.
+/// * `inline` If the type of this field implements [`Component`][c], then the schema definition
+///   will be inlined. **warning:** Don't use this for recursive data types!
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -401,7 +403,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Request Body Attributes
 ///
 /// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_.
+///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`Component`][component],
+///   it can also be  wrapped in `inline(...)` in order to inline the component schema definition.
+///   E.g. _`inline(Pet)`_.
 /// * `description = "..."` Define the description for the request body object as str.
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
@@ -425,7 +429,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `status = ...` Is valid http status code. E.g. _`200`_
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_
+///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`Component`][component],
+///   it can also be wrapped in `inline(...)` in order to inline the component schema definition. E.g. _`inline(Pet)`_.
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
@@ -487,7 +492,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// tuples seperated by commas:
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice or option.
+/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
+///   option `Option<Type>`. Where the type implments [`Component`][component], it can also be wrapped in `inline(MyComponent)`
+///   in order to inline the component schema definition.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -505,11 +512,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// params(
-///     ("id" = String, path, deprecated, description = "Pet database id"),
-///     ("name", path, deprecated, description = "Pet name"),
+///     ("id" = String, Path, deprecated, description = "Pet database id"),
+///     ("name", Path, deprecated, description = "Pet name"),
 ///     (
-///         "value" = Option<[String]>,
-///         query,
+///         "value" = inline(Option<[String]>),
+///         Query,
 ///         description = "Value description",
 ///         style = Form,
 ///         allow_reserved,
@@ -540,7 +547,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// params(
 ///     MyParameters1,
 ///     MyParameters2,
-///     ("id" = String, path, deprecated, description = "Pet database id"),
+///     ("id" = String, Path, deprecated, description = "Pet database id"),
 /// )
 /// ```
 ///
@@ -729,6 +736,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
+/// [component]: trait.Component.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
@@ -1174,10 +1182,12 @@ impl ToTokens for Required {
 ///   * `Option<type>` type is option of type
 ///   * `Option<[type]>` type is an option of array of types
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
 struct Type<'a> {
     ty: Cow<'a, Ident>,
     is_array: bool,
     is_option: bool,
+    is_inline: bool,
 }
 
 impl<'a> Type<'a> {
@@ -1187,11 +1197,53 @@ impl<'a> Type<'a> {
             ty: ident,
             is_array,
             is_option,
+            is_inline: false,
         }
     }
 }
 
-impl Parse for Type<'_> {
+/// A parser for [`Type`] to parse as as `inline(Type)` where `Type` is anything parsed by
+/// [`ArrayOrOptionType`].
+struct InlineType<'a>(Type<'a>);
+
+impl Parse for InlineType<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str = "unexpected attribute, expected any of inline(Type)";
+        let ident: Ident = input.parse().map_err(|error| {
+            syn::Error::new(
+                error.span(),
+                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+            )
+        })?;
+
+        match &*ident.to_string() {
+            "inline" => {
+                let content;
+                syn::parenthesized!(content in input);
+
+                let mut t: Type = content
+                    .parse::<ArrayOrOptionType>()
+                    .map_err(|error| {
+                        syn::Error::new(
+                            error.span(),
+                            format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                        )
+                    })?
+                    .0;
+
+                t.is_inline = true;
+
+                Ok(Self(t))
+            }
+            _ => Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION)),
+        }
+    }
+}
+
+/// A parser for [`Type`] to parse as as `Type`, `[Type]` or `Option<Type>`)
+struct ArrayOrOptionType<'a>(Type<'a>);
+
+impl Parse for ArrayOrOptionType<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut is_array = false;
         let mut is_option = false;
@@ -1226,11 +1278,38 @@ impl Parse for Type<'_> {
             parse_array(input)
         }?;
 
-        Ok(Type {
+        Ok(Self(Type {
             ty: Cow::Owned(ty),
             is_array,
             is_option,
-        })
+            is_inline: false,
+        }))
+    }
+}
+
+impl Parse for Type<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str =
+            "unexpected attribute, expected `inline(Type)` or `Type`, where `Type` can be `Type`, `[Type]` or `Option<Type>`";
+
+        // Try parsing as `inline(Type)`
+        if input.fork().parse::<InlineType>().is_ok() {
+            let t: Self = input.parse::<InlineType>()?.0;
+            return Ok(t);
+        }
+
+        // Try parsing as `Type`, `[Type]` or `Option<Type>`)
+        let t: Type = input
+            .parse::<ArrayOrOptionType>()
+            .map_err(|error| {
+                syn::Error::new(
+                    error.span(),
+                    format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                )
+            })?
+            .0;
+
+        Ok(t)
     }
 }
 

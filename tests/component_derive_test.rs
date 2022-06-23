@@ -508,6 +508,71 @@ fn derive_with_box_and_refcell() {
 }
 
 #[test]
+fn derive_with_inline() {
+    #[derive(utoipa::Component)]
+    #[allow(unused)]
+    struct Foo {
+        name: &'static str,
+    }
+
+    let greeting = api_doc! {
+        struct Greeting {
+            #[component(inline)]
+            foo1: Foo,
+            #[component(inline)]
+            foo2: Option<Foo>,
+            #[component(inline)]
+            foo3: Option<Box<Foo>>,
+        }
+    };
+
+    assert_json_eq!(
+        &greeting,
+        json!({
+            "properties": {
+                "foo1": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                    },
+                    "required": [
+                        "name"
+                    ],
+                    "type": "object"
+                },
+                "foo2": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                    },
+                    "required": [
+                        "name"
+                    ],
+                    "type": "object"
+                },
+                "foo3": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                    },
+                    "required": [
+                        "name"
+                    ],
+                    "type": "object"
+                },
+            },
+            "required": [
+                "foo1"
+            ],
+            "type": "object"
+        })
+    );
+}
+
+#[test]
 fn derive_simple_enum() {
     let value: Value = api_doc! {
         #[derive(Serialize)]

@@ -48,19 +48,8 @@ impl Parse for Response<'_> {
                     response.description = parse_utils::parse_next_literal_str(input)?;
                 }
                 "body" => {
-                    response.response_type = Some(
-                        parse_utils::parse_next(input, || input.parse::<Type>()).map_err(
-                            |error| {
-                                Error::new(
-                                    ident.span(),
-                                    format!(
-                                        "unexpected token, expected type such as String, {}",
-                                        error
-                                    ),
-                                )
-                            },
-                        )?,
-                    );
+                    response.response_type =
+                        Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
                 }
                 "content_type" => {
                     response.content_type = Some(parse_utils::parse_next(input, || {
@@ -111,12 +100,11 @@ impl ToTokens for Response<'_> {
             utoipa::openapi::ResponseBuilder::new().description(#description)
         });
 
-        if let Some(ref body_type) = self.response_type {
-            let body_ty = &body_type.ty;
+        if let Some(response_type) = &self.response_type {
+            let property = Property::new(response_type.clone());
 
-            let component = Property::new(body_type.is_array, body_ty);
             let mut content = quote! {
-                utoipa::openapi::ContentBuilder::new().schema(#component)
+                utoipa::openapi::ContentBuilder::new().schema(#property)
             };
 
             if let Some(ref example) = self.example {
@@ -132,7 +120,7 @@ impl ToTokens for Response<'_> {
                     })
                 })
             } else {
-                let default_type = self.resolve_content_type(None, &component.component_type);
+                let default_type = self.resolve_content_type(None, &property.component_type());
                 tokens.extend(quote! {
                     .content(#default_type, #content.build())
                 });
@@ -285,12 +273,12 @@ impl Parse for Header<'_> {
 
 impl ToTokens for Header<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        if let Some(ref header_type) = self.value_type {
+        if let Some(header_type) = &self.value_type {
             // header property with custom type
-            let header_type = Property::new(header_type.is_array, &header_type.ty);
+            let header_type_property = Property::new(header_type.clone());
 
             tokens.extend(quote! {
-                utoipa::openapi::HeaderBuilder::new().schema(#header_type)
+                utoipa::openapi::HeaderBuilder::new().schema(#header_type_property)
             })
         } else {
             // default header (string type)

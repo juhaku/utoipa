@@ -202,16 +202,18 @@ impl ToTokens for ParameterValue<'_> {
             if let Some(ref explode) = ext.explode {
                 tokens.extend(quote! { .explode(Some(#explode)) });
             }
+
             if let Some(ref allow_reserved) = ext.allow_reserved {
                 tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
             }
+
             if let Some(ref example) = ext.example {
                 tokens.extend(quote! { .example(Some(#example)) });
             }
         }
 
-        if let Some(ref parameter_type) = self.parameter_type {
-            let property = Property::new(parameter_type.is_array, &parameter_type.ty);
+        if let Some(parameter_type) = &self.parameter_type {
+            let property = Property::new(parameter_type.clone());
             let required: Required = (!parameter_type.is_option).into();
 
             tokens.extend(quote! { .schema(Some(#property)).required(#required) });

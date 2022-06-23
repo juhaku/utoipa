@@ -235,6 +235,154 @@ fn derive_path_with_security_requirements() {
 }
 
 #[test]
+fn derive_path_with_parameter_schema() {
+    #[derive(serde::Deserialize, utoipa::Component)]
+    struct Since {
+        /// Some date
+        #[allow(dead_code)]
+        date: String,
+        /// Some time
+        #[allow(dead_code)]
+        time: String,
+    }
+
+    /// This is test operation
+    ///
+    /// This is long description for test operation
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = u64, description = "Foo database id"),
+            ("since" = Option<Since>, Query, description = "Datetime since foo is updated")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_foos_by_id_since() -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        get_foos_by_id_since,
+        operation: get,
+        path: "/foo/{id}"
+    };
+
+    let parameters: &Value = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Foo database id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            {
+                "deprecated": false,
+                "description": "Datetime since foo is updated",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "$ref": "#/components/schemas/Since"
+                }
+            }
+        ])
+    );
+}
+
+#[test]
+fn derive_path_with_parameter_inline_schema() {
+    #[derive(serde::Deserialize, utoipa::Component)]
+    struct Since {
+        /// Some date
+        #[allow(dead_code)]
+        date: String,
+        /// Some time
+        #[allow(dead_code)]
+        time: String,
+    }
+
+    /// This is test operation
+    ///
+    /// This is long description for test operation
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = u64, description = "Foo database id"),
+            ("since" = inline(Option<Since>), Query, description = "Datetime since foo is updated")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_foos_by_id_since() -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        get_foos_by_id_since,
+        operation: get,
+        path: "/foo/{id}"
+    };
+
+    let parameters: &Value = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Foo database id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            {
+                "deprecated": false,
+                "description": "Datetime since foo is updated",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "properties": {
+                        "date": {
+                            "description": "Some date",
+                            "type": "string"
+                        },
+                        "time": {
+                            "description": "Some time",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "date",
+                        "time"
+                    ],
+                    "type": "object"
+                }
+            }
+        ])
+    );
+}
+
+#[test]
 fn derive_path_params_intoparams() {
     #[derive(serde::Deserialize, IntoParams)]
     #[into_params(style = Form, parameter_in = Query)]
