@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
@@ -525,7 +524,7 @@ impl ToTokens for Operation<'_> {
 }
 
 trait ContentTypeResolver {
-    fn resolve_content_type<'a, T: Display>(
+    fn resolve_content_type<'a, T: ToTokens>(
         &self,
         content_type: Option<&'a String>,
         component_type: &ComponentType<'a, T>,

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::Ident;
 use quote::{quote, ToTokens};
+use syn::TypePath;
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
@@ -19,7 +20,7 @@ impl<'a> Property<'a> {
         Self { type_definition }
     }
 
-    pub fn component_type(&self) -> ComponentType<'a, Cow<Ident>> {
+    pub fn component_type(&self) -> ComponentType<'a, Cow<TypePath>> {
         ComponentType(&self.type_definition.ty)
     }
 }
@@ -48,12 +49,12 @@ impl ToTokens for Property<'_> {
 
             tokens.extend(component);
         } else {
-            let component_name_ident: &Ident = &*component_type.0;
-            let name = component_name_ident.to_string();
+            let component_name_path: &TypePath = &*component_type.0;
+            let name = component_name_path.to_token_stream().to_string();
 
             if self.type_definition.is_inline {
                 let component = quote! {
-                    <#component_name_ident as utoipa::Component>::component()
+                    <#component_name_path as utoipa::Component>::component()
                 };
 
                 if self.type_definition.is_array {

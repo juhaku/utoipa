@@ -24,8 +24,9 @@ use syn::{
     bracketed,
     parse::{Parse, ParseBuffer, ParseStream},
     punctuated::Punctuated,
-    token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
+    spanned::Spanned,
+    AngleBracketedGenericArguments, DeriveInput, ExprPath, GenericArgument, ItemFn, Lit, LitStr,
+    PathArguments, PathSegment, Token, TypePath,
 };
 
 mod component_type;
@@ -1184,7 +1185,7 @@ impl ToTokens for Required {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 struct Type<'a> {
-    ty: Cow<'a, Ident>,
+    ty: Cow<'a, TypePath>,
     is_array: bool,
     is_option: bool,
     is_inline: bool,
@@ -1192,7 +1193,9 @@ struct Type<'a> {
 
 impl<'a> Type<'a> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn new(ident: Cow<'a, Ident>, is_array: bool, is_option: bool) -> Self {
+    pub fn new(ident: Cow<'a, TypePath>, is_array: bool, is_option: bool) -> Self {
+        use syn::TypePath;
+
         Self {
             ty: ident,
             is_array,
@@ -1245,45 +1248,112 @@ struct ArrayOrOptionType<'a>(Type<'a>);
 
 impl Parse for ArrayOrOptionType<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut is_array = false;
-        let mut is_option = false;
+        const EXPECTED_TYPE_MESSAGE: &str =
+            "Expected a type/path such as path::to::Foo, or Foo. May also be Option<Foo> or [Foo].";
 
-        let mut parse_array = |input: &ParseBuffer| {
-            is_array = true;
-            let group;
-            bracketed!(group in input);
-            group.parse::<Ident>()
-        };
+        fn parse_type<'a>(t: syn::Type) -> syn::Result<Type<'a>> {
+            let mut is_option: bool = false;
+            let mut is_array: bool = false;
+            let path: TypePath = match t {
+                syn::Type::Path(mut path) => {
+                    let type_segment: &PathSegment =
+                        path.path.segments.last().ok_or_else(|| {
+                            syn::Error::new(path.path.span(), "No last path segment")
+                        })?;
+                    let ident = &type_segment.ident;
 
-        let ty = if input.peek(syn::Ident) {
-            let mut ident: Ident = input.parse()?;
+                    // is option of type or [type]
+                    if ident == "Option" {
+                        is_option = true;
 
-            // is option of type or [type]
-            if (ident == "Option" && input.peek(Token![<]))
-                && (input.peek2(syn::Ident) || input.peek2(Bracket))
-            {
-                is_option = true;
+                        let angle_bracketed: &AngleBracketedGenericArguments = match &type_segment
+                            .arguments
+                        {
+                            PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed,
+                            _ => {
+                                return Err(syn::Error::new(type_segment.span(), "Option must have its generic type parameter specified. e.g. Option<String>"));
+                            }
+                        };
 
-                input.parse::<Token![<]>()?;
+                        if angle_bracketed.args.len() != 1 {
+                            return Err(syn::Error::new(type_segment.span(), "Option must have only a single generic parameter specified. e.g. Option<String>"));
+                        }
 
-                if input.peek(syn::Ident) {
-                    ident = input.parse::<Ident>()?;
-                } else {
-                    ident = parse_array(input)?;
+                        let argument: &GenericArgument = angle_bracketed.args.first().expect(
+                            "Expected there to be 1 angle bracketed argument for Option<...>",
+                        );
+
+                        let argument_path: &TypePath = match argument {
+                            GenericArgument::Type(syn::Type::Path(path)) => path,
+                            GenericArgument::Type(syn::Type::Slice(slice)) => {
+                                is_array = true;
+                                match &*slice.elem {
+                                    syn::Type::Path(path) => path,
+                                    unsupported_type => {
+                                        return Err(syn::Error::new(
+                                            unsupported_type.span(),
+                                            format!(
+                                                "Unsupported slice type. {}",
+                                                EXPECTED_TYPE_MESSAGE
+                                            ),
+                                        ))
+                                    }
+                                }
+                            }
+                            unsupported_type => {
+                                return Err(syn::Error::new(
+                                    unsupported_type.span(),
+                                    format!("Unsupported argument type. {}", EXPECTED_TYPE_MESSAGE),
+                                ))
+                            }
+                        };
+
+                        path = argument_path.clone();
+                    }
+
+                    path
                 }
-                input.parse::<Token![>]>()?;
-            }
-            Ok(ident)
-        } else {
-            parse_array(input)
-        }?;
+                syn::Type::Slice(type_slice) => {
+                    is_array = true;
+                    match &*type_slice.elem {
+                        syn::Type::Path(path) => path.clone(),
+                        unsupported_type => {
+                            return Err(syn::Error::new(
+                                unsupported_type.span(),
+                                format!("Unsupported slice type. {}", EXPECTED_TYPE_MESSAGE),
+                            ))
+                        }
+                    }
+                }
+                syn::Type::Group(group) => {
+                    return parse_type(*group.elem);
+                }
+                unsupported_type => {
+                    return Err(syn::Error::new(
+                        unsupported_type.span(),
+                        format!(
+                            "Unsupported type {} {:?}. {}",
+                            unsupported_type.to_token_stream().to_string(),
+                            unsupported_type,
+                            EXPECTED_TYPE_MESSAGE
+                        ),
+                    ))
+                }
+            };
 
-        Ok(Self(Type {
-            ty: Cow::Owned(ty),
-            is_array,
-            is_option,
-            is_inline: false,
-        }))
+            Ok(Type {
+                ty: Cow::Owned(path),
+                is_array,
+                is_option,
+                is_inline: false,
+            })
+        }
+
+        let t: syn::Type = input
+            .parse::<syn::Type>()
+            .map_err(|error| syn::Error::new(error.span(), EXPECTED_TYPE_MESSAGE))?;
+
+        parse_type(t).map(ArrayOrOptionType)
     }
 }
 

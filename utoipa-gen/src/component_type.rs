@@ -1,17 +1,15 @@
-use std::fmt::Display;
-
 use quote::{quote, ToTokens};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub struct ComponentType<'a, T: Display>(pub &'a T);
+pub struct ComponentType<'a, T>(pub &'a T);
 
 impl<'a, T> ComponentType<'a, T>
 where
-    T: Display,
+    T: ToTokens,
 {
     /// Check whether type is known to be primitive in wich case returns true.
     pub fn is_primitive(&self) -> bool {
-        let name = &*self.0.to_string();
+        let name = &*self.0.to_token_stream().to_string();
 
         #[cfg(not(any(
             feature = "chrono",
@@ -98,10 +96,10 @@ fn is_primitive_rust_decimal(name: &str) -> bool {
 
 impl<'a, T> ToTokens for ComponentType<'a, T>
 where
-    T: Display,
+    T: ToTokens,
 {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let name = &*self.0.to_string();
+        let name = &*self.0.to_token_stream().to_string();
 
         match name {
             "String" | "str" | "char" => {
@@ -127,12 +125,15 @@ where
 }
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
-pub struct ComponentFormat<T: Display>(pub(crate) T);
+pub struct ComponentFormat<T>(pub(crate) T);
 
-impl<T: Display> ComponentFormat<T> {
+impl<T> ComponentFormat<T>
+where
+    T: ToTokens,
+{
     /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
     pub fn is_known_format(&self) -> bool {
-        let name = &*self.0.to_string();
+        let name = &*self.0.to_token_stream().to_string();
 
         #[cfg(not(any(feature = "chrono_with_format", feature = "uuid")))]
         {
@@ -166,9 +167,12 @@ fn is_known_format(name: &str) -> bool {
     )
 }
 
-impl<T: Display> ToTokens for ComponentFormat<T> {
+impl<T> ToTokens for ComponentFormat<T>
+where
+    T: ToTokens,
+{
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let name = &*self.0.to_string();
+        let name = &*self.0.to_token_stream().to_string();
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
