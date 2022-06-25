@@ -819,6 +819,12 @@ where
     }
 }
 
+/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact component reference,
+/// by removing spaces between colon punctuation and `::` and the path segments.
+pub(crate) fn format_path_ref(path_ref: &str) -> String {
+    path_ref.replace(" :: ", "::")
+}
+
 #[inline]
 fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
     rule.as_ref()

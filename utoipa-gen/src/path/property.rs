@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
-use proc_macro2::Ident;
 use quote::{quote, ToTokens};
 use syn::TypePath;
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
+    schema::component::format_path_ref,
     Type,
 };
 
@@ -50,7 +50,7 @@ impl ToTokens for Property<'_> {
             tokens.extend(component);
         } else {
             let component_name_path: &TypePath = &*component_type.0;
-            let name = component_name_path.to_token_stream().to_string();
+            let name = format_path_ref(&component_name_path.to_token_stream().to_string());
 
             if self.type_definition.is_inline {
                 let component = quote! {

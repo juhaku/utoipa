@@ -1096,6 +1096,24 @@ fn derive_struct_component_field_type_override() {
 }
 
 #[test]
+fn derive_struct_component_field_type_path_override() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[component(value_type = path::to::Foo)]
+            value: i64,
+        }
+    };
+
+    let component_ref: &str = post
+        .pointer("/properties/value/$ref")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert_eq!(component_ref, "#/components/schemas/path::to::Foo");
+}
+
+#[test]
 fn derive_struct_component_field_type_override_with_format() {
     let post = api_doc! {
         struct Post {
