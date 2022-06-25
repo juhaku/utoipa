@@ -1332,9 +1332,8 @@ impl Parse for ArrayOrOptionType<'_> {
                     return Err(syn::Error::new(
                         unsupported_type.span(),
                         format!(
-                            "Unsupported type {} {:?}. {}",
+                            "Unsupported type {}. {}",
                             unsupported_type.to_token_stream().to_string(),
-                            unsupported_type,
                             EXPECTED_TYPE_MESSAGE
                         ),
                     ))
