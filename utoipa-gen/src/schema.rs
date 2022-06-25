@@ -1,5 +1,8 @@
+use std::borrow::Cow;
+
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
+use quote::ToTokens;
 use syn::{
     punctuated::Pair, AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments,
     PathSegment, Type, TypePath,
@@ -27,7 +30,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
 struct ComponentPart<'a> {
-    pub ident: &'a Ident,
+    pub path: Cow<'a, TypePath>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
     pub child: Option<Box<ComponentPart<'a>>>,
@@ -35,11 +38,7 @@ struct ComponentPart<'a> {
 
 impl<'a> ComponentPart<'a> {
     pub fn from_type(ty: &'a Type) -> ComponentPart<'a> {
-        ComponentPart::from_type_path(
-            Self::get_type_path(ty),
-            ComponentPart::convert,
-            ComponentPart::resolve_component_type,
-        )
+        ComponentPart::from_type_path(Self::get_type_path(ty))
     }
 
     fn get_type_path(ty: &'a Type) -> &'a TypePath {
@@ -56,25 +55,10 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn from_ident(ty: &'a Ident) -> ComponentPart<'a> {
-        ComponentPart {
-            child: None,
-            generic_type: None,
-            ident: ty,
-            value_type: if ComponentType(ty).is_primitive() {
-                ValueType::Primitive
-            } else {
-                ValueType::Object
-            },
-        }
-    }
-
-    fn from_type_path(
-        type_path: &'a TypePath,
-        op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
-        or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
-    ) -> ComponentPart<'a> {
-        let segment = type_path
+    /// Creates a [`ComponentPath`] from a [`TypePath`].
+    /// `op` is a function
+    fn from_type_path(type_path: &'a TypePath) -> ComponentPart<'a> {
+        let last_segment = type_path
             .path
             .segments
             .pairs()
@@ -84,10 +68,10 @@ impl<'a> ComponentPart<'a> {
             })
             .unwrap();
 
-        if segment.arguments.is_empty() {
-            op(&segment.ident, segment)
+        if last_segment.arguments.is_empty() {
+            Self::convert(Cow::Borrowed(type_path), last_segment)
         } else {
-            or_else(segment)
+            Self::resolve_component_type(last_segment)
         }
     }
 
@@ -100,7 +84,12 @@ impl<'a> ComponentPart<'a> {
             );
         };
 
-        let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
+        let path = TypePath {
+            qself: None,
+            path: syn::Path::from(segment.clone()),
+        };
+
+        let mut generic_component_type = ComponentPart::convert(Cow::Owned(path), segment);
 
         generic_component_type.child = Some(Box::new(ComponentPart::from_type(
             match &segment.arguments {
@@ -132,12 +121,13 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentPart<'a> {
+    fn convert(path: Cow<'a, TypePath>, segment: &PathSegment) -> ComponentPart<'a> {
         let generic_type = ComponentPart::get_generic(segment);
+        let is_primitive = ComponentType(&*path).is_primitive();
 
         Self {
-            ident,
-            value_type: if ComponentType(ident).is_primitive() {
+            path,
+            value_type: if is_primitive {
                 ValueType::Primitive
             } else {
                 ValueType::Object
@@ -170,7 +160,7 @@ impl<'a> ComponentPart<'a> {
                 Self::find_mut_by_ident(self.child.as_mut().unwrap().as_mut(), ident)
             }
             None => {
-                if ident == self.ident {
+                if ident.to_token_stream().to_string() == self.path.to_token_stream().to_string() {
                     Some(self)
                 } else {
                     None
@@ -179,14 +169,17 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn update_ident(&mut self, ident: &'a Ident) {
-        self.ident = ident
+    fn update_path(&mut self, ident: &'a Ident) {
+        self.path = Cow::Owned(TypePath {
+            qself: None,
+            path: syn::Path::from(ident.clone()),
+        })
     }
 
     /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_override` attribute to hinder the actual type.
     fn is_any(&self) -> bool {
-        &*self.ident == "Any"
+        &*self.path.to_token_stream().to_string() == "Any"
     }
 }
 

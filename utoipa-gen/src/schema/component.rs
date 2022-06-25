@@ -222,7 +222,7 @@ impl ToTokens for NamedStructComponent<'_> {
                             if let Some(generic_type) =
                                 component_part.find_mut_by_ident(&generic.ident)
                             {
-                                generic_type.update_ident(
+                                generic_type.update_path(
                                     &alias.generics.type_params().nth(index).unwrap().ident,
                                 );
                             };
@@ -235,11 +235,13 @@ impl ToTokens for NamedStructComponent<'_> {
                     component_part,
                 );
 
-                let type_override = attrs
+                let type_override_type: Option<syn::Type> = attrs
                     .as_ref()
-                    .and_then(|field| field.as_ref().value_type.as_ref())
-                    .and_then(|value_type| value_type.get_ident())
-                    .map(ComponentPart::from_ident);
+                    .and_then(|field| field.as_ref().value_type.clone())
+                    .map(syn::Type::Path);
+
+                let type_override = type_override_type.as_ref().map(ComponentPart::from_type);
+
                 let xml_value = attrs
                     .as_ref()
                     .and_then(|named_field| named_field.as_ref().xml.as_ref());
@@ -307,11 +309,12 @@ impl ToTokens for UnnamedStructComponent<'_> {
             attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let type_override = attrs
+            let type_override_type: Option<syn::Type> = attrs
                 .as_ref()
-                .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.as_ref())
-                .and_then(|value_type| value_type.get_ident())
-                .map(ComponentPart::from_ident);
+                .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.clone())
+                .map(syn::Type::Path);
+
+            let type_override = type_override_type.as_ref().map(ComponentPart::from_type);
 
             if type_override.is_some() {
                 is_object = type_override
@@ -750,13 +753,13 @@ where
 
                 match component_part.value_type {
                     ValueType::Primitive => {
-                        let component_type = ComponentType(component_part.ident);
+                        let component_type = ComponentType(&*component_part.path);
 
                         tokens.extend(quote! {
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format = ComponentFormat(component_part.ident);
+                        let format = ComponentFormat(&*component_part.path);
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
@@ -801,12 +804,14 @@ where
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else {
                             if is_inline {
-                                let component_name_ident = component_part.ident;
+                                let component_name_ident = &component_part.path;
                                 tokens.extend(quote! {
                                     <#component_name_ident as utoipa::Component>::component()
                                 });
                             } else {
-                                let name = &component_part.ident.to_string();
+                                let name = format_path_ref(
+                                    &component_part.path.to_token_stream().to_string(),
+                                );
                                 tokens.extend(quote! {
                                     utoipa::openapi::Ref::from_component_name(#name)
                                 })

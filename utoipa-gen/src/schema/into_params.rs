@@ -13,7 +13,7 @@ use crate::{
     Array, Required,
 };
 
-use super::{ComponentPart, GenericType, ValueType};
+use super::{component::format_path_ref, ComponentPart, GenericType, ValueType};
 
 /// Container attribute `#[into_params(...)]`.
 #[derive(Default)]
@@ -315,22 +315,22 @@ struct ParamType<'a>(&'a ComponentPart<'a>);
 
 impl ToTokens for ParamType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ty = self.0;
-        match &ty.generic_type {
+        let part: &ComponentPart = self.0;
+        match &part.generic_type {
             Some(GenericType::Vec) => {
-                let param_type = ParamType(ty.child.as_ref().unwrap().as_ref());
+                let param_type = ParamType(part.child.as_ref().unwrap().as_ref());
 
                 tokens.extend(quote! { #param_type.to_array_builder() });
             }
-            None => match ty.value_type {
+            None => match part.value_type {
                 ValueType::Primitive => {
-                    let component_type = ComponentType(ty.ident);
+                    let component_type = ComponentType(&*part.path);
 
                     tokens.extend(quote! {
                         utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                     });
 
-                    let format = ComponentFormat(ty.ident);
+                    let format = ComponentFormat(&*part.path);
                     if format.is_known_format() {
                         tokens.extend(quote! {
                             .format(Some(#format))
@@ -338,7 +338,7 @@ impl ToTokens for ParamType<'_> {
                     }
                 }
                 ValueType::Object => {
-                    let name = ty.ident.to_string();
+                    let name = format_path_ref(&part.path.to_token_stream().to_string());
                     tokens.extend(quote! {
                         utoipa::openapi::Ref::from_component_name(#name)
                     });
@@ -348,7 +348,7 @@ impl ToTokens for ParamType<'_> {
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let param_type = ParamType(ty.child.as_ref().unwrap().as_ref());
+                let param_type = ParamType(part.child.as_ref().unwrap().as_ref());
 
                 tokens.extend(param_type.into_token_stream())
             }

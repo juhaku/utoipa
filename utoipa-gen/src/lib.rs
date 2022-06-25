@@ -1110,7 +1110,7 @@ where
 /// Wrapper for `Ident` type which can be parsed with expression path e.g `path::to::Type`.
 /// This is typically used in component `value_type` when type of the field is overridden by the user.
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct ValueType(ExprPath);
+struct ValueType(TypePath);
 
 impl ValueType {
     /// Get the `Ident` of last segment of the [`syn::ExprPath`].
