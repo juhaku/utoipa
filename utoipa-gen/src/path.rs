@@ -524,10 +524,10 @@ impl ToTokens for Operation<'_> {
 }
 
 trait ContentTypeResolver {
-    fn resolve_content_type<'a, T: ToTokens>(
+    fn resolve_content_type<'a>(
         &self,
         content_type: Option<&'a String>,
-        component_type: &ComponentType<'a, T>,
+        component_type: &ComponentType<'a>,
     ) -> &'a str {
         if let Some(content_type) = content_type {
             content_type

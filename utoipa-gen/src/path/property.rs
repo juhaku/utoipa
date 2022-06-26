@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use quote::{quote, ToTokens};
 use syn::TypePath;
 
@@ -20,14 +18,14 @@ impl<'a> Property<'a> {
         Self { type_definition }
     }
 
-    pub fn component_type(&self) -> ComponentType<'a, Cow<TypePath>> {
-        ComponentType(&self.type_definition.ty)
+    pub fn component_type(&'a self) -> ComponentType<'a> {
+        ComponentType(&*self.type_definition.ty)
     }
 }
 
 impl ToTokens for Property<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let component_type: ComponentType<_> = self.component_type();
+        let component_type: ComponentType = self.component_type();
 
         if component_type.is_primitive() {
             let mut component = quote! {

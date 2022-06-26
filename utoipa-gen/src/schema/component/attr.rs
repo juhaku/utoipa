@@ -8,7 +8,7 @@ use syn::{parenthesized, parse::Parse, Attribute, Error, Token, TypePath};
 use crate::{
     parse_utils,
     schema::{ComponentPart, GenericType},
-    AnyValue, ValueType,
+    AnyValue,
 };
 
 use super::xml::{Xml, XmlAttr};

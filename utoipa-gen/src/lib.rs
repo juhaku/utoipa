@@ -21,8 +21,7 @@ use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
-    bracketed,
-    parse::{Parse, ParseBuffer, ParseStream},
+    parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
     AngleBracketedGenericArguments, DeriveInput, ExprPath, GenericArgument, ItemFn, Lit, LitStr,
@@ -1111,13 +1110,6 @@ where
 /// This is typically used in component `value_type` when type of the field is overridden by the user.
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ValueType(TypePath);
-
-impl ValueType {
-    /// Get the `Ident` of last segment of the [`syn::ExprPath`].
-    fn get_ident(&self) -> Option<&Ident> {
-        self.0.path.segments.last().map(|segment| &segment.ident)
-    }
-}
 
 impl Parse for ValueType {
     fn parse(input: ParseStream) -> syn::Result<Self> {

@@ -4,8 +4,8 @@ use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use quote::ToTokens;
 use syn::{
-    punctuated::Pair, AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments,
-    PathSegment, Type, TypePath,
+    AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments, PathSegment, Type,
+    TypePath,
 };
 
 use crate::{component_type::ComponentType, Deprecated};
@@ -57,19 +57,11 @@ impl<'a> ComponentPart<'a> {
 
     /// Creates a [`ComponentPath`] from a [`TypePath`].
     /// `op` is a function
-    fn from_type_path(type_path: &'a TypePath) -> ComponentPart<'a> {
-        let last_segment = type_path
-            .path
-            .segments
-            .pairs()
-            .find_map(|pair| match pair {
-                Pair::Punctuated(_, _) => None,
-                Pair::End(segment) => Some(segment),
-            })
-            .unwrap();
-
+    fn from_type_path(path: &'a TypePath) -> ComponentPart<'a> {
+        // TODO: remove unwrap
+        let last_segment = path.path.segments.last().unwrap();
         if last_segment.arguments.is_empty() {
-            Self::convert(Cow::Borrowed(type_path), last_segment)
+            Self::convert(Cow::Borrowed(path))
         } else {
             Self::resolve_component_type(last_segment)
         }
@@ -89,7 +81,7 @@ impl<'a> ComponentPart<'a> {
             path: syn::Path::from(segment.clone()),
         };
 
-        let mut generic_component_type = ComponentPart::convert(Cow::Owned(path), segment);
+        let mut generic_component_type = ComponentPart::convert(Cow::Owned(path));
 
         generic_component_type.child = Some(Box::new(ComponentPart::from_type(
             match &segment.arguments {
@@ -121,8 +113,10 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn convert(path: Cow<'a, TypePath>, segment: &PathSegment) -> ComponentPart<'a> {
-        let generic_type = ComponentPart::get_generic(segment);
+    fn convert(path: Cow<'a, TypePath>) -> ComponentPart<'a> {
+        // TODO: handle unwrap
+        let last_segment = path.path.segments.last().unwrap();
+        let generic_type = ComponentPart::get_generic(last_segment);
         let is_primitive = ComponentType(&*path).is_primitive();
 
         Self {
