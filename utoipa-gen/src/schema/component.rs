@@ -715,7 +715,8 @@ where
 
                 if self.type_override.is_none() {
                     tokens.extend(quote! {
-                        #component_property.to_array_builder()
+                        utoipa::openapi::schema::ArrayBuilder::new()
+                            .items(#component_property)
                     });
 
                     if let Some(xml_value) = self.xml {
