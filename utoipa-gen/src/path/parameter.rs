@@ -75,7 +75,7 @@ impl<'p> ParameterValue<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn update_parameter_type(
         &mut self,
-        ident: Option<&'p Ident>,
+        ident: Option<&'p syn::TypePath>,
         is_array: bool,
         is_option: bool,
     ) {
@@ -233,7 +233,7 @@ impl<'a> From<Argument<'a>> for Parameter<'a> {
                     ParameterIn::Query
                 },
                 parameter_type: value
-                    .ident
+                    .type_path
                     .map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
                 ..Default::default()
             }),

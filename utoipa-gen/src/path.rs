@@ -109,7 +109,7 @@ impl<'p> PathAttr<'p> {
                         _ => None,
                     }) {
                         parameter.update_parameter_type(
-                            argument.ident,
+                            argument.type_path,
                             argument.is_array,
                             argument.is_option,
                         )

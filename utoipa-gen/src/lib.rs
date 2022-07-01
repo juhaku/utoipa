@@ -1185,9 +1185,7 @@ struct Type<'a> {
 
 impl<'a> Type<'a> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn new(ident: Cow<'a, TypePath>, is_array: bool, is_option: bool) -> Self {
-        use syn::TypePath;
-
+    pub fn new(ident: Cow<'a, syn::TypePath>, is_array: bool, is_option: bool) -> Self {
         Self {
             ty: ident,
             is_array,

@@ -30,6 +30,7 @@ serde = "1"
 actix-web = { version = "4" }
 
 [features]
+default = ["actix_extras"]
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static"]
 chrono = []
