@@ -39,13 +39,14 @@ impl ToTokens for Property<'_> {
                 })
             }
 
-            if self.type_definition.is_array {
-                component.extend(quote! {
-                    .to_array_builder()
-                });
-            }
-
-            tokens.extend(component);
+            tokens.extend(if self.type_definition.is_array {
+                quote! {
+                    utoipa::openapi::schema::ArrayBuilder::new()
+                        .items(#component)
+                }
+            } else {
+                component
+            });
         } else {
             let component_name_path: &TypePath = &*component_type.0;
             let name = format_path_ref(&component_name_path.to_token_stream().to_string());
@@ -55,16 +56,14 @@ impl ToTokens for Property<'_> {
                     <#component_name_path as utoipa::Component>::component()
                 };
 
-                if self.type_definition.is_array {
-                    let array_component = quote! {
+                tokens.extend(if self.type_definition.is_array {
+                    quote! {
                         utoipa::openapi::schema::ArrayBuilder::new()
                             .items(#component)
-                    };
-
-                    tokens.extend(array_component);
+                    }
                 } else {
-                    tokens.extend(component);
-                }
+                    component
+                });
             } else {
                 tokens.extend(quote! {
                     utoipa::openapi::Ref::from_component_name(#name)

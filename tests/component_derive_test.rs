@@ -508,7 +508,7 @@ fn derive_with_box_and_refcell() {
 }
 
 #[test]
-fn derive_with_inline() {
+fn derive_struct_with_inline() {
     #[derive(utoipa::Component)]
     #[allow(unused)]
     struct Foo {
@@ -523,6 +523,8 @@ fn derive_with_inline() {
             foo2: Option<Foo>,
             #[component(inline)]
             foo3: Option<Box<Foo>>,
+            #[component(inline)]
+            foo4: Vec<Foo>,
         }
     };
 
@@ -563,9 +565,24 @@ fn derive_with_inline() {
                     ],
                     "type": "object"
                 },
+                "foo4": {
+                    "items": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                        },
+                        "required": [
+                            "name"
+                        ],
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
             },
             "required": [
-                "foo1"
+                "foo1",
+                "foo4",
             ],
             "type": "object"
         })
