@@ -112,12 +112,22 @@ mod todo {
         value: String,
     }
 
+    #[derive(Debug, Deserialize, Component)]
+    #[serde(rename_all = "snake_case")]
+    pub enum Order {
+        AscendingId,
+        DescendingId,
+    }
+
     #[derive(Debug, Deserialize, IntoParams)]
     #[into_params(parameter_in = Query)]
     pub struct ListQueryParams {
         /// Filters the returned `Todo` items according to whether they contain the specified string.
         #[param(style = Form, example = json!("task"))]
         contains: Option<String>,
+        /// Order the returned `Todo` items.
+        #[param(inline)]
+        order: Option<Order>,
     }
 
     pub fn handlers() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -168,7 +178,7 @@ mod todo {
     ) -> Result<impl Reply, Infallible> {
         let todos = store.lock().unwrap();
 
-        let todos: Vec<Todo> = if let Some(contains) = query.contains {
+        let mut todos: Vec<Todo> = if let Some(contains) = query.contains {
             todos
                 .iter()
                 .filter(|todo| todo.value.contains(&contains))
@@ -177,6 +187,18 @@ mod todo {
         } else {
             todos.clone()
         };
+
+        if let Some(order) = query.order {
+            match order {
+                Order::AscendingId => {
+                    todos.sort_by_key(|todo| todo.id);
+                }
+                Order::DescendingId => {
+                    todos.sort_by_key(|todo| todo.id);
+                    todos.reverse();
+                }
+            }
+        }
 
         Ok(warp::reply::json(&todos))
     }

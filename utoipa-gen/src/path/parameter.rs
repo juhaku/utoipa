@@ -313,6 +313,7 @@ pub struct ParameterExt {
     pub style: Option<ParameterStyle>,
     pub explode: Option<bool>,
     pub allow_reserved: Option<bool>,
+    pub inline: Option<bool>,
     pub(crate) example: Option<AnyValue>,
 }
 
@@ -339,11 +340,14 @@ impl ParameterExt {
         if from.example.is_some() {
             self.example = from.example
         }
+        if from.inline.is_some() {
+            self.inline = from.inline
+        }
     }
 
     fn parse_once(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: style, explode, allow_reserved, example";
+            "unexpected attribute, expected any of: style, explode, allow_reserved, example, inline";
 
         let ident = input.parse::<Ident>().map_err(|error| {
             Error::new(
@@ -372,6 +376,10 @@ impl ParameterExt {
                 example: Some(parse_utils::parse_next(input, || {
                     AnyValue::parse_any(input)
                 })?),
+                ..Default::default()
+            },
+            "inline" => ParameterExt {
+                inline: Some(parse_utils::parse_bool_or_true(input)?),
                 ..Default::default()
             },
             _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
