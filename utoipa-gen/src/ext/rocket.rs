@@ -47,7 +47,7 @@ impl ArgumentResolver for PathOperations {
                     Argument::Value(ArgumentValue {
                         name: Some(Cow::Owned(name)),
                         argument_in,
-                        ident: Some(arg.ty),
+                        type_path: Some(arg.ty),
                         is_array: arg.is_array,
                         is_option: arg.is_option,
                     })
@@ -61,7 +61,7 @@ impl ArgumentResolver for PathOperations {
                     Argument::Value(ArgumentValue {
                         name: Some(Cow::Owned(name)),
                         argument_in,
-                        ident: None,
+                        type_path: None,
                         is_array: false,
                         is_option: false,
                     })
@@ -74,7 +74,7 @@ impl ArgumentResolver for PathOperations {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Arg<'a> {
     name: &'a Ident,
-    ty: &'a Ident,
+    ty: &'a TypePath,
     is_array: bool,
     is_option: bool,
 }
@@ -115,13 +115,13 @@ impl PathOperations {
         ordered_args.into_iter()
     }
 
-    fn get_type_ident(ty: &Type) -> (&Ident, bool, bool) {
+    fn get_type_ident(ty: &Type) -> (&TypePath, bool, bool) {
         match ty {
             Type::Path(path) => {
                 let segment = &path.path.segments.first().unwrap();
 
                 if segment.arguments.is_empty() {
-                    (&segment.ident, false, false)
+                    (path, false, false)
                 } else {
                     let is_array = segment.ident == "Vec";
                     let is_option = segment.ident == "Option";
@@ -132,11 +132,7 @@ impl PathOperations {
                                 Some(syn::GenericArgument::Type(arg)) => {
                                     let child_type = Self::get_type_ident(arg);
 
-                                    (
-                                        child_type.0,
-                                        is_array || child_type.1,
-                                        is_option || child_type.2,
-                                    )
+                                    (path, is_array || child_type.1, is_option || child_type.2)
                                 }
                                 _ => abort_call_site!(
                                     "unexpected generic type, expected GenericArgument::Type"
@@ -170,7 +166,7 @@ impl PathOperations {
                 let path = Self::get_type_path(pat_type.ty.as_ref());
                 let segment = &path.path.segments.first().unwrap();
 
-                let mut is_supported = ComponentType(&segment.ident).is_primitive();
+                let mut is_supported = ComponentType(path).is_primitive();
 
                 if !is_supported {
                     is_supported = matches!(&*segment.ident.to_string(), "Vec" | "Option")
