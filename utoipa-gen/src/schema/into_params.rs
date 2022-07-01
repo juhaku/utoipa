@@ -331,7 +331,11 @@ impl ToTokens for ParamType<'_> {
                     inline: self.inline,
                 };
 
-                tokens.extend(quote! { #param_type.to_array_builder() });
+                tokens.extend(quote! {
+                    utoipa::openapi::Component::Array(
+                        utoipa::openapi::ArrayBuilder::new().items(#param_type).build()
+                    )
+                });
             }
             None => match component.value_type {
                 ValueType::Primitive => {

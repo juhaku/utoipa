@@ -414,6 +414,10 @@ fn derive_path_params_intoparams() {
         #[param(inline)]
         #[allow(unused)]
         foo_inline_option: Option<Foo>,
+        /// A vector of Foo item inline.
+        #[param(inline)]
+        #[allow(unused)]
+        foo_inline_vec: Vec<Foo>,
     }
 
     #[utoipa::path(
@@ -506,6 +510,22 @@ fn derive_path_params_intoparams() {
                     "type": "string",
                 },
                 "style": "form"
+            },
+            {
+                "description": "A vector of Foo item inline.",
+                "in": "query",
+                "name": "foo_inline_vec",
+                "required": true,
+                "schema": {
+                    "items": {
+                        "default": "foo1",
+                        "example": "foo1",
+                        "enum": ["foo1", "foo2"],
+                        "type": "string",
+                    },
+                    "type": "array",
+                },
+                "style": "form",
             },
             {
                 "deprecated": false,
