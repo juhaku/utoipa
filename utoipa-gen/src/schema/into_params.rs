@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, ResultExt};
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Error, Field, Generics,
     Ident, LitStr, Token,
@@ -307,7 +307,7 @@ impl ToTokens for Param<'_> {
             tokens.extend(quote! { .example(Some(#example)) });
         }
 
-        let inline: bool = parameter_ext.inline.unwrap_or(false);
+        let inline = parameter_ext.inline.unwrap_or(false);
         let schema = ParamType {
             component: &component_part,
             inline,
@@ -354,9 +354,15 @@ impl ToTokens for ParamType<'_> {
                 }
                 ValueType::Object => {
                     if self.inline {
-                        let struct_ident = &component.ident;
-                        tokens.extend(quote! {
-                            <#struct_ident as utoipa::Component>::component()
+                        let struct_ident = component.ident;
+                        let name = &*struct_ident.to_string();
+                        let assert_component = format_ident!("_Assert{}", name);
+                        tokens.extend(quote_spanned! {struct_ident.span()=>
+                            {
+                                struct #assert_component where #struct_ident : utoipa::Component;
+
+                                <#struct_ident as utoipa::Component>::component()
+                            }
                         })
                     } else {
                         let name = component.ident.to_string();

@@ -213,7 +213,7 @@ impl ToTokens for ParameterValue<'_> {
         }
 
         if let Some(parameter_type) = &self.parameter_type {
-            let property = Property::new(parameter_type.clone());
+            let property = Property::new(parameter_type);
             let required: Required = (!parameter_type.is_option).into();
 
             tokens.extend(quote! { .schema(Some(#property)).required(#required) });

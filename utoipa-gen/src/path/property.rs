@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::Ident;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
@@ -10,23 +10,21 @@ use crate::{
 
 /// Tokenizable object property. It is used as a object property for components or as property
 /// of request or response body or response header.
-pub(crate) struct Property<'a> {
-    type_definition: Type<'a>,
-}
+pub(crate) struct Property<'a>(&'a Type<'a>);
 
 impl<'a> Property<'a> {
-    pub fn new(type_definition: Type<'a>) -> Self {
-        Self { type_definition }
+    pub fn new(type_definition: &'a Type<'a>) -> Self {
+        Self(type_definition)
     }
 
     pub fn component_type(&self) -> ComponentType<'a, Cow<Ident>> {
-        ComponentType(&self.type_definition.ty)
+        ComponentType(&self.0.ty)
     }
 }
 
 impl ToTokens for Property<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let component_type: ComponentType<_> = self.component_type();
+        let component_type = self.component_type();
 
         if component_type.is_primitive() {
             let mut component = quote! {
@@ -40,7 +38,7 @@ impl ToTokens for Property<'_> {
                 })
             }
 
-            tokens.extend(if self.type_definition.is_array {
+            tokens.extend(if self.0.is_array {
                 quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
                         .items(#component)
@@ -49,33 +47,32 @@ impl ToTokens for Property<'_> {
                 component
             });
         } else {
-            let component_name_ident: &Ident = &*component_type.0;
-            let name = component_name_ident.to_string();
+            let component_ident = &*component_type.0;
+            let name = component_ident.to_string();
 
-            if self.type_definition.is_inline {
-                let component = quote! {
-                    <#component_name_ident as utoipa::Component>::component()
-                };
+            let component = if self.0.is_inline {
+                let assert_component = format_ident!("_Assert{}", name);
+                quote_spanned! {component_ident.span()=>
+                    {
+                        struct #assert_component where #component_ident: utoipa::Component;
 
-                tokens.extend(if self.type_definition.is_array {
-                    quote! {
-                        utoipa::openapi::schema::ArrayBuilder::new()
-                            .items(#component)
+                        <#component_ident as utoipa::Component>::component()
                     }
-                } else {
-                    component
-                });
-            } else {
-                tokens.extend(quote! {
-                    utoipa::openapi::Ref::from_component_name(#name)
-                });
-
-                if self.type_definition.is_array {
-                    tokens.extend(quote! {
-                        .to_array_builder()
-                    });
                 }
-            }
+            } else {
+                quote! {
+                    utoipa::openapi::Ref::from_component_name(#name)
+                }
+            };
+
+            tokens.extend(if self.0.is_array {
+                quote! {
+                    utoipa::openapi::schema::ArrayBuilder::new()
+                        .items(#component)
+                }
+            } else {
+                component
+            });
         }
     }
 }
