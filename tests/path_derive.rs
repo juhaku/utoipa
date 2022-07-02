@@ -542,6 +542,144 @@ fn derive_path_params_intoparams() {
     )
 }
 
+#[test]
+fn derive_path_params_into_params_with_value_type() {
+    use utoipa::OpenApi;
+
+    #[derive(Component)]
+    struct Foo {
+        #[allow(unused)]
+        value: String,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Filter {
+        #[param(value_type = i64, style = Simple)]
+        id: String,
+        #[param(value_type = Any)]
+        another_id: String,
+        #[param(value_type = Vec<Vec<String>>)]
+        value1: Vec<i64>,
+        #[param(value_type = Vec<String>)]
+        value2: Vec<i64>,
+        #[param(value_type = Option<String>)]
+        value3: i64,
+        #[param(value_type = Option<Any>)]
+        value4: i64,
+        #[param(value_type = Vec<Any>)]
+        value5: i64,
+        #[param(value_type = Vec<Foo>)]
+        value6: i64,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([{
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "style": "simple",
+            "schema": {
+                "format": "int64",
+                "type": "integer"
+            }
+        },
+        {
+            "in": "query",
+            "name": "another_id",
+            "required": true,
+            "schema": {
+                "type": "object"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value1",
+            "required": true,
+            "schema": {
+                "items": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "array"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value2",
+            "required": true,
+            "schema": {
+                "items": {
+                    "type": "string"
+                },
+                "type": "array"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value3",
+            "required": false,
+            "schema": {
+                "type": "string"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value4",
+            "required": false,
+            "schema": {
+                "type": "object"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value5",
+            "required": true,
+            "schema": {
+                "items": {
+                    "type": "object"
+                },
+                "type": "array"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value6",
+            "required": true,
+            "schema": {
+                "items": {
+                    "$ref": "#/components/schemas/Foo"
+                },
+                "type": "array"
+            }
+        }])
+    )
+}
+
 #[cfg(feature = "uuid")]
 #[test]
 fn derive_path_with_uuid() {

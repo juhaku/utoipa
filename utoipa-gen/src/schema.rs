@@ -1,8 +1,10 @@
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use syn::{
-    punctuated::Pair, AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments,
-    PathSegment, Type, TypePath,
+    parse::{Parse, ParseStream},
+    punctuated::Pair,
+    AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments, PathSegment, Type,
+    TypePath,
 };
 
 use crate::{component_type::ComponentType, Deprecated};
@@ -26,7 +28,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 #[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
-struct ComponentPart<'a> {
+pub(self) struct ComponentPart<'a> {
     pub ident: &'a Ident,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
@@ -184,7 +186,7 @@ impl<'a> ComponentPart<'a> {
     }
 
     /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
-    /// with `value_override` attribute to hinder the actual type.
+    /// with `value_type` attribute to hinder the actual type.
     fn is_any(&self) -> bool {
         &*self.ident == "Any"
     }
@@ -212,6 +214,30 @@ enum GenericType {
     Cow,
     Box,
     RefCell,
+}
+
+/// Wrapper for [`syn::Type`] which will be resolved to [`ComponentPart`].
+/// This used in `value_type` attribute to override the original field type of a struct.
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct TypeToken(Type);
+
+impl TypeToken {
+    /// Get the `Ident` of last segment of the [`syn::TypePath`].
+    #[deprecated = "For removal after refactoring value type logic for component"]
+    fn get_ident(&self) -> Option<&Ident> {
+        Some(self.get_component_part().ident)
+    }
+
+    /// Get the [`ComponentPart`] of the [`syn::Type`].
+    fn get_component_part(&self) -> ComponentPart<'_> {
+        ComponentPart::from_type(&self.0)
+    }
+}
+
+impl Parse for TypeToken {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(input.parse::<syn::Type>()?))
+    }
 }
 
 pub mod serde {

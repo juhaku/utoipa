@@ -7,8 +7,8 @@ use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
     parse_utils,
-    schema::{ComponentPart, GenericType},
-    AnyValue, ValueType,
+    schema::{ComponentPart, GenericType, TypeToken},
+    AnyValue,
 };
 
 use super::xml::{Xml, XmlAttr};
@@ -74,7 +74,7 @@ impl IsInline for Struct {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
-    pub(super) value_type: Option<ValueType>,
+    pub(super) value_type: Option<TypeToken>,
     format: Option<ComponentFormat>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
@@ -90,7 +90,7 @@ impl IsInline for UnnamedFieldStruct {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
     example: Option<AnyValue>,
-    pub(super) value_type: Option<ValueType>,
+    pub(super) value_type: Option<TypeToken>,
     format: Option<ComponentFormat>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
@@ -233,7 +233,7 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                 }
                 "value_type" => {
                     unnamed_struct.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<ValueType>()
+                        input.parse::<TypeToken>()
                     })?)
                 }
                 _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -343,7 +343,7 @@ impl Parse for ComponentAttr<NamedField> {
                 }
                 "value_type" => {
                     field.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<ValueType>()
+                        input.parse::<TypeToken>()
                     })?)
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),

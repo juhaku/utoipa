@@ -932,10 +932,15 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// The following attributes are available for use in the `#[param(...)]` on struct fields:
 ///
 /// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
-/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`Component`][component]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
+///    _`Any`_ will be rendered as generic OpenAPI object.
 /// * `inline` If set, the schema for this field's type needs to be a [`Component`][component], and
 ///   the component schema definition will be inlined.
 ///
@@ -996,7 +1001,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)]` container attribute to
+/// Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
 /// be used as a path query, and inlining a component query field:
 /// ```rust
 /// use serde::Deserialize;
@@ -1010,7 +1015,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[derive(Deserialize, IntoParams)]
-/// #[param(style = Form, parameter_in = Query)]
+/// #[into_params(style = Form, parameter_in = Query)]
 /// struct PetQuery {
 ///     /// Name of pet
 ///     name: Option<String>,
@@ -1033,12 +1038,79 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     // ...
 /// }
 /// ```
+///
+/// Override `String` with `i64` using `value_type` attribute.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = i64)]
+///     id: String,
+/// }
+/// ```
+///
+/// Override `String` with `Any` using `value_type` attribute. _`Any`_ will render as `type: object` in OpenAPI spec.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Any)]
+///     id: String,
+/// }
+/// ```
+///
+/// You can use a generic type to override the default type of the field.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Option<String>)]
+///     id: String
+/// }
+/// ```
+///
+/// You can even overide a [`Vec`] with another one.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Vec<i32>)]
+///     id: Vec<String>
+/// }
+/// ```
+///
+/// We can override value with another [`Component`][component].
+/// ```rust
+/// # use utoipa::{IntoParams, Component};
+/// #
+/// #[derive(Component)]
+/// struct Id {
+///     value: i64,
+/// }
+///
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Id)]
+///     id: String
+/// }
+/// ```
+///
 /// [component]: trait.Component.html
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
@@ -1115,24 +1187,6 @@ where
                 })
                 .to_token_stream(),
         ));
-    }
-}
-
-/// Wrapper for `Ident` type which can be parsed with expression path e.g `path::to::Type`.
-/// This is typically used in component `value_type` when type of the field is overridden by the user.
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct ValueType(ExprPath);
-
-impl ValueType {
-    /// Get the `Ident` of last segment of the [`syn::ExprPath`].
-    fn get_ident(&self) -> Option<&Ident> {
-        self.0.path.segments.last().map(|segment| &segment.ident)
-    }
-}
-
-impl Parse for ValueType {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self(input.parse()?))
     }
 }
 
