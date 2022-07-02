@@ -97,7 +97,7 @@ fn derive_openapi_with_components_in_different_module() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let todo = common::get_json_path(&doc, "components.schemas.Todo");
+    let todo = doc.pointer("/components/schemas/Todo").unwrap();
 
     assert_ne!(
         todo,

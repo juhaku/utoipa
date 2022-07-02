@@ -42,10 +42,10 @@ fn derive_path_request_body_simple_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
-        "paths./foo.post.requestBody.content.text/plain" = r###"null"###, "Request body content object type not text/plain"
-        "paths./foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###"null"###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
+        "paths.~1foo.post.requestBody.content.text~1plain" = r###"null"###, "Request body content object type not text/plain"
+        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
     }
 }
 
@@ -63,12 +63,12 @@ fn derive_path_request_body_simple_array_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json.schema.$ref" = r###"null"###, "Request body content object type"
-        "paths./foo.post.requestBody.content.application/json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Request body content items object type"
-        "paths./foo.post.requestBody.content.application/json.schema.type" = r###""array""###, "Request body content items type"
-        "paths./foo.post.requestBody.content.text/plain" = r###"null"###, "Request body content object type not text/plain"
-        "paths./foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###"null"###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.type" = r###""array""###, "Request body content items type"
+        "paths.~1foo.post.requestBody.content.text~1plain" = r###"null"###, "Request body content object type not text/plain"
+        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
     }
 }
 
@@ -86,12 +86,12 @@ fn derive_request_body_option_array_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json.schema.$ref" = r###"null"###, "Request body content object type"
-        "paths./foo.post.requestBody.content.application/json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Request body content items object type"
-        "paths./foo.post.requestBody.content.application/json.schema.type" = r###""array""###, "Request body content items type"
-        "paths./foo.post.requestBody.content.text/plain" = r###"null"###, "Request body content object type not text/plain"
-        "paths./foo.post.requestBody.required" = r###"false"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###"null"###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.type" = r###""array""###, "Request body content items type"
+        "paths.~1foo.post.requestBody.content.text~1plain" = r###"null"###, "Request body content object type not text/plain"
+        "paths.~1foo.post.requestBody.required" = r###"false"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
     }
 }
 test_fn! {
@@ -108,12 +108,12 @@ fn derive_request_body_primitive_simple_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json.schema.$ref" = r###"null"###, "Request body content object type not application/json"
-        "paths./foo.post.requestBody.content.application/json.schema.items.$ref" = r###"null"###, "Request body content items object type"
-        "paths./foo.post.requestBody.content.application/json.schema.type" = r###"null"###, "Request body content items type"
-        "paths./foo.post.requestBody.content.text/plain.schema.type" = r###""string""###, "Request body content object type"
-        "paths./foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###"null"###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type not application/json"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.items.$ref" = r###"null"###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.type" = r###"null"###, "Request body content items type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""string""###, "Request body content object type"
+        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
     }
 }
 
@@ -131,12 +131,12 @@ fn derive_request_body_primitive_array_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json" = r###"null"###, "Request body content object type not application/json"
-        "paths./foo.post.requestBody.content.text/plain.schema.type" = r###""array""###, "Request body content object item type"
-        "paths./foo.post.requestBody.content.text/plain.schema.items.type" = r###""integer""###, "Request body content items object type"
-        "paths./foo.post.requestBody.content.text/plain.schema.items.format" = r###""int64""###, "Request body content items object format"
-        "paths./foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###"null"###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""array""###, "Request body content object item type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###""integer""###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.format" = r###""int64""###, "Request body content items object format"
+        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
     }
 }
 
@@ -343,12 +343,12 @@ fn derive_request_body_complex_required_explisit_false_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json" = r###"null"###, "Request body content object type not application/json"
-        "paths./foo.post.requestBody.content.text/xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
-        "paths./foo.post.requestBody.content.text/plain.schema.type" = r###"null"###, "Request body content object item type"
-        "paths./foo.post.requestBody.content.text/plain.schema.items.type" = r###"null"###, "Request body content items object type"
-        "paths./foo.post.requestBody.required" = r###"false"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###""Create new Foo""###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
+        "paths.~1foo.post.requestBody.content.text~1xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###"null"###, "Request body content object item type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###"null"###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.required" = r###"false"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###""Create new Foo""###, "Request body description"
     }
 }
 
@@ -366,11 +366,11 @@ fn derive_request_body_complex_primitive_array_success() {
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths./foo.post.requestBody.content.application/json" = r###"null"###, "Request body content object type not application/json"
-        "paths./foo.post.requestBody.content.text/plain.schema.type" = r###""array""###, "Request body content object item type"
-        "paths./foo.post.requestBody.content.text/plain.schema.items.type" = r###""integer""###, "Request body content items object type"
-        "paths./foo.post.requestBody.content.text/plain.schema.items.format" = r###""int32""###, "Request body content items object format"
-        "paths./foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths./foo.post.requestBody.description" = r###""Create new foo references""###, "Request body description"
+        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""array""###, "Request body content object item type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###""integer""###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.format" = r###""int32""###, "Request body content items object format"
+        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
+        "paths.~1foo.post.requestBody.description" = r###""Create new foo references""###, "Request body description"
     }
 }

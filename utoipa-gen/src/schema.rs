@@ -58,19 +58,6 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn from_ident(ty: &'a Ident) -> ComponentPart<'a> {
-        ComponentPart {
-            child: None,
-            generic_type: None,
-            ident: ty,
-            value_type: if ComponentType(ty).is_primitive() {
-                ValueType::Primitive
-            } else {
-                ValueType::Object
-            },
-        }
-    }
-
     fn from_type_path(
         type_path: &'a TypePath,
         op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
@@ -222,12 +209,6 @@ enum GenericType {
 struct TypeToken(Type);
 
 impl TypeToken {
-    /// Get the `Ident` of last segment of the [`syn::TypePath`].
-    #[deprecated = "For removal after refactoring value type logic for component"]
-    fn get_ident(&self) -> Option<&Ident> {
-        Some(self.get_component_part().ident)
-    }
-
     /// Get the [`ComponentPart`] of the [`syn::Type`].
     fn get_component_part(&self) -> ComponentPart<'_> {
         ComponentPart::from_type(&self.0)

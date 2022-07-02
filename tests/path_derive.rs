@@ -14,8 +14,13 @@ macro_rules! test_api_fn_doc {
         struct ApiDoc;
 
         let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
-        let operation =
-            common::get_json_path(doc, &format!("paths.{}.{}", $path, stringify!($operation)));
+        let operation = doc
+            .pointer(&format!(
+                "/paths/{}/{}",
+                $path.replace("/", "~1"),
+                stringify!($operation)
+            ))
+            .unwrap_or(&serde_json::Value::Null);
         operation.clone()
     }};
 }
@@ -69,7 +74,7 @@ macro_rules! test_path_operation {
             }
 
             let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-            let operation_value = common::get_json_path(&doc, &format!("paths./foo.{}", stringify!($operation)));
+            let operation_value = doc.pointer(&*format!("/paths/~1foo/{}", stringify!($operation))).unwrap_or(&serde_json::Value::Null);
             assert!(operation_value != &serde_json::Value::Null,
                 "expected to find operation with: {}", &format!("paths./foo.{}", stringify!($operation)));
         })*
@@ -110,7 +115,7 @@ fn derive_path_with_all_info_success() {
         path: "/foo/bar/{id}"
     };
 
-    common::assert_json_array_len(common::get_json_path(&operation, "parameters"), 1);
+    common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 1);
     assert_value! {operation=>
        "deprecated" = r#"true"#, "Api fn deprecated status"
        "description" = r#""This is test operation description\n\nAdditional info in long description\n""#, "Api fn description"
@@ -176,7 +181,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
         path: "/foo/{id}"
     };
 
-    common::assert_json_array_len(common::get_json_path(&operation, "parameters"), 2);
+    common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 2);
     assert_value! {operation=>
         "deprecated" = r#"false"#, "Api operation deprecated"
         "description" = r#""This is test operation\n\nThis is long description for test operation\n""#, "Api operation description"
