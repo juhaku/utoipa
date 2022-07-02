@@ -11,6 +11,7 @@ use crate::{
     doc_comment::CommentAttributes,
     parse_utils,
     path::parameter::{ParameterExt, ParameterIn, ParameterStyle},
+    schema::TypeToken,
     Array, Required,
 };
 
@@ -118,6 +119,15 @@ impl ToTokens for IntoParams {
             .iter()
             .find(|attr| attr.path.is_ident("into_params"))
             .map(|attribute| attribute.parse_args::<IntoParamsAttr>().unwrap_or_abort());
+
+        // #[params] is only supported over fields
+        if self.attrs.iter().any(|attr| attr.path.is_ident("param")) {
+            abort! {
+                ident,
+                "found `param` attribute in unsupported context";
+                help = "Did you mean `into_params`?",
+            }
+        }
 
         let params = self
             .get_struct_fields(
@@ -249,8 +259,15 @@ impl ToTokens for Param<'_> {
                 help = "Try adding #[into_params(names(...))] container attribute to specify the name for this field"
             ));
         let component_part = ComponentPart::from_type(&field.ty);
-        let required: Required =
-            (!matches!(&component_part.generic_type, Some(GenericType::Option))).into();
+        let field_param_attrs = field
+            .attrs
+            .iter()
+            .find(|attribute| attribute.path.is_ident("param"))
+            .map(|attribute| {
+                attribute
+                    .parse_args::<IntoParamsFieldParamsAttr>()
+                    .unwrap_or_abort()
+            });
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
             .name(#name)
@@ -268,10 +285,6 @@ impl ToTokens for Param<'_> {
             },
         );
 
-        tokens.extend(quote! {
-            .required(#required)
-        });
-
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
@@ -285,13 +298,17 @@ impl ToTokens for Param<'_> {
         let mut parameter_ext = ParameterExt::from(&self.container_attributes);
 
         // Apply the field attributes if they exist.
-        if let Some(p) = field
+        if let Some(field_params_attrs) = field
             .attrs
             .iter()
             .find(|attribute| attribute.path.is_ident("param"))
-            .map(|attribute| attribute.parse_args::<ParameterExt>().unwrap_or_abort())
+            .map(|attribute| {
+                attribute
+                    .parse_args::<IntoParamsFieldParamsAttr>()
+                    .unwrap_or_abort()
+            })
         {
-            parameter_ext.merge(p)
+            parameter_ext.merge(field_params_attrs.parameter_ext.unwrap_or_default())
         }
 
         if let Some(ref style) = parameter_ext.style {
@@ -306,29 +323,85 @@ impl ToTokens for Param<'_> {
         if let Some(ref example) = parameter_ext.example {
             tokens.extend(quote! { .example(Some(#example)) });
         }
+        let component = &field_param_attrs
+            .as_ref()
+            .and_then(|field_params| {
+                field_params
+                    .value_type
+                    .as_ref()
+                    .map(|value_type| value_type.get_component_part())
+            })
+            .unwrap_or(component_part);
+        let required: Required =
+            (!matches!(&component.generic_type, Some(GenericType::Option))).into();
 
-        let inline = parameter_ext.inline.unwrap_or(false);
+        tokens.extend(quote! {
+            .required(#required)
+        });
+
         let schema = ParamType {
-            component: &component_part,
-            inline,
+            component,
+            field_param_attrs: &field_param_attrs,
         };
         tokens.extend(quote! { .schema(Some(#schema)).build() });
     }
 }
 
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct IntoParamsFieldParamsAttr {
+    inline: bool,
+    value_type: Option<TypeToken>,
+    parameter_ext: Option<ParameterExt>,
+}
+
+impl Parse for IntoParamsFieldParamsAttr {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: style, explode, allow_reserved, example, inline, value_type";
+        let mut param = IntoParamsFieldParamsAttr::default();
+
+        while !input.is_empty() {
+            if ParameterExt::is_parameter_ext(input) {
+                let param_ext = param.parameter_ext.get_or_insert(ParameterExt::default());
+                param_ext.merge(input.call(ParameterExt::parse_once)?);
+            } else {
+                let ident = input.parse::<Ident>()?;
+                let name = &*ident.to_string();
+
+                match name {
+                    "inline" => param.inline = parse_utils::parse_bool_or_true(input)?,
+                    "value_type" => {
+                        param.value_type = Some(parse_utils::parse_next(input, || {
+                            input.parse::<TypeToken>()
+                        })?)
+                    }
+                    _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
+                }
+
+                if !input.is_empty() {
+                    input.parse::<Comma>()?;
+                }
+            }
+        }
+
+        Ok(param)
+    }
+}
+
 struct ParamType<'a> {
     component: &'a ComponentPart<'a>,
-    inline: bool,
+    field_param_attrs: &'a Option<IntoParamsFieldParamsAttr>,
 }
 
 impl ToTokens for ParamType<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let component = self.component;
+
         match &component.generic_type {
             Some(GenericType::Vec) => {
                 let param_type = ParamType {
                     component: component.child.as_ref().unwrap().as_ref(),
-                    inline: self.inline,
+                    field_param_attrs: self.field_param_attrs,
                 };
 
                 tokens.extend(quote! {
@@ -337,48 +410,60 @@ impl ToTokens for ParamType<'_> {
                     )
                 });
             }
-            None => match component.value_type {
-                ValueType::Primitive => {
-                    let component_type = ComponentType(component.ident);
+            None => {
+                let inline = matches!(self.field_param_attrs, Some(params) if params.inline);
+                let type_ident = component.ident;
 
-                    tokens.extend(quote! {
-                        utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
-                    });
+                match component.value_type {
+                    ValueType::Primitive => {
+                        let component_type = ComponentType(type_ident);
 
-                    let format = ComponentFormat(component.ident);
-                    if format.is_known_format() {
                         tokens.extend(quote! {
-                            .format(Some(#format))
-                        })
-                    }
-                }
-                ValueType::Object => {
-                    if self.inline {
-                        let struct_ident = component.ident;
-                        let name = &*struct_ident.to_string();
-                        let assert_component = format_ident!("_Assert{}", name);
-                        tokens.extend(quote_spanned! {struct_ident.span()=>
-                            {
-                                struct #assert_component where #struct_ident : utoipa::Component;
-
-                                <#struct_ident as utoipa::Component>::component()
-                            }
-                        })
-                    } else {
-                        let name = component.ident.to_string();
-                        tokens.extend(quote! {
-                            utoipa::openapi::Ref::from_component_name(#name)
+                            utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
+
+                        let format = ComponentFormat(type_ident);
+                        if format.is_known_format() {
+                            tokens.extend(quote! {
+                                .format(Some(#format))
+                            })
+                        }
+                    }
+                    ValueType::Object => {
+                        let name = &*type_ident.to_string();
+                        if inline {
+                            let assert_component = format_ident!("_Assert{}", name);
+                            tokens.extend(quote_spanned! {type_ident.span()=>
+                                {
+                                    struct #assert_component where #type_ident : utoipa::Component;
+
+                                    <#type_ident as utoipa::Component>::component()
+                                }
+                            })
+                        } else if component.is_any() {
+                            tokens.extend(quote! {
+                                utoipa::openapi::ObjectBuilder::new()
+                            });
+                        } else {
+                            let assert_component = format_ident!("_Assert{}", name);
+                            tokens.extend(quote_spanned! {type_ident.span()=>
+                                {
+                                    struct #assert_component where #type_ident : utoipa::Component;
+
+                                    utoipa::openapi::Ref::from_component_name(#name)
+                                }
+                            });
+                        }
                     }
                 }
-            },
+            }
             Some(GenericType::Option)
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
                 let param_type = ParamType {
                     component: component.child.as_ref().unwrap().as_ref(),
-                    inline: self.inline,
+                    field_param_attrs: self.field_param_attrs,
                 };
 
                 tokens.extend(param_type.into_token_stream())

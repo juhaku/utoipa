@@ -125,18 +125,7 @@ impl Parse for ParameterValue<'_> {
         }
 
         while !input.is_empty() {
-            let fork = input.fork();
-
-            let use_parameter_ext = if fork.peek(syn::Ident) {
-                let ident = fork.parse::<Ident>().unwrap();
-                let name = &*ident.to_string();
-
-                matches!(name, "style" | "explode" | "allow_reserved" | "example")
-            } else {
-                false
-            };
-
-            if use_parameter_ext {
+            if ParameterExt::is_parameter_ext(&input) {
                 let ext = parameter
                     .parameter_ext
                     .get_or_insert(ParameterExt::default());
@@ -313,7 +302,6 @@ pub struct ParameterExt {
     pub style: Option<ParameterStyle>,
     pub explode: Option<bool>,
     pub allow_reserved: Option<bool>,
-    pub inline: Option<bool>,
     pub(crate) example: Option<AnyValue>,
 }
 
@@ -340,14 +328,11 @@ impl ParameterExt {
         if from.example.is_some() {
             self.example = from.example
         }
-        if from.inline.is_some() {
-            self.inline = from.inline
-        }
     }
 
-    fn parse_once(input: ParseStream) -> syn::Result<Self> {
+    pub fn parse_once(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: style, explode, allow_reserved, example, inline";
+            "unexpected attribute, expected any of: style, explode, allow_reserved, example";
 
         let ident = input.parse::<Ident>().map_err(|error| {
             Error::new(
@@ -378,10 +363,6 @@ impl ParameterExt {
                 })?),
                 ..Default::default()
             },
-            "inline" => ParameterExt {
-                inline: Some(parse_utils::parse_bool_or_true(input)?),
-                ..Default::default()
-            },
             _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
         };
 
@@ -390,6 +371,18 @@ impl ParameterExt {
         }
 
         Ok(ext)
+    }
+
+    pub fn is_parameter_ext(input: ParseStream) -> bool {
+        let fork = input.fork();
+        if fork.peek(syn::Ident) {
+            let ident = fork.parse::<Ident>().unwrap();
+            let name = &*ident.to_string();
+
+            matches!(name, "style" | "explode" | "allow_reserved" | "example")
+        } else {
+            false
+        }
     }
 }
 

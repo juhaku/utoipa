@@ -1,6 +1,10 @@
 #![cfg(feature = "serde_json")]
 use serde_json::Value;
 
+#[deprecated(
+    since = "2.0.0",
+    note = "Favor serde native `.pointer(...)` function over custom json path function"
+)]
 pub fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
     path.split('.').into_iter().fold(value, |acc, fragment| {
         let value = if fragment.starts_with('[') && fragment.ends_with(']') {
