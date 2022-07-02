@@ -445,13 +445,8 @@ impl ToTokens for ParamType<'_> {
                                 utoipa::openapi::ObjectBuilder::new()
                             });
                         } else {
-                            let assert_component = format_ident!("_Assert{}", name);
-                            tokens.extend(quote_spanned! {type_ident.span()=>
-                                {
-                                    struct #assert_component where #type_ident : utoipa::Component;
-
-                                    utoipa::openapi::Ref::from_component_name(#name)
-                                }
+                            tokens.extend(quote! {
+                                utoipa::openapi::Ref::from_component_name(#name)
                             });
                         }
                     }

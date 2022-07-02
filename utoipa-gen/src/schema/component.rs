@@ -235,23 +235,21 @@ impl ToTokens for NamedStructComponent<'_> {
                     component_part,
                 );
 
-                let type_override = attrs
+                let override_component_part = attrs
                     .as_ref()
                     .and_then(|field| field.as_ref().value_type.as_ref())
-                    .and_then(|value_type| value_type.get_ident())
-                    .map(ComponentPart::from_ident);
+                    .map(|value_type| value_type.get_component_part());
                 let xml_value = attrs
                     .as_ref()
                     .and_then(|named_field| named_field.as_ref().xml.as_ref());
                 let comments = CommentAttributes::from_attributes(&field.attrs);
 
                 let component = ComponentProperty::new(
-                    component_part,
+                    override_component_part.as_ref().unwrap_or(component_part),
                     Some(&comments),
                     attrs.as_ref(),
                     deprecated.as_ref(),
                     xml_value,
-                    type_override.as_ref(),
                 );
 
                 tokens.extend(quote! {
@@ -307,14 +305,13 @@ impl ToTokens for UnnamedStructComponent<'_> {
             attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let type_override = attrs
+            let override_component = attrs
                 .as_ref()
                 .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.as_ref())
-                .and_then(|value_type| value_type.get_ident())
-                .map(ComponentPart::from_ident);
+                .map(|value_type| value_type.get_component_part());
 
-            if type_override.is_some() {
-                is_object = type_override
+            if override_component.is_some() {
+                is_object = override_component
                     .as_ref()
                     .map(|override_type| matches!(override_type.value_type, ValueType::Object))
                     .unwrap_or_default();
@@ -322,12 +319,11 @@ impl ToTokens for UnnamedStructComponent<'_> {
 
             tokens.extend(
                 ComponentProperty::new(
-                    first_part,
+                    override_component.as_ref().unwrap_or(first_part),
                     None,
                     attrs.as_ref(),
                     deprecated.as_ref(),
                     None,
-                    type_override.as_ref(),
                 )
                 .to_token_stream(),
             );
@@ -656,7 +652,6 @@ struct ComponentProperty<'a, T> {
     attrs: Option<&'a ComponentAttr<T>>,
     deprecated: Option<&'a Deprecated>,
     xml: Option<&'a Xml>,
-    type_override: Option<&'a ComponentPart<'a>>,
 }
 
 impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
@@ -666,7 +661,6 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
         attrs: Option<&'a ComponentAttr<T>>,
         deprecated: Option<&'a Deprecated>,
         xml: Option<&'a Xml>,
-        type_override: Option<&'a ComponentPart<'a>>,
     ) -> Self {
         Self {
             component_part,
@@ -674,7 +668,6 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
             attrs,
             deprecated,
             xml,
-            type_override,
         }
     }
 
@@ -710,25 +703,20 @@ where
                     self.attrs,
                     self.deprecated,
                     self.xml,
-                    self.type_override,
                 );
 
-                if self.type_override.is_none() {
-                    tokens.extend(quote! {
-                        utoipa::openapi::schema::ArrayBuilder::new()
-                            .items(#component_property)
-                    });
+                tokens.extend(quote! {
+                    utoipa::openapi::schema::ArrayBuilder::new()
+                        .items(#component_property)
+                });
 
-                    if let Some(xml_value) = self.xml {
-                        match xml_value {
-                            Xml::Slice { vec, value: _ } => tokens.extend(quote! {
-                                .xml(Some(#vec))
-                            }),
-                            Xml::NonSlice(_) => (),
-                        }
+                if let Some(xml_value) = self.xml {
+                    match xml_value {
+                        Xml::Slice { vec, value: _ } => tokens.extend(quote! {
+                            .xml(Some(#vec))
+                        }),
+                        Xml::NonSlice(_) => (),
                     }
-                } else {
-                    tokens.extend(quote! { #component_property })
                 }
             }
             Some(GenericType::Option)
@@ -741,13 +729,12 @@ where
                     self.attrs,
                     self.deprecated,
                     self.xml,
-                    self.type_override,
                 );
 
                 tokens.extend(component_property.into_token_stream())
             }
             None => {
-                let component_part = self.type_override.unwrap_or(self.component_part);
+                let component_part = self.component_part;
 
                 match component_part.value_type {
                     ValueType::Primitive => {
@@ -796,13 +783,13 @@ where
                             .attrs
                             .map(|attributes| attributes.is_inline())
                             .unwrap_or(false);
+                        let component_ident = component_part.ident;
+                        let name = &*component_ident.to_string();
 
                         // When users wishes to hinder the actual type with Any type render a generic `object`
                         if component_part.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else if is_inline {
-                            let component_ident = component_part.ident;
-                            let name = &*component_ident.to_string();
                             let assert_component = format_ident!("_Assert{}", name);
                             tokens.extend(quote_spanned! {component_ident.span()=>
                                 {
@@ -812,7 +799,6 @@ where
                                 }
                             });
                         } else {
-                            let name = &component_part.ident.to_string();
                             tokens.extend(quote! {
                                 utoipa::openapi::Ref::from_component_name(#name)
                             })

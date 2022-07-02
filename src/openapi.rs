@@ -1,4 +1,4 @@
-//! Rust implementation of Openapi Spec V3
+//! Rust implementation of Openapi Spec V3.
 
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
