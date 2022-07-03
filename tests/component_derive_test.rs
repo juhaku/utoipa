@@ -1482,3 +1482,50 @@ fn derive_component_with_into_params_value_type() {
         })
     )
 }
+
+#[test]
+fn derive_component_with_complex_enum_lifetimes() {
+    #[derive(Component)]
+    struct Foo<'foo> {
+        #[allow(unused)]
+        field: &'foo str,
+    }
+
+    let doc = api_doc! {
+        enum Bar<'bar> {
+            A { foo: Foo<'bar> },
+            B,
+            C,
+        }
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "A": {
+                            "properties": {
+                                "foo": {
+                                    "$ref": "#/components/schemas/Foo"
+                                }
+                            },
+                            "required": ["foo"],
+                            "type": "object"
+                        },
+                    },
+                    "type": "object"
+                },
+                {
+                    "enum": ["B"],
+                    "type": "string"
+                },
+                {
+                    "enum": ["C"],
+                    "type": "string"
+                }
+            ]
+        })
+    )
+}

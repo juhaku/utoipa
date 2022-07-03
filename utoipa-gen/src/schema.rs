@@ -37,11 +37,7 @@ pub(self) struct ComponentPart<'a> {
 
 impl<'a> ComponentPart<'a> {
     pub fn from_type(ty: &'a Type) -> ComponentPart<'a> {
-        ComponentPart::from_type_path(
-            Self::get_type_path(ty),
-            ComponentPart::convert,
-            ComponentPart::resolve_component_type,
-        )
+        ComponentPart::from_type_path(Self::get_type_path(ty))
     }
 
     fn get_type_path(ty: &'a Type) -> &'a TypePath {
@@ -58,11 +54,7 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn from_type_path(
-        type_path: &'a TypePath,
-        op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
-        or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
-    ) -> ComponentPart<'a> {
+    fn from_type_path(type_path: &'a TypePath) -> ComponentPart<'a> {
         let segment = type_path
             .path
             .segments
@@ -74,9 +66,9 @@ impl<'a> ComponentPart<'a> {
             .unwrap();
 
         if segment.arguments.is_empty() {
-            op(&segment.ident, segment)
+            Self::convert(&segment.ident, segment)
         } else {
-            or_else(segment)
+            Self::resolve_component_type(segment)
         }
     }
 
@@ -91,17 +83,26 @@ impl<'a> ComponentPart<'a> {
 
         let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
 
-        generic_component_type.child = Some(Box::new(ComponentPart::from_type(
-            match &segment.arguments {
-                PathArguments::AngleBracketed(angle_bracketed_args) => {
-                    ComponentPart::get_generic_arg_type(0, angle_bracketed_args)
+        let generic_type = match &segment.arguments {
+            PathArguments::AngleBracketed(angle_bracketed_args) => {
+                // if all type arguments are lifetimes we ignore the generic type
+                if angle_bracketed_args
+                    .args
+                    .iter()
+                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
+                {
+                    None
+                } else {
+                    Some(ComponentPart::get_generic_arg_type(0, angle_bracketed_args))
                 }
-                _ => abort!(
-                    segment.ident,
-                    "unexpected path argument, expected angle bracketed path argument"
-                ),
-            },
-        )));
+            }
+            _ => abort!(
+                segment.ident,
+                "unexpected path argument, expected angle bracketed path argument"
+            ),
+        };
+
+        generic_component_type.child = generic_type.map(ComponentPart::from_type).map(Box::new);
 
         generic_component_type
     }
