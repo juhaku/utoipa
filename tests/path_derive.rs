@@ -2,7 +2,7 @@
 use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
-use utoipa::{Component, IntoParams};
+use utoipa::{Component, IntoParams, OpenApi};
 
 mod common;
 
@@ -680,6 +680,48 @@ fn derive_path_params_into_params_with_value_type() {
                     "$ref": "#/components/schemas/Foo"
                 },
                 "type": "array"
+            }
+        }])
+    )
+}
+
+#[test]
+fn derive_path_params_into_params_with_raw_identifier() {
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Path)]
+    struct Filter {
+        #[allow(unused)]
+        r#in: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(path: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([{
+            "in": "path",
+            "name": "in",
+            "required": true,
+            "schema": {
+                "type": "string"
             }
         }])
     )

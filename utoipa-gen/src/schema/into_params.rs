@@ -250,7 +250,7 @@ impl ToTokens for Param<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let field = self.field;
         let ident = &field.ident;
-        let name = ident
+        let mut name = &*ident
             .as_ref()
             .map(|ident| ident.to_string())
             .or_else(|| self.container_attributes.name.cloned())
@@ -258,6 +258,11 @@ impl ToTokens for Param<'_> {
                 field, "No name specified for unnamed field.";
                 help = "Try adding #[into_params(names(...))] container attribute to specify the name for this field"
             ));
+
+        if name.starts_with("r#") {
+            name = &name[2..];
+        }
+
         let component_part = ComponentPart::from_type(&field.ty);
         let field_param_attrs = field
             .attrs

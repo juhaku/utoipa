@@ -208,7 +208,12 @@ impl ToTokens for NamedStructComponent<'_> {
                 }
             })
             .for_each(|(field, mut field_rule)| {
-                let field_name = &*field.ident.as_ref().unwrap().to_string();
+                let mut field_name = &*field.ident.as_ref().unwrap().to_string();
+
+                if field_name.starts_with("r#") {
+                    field_name = &field_name[2..];
+                }
+
                 let name = &rename_field(&container_rules, &mut field_rule, field_name)
                     .unwrap_or_else(|| String::from(field_name));
 
