@@ -1529,3 +1529,25 @@ fn derive_component_with_complex_enum_lifetimes() {
         })
     )
 }
+
+#[test]
+fn derive_component_with_raw_identifier() {
+    let doc = api_doc! {
+        struct Bar {
+            r#in: String
+        }
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "properties": {
+                "in": {
+                    "type": "string"
+                }
+            },
+            "required": ["in"],
+            "type": "object"
+        })
+    )
+}
