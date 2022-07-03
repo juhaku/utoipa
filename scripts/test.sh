@@ -15,5 +15,5 @@ if [[ "$crate" == "utoipa" ]]; then
   elif [[ "$crate" == "utoipa-gen" ]]; then
   cargo test -p utoipa-gen --features utoipa/actix_extras
   elif [[ "$crate" == "utoipa-swagger-ui" ]]; then
-  cargo test -p utoipa-swagger-ui --features actix-web,rocket
+  cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
 fi

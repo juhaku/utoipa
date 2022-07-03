@@ -16,7 +16,7 @@ hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1.17", features = ["full"] }
 tower = "0.4"
 utoipa = { path = "../.." }
-utoipa-swagger-ui = { path = "../../utoipa-swagger-ui" }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 env_logger = "0.9.0"

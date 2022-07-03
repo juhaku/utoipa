@@ -3,13 +3,13 @@ use std::{
     sync::Arc,
 };
 
-use axum::{extract::Path, response::IntoResponse, routing, Extension, Json, Router, Server};
-use hyper::{Error, StatusCode};
+use axum::{routing, Extension, Router, Server};
+use hyper::Error;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
-use utoipa_swagger_ui::Config;
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::Store;
 
@@ -44,22 +44,9 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let api_doc = ApiDoc::openapi();
-    let config = Arc::new(Config::from("/api-doc/openapi.json"));
-
     let store = Arc::new(Store::default());
     let app = Router::new()
-        .route(
-            "/api-doc/openapi.json",
-            routing::get({
-                let doc = api_doc.clone();
-                move || async { Json(doc) }
-            }),
-        )
-        .route(
-            "/swagger-ui/*tail",
-            routing::get(serve_swagger_ui).layer(Extension(config)),
-        )
+        .merge(SwaggerUi::new("/swagger-ui/*tail").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .route(
             "/todo",
             routing::get(todo::list_todos).post(todo::create_todo),
@@ -72,25 +59,6 @@ async fn main() -> Result<(), Error> {
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
     Server::bind(&address).serve(app.into_make_service()).await
-}
-
-async fn serve_swagger_ui(
-    Path(tail): Path<String>,
-    Extension(state): Extension<Arc<Config<'static>>>,
-) -> impl IntoResponse {
-    match utoipa_swagger_ui::serve(&tail[1..], state) {
-        Ok(file) => file
-            .map(|file| {
-                (
-                    StatusCode::OK,
-                    [("Content-Type", file.content_type)],
-                    file.bytes,
-                )
-                    .into_response()
-            })
-            .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response()),
-        Err(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
-    }
 }
 
 mod todo {
