@@ -8,6 +8,7 @@
 //!
 //! * **actix-web** `version >= 4`
 //! * **rocket** `version >=0.5.0-rc.1`
+//! * **axum** `version >=0.5`
 //!
 //! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -17,10 +18,12 @@
 //!
 //! # Features
 //!
-//! * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
+//! * **actix-web** Enables `actix-web` integration with pre-configured SwaggerUI service factory allowing
 //!   users to use the Swagger UI without a hassle.
-//! * **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI
+//! * **rocket** Enables `rocket` integration with with pre-configured routes for serving the Swagger UI
 //!   and api doc without a hassle.
+//! * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
+//!   hazzle free.
 //!
 //! # Install
 //!
@@ -40,7 +43,7 @@
 //!
 //! # Examples
 //!
-//! Serve Swagger UI with api doc via actix-web. [^actix]
+//! Serve Swagger UI with api doc via **`actix-web`**. See full example from [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 //! ```no_run
 //! # use actix_web::{App, HttpServer};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -60,7 +63,7 @@
 //!     .run();
 //! ```
 //!
-//! Serve Swagger UI with api doc via rocket [^rocket]
+//! Serve Swagger UI with api doc via **`rocket`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 //! ```no_run
 //! # use rocket::{Build, Rocket};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -81,18 +84,35 @@
 //! }
 //! ```
 //!
-//! [^actix]: **actix-web** feature need to be enabled.
-//!
-//! [^rocket]: **rocket** feature need to be enabled.
+//! Setup Router to serve Swagger UI with **`axum`** framework. See full implementation of how to serve
+//! Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
+//!```no_run
+//! # use axum::{routing, Router, body::HttpBody};
+//! # use utoipa_swagger_ui::SwaggerUi;
+//! # use utoipa::OpenApi;
+//!# #[derive(OpenApi)]
+//!# #[openapi()]
+//!# struct ApiDoc;
+//!#
+//!# fn inner<B>()
+//!# where
+//!#     B: HttpBody + Send + 'static,
+//!# {
+//! let app = Router::<B>::new()
+//!     .merge(SwaggerUi::new("/swagger-ui/*tail")
+//!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
+//!# }
+//! ```
 use std::{borrow::Cow, error::Error, mem, sync::Arc};
 
 mod actix;
+mod axum;
 pub mod oauth;
 mod rocket;
 
 use rust_embed::RustEmbed;
 use serde::Serialize;
-#[cfg(any(feature = "actix-web", feature = "rocket"))]
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 use utoipa::openapi::OpenApi;
 
 #[derive(RustEmbed)]
@@ -100,7 +120,9 @@ use utoipa::openapi::OpenApi;
 struct SwaggerUiDist;
 
 /// Entry point for serving Swagger UI and api docs in application. It uses provides
-/// builder style chainable configuration methods for configuring api doc urls. [^supported_libraries]
+/// builder style chainable configuration methods for configuring api doc urls.
+///
+/// Currently _**`actix-web, rocket, axum`**_ frameworks supports [`SwaggerUi`] type.
 ///
 /// # Examples
 ///
@@ -128,17 +150,16 @@ struct SwaggerUiDist;
 ///     .oauth(oauth::Config::new());
 /// ```
 ///
-/// [^supported_libraries]: Currently _**`actix-web, rocket`**_ frameworks supports [`SwaggerUi`] type.
 #[non_exhaustive]
 #[derive(Clone)]
-#[cfg(any(feature = "actix-web", feature = "rocket"))]
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
     config: Option<Config<'static>>,
 }
 
-#[cfg(any(feature = "actix-web", feature = "rocket"))]
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
     ///
@@ -625,6 +646,7 @@ impl<'a> Config<'a> {
     /// is called on.
     ///
     /// Current config will be returned with configured default values.
+    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
     fn configure_defaults<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(mut self, urls: I) -> Self {
         let Config {
             dom_id,
