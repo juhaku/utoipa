@@ -38,7 +38,11 @@ mod security_requirement;
 
 use crate::path::{Path, PathAttr};
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
 use ext::ArgumentResolver;
 
 #[proc_macro_error]
@@ -747,7 +751,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
@@ -762,10 +770,18 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     let mut resolved_path = resolved_path;
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     {
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
         let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, args);
@@ -1254,8 +1270,12 @@ struct Type<'a> {
 }
 
 impl<'a> Type<'a> {
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn new(ident: Cow<'a, syn::TypePath>, is_array: bool, is_option: bool) -> Self {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn new(ident: Cow<'a, Ident>, is_array: bool, is_option: bool) -> Self {
         Self {
             ty: ident,
             is_array,
