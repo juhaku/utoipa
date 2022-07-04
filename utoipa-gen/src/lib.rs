@@ -630,6 +630,41 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ///
+///
+/// # axum_extras suppport for axum
+///
+/// **axum_extras** feature enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
+/// _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+/// ```rust
+/// # use serde::Deserialize;
+/// # use utoipa::IntoParams;
+/// # use axum::{extract::Query, Json};
+/// #[derive(Deserialize, IntoParams)]
+/// struct TodoSearchQuery {
+///     /// Search by value. Search is incase sensitive.
+///     value: String,
+///     /// Search by `done` status.
+///     done: bool,
+/// }
+///
+/// /// Search Todos by query params.
+/// #[utoipa::path(
+///     get,
+///     path = "/todo/search",
+///     params(
+///         TodoSearchQuery
+///     ),
+///     responses(
+///         (status = 200, description = "List matching todos by query", body = [String])
+///     )
+/// )]
+/// async fn search_todos(
+///     query: Query<TodoSearchQuery>,
+/// ) -> Json<Vec<String>> {
+///     Json(vec![])
+/// }
+/// ```
+///
 /// # Examples
 ///
 /// Example with all possible arguments.
@@ -744,6 +779,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html
+/// [into_params_derive]: derive.IntoParams.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///

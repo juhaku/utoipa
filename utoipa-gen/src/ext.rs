@@ -34,12 +34,6 @@ pub struct IntoParamsType<'a> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct IntoParamsType<'a> {
-    pub parameter_in_provider: TokenStream,
-    pub ident: &'a Ident,
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq)]
 pub enum ArgumentIn {
     Path,
