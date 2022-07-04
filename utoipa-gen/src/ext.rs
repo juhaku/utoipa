@@ -34,6 +34,12 @@ pub struct IntoParamsType<'a> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+pub struct IntoParams<'a> {
+    pub parameter_in_provider: TokenStream,
+    pub ident: &'a Ident,
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq)]
 pub enum ArgumentIn {
     Path,
@@ -266,9 +272,7 @@ pub mod fn_arg {
     }
 
     pub(super) fn non_primitive_arg(fn_arg: &FnArg) -> bool {
-        let is_primitive = |type_path| {
-            ComponentType(type_path).is_primitive()
-        };
+        let is_primitive = |type_path| ComponentType(type_path).is_primitive();
 
         match fn_arg {
             FnArg::Path(path) => !is_primitive(path),

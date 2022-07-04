@@ -113,6 +113,7 @@ impl<'p> PathAttr<'p> {
 
                 arguments
                     .into_iter()
+                    .filter(|argument| matches!(argument, Argument::Value(_)))
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
                 self.params = Some(parameters);
@@ -136,7 +137,6 @@ impl<'p> PathAttr<'p> {
                 .iter()
                 .find(|argument| argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)))
             {
-                
                 parameter.update_parameter_type(
                     argument.type_path.clone(),
                     argument.is_array,
