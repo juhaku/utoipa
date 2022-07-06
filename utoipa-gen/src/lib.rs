@@ -43,7 +43,7 @@ use ext::ArgumentResolver;
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component, aliases))]
-/// Component derive macro
+/// Component derive macro.
 ///
 /// This is `#[derive]` implementation for [`Component`][c] trait. The macro accepts one `component`
 /// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
@@ -75,11 +75,8 @@ use ext::ArgumentResolver;
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not components nor primitive types.
-///   Allowed one of a [`primitive`][primitive], [`std::string::String`], `Any`, or another [`Component`][c].
-///   Using type which is a [`Component`][c] will create a OpenAPI reference (_`$ref`_) to the `value_type` instead of the
-///   actual type of the field. `Any` type will render as a generic `object` type in OpenAPI spec.
-///   Types with generics are not allowed.
+///   any third-party types are used which are not [`Component`][c]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
 ///
 /// # Named Fields Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
@@ -90,12 +87,9 @@ use ext::ArgumentResolver;
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
-///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not components nor primitive types.
-///   Allowed one of a [`primitive`][primitive], [`std::string::String`], `Any`, or another [`Component`][c].
-///   Using type which is a [`Component`][c] will create a OpenAPI reference (_`$ref`_) to the `value_type` instead of the
-///   actual type of the field. `Any` type will render as a generic `object` type in OpenAPI spec.
-///   Types with generics are not allowed.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`Component`][c]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
 /// * `inline` If the type of this field implements [`Component`][c], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
 ///
@@ -347,10 +341,13 @@ use ext::ArgumentResolver;
 /// };
 /// ```
 ///
+/// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
+///
 /// [c]: trait.Component.html
 /// [format]: openapi/schema/enum.ComponentFormat.html
 /// [binary]: openapi/schema/enum.ComponentFormat.html#variant.Binary
 /// [xml]: openapi/xml/struct.Xml.html
+/// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -368,7 +365,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_attribute]
-/// Path attribute macro
+/// Path attribute macro.
 ///
 /// This is a `#[derive]` implementation for [`Path`][path] trait. Macro accepts set of attributes that can
 /// be used to configure and override default values what are resolved automatically.
@@ -798,7 +795,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(OpenApi, attributes(openapi))]
-/// OpenApi derive macro
+/// OpenApi derive macro.
 ///
 /// This is `#[derive]` implementation for [`OpenApi`][openapi] trait. The macro accepts one `openapi` argument.
 ///
@@ -897,7 +894,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(IntoParams, attributes(param, into_params))]
-/// IntoParams derive macro for **actix-web** only.
+/// IntoParams derive macro.
 ///
 /// This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
 ///
@@ -932,10 +929,17 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// The following attributes are available for use in the `#[param(...)]` on struct fields:
 ///
 /// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
-/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`Component`][component]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
+///    _`Any`_ will be rendered as generic OpenAPI object.
+/// * `inline` If set, the schema for this field's type needs to be a [`Component`][component], and
+///   the component schema definition will be inlined.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -994,19 +998,29 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with the `#[param(...)]` container attribute to
-/// be used as a path query:
+/// Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
+/// be used as a path query, and inlining a component query field:
 /// ```rust
 /// use serde::Deserialize;
-/// use utoipa::IntoParams;
+/// use utoipa::{IntoParams, Component};
+///
+/// #[derive(Deserialize, Component)]
+/// #[serde(rename_all = "snake_case")]
+/// enum PetKind {
+///     Dog,
+///     Cat,
+/// }
 ///
 /// #[derive(Deserialize, IntoParams)]
-/// #[param(style = Form, parameter_in = Query)]
+/// #[into_params(style = Form, parameter_in = Query)]
 /// struct PetQuery {
 ///     /// Name of pet
 ///     name: Option<String>,
 ///     /// Age of pet
 ///     age: Option<i32>,
+///     /// Kind of pet
+///     #[param(inline)]
+///     kind: PetKind
 /// }
 ///
 /// #[utoipa::path(
@@ -1022,11 +1036,78 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Override `String` with `i64` using `value_type` attribute.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = i64)]
+///     id: String,
+/// }
+/// ```
+///
+/// Override `String` with `Any` using `value_type` attribute. _`Any`_ will render as `type: object` in OpenAPI spec.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Any)]
+///     id: String,
+/// }
+/// ```
+///
+/// You can use a generic type to override the default type of the field.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Option<String>)]
+///     id: String
+/// }
+/// ```
+///
+/// You can even overide a [`Vec`] with another one.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Vec<i32>)]
+///     id: Vec<String>
+/// }
+/// ```
+///
+/// We can override value with another [`Component`][component].
+/// ```rust
+/// # use utoipa::{IntoParams, Component};
+/// #
+/// #[derive(Component)]
+/// struct Id {
+///     value: i64,
+/// }
+///
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Id)]
+///     id: String
+/// }
+/// ```
+///
+/// [component]: trait.Component.html
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
@@ -1103,17 +1184,6 @@ where
                 })
                 .to_token_stream(),
         ));
-    }
-}
-
-/// Wrapper for `Ident` type which can be parsed with expression path e.g `path::to::Type`.
-/// This is typically used in component `value_type` when type of the field is overridden by the user.
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct ValueType(TypePath);
-
-impl Parse for ValueType {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self(input.parse()?))
     }
 }
 

@@ -37,7 +37,9 @@ fn derive_path_parameter_multiple_with_matching_names_and_types_actix_success() 
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -91,7 +93,9 @@ fn derive_path_parameter_multiple_no_matching_names_acitx_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -138,7 +142,9 @@ fn derive_params_from_method_args_actix_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>

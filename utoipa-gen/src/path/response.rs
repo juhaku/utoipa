@@ -101,7 +101,7 @@ impl ToTokens for Response<'_> {
         });
 
         if let Some(response_type) = &self.response_type {
-            let property = Property::new(response_type.clone());
+            let property = Property::new(response_type);
 
             let mut content = quote! {
                 utoipa::openapi::ContentBuilder::new().schema(#property)
@@ -275,7 +275,7 @@ impl ToTokens for Header<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(header_type) = &self.value_type {
             // header property with custom type
-            let header_type_property = Property::new(header_type.clone());
+            let header_type_property = Property::new(header_type);
 
             tokens.extend(quote! {
                 utoipa::openapi::HeaderBuilder::new().schema(#header_type_property)

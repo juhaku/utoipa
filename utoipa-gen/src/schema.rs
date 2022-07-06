@@ -4,6 +4,7 @@ use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use quote::ToTokens;
 use syn::{
+    parse::{Parse, ParseStream},
     AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments, PathSegment, Type,
     TypePath,
 };
@@ -28,7 +29,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
-struct ComponentPart<'a> {
+pub(self) struct ComponentPart<'a> {
     pub path: Cow<'a, TypePath>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
@@ -91,17 +92,26 @@ impl<'a> ComponentPart<'a> {
 
         let mut generic_component_type = ComponentPart::convert(Cow::Owned(path));
 
-        generic_component_type.child = Some(Box::new(ComponentPart::from_type(
-            match &segment.arguments {
-                PathArguments::AngleBracketed(angle_bracketed_args) => {
-                    ComponentPart::get_generic_arg_type(0, angle_bracketed_args)
+        let generic_type = match &segment.arguments {
+            PathArguments::AngleBracketed(angle_bracketed_args) => {
+                // if all type arguments are lifetimes we ignore the generic type
+                if angle_bracketed_args
+                    .args
+                    .iter()
+                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
+                {
+                    None
+                } else {
+                    Some(ComponentPart::get_generic_arg_type(0, angle_bracketed_args))
                 }
-                _ => abort!(
-                    segment.ident,
-                    "unexpected path argument, expected angle bracketed path argument"
-                ),
-            },
-        )));
+            }
+            _ => abort!(
+                segment.ident,
+                "unexpected path argument, expected angle bracketed path argument"
+            ),
+        };
+
+        generic_component_type.child = generic_type.map(ComponentPart::from_type).map(Box::new);
 
         generic_component_type
     }
@@ -179,7 +189,7 @@ impl<'a> ComponentPart<'a> {
     }
 
     /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
-    /// with `value_override` attribute to hinder the actual type.
+    /// with `value_type` attribute to hinder the actual type.
     fn is_any(&self) -> bool {
         &*self.path.to_token_stream().to_string() == "Any"
     }
@@ -207,6 +217,24 @@ enum GenericType {
     Cow,
     Box,
     RefCell,
+}
+
+/// Wrapper for [`syn::Type`] which will be resolved to [`ComponentPart`].
+/// This used in `value_type` attribute to override the original field type of a struct.
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct TypeToken(Type);
+
+impl TypeToken {
+    /// Get the [`ComponentPart`] of the [`syn::Type`].
+    fn get_component_part(&self) -> ComponentPart<'_> {
+        ComponentPart::from_type(&self.0)
+    }
+}
+
+impl Parse for TypeToken {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(input.parse::<syn::Type>()?))
+    }
 }
 
 pub mod serde {

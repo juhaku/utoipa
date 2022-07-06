@@ -26,7 +26,7 @@ fn resolve_route_with_simple_url() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let operation = common::get_json_path(value, "paths./hello.get");
+    let operation = value.pointer("/paths/~1hello/get").unwrap();
 
     assert_ne!(operation, &Value::Null, "expected paths.hello.get not null");
 }
@@ -52,7 +52,9 @@ fn resolve_get_with_multiple_args() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{id}/{name}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 3);
     assert_ne!(
@@ -107,7 +109,7 @@ fn resolve_get_with_optinal_query_args() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello.get.parameters"#);
+    let parameters = value.pointer("/paths/~1hello/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_ne!(
@@ -149,7 +151,9 @@ fn resolve_path_arguments_not_same_order() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{id}/{name}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_ne!(
@@ -196,8 +200,9 @@ fn resolve_get_path_with_anonymous_parts() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters =
-        common::get_json_path(value, r#"paths./hello/{arg0}/{arg1}/{id}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{arg0}~1{arg1}~1{id}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 3);
     assert_ne!(
@@ -253,7 +258,9 @@ fn resolve_get_path_with_tail() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{tail}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{tail}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_ne!(
@@ -298,7 +305,9 @@ fn resolve_get_path_and_update_params() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{id}/{name}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_ne!(
@@ -352,8 +361,9 @@ macro_rules! test_derive_path_operations {
 
                 let openapi = ApiDoc::openapi();
                 let value = &serde_json::to_value(&openapi).unwrap();
-                let op =
-                    common::get_json_path(value, &format!("paths./hello.{}", stringify!($operation)));
+                let op = value
+                    .pointer(&*format!("/paths/~1hello/{}", stringify!($operation)))
+                    .unwrap();
 
                 assert_ne!(
                     op,

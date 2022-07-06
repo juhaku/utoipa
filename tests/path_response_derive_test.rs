@@ -28,7 +28,9 @@ macro_rules! api_doc {
         struct ApiDoc;
 
         let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-        common::get_json_path(&doc, "paths./foo.get").clone()
+        doc.pointer("/paths/~1foo/get")
+            .unwrap_or(&serde_json::Value::Null)
+            .clone()
     }};
 }
 
@@ -114,50 +116,50 @@ macro_rules! test_response_types {
 
 test_response_types! {
 primitive_string_body => body: String, assert:
-    "responses.200.content.text/plain.schema.type" = r#""string""#, "Response content type"
+    "responses.200.content.text~1plain.schema.type" = r#""string""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_string_sclice_body => body: [String], assert:
-    "responses.200.content.text/plain.schema.items.type" = r#""string""#, "Response content items type"
-    "responses.200.content.text/plain.schema.type" = r#""array""#, "Response content type"
+    "responses.200.content.text~1plain.schema.items.type" = r#""string""#, "Response content items type"
+    "responses.200.content.text~1plain.schema.type" = r#""array""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_integer_slice_body => body: [i32], assert:
-    "responses.200.content.text/plain.schema.items.type" = r#""integer""#, "Response content items type"
-    "responses.200.content.text/plain.schema.items.format" = r#""int32""#, "Response content items format"
-    "responses.200.content.text/plain.schema.type" = r#""array""#, "Response content type"
+    "responses.200.content.text~1plain.schema.items.type" = r#""integer""#, "Response content items type"
+    "responses.200.content.text~1plain.schema.items.format" = r#""int32""#, "Response content items format"
+    "responses.200.content.text~1plain.schema.type" = r#""array""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_integer_body => body: i64, assert:
-    "responses.200.content.text/plain.schema.type" = r#""integer""#, "Response content type"
-    "responses.200.content.text/plain.schema.format" = r#""int64""#, "Response content format"
+    "responses.200.content.text~1plain.schema.type" = r#""integer""#, "Response content type"
+    "responses.200.content.text~1plain.schema.format" = r#""int64""#, "Response content format"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_big_integer_body => body: u128, assert:
-    "responses.200.content.text/plain.schema.type" = r#""integer""#, "Response content type"
-    "responses.200.content.text/plain.schema.format" = r#"null"#, "Response content format"
+    "responses.200.content.text~1plain.schema.type" = r#""integer""#, "Response content type"
+    "responses.200.content.text~1plain.schema.format" = r#"null"#, "Response content format"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_bool_body => body: bool, assert:
-    "responses.200.content.text/plain.schema.type" = r#""boolean""#, "Response content type"
+    "responses.200.content.text~1plain.schema.type" = r#""boolean""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 object_body => body: Foo, assert:
-    "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
+    "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 object_slice_body => body: [Foo], assert:
-    "responses.200.content.application/json.schema.type" = r###""array""###, "Response content type"
-    "responses.200.content.application/json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Response content items type"
+    "responses.200.content.application~1json.schema.type" = r###""array""###, "Response content type"
+    "responses.200.content.application~1json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Response content items type"
     "responses.200.headers" = r###"null"###, "Response headers"
 object_body_override_content_type_to_xml => body: Foo, "text/xml", assert:
-    "responses.200.content.application/json.schema.$ref" = r###"null"###, "Response content type"
-    "responses.200.content.text/xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
+    "responses.200.content.application~1json.schema.$ref" = r###"null"###, "Response content type"
+    "responses.200.content.text~1xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 object_body_with_simple_header => body: Foo, headers: (
     ("xsrf-token")
 ), assert:
-    "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
+    "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.xsrf-token.schema.type" = r###""string""###, "xsrf-token header type"
     "responses.200.headers.xsrf-token.description" = r###"null"###, "xsrf-token header description"
 object_body_with_multiple_headers => body: Foo, headers: (
     ("xsrf-token"),
     ("another-header")
 ), assert:
-    "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
+    "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.xsrf-token.schema.type" = r###""string""###, "xsrf-token header type"
     "responses.200.headers.xsrf-token.description" = r###"null"###, "xsrf-token header description"
     "responses.200.headers.another-header.schema.type" = r###""string""###, "another-header header type"
@@ -165,7 +167,7 @@ object_body_with_multiple_headers => body: Foo, headers: (
 object_body_with_header_with_type => body: Foo, headers: (
     ("random-digits" = [u64]),
 ), assert:
-    "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
+    "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.random-digits.schema.type" = r###""array""###, "random-digits header type"
     "responses.200.headers.random-digits.description" = r###"null"###, "random-digits header description"
     "responses.200.headers.random-digits.schema.items.type" = r###""integer""###, "random-digits header items type"
@@ -193,8 +195,8 @@ fn derive_response_with_json_example_success() {
 
     assert_value! {doc=>
         "responses.200.description" = r#""success""#, "Response description"
-        "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
-        "responses.200.content.application/json.example" = r###"{"foo":"bar"}"###, "Response content example"
+        "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
+        "responses.200.content.application~1json.example" = r###"{"foo":"bar"}"###, "Response content example"
         "responses.200.headers" = r#"null"#, "Response headers"
     }
 }
@@ -212,10 +214,10 @@ fn derive_reponse_multiple_content_types() {
 
     assert_value! {doc=>
         "responses.200.description" = r#""success""#, "Response description"
-        "responses.200.content.application/json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
-        "responses.200.content.text/xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
-        "responses.200.content.application/json.example" = r###"null"###, "Response content example"
-        "responses.200.content.text/xml.example" = r###"null"###, "Response content example"
+        "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
+        "responses.200.content.text~1xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content ref"
+        "responses.200.content.application~1json.example" = r###"null"###, "Response content example"
+        "responses.200.content.text~1xml.example" = r###"null"###, "Response content example"
         "responses.200.headers" = r#"null"#, "Response headers"
     }
 }

@@ -32,7 +32,7 @@ fn derive_path_parameters_with_all_options_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -73,7 +73,7 @@ fn derive_path_parameters_minimal_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -115,7 +115,9 @@ fn derive_path_parameter_multiple_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -168,7 +170,7 @@ fn derive_parameters_with_all_types() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 5);
     assert_value! {parameters=>
@@ -240,7 +242,7 @@ fn derive_params_without_fn_args() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -276,7 +278,7 @@ fn derive_params_with_params_ext() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>

@@ -9,8 +9,6 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::{Component, OpenApi};
 
-use crate::common::get_json_path;
-
 mod common;
 
 macro_rules! api_doc {
@@ -47,7 +45,8 @@ macro_rules! api_doc {
         struct ApiDoc;
 
         let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
-        let component = get_json_path(&json, &format!("components.schemas.{}", stringify!($name)));
+
+        let component = json.pointer(&format!("/components/schemas/{}", stringify!($name))).unwrap_or(&serde_json::Value::Null);
 
         component.clone()
     }};
@@ -502,8 +501,8 @@ fn derive_with_box_and_refcell() {
     assert_value! {greeting=>
         "properties.foo.$ref" = r###""#/components/schemas/Foo""###, "Greeting foo field"
         "properties.ref_cell_foo.$ref" = r###""#/components/schemas/Foo""###, "Greeting ref_cell_foo field"
-        "required.[0]" = r###""foo""###, "Greeting required 0"
-        "required.[1]" = r###""ref_cell_foo""###, "Greeting required 1"
+        "required.0" = r###""foo""###, "Greeting required 0"
+        "required.1" = r###""ref_cell_foo""###, "Greeting required 1"
     };
 }
 
@@ -1417,8 +1416,165 @@ fn derive_component_with_aliases() {
     let doc = ApiDoc::openapi();
     let doc_value = &serde_json::to_value(doc).unwrap();
 
-    let value = common::get_json_path(doc_value, "components.schemas");
+    let value = doc_value.pointer("/components/schemas").unwrap();
     assert_value! {value=>
         "MyAlias.properties.bar.$ref" = r###""#/components/schemas/A""###, "MyAlias aliased property"
     }
+}
+
+#[test]
+fn derive_component_with_into_params_value_type() {
+    #[derive(Component)]
+    struct Foo {
+        #[allow(unused)]
+        value: String,
+    }
+
+    let doc = api_doc! {
+        #[allow(unused)]
+        struct Random {
+            #[component(value_type = i64)]
+            id: String,
+            #[component(value_type = Any)]
+            another_id: String,
+            #[component(value_type = Vec<Vec<String>>)]
+            value1: Vec<i64>,
+            #[component(value_type = Vec<String>)]
+            value2: Vec<i64>,
+            #[component(value_type = Option<String>)]
+            value3: i64,
+            #[component(value_type = Option<Any>)]
+            value4: i64,
+            #[component(value_type = Vec<Any>)]
+            value5: i64,
+            #[component(value_type = Vec<Foo>)]
+            value6: i64,
+        }
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "properties": {
+                "another_id": {
+                    "type": "object"
+                },
+                "id": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "value1": {
+                    "items": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "type": "array"
+                },
+                "value2": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "value3": {
+                    "type": "string"
+                },
+                "value4": {
+                    "type": "object"
+                },
+                "value5": {
+                    "items": {
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "value6": {
+                    "items": {
+                        "$ref": "#/components/schemas/Foo"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "id",
+                "another_id",
+                "value1",
+                "value2",
+                "value5",
+                "value6",
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_component_with_complex_enum_lifetimes() {
+    #[derive(Component)]
+    struct Foo<'foo> {
+        #[allow(unused)]
+        field: &'foo str,
+    }
+
+    let doc = api_doc! {
+        enum Bar<'bar> {
+            A { foo: Foo<'bar> },
+            B,
+            C,
+        }
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "A": {
+                            "properties": {
+                                "foo": {
+                                    "$ref": "#/components/schemas/Foo"
+                                }
+                            },
+                            "required": ["foo"],
+                            "type": "object"
+                        },
+                    },
+                    "type": "object"
+                },
+                {
+                    "enum": ["B"],
+                    "type": "string"
+                },
+                {
+                    "enum": ["C"],
+                    "type": "string"
+                }
+            ]
+        })
+    )
+}
+
+#[test]
+fn derive_component_with_raw_identifier() {
+    let doc = api_doc! {
+        struct Bar {
+            r#in: String
+        }
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "properties": {
+                "in": {
+                    "type": "string"
+                }
+            },
+            "required": ["in"],
+            "type": "object"
+        })
+    )
 }
