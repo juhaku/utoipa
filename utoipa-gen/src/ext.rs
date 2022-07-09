@@ -34,7 +34,7 @@ pub struct IntoParamsType<'a> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct IntoParams<'a> {
+pub struct IntoParamsType<'a> {
     pub parameter_in_provider: TokenStream,
     pub ident: &'a Ident,
 }

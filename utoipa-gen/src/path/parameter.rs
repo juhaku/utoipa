@@ -15,8 +15,8 @@ use syn::{
 ))]
 use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{
-    parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue, Deprecated,
-    Required, Type,
+    ext::ValueArgument, parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue,
+    Deprecated, Required, Type,
 };
 
 use super::property::Property;

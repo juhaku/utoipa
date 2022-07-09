@@ -113,7 +113,6 @@ impl<'p> PathAttr<'p> {
 
                 arguments
                     .into_iter()
-                    .filter(|argument| matches!(argument, Argument::Value(_)))
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
                 self.params = Some(parameters);
