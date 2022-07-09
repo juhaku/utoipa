@@ -24,7 +24,7 @@ macro_rules! assert_value {
     ($value:expr=> $( $path:literal = $expected:literal, $error:literal)* ) => {{
         $(
             let p = &*format!("/{}", $path.replace(".", "/").replace("[", "").replace("]", ""));
-            let actual = crate::common::value_as_string(Some($value.pointer(p).unwrap_or(&serde_json::Value::Null)));
+            let actual = $crate::common::value_as_string(Some($value.pointer(p).unwrap_or(&serde_json::Value::Null)));
             assert_eq!(actual, $expected, "{}: {} expected to be: {} but was: {}", $error, $path, $expected, actual);
          )*
     }};

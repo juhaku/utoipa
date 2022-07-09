@@ -15,17 +15,9 @@ pub mod axum;
 #[cfg(feature = "rocket_extras")]
 pub mod rocket;
 
+/// Represents single argument of handler operation.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum Argument<'a> {
-    /// Represents single argument of handler operation.
-    Value(Value<'a>),
-    /// Represents Identifier with `parameter_in` provider function which is used to
-    /// update the `parameter_in` to [`Parameter::Struct`].
-    IntoParams(IntoParams<'a>),
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Value<'a> {
+pub struct ValueArgument<'a> {
     pub name: Option<Cow<'a, str>>,
     pub argument_in: ArgumentIn,
     pub type_path: Option<Cow<'a, TypePath>>,
@@ -33,8 +25,10 @@ pub struct Value<'a> {
     pub is_option: bool,
 }
 
+/// Represents Identifier with `parameter_in` provider function which is used to
+/// update the `parameter_in` to [`Parameter::Struct`].
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct IntoParams<'a> {
+pub struct IntoParamsType<'a> {
     pub parameter_in_provider: TokenStream,
     pub ident: &'a Ident,
 }
@@ -47,27 +41,27 @@ pub enum ArgumentIn {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResolvedPath {
+pub struct MacroPath {
     pub path: String,
-    pub args: Vec<ResolvedArg>,
+    pub args: Vec<MacroArg>,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum ResolvedArg {
+pub enum MacroArg {
     Path(ArgValue),
     Query(ArgValue),
 }
 
-impl ResolvedArg {
-    fn by_name(a: &ResolvedArg, b: &ResolvedArg) -> Ordering {
+impl MacroArg {
+    fn by_name(a: &MacroArg, b: &MacroArg) -> Ordering {
         a.get_value().name.cmp(&b.get_value().name)
     }
 
     fn get_value(&self) -> &ArgValue {
         match self {
-            ResolvedArg::Path(path) => path,
-            ResolvedArg::Query(query) => query,
+            MacroArg::Path(path) => path,
+            MacroArg::Query(query) => query,
         }
     }
 }
@@ -86,16 +80,19 @@ pub struct ResolvedOperation {
 }
 
 pub trait ArgumentResolver {
-    fn resolve_path_arguments(
-        _: &Punctuated<FnArg, Comma>,
-        _: Option<Vec<ResolvedArg>>,
-    ) -> Option<Vec<Argument<'_>>> {
-        None
+    fn resolve_arguments(
+        _: &'_ Punctuated<syn::FnArg, Comma>,
+        _: Option<Vec<MacroArg>>,
+    ) -> (
+        Option<Vec<ValueArgument<'_>>>,
+        Option<Vec<IntoParamsType<'_>>>,
+    ) {
+        (None, None)
     }
 }
 
 pub trait PathResolver {
-    fn resolve_path(_: &Option<String>) -> Option<ResolvedPath> {
+    fn resolve_path(_: &Option<String>) -> Option<MacroPath> {
         None
     }
 }
@@ -122,7 +119,7 @@ impl PathResolver for PathOperations {}
 impl PathOperationResolver for PathOperations {}
 
 #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
-mod fn_arg {
+pub mod fn_arg {
     use std::borrow::Cow;
 
     use proc_macro2::Ident;
@@ -133,7 +130,7 @@ mod fn_arg {
         Type, TypePath,
     };
 
-    use super::{Argument, ArgumentIn, IntoParams, ResolvedArg, Value};
+    use super::{ArgumentIn, IntoParamsType, MacroArg, ValueArgument};
 
     /// Http operation handler funtion's fn argument.
     ///
@@ -143,8 +140,8 @@ mod fn_arg {
     /// ```text
     /// fn get_me(params: Path<i32>) {}
     /// ```
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub(super) enum FnArg<'a> {
+    #[cfg_attr(feature = "debug", derive(Debug, Clone))]
+    pub enum FnArg<'a> {
         /// Path query parameters after the question mark (?).
         Query(&'a TypePath),
         /// Path parameters
@@ -182,9 +179,7 @@ mod fn_arg {
         }
     }
 
-    pub(super) fn get_fn_args(
-        fn_args: &Punctuated<syn::FnArg, Comma>,
-    ) -> impl Iterator<Item = FnArg> {
+    pub fn get_fn_args(fn_args: &Punctuated<syn::FnArg, Comma>) -> impl Iterator<Item = FnArg> {
         fn_args
             .iter()
             .filter_map(get_fn_arg_segment)
@@ -216,9 +211,9 @@ mod fn_arg {
         }
     }
 
-    pub(super) fn to_into_params_arguments<'a, I: IntoIterator<Item = FnArg<'a>>>(
+    pub(super) fn to_into_params_types<'a, I: IntoIterator<Item = FnArg<'a>>>(
         arguments: I,
-    ) -> impl Iterator<Item = Argument<'a>> {
+    ) -> impl Iterator<Item = IntoParamsType<'a>> {
         arguments.into_iter().map(|path_arg| {
             let (arg, parameter_in) = match path_arg {
                 FnArg::Path(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Path }),
@@ -233,40 +228,42 @@ mod fn_arg {
                 .map(|segment| &segment.ident)
                 .unwrap();
 
-            Argument::IntoParams(IntoParams {
+            IntoParamsType {
                 parameter_in_provider: quote! {
                     || Some(#parameter_in)
                 },
                 ident: type_name,
-            })
+            }
         })
     }
 
-    fn to_value_args<'a, R: IntoIterator<Item = ResolvedArg>, P: IntoIterator<Item = FnArg<'a>>>(
-        resolved_args: R,
+    pub(super) fn to_value_args<
+        'a,
+        R: IntoIterator<Item = MacroArg>,
+        P: IntoIterator<Item = FnArg<'a>>,
+    >(
+        macro_args: R,
         primitive_args: P,
-    ) -> impl Iterator<Item = Argument<'a>> {
-        resolved_args
+    ) -> impl Iterator<Item = ValueArgument<'a>> {
+        macro_args
             .into_iter()
             .zip(primitive_args)
-            .map(|(resolved_arg, primitive_arg)| {
-                Argument::Value(Value {
-                    name: match resolved_arg {
-                        ResolvedArg::Path(path) => Some(Cow::Owned(path.name)),
-                        _ => unreachable!(
-                            "ResolvedArg::Query is not reachable with primitive path type"
-                        ),
-                    },
-                    ident: match primitive_arg {
-                        FnArg::Path(arg_type) => get_last_ident(arg_type),
-                        _ => {
-                            unreachable!("FnArg::Query is not reachable with primitive type")
-                        }
-                    },
-                    is_array: false,
-                    is_option: false,
-                    argument_in: ArgumentIn::Path,
-                })
+            .map(|(macro_arg, primitive_arg)| ValueArgument {
+                name: match macro_arg {
+                    MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+                    _ => {
+                        unreachable!("ResolvedArg::Query is not reachable with primitive path type")
+                    }
+                },
+                ident: match primitive_arg {
+                    FnArg::Path(arg_type) => get_last_ident(arg_type),
+                    _ => {
+                        unreachable!("FnArg::Query is not reachable with primitive type")
+                    }
+                },
+                is_array: false,
+                is_option: false,
+                argument_in: ArgumentIn::Path,
             })
     }
 

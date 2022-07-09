@@ -13,10 +13,10 @@ use syn::{
     feature = "rocket_extras",
     feature = "axum_extras"
 ))]
-use crate::ext::{Argument, ArgumentIn};
+use crate::ext::ArgumentIn;
 use crate::{
-    parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue, Deprecated,
-    Required, Type,
+    ext::ValueArgument, parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue,
+    Deprecated, Required, Type,
 };
 
 use super::property::Property;
@@ -86,23 +86,20 @@ impl ToTokens for Parameter<'_> {
     feature = "rocket_extras",
     feature = "axum_extras"
 ))]
-impl<'a> From<Argument<'a>> for Parameter<'a> {
-    fn from(argument: Argument<'a>) -> Self {
-        match argument {
-            Argument::Value(value) => Self::Value(ValueParameter {
-                name: value.name.unwrap_or_else(|| Cow::Owned(String::new())),
-                parameter_in: if value.argument_in == ArgumentIn::Path {
-                    ParameterIn::Path
-                } else {
-                    ParameterIn::Query
-                },
-                parameter_type: value
-                    .ident
-                    .map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
-                ..Default::default()
-            }),
-            Argument::IntoParams(_) => unreachable!("Parameter cannot be created from Argument::IntoParams, IntoParams is used to update existing Parameter only")
-        }
+impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
+    fn from(argument: ValueArgument<'a>) -> Self {
+        Self::Value(ValueParameter {
+            name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
+            parameter_in: if argument.argument_in == ArgumentIn::Path {
+                ParameterIn::Path
+            } else {
+                ParameterIn::Query
+            },
+            parameter_type: argument
+                .ident
+                .map(|ty| Type::new(Cow::Borrowed(ty), argument.is_array, argument.is_option)),
+            ..Default::default()
+        })
     }
 }
 

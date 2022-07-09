@@ -88,3 +88,57 @@ fn derive_path_params_into_params_axum() {
         ])
     )
 }
+
+// TODO add support for primitive types????
+// #[test]
+// fn derive_path_params_primitive_tuple() {
+//     #[utoipa::path(
+//         get,
+//         path = "/person/{id}/{name}",
+//         params(
+//             ("id", description = "Id of person"),
+//             ("name", description = "Name of person")
+//         ),
+//         responses(
+//             (status = 200, description = "success response")
+//         )
+//     )]
+//     #[allow(unused)]
+//     async fn get_person(Path((id, name)): Path<(i64, String)>) {}
+
+//     #[derive(OpenApi)]
+//     #[openapi(handlers(get_person))]
+//     struct ApiDoc;
+
+//     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+//     let parameters = doc
+//         .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
+//         .unwrap();
+
+//     dbg!(&parameters);
+
+//     assert_json_eq!(
+//         parameters,
+//         &json!([
+//             {
+//                 "description": "Id of person",
+//                 "in": "path",
+//                 "name": "id",
+//                 "required": true,
+//                 "schema": {
+//                     "format": "int64",
+//                     "type": "integer",
+//                 },
+//             },
+//             {
+//                 "description": "Name of person",
+//                 "in": "path",
+//                 "name": "name",
+//                 "required": true,
+//                 "schema": {
+//                     "type": "string",
+//                 },
+//             }
+//         ])
+//     )
+// }
