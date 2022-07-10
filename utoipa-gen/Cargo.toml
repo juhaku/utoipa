@@ -28,6 +28,7 @@ utoipa = { path = ".." }
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = [ "macros" ], default-features = false }
+axum = "0.5"
 
 [features]
 debug = ["syn/extra-traits"]

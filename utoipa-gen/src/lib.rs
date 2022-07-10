@@ -1006,6 +1006,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(
+///     params(PetPathArgs, Filter),
 ///     responses(
 ///         (status = 200, description = "success response")
 ///     )
