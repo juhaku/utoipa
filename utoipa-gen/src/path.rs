@@ -145,7 +145,11 @@ impl<'p> PathAttr<'p> {
         }
     }
 
-    #[cfg(any(feature = "axum_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     pub fn update_parameters_parameter_in(
         &mut self,
         into_params_types: Option<Vec<IntoParamsType>>,

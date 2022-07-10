@@ -118,7 +118,11 @@ impl PathResolver for PathOperations {}
 #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
 impl PathOperationResolver for PathOperations {}
 
-#[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "axum_extras",
+    feature = "rocket_extras"
+))]
 pub mod fn_arg {
     use std::borrow::Cow;
 
@@ -129,6 +133,8 @@ pub mod fn_arg {
         punctuated::Punctuated, token::Comma, GenericArgument, PatType, PathArguments, PathSegment,
         Type, TypePath,
     };
+
+    use crate::component_type::ComponentType;
 
     use super::{ArgumentIn, IntoParamsType, MacroArg, ValueArgument};
 
@@ -265,6 +271,19 @@ pub mod fn_arg {
                 is_option: false,
                 argument_in: ArgumentIn::Path,
             })
+    }
+
+    pub(super) fn non_primitive_arg(fn_arg: &FnArg) -> bool {
+        let is_primitive = |type_path| {
+            get_last_ident(type_path)
+                .map(|ident| ComponentType(ident).is_primitive())
+                .unwrap_or(false)
+        };
+
+        match fn_arg {
+            FnArg::Path(path) => !is_primitive(path),
+            FnArg::Query(query) => !is_primitive(query),
+        }
     }
 
     #[inline]

@@ -11,63 +11,68 @@ use syn::{
 
 use crate::{
     component_type::ComponentType,
-    ext::{ArgValue, ArgumentIn, ArgumentValue, ResolvedArg},
+    ext::{fn_arg, ArgValue, ArgumentIn, MacroArg, ValueArgument},
     path::PathOperation,
 };
 
 use super::{
-    Argument, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedOperation, ResolvedPath,
+    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver,
+    ResolvedOperation,
 };
 
 impl ArgumentResolver for PathOperations {
-    fn resolve_path_arguments(
+    fn resolve_arguments(
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
-        resolved_args: Option<Vec<ResolvedArg>>,
-    ) -> Option<Vec<Argument<'_>>> {
+        resolved_args: Option<Vec<MacroArg>>,
+    ) -> (
+        Option<Vec<super::ValueArgument<'_>>>,
+        Option<Vec<super::IntoParamsType<'_>>>,
+    ) {
         const ANONYMOUS_ARG: &str = "<_>";
 
-        resolved_args.map(|args| {
-            let (anonymous_args, mut named_args): (Vec<ResolvedArg>, Vec<ResolvedArg>) =
+        let value_arguments = resolved_args.map(|args| {
+            let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
                 args.into_iter().partition(|arg| {
-                    matches!(arg, ResolvedArg::Path(path) if path.original_name == ANONYMOUS_ARG)
-                        || matches!(arg, ResolvedArg::Query(query) if query.original_name == ANONYMOUS_ARG)
+                    matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
+                        || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
                 });
 
-            named_args.sort_unstable_by(ResolvedArg::by_name);
+            named_args.sort_unstable_by(MacroArg::by_name);
 
             Self::get_fn_args(fn_args)
                 .zip(named_args)
                 .map(|(arg, named_arg)| {
                     let (name, argument_in) = match named_arg {
-                        ResolvedArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        ResolvedArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
                     };
 
-                    Argument::Value(ArgumentValue {
+                    ValueArgument {
                         name: Some(Cow::Owned(name)),
                         argument_in,
                         type_path: Some(arg.ty),
                         is_array: arg.is_array,
                         is_option: arg.is_option,
-                    })
+                    }
                 })
                 .chain(anonymous_args.into_iter().map(|anonymous_arg| {
                     let (name, argument_in) = match anonymous_arg {
-                        ResolvedArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        ResolvedArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
                     };
 
-                    Argument::Value(ArgumentValue {
+                    ValueArgument {
                         name: Some(Cow::Owned(name)),
                         argument_in,
                         type_path: None,
                         is_array: false,
                         is_option: false,
-                    })
+                    }
                 }))
                 .collect()
-        })
+        });
+
+        (value_arguments, None)
     }
 }
 
@@ -263,7 +268,7 @@ fn is_valid_route_type(ident: Option<&Ident>) -> bool {
 }
 
 impl PathResolver for PathOperations {
-    fn resolve_path(path: &Option<String>) -> Option<ResolvedPath> {
+    fn resolve_path(path: &Option<String>) -> Option<MacroPath> {
         path.as_ref().map(|whole_path| {
             lazy_static! {
                 static ref RE: Regex = Regex::new(r"<[a-zA-Z0-9_][^<>]*>").unwrap();
@@ -274,11 +279,11 @@ impl PathResolver for PathOperations {
                 .or(Some((&*whole_path, "")))
                 .map(|(path, query)| {
                     let mut names =
-                        Vec::<ResolvedArg>::with_capacity(RE.find_iter(whole_path).count());
+                        Vec::<MacroArg>::with_capacity(RE.find_iter(whole_path).count());
                     let mut underscore_count = 0;
 
                     let mut format_arg =
-                        |captures: &Captures, resolved_arg_op: fn(ArgValue) -> ResolvedArg| {
+                        |captures: &Captures, resolved_arg_op: fn(ArgValue) -> MacroArg| {
                             let mut capture = &captures[0];
                             let original_name = String::from(capture);
 
@@ -305,16 +310,16 @@ impl PathResolver for PathOperations {
                         };
 
                     let path = RE.replace_all(path, |captures: &Captures| {
-                        format_arg(captures, ResolvedArg::Path)
+                        format_arg(captures, MacroArg::Path)
                     });
 
                     if !query.is_empty() {
                         RE.replace_all(query, |captures: &Captures| {
-                            format_arg(captures, ResolvedArg::Query)
+                            format_arg(captures, MacroArg::Query)
                         });
                     }
 
-                    ResolvedPath {
+                    MacroPath {
                         args: names,
                         path: path.to_string(),
                     }
