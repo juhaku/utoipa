@@ -295,7 +295,7 @@ fn impl_components(
                 let component_name: String = component
                     .alias
                     .as_ref()
-                    .map(|alias| format_path_ref(&alias.to_token_stream().to_string()))
+                    .map(format_path_ref)
                     .unwrap_or_else(|| ident.to_token_stream().to_string());
 
                 let (_, ty_generics, _) = component.generics.split_for_impl();

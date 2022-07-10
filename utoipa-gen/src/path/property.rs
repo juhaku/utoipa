@@ -1,4 +1,3 @@
-
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{spanned::Spanned, TypePath};
 
@@ -48,7 +47,7 @@ impl ToTokens for Property<'_> {
             });
         } else {
             let component_name_path: &TypePath = &*component_type.0;
-            let name = format_path_ref(&component_name_path.to_token_stream().to_string());
+            let name = format_path_ref(&component_name_path);
 
             let component = if self.0.is_inline {
                 let assert_component = format_ident!("_Assert{}", name);

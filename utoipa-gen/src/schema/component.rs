@@ -1,9 +1,10 @@
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, ToTokens, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, Generics, Token, Variant, Visibility, TypePath, spanned::Spanned,
+    parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath, Variant,
+    Visibility,
 };
 
 use crate::{
@@ -245,7 +246,8 @@ impl ToTokens for NamedStructComponent<'_> {
                     .and_then(|field| field.as_ref().value_type.clone())
                     .map(syn::Type::Path);
 
-                let override_component_part: Option<ComponentPart> = type_override_type.as_ref().map(ComponentPart::from_type);
+                let override_component_part: Option<ComponentPart> =
+                    type_override_type.as_ref().map(ComponentPart::from_type);
 
                 let xml_value = attrs
                     .as_ref()
@@ -794,14 +796,13 @@ where
                             .map(|attributes| attributes.is_inline())
                             .unwrap_or(false);
                         let component_path: &TypePath = &*component_part.path;
-                        let name: String = format_path_ref(&component_path.to_token_stream().to_string());                        // When users wishes to hinder the actual type with Any type render a generic `object`
+                        let name: String = format_path_ref(component_path); // When users wishes to hinder the actual type with Any type render a generic `object`
                         if component_part.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else if is_inline {
                             let assert_component = format_ident!("_Assert{}", name);
                             tokens.extend(quote_spanned! {component_path.span() => {
                                     struct #assert_component where #component_path : utoipa::Component;
-                                    
                                     <#component_path as utoipa::Component>::component()
                                 }
                             });
@@ -812,9 +813,7 @@ where
                                     <#component_name_ident as utoipa::Component>::component()
                                 });
                             } else {
-                                let name = format_path_ref(
-                                    &component_part.path.to_token_stream().to_string(),
-                                );
+                                let name = format_path_ref(&component_part.path);
                                 tokens.extend(quote! {
                                     utoipa::openapi::Ref::from_component_name(#name)
                                 })
@@ -829,8 +828,15 @@ where
 
 /// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact component reference,
 /// by removing spaces between colon punctuation and `::` and the path segments.
-pub(crate) fn format_path_ref(path_ref: &str) -> String {
-    path_ref.replace(" :: ", "::")
+pub(crate) fn format_path_ref(path: &TypePath) -> String {
+    let mut path: TypePath = path.clone();
+
+    // Generics and path arguments are unsupported
+    if let Some(last_segment) = path.path.segments.last_mut() {
+        last_segment.arguments = PathArguments::None;
+    }
+
+    path.to_token_stream().to_string().replace(" :: ", "::")
 }
 
 #[inline]
