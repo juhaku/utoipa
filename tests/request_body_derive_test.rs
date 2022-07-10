@@ -392,12 +392,12 @@ fn derive_request_body_primitive_ref_path_success() {
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
     let schemas = doc.pointer("/components/schemas").unwrap();
-    assert!(schemas.get("path::to::Foo").is_some());
+    assert!(schemas.get("path.to.Foo").is_some());
 
     let component_ref: &str = doc
         .pointer("/paths/~1foo/post/requestBody/content/application~1json/schema/$ref")
         .unwrap()
         .as_str()
         .unwrap();
-    assert_eq!(component_ref, "#/components/schemas/path::to::Foo");
+    assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
 }

@@ -1126,7 +1126,7 @@ fn derive_struct_component_field_type_path_override() {
         .unwrap()
         .as_str()
         .unwrap();
-    assert_eq!(component_ref, "#/components/schemas/path::to::Foo");
+    assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
 }
 
 #[test]

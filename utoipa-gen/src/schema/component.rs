@@ -836,7 +836,9 @@ pub(crate) fn format_path_ref(path: &TypePath) -> String {
         last_segment.arguments = PathArguments::None;
     }
 
-    path.to_token_stream().to_string().replace(" :: ", "::")
+    // :: are not officially supported in the spec
+    // See: https://github.com/juhaku/utoipa/pull/187#issuecomment-1173101405
+    path.to_token_stream().to_string().replace(" :: ", ".")
 }
 
 #[inline]
