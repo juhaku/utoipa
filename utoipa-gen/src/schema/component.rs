@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, ToTokens, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
     FieldsNamed, FieldsUnnamed, Generics, Token, Variant, Visibility,
@@ -795,11 +795,8 @@ where
                         if component_part.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else if is_inline {
-                            let assert_component = format_ident!("_Assert{}", name);
                             tokens.extend(quote_spanned! {component_ident.span()=>
                                 {
-                                    struct #assert_component where #component_ident : utoipa::Component;
-                                    
                                     <#component_ident as utoipa::Component>::component()
                                 }
                             });

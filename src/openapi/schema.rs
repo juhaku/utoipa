@@ -10,7 +10,9 @@ use serde_json::Value;
 
 use super::{
     build_fn, builder, from, new, security::SecurityScheme, set_value, xml::Xml, Deprecated,
+    Response,
 };
+use crate::{IntoResponseComponent, IntoResponses};
 
 macro_rules! component_from_builder {
     ( $name:ident ) => {
@@ -48,6 +50,14 @@ builder! {
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
         #[serde(skip_serializing_if = "HashMap::is_empty")]
         pub schemas: HashMap<String, Component>,
+
+        /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
+        /// Reference][reference]s to [OpenAPI Response Object][response]s.
+        ///
+        /// [response]: https://spec.openapis.org/oas/latest.html#response-object
+        /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
+        #[serde(skip_serializing_if = "HashMap::is_empty")]
+        pub responses: HashMap<String, RefOr<Response>>,
 
         /// Map of reusable [OpenAPI Security Schema Object][security_schema]s.
         ///
@@ -104,8 +114,8 @@ impl Components {
 impl ComponentsBuilder {
     /// Add [`Component`] to [`Components`].
     ///
-    /// Accpets two arguments where first is name of the component and second is the component itself.
-    pub fn component<S: Into<String>, I: Into<Component>>(mut self, name: S, component: I) -> Self {
+    /// Accpets two arguments where first is name of the schema and second is the schema itself.
+    pub fn schema<S: Into<String>, I: Into<Component>>(mut self, name: S, component: I) -> Self {
         self.schemas.insert(name.into(), component.into());
 
         self
@@ -117,7 +127,7 @@ impl ComponentsBuilder {
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
     /// #    PropertyBuilder, ComponentType};
-    /// ComponentsBuilder::new().components_from_iter([(
+    /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
     ///     ObjectBuilder::new()
     ///         .property(
@@ -127,7 +137,7 @@ impl ComponentsBuilder {
     ///         .required("name"),
     /// )]);
     /// ```
-    pub fn components_from_iter<
+    pub fn schemas_from_iter<
         I: IntoIterator<Item = (S, C)>,
         C: Into<Component>,
         S: Into<String>,
@@ -139,6 +149,37 @@ impl ComponentsBuilder {
             components
                 .into_iter()
                 .map(|(name, component)| (name.into(), component.into())),
+        );
+
+        self
+    }
+
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        name: S,
+        response: R,
+    ) -> Self {
+        self.responses.insert(name.into(), response.into());
+        self
+    }
+
+    pub fn response_from_into<I: IntoResponseComponent>(self) -> Self {
+        let (name, response) = I::response();
+        self.response(name, response)
+    }
+
+    pub fn responses_from_iter<
+        I: IntoIterator<Item = (S, R)>,
+        S: Into<String>,
+        R: Into<RefOr<Response>>,
+    >(
+        mut self,
+        responses: I,
+    ) -> Self {
+        self.responses.extend(
+            responses
+                .into_iter()
+                .map(|(name, response)| (name.into(), response.into())),
         );
 
         self
@@ -647,6 +688,20 @@ impl From<Ref> for Component {
 
 impl ToArray for Ref {}
 
+/// A [`Ref`] or some other type `T`
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum RefOr<T> {
+    Ref(Ref),
+    T(T),
+}
+
+impl<T> From<T> for RefOr<T> {
+    fn from(t: T) -> Self {
+        Self::T(t)
+    }
+}
+
 builder! {
     ArrayBuilder;
 
@@ -832,8 +887,8 @@ mod tests {
             .paths(Paths::new())
             .components(Some(
                 ComponentsBuilder::new()
-                    .component("Person", Ref::new("#/components/PersonModel"))
-                    .component(
+                    .schema("Person", Ref::new("#/components/PersonModel"))
+                    .schema(
                         "Credential",
                         ObjectBuilder::new()
                             .property(

@@ -202,6 +202,9 @@
 
 pub mod openapi;
 
+use std::collections::BTreeMap;
+
+use openapi::Response;
 pub use utoipa_gen::*;
 
 /// Trait for implementing OpenAPI specification in Rust.
@@ -539,4 +542,14 @@ pub trait IntoParams {
     fn into_params(
         parameter_in_provider: impl Fn() -> Option<openapi::path::ParameterIn>,
     ) -> Vec<openapi::path::Parameter>;
+}
+
+pub trait IntoResponses {
+    /// Returns an ordered map of response codes to responses.
+    fn responses() -> BTreeMap<String, Response>;
+}
+
+pub trait IntoResponseComponent {
+    /// Returns a map of response component name (to be referenced) to a response.
+    fn response() -> (String, Response);
 }

@@ -1,7 +1,13 @@
 #![cfg(feature = "json")]
 
-use serde_json::Value;
-use utoipa::OpenApi;
+use std::collections::BTreeMap;
+
+use assert_json_diff::assert_json_eq;
+use serde_json::{json, Value};
+use utoipa::{
+    openapi::{Response, ResponseBuilder, ResponsesBuilder},
+    IntoResponseComponent, IntoResponses, OpenApi,
+};
 
 mod common;
 
@@ -105,3 +111,73 @@ fn derive_openapi_with_components_in_different_module() {
         "Expected components.schemas.Todo not to be null"
     );
 }
+
+#[test]
+fn derive_openapi_with_responses() {
+    #[allow(unused)]
+    struct MyResponse;
+
+    impl IntoResponseComponent for MyResponse {
+        fn response() -> (String, Response) {
+            (
+                "MyResponse".to_string(),
+                ResponseBuilder::new().description("Ok").build(),
+            )
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(responses(MyResponse))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/components/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "MyResponse": {
+                "description": "Ok"
+            },
+        })
+    )
+}
+
+// #[test]
+// fn derive_openapi_with_responses() {
+//     #[allow(unused)]
+//     enum MyResponse {
+//         Ok,
+//         NotFound,
+//     }
+//
+//     impl IntoResponses for MyResponse {
+//         fn responses() -> BTreeMap<String, Response> {
+//             let responses = ResponsesBuilder::new()
+//                 .response("200", ResponseBuilder::new().description("Ok"))
+//                 .response("404", ResponseBuilder::new().description("Not Found"))
+//                 .build();
+//
+//             responses.responses
+//         }
+//     }
+//
+//     #[derive(OpenApi)]
+//     #[openapi(responses(MyResponse))]
+//     struct ApiDoc;
+//
+//     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+//     let responses = doc.pointer("/components/responses").unwrap();
+//
+//     assert_json_eq!(
+//         responses,
+//         json!({
+//             "200": {
+//                 "description": "Ok"
+//             },
+//             "404": {
+//                   "description": "Not Found"
+//             }
+//         })
+//     )
+// }

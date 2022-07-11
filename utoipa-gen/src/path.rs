@@ -13,7 +13,7 @@ use crate::{parse_utils, Deprecated};
 use self::{
     parameter::Parameter,
     request_body::RequestBodyAttr,
-    response::{Response, Responses},
+    response::{ResponseValue, Responses},
 };
 
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
@@ -61,7 +61,7 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
     request_body: Option<RequestBodyAttr<'p>>,
-    responses: Vec<Response<'p>>,
+    responses: Vec<ResponseValue<'p>>,
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
@@ -116,7 +116,7 @@ impl<'p> PathAttr<'p> {
                         )
                     }
                 }
-                Parameter::Struct(_) | Parameter::TokenStream(_) => {}
+                Parameter::IntoParams(_) | Parameter::TokenStream(_) => {}
             });
     }
 
@@ -182,7 +182,7 @@ impl Parse for PathAttr<'_> {
                     let responses;
                     parenthesized!(responses in input);
                     path_attr.responses =
-                        parse_utils::parse_groups::<Response, Vec<_>>(&responses)?;
+                        parse_utils::parse_groups::<ResponseValue, Vec<_>>(&responses)?;
                 }
                 "params" => {
                     let params;
@@ -462,7 +462,7 @@ struct Operation<'a> {
     deprecated: &'a Option<bool>,
     parameters: Option<&'a Vec<Parameter<'a>>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
-    responses: &'a Vec<Response<'a>>,
+    responses: &'a Vec<ResponseValue<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
 }
 

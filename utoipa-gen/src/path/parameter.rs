@@ -31,16 +31,16 @@ use super::property::Property;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Parameter<'a> {
     Value(ParameterValue<'a>),
-    /// Identifier for a struct that implements `IntoParams` trait.
-    Struct(ExprPath),
+    /// Identifier for a type that implements `IntoParams` trait.
+    IntoParams(ExprPath),
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     TokenStream(TokenStream),
 }
 
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(syn::Ident) {
-            Ok(Self::Struct(input.parse()?))
+        if input.fork().parse::<ExprPath>().is_ok() {
+            Ok(Self::IntoParams(input.parse()?))
         } else {
             Ok(Self::Value(input.parse()?))
         }
@@ -51,7 +51,7 @@ impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Parameter::Value(parameter) => tokens.extend(quote! { .parameter(#parameter) }),
-            Parameter::Struct(struct_ident) => tokens.extend(quote! {
+            Parameter::IntoParams(struct_ident) => tokens.extend(quote! {
                 .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params(|| None)))
             }),
             #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
