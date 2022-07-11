@@ -18,7 +18,8 @@ pub struct Encoding {
     /// types – `text/plain`; for object - `application/json`; for array – the default is defined
     /// based on the inner type. The value can be a specific media type (e.g. `application/json`),
     /// a wildcard media type (e.g. `image/*`), or a comma-separated list of the two types.
-    pub content_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
 
     /// A map allowing additional information to be provided as headers, for example
     /// Content-Disposition. Content-Type is described separately and SHALL be ignored in this
@@ -30,6 +31,7 @@ pub struct Encoding {
     /// Parameter Object for details on the style property. The behavior follows the same values as
     /// query parameters, including default values. This property SHALL be ignored if the request
     /// body media type is not `application/x-www-form-urlencoded`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<ParameterStyle>,
 
     /// When this is true, property values of type array or object generate separate parameters for
@@ -37,21 +39,20 @@ pub struct Encoding {
     /// property has no effect. When style is form, the default value is true. For all other
     /// styles, the default value is false. This property SHALL be ignored if the request body
     /// media type is not `application/x-www-form-urlencoded`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub explode: Option<bool>,
 
     /// Determines whether the parameter value SHOULD allow reserved characters, as defined by
     /// RFC3986 `:/?#[]@!$&'()*+,;=` to be included without percent-encoding. The default value is
     /// false. This property SHALL be ignored if the request body media type is not
     /// `application/x-www-form-urlencoded`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_reserved: Option<bool>,
 }
 
 impl Encoding {
-    pub fn new<S: Into<String>>(content_type: S) -> Self {
-        Self {
-            content_type: content_type.into(),
-            ..Self::default()
-        }
+    pub fn new() -> Self {
+        Self { ..Self::default() }
     }
 }
 
@@ -60,7 +61,7 @@ from!(Encoding EncodingBuilder content_type, headers, style, explode, allow_rese
 /// Builder for [`Encoding`] with chainable configuration methods to create a new [`Encoding`].
 #[derive(Default)]
 pub struct EncodingBuilder {
-    content_type: String,
+    content_type: Option<String>,
     headers: HashMap<String, Header>,
     style: Option<ParameterStyle>,
     explode: Option<bool>,
@@ -71,8 +72,8 @@ impl EncodingBuilder {
     new!(pub EncodingBuilder);
 
     /// Set the content type. See [`Encoding::content_type`].
-    pub fn content_type<S: Into<String>>(mut self, content_type: S) -> Self {
-        set_value!(self content_type content_type.into())
+    pub fn content_type<S: Into<String>>(mut self, content_type: Option<S>) -> Self {
+        set_value!(self content_type content_type.map(Into::into))
     }
 
     /// Add a [`Header`]. See [`Encoding::headers`].
