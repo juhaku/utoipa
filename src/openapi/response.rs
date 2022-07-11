@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
+use crate::IntoResponses;
+
 use super::{build_fn, builder, from, header::Header, new, set_value, Content};
 
 builder! {
@@ -37,6 +39,20 @@ impl ResponsesBuilder {
     pub fn response<S: Into<String>, R: Into<Response>>(mut self, code: S, response: R) -> Self {
         self.responses.insert(code.into(), response.into());
 
+        self
+    }
+
+    pub fn responses_from_iter<I: Iterator<Item = (C, R)>, C: Into<String>, R: Into<Response>>(
+        mut self,
+        iter: I,
+    ) -> Self {
+        self.responses
+            .extend(iter.map(|(code, response)| (code.into(), response.into())));
+        self
+    }
+
+    pub fn responses_from_into_responses<I: IntoResponses>(mut self) -> Self {
+        self.responses.extend(I::responses());
         self
     }
 }

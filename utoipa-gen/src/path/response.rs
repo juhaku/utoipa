@@ -29,12 +29,6 @@ impl Parse for Response<'_> {
     }
 }
 
-impl ToTokens for Response<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        todo!()
-    }
-}
-
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -167,20 +161,17 @@ pub struct Responses<'a>(pub &'a [ResponseValue<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        if self.0.is_empty() {
-            tokens.extend(quote! { utoipa::openapi::Responses::new() })
-        } else {
-            let responses = self.0.iter().fold(quote! {}, |mut acc, response| {
+        tokens.extend(self.0.iter().fold(
+            quote! { utoipa::openapi::ResponsesBuilder::new() },
+            |mut acc, response| {
                 let code = &response.status_code.to_string();
-                acc.extend(quote! { (#code, #response), });
+                acc.extend(quote! { .response(#code, #response) });
 
                 acc
-            });
+            },
+        ));
 
-            tokens.extend(quote! {
-                utoipa::openapi::Responses::from_iter([#responses])
-            });
-        }
+        tokens.extend(quote! { .build() });
     }
 }
 
