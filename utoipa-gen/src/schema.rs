@@ -65,7 +65,6 @@ impl<'a> ComponentPart<'a> {
     }
 
     /// Creates a [`ComponentPath`] from a [`TypePath`].
-    /// `op` is a function
     fn from_type_path(path: &'a TypePath) -> ComponentPart<'a> {
         // TODO: remove unwrap
         let last_segment = path.path.segments.last().unwrap();
