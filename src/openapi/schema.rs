@@ -12,7 +12,7 @@ use super::{
     build_fn, builder, from, new, security::SecurityScheme, set_value, xml::Xml, Deprecated,
     Response,
 };
-use crate::{IntoResponseComponent, IntoResponses};
+use crate::IntoResponseComponent;
 
 macro_rules! component_from_builder {
     ( $name:ident ) => {

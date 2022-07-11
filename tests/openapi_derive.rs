@@ -1,12 +1,10 @@
 #![cfg(feature = "json")]
 
-use std::collections::BTreeMap;
-
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::{
-    openapi::{Response, ResponseBuilder, ResponsesBuilder},
-    IntoResponseComponent, IntoResponses, OpenApi,
+    openapi::{Response, ResponseBuilder},
+    IntoResponseComponent, OpenApi,
 };
 
 mod common;

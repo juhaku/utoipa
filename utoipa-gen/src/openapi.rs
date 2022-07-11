@@ -232,7 +232,7 @@ impl ToTokens for OpenApi {
 
         let info = info::impl_info();
         let components =
-            impl_components(&attributes.schemas, &attributes.responses, tokens).map(|components| {
+            impl_components(&attributes.schemas, &attributes.responses).map(|components| {
                 quote! { .components(Some(#components)) }
             });
 
@@ -290,7 +290,6 @@ impl ToTokens for OpenApi {
 fn impl_components(
     schemas: &Punctuated<Component, Comma>,
     responses: &Punctuated<Responses, Comma>,
-    tokens: &mut TokenStream,
 ) -> Option<TokenStream> {
     if !(schemas.is_empty() && responses.is_empty()) {
         let builder_tokens = schemas.iter().fold(

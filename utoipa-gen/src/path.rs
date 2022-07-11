@@ -10,11 +10,8 @@ use syn::{parenthesized, parse::Parse, Token};
 use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
 use crate::{parse_utils, Deprecated};
 
-use self::{
-    parameter::Parameter,
-    request_body::RequestBodyAttr,
-    response::{ResponseValue, Responses},
-};
+use self::response::Response;
+use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
 
 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
 use crate::ext::Argument;
@@ -61,11 +58,11 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
     request_body: Option<RequestBodyAttr<'p>>,
-    responses: Vec<ResponseValue<'p>>,
+    responses: Vec<Response<'p>>,
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    params: Option<Vec<Parameter<'p>>>,
+    params: Vec<Parameter<'p>>,
     security: Option<Array<SecurityRequirementAttr>>,
     context_path: Option<String>,
 }
@@ -182,15 +179,15 @@ impl Parse for PathAttr<'_> {
                     let responses;
                     parenthesized!(responses in input);
                     path_attr.responses =
-                        parse_utils::parse_groups::<ResponseValue, Vec<_>>(&responses)?;
+                        Punctuated::<Response, Token![,]>::parse_terminated(&responses)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
                 }
                 "params" => {
                     let params;
                     parenthesized!(params in input);
-                    path_attr.params = Some(
+                    path_attr.params =
                         Punctuated::<Parameter, Token![,]>::parse_terminated(&params)
-                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?,
-                    );
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -460,9 +457,9 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Vec<Parameter<'a>>>,
+    parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
-    responses: &'a Vec<ResponseValue<'a>>,
+    responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
 }
 
@@ -516,11 +513,9 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        if let Some(parameters) = self.parameters {
-            parameters
-                .iter()
-                .for_each(|parameter| parameter.to_tokens(tokens));
-        }
+        self.parameters
+            .iter()
+            .for_each(|parameter| parameter.to_tokens(tokens));
     }
 }
 

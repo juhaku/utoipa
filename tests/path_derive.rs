@@ -710,7 +710,7 @@ fn derive_path_params_into_params_with_raw_identifier() {
         )
     )]
     #[allow(unused)]
-    fn get_foo(path: Filter) {}
+    fn get_foo(query: Filter) {}
 
     #[derive(OpenApi, Default)]
     #[openapi(handlers(get_foo))]
@@ -753,7 +753,7 @@ fn derive_path_with_into_responses() {
 
     #[utoipa::path(get, path = "foo", responses(MyResponse))]
     #[allow(unused)]
-    fn get_foo(path: Filter) {}
+    fn get_foo() {}
 
     #[derive(OpenApi, Default)]
     #[openapi(handlers(get_foo))]
@@ -761,6 +761,18 @@ fn derive_path_with_into_responses() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!({
+            "200": {
+                "description": "Ok"
+            },
+            "404": {
+                "description": "Not Found"
+            }
+        })
+    )
 }
 
 #[cfg(feature = "uuid")]

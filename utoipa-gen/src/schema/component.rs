@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
     FieldsNamed, FieldsUnnamed, Generics, Token, Variant, Visibility,

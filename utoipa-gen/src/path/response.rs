@@ -1,9 +1,10 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     bracketed, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    spanned::Spanned,
     token::{Bracket, Comma},
     Error, ExprPath, LitInt, LitStr, Token,
 };
@@ -24,7 +25,9 @@ impl Parse for Response<'_> {
         if input.fork().parse::<ExprPath>().is_ok() {
             Ok(Self::IntoResponses(input.parse()?))
         } else {
-            Ok(Self::Value(input.parse()?))
+            let response;
+            parenthesized!(response in input);
+            Ok(Self::Value(response.parse()?))
         }
     }
 }
@@ -157,15 +160,25 @@ impl ToTokens for ResponseValue<'_> {
 
 impl ContentTypeResolver for ResponseValue<'_> {}
 
-pub struct Responses<'a>(pub &'a [ResponseValue<'a>]);
+pub struct Responses<'a>(pub &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(self.0.iter().fold(
             quote! { utoipa::openapi::ResponsesBuilder::new() },
             |mut acc, response| {
-                let code = &response.status_code.to_string();
-                acc.extend(quote! { .response(#code, #response) });
+                match response {
+                    Response::IntoResponses(path) => {
+                        let span = path.span();
+                        acc.extend(quote_spanned! {span =>
+                            .responses_from_into_responses::<#path>()
+                        })
+                    }
+                    Response::Value(response) => {
+                        let code = &response.status_code.to_string();
+                        acc.extend(quote! { .response(#code, #response) });
+                    }
+                }
 
                 acc
             },
