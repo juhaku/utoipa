@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Display, mem};
+use std::{borrow::Cow, fmt::Display};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
@@ -13,10 +13,10 @@ use syn::{
     feature = "rocket_extras",
     feature = "axum_extras"
 ))]
-use crate::ext::ArgumentIn;
+use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{
-    ext::ValueArgument, parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue,
-    Deprecated, Required, Type,
+    parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue, Deprecated,
+    Required, Type,
 };
 
 use super::property::Property;
@@ -259,23 +259,20 @@ impl ToTokens for ValueParameter<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct StructParameter {
-    path: ExprPath,
+    pub path: ExprPath,
     /// quote!{ ... } of function which should implement `parameter_in_provider` for [`utoipa::IntoParams::into_param`]
     parameter_in_fn: Option<TokenStream>,
 }
 
 impl StructParameter {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     pub fn update_parameter_in(&mut self, parameter_in_provider: &mut TokenStream) {
+        use std::mem;
         self.parameter_in_fn = Some(mem::take(parameter_in_provider));
-    }
-
-    pub fn get_name(&self) -> String {
-        self.path
-            .path
-            .segments
-            .last()
-            .map(|segment| segment.ident.to_string())
-            .unwrap_or_default()
     }
 }
 

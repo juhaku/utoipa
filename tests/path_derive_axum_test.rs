@@ -89,56 +89,52 @@ fn derive_path_params_into_params_axum() {
     )
 }
 
-// TODO add support for primitive types????
-// #[test]
-// fn derive_path_params_primitive_tuple() {
-//     #[utoipa::path(
-//         get,
-//         path = "/person/{id}/{name}",
-//         params(
-//             ("id", description = "Id of person"),
-//             ("name", description = "Name of person")
-//         ),
-//         responses(
-//             (status = 200, description = "success response")
-//         )
-//     )]
-//     #[allow(unused)]
-//     async fn get_person(Path((id, name)): Path<(i64, String)>) {}
+#[test]
+fn derive_path_params_into_params_unnamed() {
+    #[derive(Deserialize, IntoParams)]
+    #[into_params(names("id", "name"))]
+    struct IdAndName(u64, String);
 
-//     #[derive(OpenApi)]
-//     #[openapi(handlers(get_person))]
-//     struct ApiDoc;
+    #[utoipa::path(
+        get,
+        path = "/person/{id}/{name}",
+        params(IdAndName),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_person(person: Path<IdAndName>) {}
 
-//     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-//     let parameters = doc
-//         .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
-//         .unwrap();
+    #[derive(OpenApi)]
+    #[openapi(handlers(get_person))]
+    struct ApiDoc;
 
-//     dbg!(&parameters);
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc
+        .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
+        .unwrap();
 
-//     assert_json_eq!(
-//         parameters,
-//         &json!([
-//             {
-//                 "description": "Id of person",
-//                 "in": "path",
-//                 "name": "id",
-//                 "required": true,
-//                 "schema": {
-//                     "format": "int64",
-//                     "type": "integer",
-//                 },
-//             },
-//             {
-//                 "description": "Name of person",
-//                 "in": "path",
-//                 "name": "name",
-//                 "required": true,
-//                 "schema": {
-//                     "type": "string",
-//                 },
-//             }
-//         ])
-//     )
-// }
+    assert_json_eq!(
+        parameters,
+        &json!([
+            {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer",
+                },
+            },
+            {
+                "in": "path",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                },
+            },
+        ])
+    )
+}

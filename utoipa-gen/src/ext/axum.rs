@@ -21,7 +21,6 @@ impl ArgumentResolver for PathOperations {
             .into_iter()
             .partition(fn_arg::non_primitive_arg);
 
-        // TODO what about primitive args and tuple args?
         (
             None,
             Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
