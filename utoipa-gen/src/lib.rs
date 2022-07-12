@@ -1303,7 +1303,11 @@ impl Parse for InlineType<'_> {
     }
 }
 
-/// A parser for [`Type`] to parse as as `Type`, `[Type]` or `Option<Type>`)
+/// A parser for [`Type`] to parse as
+///  * `Type`
+///  * `[Type]`
+///  * `Option<Type>`
+///  * `Option<[Type]>`
 struct ArrayOrOptionType<'a>(Type<'a>);
 
 impl Parse for ArrayOrOptionType<'_> {

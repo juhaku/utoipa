@@ -1,6 +1,7 @@
 #![cfg(feature = "rocket_extras")]
 
-use serde_json::Value;
+use assert_json_diff::assert_json_eq;
+use serde_json::{json, Value};
 use utoipa::OpenApi;
 
 mod common;
@@ -89,7 +90,7 @@ fn resolve_get_with_multiple_args() {
 }
 
 #[test]
-fn resolve_get_with_optinal_query_args() {
+fn resolve_get_with_optional_query_args() {
     mod rocket_get_operation {
         use rocket::get;
 
@@ -118,16 +119,23 @@ fn resolve_get_with_optinal_query_args() {
         "expected paths.hello.get.parameters not null"
     );
 
-    assert_value! {parameters=>
-        "[0].schema.type" = r#""array""#, "Query parameter type"
-        "[0].schema.format" = r#"null"#, "Query parameter format"
-        "[0].schema.items.type" = r#""string""#, "Query items parameter type"
-        "[0].schema.items.format" = r#"null"#, "Query items parameter format"
-        "[0].name" = r#""colors""#, "Query parameter name"
-        "[0].required" = r#"false"#, "Query parameter required"
-        "[0].deprecated" = r#"false"#, "Query parameter required"
-        "[0].in" = r#""query""#, "Query parameter in"
-    }
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "in": "query",
+                "name": "colors",
+                "required": false,
+                "schema": {
+                    "items": {
+                        "type": "string",
+                    },
+                    "type": "array"
+                }
+            }
+        ])
+    );
 }
 
 #[test]

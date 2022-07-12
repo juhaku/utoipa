@@ -21,7 +21,7 @@ pub enum Argument<'a> {
 pub struct ArgumentValue<'a> {
     pub name: Option<Cow<'a, str>>,
     pub argument_in: ArgumentIn,
-    pub type_path: Option<&'a TypePath>,
+    pub type_path: Option<Cow<'a, TypePath>>,
     pub is_array: bool,
     pub is_option: bool,
 }

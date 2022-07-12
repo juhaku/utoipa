@@ -109,7 +109,7 @@ impl<'p> PathAttr<'p> {
                         _ => None,
                     }) {
                         parameter.update_parameter_type(
-                            argument.type_path,
+                            argument.type_path.clone(), // Clone of a borrow should be cheap
                             argument.is_array,
                             argument.is_option,
                         )

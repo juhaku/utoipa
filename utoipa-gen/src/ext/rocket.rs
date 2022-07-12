@@ -74,7 +74,7 @@ impl ArgumentResolver for PathOperations {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Arg<'a> {
     name: &'a Ident,
-    ty: &'a TypePath,
+    ty: Cow<'a, TypePath>,
     is_array: bool,
     is_option: bool,
 }
@@ -115,24 +115,34 @@ impl PathOperations {
         ordered_args.into_iter()
     }
 
-    fn get_type_ident(ty: &Type) -> (&TypePath, bool, bool) {
+    fn get_type_ident<'t>(ty: &'t Type) -> (Cow<'t, TypePath>, bool, bool) {
         match ty {
             Type::Path(path) => {
-                let segment = &path.path.segments.first().unwrap();
+                let first_segment: syn::PathSegment = path.path.segments.first().unwrap().clone();
+                let mut path: Cow<'t, TypePath> = Cow::Borrowed(path);
 
-                if segment.arguments.is_empty() {
-                    (path, false, false)
+                if first_segment.arguments.is_empty() {
+                    return (path, false, false);
                 } else {
-                    let is_array = segment.ident == "Vec";
-                    let is_option = segment.ident == "Option";
+                    let is_array = first_segment.ident == "Vec";
+                    let is_option = first_segment.ident == "Option";
 
-                    match segment.arguments {
+                    match first_segment.arguments {
                         syn::PathArguments::AngleBracketed(ref angle_bracketed) => {
                             match angle_bracketed.args.first() {
                                 Some(syn::GenericArgument::Type(arg)) => {
                                     let child_type = Self::get_type_ident(arg);
 
-                                    (path, is_array || child_type.1, is_option || child_type.2)
+                                    let is_array = is_array || child_type.1;
+                                    let is_option = is_option || child_type.2;
+
+                                    // Discard the current segment if we are one of the special
+                                    // types recognised as array or option
+                                    if is_array || is_option {
+                                        path = Cow::Owned(child_type.0.into_owned());
+                                    }
+
+                                    (path, is_array, is_option)
                                 }
                                 _ => abort_call_site!(
                                     "unexpected generic type, expected GenericArgument::Type"

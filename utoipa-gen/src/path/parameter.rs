@@ -75,11 +75,11 @@ impl<'p> ParameterValue<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn update_parameter_type(
         &mut self,
-        ident: Option<&'p syn::TypePath>,
+        ident: Option<Cow<'p, syn::TypePath>>,
         is_array: bool,
         is_option: bool,
     ) {
-        self.parameter_type = ident.map(|ty| Type::new(Cow::Borrowed(ty), is_array, is_option));
+        self.parameter_type = ident.map(|ty| Type::new(ty, is_array, is_option));
     }
 }
 
@@ -223,7 +223,7 @@ impl<'a> From<Argument<'a>> for Parameter<'a> {
                 },
                 parameter_type: value
                     .type_path
-                    .map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
+                    .map(|ty| Type::new(ty, value.is_array, value.is_option)),
                 ..Default::default()
             }),
             Argument::TokenStream(stream) => Self::TokenStream(stream),
