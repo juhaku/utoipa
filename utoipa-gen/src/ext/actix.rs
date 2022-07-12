@@ -90,7 +90,7 @@ impl PathOperations {
                         ),
                     },
                     type_path: match primitive_arg {
-                        Arg::Path(arg_type) => Some(arg_type),
+                        Arg::Path(arg_type) => Some(Cow::Borrowed(arg_type)),
                         _ => {
                             unreachable!("Arg::Query is not reachable with primitive type")
                         }
