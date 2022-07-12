@@ -584,12 +584,12 @@ pub trait IntoResponses {
 /// ```
 /// use utoipa::{
 ///     openapi::{Response, ResponseBuilder},
-///     IntoResponseComponent,
+///     ResponseComponent,
 /// };
 ///
 /// struct MyResponse;
 ///
-/// impl IntoResponseComponent for MyResponse {
+/// impl ResponseComponent for MyResponse {
 ///     fn response() -> (String, Response) {
 ///         (
 ///             "MyResponse".to_string(),
@@ -598,7 +598,7 @@ pub trait IntoResponses {
 ///     }
 /// }
 /// ```
-pub trait IntoResponseComponent {
+pub trait ResponseComponent {
     /// Returns a map of response component name (to be referenced) to a response.
     fn response() -> (String, Response);
 }
