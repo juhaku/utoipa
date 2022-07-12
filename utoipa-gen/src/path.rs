@@ -71,11 +71,11 @@ impl<'p> PathAttr<'p> {
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
         if let Some(arguments) = arguments {
-            if let Some(ref mut parameters) = self.params {
-                PathAttr::update_existing_parameters_parameter_types(parameters, &arguments);
+            if !self.params.is_empty() {
+                PathAttr::update_existing_parameters_parameter_types(&mut self.params, &arguments);
 
-                let new_params = &mut PathAttr::get_new_parameters(parameters, arguments);
-                parameters.append(new_params);
+                let new_params = &mut PathAttr::get_new_parameters(&self.params, arguments);
+                self.params.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
                 let mut parameters = Vec::with_capacity(arguments.len());
@@ -83,7 +83,7 @@ impl<'p> PathAttr<'p> {
                     .into_iter()
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
-                self.params = Some(parameters);
+                self.params = parameters;
             }
         }
     }
