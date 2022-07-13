@@ -47,7 +47,7 @@ impl ArgumentResolver for PathOperations {
                     Argument::Value(ArgumentValue {
                         name: Some(Cow::Owned(name)),
                         argument_in,
-                        ident: Some(arg.ty),
+                        type_path: Some(arg.ty),
                         is_array: arg.is_array,
                         is_option: arg.is_option,
                     })
@@ -61,7 +61,7 @@ impl ArgumentResolver for PathOperations {
                     Argument::Value(ArgumentValue {
                         name: Some(Cow::Owned(name)),
                         argument_in,
-                        ident: None,
+                        type_path: None,
                         is_array: false,
                         is_option: false,
                     })
@@ -74,7 +74,7 @@ impl ArgumentResolver for PathOperations {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Arg<'a> {
     name: &'a Ident,
-    ty: &'a Ident,
+    ty: Cow<'a, TypePath>,
     is_array: bool,
     is_option: bool,
 }
@@ -115,28 +115,34 @@ impl PathOperations {
         ordered_args.into_iter()
     }
 
-    fn get_type_ident(ty: &Type) -> (&Ident, bool, bool) {
+    fn get_type_ident<'t>(ty: &'t Type) -> (Cow<'t, TypePath>, bool, bool) {
         match ty {
             Type::Path(path) => {
-                let segment = &path.path.segments.first().unwrap();
+                let first_segment: syn::PathSegment = path.path.segments.first().unwrap().clone();
+                let mut path: Cow<'t, TypePath> = Cow::Borrowed(path);
 
-                if segment.arguments.is_empty() {
-                    (&segment.ident, false, false)
+                if first_segment.arguments.is_empty() {
+                    return (path, false, false);
                 } else {
-                    let is_array = segment.ident == "Vec";
-                    let is_option = segment.ident == "Option";
+                    let is_array = first_segment.ident == "Vec";
+                    let is_option = first_segment.ident == "Option";
 
-                    match segment.arguments {
+                    match first_segment.arguments {
                         syn::PathArguments::AngleBracketed(ref angle_bracketed) => {
                             match angle_bracketed.args.first() {
                                 Some(syn::GenericArgument::Type(arg)) => {
                                     let child_type = Self::get_type_ident(arg);
 
-                                    (
-                                        child_type.0,
-                                        is_array || child_type.1,
-                                        is_option || child_type.2,
-                                    )
+                                    let is_array = is_array || child_type.1;
+                                    let is_option = is_option || child_type.2;
+
+                                    // Discard the current segment if we are one of the special
+                                    // types recognised as array or option
+                                    if is_array || is_option {
+                                        path = Cow::Owned(child_type.0.into_owned());
+                                    }
+
+                                    (path, is_array, is_option)
                                 }
                                 _ => abort_call_site!(
                                     "unexpected generic type, expected GenericArgument::Type"
@@ -170,7 +176,7 @@ impl PathOperations {
                 let path = Self::get_type_path(pat_type.ty.as_ref());
                 let segment = &path.path.segments.first().unwrap();
 
-                let mut is_supported = ComponentType(&segment.ident).is_primitive();
+                let mut is_supported = ComponentType(path).is_primitive();
 
                 if !is_supported {
                     is_supported = matches!(&*segment.ident.to_string(), "Vec" | "Option")

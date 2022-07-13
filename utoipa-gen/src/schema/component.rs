@@ -1,9 +1,10 @@
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, ToTokens, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, Generics, Token, Variant, Visibility,
+    parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath, Variant,
+    Visibility,
 };
 
 use crate::{
@@ -227,7 +228,7 @@ impl ToTokens for NamedStructComponent<'_> {
                             if let Some(generic_type) =
                                 component_part.find_mut_by_ident(&generic.ident)
                             {
-                                generic_type.update_ident(
+                                generic_type.update_path(
                                     &alias.generics.type_params().nth(index).unwrap().ident,
                                 );
                             };
@@ -240,10 +241,14 @@ impl ToTokens for NamedStructComponent<'_> {
                     component_part,
                 );
 
-                let override_component_part = attrs
+                let type_override_type: Option<syn::Type> = attrs
                     .as_ref()
-                    .and_then(|field| field.as_ref().value_type.as_ref())
-                    .map(|value_type| value_type.get_component_part());
+                    .and_then(|field| field.as_ref().value_type.clone())
+                    .map(syn::Type::Path);
+
+                let override_component_part: Option<ComponentPart> =
+                    type_override_type.as_ref().map(ComponentPart::from_type);
+
                 let xml_value = attrs
                     .as_ref()
                     .and_then(|named_field| named_field.as_ref().xml.as_ref());
@@ -310,10 +315,12 @@ impl ToTokens for UnnamedStructComponent<'_> {
             attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let override_component = attrs
+            let type_override_type: Option<syn::Type> = attrs
                 .as_ref()
-                .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.as_ref())
-                .map(|value_type| value_type.get_component_part());
+                .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.clone())
+                .map(syn::Type::Path);
+
+            let override_component = type_override_type.as_ref().map(ComponentPart::from_type);
 
             if override_component.is_some() {
                 is_object = override_component
@@ -743,13 +750,13 @@ where
 
                 match component_part.value_type {
                     ValueType::Primitive => {
-                        let component_type = ComponentType(component_part.ident);
+                        let component_type = ComponentType(&*component_part.path);
 
                         tokens.extend(quote! {
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format = ComponentFormat(component_part.ident);
+                        let format = ComponentFormat(&*component_part.path);
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
@@ -788,31 +795,41 @@ where
                             .attrs
                             .map(|attributes| attributes.is_inline())
                             .unwrap_or(false);
-                        let component_ident = component_part.ident;
-                        let name = &*component_ident.to_string();
-
-                        // When users wishes to hinder the actual type with Any type render a generic `object`
                         if component_part.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
-                        } else if is_inline {
-                            let assert_component = format_ident!("_Assert{}", name);
-                            tokens.extend(quote_spanned! {component_ident.span()=>
-                                {
-                                    struct #assert_component where #component_ident : utoipa::Component;
-                                    
-                                    <#component_ident as utoipa::Component>::component()
-                                }
-                            });
                         } else {
-                            tokens.extend(quote! {
-                                utoipa::openapi::Ref::from_component_name(#name)
-                            })
+                            let component_path: &TypePath = &*component_part.path;
+                            if is_inline {
+                                tokens.extend(quote_spanned! {component_path.span() =>
+                                    <#component_path as utoipa::Component>::component()
+                                });
+                            } else {
+                                let name = format_path_ref(component_path);
+                                tokens.extend(quote! {
+                                    utoipa::openapi::Ref::from_component_name(#name)
+                                })
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact component reference,
+/// by removing spaces between colon punctuation and `::` and the path segments.
+pub(crate) fn format_path_ref(path: &TypePath) -> String {
+    let mut path: TypePath = path.clone();
+
+    // Generics and path arguments are unsupported
+    if let Some(last_segment) = path.path.segments.last_mut() {
+        last_segment.arguments = PathArguments::None;
+    }
+
+    // :: are not officially supported in the spec
+    // See: https://github.com/juhaku/utoipa/pull/187#issuecomment-1173101405
+    path.to_token_stream().to_string().replace(" :: ", ".")
 }
 
 #[inline]

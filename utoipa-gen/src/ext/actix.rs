@@ -35,7 +35,7 @@ impl ArgumentResolver for PathOperations {
         resolved_path_args: Option<Vec<ResolvedArg>>,
     ) -> Option<Vec<Argument<'_>>> {
         let (primitive_args, non_primitive_args): (Vec<Arg>, Vec<Arg>) = Self::get_fn_args(fn_args)
-            .partition(|arg| matches!(arg, Arg::Path(ty) if ComponentType(get_last_ident(ty).unwrap()).is_primitive()));
+            .partition(|arg| matches!(arg, Arg::Path(ty) if ComponentType(ty).is_primitive()));
 
         if let Some(resolved_args) = resolved_path_args {
             let primitive = Self::to_value_args(resolved_args, primitive_args);
@@ -89,8 +89,8 @@ impl PathOperations {
                             "ResolvedArg::Query is not reachable with primitive path type"
                         ),
                     },
-                    ident: match primitive_arg {
-                        Arg::Path(arg_type) => get_last_ident(arg_type),
+                    type_path: match primitive_arg {
+                        Arg::Path(arg_type) => Some(Cow::Borrowed(arg_type)),
                         _ => {
                             unreachable!("Arg::Query is not reachable with primitive type")
                         }

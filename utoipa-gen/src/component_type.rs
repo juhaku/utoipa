@@ -1,17 +1,17 @@
-use std::fmt::Display;
-
+use proc_macro_error::abort_call_site;
 use quote::{quote, ToTokens};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub struct ComponentType<'a, T: Display>(pub &'a T);
+pub struct ComponentType<'a>(pub &'a syn::TypePath);
 
-impl<'a, T> ComponentType<'a, T>
-where
-    T: Display,
-{
+impl ComponentType<'_> {
     /// Check whether type is known to be primitive in wich case returns true.
     pub fn is_primitive(&self) -> bool {
-        let name = &*self.0.to_string();
+        let last_segment = match self.0.path.segments.last() {
+            Some(segment) => segment,
+            None => return false,
+        };
+        let name = &*last_segment.ident.to_string();
 
         #[cfg(not(any(
             feature = "chrono",
@@ -96,12 +96,12 @@ fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
 
-impl<'a, T> ToTokens for ComponentType<'a, T>
-where
-    T: Display,
-{
+impl ToTokens for ComponentType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let name = &*self.0.to_string();
+        let last_segment = self.0.path.segments.last().unwrap_or_else(|| {
+            abort_call_site!("expected there to be at least one segment in the path")
+        });
+        let name = &*last_segment.ident.to_string();
 
         match name {
             "String" | "str" | "char" => {
@@ -127,12 +127,16 @@ where
 }
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
-pub struct ComponentFormat<T: Display>(pub(crate) T);
+pub struct ComponentFormat<'a>(pub(crate) &'a syn::TypePath);
 
-impl<T: Display> ComponentFormat<T> {
+impl ComponentFormat<'_> {
     /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
     pub fn is_known_format(&self) -> bool {
-        let name = &*self.0.to_string();
+        let last_segment = match self.0.path.segments.last() {
+            Some(segment) => segment,
+            None => return false,
+        };
+        let name = &*last_segment.ident.to_string();
 
         #[cfg(not(any(feature = "chrono_with_format", feature = "uuid")))]
         {
@@ -166,9 +170,12 @@ fn is_known_format(name: &str) -> bool {
     )
 }
 
-impl<T: Display> ToTokens for ComponentFormat<T> {
+impl ToTokens for ComponentFormat<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let name = &*self.0.to_string();
+        let last_segment = self.0.path.segments.last().unwrap_or_else(|| {
+            abort_call_site!("expected there to be at least one segment in the path")
+        });
+        let name = &*last_segment.ident.to_string();
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {

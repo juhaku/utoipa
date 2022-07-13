@@ -11,7 +11,7 @@ macro_rules! test_fn {
         mod $name {
             #[derive(utoipa::Component)]
             /// Some struct
-            struct Foo {
+            pub struct Foo {
                 /// Some name
                 name: String,
             }
@@ -94,6 +94,7 @@ fn derive_request_body_option_array_success() {
         "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
     }
 }
+
 test_fn! {
     module: derive_request_body_primitive_simple,
     body: = String
@@ -373,4 +374,30 @@ fn derive_request_body_complex_primitive_array_success() {
         "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
         "paths.~1foo.post.requestBody.description" = r###""Create new foo references""###, "Request body description"
     }
+}
+
+test_fn! {
+    module: derive_request_body_primitive_ref_path,
+    body: = path::to::Foo
+}
+
+#[test]
+fn derive_request_body_primitive_ref_path_success() {
+    #[derive(OpenApi, Default)]
+    #[openapi(
+        handlers(derive_request_body_primitive_ref_path::post_foo),
+        components(derive_request_body_primitive_ref_path::Foo as path::to::Foo)
+    )]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let schemas = doc.pointer("/components/schemas").unwrap();
+    assert!(schemas.get("path.to.Foo").is_some());
+
+    let component_ref: &str = doc
+        .pointer("/paths/~1foo/post/requestBody/content/application~1json/schema/$ref")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
 }

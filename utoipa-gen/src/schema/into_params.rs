@@ -2,8 +2,8 @@ use proc_macro2::TokenStream;
 use proc_macro_error::{abort, ResultExt};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Error, Field, Generics,
-    Ident, LitStr, Token,
+    parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Error,
+    Field, Generics, Ident, LitStr, Token,
 };
 
 use crate::{
@@ -415,48 +415,6 @@ impl ToTokens for ParamType<'_> {
                     )
                 });
             }
-            None => {
-                let inline = matches!(self.field_param_attrs, Some(params) if params.inline);
-                let type_ident = component.ident;
-
-                match component.value_type {
-                    ValueType::Primitive => {
-                        let component_type = ComponentType(type_ident);
-
-                        tokens.extend(quote! {
-                            utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
-                        });
-
-                        let format = ComponentFormat(type_ident);
-                        if format.is_known_format() {
-                            tokens.extend(quote! {
-                                .format(Some(#format))
-                            })
-                        }
-                    }
-                    ValueType::Object => {
-                        let name = &*type_ident.to_string();
-                        if inline {
-                            let assert_component = format_ident!("_Assert{}", name);
-                            tokens.extend(quote_spanned! {type_ident.span()=>
-                                {
-                                    struct #assert_component where #type_ident : utoipa::Component;
-
-                                    <#type_ident as utoipa::Component>::component()
-                                }
-                            })
-                        } else if component.is_any() {
-                            tokens.extend(quote! {
-                                utoipa::openapi::ObjectBuilder::new()
-                            });
-                        } else {
-                            tokens.extend(quote! {
-                                utoipa::openapi::Ref::from_component_name(#name)
-                            });
-                        }
-                    }
-                }
-            }
             Some(GenericType::Option)
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
@@ -473,6 +431,54 @@ impl ToTokens for ParamType<'_> {
                 tokens.extend(quote! {
                     utoipa::openapi::ObjectBuilder::new()
                 });
+            }
+            None => {
+                let inline = matches!(self.field_param_attrs, Some(params) if params.inline);
+
+                match component.value_type {
+                    ValueType::Primitive => {
+                        let component_type = ComponentType(&*component.path);
+
+                        tokens.extend(quote! {
+                            utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
+                        });
+
+                        let format = ComponentFormat(&*component.path);
+                        if format.is_known_format() {
+                            tokens.extend(quote! {
+                                .format(Some(#format))
+                            })
+                        }
+                    }
+                    ValueType::Object => {
+                        let component_path: &syn::TypePath = &*component.path;
+                        let name: String = component_path
+                            .path
+                            .segments
+                            .last()
+                            .expect("Expected there to be at least one element in the path")
+                            .ident
+                            .to_string();
+                        if inline {
+                            let assert_component = format_ident!("_Assert{}", name);
+                            tokens.extend(quote_spanned! {component_path.span()=>
+                                {
+                                    struct #assert_component where #component_path : utoipa::Component;
+
+                                    <#component_path as utoipa::Component>::component()
+                                }
+                            })
+                        } else if component.is_any() {
+                            tokens.extend(quote! {
+                                utoipa::openapi::ObjectBuilder::new()
+                            });
+                        } else {
+                            tokens.extend(quote! {
+                                utoipa::openapi::Ref::from_component_name(#name)
+                            });
+                        }
+                    }
+                }
             }
         };
     }

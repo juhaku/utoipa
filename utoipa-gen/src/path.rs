@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
@@ -110,7 +109,7 @@ impl<'p> PathAttr<'p> {
                         _ => None,
                     }) {
                         parameter.update_parameter_type(
-                            argument.ident,
+                            argument.type_path.clone(), // Clone of a borrow should be cheap
                             argument.is_array,
                             argument.is_option,
                         )
@@ -525,10 +524,10 @@ impl ToTokens for Operation<'_> {
 }
 
 trait ContentTypeResolver {
-    fn resolve_content_type<'a, T: Display>(
+    fn resolve_content_type<'a>(
         &self,
         content_type: Option<&'a String>,
-        component_type: &ComponentType<'a, T>,
+        component_type: &ComponentType<'a>,
     ) -> &'a str {
         if let Some(content_type) = content_type {
             content_type

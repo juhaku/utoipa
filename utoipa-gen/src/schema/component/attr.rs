@@ -3,11 +3,11 @@ use std::mem;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
+use syn::{parenthesized, parse::Parse, Attribute, Error, Token, TypePath};
 
 use crate::{
     parse_utils,
-    schema::{ComponentPart, GenericType, TypeToken},
+    schema::{ComponentPart, GenericType},
     AnyValue,
 };
 
@@ -74,7 +74,7 @@ impl IsInline for Struct {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct {
-    pub(super) value_type: Option<TypeToken>,
+    pub(super) value_type: Option<TypePath>,
     format: Option<ComponentFormat>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
@@ -90,7 +90,7 @@ impl IsInline for UnnamedFieldStruct {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField {
     example: Option<AnyValue>,
-    pub(super) value_type: Option<TypeToken>,
+    pub(super) value_type: Option<TypePath>,
     format: Option<ComponentFormat>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
@@ -233,7 +233,7 @@ impl Parse for ComponentAttr<UnnamedFieldStruct> {
                 }
                 "value_type" => {
                     unnamed_struct.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypeToken>()
+                        input.parse::<TypePath>()
                     })?)
                 }
                 _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -339,12 +339,12 @@ impl Parse for ComponentAttr<NamedField> {
                 "xml" => {
                     let xml;
                     parenthesized!(xml in input);
-                    field.xml_attr = Some(xml.parse()?)
+                    field.xml_attr = Some(xml.parse()?);
                 }
                 "value_type" => {
                     field.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypeToken>()
-                    })?)
+                        input.parse::<TypePath>()
+                    })?);
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }

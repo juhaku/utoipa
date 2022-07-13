@@ -2,7 +2,7 @@
 use std::{borrow::Cow, cmp::Ordering};
 
 use proc_macro2::{Ident, TokenStream};
-use syn::{punctuated::Punctuated, token::Comma, Attribute, FnArg, ItemFn};
+use syn::{punctuated::Punctuated, token::Comma, Attribute, FnArg, ItemFn, TypePath};
 
 use crate::path::PathOperation;
 
@@ -21,7 +21,7 @@ pub enum Argument<'a> {
 pub struct ArgumentValue<'a> {
     pub name: Option<Cow<'a, str>>,
     pub argument_in: ArgumentIn,
-    pub ident: Option<&'a Ident>,
+    pub type_path: Option<Cow<'a, TypePath>>,
     pub is_array: bool,
     pub is_option: bool,
 }
