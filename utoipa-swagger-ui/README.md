@@ -47,7 +47,7 @@ utoipa-swagger-ui = { version = "1", features = ["actix-web"] }
 
 # Examples
 
-Serve Swagger UI with api doc via **`actix-web`**. See full example from [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
+Serve Swagger UI with api doc via **`actix-web`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ```rust
 HttpServer::new(move || {
     App::new()

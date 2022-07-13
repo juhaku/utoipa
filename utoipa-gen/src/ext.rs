@@ -266,9 +266,7 @@ pub mod fn_arg {
     }
 
     pub(super) fn non_primitive_arg(fn_arg: &FnArg) -> bool {
-        let is_primitive = |type_path| {
-            ComponentType(type_path).is_primitive()
-        };
+        let is_primitive = |type_path| ComponentType(type_path).is_primitive();
 
         match fn_arg {
             FnArg::Path(path) => !is_primitive(path),

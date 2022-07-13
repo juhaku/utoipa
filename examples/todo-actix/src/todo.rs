@@ -241,6 +241,9 @@ pub(super) struct SearchTodos {
 /// Perform search from `Todo`s present in in-memory storage by matching Todo's value to
 /// value provided as query paramter. Returns 200 and matching `Todo` items.
 #[utoipa::path(
+    params(
+        SearchTodos
+    ),
     responses(
         (status = 200, description = "Search Todos did not result error", body = [Todo]),
     )
