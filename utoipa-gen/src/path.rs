@@ -136,6 +136,7 @@ impl<'p> PathAttr<'p> {
                 .iter()
                 .find(|argument| argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)))
             {
+                
                 parameter.update_parameter_type(
                     argument.type_path.clone(),
                     argument.is_array,
