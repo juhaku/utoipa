@@ -27,6 +27,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     })
 }
 
+#[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
 pub(self) struct ComponentPart<'a> {
@@ -34,15 +35,6 @@ pub(self) struct ComponentPart<'a> {
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
     pub child: Option<Box<ComponentPart<'a>>>,
-}
-
-impl PartialEq for ComponentPart<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.path.to_token_stream().to_string() == other.path.to_token_stream().to_string()
-            && self.value_type == other.value_type
-            && self.generic_type == other.generic_type
-            && self.child == other.child
-    }
 }
 
 impl<'a> ComponentPart<'a> {
@@ -66,8 +58,7 @@ impl<'a> ComponentPart<'a> {
 
     /// Creates a [`ComponentPath`] from a [`TypePath`].
     fn from_type_path(path: &'a TypePath) -> ComponentPart<'a> {
-        // TODO: remove unwrap
-        let last_segment = path.path.segments.last().unwrap();
+        let last_segment = path.path.segments.last().unwrap(); // there will always be one segment at least
         if last_segment.arguments.is_empty() {
             Self::convert(Cow::Borrowed(path))
         } else {
@@ -84,6 +75,7 @@ impl<'a> ComponentPart<'a> {
             );
         };
 
+        // TODO avoid clone
         let path = TypePath {
             qself: None,
             path: syn::Path::from(segment.clone()),

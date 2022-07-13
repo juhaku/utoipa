@@ -96,8 +96,8 @@ impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
                 ParameterIn::Query
             },
             parameter_type: argument
-                .ident
-                .map(|ty| Type::new(Cow::Borrowed(ty), argument.is_array, argument.is_option)),
+                .type_path
+                .map(|ty| Type::new(ty, argument.is_array, argument.is_option)),
             ..Default::default()
         })
     }
@@ -122,11 +122,11 @@ impl<'p> ValueParameter<'p> {
     ))]
     pub fn update_parameter_type(
         &mut self,
-        ident: Option<Cow<'p, syn::TypePath>>,
+        type_path: Option<Cow<'p, syn::TypePath>>,
         is_array: bool,
         is_option: bool,
     ) {
-        self.parameter_type = ident.map(|ty| Type::new(ty, is_array, is_option));
+        self.parameter_type = type_path.map(|ty| Type::new(ty, is_array, is_option));
     }
 }
 

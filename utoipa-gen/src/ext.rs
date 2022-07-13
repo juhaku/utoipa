@@ -253,8 +253,8 @@ pub mod fn_arg {
                         unreachable!("ResolvedArg::Query is not reachable with primitive path type")
                     }
                 },
-                ident: match primitive_arg {
-                    FnArg::Path(arg_type) => get_last_ident(arg_type),
+                type_path: match primitive_arg {
+                    FnArg::Path(arg_type) => Some(Cow::Borrowed(arg_type)),
                     _ => {
                         unreachable!("FnArg::Query is not reachable with primitive type")
                     }
@@ -267,9 +267,7 @@ pub mod fn_arg {
 
     pub(super) fn non_primitive_arg(fn_arg: &FnArg) -> bool {
         let is_primitive = |type_path| {
-            get_last_ident(type_path)
-                .map(|ident| ComponentType(ident).is_primitive())
-                .unwrap_or(false)
+            ComponentType(type_path).is_primitive()
         };
 
         match fn_arg {

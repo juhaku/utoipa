@@ -1278,9 +1278,9 @@ impl<'a> Type<'a> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn new(ident: Cow<'a, Ident>, is_array: bool, is_option: bool) -> Self {
+    pub fn new(type_path: Cow<'a, TypePath>, is_array: bool, is_option: bool) -> Self {
         Self {
-            ty: ident,
+            ty: type_path,
             is_array,
             is_option,
             is_inline: false,
@@ -1420,7 +1420,7 @@ impl Parse for ArrayOrOptionType<'_> {
                         unsupported_type.span(),
                         format!(
                             "Unsupported type {}. {}",
-                            unsupported_type.to_token_stream().to_string(),
+                            unsupported_type.to_token_stream(),
                             EXPECTED_TYPE_MESSAGE
                         ),
                     ))

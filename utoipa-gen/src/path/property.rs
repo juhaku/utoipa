@@ -1,9 +1,9 @@
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use syn::{spanned::Spanned, TypePath};
+use syn::spanned::Spanned;
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
-    schema::component::format_path_ref,
+    schema::component,
     Type,
 };
 
@@ -23,7 +23,7 @@ impl<'a> Property<'a> {
 
 impl ToTokens for Property<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let component_type: ComponentType = self.component_type();
+        let component_type = self.component_type();
 
         if component_type.is_primitive() {
             let mut component = quote! {
@@ -46,8 +46,8 @@ impl ToTokens for Property<'_> {
                 component
             });
         } else {
-            let component_name_path: &TypePath = &*component_type.0;
-            let name = format_path_ref(&component_name_path);
+            let component_name_path = component_type.0;
+            let name = component::format_path_ref(component_name_path);
 
             let component = if self.0.is_inline {
                 let assert_component = format_ident!("_Assert{}", name);
