@@ -368,6 +368,10 @@ fn path_with_struct_variables_with_into_params() {
     }
 
     #[utoipa::path(
+        params(
+            Person,
+            Filter
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -432,6 +436,10 @@ fn derive_path_with_struct_variables_with_into_params() {
     }
 
     #[utoipa::path(
+        params(
+            Person,
+            Filter
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -489,6 +497,9 @@ fn derive_path_with_multiple_instances_same_path_params() {
     struct Id(u64);
 
     #[utoipa::path(
+        params(
+            Id
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -500,6 +511,9 @@ fn derive_path_with_multiple_instances_same_path_params() {
     }
 
     #[utoipa::path(
+        params(
+            Id
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -542,6 +556,7 @@ fn derive_path_with_multiple_into_params_names() {
     struct IdAndName(u64, String);
 
     #[utoipa::path(
+        params(IdAndName),
         responses(
             (status = 200, description = "success response")
         )
@@ -611,6 +626,10 @@ fn derive_into_params_with_custom_attributes() {
     }
 
     #[utoipa::path(
+        params(
+            Person,
+            Filter
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -693,6 +712,9 @@ fn derive_into_params_in_another_module() {
 
     /// Foo test
     #[utoipa::path(
+        params(
+            params::FooParams,
+        ),
         responses(
             (status = 200, description = "Todo foo operation success"),
         )

@@ -241,13 +241,9 @@ impl ToTokens for NamedStructComponent<'_> {
                     component_part,
                 );
 
-                let type_override_type: Option<syn::Type> = attrs
+                let override_component_part = attrs
                     .as_ref()
-                    .and_then(|field| field.as_ref().value_type.clone())
-                    .map(syn::Type::Path);
-
-                let override_component_part: Option<ComponentPart> =
-                    type_override_type.as_ref().map(ComponentPart::from_type);
+                    .and_then(|field| field.as_ref().value_type.as_ref().map(ComponentPart::from_type_path));
 
                 let xml_value = attrs
                     .as_ref()
@@ -315,12 +311,13 @@ impl ToTokens for UnnamedStructComponent<'_> {
             attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let type_override_type: Option<syn::Type> = attrs
-                .as_ref()
-                .and_then(|unnamed_struct| unnamed_struct.as_ref().value_type.clone())
-                .map(syn::Type::Path);
-
-            let override_component = type_override_type.as_ref().map(ComponentPart::from_type);
+            let override_component = attrs.as_ref().and_then(|unnamed_struct| {
+                unnamed_struct
+                    .as_ref()
+                    .value_type
+                    .as_ref()
+                    .map(ComponentPart::from_type_path)
+            });
 
             if override_component.is_some() {
                 is_object = override_component
@@ -798,7 +795,7 @@ where
                         if component_part.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else {
-                            let component_path: &TypePath = &*component_part.path;
+                            let component_path = &*component_part.path;
                             if is_inline {
                                 tokens.extend(quote_spanned! {component_path.span() =>
                                     <#component_path as utoipa::Component>::component()
