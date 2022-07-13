@@ -796,9 +796,7 @@ where
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else if is_inline {
                             tokens.extend(quote_spanned! {component_ident.span()=>
-                                {
-                                    <#component_ident as utoipa::Component>::component()
-                                }
+                                <#component_ident as utoipa::Component>::component()
                             });
                         } else {
                             tokens.extend(quote! {
