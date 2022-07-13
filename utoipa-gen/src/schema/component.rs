@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
     Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath, Variant,
@@ -795,25 +795,16 @@ where
                             .attrs
                             .map(|attributes| attributes.is_inline())
                             .unwrap_or(false);
-                        let component_path: &TypePath = &*component_part.path;
-                        let name: String = format_path_ref(component_path); // When users wishes to hinder the actual type with Any type render a generic `object`
                         if component_part.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
-                        } else if is_inline {
-                            let assert_component = format_ident!("_Assert{}", name);
-                            tokens.extend(quote_spanned! {component_path.span() => {
-                                    struct #assert_component where #component_path : utoipa::Component;
-                                    <#component_path as utoipa::Component>::component()
-                                }
-                            });
                         } else {
+                            let component_path: &TypePath = &*component_part.path;
                             if is_inline {
-                                let component_name_ident = &component_part.path;
-                                tokens.extend(quote! {
-                                    <#component_name_ident as utoipa::Component>::component()
+                                tokens.extend(quote_spanned! {component_path.span() =>
+                                    <#component_path as utoipa::Component>::component()
                                 });
                             } else {
-                                let name = format_path_ref(&component_part.path);
+                                let name = format_path_ref(component_path);
                                 tokens.extend(quote! {
                                     utoipa::openapi::Ref::from_component_name(#name)
                                 })
