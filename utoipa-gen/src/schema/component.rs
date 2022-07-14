@@ -697,9 +697,18 @@ where
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self.component_part.generic_type {
             Some(GenericType::Map) => {
-                // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
+                // Maps are treated as generic objects with no named properties and
+                // additionalProperties denoting the type
+                let component_property = ComponentProperty::new(
+                    self.component_part.child.as_ref().unwrap().as_ref(),
+                    self.comments,
+                    self.attrs,
+                    self.deprecated,
+                    self.xml,
+                );
+
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new()
+                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#component_property))
                 });
 
                 if let Some(description) = self.comments.and_then(|attributes| attributes.0.first())

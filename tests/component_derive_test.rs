@@ -53,6 +53,35 @@ macro_rules! api_doc {
 }
 
 #[test]
+fn derive_map_type() {
+    let map = api_doc! {
+        struct Map {
+            map: HashMap<String, String>,
+        }
+    };
+
+    assert_value! { map=>
+        "properties.map.additionalProperties.type" = r#""string""#, "Additional Property Type"
+    };
+}
+
+#[test]
+fn derive_map_ref() {
+    #[derive(Component)]
+    enum Foo {}
+
+    let map = api_doc! {
+        struct Map {
+            map: HashMap<String, Foo>
+        }
+    };
+
+    assert_value! { map=>
+        "properties.map.additionalProperties.$ref" = r##""#/components/schemas/Foo""##, "Additional Property reference"
+    };
+}
+
+#[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
         #[component(default = "Mode1", example = "Mode2")]
