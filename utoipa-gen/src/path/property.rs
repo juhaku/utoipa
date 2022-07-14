@@ -30,7 +30,7 @@ impl ToTokens for Property<'_> {
                 utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
             };
 
-            let format = ComponentFormat(component_type.0);
+            let format: ComponentFormat = (&*component_type.0).into();
             if format.is_known_format() {
                 component.extend(quote! {
                     .format(Some(#format))
