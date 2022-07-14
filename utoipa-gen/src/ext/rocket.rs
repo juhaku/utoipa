@@ -16,63 +16,116 @@ use crate::{
 };
 
 use super::{
-    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedOperation,
+    fn_arg::SegmentFinder, ArgumentResolver, MacroPath, PathOperationResolver, PathOperations,
+    PathResolver, ResolvedOperation,
 };
 
 impl ArgumentResolver for PathOperations {
     fn resolve_arguments(
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
-        resolved_args: Option<Vec<MacroArg>>,
+        macro_args: Option<Vec<MacroArg>>,
     ) -> (
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
     ) {
         const ANONYMOUS_ARG: &str = "<_>";
 
-        let value_arguments = resolved_args.map(|args| {
-            let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
-                args.into_iter().partition(|arg| {
-                    matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
-                        || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
-                });
+        dbg!(&macro_args);
 
-            named_args.sort_unstable_by(MacroArg::by_name);
+        struct RocketSegmentFinder<'r>(&'r Option<Vec<MacroArg>>);
 
-            Self::get_fn_args(fn_args)
-                .zip(named_args)
-                .map(|(arg, named_arg)| {
-                    let (name, argument_in) = match named_arg {
-                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
-                    };
+        impl SegmentFinder for RocketSegmentFinder<'_> {
+            /// Any path segment is supported in rocket framework.
+            fn matches(&self, path_segment: &syn::PathSegment) -> bool {
+                let name = &*path_segment.ident.to_string();
 
-                    ValueArgument {
-                        name: Some(Cow::Owned(name)),
-                        argument_in,
-                        type_path: Some(arg.ty),
-                        is_array: arg.is_array,
-                        is_option: arg.is_option,
-                    }
-                })
-                .chain(anonymous_args.into_iter().map(|anonymous_arg| {
-                    let (name, argument_in) = match anonymous_arg {
-                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
-                    };
+                // self.0.map(|args| {
+                //     args.iter().any(|arg| match arg {
+                //         MacroArg::Path(path) => path.name == name,
+                //         MacroArg::Query(query) => query.name == name,
+                //     })
+                // }).unwrap_or(false)
+                // true
 
-                    ValueArgument {
-                        name: Some(Cow::Owned(name)),
-                        argument_in,
-                        type_path: None,
-                        is_array: false,
-                        is_option: false,
-                    }
-                }))
-                .collect()
-        });
+                false
+            }
 
-        (value_arguments, None)
+            /// we blindly make all path segments to Query params even if there might be
+            /// other type of params too
+            fn to_fn_arg<'a>(&self, type_path: &'a TypePath) -> fn_arg::FnArg<'a> {
+                let last_segment_name = type_path
+                    .path
+                    .segments
+                    .last()
+                    .map(|segment| &segment.ident)
+                    .unwrap()
+                    .to_string();
+
+                self.0
+                    .as_ref()
+                    .and_then(|args| {
+                        args.iter().find_map(|arg| match arg {
+                            MacroArg::Path(path) if path.name == last_segment_name => {
+                                Some(fn_arg::FnArg::Path(type_path))
+                            }
+                            MacroArg::Query(query) if query.name == last_segment_name => {
+                                Some(fn_arg::FnArg::Query(type_path))
+                            }
+                            _ => Some(fn_arg::FnArg::Unknown(type_path)),
+                        })
+                    })
+                    .unwrap()
+            }
+        }
+
+        let finder = &RocketSegmentFinder(&macro_args);
+        let args = fn_arg::get_fn_args(fn_args, finder);
+
+        dbg!(&args.collect::<Vec<_>>());
+
+        // let value_arguments = macro_args.map(|args| {
+        //     let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
+        //         args.into_iter().partition(|arg| {
+        //             matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
+        //                 || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
+        //         });
+
+        //     named_args.sort_unstable_by(MacroArg::by_name);
+
+        //     Self::get_fn_args(fn_args)
+        //         .zip(named_args)
+        //         .map(|(arg, named_arg)| {
+        //             let (name, argument_in) = match named_arg {
+        //                 MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+        //                 MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+        //             };
+
+        //             ValueArgument {
+        //                 name: Some(Cow::Owned(name)),
+        //                 argument_in,
+        //                 type_path: Some(arg.ty),
+        //                 is_array: arg.is_array,
+        //                 is_option: arg.is_option,
+        //             }
+        //         })
+        //         .chain(anonymous_args.into_iter().map(|anonymous_arg| {
+        //             let (name, argument_in) = match anonymous_arg {
+        //                 MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+        //                 MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+        //             };
+
+        //             ValueArgument {
+        //                 name: Some(Cow::Owned(name)),
+        //                 argument_in,
+        //                 type_path: None,
+        //                 is_array: false,
+        //                 is_option: false,
+        //             }
+        //         }))
+        //         .collect()
+        // });
+
+        (None, None)
     }
 }
 

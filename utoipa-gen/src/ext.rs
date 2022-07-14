@@ -152,11 +152,20 @@ pub mod fn_arg {
         Query(&'a TypePath),
         /// Path parameters
         Path(&'a TypePath),
+        // Any handler fn argument which is unknown by [`SegmentFinder`].
+        Unknown(&'a TypePath),
+    }
+
+    /// Will
+    pub trait SegmentFinder {
+        fn matches(&self, path_segment: &PathSegment) -> bool;
+        fn to_fn_arg<'a>(&self, type_path: &'a TypePath) -> FnArg<'a>;
     }
 
     fn get_type_path(ty: &Type) -> &TypePath {
         match ty {
             Type::Path(path) => path,
+            Type::Reference(reference) => get_type_path(reference.elem.as_ref()),
             _ => abort_call_site!("unexpected type in path operations, expected Type::Path"), // should not get here by any means with current types
         }
     }
@@ -185,21 +194,30 @@ pub mod fn_arg {
         }
     }
 
-    pub fn get_fn_args(fn_args: &Punctuated<syn::FnArg, Comma>) -> impl Iterator<Item = FnArg> {
-        fn_args
+    pub fn get_fn_args<'a>(
+        fn_args: &'a Punctuated<syn::FnArg, Comma>,
+        finder: &'a impl SegmentFinder,
+    ) -> impl Iterator<Item = FnArg<'a>> {
+        let ff = fn_args
             .iter()
-            .filter_map(get_fn_arg_segment)
+            .filter_map(|arg| get_fn_arg_segment(arg, finder))
             .flat_map(|path_segment| {
-                let op = if path_segment.ident == "Path" {
-                    FnArg::Path
-                } else {
-                    FnArg::Query
-                };
-                get_argument_types(path_segment).map(op)
-            })
+                // let op = if path_segment.ident == "Path" {
+                //     FnArg::Path
+                // } else {
+                //     FnArg::Query
+                // };
+                get_argument_types(path_segment).map(|segment| finder.to_fn_arg(segment))
+            });
+
+        ff
     }
 
-    fn get_fn_arg_segment(fn_arg: &syn::FnArg) -> Option<&PathSegment> {
+    fn get_fn_arg_segment<'a>(
+        fn_arg: &'a syn::FnArg,
+        finder: &impl SegmentFinder,
+    ) -> Option<&'a PathSegment> {
+        dbg!(&fn_arg);
         let pat_type = get_fn_arg_pat_type(fn_arg);
         let type_path = get_type_path(pat_type.ty.as_ref());
 
@@ -207,7 +225,8 @@ pub mod fn_arg {
             .path
             .segments
             .iter()
-            .find(|segment| segment.ident == "Path" || segment.ident == "Query")
+            .find(|segment| finder.matches(segment))
+        // .find(|segment| segment.ident == "Path" || segment.ident == "Query")
     }
 
     fn get_fn_arg_pat_type(fn_arg: &syn::FnArg) -> &PatType {
