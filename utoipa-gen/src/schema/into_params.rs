@@ -443,7 +443,7 @@ impl ToTokens for ParamType<'_> {
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format = ComponentFormat(&*component.path);
+                        let format: ComponentFormat = (&*component.path).into();
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))

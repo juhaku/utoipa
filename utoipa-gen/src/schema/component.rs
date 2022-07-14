@@ -241,9 +241,13 @@ impl ToTokens for NamedStructComponent<'_> {
                     component_part,
                 );
 
-                let override_component_part = attrs
-                    .as_ref()
-                    .and_then(|field| field.as_ref().value_type.as_ref().map(ComponentPart::from_type_path));
+                let override_component_part = attrs.as_ref().and_then(|field| {
+                    field
+                        .as_ref()
+                        .value_type
+                        .as_ref()
+                        .map(ComponentPart::from_type_path)
+                });
 
                 let xml_value = attrs
                     .as_ref()
@@ -753,7 +757,7 @@ where
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format = ComponentFormat(&*component_part.path);
+                        let format: ComponentFormat = (&*component_part.path).into();
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
