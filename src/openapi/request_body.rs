@@ -1,7 +1,7 @@
 //! Implements [OpenAPI Request Body][request_body] types.
 //!
 //! [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ builder! {
         pub description: Option<String>,
 
         /// Map of request body contents mapped by content type e.g. `application/json`.
-        pub content: HashMap<String, Content>,
+        pub content: BTreeMap<String, Content>,
 
         /// Determines whether request body is reuqired in the request or not.
         #[serde(skip_serializing_if = "Option::is_none")]

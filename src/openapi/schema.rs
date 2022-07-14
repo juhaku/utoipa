@@ -2,7 +2,7 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
@@ -46,14 +46,14 @@ builder! {
         /// Map of reusable [OpenAPI Schema Object][schema]s.
         ///
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub schemas: HashMap<String, Component>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        pub schemas: BTreeMap<String, Component>,
 
         /// Map of reusable [OpenAPI Security Schema Object][security_schema]s.
         ///
         /// [security_schema]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub security_schemes: HashMap<String, SecurityScheme>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        pub security_schemes: BTreeMap<String, SecurityScheme>,
     }
 }
 
@@ -485,8 +485,8 @@ pub struct Object {
     pub required: Vec<String>,
 
     /// Map of fields with their [`Component`] types.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub properties: HashMap<String, Component>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub properties: BTreeMap<String, Component>,
 
     /// Description of the [`Object`]. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -534,7 +534,7 @@ pub struct ObjectBuilder {
 
     required: Vec<String>,
 
-    properties: HashMap<String, Component>,
+    properties: BTreeMap<String, Component>,
 
     description: Option<String>,
 
