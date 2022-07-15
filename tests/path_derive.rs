@@ -2,6 +2,7 @@
 use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use utoipa::{Component, IntoParams, OpenApi};
 
 mod common;
@@ -385,6 +386,78 @@ fn derive_path_with_parameter_inline_schema() {
             }
         ])
     );
+}
+
+#[test]
+fn derive_path_params_map() {
+    #[derive(serde::Deserialize, Component)]
+    enum Foo {
+        Bar,
+        Baz,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct MyParams {
+        with_ref: HashMap<String, Foo>,
+        with_type: HashMap<String, String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+        )
+    )]
+    #[allow(unused)]
+    fn use_maps(params: MyParams) -> String {
+        "".to_string()
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(use_maps))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        use_maps,
+        operation: get,
+        path: "/foo"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "path",
+            "name": "with_ref",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Foo"
+              },
+              "type": "object"
+            }
+          },
+          {
+            "in": "path",
+            "name": "with_type",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          }
+        ]}
+    }
 }
 
 #[test]

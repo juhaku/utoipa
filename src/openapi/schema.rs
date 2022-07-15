@@ -488,6 +488,13 @@ pub struct Object {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub properties: BTreeMap<String, Component>,
 
+    /// Additional [`Component`] for non specified fields (Useful for typed maps).
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "additionalProperties"
+    )]
+    pub additional_properties: Option<Box<Component>>,
+
     /// Description of the [`Object`]. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -536,6 +543,8 @@ pub struct ObjectBuilder {
 
     properties: BTreeMap<String, Component>,
 
+    additional_properties: Option<Box<Component>>,
+
     description: Option<String>,
 
     deprecated: Option<Deprecated>,
@@ -564,6 +573,13 @@ impl ObjectBuilder {
             .insert(property_name.into(), component.into());
 
         self
+    }
+
+    pub fn additional_properties<I: Into<Component>>(
+        mut self,
+        additional_properties: Option<I>,
+    ) -> Self {
+        set_value!(self additional_properties additional_properties.map(|additional_properties| Box::new(additional_properties.into())))
     }
 
     /// Add field to the required fields of [`Object`].
@@ -602,10 +618,10 @@ impl ObjectBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Object component_type, required, properties, description, deprecated, example, xml);
+    build_fn!(pub Object component_type, required, properties, description, deprecated, example, xml, additional_properties);
 }
 
-from!(Object ObjectBuilder component_type, required, properties, description, deprecated, example, xml);
+from!(Object ObjectBuilder component_type, required, properties, description, deprecated, example, xml, additional_properties);
 component_from_builder!(ObjectBuilder);
 
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
@@ -820,6 +836,7 @@ pub enum ComponentFormat {
 #[cfg(test)]
 #[cfg(feature = "serde_json")]
 mod tests {
+    use assert_json_diff::assert_json_eq;
     use serde_json::{json, Value};
 
     use super::*;
@@ -935,6 +952,38 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
+    #[test]
+    fn test_additional_properties() {
+        let json_value = ObjectBuilder::new()
+            .additional_properties(Some(
+                PropertyBuilder::new().component_type(ComponentType::String),
+            ))
+            .build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "additionalProperties": {
+                    "type": "string"
+                }
+            })
+        );
+
+        let json_value = ObjectBuilder::new()
+            .additional_properties(Some(Ref::from_component_name("ComplexModel")))
+            .build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ComplexModel"
+                }
+            })
+        )
     }
 
     #[test]

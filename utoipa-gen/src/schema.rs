@@ -93,7 +93,18 @@ impl<'a> ComponentPart<'a> {
                 {
                     None
                 } else {
-                    Some(ComponentPart::get_generic_arg_type(0, angle_bracketed_args))
+                    match generic_component_type.generic_type {
+                        Some(GenericType::Map) => Some(ComponentPart::get_generic_arg_type(
+                            0,
+                            angle_bracketed_args,
+                            true,
+                        )),
+                        _ => Some(ComponentPart::get_generic_arg_type(
+                            0,
+                            angle_bracketed_args,
+                            false,
+                        )),
+                    }
                 }
             }
             _ => abort!(
@@ -107,13 +118,20 @@ impl<'a> ComponentPart<'a> {
         generic_component_type
     }
 
-    fn get_generic_arg_type(index: usize, args: &'a AngleBracketedGenericArguments) -> &'a Type {
+    fn get_generic_arg_type(
+        index: usize,
+        args: &'a AngleBracketedGenericArguments,
+        skip_first: bool,
+    ) -> &'a Type {
         let generic_arg = args.args.iter().nth(index);
 
         match generic_arg {
-            Some(GenericArgument::Type(generic_type)) => generic_type,
+            Some(GenericArgument::Type(generic_type)) if !skip_first => generic_type,
+            Some(GenericArgument::Type(_)) if skip_first => {
+                ComponentPart::get_generic_arg_type(index + 1, args, false)
+            }
             Some(GenericArgument::Lifetime(_)) => {
-                ComponentPart::get_generic_arg_type(index + 1, args)
+                ComponentPart::get_generic_arg_type(index + 1, args, skip_first)
             }
             _ => abort!(
                 generic_arg,

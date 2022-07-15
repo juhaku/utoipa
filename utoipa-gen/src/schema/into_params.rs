@@ -427,9 +427,16 @@ impl ToTokens for ParamType<'_> {
                 tokens.extend(param_type.into_token_stream())
             }
             Some(GenericType::Map) => {
-                // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
+                // Maps are treated as generic objects with no named properties and
+                // additionalProperties denoting the type
+
+                let component_property = ParamType {
+                    component: component.child.as_ref().unwrap().as_ref(),
+                    field_param_attrs: self.field_param_attrs,
+                };
+
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new()
+                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#component_property))
                 });
             }
             None => {
