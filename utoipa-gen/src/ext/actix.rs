@@ -7,161 +7,46 @@ use proc_macro_error::{abort, abort_call_site};
 use quote::{format_ident, quote, quote_spanned};
 use regex::{Captures, Regex};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, ExprPath, FnArg,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, ExprPath,
     GenericArgument, ItemFn, LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypeInfer,
     TypePath,
 };
 
 use crate::{
     component_type::ComponentType,
-    ext::{ArgValue, ArgumentValue},
+    ext::{ArgValue, ValueArgument},
     path::{self, PathOperation},
 };
 
 use super::{
-    Argument, ArgumentIn, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedArg, ResolvedOperation, ResolvedPath,
+    fn_arg::{self, FnArg},
+    ArgumentIn, ArgumentResolver, MacroArg, MacroPath, PathOperationResolver, PathOperations,
+    PathResolver, ResolvedOperation,
 };
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-enum Arg<'a> {
-    Query(&'a TypePath),
-    Path(&'a TypePath),
-}
-
 impl ArgumentResolver for PathOperations {
-    fn resolve_path_arguments(
-        fn_args: &Punctuated<FnArg, Comma>,
-        resolved_path_args: Option<Vec<ResolvedArg>>,
-    ) -> Option<Vec<Argument<'_>>> {
-        let (primitive_args, non_primitive_args): (Vec<Arg>, Vec<Arg>) = Self::get_fn_args(fn_args)
-            .partition(|arg| matches!(arg, Arg::Path(ty) if ComponentType(get_last_ident(ty).unwrap()).is_primitive()));
+    fn resolve_arguments(
+        fn_args: &Punctuated<syn::FnArg, Comma>,
+        macro_args: Option<Vec<MacroArg>>,
+    ) -> (
+        Option<Vec<super::ValueArgument<'_>>>,
+        Option<Vec<super::IntoParamsType<'_>>>,
+    ) {
+        let (non_primitive_args, primitive_args): (Vec<FnArg>, Vec<FnArg>) =
+            fn_arg::get_fn_args(fn_args)
+                .into_iter()
+                .partition(fn_arg::non_primitive_arg);
 
-        if let Some(resolved_args) = resolved_path_args {
-            let primitive = Self::to_value_args(resolved_args, primitive_args);
-
-            Some(
-                primitive
-                    .chain(Self::to_token_stream_args(non_primitive_args))
-                    .collect(),
+        if let Some(macro_args) = macro_args {
+            (
+                Some(fn_arg::to_value_args(macro_args, primitive_args).collect()),
+                Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
             )
         } else {
-            Some(Self::to_token_stream_args(non_primitive_args).collect())
-        }
-    }
-}
-
-impl PathOperations {
-    fn to_token_stream_args<'a, I: IntoIterator<Item = Arg<'a>>>(
-        arguments: I,
-    ) -> impl Iterator<Item = Argument<'a>> {
-        arguments.into_iter().map(|path_arg| {
-            let (ty, parameter_in) = match path_arg {
-                Arg::Path(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Path }),
-                Arg::Query(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Query }),
-            };
-
-            let ident = get_last_ident(ty).unwrap();
-            let path = ty;
-            let assert_ty = format_ident!("_Assert{}", ident);
-            Argument::TokenStream(quote_spanned! {ident.span()=>
-                {
-                    struct #assert_ty where #path : utoipa::IntoParams;
-
-                    <#path>::into_params(|| Some(#parameter_in))
-                }
-            })
-        })
-    }
-
-    fn to_value_args<'a, R: IntoIterator<Item = ResolvedArg>, P: IntoIterator<Item = Arg<'a>>>(
-        resolved_args: R,
-        primitive_args: P,
-    ) -> impl Iterator<Item = Argument<'a>> {
-        resolved_args
-            .into_iter()
-            .zip(primitive_args)
-            .map(|(resolved_arg, primitive_arg)| {
-                Argument::Value(ArgumentValue {
-                    name: match resolved_arg {
-                        ResolvedArg::Path(path) => Some(Cow::Owned(path.name)),
-                        _ => unreachable!(
-                            "ResolvedArg::Query is not reachable with primitive path type"
-                        ),
-                    },
-                    ident: match primitive_arg {
-                        Arg::Path(arg_type) => get_last_ident(arg_type),
-                        _ => {
-                            unreachable!("Arg::Query is not reachable with primitive type")
-                        }
-                    },
-                    is_array: false,
-                    is_option: false,
-                    argument_in: ArgumentIn::Path,
-                })
-            })
-    }
-
-    fn get_type_path(ty: &Type) -> &TypePath {
-        match ty {
-            Type::Path(path) => path,
-            _ => abort_call_site!("unexpected type in actix path operations, expected Type::Path"), // should not get here by any means with current types
-        }
-    }
-
-    fn get_argument_types(path_segment: &PathSegment) -> impl Iterator<Item = &TypePath> {
-        match &path_segment.arguments {
-            PathArguments::AngleBracketed(angle_bracketed) => {
-                angle_bracketed.args.iter().flat_map(|arg| match arg {
-                    GenericArgument::Type(ty) => match ty {
-                        Type::Path(path) => vec![path],
-                        Type::Tuple(tuple) => tuple.elems.iter().map(Self::get_type_path).collect(),
-                        _ => {
-                            abort_call_site!("unexpected type, expected Type::Path or Type::Tuple")
-                        } // should not get here by any means with current types
-                    },
-                    _ => {
-                        abort_call_site!(
-                            "unexpected generic argument, expected GenericArgument::Type"
-                        )
-                    }
-                })
-            }
-            _ => {
-                abort_call_site!("unexpected argument type, expected Path<...> with angle brakets")
-            }
-        }
-    }
-
-    fn get_fn_args(fn_args: &Punctuated<FnArg, Comma>) -> impl Iterator<Item = Arg> {
-        fn_args
-            .iter()
-            .filter_map(Self::get_fn_arg_segment)
-            .flat_map(|path_segment| {
-                let op = if path_segment.ident == "Path" {
-                    Arg::Path
-                } else {
-                    Arg::Query
-                };
-                Self::get_argument_types(path_segment).map(op)
-            })
-    }
-
-    fn get_fn_arg_segment(fn_arg: &FnArg) -> Option<&PathSegment> {
-        let pat_type = Self::get_fn_arg_pat_type(fn_arg);
-        let type_path = Self::get_type_path(pat_type.ty.as_ref());
-
-        type_path
-            .path
-            .segments
-            .iter()
-            .find(|segment| segment.ident == "Path" || segment.ident == "Query")
-    }
-
-    fn get_fn_arg_pat_type(fn_arg: &FnArg) -> &PatType {
-        match fn_arg {
-            FnArg::Typed(value) => value,
-            _ => abort_call_site!("unexpected fn argument type, expected FnArg::Typed"),
+            (
+                None,
+                Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
+            )
         }
     }
 }
@@ -210,14 +95,14 @@ impl Parse for Path {
 }
 
 impl PathResolver for PathOperations {
-    fn resolve_path(path: &Option<String>) -> Option<ResolvedPath> {
+    fn resolve_path(path: &Option<String>) -> Option<MacroPath> {
         path.as_ref().map(|path| {
             lazy_static! {
                 static ref RE: Regex = Regex::new(r"\{[a-zA-Z0-9_][^{}]*}").unwrap();
             }
 
-            let mut args = Vec::<ResolvedArg>::with_capacity(RE.find_iter(path).count());
-            ResolvedPath {
+            let mut args = Vec::<MacroArg>::with_capacity(RE.find_iter(path).count());
+            MacroPath {
                 path: RE
                     .replace_all(path, |captures: &Captures| {
                         let mut capture = &captures[0];
@@ -225,7 +110,7 @@ impl PathResolver for PathOperations {
 
                         if capture.contains("_:") {
                             // replace unnamed capture with generic 'arg0' name
-                            args.push(ResolvedArg::Path(ArgValue {
+                            args.push(MacroArg::Path(ArgValue {
                                 name: String::from("arg0"),
                                 original_name,
                             }));
@@ -234,14 +119,14 @@ impl PathResolver for PathOperations {
                             //  replace colon (:) separated regexp with empty string
                             capture = &capture[1..colon];
 
-                            args.push(ResolvedArg::Path(ArgValue {
+                            args.push(MacroArg::Path(ArgValue {
                                 name: String::from(capture),
                                 original_name,
                             }));
 
                             format!("{{{capture}}}")
                         } else {
-                            args.push(ResolvedArg::Path(ArgValue {
+                            args.push(MacroArg::Path(ArgValue {
                                 name: String::from(&capture[1..capture.len() - 1]),
                                 original_name,
                             }));

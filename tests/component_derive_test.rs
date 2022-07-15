@@ -1112,6 +1112,24 @@ fn derive_struct_component_field_type_override() {
 }
 
 #[test]
+fn derive_struct_component_field_type_path_override() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[component(value_type = path::to::Foo)]
+            value: i64,
+        }
+    };
+
+    let component_ref: &str = post
+        .pointer("/properties/value/$ref")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
+}
+
+#[test]
 fn derive_struct_component_field_type_override_with_format() {
     let post = api_doc! {
         struct Post {
@@ -1205,7 +1223,7 @@ fn derive_struct_override_type_with_a_reference() {
 
     let value = api_doc! {
         struct Value {
-            #[component(value_type = custom::NewBar)]
+            #[component(value_type = NewBar)]
             field: String,
         }
     };
@@ -1364,11 +1382,20 @@ fn derive_component_with_generic_types_having_path_expression() {
         }
     };
 
-    assert_value! {ty=>
-        "properties.args.items.items.type" = r#""string""#, "Args items items type"
-        "properties.args.items.type" = r#""array""#, "Args items type"
-        "properties.args.type" = r#""array""#, "Args type"
-    }
+    let args = ty.pointer("/properties/args").unwrap();
+
+    assert_json_eq!(
+        args,
+        json!({
+            "items": {
+                "items": {
+                    "type": "string"
+                },
+                "type": "array"
+            },
+            "type": "array"
+        })
+    );
 }
 
 #[test]

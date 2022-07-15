@@ -1,10 +1,9 @@
-use std::borrow::Cow;
-
-use proc_macro2::Ident;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
+use syn::spanned::Spanned;
 
 use crate::{
     component_type::{ComponentFormat, ComponentType},
+    schema::component,
     Type,
 };
 
@@ -17,8 +16,8 @@ impl<'a> Property<'a> {
         Self(type_definition)
     }
 
-    pub fn component_type(&self) -> ComponentType<'a, Cow<Ident>> {
-        ComponentType(&self.0.ty)
+    pub fn component_type(&'a self) -> ComponentType<'a> {
+        ComponentType(&*self.0.ty)
     }
 }
 
@@ -31,7 +30,7 @@ impl ToTokens for Property<'_> {
                 utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
             };
 
-            let format = ComponentFormat(component_type.0);
+            let format: ComponentFormat = (&*component_type.0).into();
             if format.is_known_format() {
                 component.extend(quote! {
                     .format(Some(#format))
@@ -47,16 +46,15 @@ impl ToTokens for Property<'_> {
                 component
             });
         } else {
-            let component_ident = &*component_type.0;
-            let name = component_ident.to_string();
+            let component_name_path = component_type.0;
+            let name = component::format_path_ref(component_name_path);
 
             let component = if self.0.is_inline {
                 let assert_component = format_ident!("_Assert{}", name);
-                quote_spanned! {component_ident.span()=>
-                    {
-                        struct #assert_component where #component_ident: utoipa::Component;
+                quote_spanned! { component_name_path.span() => {
+                        struct #assert_component where #component_name_path: utoipa::Component;
 
-                        <#component_ident as utoipa::Component>::component()
+                        <#component_name_path as utoipa::Component>::component()
                     }
                 }
             } else {

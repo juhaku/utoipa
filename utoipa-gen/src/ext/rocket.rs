@@ -11,70 +11,75 @@ use syn::{
 
 use crate::{
     component_type::ComponentType,
-    ext::{ArgValue, ArgumentIn, ArgumentValue, ResolvedArg},
+    ext::{fn_arg, ArgValue, ArgumentIn, MacroArg, ValueArgument},
     path::PathOperation,
 };
 
 use super::{
-    Argument, ArgumentResolver, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedOperation, ResolvedPath,
+    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver,
+    ResolvedOperation,
 };
 
 impl ArgumentResolver for PathOperations {
-    fn resolve_path_arguments(
+    fn resolve_arguments(
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
-        resolved_args: Option<Vec<ResolvedArg>>,
-    ) -> Option<Vec<Argument<'_>>> {
+        resolved_args: Option<Vec<MacroArg>>,
+    ) -> (
+        Option<Vec<super::ValueArgument<'_>>>,
+        Option<Vec<super::IntoParamsType<'_>>>,
+    ) {
         const ANONYMOUS_ARG: &str = "<_>";
 
-        resolved_args.map(|args| {
-            let (anonymous_args, mut named_args): (Vec<ResolvedArg>, Vec<ResolvedArg>) =
+        let value_arguments = resolved_args.map(|args| {
+            let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
                 args.into_iter().partition(|arg| {
-                    matches!(arg, ResolvedArg::Path(path) if path.original_name == ANONYMOUS_ARG)
-                        || matches!(arg, ResolvedArg::Query(query) if query.original_name == ANONYMOUS_ARG)
+                    matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
+                        || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
                 });
 
-            named_args.sort_unstable_by(ResolvedArg::by_name);
+            named_args.sort_unstable_by(MacroArg::by_name);
 
             Self::get_fn_args(fn_args)
                 .zip(named_args)
                 .map(|(arg, named_arg)| {
                     let (name, argument_in) = match named_arg {
-                        ResolvedArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        ResolvedArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
                     };
 
-                    Argument::Value(ArgumentValue {
+                    ValueArgument {
                         name: Some(Cow::Owned(name)),
                         argument_in,
-                        ident: Some(arg.ty),
+                        type_path: Some(arg.ty),
                         is_array: arg.is_array,
                         is_option: arg.is_option,
-                    })
+                    }
                 })
                 .chain(anonymous_args.into_iter().map(|anonymous_arg| {
                     let (name, argument_in) = match anonymous_arg {
-                        ResolvedArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        ResolvedArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
                     };
 
-                    Argument::Value(ArgumentValue {
+                    ValueArgument {
                         name: Some(Cow::Owned(name)),
                         argument_in,
-                        ident: None,
+                        type_path: None,
                         is_array: false,
                         is_option: false,
-                    })
+                    }
                 }))
                 .collect()
-        })
+        });
+
+        (value_arguments, None)
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Arg<'a> {
     name: &'a Ident,
-    ty: &'a Ident,
+    ty: Cow<'a, TypePath>,
     is_array: bool,
     is_option: bool,
 }
@@ -115,28 +120,34 @@ impl PathOperations {
         ordered_args.into_iter()
     }
 
-    fn get_type_ident(ty: &Type) -> (&Ident, bool, bool) {
+    fn get_type_ident<'t>(ty: &'t Type) -> (Cow<'t, TypePath>, bool, bool) {
         match ty {
             Type::Path(path) => {
-                let segment = &path.path.segments.first().unwrap();
+                let first_segment: syn::PathSegment = path.path.segments.first().unwrap().clone();
+                let mut path: Cow<'t, TypePath> = Cow::Borrowed(path);
 
-                if segment.arguments.is_empty() {
-                    (&segment.ident, false, false)
+                if first_segment.arguments.is_empty() {
+                    return (path, false, false);
                 } else {
-                    let is_array = segment.ident == "Vec";
-                    let is_option = segment.ident == "Option";
+                    let is_array = first_segment.ident == "Vec";
+                    let is_option = first_segment.ident == "Option";
 
-                    match segment.arguments {
+                    match first_segment.arguments {
                         syn::PathArguments::AngleBracketed(ref angle_bracketed) => {
                             match angle_bracketed.args.first() {
                                 Some(syn::GenericArgument::Type(arg)) => {
                                     let child_type = Self::get_type_ident(arg);
 
-                                    (
-                                        child_type.0,
-                                        is_array || child_type.1,
-                                        is_option || child_type.2,
-                                    )
+                                    let is_array = is_array || child_type.1;
+                                    let is_option = is_option || child_type.2;
+
+                                    // Discard the current segment if we are one of the special
+                                    // types recognised as array or option
+                                    if is_array || is_option {
+                                        path = Cow::Owned(child_type.0.into_owned());
+                                    }
+
+                                    (path, is_array, is_option)
                                 }
                                 _ => abort_call_site!(
                                     "unexpected generic type, expected GenericArgument::Type"
@@ -170,7 +181,7 @@ impl PathOperations {
                 let path = Self::get_type_path(pat_type.ty.as_ref());
                 let segment = &path.path.segments.first().unwrap();
 
-                let mut is_supported = ComponentType(&segment.ident).is_primitive();
+                let mut is_supported = ComponentType(path).is_primitive();
 
                 if !is_supported {
                     is_supported = matches!(&*segment.ident.to_string(), "Vec" | "Option")
@@ -257,7 +268,7 @@ fn is_valid_route_type(ident: Option<&Ident>) -> bool {
 }
 
 impl PathResolver for PathOperations {
-    fn resolve_path(path: &Option<String>) -> Option<ResolvedPath> {
+    fn resolve_path(path: &Option<String>) -> Option<MacroPath> {
         path.as_ref().map(|whole_path| {
             lazy_static! {
                 static ref RE: Regex = Regex::new(r"<[a-zA-Z0-9_][^<>]*>").unwrap();
@@ -268,11 +279,11 @@ impl PathResolver for PathOperations {
                 .or(Some((&*whole_path, "")))
                 .map(|(path, query)| {
                     let mut names =
-                        Vec::<ResolvedArg>::with_capacity(RE.find_iter(whole_path).count());
+                        Vec::<MacroArg>::with_capacity(RE.find_iter(whole_path).count());
                     let mut underscore_count = 0;
 
                     let mut format_arg =
-                        |captures: &Captures, resolved_arg_op: fn(ArgValue) -> ResolvedArg| {
+                        |captures: &Captures, resolved_arg_op: fn(ArgValue) -> MacroArg| {
                             let mut capture = &captures[0];
                             let original_name = String::from(capture);
 
@@ -299,16 +310,16 @@ impl PathResolver for PathOperations {
                         };
 
                     let path = RE.replace_all(path, |captures: &Captures| {
-                        format_arg(captures, ResolvedArg::Path)
+                        format_arg(captures, MacroArg::Path)
                     });
 
                     if !query.is_empty() {
                         RE.replace_all(query, |captures: &Captures| {
-                            format_arg(captures, ResolvedArg::Query)
+                            format_arg(captures, MacroArg::Query)
                         });
                     }
 
-                    ResolvedPath {
+                    MacroPath {
                         args: names,
                         path: path.to_string(),
                     }

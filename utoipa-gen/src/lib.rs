@@ -21,11 +21,11 @@ use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
-    bracketed,
-    parse::{Parse, ParseBuffer, ParseStream},
+    parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
+    spanned::Spanned,
+    AngleBracketedGenericArguments, DeriveInput, ExprPath, GenericArgument, ItemFn, Lit, LitStr,
+    PathArguments, PathSegment, Token, TypePath,
 };
 
 mod component_type;
@@ -38,7 +38,11 @@ mod security_requirement;
 
 use crate::path::{Path, PathAttr};
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
 use ext::ArgumentResolver;
 
 #[proc_macro_error]
@@ -635,6 +639,41 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ///
+///
+/// # axum_extras suppport for axum
+///
+/// **axum_extras** feature enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
+/// _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+/// ```rust
+/// # use serde::Deserialize;
+/// # use utoipa::IntoParams;
+/// # use axum::{extract::Query, Json};
+/// #[derive(Deserialize, IntoParams)]
+/// struct TodoSearchQuery {
+///     /// Search by value. Search is incase sensitive.
+///     value: String,
+///     /// Search by `done` status.
+///     done: bool,
+/// }
+///
+/// /// Search Todos by query params.
+/// #[utoipa::path(
+///     get,
+///     path = "/todo/search",
+///     params(
+///         TodoSearchQuery
+///     ),
+///     responses(
+///         (status = 200, description = "List matching todos by query", body = [String])
+///     )
+/// )]
+/// async fn search_todos(
+///     query: Query<TodoSearchQuery>,
+/// ) -> Json<Vec<String>> {
+///     Json(vec![])
+/// }
+/// ```
+///
 /// # Examples
 ///
 /// Example with all possible arguments.
@@ -750,6 +789,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html
 /// [into_responses_trait]: trait.IntoResponses.html
+/// [into_params_derive]: derive.IntoParams.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
@@ -757,7 +797,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
@@ -772,15 +816,25 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     let mut resolved_path = resolved_path;
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     {
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
-        let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, args);
+        let (arguments, into_params_types) =
+            PathOperations::resolve_arguments(&ast_fn.sig.inputs, args);
 
-        path_attribute.update_parameters(arguments)
+        path_attribute.update_parameters(arguments);
+        path_attribute.update_parameters_parameter_in(into_params_types);
     }
 
     let path = Path::new(path_attribute, fn_name)
@@ -1001,6 +1055,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(
+///     params(PetPathArgs, Filter),
 ///     responses(
 ///         (status = 200, description = "success response")
 ///     )
@@ -1260,17 +1315,21 @@ impl ToTokens for Required {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 struct Type<'a> {
-    ty: Cow<'a, Ident>,
+    ty: Cow<'a, TypePath>,
     is_array: bool,
     is_option: bool,
     is_inline: bool,
 }
 
 impl<'a> Type<'a> {
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn new(ident: Cow<'a, Ident>, is_array: bool, is_option: bool) -> Self {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn new(type_path: Cow<'a, TypePath>, is_array: bool, is_option: bool) -> Self {
         Self {
-            ty: ident,
+            ty: type_path,
             is_array,
             is_option,
             is_inline: false,
@@ -1316,50 +1375,120 @@ impl Parse for InlineType<'_> {
     }
 }
 
-/// A parser for [`Type`] to parse as as `Type`, `[Type]` or `Option<Type>`)
+/// A parser for [`Type`] to parse as
+///  * `Type`
+///  * `[Type]`
+///  * `Option<Type>`
+///  * `Option<[Type]>`
 struct ArrayOrOptionType<'a>(Type<'a>);
 
 impl Parse for ArrayOrOptionType<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut is_array = false;
-        let mut is_option = false;
+        const EXPECTED_TYPE_MESSAGE: &str =
+            "Expected a type/path such as path::to::Foo, or Foo. May also be Option<Foo> or [Foo].";
 
-        let mut parse_array = |input: &ParseBuffer| {
-            is_array = true;
-            let group;
-            bracketed!(group in input);
-            group.parse::<Ident>()
-        };
+        fn parse_type<'a>(t: syn::Type) -> syn::Result<Type<'a>> {
+            let mut is_option: bool = false;
+            let mut is_array: bool = false;
+            let path: TypePath = match t {
+                syn::Type::Path(mut path) => {
+                    let type_segment: &PathSegment =
+                        path.path.segments.last().ok_or_else(|| {
+                            syn::Error::new(path.path.span(), "No last path segment")
+                        })?;
+                    let ident = &type_segment.ident;
 
-        let ty = if input.peek(syn::Ident) {
-            let mut ident: Ident = input.parse()?;
+                    // is option of type or [type]
+                    if ident == "Option" {
+                        is_option = true;
 
-            // is option of type or [type]
-            if (ident == "Option" && input.peek(Token![<]))
-                && (input.peek2(syn::Ident) || input.peek2(Bracket))
-            {
-                is_option = true;
+                        let angle_bracketed: &AngleBracketedGenericArguments = match &type_segment
+                            .arguments
+                        {
+                            PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed,
+                            _ => {
+                                return Err(syn::Error::new(type_segment.span(), "Option must have its generic type parameter specified. e.g. Option<String>"));
+                            }
+                        };
 
-                input.parse::<Token![<]>()?;
+                        if angle_bracketed.args.len() != 1 {
+                            return Err(syn::Error::new(type_segment.span(), "Option must have only a single generic parameter specified. e.g. Option<String>"));
+                        }
 
-                if input.peek(syn::Ident) {
-                    ident = input.parse::<Ident>()?;
-                } else {
-                    ident = parse_array(input)?;
+                        let argument: &GenericArgument = angle_bracketed.args.first().expect(
+                            "Expected there to be 1 angle bracketed argument for Option<...>",
+                        );
+
+                        let argument_path: &TypePath = match argument {
+                            GenericArgument::Type(syn::Type::Path(path)) => path,
+                            GenericArgument::Type(syn::Type::Slice(slice)) => {
+                                is_array = true;
+                                match &*slice.elem {
+                                    syn::Type::Path(path) => path,
+                                    unsupported_type => {
+                                        return Err(syn::Error::new(
+                                            unsupported_type.span(),
+                                            format!(
+                                                "Unsupported slice type. {}",
+                                                EXPECTED_TYPE_MESSAGE
+                                            ),
+                                        ))
+                                    }
+                                }
+                            }
+                            unsupported_type => {
+                                return Err(syn::Error::new(
+                                    unsupported_type.span(),
+                                    format!("Unsupported argument type. {}", EXPECTED_TYPE_MESSAGE),
+                                ))
+                            }
+                        };
+
+                        path = argument_path.clone();
+                    }
+
+                    path
                 }
-                input.parse::<Token![>]>()?;
-            }
-            Ok(ident)
-        } else {
-            parse_array(input)
-        }?;
+                syn::Type::Slice(type_slice) => {
+                    is_array = true;
+                    match &*type_slice.elem {
+                        syn::Type::Path(path) => path.clone(),
+                        unsupported_type => {
+                            return Err(syn::Error::new(
+                                unsupported_type.span(),
+                                format!("Unsupported slice type. {}", EXPECTED_TYPE_MESSAGE),
+                            ))
+                        }
+                    }
+                }
+                syn::Type::Group(group) => {
+                    return parse_type(*group.elem);
+                }
+                unsupported_type => {
+                    return Err(syn::Error::new(
+                        unsupported_type.span(),
+                        format!(
+                            "Unsupported type {}. {}",
+                            unsupported_type.to_token_stream(),
+                            EXPECTED_TYPE_MESSAGE
+                        ),
+                    ))
+                }
+            };
 
-        Ok(Self(Type {
-            ty: Cow::Owned(ty),
-            is_array,
-            is_option,
-            is_inline: false,
-        }))
+            Ok(Type {
+                ty: Cow::Owned(path),
+                is_array,
+                is_option,
+                is_inline: false,
+            })
+        }
+
+        let t: syn::Type = input
+            .parse::<syn::Type>()
+            .map_err(|error| syn::Error::new(error.span(), EXPECTED_TYPE_MESSAGE))?;
+
+        parse_type(t).map(ArrayOrOptionType)
     }
 }
 

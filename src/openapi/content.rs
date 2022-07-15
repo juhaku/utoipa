@@ -1,5 +1,5 @@
 //! Implements content object for request body and response.
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -34,8 +34,8 @@ pub struct Content {
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
     /// multipart or `application/x-www-form-urlencoded`.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub encoding: HashMap<String, Encoding>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub encoding: BTreeMap<String, Encoding>,
 }
 
 impl Content {
@@ -58,7 +58,7 @@ pub struct ContentBuilder {
     #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
 
-    encoding: HashMap<String, Encoding>,
+    encoding: BTreeMap<String, Encoding>,
 }
 
 from!(Content ContentBuilder schema, example, encoding);

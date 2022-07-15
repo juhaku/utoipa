@@ -19,6 +19,7 @@ async fn main() -> Result<(), Error> {
     #[openapi(
         handlers(
             todo::list_todos,
+            todo::search_todos,
             todo::create_todo,
             todo::mark_done,
             todo::delete_todo,
@@ -51,6 +52,7 @@ async fn main() -> Result<(), Error> {
             "/todo",
             routing::get(todo::list_todos).post(todo::create_todo),
         )
+        .route("/todo/search", routing::get(todo::search_todos))
         .route(
             "/todo/:id",
             routing::put(todo::mark_done).delete(todo::delete_todo),
@@ -64,11 +66,15 @@ async fn main() -> Result<(), Error> {
 mod todo {
     use std::sync::Arc;
 
-    use axum::{extract::Path, response::IntoResponse, Extension, Json};
+    use axum::{
+        extract::{Path, Query},
+        response::IntoResponse,
+        Extension, Json,
+    };
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::Component;
+    use utoipa::{Component, IntoParams};
 
     /// In-memonry todo store
     pub(super) type Store = Mutex<Vec<Todo>>;
@@ -110,6 +116,46 @@ mod todo {
         let todos = store.lock().await.clone();
 
         Json(todos)
+    }
+
+    /// Todo search query
+    #[derive(Deserialize, IntoParams)]
+    pub(super) struct TodoSearchQuery {
+        /// Search by value. Search is incase sensitive.
+        value: String,
+        /// Search by `done` status.
+        done: bool,
+    }
+
+    /// Search Todos by query params.
+    ///
+    /// Search `Todo`s by query parmas and return matching `Todo`s.
+    #[utoipa::path(
+        get,
+        path = "/todo/search",
+        params(
+            TodoSearchQuery
+        ),
+        responses(
+            (status = 200, description = "List matching todos by query", body = [Todo])
+        )
+    )]
+    pub(super) async fn search_todos(
+        Extension(store): Extension<Arc<Store>>,
+        query: Query<TodoSearchQuery>,
+    ) -> Json<Vec<Todo>> {
+        Json(
+            store
+                .lock()
+                .await
+                .iter()
+                .filter(|todo| {
+                    todo.value.to_lowercase() == query.value.to_lowercase()
+                        && todo.done == query.done
+                })
+                .cloned()
+                .collect(),
+        )
     }
 
     /// Create new Todo

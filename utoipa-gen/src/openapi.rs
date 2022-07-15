@@ -13,8 +13,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementAttr, Array,
-    ExternalDocs,
+    parse_utils, path::PATH_STRUCT_PREFIX, schema::component,
+    security_requirement::SecurityRequirementAttr, Array, ExternalDocs,
 };
 
 mod info;
@@ -96,6 +96,7 @@ impl Parse for OpenApiAttr {
 struct Component {
     path: ExprPath,
     generics: Generics,
+    alias: Option<syn::TypePath>,
 }
 
 impl Component {
@@ -113,9 +114,20 @@ impl Component {
 
 impl Parse for Component {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let path: ExprPath = input.parse()?;
+        let generics: Generics = input.parse()?;
+
+        let alias: Option<syn::TypePath> = if input.peek(Token![as]) {
+            input.parse::<Token![as]>()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
+
         Ok(Component {
-            path: input.parse()?,
-            generics: input.parse()?,
+            path,
+            generics,
+            alias,
         })
     }
 }
@@ -298,7 +310,12 @@ fn impl_components(
                 let path = &component.path;
                 let ident = component.get_ident().unwrap();
                 let span = ident.span();
-                let component_name = &*ident.to_string();
+                // let component_name: String = ident.to_string();
+                let component_name: String = component
+                    .alias
+                    .as_ref()
+                    .map(component::format_path_ref)
+                    .unwrap_or_else(|| ident.to_token_stream().to_string());
 
                 let (_, ty_generics, _) = component.generics.split_for_impl();
 

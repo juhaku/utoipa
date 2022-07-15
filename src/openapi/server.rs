@@ -41,7 +41,7 @@
 //! [server]: https://spec.openapis.org/oas/latest.html#server-object
 //! [openapi]: ../struct.OpenApi.html
 //! [modify]: ../../trait.Modify.html
-use std::{collections::HashMap, iter};
+use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
@@ -74,7 +74,7 @@ builder! {
 
         /// Optional map of variable name and its substitution value used in [`Server::url`].
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub variables: Option<HashMap<String, ServerVariable>>,
+        pub variables: Option<BTreeMap<String, ServerVariable>>,
     }
 }
 
@@ -135,7 +135,7 @@ impl ServerBuilder {
                 variables.insert(name.into(), variable.into());
             }
             None => {
-                self.variables = Some(HashMap::from_iter(iter::once((
+                self.variables = Some(BTreeMap::from_iter(iter::once((
                     name.into(),
                     variable.into(),
                 ))))

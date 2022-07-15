@@ -12,6 +12,7 @@ if [[ "$crate" == "utoipa" ]]; then
   cargo test --test component_derive_test --features chrono,decimal,uuid
   cargo test --test component_derive_test --features chrono_with_format
   cargo test --test path_derive_rocket --features rocket_extras,json
+  cargo test --test path_derive_axum_test --features axum_extras,json
   elif [[ "$crate" == "utoipa-gen" ]]; then
   cargo test -p utoipa-gen --features utoipa/actix_extras
   elif [[ "$crate" == "utoipa-swagger-ui" ]]; then

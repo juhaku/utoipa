@@ -1,15 +1,19 @@
 use std::{borrow::Cow, fmt::Display};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
     Error, ExprPath, LitStr, Token,
 };
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-use crate::ext::{Argument, ArgumentIn};
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
+use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{
     parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue, Deprecated,
     Required, Type,
@@ -30,17 +34,18 @@ use super::property::Property;
 /// The `= String` type statement is optional if automatic resolvation is supported.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Parameter<'a> {
-    Value(ParameterValue<'a>),
-    /// Identifier for a type that implements `IntoParams` trait.
-    IntoParams(ExprPath),
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    TokenStream(TokenStream),
+    Value(ValueParameter<'a>),
+    /// Identifier for a struct that implements `IntoParams` trait.
+    Struct(StructParameter),
 }
 
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::IntoParams(input.parse()?))
+            Ok(Self::Struct(StructParameter {
+                path: input.parse()?,
+                parameter_in_fn: None,
+            }))
         } else {
             Ok(Self::Value(input.parse()?))
         }
@@ -51,18 +56,51 @@ impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Parameter::Value(parameter) => tokens.extend(quote! { .parameter(#parameter) }),
-            Parameter::IntoParams(struct_ident) => tokens.extend(quote! {
-                .parameters(Some(<#struct_ident as utoipa::IntoParams>::into_params(|| None)))
-            }),
-            #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-            Parameter::TokenStream(stream) => tokens.extend(quote! { .parameters(Some(#stream))}),
+            Parameter::Struct(StructParameter {
+                path,
+                parameter_in_fn,
+            }) => {
+                let last_ident = &path.path.segments.last().unwrap().ident;
+
+                let default_parameter_in_provider = &quote! { || None };
+                let parameter_in_provider = parameter_in_fn
+                    .as_ref()
+                    .unwrap_or(default_parameter_in_provider);
+                tokens.extend(quote_spanned! {last_ident.span()=>
+                    .parameters(
+                        Some(<#path as utoipa::IntoParams>::into_params(#parameter_in_provider))
+                    )
+                })
+            }
         }
+    }
+}
+
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
+impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
+    fn from(argument: ValueArgument<'a>) -> Self {
+        Self::Value(ValueParameter {
+            name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
+            parameter_in: if argument.argument_in == ArgumentIn::Path {
+                ParameterIn::Path
+            } else {
+                ParameterIn::Query
+            },
+            parameter_type: argument
+                .type_path
+                .map(|ty| Type::new(ty, argument.is_array, argument.is_option)),
+            ..Default::default()
+        })
     }
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ParameterValue<'a> {
+pub struct ValueParameter<'a> {
     pub name: Cow<'a, str>,
     parameter_in: ParameterIn,
     deprecated: bool,
@@ -71,24 +109,28 @@ pub struct ParameterValue<'a> {
     parameter_ext: Option<ParameterExt>,
 }
 
-impl<'p> ParameterValue<'p> {
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+impl<'p> ValueParameter<'p> {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     pub fn update_parameter_type(
         &mut self,
-        ident: Option<&'p Ident>,
+        type_path: Option<Cow<'p, syn::TypePath>>,
         is_array: bool,
         is_option: bool,
     ) {
-        self.parameter_type = ident.map(|ty| Type::new(Cow::Borrowed(ty), is_array, is_option));
+        self.parameter_type = type_path.map(|ty| Type::new(ty, is_array, is_option));
     }
 }
 
-impl Parse for ParameterValue<'_> {
+impl Parse for ValueParameter<'_> {
     fn parse(input_with_parens: ParseStream) -> syn::Result<Self> {
         let input: ParseBuffer;
         parenthesized!(input in input_with_parens);
 
-        let mut parameter = ParameterValue::default();
+        let mut parameter = ValueParameter::default();
 
         if input.peek(LitStr) {
             // parse name
@@ -168,7 +210,7 @@ impl Parse for ParameterValue<'_> {
     }
 }
 
-impl ToTokens for ParameterValue<'_> {
+impl ToTokens for ValueParameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &*self.name;
         tokens.extend(quote! {
@@ -210,24 +252,22 @@ impl ToTokens for ParameterValue<'_> {
     }
 }
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-impl<'a> From<Argument<'a>> for Parameter<'a> {
-    fn from(argument: Argument<'a>) -> Self {
-        match argument {
-            Argument::Value(value) => Self::Value(ParameterValue {
-                name: value.name.unwrap_or_else(|| Cow::Owned(String::new())),
-                parameter_in: if value.argument_in == ArgumentIn::Path {
-                    ParameterIn::Path
-                } else {
-                    ParameterIn::Query
-                },
-                parameter_type: value
-                    .ident
-                    .map(|ty| Type::new(Cow::Borrowed(ty), value.is_array, value.is_option)),
-                ..Default::default()
-            }),
-            Argument::TokenStream(stream) => Self::TokenStream(stream),
-        }
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct StructParameter {
+    pub path: ExprPath,
+    /// quote!{ ... } of function which should implement `parameter_in_provider` for [`utoipa::IntoParams::into_param`]
+    parameter_in_fn: Option<TokenStream>,
+}
+
+impl StructParameter {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn update_parameter_in(&mut self, parameter_in_provider: &mut TokenStream) {
+        use std::mem;
+        self.parameter_in_fn = Some(mem::take(parameter_in_provider));
     }
 }
 

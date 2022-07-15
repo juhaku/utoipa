@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
@@ -13,8 +12,19 @@ use crate::{parse_utils, Deprecated};
 use self::response::Response;
 use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-use crate::ext::Argument;
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
+use self::parameter::ValueParameter;
+
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
+use crate::ext::{IntoParamsType, ValueArgument};
 
 pub mod parameter;
 mod property;
@@ -68,17 +78,37 @@ pub struct PathAttr<'p> {
 }
 
 impl<'p> PathAttr<'p> {
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn update_parameters(&mut self, arguments: Option<Vec<Argument<'p>>>) {
-        if let Some(arguments) = arguments {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn update_parameters<'a>(&mut self, arguments: Option<Vec<ValueArgument<'a>>>)
+    where
+        'a: 'p,
+    {
+        if let Some(mut arguments) = arguments {
             if !self.params.is_empty() {
-                PathAttr::update_existing_parameters_parameter_types(&mut self.params, &arguments);
+                let mut value_parameters: Vec<&mut ValueParameter> = self
+                    .params
+                    .iter_mut()
+                    .filter_map(|parameter| match parameter {
+                        Parameter::Value(value) => Some(value),
+                        Parameter::Struct(_) => None,
+                    })
+                    .collect::<Vec<_>>();
+                PathAttr::update_existing_value_parameters_types(
+                    &mut value_parameters,
+                    &mut arguments,
+                );
 
-                let new_params = &mut PathAttr::get_new_parameters(&self.params, arguments);
+                let new_params =
+                    &mut PathAttr::get_new_value_parameters(&value_parameters, arguments);
                 self.params.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
                 let mut parameters = Vec::with_capacity(arguments.len());
+
                 arguments
                     .into_iter()
                     .map(Parameter::from)
@@ -88,60 +118,89 @@ impl<'p> PathAttr<'p> {
         }
     }
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    fn update_existing_parameters_parameter_types<'a>(
-        parameters: &mut [Parameter<'a>],
-        arguments: &[Argument<'a>],
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    fn update_existing_value_parameters_types<'a>(
+        parameters: &mut [&mut ValueParameter<'a>],
+        arguments: &'_ mut [ValueArgument<'a>],
     ) {
         use std::borrow::Cow;
-        parameters
-            .iter_mut()
-            .for_each(|parameter: &mut Parameter<'a>| match parameter {
-                Parameter::Value(parameter) => {
-                    if let Some(argument) = arguments.iter().find_map(|argument| match argument {
-                        Argument::Value(value)
-                            if value.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)) =>
-                        {
-                            Some(value)
-                        }
-                        _ => None,
-                    }) {
-                        parameter.update_parameter_type(
-                            argument.ident,
-                            argument.is_array,
-                            argument.is_option,
-                        )
-                    }
-                }
-                Parameter::IntoParams(_) | Parameter::TokenStream(_) => {}
-            });
+
+        for parameter in parameters {
+            if let Some(argument) = arguments
+                .iter()
+                .find(|argument| argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)))
+            {
+                parameter.update_parameter_type(
+                    argument.type_path.clone(),
+                    argument.is_array,
+                    argument.is_option,
+                )
+            }
+        }
     }
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    fn get_new_parameters<'a>(
-        parameters: &[Parameter<'a>],
-        arguments: Vec<Argument<'a>>,
-    ) -> Vec<Parameter<'a>> {
-        use std::borrow::Cow;
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn update_parameters_parameter_in(
+        &mut self,
+        into_params_types: Option<Vec<IntoParamsType>>,
+    ) {
+        if !self.params.is_empty() {
+            if let Some(mut into_params_types) = into_params_types {
+                self.params
+                    .iter_mut()
+                    .filter_map(|parameter| match parameter {
+                        Parameter::Value(_) => None,
+                        Parameter::Struct(parameter) => Some(parameter),
+                    })
+                    .for_each(|parameter| {
+                        let parameter_path = &parameter.path.path;
+                        if let Some(into_params_argument) =
+                            into_params_types
+                                .iter_mut()
+                                .find(|argument: &&mut IntoParamsType| {
+                                    <syn::Path as PartialEq>::eq(
+                                        &argument.type_path.path,
+                                        parameter_path,
+                                    )
+                                })
+                        {
+                            parameter.update_parameter_in(
+                                &mut into_params_argument.parameter_in_provider,
+                            );
+                        }
+                    })
+            }
+        }
+    }
 
-        let exists_in_parameters = |argument: &Argument, parameters: &[Parameter]| -> bool {
-            parameters.iter().any(|parameter| match parameter {
-                Parameter::Value(parameter_value)
-                    if match argument {
-                        Argument::Value(value) => value.name.as_ref(),
-                        _ => None,
-                    } == Some(&*Cow::Borrowed(&parameter_value.name)) =>
-                {
-                    true
-                }
-                _ => false,
-            })
-        };
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    fn get_new_value_parameters<'a>(
+        parameters: &[&mut ValueParameter<'p>],
+        arguments: Vec<ValueArgument<'a>>,
+    ) -> Vec<Parameter<'p>>
+    where
+        'a: 'p,
+    {
+        use std::borrow::Cow;
 
         arguments
             .into_iter()
             .filter_map(|argument| {
-                if !exists_in_parameters(&argument, parameters) {
+                if !parameters.iter().any(|parameter| {
+                    argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name))
+                }) {
                     Some(Parameter::from(argument))
                 } else {
                     None
@@ -520,10 +579,10 @@ impl ToTokens for Operation<'_> {
 }
 
 trait ContentTypeResolver {
-    fn resolve_content_type<'a, T: Display>(
+    fn resolve_content_type<'a>(
         &self,
         content_type: Option<&'a String>,
-        component_type: &ComponentType<'a, T>,
+        component_type: &ComponentType<'a>,
     ) -> &'a str {
         if let Some(content_type) = content_type {
             content_type

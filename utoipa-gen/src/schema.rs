@@ -1,8 +1,10 @@
+use std::borrow::Cow;
+
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
+use quote::ToTokens;
 use syn::{
     parse::{Parse, ParseStream},
-    punctuated::Pair,
     AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments, PathSegment, Type,
     TypePath,
 };
@@ -29,7 +31,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
 pub(self) struct ComponentPart<'a> {
-    pub ident: &'a Ident,
+    pub path: Cow<'a, TypePath>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
     pub child: Option<Box<ComponentPart<'a>>>,
@@ -54,21 +56,13 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn from_type_path(type_path: &'a TypePath) -> ComponentPart<'a> {
-        let segment = type_path
-            .path
-            .segments
-            .pairs()
-            .find_map(|pair| match pair {
-                Pair::Punctuated(_, _) => None,
-                Pair::End(segment) => Some(segment),
-            })
-            .unwrap();
-
-        if segment.arguments.is_empty() {
-            Self::convert(&segment.ident, segment)
+    /// Creates a [`ComponentPath`] from a [`TypePath`].
+    fn from_type_path(path: &'a TypePath) -> ComponentPart<'a> {
+        let last_segment = path.path.segments.last().unwrap(); // there will always be one segment at least
+        if last_segment.arguments.is_empty() {
+            Self::convert(Cow::Borrowed(path))
         } else {
-            Self::resolve_component_type(segment)
+            Self::resolve_component_type(last_segment)
         }
     }
 
@@ -81,7 +75,13 @@ impl<'a> ComponentPart<'a> {
             );
         };
 
-        let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
+        // TODO avoid clone
+        let path = TypePath {
+            qself: None,
+            path: syn::Path::from(segment.clone()),
+        };
+
+        let mut generic_component_type = ComponentPart::convert(Cow::Owned(path));
 
         let generic_type = match &segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed_args) => {
@@ -122,12 +122,15 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentPart<'a> {
-        let generic_type = ComponentPart::get_generic(segment);
+    fn convert(path: Cow<'a, TypePath>) -> ComponentPart<'a> {
+        // TODO: handle unwrap
+        let last_segment = path.path.segments.last().unwrap();
+        let generic_type = ComponentPart::get_generic(last_segment);
+        let is_primitive = ComponentType(&*path).is_primitive();
 
         Self {
-            ident,
-            value_type: if ComponentType(ident).is_primitive() {
+            path,
+            value_type: if is_primitive {
                 ValueType::Primitive
             } else {
                 ValueType::Object
@@ -160,7 +163,7 @@ impl<'a> ComponentPart<'a> {
                 Self::find_mut_by_ident(self.child.as_mut().unwrap().as_mut(), ident)
             }
             None => {
-                if ident == self.ident {
+                if ident.to_token_stream().to_string() == self.path.to_token_stream().to_string() {
                     Some(self)
                 } else {
                     None
@@ -169,14 +172,17 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn update_ident(&mut self, ident: &'a Ident) {
-        self.ident = ident
+    fn update_path(&mut self, ident: &'a Ident) {
+        self.path = Cow::Owned(TypePath {
+            qself: None,
+            path: syn::Path::from(ident.clone()),
+        })
     }
 
     /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
     fn is_any(&self) -> bool {
-        &*self.ident == "Any"
+        &*self.path.to_token_stream().to_string() == "Any"
     }
 }
 
