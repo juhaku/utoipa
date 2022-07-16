@@ -2,7 +2,8 @@ use std::{borrow::Cow, cmp::Ordering, str::FromStr};
 
 use lazy_static::lazy_static;
 use proc_macro2::Ident;
-use proc_macro_error::{abort, abort_call_site};
+use proc_macro_error::{abort, abort_call_site, OptionExt};
+use quote::quote;
 use regex::{Captures, Regex};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, FnArg, LitStr, PatIdent, Token, Type,
@@ -11,7 +12,10 @@ use syn::{
 
 use crate::{
     component_type::ComponentType,
-    ext::{fn_arg, ArgValue, ArgumentIn, MacroArg, ValueArgument},
+    ext::{
+        fn_arg::{self, FnArg2},
+        ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument,
+    },
     path::PathOperation,
 };
 
@@ -32,56 +36,141 @@ impl ArgumentResolver for PathOperations {
 
         dbg!(&macro_args);
 
-        struct RocketSegmentFinder<'r>(&'r Option<Vec<MacroArg>>);
+        let args = fn_arg::get_fn_args(fn_args);
+        let mut a = args.collect::<Vec<_>>();
 
-        impl SegmentFinder for RocketSegmentFinder<'_> {
-            /// Any path segment is supported in rocket framework.
-            fn matches(&self, path_segment: &syn::PathSegment) -> bool {
-                let name = &*path_segment.ident.to_string();
+        a.sort_unstable();
 
-                // self.0.map(|args| {
-                //     args.iter().any(|arg| match arg {
-                //         MacroArg::Path(path) => path.name == name,
-                //         MacroArg::Query(query) => query.name == name,
-                //     })
-                // }).unwrap_or(false)
-                // true
+        dbg!(&a);
 
-                false
-            }
+        let (non_primitive_args, primitive_args): (Vec<fn_arg::FnArg2>, Vec<fn_arg::FnArg2>) =
+            a.into_iter().partition(fn_arg::non_primitive_arg2);
 
-            /// we blindly make all path segments to Query params even if there might be
-            /// other type of params too
-            fn to_fn_arg<'a>(&self, type_path: &'a TypePath) -> fn_arg::FnArg<'a> {
-                let last_segment_name = type_path
-                    .path
-                    .segments
-                    .last()
-                    .map(|segment| &segment.ident)
-                    .unwrap()
-                    .to_string();
+        macro_args
+            .map(|args| {
+                // TODO
+                // find macro arg by name and map it to value argument
+                //
+                // find macro arg by nam an map it to into params type
 
-                self.0
-                    .as_ref()
-                    .and_then(|args| {
-                        args.iter().find_map(|arg| match arg {
-                            MacroArg::Path(path) if path.name == last_segment_name => {
-                                Some(fn_arg::FnArg::Path(type_path))
-                            }
-                            MacroArg::Query(query) if query.name == last_segment_name => {
-                                Some(fn_arg::FnArg::Query(type_path))
-                            }
-                            _ => Some(fn_arg::FnArg::Unknown(type_path)),
-                        })
+                let aa = non_primitive_args
+                    .into_iter()
+                    .flat_map(|arg| {
+                        let parameter_in_provider =
+                            args.iter().find_map(|macro_arg| match macro_arg {
+                                MacroArg::Path(path) => {
+                                    if arg.name == &*path.name {
+                                        Some(quote! { utoipa::openapi::path::ParameterIn::Path })
+                                    } else {
+                                        None
+                                    }
+                                }
+                                MacroArg::Query(query) => {
+                                    if arg.name == &*query.name {
+                                        Some(quote! { utoipa::openapi::path::ParameterIn::Query })
+                                    } else {
+                                        None
+                                    }
+                                }
+                            });
+
+                        Some(arg).zip(parameter_in_provider)
                     })
-                    .unwrap()
-            }
-        }
+                    .map(|(path_arg, parameter_in)| IntoParamsType {
+                        parameter_in_provider: quote! {
+                            || Some(#parameter_in)
+                        },
+                        type_path: path_arg.ty.path,
+                    });
 
-        let finder = &RocketSegmentFinder(&macro_args);
-        let args = fn_arg::get_fn_args(fn_args, finder);
+                // fn_arg::to_into_params_types(non_primitive_args.into_iter(), |arg| {
+                //     // tODO
+                //     arg.ty.path
+                // });
 
-        dbg!(&args.collect::<Vec<_>>());
+                (None, None)
+            })
+            .unwrap_or_else(|| (None, None))
+
+        // if let Some(ref macro_args) = macro_args {
+        //     non_primitive_args.iter().map(|arg| {
+        //         // TODO
+        //         let arg = macro_args
+        //             .iter()
+        //             .find(|macro_arg| match macro_arg {
+        //                 MacroArg::Path(path) => arg.name == &*path.name,
+        //                 MacroArg::Query(query) => arg.name == &*query.name,
+        //             })
+        //             .expect_or_abort("");
+        //     });
+        //     // a.into_iter().zip(macro_args).map(|(arg, marg)| {
+        //     //     // tODO
+
+        //     // });
+        // }
+
+        // [utoipa-gen/src/ext/rocket.rs:33] &macro_args = Some(
+        //     [
+        //         Path(
+        //             ArgValue {
+        //                 name: "id",
+        //                 original_name: "<id>",
+        //             },
+        //         ),
+        //         Query(
+        //             ArgValue {
+        //                 name: "rest",
+        //                 original_name: "<rest..>",
+        //             },
+        //         ),
+        //     ],
+        // )
+        // [utoipa-gen/src/ext/rocket.rs:95] &args.collect::<Vec<_>>() = [
+        //     FnArg2(
+        //         ComponentPart {
+        //             path: TypePath {
+        //                 qself: None,
+        //                 path: Path {
+        //                     leading_colon: None,
+        //                     segments: [
+        //                         PathSegment {
+        //                             ident: Ident {
+        //                                 ident: "i32",
+        //                                 span: #0 bytes(11718..11721),
+        //                             },
+        //                             arguments: None,
+        //                         },
+        //                     ],
+        //                 },
+        //             },
+        //             value_type: Primitive,
+        //             generic_type: None,
+        //             child: None,
+        //         },
+        //     ),
+        //     FnArg2(
+        //         ComponentPart {
+        //             path: TypePath {
+        //                 qself: None,
+        //                 path: Path {
+        //                     leading_colon: None,
+        //                     segments: [
+        //                         PathSegment {
+        //                             ident: Ident {
+        //                                 ident: "QueryParams",
+        //                                 span: #0 bytes(11729..11740),
+        //                             },
+        //                             arguments: None,
+        //                         },
+        //                     ],
+        //                 },
+        //             },
+        //             value_type: Object,
+        //             generic_type: None,
+        //             child: None,
+        //         },
+        //     ),
+        // ]
 
         // let value_arguments = macro_args.map(|args| {
         //     let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
@@ -125,7 +214,7 @@ impl ArgumentResolver for PathOperations {
         //         .collect()
         // });
 
-        (None, None)
+        // (None, None)
     }
 }
 
@@ -371,6 +460,8 @@ impl PathResolver for PathOperations {
                             format_arg(captures, MacroArg::Query)
                         });
                     }
+
+                    names.sort_unstable_by(MacroArg::by_name);
 
                     MacroPath {
                         args: names,

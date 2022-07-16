@@ -30,7 +30,7 @@ pub struct ValueArgument<'a> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct IntoParamsType<'a> {
     pub parameter_in_provider: TokenStream,
-    pub type_path: &'a TypePath,
+    pub type_path: Cow<'a, TypePath>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -46,7 +46,7 @@ pub struct MacroPath {
     pub args: Vec<MacroArg>,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+// #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum MacroArg {
     Path(ArgValue),
@@ -54,6 +54,7 @@ pub enum MacroArg {
 }
 
 impl MacroArg {
+    /// Get ordering by name
     fn by_name(a: &MacroArg, b: &MacroArg) -> Ordering {
         a.get_value().name.cmp(&b.get_value().name)
     }
@@ -124,9 +125,9 @@ impl PathOperationResolver for PathOperations {}
     feature = "rocket_extras"
 ))]
 pub mod fn_arg {
-    use std::borrow::Cow;
+    use std::{borrow::Cow, cmp::Ordering};
 
-    use proc_macro2::Ident;
+    use proc_macro2::{Ident, TokenStream};
     use proc_macro_error::abort_call_site;
     use quote::quote;
     use syn::{
@@ -134,7 +135,10 @@ pub mod fn_arg {
         Type, TypePath,
     };
 
-    use crate::component_type::ComponentType;
+    use crate::{
+        component_type::ComponentType,
+        schema::{ComponentPart, GenericType, ValueType},
+    };
 
     use super::{ArgumentIn, IntoParamsType, MacroArg, ValueArgument};
 
@@ -152,9 +156,42 @@ pub mod fn_arg {
         Query(&'a TypePath),
         /// Path parameters
         Path(&'a TypePath),
-        // Any handler fn argument which is unknown by [`SegmentFinder`].
-        Unknown(&'a TypePath),
     }
+
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct FnArg2<'a> {
+        pub(super) ty: ComponentPart<'a>,
+        pub(super) name: &'a Ident,
+    }
+
+    impl<'a> From<(ComponentPart<'a>, &'a Ident)> for FnArg2<'a> {
+        fn from(tuple: (ComponentPart<'a>, &'a Ident)) -> Self {
+            Self {
+                ty: tuple.0,
+                name: tuple.1,
+            }
+        }
+    }
+
+    impl<'a> Ord for FnArg2<'a> {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.name.cmp(other.name)
+        }
+    }
+
+    impl<'a> PartialOrd for FnArg2<'a> {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            self.name.partial_cmp(other.name)
+        }
+    }
+
+    impl<'a> PartialEq for FnArg2<'a> {
+        fn eq(&self, other: &Self) -> bool {
+            self.ty == other.ty && self.name == other.name
+        }
+    }
+
+    impl<'a> Eq for FnArg2<'a> {}
 
     /// Will
     pub trait SegmentFinder {
@@ -171,6 +208,7 @@ pub mod fn_arg {
     }
 
     fn get_argument_types(path_segment: &PathSegment) -> impl Iterator<Item = &TypePath> {
+        dbg!(&path_segment);
         match &path_segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed) => {
                 angle_bracketed.args.iter().flat_map(|arg| match arg {
@@ -194,23 +232,41 @@ pub mod fn_arg {
         }
     }
 
-    pub fn get_fn_args<'a>(
-        fn_args: &'a Punctuated<syn::FnArg, Comma>,
-        finder: &'a impl SegmentFinder,
-    ) -> impl Iterator<Item = FnArg<'a>> {
-        let ff = fn_args
+    pub fn get_fn_args(
+        fn_args: &Punctuated<syn::FnArg, Comma>,
+    ) -> impl Iterator<Item = FnArg2<'_>> {
+        let tt = fn_args
             .iter()
-            .filter_map(|arg| get_fn_arg_segment(arg, finder))
-            .flat_map(|path_segment| {
-                // let op = if path_segment.ident == "Path" {
-                //     FnArg::Path
-                // } else {
-                //     FnArg::Query
-                // };
-                get_argument_types(path_segment).map(|segment| finder.to_fn_arg(segment))
-            });
+            .map(|arg| {
+                dbg!(&arg);
+                let pat_type = get_fn_arg_pat_type(arg);
 
-        ff
+                let arg_name = match pat_type.pat.as_ref() {
+                    syn::Pat::Ident(ident) => &ident.ident,
+                    _ => abort_call_site!(
+                        "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
+                    ),
+                };
+
+                (ComponentPart::from_type(pat_type.ty.as_ref()), arg_name)
+            })
+            .map(FnArg2::from);
+
+        tt
+
+        // let ff = fn_args
+        //     .iter()
+        //     .filter_map(|arg| get_fn_arg_segment(arg, finder))
+        //     .flat_map(|path_segment| {
+        //         // let op = if path_segment.ident == "Path" {
+        //         //     FnArg::Path
+        //         // } else {
+        //         //     FnArg::Query
+        //         // };
+        //         get_argument_types(path_segment).map(|segment| finder.to_fn_arg(segment))
+        //     });
+
+        // ff
     }
 
     fn get_fn_arg_segment<'a>(
@@ -236,20 +292,24 @@ pub mod fn_arg {
         }
     }
 
-    pub(super) fn to_into_params_types<'a, I: IntoIterator<Item = FnArg<'a>>>(
+    pub(super) fn to_into_params_types<'a, I: IntoIterator<Item = FnArg2<'a>>>(
         arguments: I,
+        parameter_in_provider: impl Fn(&'_ FnArg2<'a>) -> TokenStream + 'a,
     ) -> impl Iterator<Item = IntoParamsType<'a>> {
-        arguments.into_iter().map(|path_arg| {
-            let (arg, parameter_in) = match path_arg {
-                FnArg::Path(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Path }),
-                FnArg::Query(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Query }),
-            };
+        arguments.into_iter().map(move |path_arg| {
+            // let FnArg2 { ty, name } = &path_arg;
+            // let (arg, parameter_in) = match path_arg {
+            //     FnArg::Path(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Path }),
+            //     FnArg::Query(arg) => (arg, quote! { utoipa::openapi::path::ParameterIn::Query }),
+            // };
+
+            let parameter_in = parameter_in_provider(&path_arg);
 
             IntoParamsType {
                 parameter_in_provider: quote! {
                     || Some(#parameter_in)
                 },
-                type_path: arg,
+                type_path: path_arg.ty.path,
             }
         })
     }
@@ -291,6 +351,10 @@ pub mod fn_arg {
             FnArg::Path(path) => !is_primitive(path),
             FnArg::Query(query) => !is_primitive(query),
         }
+    }
+
+    pub(super) fn non_primitive_arg2(fn_arg: &FnArg2) -> bool {
+        matches!(fn_arg.ty.value_type, ValueType::Object)
     }
 
     #[inline]

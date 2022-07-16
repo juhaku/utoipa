@@ -30,7 +30,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 #[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
-pub(self) struct ComponentPart<'a> {
+pub struct ComponentPart<'a> {
     pub path: Cow<'a, TypePath>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
@@ -58,7 +58,8 @@ impl<'a> ComponentPart<'a> {
 
     /// Creates a [`ComponentPath`] from a [`TypePath`].
     fn from_type_path(path: &'a TypePath) -> ComponentPart<'a> {
-        let last_segment = path.path.segments.last().unwrap(); // there will always be one segment at least
+        // there will always be one segment at least
+        let last_segment = path.path.segments.last().unwrap();
         if last_segment.arguments.is_empty() {
             Self::convert(Cow::Borrowed(path))
         } else {
@@ -75,10 +76,9 @@ impl<'a> ComponentPart<'a> {
             );
         };
 
-        // TODO avoid clone
         let path = TypePath {
             qself: None,
-            path: syn::Path::from(segment.clone()),
+            path: syn::Path::from(segment.clone()), // seems like cannot avoid clone
         };
 
         let mut generic_component_type = ComponentPart::convert(Cow::Owned(path));
@@ -141,8 +141,12 @@ impl<'a> ComponentPart<'a> {
     }
 
     fn convert(path: Cow<'a, TypePath>) -> ComponentPart<'a> {
-        // TODO: handle unwrap
-        let last_segment = path.path.segments.last().unwrap();
+        let last_segment = path
+            .path
+            .segments
+            .last()
+            .expect("at least one segment within path in ComponentPart::convert");
+
         let generic_type = ComponentPart::get_generic(last_segment);
         let is_primitive = ComponentType(&*path).is_primitive();
 
@@ -212,14 +216,14 @@ impl<'a> AsMut<ComponentPart<'a>> for ComponentPart<'a> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
-enum ValueType {
+pub enum ValueType {
     Primitive,
     Object,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Clone, Copy)]
-enum GenericType {
+pub enum GenericType {
     Vec,
     Map,
     Option,
