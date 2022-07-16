@@ -208,7 +208,6 @@ pub mod fn_arg {
     }
 
     fn get_argument_types(path_segment: &PathSegment) -> impl Iterator<Item = &TypePath> {
-        dbg!(&path_segment);
         match &path_segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed) => {
                 angle_bracketed.args.iter().flat_map(|arg| match arg {
@@ -238,7 +237,6 @@ pub mod fn_arg {
         let tt = fn_args
             .iter()
             .map(|arg| {
-                dbg!(&arg);
                 let pat_type = get_fn_arg_pat_type(arg);
 
                 let arg_name = match pat_type.pat.as_ref() {
@@ -273,7 +271,6 @@ pub mod fn_arg {
         fn_arg: &'a syn::FnArg,
         finder: &impl SegmentFinder,
     ) -> Option<&'a PathSegment> {
-        dbg!(&fn_arg);
         let pat_type = get_fn_arg_pat_type(fn_arg);
         let type_path = get_type_path(pat_type.ty.as_ref());
 
@@ -353,8 +350,12 @@ pub mod fn_arg {
         }
     }
 
-    pub(super) fn non_primitive_arg2(fn_arg: &FnArg2) -> bool {
-        matches!(fn_arg.ty.value_type, ValueType::Object)
+    pub(super) fn into_params(fn_arg: &FnArg2) -> bool {
+        matches!(fn_arg.ty.value_type, ValueType::Object) && matches!(fn_arg.ty.generic_type, None)
+    }
+
+    pub(super) fn into_params_actix(fn_arg: &FnArg2) -> bool {
+        fn_arg.ty.is("Path") || fn_arg.ty.is("Query")
     }
 
     #[inline]

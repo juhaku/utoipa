@@ -361,7 +361,8 @@ fn resolve_path_query_params_from_form() {
                 (status = 200, description = "Hello from server")
             ),
             params(
-                ("id", description = "Hello id")
+                ("id", description = "Hello id"),
+                QueryParams
             )
         )]
         #[get("/hello/<id>?<rest..>")]
@@ -381,7 +382,39 @@ fn resolve_path_query_params_from_form() {
         .pointer("/paths/~1hello~1{id}/get/parameters")
         .unwrap();
 
-    dbg!(&parameters);
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Hello id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            {
+                "in": "query",
+                "name": "foo",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "in": "query",
+                "name": "bar",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            }
+        ])
+    )
 }
 
 macro_rules! test_derive_path_operations {

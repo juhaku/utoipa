@@ -206,6 +206,23 @@ impl<'a> ComponentPart<'a> {
     fn is_any(&self) -> bool {
         &*self.path.to_token_stream().to_string() == "Any"
     }
+
+    /// Check whether [`ComponentPart`]'s [`syn::TypePath`] is a given type as [`str`].
+    pub fn is(&self, s: &str) -> bool {
+        let mut is = self
+            .path
+            .path
+            .segments
+            .last()
+            .expect("at least one segment in ComponentPart path")
+            .ident
+            == s;
+        if let Some(ref child) = self.child {
+            is = is || child.is(s)
+        }
+
+        is
+    }
 }
 
 impl<'a> AsMut<ComponentPart<'a>> for ComponentPart<'a> {

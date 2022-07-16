@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    fn_arg::{self, FnArg},
+    fn_arg::{self, FnArg, FnArg2},
     ArgumentIn, ArgumentResolver, MacroArg, MacroPath, PathOperationResolver, PathOperations,
     PathResolver, ResolvedOperation,
 };
@@ -32,21 +32,25 @@ impl ArgumentResolver for PathOperations {
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
     ) {
-        let (non_primitive_args, primitive_args): (Vec<FnArg>, Vec<FnArg>) =
+        let (into_params_args, value_args): (Vec<FnArg2>, Vec<FnArg2>) =
             fn_arg::get_fn_args(fn_args)
                 .into_iter()
-                .partition(fn_arg::non_primitive_arg);
+                .partition(fn_arg::into_params_actix);
+
+        dbg!(&into_params_args, &value_args);
 
         if let Some(macro_args) = macro_args {
-            (
-                Some(fn_arg::to_value_args(macro_args, primitive_args).collect()),
-                Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
-            )
+            (None, None)
+            // (
+            //     Some(fn_arg::to_value_args(macro_args, value_args).collect()),
+            //     Some(fn_arg::to_into_params_types(into_params_args).collect()),
+            // )
         } else {
-            (
-                None,
-                Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
-            )
+            (None, None)
+            // (
+            //     None,
+            //     Some(fn_arg::to_into_params_types(into_params_args).collect()),
+            // )
         }
     }
 }
