@@ -287,6 +287,10 @@ pub struct Property {
     #[serde(rename = "type")]
     pub component_type: ComponentType,
 
+    /// Changes the [`Property`] title.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+
     /// Additional format for detailing the component type.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<ComponentFormat>,
@@ -358,6 +362,8 @@ impl ToArray for Property {}
 pub struct PropertyBuilder {
     component_type: ComponentType,
 
+    title: Option<String>,
+
     format: Option<ComponentFormat>,
 
     description: Option<String>,
@@ -386,7 +392,7 @@ pub struct PropertyBuilder {
 }
 
 from!(Property PropertyBuilder
-    component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+    component_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 
 impl PropertyBuilder {
     new!(pub PropertyBuilder);
@@ -394,6 +400,11 @@ impl PropertyBuilder {
     /// Add or change type of the property e.g [`ComponentType::String`].
     pub fn component_type(mut self, component_type: ComponentType) -> Self {
         set_value!(self component_type component_type)
+    }
+
+    /// Add or change the title of the [`Property`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 
     /// Add or change additional format for detailing the component type.
@@ -462,7 +473,7 @@ impl PropertyBuilder {
     to_array_builder!();
 
     build_fn!(pub Property
-        component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+        component_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 }
 
 component_from_builder!(PropertyBuilder);
@@ -479,6 +490,10 @@ pub struct Object {
     /// Data type of [`Object`]. Will always be [`ComponentType::Object`]
     #[serde(rename = "type")]
     component_type: ComponentType,
+
+    /// Changes the [`Object`] title.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
 
     /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -539,6 +554,8 @@ impl ToArray for Object {}
 pub struct ObjectBuilder {
     component_type: ComponentType,
 
+    title: Option<String>,
+
     required: Vec<String>,
 
     properties: BTreeMap<String, Component>,
@@ -589,6 +606,11 @@ impl ObjectBuilder {
         self
     }
 
+    /// Add or change the title of the [`Object`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
+    }
+
     /// Add or change description of the property. Markdown syntax is supported.
     pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
         set_value!(self description description.map(|description| description.into()))
@@ -618,10 +640,10 @@ impl ObjectBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Object component_type, required, properties, description, deprecated, example, xml, additional_properties);
+    build_fn!(pub Object component_type, title, required, properties, description, deprecated, example, xml, additional_properties);
 }
 
-from!(Object ObjectBuilder component_type, required, properties, description, deprecated, example, xml, additional_properties);
+from!(Object ObjectBuilder component_type, title, required, properties, description, deprecated, example, xml, additional_properties);
 component_from_builder!(ObjectBuilder);
 
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
@@ -984,6 +1006,18 @@ mod tests {
                 }
             })
         )
+    }
+
+    #[test]
+    fn test_object_with_title() {
+        let json_value = ObjectBuilder::new().title(Some("SomeName")).build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "title": "SomeName"
+            })
+        );
     }
 
     #[test]

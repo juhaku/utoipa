@@ -264,6 +264,18 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
+/// It is possible to specify the title of each variant to help generators create named structures.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// enum ErrorResponse {
+///     #[component(title = "InvalidCredentials")]
+///     InvalidCredentials,
+///     #[component(title = "NotFound")]
+///     NotFound(String),
+/// }
+/// ```
+///
 /// Use `xml` attribute to manipulate xml output.
 /// ```rust
 /// # use utoipa::Component;

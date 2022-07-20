@@ -14,7 +14,7 @@ use crate::{
 };
 
 use self::{
-    attr::{ComponentAttr, Enum, IsInline, NamedField, UnnamedFieldStruct},
+    attr::{ComponentAttr, Enum, IsInline, NamedField, Title, UnnamedFieldStruct},
     xml::Xml,
 };
 
@@ -506,15 +506,23 @@ struct ComplexEnum<'a> {
 }
 
 impl ComplexEnum<'_> {
-    fn unit_variant_tokens(variant_name: String) -> TokenStream {
+    fn unit_variant_tokens(
+        variant_name: String,
+        variant_title: Option<ComponentAttr<Title>>,
+    ) -> TokenStream {
         quote! {
             utoipa::openapi::PropertyBuilder::new()
+                #variant_title
                 .component_type(utoipa::openapi::ComponentType::String)
                 .enum_values::<[&str; 1], &str>(Some([#variant_name]))
         }
     }
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
-    fn variant_tokens(variant_name: String, variant: &Variant) -> TokenStream {
+    fn variant_tokens(
+        variant_name: String,
+        variant_title: Option<ComponentAttr<Title>>,
+        variant: &Variant,
+    ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let named_enum = NamedStructComponent {
@@ -526,6 +534,7 @@ impl ComplexEnum<'_> {
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
+                        #variant_title
                         .property(#variant_name, #named_enum)
                 }
             }
@@ -537,16 +546,22 @@ impl ComplexEnum<'_> {
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
+                        #variant_title
                         .property(#variant_name, #unnamed_enum)
                 }
             }
-            Fields::Unit => Self::unit_variant_tokens(variant_name),
+            Fields::Unit => Self::unit_variant_tokens(variant_name, variant_title),
         }
     }
 
     /// Produce tokens that represent a variant of a [`ComplexEnum`] where serde enum attribute
     /// `tag = ` applies.
-    fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream {
+    fn tagged_variant_tokens(
+        tag: &str,
+        variant_name: String,
+        variant_title: Option<ComponentAttr<Title>>,
+        variant: &Variant,
+    ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let named_enum = NamedStructComponent {
@@ -556,10 +571,11 @@ impl ComplexEnum<'_> {
                     alias: None,
                 };
 
-                let variant_name_tokens = Self::unit_variant_tokens(variant_name);
+                let variant_name_tokens = Self::unit_variant_tokens(variant_name, None);
 
                 quote! {
                     #named_enum
+                        #variant_title
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                 }
@@ -573,9 +589,10 @@ impl ComplexEnum<'_> {
                 );
             }
             Fields::Unit => {
-                let variant_tokens = Self::unit_variant_tokens(variant_name);
+                let variant_tokens = Self::unit_variant_tokens(variant_name, None);
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
+                        #variant_title
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 }
@@ -625,11 +642,13 @@ impl ToTokens for ComplexEnum<'_> {
                 let variant_name =
                     rename_variant(&container_rules, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
+                let variant_title =
+                    attr::parse_component_attr::<ComponentAttr<Title>>(&variant.attrs);
 
                 if let Some(tag) = &tag {
-                    Self::tagged_variant_tokens(tag, variant_name, variant)
+                    Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
                 } else {
-                    Self::variant_tokens(variant_name, variant)
+                    Self::variant_tokens(variant_name, variant_title, variant)
                 }
             })
             .map(|inline_variant| {
