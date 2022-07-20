@@ -165,11 +165,8 @@ pub mod fn_arg {
     }
 
     impl<'a> From<(ComponentPart<'a>, &'a Ident)> for FnArg2<'a> {
-        fn from(tuple: (ComponentPart<'a>, &'a Ident)) -> Self {
-            Self {
-                ty: tuple.0,
-                name: tuple.1,
-            }
+        fn from((ty, name): (ComponentPart<'a>, &'a Ident)) -> Self {
+            Self { ty, name }
         }
     }
 

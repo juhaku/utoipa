@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, iter};
 
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
@@ -228,6 +228,247 @@ impl<'a> ComponentPart<'a> {
 impl<'a> AsMut<ComponentPart<'a>> for ComponentPart<'a> {
     fn as_mut(&mut self) -> &mut ComponentPart<'a> {
         self
+    }
+}
+
+#[derive(PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+/// Tree of implementing types of a field in a struct.
+pub enum TypeTree<'t> {
+    Single(TypeTreeValue<'t>),
+    Tuple(Vec<TypeTreeValue<'t>>),
+}
+
+impl TypeTree<'_> {
+    pub fn from_type(ty: &'_ Type) -> TypeTree<'t> {
+        let type_paths = TypeTreeValue::get_type_path(ty);
+        let values = TypeTreeValue::from_type_paths(type_paths);
+
+        if values.count() > 1 {
+            Self::Tuple(values.collect())
+        } else {
+            values.into_iter().next().map(Self::Single).unwrap()
+        }
+    }
+
+    // fn find_mut_by_ident(&mut self, ident: &'a Ident) -> Option<&mut Self> {
+    //     match self.generic_type {
+    //         Some(GenericType::Map) => None,
+    //         Some(GenericType::Vec)
+    //         | Some(GenericType::Option)
+    //         | Some(GenericType::Cow)
+    //         | Some(GenericType::Box)
+    //         | Some(GenericType::RefCell) => {
+    //             Self::find_mut_by_ident(self.child.as_mut().unwrap().as_mut(), ident)
+    //         }
+    //         None => {
+    //             if ident.to_token_stream().to_string() == self.path.to_token_stream().to_string() {
+    //                 Some(self)
+    //             } else {
+    //                 None
+    //             }
+    //         }
+    //     }
+    // }
+
+    // fn update_path(&mut self, ident: &'a Ident) {
+    //     self.path = Cow::Owned(TypePath {
+    //         qself: None,
+    //         path: syn::Path::from(ident.clone()),
+    //     })
+    // }
+
+    fn get_type_values(&'_ self) -> Box<dyn Iterator<Item = &'_ TypeTreeValue<'_>> + '_> {
+        match self {
+            Self::Single(single) => Box::new(iter::once(single)),
+            Self::Tuple(tuple) => Box::new(tuple.iter().map(|value| value)),
+        }
+    }
+
+    fn get_paths(&'_ self) -> Box<dyn Iterator<Item = &'_ TypePath> + '_> {
+        match self {
+            Self::Single(single) => Box::new(iter::once(single.path.as_ref())),
+            Self::Tuple(tuple) => Box::new(tuple.iter().map(|value| value.path.as_ref())),
+        }
+    }
+
+    fn get_children(&'_ self) -> Vec<&'_ TypeTreeValue<'_>> {
+        match self {
+            Self::Single(single) => single
+                .children
+                .as_ref()
+                .map(|children| children.iter())
+                .map(|values| values.collect())
+                .unwrap_or_default(),
+            Self::Tuple(tuple) => tuple
+                .iter()
+                .flat_map(|value| &value.children)
+                .flatten()
+                .collect(),
+        }
+    }
+
+    /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
+    /// with `value_type` attribute to hinder the actual type.
+    fn is_any(&self) -> bool {
+        self.get_paths()
+            .map(ToTokens::to_token_stream)
+            .any(|stream| stream.to_string() == "Any")
+    }
+
+    /// Check whether [`ComponentPart`]'s [`syn::TypePath`] is a given type as [`str`].
+    pub fn is(&self, s: &str) -> bool {
+        self.get_type_values().any(|type_value| type_value.is(s))
+    }
+}
+
+/// [`TypeTree`] item which represents a single parsed `type` of a
+/// `Component`, `Parameter` or ``
+#[derive(PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct TypeTreeValue<'t> {
+    pub path: Cow<'t, TypePath>,
+    pub value_type: ValueType,
+    pub generic_type: Option<GenericType>,
+    pub children: Option<Vec<TypeTreeValue<'t>>>,
+}
+
+impl<'t> TypeTreeValue<'t> {
+    fn get_type_path(ty: &'t Type) -> Box<dyn Iterator<Item = &'t TypePath> + '_> {
+        match ty {
+            Type::Path(path) => Box::new(iter::once(path)),
+            Type::Reference(reference) => Self::get_type_path(reference.elem.as_ref()),
+            Type::Tuple(tuple) => Box::new(tuple.elems.iter().flat_map(Self::get_type_path)),
+            Type::Group(group) => Self::get_type_path(group.elem.as_ref()),
+            _ => abort_call_site!(
+                "unexpected type in component part get type path, expected one of: Path, Reference, Group"
+            ),
+        }
+    }
+
+    fn from_type_paths(
+        paths: Box<dyn Iterator<Item = &'t TypePath>>,
+    ) -> impl Iterator<Item = TypeTreeValue<'t>> {
+        paths.into_iter().map(|path| {
+            // there will always be one segment at least
+            let last_segment = path
+                .path
+                .segments
+                .last()
+                .expect("at least one segment within path in TypeTree::from_type_path");
+
+            if last_segment.arguments.is_empty() {
+                Self::convert(Cow::Borrowed(path), last_segment)
+            } else {
+                Self::resolve_component_type(Cow::Borrowed(path), last_segment)
+            }
+        })
+    }
+
+    // Only when type is a generic type we get to this function.
+    fn resolve_component_type(
+        path: Cow<'t, TypePath>,
+        last_segment: &'t PathSegment,
+    ) -> TypeTreeValue<'t> {
+        if last_segment.arguments.is_empty() {
+            abort!(
+                last_segment.ident,
+                "expected at least one angle bracket argument but was 0"
+            );
+        };
+
+        let mut generic_component_type = Self::convert(path, last_segment);
+
+        let mut generic_types = match &last_segment.arguments {
+            PathArguments::AngleBracketed(angle_bracketed_args) => {
+                // if all type arguments are lifetimes we ignore the generic type
+                if angle_bracketed_args
+                    .args
+                    .iter()
+                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
+                {
+                    None
+                } else {
+                    Some(
+                        angle_bracketed_args
+                            .args
+                            .iter()
+                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_)))
+                            .map(|arg| match arg {
+                                GenericArgument::Type(arg) => arg,
+                                _ => abort!(
+                                    arg,
+                                    "expected generic argument type or generic argument lifetime"
+                                ),
+                            }),
+                    )
+                }
+            }
+            _ => abort!(
+                last_segment.ident,
+                "unexpected path argument, expected angle bracketed path argument"
+            ),
+        };
+
+        generic_component_type.children = generic_types.as_mut().map(|generic_type| {
+            generic_type
+                .map(Self::get_type_path)
+                .map(|mut type_paths| {
+                    let a = &mut type_paths;
+                    Self::from_type_paths(a)
+                })
+                .flatten()
+                .collect()
+        });
+
+        generic_component_type
+    }
+
+    fn convert(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTreeValue<'t> {
+        let generic_type = ComponentPart::get_generic(last_segment);
+        let is_primitive = ComponentType(&*path).is_primitive();
+
+        Self {
+            path,
+            value_type: if is_primitive {
+                ValueType::Primitive
+            } else {
+                ValueType::Object
+            },
+            generic_type,
+            children: None,
+        }
+    }
+
+    fn get_generic(segment: &PathSegment) -> Option<GenericType> {
+        match &*segment.ident.to_string() {
+            "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
+            "Vec" => Some(GenericType::Vec),
+            "Option" => Some(GenericType::Option),
+            "Cow" => Some(GenericType::Cow),
+            "Box" => Some(GenericType::Box),
+            "RefCell" => Some(GenericType::RefCell),
+            _ => None,
+        }
+    }
+
+    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s [`syn::TypePath`]
+    /// is a given type as [`str`].
+    pub fn is(&self, s: &str) -> bool {
+        let mut is = self
+            .path
+            .path
+            .segments
+            .last()
+            .expect("at least one segment in ComponentPart path")
+            .ident
+            == s;
+
+        if let Some(ref children) = self.children {
+            is = is || children.iter().any(|child| child.is(s));
+        }
+
+        is
     }
 }
 
