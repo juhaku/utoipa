@@ -137,7 +137,7 @@ impl Parse for ComponentAttr<Title> {
             }
 
             if !input.is_empty() {
-                input.parse::<Token![,]>()?;
+                parse_utils::skip_past_next_comma(input)?;
             }
         }
         Ok(Self { inner: title_attr })
