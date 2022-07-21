@@ -239,15 +239,18 @@ pub enum TypeTree<'t> {
     Tuple(Vec<TypeTreeValue<'t>>),
 }
 
-impl TypeTree<'_> {
-    pub fn from_type(ty: &'_ Type) -> TypeTree<'t> {
-        let type_paths = TypeTreeValue::get_type_path(ty);
-        let values = TypeTreeValue::from_type_paths(type_paths);
+impl<'t> TypeTree<'t> {
+    pub fn from_type(ty: &'t Type) -> TypeTree<'t> {
+        let mut values = TypeTreeValue::form_type(ty);
+        let (low, _) = values.size_hint();
 
-        if values.count() > 1 {
+        if low > 1 {
             Self::Tuple(values.collect())
         } else {
-            values.into_iter().next().map(Self::Single).unwrap()
+            values
+                .next()
+                .map(Self::Single)
+                .expect("TypeTree has always at least one TypeTreeValue item")
         }
     }
 
@@ -278,10 +281,17 @@ impl TypeTree<'_> {
     //     })
     // }
 
-    fn get_type_values(&'_ self) -> Box<dyn Iterator<Item = &'_ TypeTreeValue<'_>> + '_> {
+    pub fn get_type_values(&'_ self) -> Box<dyn Iterator<Item = &'_ TypeTreeValue<'_>> + '_> {
         match self {
             Self::Single(single) => Box::new(iter::once(single)),
-            Self::Tuple(tuple) => Box::new(tuple.iter().map(|value| value)),
+            Self::Tuple(tuple) => Box::new(tuple.iter()),
+        }
+    }
+
+    pub fn into_type_tree_values(self) -> Box<dyn Iterator<Item = TypeTreeValue<'t>> + 't> {
+        match self {
+            Self::Single(single) => Box::new(iter::once(single)),
+            Self::Tuple(tuple) => Box::new(tuple.into_iter()),
         }
     }
 
@@ -323,7 +333,7 @@ impl TypeTree<'_> {
 }
 
 /// [`TypeTree`] item which represents a single parsed `type` of a
-/// `Component`, `Parameter` or ``
+/// `Component`, `Parameter` or `FnArg`
 #[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct TypeTreeValue<'t> {
@@ -334,21 +344,23 @@ pub struct TypeTreeValue<'t> {
 }
 
 impl<'t> TypeTreeValue<'t> {
-    fn get_type_path(ty: &'t Type) -> Box<dyn Iterator<Item = &'t TypePath> + '_> {
+    fn form_type(ty: &'t Type) -> impl Iterator<Item = TypeTreeValue<'t>> + 't {
+        Self::from_type_paths(Self::get_type_paths(ty))
+    }
+
+    fn get_type_paths(ty: &'t Type) -> Vec<&'t TypePath> {
         match ty {
-            Type::Path(path) => Box::new(iter::once(path)),
-            Type::Reference(reference) => Self::get_type_path(reference.elem.as_ref()),
-            Type::Tuple(tuple) => Box::new(tuple.elems.iter().flat_map(Self::get_type_path)),
-            Type::Group(group) => Self::get_type_path(group.elem.as_ref()),
+            Type::Path(path) => vec![path],
+            Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
+            Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
+            Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
             _ => abort_call_site!(
                 "unexpected type in component part get type path, expected one of: Path, Reference, Group"
             ),
         }
     }
 
-    fn from_type_paths(
-        paths: Box<dyn Iterator<Item = &'t TypePath>>,
-    ) -> impl Iterator<Item = TypeTreeValue<'t>> {
+    fn from_type_paths(paths: Vec<&'t TypePath>) -> impl Iterator<Item = TypeTreeValue<'t>> + 't {
         paths.into_iter().map(|path| {
             // there will always be one segment at least
             let last_segment = path
@@ -412,12 +424,8 @@ impl<'t> TypeTreeValue<'t> {
 
         generic_component_type.children = generic_types.as_mut().map(|generic_type| {
             generic_type
-                .map(Self::get_type_path)
-                .map(|mut type_paths| {
-                    let a = &mut type_paths;
-                    Self::from_type_paths(a)
-                })
-                .flatten()
+                .map(Self::get_type_paths)
+                .flat_map(Self::from_type_paths)
                 .collect()
         });
 

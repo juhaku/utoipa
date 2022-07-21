@@ -137,7 +137,7 @@ pub mod fn_arg {
 
     use crate::{
         component_type::ComponentType,
-        schema::{ComponentPart, GenericType, ValueType},
+        schema::{ComponentPart, GenericType, TypeTree, TypeTreeValue, ValueType},
     };
 
     use super::{ArgumentIn, IntoParamsType, MacroArg, ValueArgument};
@@ -160,12 +160,12 @@ pub mod fn_arg {
 
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct FnArg2<'a> {
-        pub(super) ty: ComponentPart<'a>,
+        pub(super) ty: TypeTreeValue<'a>,
         pub(super) name: &'a Ident,
     }
 
-    impl<'a> From<(ComponentPart<'a>, &'a Ident)> for FnArg2<'a> {
-        fn from((ty, name): (ComponentPart<'a>, &'a Ident)) -> Self {
+    impl<'a> From<(TypeTreeValue<'a>, &'a Ident)> for FnArg2<'a> {
+        fn from((ty, name): (TypeTreeValue<'a>, &'a Ident)) -> Self {
             Self { ty, name }
         }
     }
@@ -233,7 +233,7 @@ pub mod fn_arg {
     ) -> impl Iterator<Item = FnArg2<'_>> {
         let tt = fn_args
             .iter()
-            .map(|arg| {
+            .flat_map(|arg| {
                 let pat_type = get_fn_arg_pat_type(arg);
 
                 let arg_name = match pat_type.pat.as_ref() {
@@ -242,8 +242,9 @@ pub mod fn_arg {
                         "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
                     ),
                 };
-
-                (ComponentPart::from_type(pat_type.ty.as_ref()), arg_name)
+                dbg!(&pat_type.ty);
+                TypeTree::from_type(pat_type.ty.as_ref()).into_type_tree_values()
+                    .map(move |tree_value| (tree_value, arg_name))
             })
             .map(FnArg2::from);
 
