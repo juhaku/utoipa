@@ -821,6 +821,8 @@ where
                             }
                         }
                     }
+                    // TODO support for tuple types
+                    ValueType::Tuple => (),
                 }
             }
         }

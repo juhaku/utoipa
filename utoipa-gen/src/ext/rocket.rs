@@ -1,28 +1,22 @@
-use std::{borrow::Cow, cmp::Ordering, str::FromStr};
+use std::{borrow::Cow, str::FromStr};
 
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
-use proc_macro_error::{abort, abort_call_site, OptionExt};
+use proc_macro_error::abort;
 use quote::quote;
 use regex::{Captures, Regex};
-use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, FnArg, LitStr, PatIdent, Token, Type,
-    TypePath,
-};
+use syn::{parse::Parse, LitStr, Token, TypePath};
 
 use crate::{
-    component_type::ComponentType,
-    ext::{
-        fn_arg::{self, FnArg2},
-        ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument,
-    },
+    ext::{ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument},
     path::PathOperation,
-    schema::{ComponentPart, GenericType},
+    schema::{GenericType, TypeTree, ValueType},
 };
 
 use super::{
-    fn_arg::SegmentFinder, ArgumentResolver, MacroPath, PathOperationResolver, PathOperations,
-    PathResolver, ResolvedOperation,
+    fn_arg::{self, FnArg},
+    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver,
+    ResolvedOperation,
 };
 
 const ANONYMOUS_ARG: &str = "<_>";
@@ -32,18 +26,18 @@ impl ArgumentResolver for PathOperations {
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
         macro_args: Option<Vec<MacroArg>>,
     ) -> (
-        Option<Vec<super::ValueArgument<'_>>>,
-        Option<Vec<super::IntoParamsType<'_>>>,
+        Option<Vec<ValueArgument<'_>>>,
+        Option<Vec<IntoParamsType<'_>>>,
     ) {
         let mut args = fn_arg::get_fn_args(fn_args).collect::<Vec<_>>();
         args.sort_unstable();
-        let (into_params_args, value_args): (Vec<fn_arg::FnArg2>, Vec<fn_arg::FnArg2>) =
-            args.into_iter().partition(fn_arg::into_params);
+        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
+            args.into_iter().partition(is_into_params);
 
         macro_args
             .map(|args| {
-                let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
-                    args.into_iter().partition(anonymous_arg);
+                let (anonymous_args, named_args): (Vec<MacroArg>, Vec<MacroArg>) =
+                    args.into_iter().partition(is_anonymous_arg);
 
                 (
                     Some(
@@ -52,14 +46,14 @@ impl ArgumentResolver for PathOperations {
                             .flat_map(with_argument_in(&named_args))
                             .map(to_value_arg)
                             .chain(anonymous_args.into_iter().map(to_anonymous_value_arg))
-                            .collect::<Vec<_>>(),
+                            .collect(),
                     ),
                     Some(
                         into_params_args
                             .into_iter()
                             .flat_map(with_parameter_in(&named_args))
-                            .map(to_into_params_types)
-                            .collect::<Vec<_>>(),
+                            .map(fn_arg::into_into_params_type)
+                            .collect(),
                     ),
                 )
             })
@@ -67,11 +61,11 @@ impl ArgumentResolver for PathOperations {
     }
 }
 
-fn to_value_arg((arg, argument_in): (FnArg2, ArgumentIn)) -> ValueArgument {
+fn to_value_arg((arg, argument_in): (FnArg, ArgumentIn)) -> ValueArgument {
     let (is_option, is_vec) = is_option_or_vec(&arg.ty);
 
     ValueArgument {
-        type_path: Some(get_value_type(arg.ty)),
+        type_path: get_value_type(arg.ty),
         argument_in,
         name: Some(Cow::Owned(arg.name.to_string())),
         is_array: is_vec,
@@ -94,44 +88,33 @@ fn to_anonymous_value_arg<'a>(macro_arg: MacroArg) -> ValueArgument<'a> {
     }
 }
 
-fn to_into_params_types((arg, parameter_in): (FnArg2, TokenStream)) -> IntoParamsType {
-    IntoParamsType {
-        parameter_in_provider: quote! {
-            || Some(#parameter_in)
-        },
-        type_path: arg.ty.path,
-    }
-}
-
 fn with_parameter_in(
     named_args: &[MacroArg],
-) -> impl Fn(FnArg2) -> Option<(FnArg2, TokenStream)> + '_ {
-    move |arg: FnArg2| {
+) -> impl Fn(FnArg) -> Option<(Option<Cow<'_, TypePath>>, TokenStream)> + '_ {
+    move |arg: FnArg| {
         let parameter_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
                 if arg.name == &*path.name {
-                    Some(quote! { utoipa::openapi::path::ParameterIn::Path })
+                    Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Path) })
                 } else {
                     None
                 }
             }
             MacroArg::Query(query) => {
                 if arg.name == &*query.name {
-                    Some(quote! { utoipa::openapi::path::ParameterIn::Query })
+                    Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Query) })
                 } else {
                     None
                 }
             }
         });
 
-        Some(arg).zip(parameter_in)
+        Some(arg.ty.path).zip(parameter_in)
     }
 }
 
-fn with_argument_in(
-    named_args: &[MacroArg],
-) -> impl Fn(FnArg2) -> Option<(FnArg2, ArgumentIn)> + '_ {
-    move |arg: FnArg2| {
+fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg, ArgumentIn)> + '_ {
+    move |arg: FnArg| {
         let argument_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
                 if arg.name == &*path.name {
@@ -154,20 +137,27 @@ fn with_argument_in(
 }
 
 #[inline]
-fn get_value_type(ty: ComponentPart<'_>) -> Cow<'_, TypePath> {
+fn get_value_type(ty: TypeTree<'_>) -> Option<Cow<TypePath>> {
+    // TODO abort if map
     match ty.generic_type {
         Some(GenericType::Vec)
         | Some(GenericType::Box)
         | Some(GenericType::Cow)
         | Some(GenericType::Map)
         | Some(GenericType::Option)
-        | Some(GenericType::RefCell) => get_value_type(*ty.child.unwrap()),
+        | Some(GenericType::RefCell) => {
+            get_value_type(ty.children.unwrap().into_iter().next().unwrap())
+        }
         None => ty.path,
     }
 }
 
+fn is_into_params(fn_arg: &FnArg) -> bool {
+    matches!(fn_arg.ty.value_type, ValueType::Object) && matches!(fn_arg.ty.generic_type, None)
+}
+
 #[inline]
-fn anonymous_arg(arg: &MacroArg) -> bool {
+fn is_anonymous_arg(arg: &MacroArg) -> bool {
     matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
         || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
 }
@@ -175,12 +165,13 @@ fn anonymous_arg(arg: &MacroArg) -> bool {
 type OptionOrVec = (bool, bool);
 
 #[inline]
-fn is_option_or_vec(ty: &ComponentPart<'_>) -> OptionOrVec {
+fn is_option_or_vec(ty: &TypeTree<'_>) -> OptionOrVec {
+    // TODO abort if map
     let mut is_vec = matches!(ty.generic_type, Some(GenericType::Vec));
     let mut is_option = matches!(ty.generic_type, Some(GenericType::Option));
 
-    if let Some(ref child) = ty.child {
-        let (child_option, child_vec) = is_option_or_vec(child.as_ref());
+    if let Some(ref child) = ty.children {
+        let (child_option, child_vec) = is_option_or_vec(child.first().unwrap());
 
         is_option = is_option || child_option;
         is_vec = is_vec || child_vec;
@@ -246,11 +237,11 @@ impl Parse for Path {
         // ignore rest of the tokens from rocket path attribute macro
         input.step(|cursor| {
             let mut rest = *cursor;
-            while let Some((tt, next)) = rest.token_tree() {
+            while let Some((_, next)) = rest.token_tree() {
                 rest = next;
             }
             Ok(((), rest))
-        });
+        })?;
 
         Ok(Self(path, operation))
     }
@@ -279,7 +270,7 @@ impl PathResolver for PathOperations {
 
                     let mut format_arg =
                         |captures: &Captures, resolved_arg_op: fn(ArgValue) -> MacroArg| {
-                            let mut capture = &captures[0];
+                            let capture = &captures[0];
                             let original_name = String::from(capture);
 
                             let mut arg = capture
