@@ -152,6 +152,7 @@ fn get_value_type(ty: TypeTree<'_>) -> Option<Cow<TypePath>> {
     }
 }
 
+#[inline]
 fn is_into_params(fn_arg: &FnArg) -> bool {
     matches!(fn_arg.ty.value_type, ValueType::Object) && matches!(fn_arg.ty.generic_type, None)
 }

@@ -144,8 +144,6 @@ pub mod fn_arg {
     use crate::schema::ValueType;
 
     use super::IntoParamsType;
-    #[cfg(any(feature = "actix_extras"))]
-    use super::{ArgumentIn, MacroArg, ValueArgument};
 
     /// Http operation handler functions fn argument.
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -220,7 +218,7 @@ pub mod fn_arg {
         let type_path = arg
             .ty
             .children
-            .expect("FnArg TypeTree expected must have children")
+            .expect("FnArg TypeTree generic type Path must have children")
             .into_iter()
             .next()
             .unwrap()
@@ -235,21 +233,6 @@ pub mod fn_arg {
         IntoParamsType {
             parameter_in_provider,
             type_path,
-        }
-    }
-
-    #[cfg(any(feature = "actix_extras"))]
-    pub(super) fn into_value_argument(
-        (macro_arg, primitive_arg): (MacroArg, TypeTree),
-    ) -> ValueArgument {
-        ValueArgument {
-            name: match macro_arg {
-                MacroArg::Path(path) => Some(Cow::Owned(path.name)),
-            },
-            type_path: primitive_arg.path,
-            is_array: false,
-            is_option: false,
-            argument_in: ArgumentIn::Path,
         }
     }
 

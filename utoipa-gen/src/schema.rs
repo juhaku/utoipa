@@ -79,7 +79,7 @@ impl<'a> ComponentPart<'a> {
 
         let path = TypePath {
             qself: None,
-            path: syn::Path::from(segment.clone()), // seems like cannot avoid clone
+            path: syn::Path::from(segment.clone()),
         };
 
         let mut generic_component_type = ComponentPart::convert(Cow::Owned(path));
@@ -266,7 +266,7 @@ impl<'t> TypeTree<'t> {
                 .path
                 .segments
                 .last()
-                .expect("at least one segment within path in TypeTree::from_type_path");
+                .expect("at least one segment within path in TypeTree::convert_types");
 
             if last_segment.arguments.is_empty() {
                 Self::convert(Cow::Borrowed(path), last_segment)

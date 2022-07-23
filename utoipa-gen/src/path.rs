@@ -160,7 +160,6 @@ impl<'p> PathAttr<'p> {
                     Parameter::Value(_) => None,
                     Parameter::Struct(parameter) => Some(parameter),
                 });
-                // TODO fix this by default its || None but updating paramter_in for actix does not work
                 for parameter in parameters {
                     if let Some(into_params_argument) = into_params_types
                         .iter_mut()

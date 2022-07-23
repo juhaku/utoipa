@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use lazy_static::lazy_static;
 use proc_macro2::Ident;
 use proc_macro_error::abort;
@@ -12,8 +14,8 @@ use crate::{
 
 use super::{
     fn_arg::{self, FnArg},
-    ArgumentResolver, MacroArg, MacroPath, PathOperationResolver, PathOperations, PathResolver,
-    ResolvedOperation,
+    ArgumentIn, ArgumentResolver, MacroArg, MacroPath, PathOperationResolver, PathOperations,
+    PathResolver, ResolvedOperation, ValueArgument,
 };
 
 impl ArgumentResolver for PathOperations {
@@ -36,7 +38,7 @@ impl ArgumentResolver for PathOperations {
                     macro_args
                         .into_iter()
                         .zip(primitive_args)
-                        .map(fn_arg::into_value_argument)
+                        .map(into_value_argument)
                         .collect(),
                 ),
                 Some(
@@ -81,6 +83,18 @@ fn get_primitive_args(value_args: Vec<FnArg>) -> impl Iterator<Item = TypeTree> 
                 unreachable!("Value arguments does not have ValueType::Object arguments")
             }
         })
+}
+
+fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> ValueArgument {
+    ValueArgument {
+        name: match macro_arg {
+            MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+        },
+        type_path: primitive_arg.path,
+        is_array: false,
+        is_option: false,
+        argument_in: ArgumentIn::Path,
+    }
 }
 
 impl PathOperationResolver for PathOperations {

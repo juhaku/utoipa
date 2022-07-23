@@ -79,10 +79,10 @@ mod todo {
         request::{self, FromRequest},
         response::{status::Custom, Responder},
         serde::json::Json,
-        Request, State,
+        FromForm, Request, State,
     };
     use serde::{Deserialize, Serialize};
-    use utoipa::Component;
+    use utoipa::{Component, IntoParams};
 
     pub(super) type TodoStore = Arc<Mutex<Vec<Todo>>>;
 
@@ -267,29 +267,41 @@ mod todo {
         }
     }
 
+    #[derive(Deserialize, FromForm, IntoParams)]
+    pub(super) struct SearchParams {
+        /// Value to be search form `Todo`s
+        value: String,
+        /// Search whether todo is done
+        done: Option<bool>,
+    }
+
     /// Search Todo items by their value.
     ///
     /// Search is performed in case sensitive manner from value of Todo.
     #[utoipa::path(
         context_path = "/todo",
+        params(
+            SearchParams
+        ),
         responses(
             (status = 200, description = "Found Todo items", body = [Todo])
         )
     )]
-    #[get("/search?<value>")]
+    #[get("/search?<search..>")]
     pub(super) async fn search_todos(
-        value: Option<&str>,
+        search: SearchParams,
         store: &State<TodoStore>,
     ) -> Json<Vec<Todo>> {
+        let SearchParams { value, done } = search;
+
         Json(
             store
                 .lock()
                 .unwrap()
                 .iter()
                 .filter(|todo| {
-                    value
-                        .map(|value| todo.value.to_lowercase().contains(&value.to_lowercase()))
-                        .unwrap_or(true)
+                    todo.value.to_lowercase().contains(&value.to_lowercase())
+                        && done.map(|done| done == todo.done).unwrap_or(true)
                 })
                 .cloned()
                 .collect(),
