@@ -800,6 +800,67 @@ fn derive_complex_enum() {
 }
 
 #[test]
+fn derive_complex_enum_title() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            #[component(title = "Unit")]
+            UnitValue,
+            #[component(title = "Named")]
+            NamedFields {
+                id: &'static str,
+            },
+            #[component(title = "Unnamed")]
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "string",
+                    "title": "Unit",
+                    "enum": [
+                        "UnitValue",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "title": "Named",
+                    "properties": {
+                        "NamedFields": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                },
+                            },
+                            "required": [
+                                "id",
+                            ],
+                        },
+                    },
+                },
+                {
+                    "type": "object",
+                    "title": "Unnamed",
+                    "properties": {
+                        "UnnamedFields": {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_serde_rename_all() {
     #[derive(Serialize)]
     struct Foo(String);
@@ -977,6 +1038,67 @@ fn derive_complex_enum_serde_tag() {
                             "items": {
                                 "type": "string",
                             },
+                        },
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "NamedFields",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "id",
+                        "tag",
+                    ],
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_serde_tag_title() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag")]
+        enum Bar {
+            #[component(title = "Unit")]
+            UnitValue,
+            #[component(title = "Named")]
+            NamedFields {
+                id: &'static str,
+            },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "title": "Unit",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "UnitValue",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "title": "Named",
+                    "properties": {
+                        "id": {
+                            "type": "string",
                         },
                         "tag": {
                             "type": "string",

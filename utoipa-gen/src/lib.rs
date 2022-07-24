@@ -264,6 +264,18 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
+/// It is possible to specify the title of each variant to help generators create named structures.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// enum ErrorResponse {
+///     #[component(title = "InvalidCredentials")]
+///     InvalidCredentials,
+///     #[component(title = "NotFound")]
+///     NotFound(String),
+/// }
+/// ```
+///
 /// Use `xml` attribute to manipulate xml output.
 /// ```rust
 /// # use utoipa::Component;
@@ -1663,7 +1675,7 @@ impl ToTokens for AnyValue {
 
 /// Parsing utils
 mod parse_utils {
-    use proc_macro2::{Group, Ident, TokenStream};
+    use proc_macro2::{Group, Ident, TokenStream, TokenTree};
     use proc_macro_error::ResultExt;
     use syn::{
         parenthesized,
@@ -1672,6 +1684,21 @@ mod parse_utils {
         token::Comma,
         Error, LitBool, LitStr, Token,
     };
+
+    pub fn skip_past_next_comma(input: ParseStream) -> syn::Result<()> {
+        input.step(|cursor| {
+            let mut rest = *cursor;
+            while let Some((tt, next)) = rest.token_tree() {
+                match &tt {
+                    TokenTree::Punct(punct) if punct.as_char() == ',' => {
+                        return Ok(((), next));
+                    }
+                    _ => rest = next,
+                }
+            }
+            Ok(((), rest))
+        })
+    }
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
