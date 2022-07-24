@@ -72,6 +72,7 @@
 //!   See the `value_type` in [component derive docs][component_derive].
 //! * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
+//! * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [component derive][serde] for more details.
 //!

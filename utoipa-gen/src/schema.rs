@@ -44,6 +44,7 @@ impl<'t> TypeTree<'t> {
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
             Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
+            Type::Array(array) => Self::get_type_paths(&array.elem),
             _ => abort_call_site!(
                 "unexpected type in component part get type path, expected one of: Path, Reference, Group"
             ),
@@ -155,7 +156,7 @@ impl<'t> TypeTree<'t> {
     fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
         match &*segment.ident.to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
-            "Vec" => Some(GenericType::Vec),
+            "Vec" | "SmallVec" => Some(GenericType::Vec),
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
             "Box" => Some(GenericType::Box),
