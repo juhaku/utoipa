@@ -343,6 +343,80 @@ fn resolve_get_path_and_update_params() {
     }
 }
 
+#[test]
+fn resolve_path_query_params_from_form() {
+    mod rocket_get_operation {
+        use rocket::{get, FromForm};
+        use utoipa::IntoParams;
+
+        #[derive(serde::Deserialize, FromForm, IntoParams)]
+        #[allow(unused)]
+        struct QueryParams {
+            foo: String,
+            bar: i64,
+        }
+
+        #[utoipa::path(
+            responses(
+                (status = 200, description = "Hello from server")
+            ),
+            params(
+                ("id", description = "Hello id"),
+                QueryParams
+            )
+        )]
+        #[get("/hello/<id>?<rest..>")]
+        #[allow(unused)]
+        fn hello(id: i32, rest: QueryParams) -> String {
+            "Hello".to_string()
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(handlers(rocket_get_operation::hello))]
+    struct ApiDoc;
+
+    let openapi = ApiDoc::openapi();
+    let value = &serde_json::to_value(&openapi).unwrap();
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}/get/parameters")
+        .unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Hello id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            {
+                "in": "query",
+                "name": "foo",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "in": "query",
+                "name": "bar",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            }
+        ])
+    )
+}
+
 macro_rules! test_derive_path_operations {
     ( $($name:ident: $operation:ident)* ) => {
         $(

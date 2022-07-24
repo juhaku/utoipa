@@ -485,6 +485,8 @@ impl ToTokens for ParamType<'_> {
                             });
                         }
                     }
+                    // TODO support for tuple types
+                    ValueType::Tuple => (),
                 }
             }
         };

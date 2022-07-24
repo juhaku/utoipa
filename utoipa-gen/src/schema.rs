@@ -27,10 +27,11 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     })
 }
 
+#[deprecated = "for removal: Migrate to the TypeTree which handles Maps and tuples correctly"]
 #[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 /// Linked list of implementing types of a field in a struct.
-pub(self) struct ComponentPart<'a> {
+pub struct ComponentPart<'a> {
     pub path: Cow<'a, TypePath>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
@@ -58,7 +59,8 @@ impl<'a> ComponentPart<'a> {
 
     /// Creates a [`ComponentPath`] from a [`TypePath`].
     fn from_type_path(path: &'a TypePath) -> ComponentPart<'a> {
-        let last_segment = path.path.segments.last().unwrap(); // there will always be one segment at least
+        // there will always be one segment at least
+        let last_segment = path.path.segments.last().unwrap();
         if last_segment.arguments.is_empty() {
             Self::convert(Cow::Borrowed(path))
         } else {
@@ -75,7 +77,6 @@ impl<'a> ComponentPart<'a> {
             );
         };
 
-        // TODO avoid clone
         let path = TypePath {
             qself: None,
             path: syn::Path::from(segment.clone()),
@@ -141,8 +142,12 @@ impl<'a> ComponentPart<'a> {
     }
 
     fn convert(path: Cow<'a, TypePath>) -> ComponentPart<'a> {
-        // TODO: handle unwrap
-        let last_segment = path.path.segments.last().unwrap();
+        let last_segment = path
+            .path
+            .segments
+            .last()
+            .expect("at least one segment within path in ComponentPart::convert");
+
         let generic_type = ComponentPart::get_generic(last_segment);
         let is_primitive = ComponentType(&*path).is_primitive();
 
@@ -210,16 +215,183 @@ impl<'a> AsMut<ComponentPart<'a>> for ComponentPart<'a> {
     }
 }
 
+/// [`TypeTree`] of items which represents a single parsed `type` of a
+/// `Component`, `Parameter` or `FnArg`
+#[derive(PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct TypeTree<'t> {
+    pub path: Option<Cow<'t, TypePath>>,
+    pub value_type: ValueType,
+    pub generic_type: Option<GenericType>,
+    pub children: Option<Vec<TypeTree<'t>>>,
+}
+
+impl<'t> TypeTree<'t> {
+    pub fn form_type(ty: &'t Type) -> TypeTree<'t> {
+        Self::from_type_paths(Self::get_type_paths(ty))
+    }
+
+    fn get_type_paths(ty: &'t Type) -> Vec<&'t TypePath> {
+        match ty {
+            Type::Path(path) => vec![path],
+            Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
+            Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
+            Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
+            _ => abort_call_site!(
+                "unexpected type in component part get type path, expected one of: Path, Reference, Group"
+            ),
+        }
+    }
+
+    fn from_type_paths(paths: Vec<&'t TypePath>) -> TypeTree<'t> {
+        if paths.len() > 1 {
+            TypeTree {
+                path: None,
+                children: Some(Self::convert_types(paths).collect()),
+                generic_type: None,
+                value_type: ValueType::Tuple,
+            }
+        } else {
+            Self::convert_types(paths)
+                .into_iter()
+                .next()
+                .expect("TypeTreeValue from_type_paths expected at least one TypePath")
+        }
+    }
+
+    fn convert_types(paths: Vec<&'t TypePath>) -> impl Iterator<Item = TypeTree<'t>> {
+        paths.into_iter().map(|path| {
+            // there will always be one segment at least
+            let last_segment = path
+                .path
+                .segments
+                .last()
+                .expect("at least one segment within path in TypeTree::convert_types");
+
+            if last_segment.arguments.is_empty() {
+                Self::convert(Cow::Borrowed(path), last_segment)
+            } else {
+                Self::resolve_component_type(Cow::Borrowed(path), last_segment)
+            }
+        })
+    }
+
+    // Only when type is a generic type we get to this function.
+    fn resolve_component_type(
+        path: Cow<'t, TypePath>,
+        last_segment: &'t PathSegment,
+    ) -> TypeTree<'t> {
+        if last_segment.arguments.is_empty() {
+            abort!(
+                last_segment.ident,
+                "expected at least one angle bracket argument but was 0"
+            );
+        };
+
+        let mut generic_component_type = Self::convert(path, last_segment);
+
+        let mut generic_types = match &last_segment.arguments {
+            PathArguments::AngleBracketed(angle_bracketed_args) => {
+                // if all type arguments are lifetimes we ignore the generic type
+                if angle_bracketed_args
+                    .args
+                    .iter()
+                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
+                {
+                    None
+                } else {
+                    Some(
+                        angle_bracketed_args
+                            .args
+                            .iter()
+                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_)))
+                            .map(|arg| match arg {
+                                GenericArgument::Type(arg) => arg,
+                                _ => abort!(
+                                    arg,
+                                    "expected generic argument type or generic argument lifetime"
+                                ),
+                            }),
+                    )
+                }
+            }
+            _ => abort!(
+                last_segment.ident,
+                "unexpected path argument, expected angle bracketed path argument"
+            ),
+        };
+
+        generic_component_type.children = generic_types
+            .as_mut()
+            .map(|generic_type| generic_type.map(Self::form_type).collect());
+
+        generic_component_type
+    }
+
+    fn convert(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
+        let generic_type = Self::get_generic_type(last_segment);
+        let is_primitive = ComponentType(&*path).is_primitive();
+
+        Self {
+            path: Some(path),
+            value_type: if is_primitive {
+                ValueType::Primitive
+            } else {
+                ValueType::Object
+            },
+            generic_type,
+            children: None,
+        }
+    }
+
+    // TODO should we recognize unknown generic types with `GenericType::Unkonwn` instead of `None`?
+    fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
+        match &*segment.ident.to_string() {
+            "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
+            "Vec" => Some(GenericType::Vec),
+            "Option" => Some(GenericType::Option),
+            "Cow" => Some(GenericType::Cow),
+            "Box" => Some(GenericType::Box),
+            "RefCell" => Some(GenericType::RefCell),
+            _ => None,
+        }
+    }
+
+    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s [`syn::TypePath`]
+    /// is a given type as [`str`].
+    pub fn is(&self, s: &str) -> bool {
+        let mut is = self
+            .path
+            .as_ref()
+            .map(|path| {
+                path.path
+                    .segments
+                    .last()
+                    .expect("expected at least one segment in TreeTypeValue path")
+                    .ident
+                    == s
+            })
+            .unwrap_or(false);
+
+        if let Some(ref children) = self.children {
+            is = is || children.iter().any(|child| child.is(s));
+        }
+
+        is
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
-enum ValueType {
+pub enum ValueType {
     Primitive,
     Object,
+    Tuple,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Clone, Copy)]
-enum GenericType {
+pub enum GenericType {
     Vec,
     Map,
     Option,

@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Display};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
@@ -61,7 +61,6 @@ impl ToTokens for Parameter<'_> {
                 parameter_in_fn,
             }) => {
                 let last_ident = &path.path.segments.last().unwrap().ident;
-                let assert_into_params_ty = format_ident!("_Assert{}", last_ident);
 
                 let default_parameter_in_provider = &quote! { || None };
                 let parameter_in_provider = parameter_in_fn
@@ -69,11 +68,7 @@ impl ToTokens for Parameter<'_> {
                     .unwrap_or(default_parameter_in_provider);
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        {
-                            struct #assert_into_params_ty where #path : utoipa::IntoParams;
-
-                            Some(<#path>::into_params(#parameter_in_provider))
-                        }
+                        Some(<#path>::into_params(#parameter_in_provider))
                     )
                 })
             }
