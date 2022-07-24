@@ -156,7 +156,9 @@ impl<'t> TypeTree<'t> {
     fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
         match &*segment.ident.to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
-            "Vec" | "SmallVec" => Some(GenericType::Vec),
+            "Vec" => Some(GenericType::Vec),
+            #[cfg(feature = "smallvec")]
+            "SmallVec" => Some(GenericType::Vec),
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
             "Box" => Some(GenericType::Box),
