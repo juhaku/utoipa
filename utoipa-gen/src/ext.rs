@@ -190,7 +190,7 @@ pub mod fn_arg {
                         "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
                     ),
                 };
-                (TypeTree::form_type(&pat_type.ty), arg_name)
+                (TypeTree::from_type(&pat_type.ty), arg_name)
             })
             .map(FnArg::from)
     }

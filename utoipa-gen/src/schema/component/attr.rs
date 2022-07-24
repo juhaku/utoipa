@@ -3,12 +3,12 @@ use std::mem;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, Attribute, Error, Token, TypePath};
+use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
     component_type::ComponentFormat,
     parse_utils,
-    schema::{ComponentPart, GenericType},
+    schema::{GenericType, TypeTree},
     AnyValue,
 };
 
@@ -75,7 +75,7 @@ impl IsInline for Struct {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct<'c> {
-    pub(super) value_type: Option<TypePath>,
+    pub(super) value_type: Option<syn::Type>,
     format: Option<ComponentFormat<'c>>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
@@ -91,7 +91,7 @@ impl IsInline for UnnamedFieldStruct<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField<'c> {
     example: Option<AnyValue>,
-    pub(super) value_type: Option<TypePath>,
+    pub(super) value_type: Option<syn::Type>,
     format: Option<ComponentFormat<'c>>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
@@ -234,7 +234,7 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
                 }
                 "value_type" => {
                     unnamed_struct.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypePath>()
+                        input.parse::<syn::Type>()
                     })?)
                 }
                 _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -254,7 +254,7 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
 impl<'c> ComponentAttr<NamedField<'c>> {
     pub(super) fn from_attributes_validated(
         attributes: &[Attribute],
-        component_part: &ComponentPart,
+        component_part: &TypeTree,
     ) -> Option<Self> {
         parse_component_attr::<ComponentAttr<NamedField>>(attributes)
             .map(|attrs| {
@@ -286,7 +286,7 @@ impl<'c> ComponentAttr<NamedField<'c>> {
 }
 
 #[inline]
-fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &ComponentPart) {
+fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &TypeTree) {
     if !matches!(
         component_part.generic_type,
         Some(crate::schema::GenericType::Vec)
@@ -344,7 +344,7 @@ impl<'c> Parse for ComponentAttr<NamedField<'c>> {
                 }
                 "value_type" => {
                     field.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypePath>()
+                        input.parse::<syn::Type>()
                     })?);
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
