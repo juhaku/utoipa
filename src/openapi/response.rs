@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::IntoResponses;
+
 use super::{build_fn, builder, from, header::Header, new, set_value, Content};
 
 builder! {
@@ -33,11 +35,33 @@ impl Responses {
 }
 
 impl ResponsesBuilder {
-    /// Add response to responses.
+    /// Add a [`Response`].
     pub fn response<S: Into<String>, R: Into<Response>>(mut self, code: S, response: R) -> Self {
         self.responses.insert(code.into(), response.into());
 
         self
+    }
+
+    /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
+    pub fn responses_from_iter<I: Iterator<Item = (C, R)>, C: Into<String>, R: Into<Response>>(
+        mut self,
+        iter: I,
+    ) -> Self {
+        self.responses
+            .extend(iter.map(|(code, response)| (code.into(), response.into())));
+        self
+    }
+
+    /// Add responses from a type that implements [`IntoResponses`].
+    pub fn responses_from_into_responses<I: IntoResponses>(mut self) -> Self {
+        self.responses.extend(I::responses());
+        self
+    }
+}
+
+impl From<Responses> for BTreeMap<String, Response> {
+    fn from(responses: Responses) -> Self {
+        responses.responses
     }
 }
 

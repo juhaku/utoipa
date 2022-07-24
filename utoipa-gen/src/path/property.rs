@@ -1,4 +1,4 @@
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::{
@@ -47,17 +47,14 @@ impl ToTokens for Property<'_> {
             });
         } else {
             let component_name_path = component_type.0;
-            let name = component::format_path_ref(component_name_path);
 
             let component = if self.0.is_inline {
-                let assert_component = format_ident!("_Assert{}", name);
                 quote_spanned! { component_name_path.span() => {
-                        struct #assert_component where #component_name_path: utoipa::Component;
-
                         <#component_name_path as utoipa::Component>::component()
                     }
                 }
             } else {
+                let name = component::format_path_ref(component_name_path);
                 quote! {
                     utoipa::openapi::Ref::from_component_name(#name)
                 }

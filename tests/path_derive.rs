@@ -1,9 +1,14 @@
 #![cfg(feature = "serde_json")]
+use std::collections::BTreeMap;
+
 use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use utoipa::{Component, IntoParams, OpenApi};
+use utoipa::{
+    openapi::{Response, ResponseBuilder, ResponsesBuilder},
+    Component, IntoParams, IntoResponses, OpenApi,
+};
 
 mod common;
 
@@ -778,7 +783,7 @@ fn derive_path_params_into_params_with_raw_identifier() {
         )
     )]
     #[allow(unused)]
-    fn get_foo(path: Filter) {}
+    fn get_foo(query: Filter) {}
 
     #[derive(OpenApi, Default)]
     #[openapi(handlers(get_foo))]
@@ -797,6 +802,49 @@ fn derive_path_params_into_params_with_raw_identifier() {
                 "type": "string"
             }
         }])
+    )
+}
+
+#[test]
+fn derive_path_with_into_responses() {
+    #[allow(unused)]
+    enum MyResponse {
+        Ok,
+        NotFound,
+    }
+
+    impl IntoResponses for MyResponse {
+        fn responses() -> BTreeMap<String, Response> {
+            let responses = ResponsesBuilder::new()
+                .response("200", ResponseBuilder::new().description("Ok"))
+                .response("404", ResponseBuilder::new().description("Not Found"))
+                .build();
+
+            responses.responses
+        }
+    }
+
+    #[utoipa::path(get, path = "foo", responses(MyResponse))]
+    #[allow(unused)]
+    fn get_foo() {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!({
+            "200": {
+                "description": "Ok"
+            },
+            "404": {
+                "description": "Not Found"
+            }
+        })
     )
 }
 
