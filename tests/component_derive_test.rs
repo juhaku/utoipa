@@ -1246,7 +1246,7 @@ fn derive_component_with_chrono_with_chrono_feature() {
 
 #[cfg(feature = "time")]
 #[test]
-fn derive_component_with_chrono_with_chrono_feature() {
+fn derive_component_with_time_feature() {
     use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
 
     let times = api_doc! {
@@ -1770,6 +1770,34 @@ fn derive_component_with_raw_identifier() {
                 }
             },
             "required": ["in"],
+            "type": "object"
+        })
+    )
+}
+
+#[cfg(feature = "smallvec")]
+#[test]
+fn derive_component_with_smallvec_feature() {
+    use smallvec::SmallVec;
+
+    let bar = api_doc! {
+        struct Bar<'b> {
+            links: SmallVec<[&'b str; 2]>
+        }
+    };
+
+    assert_json_eq!(
+        bar,
+        json!({
+            "properties": {
+                "links": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                }
+            },
+            "required": ["links"],
             "type": "object"
         })
     )
