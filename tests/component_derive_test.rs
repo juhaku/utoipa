@@ -1244,6 +1244,51 @@ fn derive_component_with_chrono_with_chrono_feature() {
     }
 }
 
+#[cfg(feature = "time")]
+#[test]
+fn derive_component_with_chrono_with_chrono_feature() {
+    use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
+
+    let times = api_doc! {
+        struct Timetest {
+            datetime: OffsetDateTime,
+            primitive_date_time: PrimitiveDateTime,
+            date: Date,
+            duration: Duration,
+        }
+    };
+
+    assert_json_eq!(
+        &times,
+        json!({
+            "properties": {
+                "date": {
+                    "format": "date",
+                    "type": "string"
+                },
+                "datetime": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "primitive_date_time": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "datetime",
+                "primitive_date_time",
+                "date",
+                "duration"
+            ],
+            "type": "object"
+        })
+    )
+}
+
 #[test]
 fn derive_struct_component_field_type_override() {
     let post = api_doc! {

@@ -20,7 +20,8 @@ impl ComponentType<'_> {
             feature = "chrono_with_format",
             feature = "decimal",
             feature = "rocket_extras",
-            feature = "uuid"
+            feature = "uuid",
+            feature = "time",
         )))]
         {
             is_primitive(name)
@@ -32,6 +33,7 @@ impl ComponentType<'_> {
             feature = "decimal",
             feature = "rocket_extras",
             feature = "uuid",
+            feature = "time",
         ))]
         {
             let mut primitive = is_primitive(name);
@@ -54,6 +56,14 @@ impl ComponentType<'_> {
             #[cfg(feature = "uuid")]
             if !primitive {
                 primitive = matches!(name, "Uuid");
+            }
+
+            #[cfg(feature = "time")]
+            if !primitive {
+                primitive = matches!(
+                    name,
+                    "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration"
+                );
             }
 
             primitive
@@ -123,6 +133,12 @@ impl ToTokens for ComponentType<'_> {
             "PathBuf" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
+            #[cfg(feature = "time")]
+            "Date" | "PrimitiveDateTime" | "OffsetDateTime" => {
+                tokens.extend(quote! { utoipa::openapi::ComponentType::String })
+            }
+            #[cfg(feature = "time")]
+            "Duration" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
             _ => tokens.extend(quote! { utoipa::openapi::ComponentType::Object }),
         }
     }
@@ -180,12 +196,12 @@ impl Type<'_> {
         };
         let name = &*last_segment.ident.to_string();
 
-        #[cfg(not(any(feature = "chrono_with_format", feature = "uuid")))]
+        #[cfg(not(any(feature = "chrono_with_format", feature = "uuid", feature = "time")))]
         {
             is_known_format(name)
         }
 
-        #[cfg(any(feature = "chrono_with_format", feature = "uuid"))]
+        #[cfg(any(feature = "chrono_with_format", feature = "uuid", feature = "time"))]
         {
             let mut known_format = is_known_format(name);
 
@@ -197,6 +213,11 @@ impl Type<'_> {
             #[cfg(feature = "uuid")]
             if !known_format {
                 known_format = matches!(name, "Uuid");
+            }
+
+            #[cfg(feature = "time")]
+            if !known_format {
+                known_format = matches!(name, "Date" | "PrimitiveDateTime" | "OffsetDateTime");
             }
 
             known_format
@@ -231,6 +252,12 @@ impl ToTokens for Type<'_> {
             "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Uuid }),
+            #[cfg(feature = "time")]
+            "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date }),
+            #[cfg(feature = "time")]
+            "PrimitiveDateTime" | "OffsetDateTime" => {
+                tokens.extend(quote! { utoipa::openapi::ComponentFormat::DateTime })
+            }
             _ => (),
         }
     }
