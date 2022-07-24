@@ -14,13 +14,13 @@ use crate::{
 };
 
 use self::{
-    attr::{ComponentAttr, Enum, IsInline, NamedField, UnnamedFieldStruct},
+    attr::{ComponentAttr, Enum, IsInline, NamedField, Title, UnnamedFieldStruct},
     xml::Xml,
 };
 
 use super::{
     serde::{self, RenameRule, SerdeContainer, SerdeValue},
-    ComponentPart, GenericType, ValueType,
+    GenericType, TypeTree, ValueType,
 };
 
 mod attr;
@@ -218,15 +218,14 @@ impl ToTokens for NamedStructComponent<'_> {
                 let name = &rename_field(&container_rules, &mut field_rule, field_name)
                     .unwrap_or_else(|| String::from(field_name));
 
-                let component_part = &mut ComponentPart::from_type(&field.ty);
+                let type_tree = &mut TypeTree::from_type(&field.ty);
 
                 if let Some((generic_types, alias)) = self.generics.zip(self.alias) {
                     generic_types
                         .type_params()
                         .enumerate()
                         .for_each(|(index, generic)| {
-                            if let Some(generic_type) =
-                                component_part.find_mut_by_ident(&generic.ident)
+                            if let Some(generic_type) = type_tree.find_mut_by_ident(&generic.ident)
                             {
                                 generic_type.update_path(
                                     &alias.generics.type_params().nth(index).unwrap().ident,
@@ -236,18 +235,12 @@ impl ToTokens for NamedStructComponent<'_> {
                 }
 
                 let deprecated = super::get_deprecated(&field.attrs);
-                let attrs = ComponentAttr::<NamedField>::from_attributes_validated(
-                    &field.attrs,
-                    component_part,
-                );
+                let attrs =
+                    ComponentAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
 
-                let override_component_part = attrs.as_ref().and_then(|field| {
-                    field
-                        .as_ref()
-                        .value_type
-                        .as_ref()
-                        .map(ComponentPart::from_type_path)
-                });
+                let override_type_tree = attrs
+                    .as_ref()
+                    .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
 
                 let xml_value = attrs
                     .as_ref()
@@ -255,7 +248,7 @@ impl ToTokens for NamedStructComponent<'_> {
                 let comments = CommentAttributes::from_attributes(&field.attrs);
 
                 let component = ComponentProperty::new(
-                    override_component_part.as_ref().unwrap_or(component_part),
+                    override_type_tree.as_ref().unwrap_or(type_tree),
                     Some(&comments),
                     attrs.as_ref(),
                     deprecated.as_ref(),
@@ -300,13 +293,13 @@ impl ToTokens for UnnamedStructComponent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let fields_len = self.fields.len();
         let first_field = self.fields.first().unwrap();
-        let first_part = &ComponentPart::from_type(&first_field.ty);
+        let first_part = &TypeTree::from_type(&first_field.ty);
 
         let mut is_object = matches!(first_part.value_type, ValueType::Object);
 
         let all_fields_are_same = fields_len == 1
             || self.fields.iter().skip(1).all(|field| {
-                let component_part = &ComponentPart::from_type(&field.ty);
+                let component_part = &TypeTree::from_type(&field.ty);
 
                 first_part == component_part
             });
@@ -320,7 +313,7 @@ impl ToTokens for UnnamedStructComponent<'_> {
                     .as_ref()
                     .value_type
                     .as_ref()
-                    .map(ComponentPart::from_type_path)
+                    .map(TypeTree::from_type)
             });
 
             if override_component.is_some() {
@@ -506,15 +499,23 @@ struct ComplexEnum<'a> {
 }
 
 impl ComplexEnum<'_> {
-    fn unit_variant_tokens(variant_name: String) -> TokenStream {
+    fn unit_variant_tokens(
+        variant_name: String,
+        variant_title: Option<ComponentAttr<Title>>,
+    ) -> TokenStream {
         quote! {
             utoipa::openapi::PropertyBuilder::new()
+                #variant_title
                 .component_type(utoipa::openapi::ComponentType::String)
                 .enum_values::<[&str; 1], &str>(Some([#variant_name]))
         }
     }
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
-    fn variant_tokens(variant_name: String, variant: &Variant) -> TokenStream {
+    fn variant_tokens(
+        variant_name: String,
+        variant_title: Option<ComponentAttr<Title>>,
+        variant: &Variant,
+    ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let named_enum = NamedStructComponent {
@@ -526,6 +527,7 @@ impl ComplexEnum<'_> {
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
+                        #variant_title
                         .property(#variant_name, #named_enum)
                 }
             }
@@ -537,16 +539,22 @@ impl ComplexEnum<'_> {
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
+                        #variant_title
                         .property(#variant_name, #unnamed_enum)
                 }
             }
-            Fields::Unit => Self::unit_variant_tokens(variant_name),
+            Fields::Unit => Self::unit_variant_tokens(variant_name, variant_title),
         }
     }
 
     /// Produce tokens that represent a variant of a [`ComplexEnum`] where serde enum attribute
     /// `tag = ` applies.
-    fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream {
+    fn tagged_variant_tokens(
+        tag: &str,
+        variant_name: String,
+        variant_title: Option<ComponentAttr<Title>>,
+        variant: &Variant,
+    ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let named_enum = NamedStructComponent {
@@ -556,10 +564,11 @@ impl ComplexEnum<'_> {
                     alias: None,
                 };
 
-                let variant_name_tokens = Self::unit_variant_tokens(variant_name);
+                let variant_name_tokens = Self::unit_variant_tokens(variant_name, None);
 
                 quote! {
                     #named_enum
+                        #variant_title
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                 }
@@ -573,9 +582,10 @@ impl ComplexEnum<'_> {
                 );
             }
             Fields::Unit => {
-                let variant_tokens = Self::unit_variant_tokens(variant_name);
+                let variant_tokens = Self::unit_variant_tokens(variant_name, None);
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
+                        #variant_title
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 }
@@ -625,11 +635,13 @@ impl ToTokens for ComplexEnum<'_> {
                 let variant_name =
                     rename_variant(&container_rules, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
+                let variant_title =
+                    attr::parse_component_attr::<ComponentAttr<Title>>(&variant.attrs);
 
                 if let Some(tag) = &tag {
-                    Self::tagged_variant_tokens(tag, variant_name, variant)
+                    Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
                 } else {
-                    Self::variant_tokens(variant_name, variant)
+                    Self::variant_tokens(variant_name, variant_title, variant)
                 }
             })
             .map(|inline_variant| {
@@ -660,7 +672,7 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ComponentProperty<'a, T> {
-    component_part: &'a ComponentPart<'a>,
+    component_part: &'a TypeTree<'a>,
     comments: Option<&'a CommentAttributes>,
     attrs: Option<&'a ComponentAttr<T>>,
     deprecated: Option<&'a Deprecated>,
@@ -669,7 +681,7 @@ struct ComponentProperty<'a, T> {
 
 impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
     fn new(
-        component_part: &'a ComponentPart<'a>,
+        component_part: &'a TypeTree<'a>,
         comments: Option<&'a CommentAttributes>,
         attrs: Option<&'a ComponentAttr<T>>,
         deprecated: Option<&'a Deprecated>,
@@ -697,9 +709,26 @@ where
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self.component_part.generic_type {
             Some(GenericType::Map) => {
-                // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
+                // Maps are treated as generic objects with no named properties and
+                // additionalProperties denoting the type
+                // maps have 2 child components and we are interested the second one of them
+                // which is used to determine the additional properties
+                let component_property = ComponentProperty::new(
+                    self.component_part
+                        .children
+                        .as_ref()
+                        .expect("ComponentProperty Map type should have children")
+                        .iter()
+                        .nth(1)
+                        .expect("ComponentProperty Map type should have 2 child"),
+                    self.comments,
+                    self.attrs,
+                    self.deprecated,
+                    self.xml,
+                );
+
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new()
+                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#component_property))
                 });
 
                 if let Some(description) = self.comments.and_then(|attributes| attributes.0.first())
@@ -711,7 +740,13 @@ where
             }
             Some(GenericType::Vec) => {
                 let component_property = ComponentProperty::new(
-                    self.component_part.child.as_ref().unwrap().as_ref(),
+                    self.component_part
+                        .children
+                        .as_ref()
+                        .expect("ComponentProperty Vec should have children")
+                        .iter()
+                        .next()
+                        .expect("ComponentProperty Vec should have 1 child"),
                     self.comments,
                     self.attrs,
                     self.deprecated,
@@ -737,7 +772,13 @@ where
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
                 let component_property = ComponentProperty::new(
-                    self.component_part.child.as_ref().unwrap().as_ref(),
+                    self.component_part
+                        .children
+                        .as_ref()
+                        .expect("ComponentProperty generic container type should have children")
+                        .iter()
+                        .next()
+                        .expect("ComponentProperty generic container type should have 1 child"),
                     self.comments,
                     self.attrs,
                     self.deprecated,
@@ -747,17 +788,18 @@ where
                 tokens.extend(component_property.into_token_stream())
             }
             None => {
-                let component_part = self.component_part;
+                let type_tree = self.component_part;
 
-                match component_part.value_type {
+                match type_tree.value_type {
                     ValueType::Primitive => {
-                        let component_type = ComponentType(&*component_part.path);
+                        let type_path = &**type_tree.path.as_ref().unwrap();
+                        let component_type = ComponentType(type_path);
 
                         tokens.extend(quote! {
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format: ComponentFormat = (&*component_part.path).into();
+                        let format: ComponentFormat = (type_path).into();
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
@@ -796,22 +838,24 @@ where
                             .attrs
                             .map(|attributes| attributes.is_inline())
                             .unwrap_or(false);
-                        if component_part.is_any() {
+                        if type_tree.is_any() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else {
-                            let component_path = &*component_part.path;
+                            let type_path = &**type_tree.path.as_ref().unwrap();
                             if is_inline {
-                                tokens.extend(quote_spanned! {component_path.span() =>
-                                    <#component_path as utoipa::Component>::component()
+                                tokens.extend(quote_spanned! {type_path.span() =>
+                                    <#type_path as utoipa::Component>::component()
                                 });
                             } else {
-                                let name = format_path_ref(component_path);
+                                let name = format_path_ref(type_path);
                                 tokens.extend(quote! {
                                     utoipa::openapi::Ref::from_component_name(#name)
                                 })
                             }
                         }
                     }
+                    // TODO support for tuple types
+                    ValueType::Tuple => (),
                 }
             }
         }

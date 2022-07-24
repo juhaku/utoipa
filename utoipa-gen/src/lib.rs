@@ -264,6 +264,18 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
+/// It is possible to specify the title of each variant to help generators create named structures.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// enum ErrorResponse {
+///     #[component(title = "InvalidCredentials")]
+///     InvalidCredentials,
+///     #[component(title = "NotFound")]
+///     NotFound(String),
+/// }
+/// ```
+///
 /// Use `xml` attribute to manipulate xml output.
 /// ```rust
 /// # use utoipa::Component;
@@ -590,7 +602,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ///
-/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parameter types** [^actix_extras].
+/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation**
+/// and **parameter types** [^actix_extras].
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -610,8 +623,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// With **actix_extras** you may also not to list any _**params**_ if you do not want to specify any description for them. Params are resolved from
-/// path and the argument types of handler. [^actix_extras]
+/// With **actix_extras** you may also not to list any _**params**_ if you do not want to specify any description for them. Params are
+/// resolved from path and the argument types of handler. [^actix_extras]
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -630,12 +643,12 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # rocket_extras support for rocket
 ///
-/// **rocket_extras** feature gives **utoipa** ability to use **rocket** path operation macros such as _`#[get(...)]`_ to
-/// resolve path for `#[utoipa::path]`.  Also it is able to parse the `path` and `query` parameters from path operation macro
-/// combined with function arguments of the operation. Allowing you leave out types from parameters in `params(...)` section
-/// or even leave out the section if description is not needed for parameters. Utoipa is only able to parse parameter types
-/// for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`] type. Other function arguments are
-/// simply ignored.
+/// **rocket_extras** feature enahances path operation parameter support. It gives **utoipa** ability to parse `path`, `path parameters`
+/// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.  
+///
+/// 1. It is able to parse parameter types for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`]
+///    type.
+/// 2. It is able to determine `parameter_in` for [`IntoParams`][into_params] trait used for `FromForm` type of query parameters.
 ///
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ///
@@ -1675,7 +1688,7 @@ impl ToTokens for AnyValue {
 
 /// Parsing utils
 mod parse_utils {
-    use proc_macro2::{Group, Ident, TokenStream};
+    use proc_macro2::{Group, Ident, TokenStream, TokenTree};
     use proc_macro_error::ResultExt;
     use syn::{
         parenthesized,
@@ -1684,6 +1697,21 @@ mod parse_utils {
         token::Comma,
         Error, LitBool, LitStr, Token,
     };
+
+    pub fn skip_past_next_comma(input: ParseStream) -> syn::Result<()> {
+        input.step(|cursor| {
+            let mut rest = *cursor;
+            while let Some((tt, next)) = rest.token_tree() {
+                match &tt {
+                    TokenTree::Punct(punct) if punct.as_char() == ',' => {
+                        return Ok(((), next));
+                    }
+                    _ => rest = next,
+                }
+            }
+            Ok(((), rest))
+        })
+    }
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input

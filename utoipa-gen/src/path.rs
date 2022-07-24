@@ -161,16 +161,10 @@ impl<'p> PathAttr<'p> {
                         Parameter::Struct(parameter) => Some(parameter),
                     })
                     .for_each(|parameter| {
-                        let parameter_path = &parameter.path.path;
                         if let Some(into_params_argument) =
                             into_params_types
                                 .iter_mut()
-                                .find(|argument: &&mut IntoParamsType| {
-                                    <syn::Path as PartialEq>::eq(
-                                        &argument.type_path.path,
-                                        parameter_path,
-                                    )
-                                })
+                                .find(|argument| matches!(&argument.type_path, Some(path) if path.path == parameter.path.path))
                         {
                             parameter.update_parameter_in(
                                 &mut into_params_argument.parameter_in_provider,

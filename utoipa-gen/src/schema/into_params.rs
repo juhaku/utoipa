@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Error,
     Field, Generics, Ident, LitStr, Token,
@@ -11,11 +11,10 @@ use crate::{
     doc_comment::CommentAttributes,
     parse_utils,
     path::parameter::{ParameterExt, ParameterIn, ParameterStyle},
-    schema::TypeToken,
     Array, Required,
 };
 
-use super::{ComponentPart, GenericType, ValueType};
+use super::{GenericType, TypeTree, ValueType};
 
 /// Container attribute `#[into_params(...)]`.
 #[derive(Default)]
@@ -263,7 +262,7 @@ impl ToTokens for Param<'_> {
             name = &name[2..];
         }
 
-        let component_part = ComponentPart::from_type(&field.ty);
+        let type_tree = TypeTree::from_type(&field.ty);
         let field_param_attrs = field
             .attrs
             .iter()
@@ -330,13 +329,8 @@ impl ToTokens for Param<'_> {
         }
         let component = &field_param_attrs
             .as_ref()
-            .and_then(|field_params| {
-                field_params
-                    .value_type
-                    .as_ref()
-                    .map(|value_type| value_type.get_component_part())
-            })
-            .unwrap_or(component_part);
+            .and_then(|field_params| field_params.value_type.as_ref().map(TypeTree::from_type))
+            .unwrap_or(type_tree);
         let required: Required =
             (!matches!(&component.generic_type, Some(GenericType::Option))).into();
 
@@ -356,7 +350,7 @@ impl ToTokens for Param<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct IntoParamsFieldParamsAttr {
     inline: bool,
-    value_type: Option<TypeToken>,
+    value_type: Option<syn::Type>,
     parameter_ext: Option<ParameterExt>,
 }
 
@@ -377,7 +371,7 @@ impl Parse for IntoParamsFieldParamsAttr {
                     "inline" => param.inline = parse_utils::parse_bool_or_true(input)?,
                     "value_type" => {
                         param.value_type = Some(parse_utils::parse_next(input, || {
-                            input.parse::<TypeToken>()
+                            input.parse::<syn::Type>()
                         })?)
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -394,7 +388,7 @@ impl Parse for IntoParamsFieldParamsAttr {
 }
 
 struct ParamType<'a> {
-    component: &'a ComponentPart<'a>,
+    component: &'a TypeTree<'a>,
     field_param_attrs: &'a Option<IntoParamsFieldParamsAttr>,
 }
 
@@ -405,7 +399,13 @@ impl ToTokens for ParamType<'_> {
         match &component.generic_type {
             Some(GenericType::Vec) => {
                 let param_type = ParamType {
-                    component: component.child.as_ref().unwrap().as_ref(),
+                    component: component
+                        .children
+                        .as_ref()
+                        .expect("Vec ParamType should have children")
+                        .iter()
+                        .next()
+                        .expect("Vec ParamType should have 1 child"),
                     field_param_attrs: self.field_param_attrs,
                 };
 
@@ -420,16 +420,35 @@ impl ToTokens for ParamType<'_> {
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
                 let param_type = ParamType {
-                    component: component.child.as_ref().unwrap().as_ref(),
+                    component: component
+                        .children
+                        .as_ref()
+                        .expect("Generic container ParamType should have children")
+                        .iter()
+                        .next()
+                        .expect("Generic container ParamType should have 1 child"),
                     field_param_attrs: self.field_param_attrs,
                 };
 
                 tokens.extend(param_type.into_token_stream())
             }
             Some(GenericType::Map) => {
-                // Maps are treated just as generic objects without types. There is no Map type in OpenAPI spec.
+                // Maps are treated as generic objects with no named properties and
+                // additionalProperties denoting the type
+
+                let component_property = ParamType {
+                    component: component
+                        .children
+                        .as_ref()
+                        .expect("Map ParamType should have children")
+                        .iter()
+                        .nth(1)
+                        .expect("Map Param type should have 2 child"),
+                    field_param_attrs: self.field_param_attrs,
+                };
+
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new()
+                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#component_property))
                 });
             }
             None => {
@@ -437,13 +456,14 @@ impl ToTokens for ParamType<'_> {
 
                 match component.value_type {
                     ValueType::Primitive => {
-                        let component_type = ComponentType(&*component.path);
+                        let type_path = &**component.path.as_ref().unwrap();
+                        let component_type = ComponentType(type_path);
 
                         tokens.extend(quote! {
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format: ComponentFormat = (&*component.path).into();
+                        let format: ComponentFormat = (type_path).into();
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
@@ -451,10 +471,10 @@ impl ToTokens for ParamType<'_> {
                         }
                     }
                     ValueType::Object => {
-                        let component_path: &syn::TypePath = &*component.path;
+                        let component_path: &syn::TypePath = &*component.path.as_ref().expect("component should have a path");
                         if inline {
                             tokens.extend(quote_spanned! {component_path.span()=>
-                                    <#component_path as utoipa::Component>::component()
+                                <#component_path as utoipa::Component>::component()
                             })
                         } else if component.is_any() {
                             tokens.extend(quote! {
@@ -473,6 +493,8 @@ impl ToTokens for ParamType<'_> {
                             });
                         }
                     }
+                    // TODO support for tuple types
+                    ValueType::Tuple => (),
                 }
             }
         };

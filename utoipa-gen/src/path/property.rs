@@ -1,4 +1,4 @@
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::{

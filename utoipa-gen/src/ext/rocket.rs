@@ -1,197 +1,184 @@
-use std::{borrow::Cow, cmp::Ordering, str::FromStr};
+use std::{borrow::Cow, str::FromStr};
 
 use lazy_static::lazy_static;
-use proc_macro2::Ident;
-use proc_macro_error::{abort, abort_call_site};
+use proc_macro2::{Ident, TokenStream};
+use proc_macro_error::abort;
+use quote::quote;
 use regex::{Captures, Regex};
-use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, FnArg, LitStr, PatIdent, Token, Type,
-    TypePath,
-};
+use syn::{parse::Parse, LitStr, Token, TypePath};
 
 use crate::{
-    component_type::ComponentType,
-    ext::{fn_arg, ArgValue, ArgumentIn, MacroArg, ValueArgument},
+    ext::{ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument},
     path::PathOperation,
+    schema::{GenericType, TypeTree, ValueType},
 };
 
 use super::{
+    fn_arg::{self, FnArg},
     ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver,
     ResolvedOperation,
 };
 
+const ANONYMOUS_ARG: &str = "<_>";
+
 impl ArgumentResolver for PathOperations {
     fn resolve_arguments(
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
-        resolved_args: Option<Vec<MacroArg>>,
+        macro_args: Option<Vec<MacroArg>>,
     ) -> (
-        Option<Vec<super::ValueArgument<'_>>>,
-        Option<Vec<super::IntoParamsType<'_>>>,
+        Option<Vec<ValueArgument<'_>>>,
+        Option<Vec<IntoParamsType<'_>>>,
     ) {
-        const ANONYMOUS_ARG: &str = "<_>";
+        let mut args = fn_arg::get_fn_args(fn_args).collect::<Vec<_>>();
+        args.sort_unstable();
+        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
+            args.into_iter().partition(is_into_params);
 
-        let value_arguments = resolved_args.map(|args| {
-            let (anonymous_args, mut named_args): (Vec<MacroArg>, Vec<MacroArg>) =
-                args.into_iter().partition(|arg| {
-                    matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
-                        || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
-                });
+        macro_args
+            .map(|args| {
+                let (anonymous_args, named_args): (Vec<MacroArg>, Vec<MacroArg>) =
+                    args.into_iter().partition(is_anonymous_arg);
 
-            named_args.sort_unstable_by(MacroArg::by_name);
+                (
+                    Some(
+                        value_args
+                            .into_iter()
+                            .flat_map(with_argument_in(&named_args))
+                            .map(to_value_arg)
+                            .chain(anonymous_args.into_iter().map(to_anonymous_value_arg))
+                            .collect(),
+                    ),
+                    Some(
+                        into_params_args
+                            .into_iter()
+                            .flat_map(with_parameter_in(&named_args))
+                            .map(fn_arg::into_into_params_type)
+                            .collect(),
+                    ),
+                )
+            })
+            .unwrap_or_else(|| (None, None))
+    }
+}
 
-            Self::get_fn_args(fn_args)
-                .zip(named_args)
-                .map(|(arg, named_arg)| {
-                    let (name, argument_in) = match named_arg {
-                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
-                    };
+fn to_value_arg((arg, argument_in): (FnArg, ArgumentIn)) -> ValueArgument {
+    let (is_option, is_vec) = is_option_or_vec(&arg.ty);
 
-                    ValueArgument {
-                        name: Some(Cow::Owned(name)),
-                        argument_in,
-                        type_path: Some(arg.ty),
-                        is_array: arg.is_array,
-                        is_option: arg.is_option,
-                    }
-                })
-                .chain(anonymous_args.into_iter().map(|anonymous_arg| {
-                    let (name, argument_in) = match anonymous_arg {
-                        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
-                        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
-                    };
+    ValueArgument {
+        type_path: get_value_type(arg.ty),
+        argument_in,
+        name: Some(Cow::Owned(arg.name.to_string())),
+        is_array: is_vec,
+        is_option,
+    }
+}
 
-                    ValueArgument {
-                        name: Some(Cow::Owned(name)),
-                        argument_in,
-                        type_path: None,
-                        is_array: false,
-                        is_option: false,
-                    }
-                }))
-                .collect()
+fn to_anonymous_value_arg<'a>(macro_arg: MacroArg) -> ValueArgument<'a> {
+    let (name, argument_in) = match macro_arg {
+        MacroArg::Path(arg_value) => (arg_value.name, ArgumentIn::Path),
+        MacroArg::Query(arg_value) => (arg_value.name, ArgumentIn::Query),
+    };
+
+    ValueArgument {
+        type_path: None,
+        argument_in,
+        name: Some(Cow::Owned(name)),
+        is_array: false,
+        is_option: false,
+    }
+}
+
+fn with_parameter_in(
+    named_args: &[MacroArg],
+) -> impl Fn(FnArg) -> Option<(Option<Cow<'_, TypePath>>, TokenStream)> + '_ {
+    move |arg: FnArg| {
+        let parameter_in = named_args.iter().find_map(|macro_arg| match macro_arg {
+            MacroArg::Path(path) => {
+                if arg.name == &*path.name {
+                    Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Path) })
+                } else {
+                    None
+                }
+            }
+            MacroArg::Query(query) => {
+                if arg.name == &*query.name {
+                    Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Query) })
+                } else {
+                    None
+                }
+            }
         });
 
-        (value_arguments, None)
+        Some(arg.ty.path).zip(parameter_in)
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct Arg<'a> {
-    name: &'a Ident,
-    ty: Cow<'a, TypePath>,
-    is_array: bool,
-    is_option: bool,
-}
-
-impl Arg<'_> {
-    fn by_name(a: &Arg, b: &Arg) -> Ordering {
-        a.name.cmp(b.name)
-    }
-}
-
-impl PathOperations {
-    fn get_fn_args(fn_args: &Punctuated<FnArg, Comma>) -> impl Iterator<Item = Arg> + '_ {
-        let mut ordered_args = fn_args
-            .into_iter()
-            .filter(Self::is_supported_type)
-            .map(|arg| match arg {
-                FnArg::Typed(pat_type) => {
-                    let ident = match pat_type.pat.as_ref() {
-                        syn::Pat::Ident(ref pat) => &pat.ident,
-                        _ => abort_call_site!("unexpected Pat, expected Pat::Ident"),
-                    };
-
-                    let (ty, is_array, is_option) = Self::get_type_ident(pat_type.ty.as_ref());
-
-                    Arg {
-                        is_array,
-                        is_option,
-                        name: ident,
-                        ty,
-                    }
-                }
-                _ => abort_call_site!("unexpected FnArg, expected FnArg::Typed"),
-            })
-            .collect::<Vec<_>>();
-
-        ordered_args.sort_unstable_by(Arg::by_name);
-
-        ordered_args.into_iter()
-    }
-
-    fn get_type_ident<'t>(ty: &'t Type) -> (Cow<'t, TypePath>, bool, bool) {
-        match ty {
-            Type::Path(path) => {
-                let first_segment: syn::PathSegment = path.path.segments.first().unwrap().clone();
-                let mut path: Cow<'t, TypePath> = Cow::Borrowed(path);
-
-                if first_segment.arguments.is_empty() {
-                    return (path, false, false);
+fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg, ArgumentIn)> + '_ {
+    move |arg: FnArg| {
+        let argument_in = named_args.iter().find_map(|macro_arg| match macro_arg {
+            MacroArg::Path(path) => {
+                if arg.name == &*path.name {
+                    Some(ArgumentIn::Path)
                 } else {
-                    let is_array = first_segment.ident == "Vec";
-                    let is_option = first_segment.ident == "Option";
-
-                    match first_segment.arguments {
-                        syn::PathArguments::AngleBracketed(ref angle_bracketed) => {
-                            match angle_bracketed.args.first() {
-                                Some(syn::GenericArgument::Type(arg)) => {
-                                    let child_type = Self::get_type_ident(arg);
-
-                                    let is_array = is_array || child_type.1;
-                                    let is_option = is_option || child_type.2;
-
-                                    // Discard the current segment if we are one of the special
-                                    // types recognised as array or option
-                                    if is_array || is_option {
-                                        path = Cow::Owned(child_type.0.into_owned());
-                                    }
-
-                                    (path, is_array, is_option)
-                                }
-                                _ => abort_call_site!(
-                                    "unexpected generic type, expected GenericArgument::Type"
-                                ),
-                            }
-                        }
-                        _ => abort_call_site!(
-                            "unexpected path argument, expected angle bracketed arguments"
-                        ),
-                    }
+                    None
                 }
             }
-            Type::Reference(reference) => Self::get_type_ident(reference.elem.as_ref()),
-            _ => abort_call_site!(
-                "unexpected pat type, expected one of: Type::Path, Type::Reference"
-            ),
-        }
-    }
-
-    fn get_type_path(ty: &Type) -> &TypePath {
-        match ty {
-            Type::Path(path) => path,
-            Type::Reference(reference) => Self::get_type_path(reference.elem.as_ref()),
-            _ => abort_call_site!("unexpected type, expected one of: Type::Path, Type::Reference"),
-        }
-    }
-
-    fn is_supported_type(arg: &&FnArg) -> bool {
-        match arg {
-            FnArg::Typed(pat_type) => {
-                let path = Self::get_type_path(pat_type.ty.as_ref());
-                let segment = &path.path.segments.first().unwrap();
-
-                let mut is_supported = ComponentType(path).is_primitive();
-
-                if !is_supported {
-                    is_supported = matches!(&*segment.ident.to_string(), "Vec" | "Option")
+            MacroArg::Query(query) => {
+                if arg.name == &*query.name {
+                    Some(ArgumentIn::Query)
+                } else {
+                    None
                 }
-
-                is_supported
             }
-            _ => abort_call_site!("unexpected FnArg, expected FnArg::Typed"),
-        }
+        });
+
+        Some(arg).zip(argument_in)
     }
+}
+
+#[inline]
+fn get_value_type(ty: TypeTree<'_>) -> Option<Cow<TypePath>> {
+    // TODO abort if map
+    match ty.generic_type {
+        Some(GenericType::Vec)
+        | Some(GenericType::Box)
+        | Some(GenericType::Cow)
+        | Some(GenericType::Map)
+        | Some(GenericType::Option)
+        | Some(GenericType::RefCell) => {
+            get_value_type(ty.children.unwrap().into_iter().next().unwrap())
+        }
+        None => ty.path,
+    }
+}
+
+#[inline]
+fn is_into_params(fn_arg: &FnArg) -> bool {
+    matches!(fn_arg.ty.value_type, ValueType::Object) && matches!(fn_arg.ty.generic_type, None)
+}
+
+#[inline]
+fn is_anonymous_arg(arg: &MacroArg) -> bool {
+    matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
+        || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
+}
+
+type OptionOrVec = (bool, bool);
+
+#[inline]
+fn is_option_or_vec(ty: &TypeTree<'_>) -> OptionOrVec {
+    // TODO abort if map
+    let mut is_vec = matches!(ty.generic_type, Some(GenericType::Vec));
+    let mut is_option = matches!(ty.generic_type, Some(GenericType::Option));
+
+    if let Some(ref child) = ty.children {
+        let (child_option, child_vec) = is_option_or_vec(child.first().unwrap());
+
+        is_option = is_option || child_option;
+        is_vec = is_vec || child_vec;
+    }
+
+    (is_option, is_vec)
 }
 
 impl PathOperationResolver for PathOperations {
@@ -251,11 +238,11 @@ impl Parse for Path {
         // ignore rest of the tokens from rocket path attribute macro
         input.step(|cursor| {
             let mut rest = *cursor;
-            while let Some((tt, next)) = rest.token_tree() {
+            while let Some((_, next)) = rest.token_tree() {
                 rest = next;
             }
             Ok(((), rest))
-        });
+        })?;
 
         Ok(Self(path, operation))
     }
@@ -284,7 +271,7 @@ impl PathResolver for PathOperations {
 
                     let mut format_arg =
                         |captures: &Captures, resolved_arg_op: fn(ArgValue) -> MacroArg| {
-                            let mut capture = &captures[0];
+                            let capture = &captures[0];
                             let original_name = String::from(capture);
 
                             let mut arg = capture
@@ -318,6 +305,8 @@ impl PathResolver for PathOperations {
                             format_arg(captures, MacroArg::Query)
                         });
                     }
+
+                    names.sort_unstable_by(MacroArg::by_name);
 
                     MacroPath {
                         args: names,

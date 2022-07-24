@@ -3,12 +3,12 @@ use std::mem;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, Attribute, Error, Token, TypePath};
+use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
     component_type::ComponentFormat,
     parse_utils,
-    schema::{ComponentPart, GenericType},
+    schema::{GenericType, TypeTree},
     AnyValue,
 };
 
@@ -48,6 +48,16 @@ where
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Title(Option<String>);
+
+impl IsInline for Title {
+    fn is_inline(&self) -> bool {
+        false
+    }
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Enum {
     default: Option<AnyValue>,
     example: Option<AnyValue>,
@@ -75,7 +85,7 @@ impl IsInline for Struct {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct<'c> {
-    pub(super) value_type: Option<TypePath>,
+    pub(super) value_type: Option<syn::Type>,
     format: Option<ComponentFormat<'c>>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
@@ -91,7 +101,7 @@ impl IsInline for UnnamedFieldStruct<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedField<'c> {
     example: Option<AnyValue>,
-    pub(super) value_type: Option<TypePath>,
+    pub(super) value_type: Option<syn::Type>,
     format: Option<ComponentFormat<'c>>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
@@ -104,6 +114,32 @@ pub struct NamedField<'c> {
 impl IsInline for NamedField<'_> {
     fn is_inline(&self) -> bool {
         self.inline
+    }
+}
+
+impl Parse for ComponentAttr<Title> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: title";
+        let mut title_attr = Title::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                )
+            })?;
+            let name = &*ident.to_string();
+
+            if name == "title" {
+                title_attr = Title(Some(parse_utils::parse_next_literal_str(input)?))
+            }
+
+            if !input.is_empty() {
+                parse_utils::skip_past_next_comma(input)?;
+            }
+        }
+        Ok(Self { inner: title_attr })
     }
 }
 
@@ -166,7 +202,7 @@ impl ComponentAttr<Struct> {
 impl Parse for ComponentAttr<Struct> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: example, xml";
+            "unexpected attribute, expected any of: title, example, xml";
         let mut struct_ = Struct::default();
 
         while !input.is_empty() {
@@ -179,6 +215,9 @@ impl Parse for ComponentAttr<Struct> {
             let name = &*ident.to_string();
 
             match name {
+                "title" => {
+                    parse_utils::parse_next_literal_str(input)?; // Handled by ComponentAttr<Title>
+                }
                 "example" => {
                     struct_.example = Some(parse_utils::parse_next(input, || {
                         AnyValue::parse_lit_str_or_json(input)
@@ -204,7 +243,7 @@ impl Parse for ComponentAttr<Struct> {
 impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: default, example, format, value_type";
+            "unexpected attribute, expected any of: title, default, example, format, value_type";
         let mut unnamed_struct = UnnamedFieldStruct::default();
 
         while !input.is_empty() {
@@ -217,6 +256,9 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
             let name = &*attribute.to_string();
 
             match name {
+                "title" => {
+                    parse_utils::parse_next_literal_str(input)?; // Handled by ComponentAttr<Title>
+                }
                 "default" => {
                     unnamed_struct.default = Some(parse_utils::parse_next(input, || {
                         AnyValue::parse_any(input)
@@ -234,7 +276,7 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
                 }
                 "value_type" => {
                     unnamed_struct.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypePath>()
+                        input.parse::<syn::Type>()
                     })?)
                 }
                 _ => return Err(Error::new(attribute.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -254,7 +296,7 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
 impl<'c> ComponentAttr<NamedField<'c>> {
     pub(super) fn from_attributes_validated(
         attributes: &[Attribute],
-        component_part: &ComponentPart,
+        component_part: &TypeTree,
     ) -> Option<Self> {
         parse_component_attr::<ComponentAttr<NamedField>>(attributes)
             .map(|attrs| {
@@ -286,7 +328,7 @@ impl<'c> ComponentAttr<NamedField<'c>> {
 }
 
 #[inline]
-fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &ComponentPart) {
+fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &TypeTree) {
     if !matches!(
         component_part.generic_type,
         Some(crate::schema::GenericType::Vec)
@@ -344,7 +386,7 @@ impl<'c> Parse for ComponentAttr<NamedField<'c>> {
                 }
                 "value_type" => {
                     field.value_type = Some(parse_utils::parse_next(input, || {
-                        input.parse::<TypePath>()
+                        input.parse::<syn::Type>()
                     })?);
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -372,6 +414,16 @@ where
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.inner.to_tokens(tokens)
+    }
+}
+
+impl ToTokens for Title {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let Some(ref title) = self.0 {
+            tokens.extend(quote! {
+                .title(Some(#title))
+            })
+        }
     }
 }
 

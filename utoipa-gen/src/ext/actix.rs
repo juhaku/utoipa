@@ -1,27 +1,21 @@
 use std::borrow::Cow;
 
 use lazy_static::lazy_static;
-use proc_macro::TokenTree;
-use proc_macro2::{Ident, Literal, Punct};
-use proc_macro_error::{abort, abort_call_site};
-use quote::{format_ident, quote, quote_spanned};
+use proc_macro2::Ident;
+use proc_macro_error::abort;
 use regex::{Captures, Regex};
-use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, DeriveInput, ExprPath,
-    GenericArgument, ItemFn, LitStr, Pat, PatType, PathArguments, PathSegment, Type, TypeInfer,
-    TypePath,
-};
+use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
 
 use crate::{
-    component_type::ComponentType,
-    ext::{ArgValue, ValueArgument},
-    path::{self, PathOperation},
+    ext::ArgValue,
+    path::PathOperation,
+    schema::{TypeTree, ValueType},
 };
 
 use super::{
     fn_arg::{self, FnArg},
     ArgumentIn, ArgumentResolver, MacroArg, MacroPath, PathOperationResolver, PathOperations,
-    PathResolver, ResolvedOperation,
+    PathResolver, ResolvedOperation, ValueArgument,
 };
 
 impl ArgumentResolver for PathOperations {
@@ -32,22 +26,74 @@ impl ArgumentResolver for PathOperations {
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
     ) {
-        let (non_primitive_args, primitive_args): (Vec<FnArg>, Vec<FnArg>) =
-            fn_arg::get_fn_args(fn_args)
-                .into_iter()
-                .partition(fn_arg::non_primitive_arg);
+        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) = fn_arg::get_fn_args(fn_args)
+            .into_iter()
+            .partition(fn_arg::is_into_params);
 
         if let Some(macro_args) = macro_args {
+            let primitive_args = get_primitive_args(value_args);
+
             (
-                Some(fn_arg::to_value_args(macro_args, primitive_args).collect()),
-                Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
+                Some(
+                    macro_args
+                        .into_iter()
+                        .zip(primitive_args)
+                        .map(into_value_argument)
+                        .collect(),
+                ),
+                Some(
+                    into_params_args
+                        .into_iter()
+                        .flat_map(fn_arg::with_parameter_in)
+                        .map(fn_arg::into_into_params_type)
+                        .collect(),
+                ),
             )
         } else {
             (
                 None,
-                Some(fn_arg::to_into_params_types(non_primitive_args).collect()),
+                Some(
+                    into_params_args
+                        .into_iter()
+                        .flat_map(fn_arg::with_parameter_in)
+                        .map(fn_arg::into_into_params_type)
+                        .collect(),
+                ),
             )
         }
+    }
+}
+
+fn get_primitive_args(value_args: Vec<FnArg>) -> impl Iterator<Item = TypeTree> {
+    value_args
+        .into_iter()
+        .filter(|arg| arg.ty.is("Path"))
+        .flat_map(|path_arg| {
+            path_arg
+                .ty
+                .children
+                .expect("Path argument must have children")
+        })
+        .flat_map(|path_arg| match path_arg.value_type {
+            ValueType::Primitive => vec![path_arg],
+            ValueType::Tuple => path_arg
+                .children
+                .expect("ValueType::Tuple will always have children"),
+            ValueType::Object => {
+                unreachable!("Value arguments does not have ValueType::Object arguments")
+            }
+        })
+}
+
+fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> ValueArgument {
+    ValueArgument {
+        name: match macro_arg {
+            MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+        },
+        type_path: primitive_arg.path,
+        is_array: false,
+        is_option: false,
+        argument_in: ArgumentIn::Path,
     }
 }
 
@@ -84,11 +130,11 @@ impl Parse for Path {
         // ignore rest of the tokens from actix-web path attribute macro
         input.step(|cursor| {
             let mut rest = *cursor;
-            while let Some((tt, next)) = rest.token_tree() {
+            while let Some((_, next)) = rest.token_tree() {
                 rest = next;
             }
             Ok(((), rest))
-        });
+        })?;
 
         Ok(Self(path))
     }
@@ -145,9 +191,4 @@ impl PathResolver for PathOperations {
 fn is_valid_request_type(ident: Option<&Ident>) -> bool {
     matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
         .iter().any(|expected_operation| operation == expected_operation))
-}
-
-#[inline]
-fn get_last_ident(type_path: &TypePath) -> Option<&Ident> {
-    type_path.path.segments.last().map(|segment| &segment.ident)
 }

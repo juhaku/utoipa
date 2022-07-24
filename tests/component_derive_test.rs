@@ -53,6 +53,35 @@ macro_rules! api_doc {
 }
 
 #[test]
+fn derive_map_type() {
+    let map = api_doc! {
+        struct Map {
+            map: HashMap<String, String>,
+        }
+    };
+
+    assert_value! { map=>
+        "properties.map.additionalProperties.type" = r#""string""#, "Additional Property Type"
+    };
+}
+
+#[test]
+fn derive_map_ref() {
+    #[derive(Component)]
+    enum Foo {}
+
+    let map = api_doc! {
+        struct Map {
+            map: HashMap<String, Foo>
+        }
+    };
+
+    assert_value! { map=>
+        "properties.map.additionalProperties.$ref" = r##""#/components/schemas/Foo""##, "Additional Property reference"
+    };
+}
+
+#[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
         #[component(default = "Mode1", example = "Mode2")]
@@ -771,6 +800,67 @@ fn derive_complex_enum() {
 }
 
 #[test]
+fn derive_complex_enum_title() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            #[component(title = "Unit")]
+            UnitValue,
+            #[component(title = "Named")]
+            NamedFields {
+                id: &'static str,
+            },
+            #[component(title = "Unnamed")]
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "string",
+                    "title": "Unit",
+                    "enum": [
+                        "UnitValue",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "title": "Named",
+                    "properties": {
+                        "NamedFields": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                },
+                            },
+                            "required": [
+                                "id",
+                            ],
+                        },
+                    },
+                },
+                {
+                    "type": "object",
+                    "title": "Unnamed",
+                    "properties": {
+                        "UnnamedFields": {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_serde_rename_all() {
     #[derive(Serialize)]
     struct Foo(String);
@@ -967,6 +1057,67 @@ fn derive_complex_enum_serde_tag() {
 }
 
 #[test]
+fn derive_complex_enum_serde_tag_title() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag")]
+        enum Bar {
+            #[component(title = "Unit")]
+            UnitValue,
+            #[component(title = "Named")]
+            NamedFields {
+                id: &'static str,
+            },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "title": "Unit",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "UnitValue",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "title": "Named",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                        },
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "NamedFields",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "id",
+                        "tag",
+                    ],
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_struct_with_read_only_and_write_only() {
     let user = api_doc! {
         struct User {
@@ -1091,6 +1242,51 @@ fn derive_component_with_chrono_with_chrono_feature() {
         "properties.value.type" = r#""string""#, "Post value type"
         "properties.value.format" = r#"null"#, "Post value format"
     }
+}
+
+#[cfg(feature = "time")]
+#[test]
+fn derive_component_with_time_feature() {
+    use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime};
+
+    let times = api_doc! {
+        struct Timetest {
+            datetime: OffsetDateTime,
+            primitive_date_time: PrimitiveDateTime,
+            date: Date,
+            duration: Duration,
+        }
+    };
+
+    assert_json_eq!(
+        &times,
+        json!({
+            "properties": {
+                "date": {
+                    "format": "date",
+                    "type": "string"
+                },
+                "datetime": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "primitive_date_time": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "datetime",
+                "primitive_date_time",
+                "date",
+                "duration"
+            ],
+            "type": "object"
+        })
+    )
 }
 
 #[test]
@@ -1574,6 +1770,34 @@ fn derive_component_with_raw_identifier() {
                 }
             },
             "required": ["in"],
+            "type": "object"
+        })
+    )
+}
+
+#[cfg(feature = "smallvec")]
+#[test]
+fn derive_component_with_smallvec_feature() {
+    use smallvec::SmallVec;
+
+    let bar = api_doc! {
+        struct Bar<'b> {
+            links: SmallVec<[&'b str; 2]>
+        }
+    };
+
+    assert_json_eq!(
+        bar,
+        json!({
+            "properties": {
+                "links": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                }
+            },
+            "required": ["links"],
             "type": "object"
         })
     )
