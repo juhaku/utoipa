@@ -131,9 +131,8 @@ impl Parse for ComponentAttr<Title> {
             })?;
             let name = &*ident.to_string();
 
-            match name {
-                "title" => title_attr = Title(Some(parse_utils::parse_next_literal_str(input)?)),
-                _ => (),
+            if name == "title" {
+                title_attr = Title(Some(parse_utils::parse_next_literal_str(input)?))
             }
 
             if !input.is_empty() {
