@@ -225,20 +225,12 @@ impl ToTokens for OpenApi {
         let OpenApi(attributes, ident) = self;
 
         let info = info::impl_info();
-        let components = impl_components(&attributes.components, tokens).map(|components| {
+        let components = impl_components(&attributes.components).map(|components| {
             quote! { .components(Some(#components)) }
         });
 
         let modifiers = &attributes.modifiers;
         let modifiers_len = modifiers.len();
-
-        modifiers.iter().for_each(|modifier| {
-            let assert_modifier = format_ident!("_Assert{}", modifier.ident);
-            let ident = &modifier.ident;
-            quote_spanned! {modifier.ident.span()=>
-                struct #assert_modifier where #ident : utoipa::Modify;
-            };
-        });
 
         let path_items = impl_paths(&attributes.handlers);
 
@@ -280,18 +272,14 @@ impl ToTokens for OpenApi {
     }
 }
 
-fn impl_components(
-    components: &Punctuated<Component, Comma>,
-    tokens: &mut TokenStream,
-) -> Option<TokenStream> {
+fn impl_components(components: &Punctuated<Component, Comma>) -> Option<TokenStream> {
     if !components.is_empty() {
         let mut components_tokens = components.iter().fold(
             quote! { utoipa::openapi::ComponentsBuilder::new() },
             |mut schema, component| {
                 let path = &component.path;
                 let ident = component.get_ident().unwrap();
-                let span = ident.span();
-                // let component_name: String = ident.to_string();
+
                 let component_name: String = component
                     .alias
                     .as_ref()
@@ -300,23 +288,13 @@ fn impl_components(
 
                 let (_, ty_generics, _) = component.generics.split_for_impl();
 
-                let assert_ty_generics = if component.has_lifetime_generics() {
-                    Some(quote! {<'static>})
-                } else {
-                    Some(ty_generics.to_token_stream())
-                };
-                let assert_component = format_ident!("_AssertComponent{}", ident);
-                tokens.extend(quote_spanned! {span=>
-                    struct #assert_component where #path #assert_ty_generics: utoipa::Component;
-                });
-
                 let ty_generics = if component.has_lifetime_generics() {
                     None
                 } else {
                     Some(ty_generics)
                 };
 
-                schema.extend(quote! {
+                schema.extend(quote_spanned! {ident.span()=>
                     .component(#component_name, <#path #ty_generics>::component())
                     .components_from_iter(<#path #ty_generics>::aliases())
                 });
