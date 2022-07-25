@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 crate="$1"
 
 echo "Testing crate: $crate..."
