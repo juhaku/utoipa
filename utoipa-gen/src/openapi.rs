@@ -1,5 +1,6 @@
 use proc_macro2::Ident;
 use proc_macro_error::ResultExt;
+use std::ops::Not;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -104,6 +105,20 @@ impl Component {
 
     fn get_ident(&self) -> Option<&Ident> {
         self.path.path.segments.last().map(|segment| &segment.ident)
+    }
+
+    fn get_complete_ident(&self) -> Option<String> {
+        let s = self
+            .path
+            .path
+            .segments
+            .iter()
+            .map(|segment| {
+                segment.ident.to_string()[0..1].to_uppercase() + &segment.ident.to_string()[1..]
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        s.is_empty().not().then(|| s)
     }
 }
 
@@ -290,6 +305,7 @@ fn impl_components(
             |mut schema, component| {
                 let path = &component.path;
                 let ident = component.get_ident().unwrap();
+                let complete_ident = component.get_complete_ident().unwrap();
                 let span = ident.span();
                 // let component_name: String = ident.to_string();
                 let component_name: String = component
@@ -305,7 +321,7 @@ fn impl_components(
                 } else {
                     Some(ty_generics.to_token_stream())
                 };
-                let assert_component = format_ident!("_AssertComponent{}", ident);
+                let assert_component = format_ident!("_AssertComponent{}", complete_ident);
                 tokens.extend(quote_spanned! {span=>
                     struct #assert_component where #path #assert_ty_generics: utoipa::Component;
                 });
