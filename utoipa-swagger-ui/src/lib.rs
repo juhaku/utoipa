@@ -388,6 +388,10 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
     }
 }
 
+pub const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
+pub const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
+fn swagger_default_layout() -> String { SWAGGER_STANDALONE_LAYOUT.to_string() }
+
 /// Object used to alter Swagger UI settings.
 ///
 /// Config struct provides [Swagger UI configuration](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/configuration.md)
@@ -539,6 +543,10 @@ pub struct Config<'a> {
     /// [`oauth::Config`] the Swagger UI is using for auth flow.
     #[serde(skip)]
     oauth: Option<oauth::Config>,
+
+    /// [ layout ] the layout of Swagger UI uses, default is "StandaloneLayout"
+    #[serde(default = "swagger_default_layout")]
+    layout: String,
 }
 
 impl<'a> Config<'a> {
@@ -754,6 +762,24 @@ impl<'a> Config<'a> {
     /// ```
     pub fn display_operation_id(mut self, display_operation_id: bool) -> Self {
         self.display_operation_id = Some(display_operation_id);
+
+        self
+    }
+
+    /// Set 'layout' to 'BaseLayout' to only use the base swagger layout without a search header.
+    ///
+    /// Default value is 'StandaloneLayout'.
+    ///
+    /// # Examples
+    ///
+    /// Allow operation id to be shown.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .use_base_layout();
+    /// ```
+    pub fn use_base_layout(mut self) -> Self {
+        self.layout = SWAGGER_BASE_LAYOUT.to_string();
 
         self
     }
