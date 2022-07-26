@@ -18,7 +18,7 @@ debug = []
 [dependencies]
 rust-embed = { version = "6.3", features = ["interpolate-folder-path"] }
 mime_guess = { version = "2.0" }
-actix-web =  { version = "4", optional = true }
+actix-web =  { version = "4", optional = true,  default-features=false }
 rocket = { version = "0.5.0-rc.1", features = ["json"], optional = true }
 utoipa = { version = "1", path = "..", default-features = false, features = [] }
 serde = { version = "1.0", features = ["derive"] }
