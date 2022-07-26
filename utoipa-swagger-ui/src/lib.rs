@@ -561,6 +561,7 @@ impl<'a> Config<'a> {
             oauth: oauth_config,
             deep_linking: Some(true),
             dom_id: Some("#swagger-ui".to_string()),
+            layout: SWAGGER_STANDALONE_LAYOUT,
             ..if urls_len == 1 {
                 Self::new_config_with_single_url(urls)
             } else {
@@ -1484,7 +1485,6 @@ window.ui = SwaggerUIBundle({
   "displayRequestDuration": true,
   "docExpansion": "[\"list\"*]",
   "filter": true,
-  "layout": "BaseLayout",
   "maxDisplayedTags": 1,
   "showExtensions": true,
   "showCommonExtensions": true,
@@ -1498,6 +1498,7 @@ window.ui = SwaggerUIBundle({
   "validatorUrl": "none",
   "withCredentials": true,
   "persistAuthorization": true,
+  "layout": "BaseLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
