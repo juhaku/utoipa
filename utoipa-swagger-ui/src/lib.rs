@@ -388,6 +388,10 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
     }
 }
 
+pub const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
+pub const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
+fn swagger_default_layout() -> &'static str { SWAGGER_STANDALONE_LAYOUT }
+
 /// Object used to alter Swagger UI settings.
 ///
 /// Config struct provides [Swagger UI configuration](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/configuration.md)
@@ -539,6 +543,10 @@ pub struct Config<'a> {
     /// [`oauth::Config`] the Swagger UI is using for auth flow.
     #[serde(skip)]
     oauth: Option<oauth::Config>,
+
+    /// [ layout ] the layout of Swagger UI uses, default is "StandaloneLayout"
+    #[serde(default = "swagger_default_layout")]
+    layout: &'a str,
 }
 
 impl<'a> Config<'a> {
@@ -553,6 +561,7 @@ impl<'a> Config<'a> {
             oauth: oauth_config,
             deep_linking: Some(true),
             dom_id: Some("#swagger-ui".to_string()),
+            layout: SWAGGER_STANDALONE_LAYOUT,
             ..if urls_len == 1 {
                 Self::new_config_with_single_url(urls)
             } else {
@@ -754,6 +763,24 @@ impl<'a> Config<'a> {
     /// ```
     pub fn display_operation_id(mut self, display_operation_id: bool) -> Self {
         self.display_operation_id = Some(display_operation_id);
+
+        self
+    }
+
+    /// Set 'layout' to 'BaseLayout' to only use the base swagger layout without a search header.
+    ///
+    /// Default value is 'StandaloneLayout'.
+    ///
+    /// # Examples
+    ///
+    /// Configure Swagger to use Base Layout instead of Standalone
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .use_base_layout();
+    /// ```
+    pub fn use_base_layout(mut self) -> Self {
+        self.layout = SWAGGER_BASE_LAYOUT;
 
         self
     }
@@ -1234,7 +1261,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"#;
 
     #[test]
@@ -1252,6 +1278,7 @@ window.ui = SwaggerUIBundle({
     "dom_id": "#swagger-ui",
   "url": "/api-doc/openapi1.json",
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1259,7 +1286,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config)
@@ -1285,6 +1311,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1292,7 +1319,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1323,6 +1349,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1330,7 +1357,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1364,6 +1390,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1371,7 +1398,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1401,6 +1427,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1408,7 +1435,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1426,6 +1452,7 @@ window.ui = SwaggerUIBundle({
                 .display_operation_id(true)
                 .display_request_duration(true)
                 .filter(true)
+                .use_base_layout()
                 .doc_expansion(r#"["list"*]"#)
                 .max_displayed_tags(1)
                 .oauth2_redirect_url("http://auth")
@@ -1471,6 +1498,7 @@ window.ui = SwaggerUIBundle({
   "validatorUrl": "none",
   "withCredentials": true,
   "persistAuthorization": true,
+  "layout": "BaseLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1478,7 +1506,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
