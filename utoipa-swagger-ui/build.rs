@@ -106,7 +106,7 @@ fn replace_default_url_with_config(target_dir: &str) {
     .collect::<PathBuf>();
 
     let mut swagger_initializer = fs::read_to_string(&path).unwrap();
-    swagger_initializer = swagger_initializer.replace("layout: \"StandaloneLayout\"", "nothing: false");
+    swagger_initializer = swagger_initializer.replace("layout: \"StandaloneLayout\"", "");
 
     let replaced_swagger_initializer = RE.replace(&swagger_initializer, "{{config}},");
 

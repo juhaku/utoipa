@@ -390,7 +390,7 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
 
 pub const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
 pub const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
-fn swagger_default_layout() -> String { SWAGGER_STANDALONE_LAYOUT.to_string() }
+fn swagger_default_layout() -> &'static str { SWAGGER_STANDALONE_LAYOUT }
 
 /// Object used to alter Swagger UI settings.
 ///
@@ -546,7 +546,7 @@ pub struct Config<'a> {
 
     /// [ layout ] the layout of Swagger UI uses, default is "StandaloneLayout"
     #[serde(default = "swagger_default_layout")]
-    layout: String,
+    layout: &'a str,
 }
 
 impl<'a> Config<'a> {
@@ -772,14 +772,14 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// Allow operation id to be shown.
+    /// Configure Swagger to use Base Layout instead of Standalone
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
     /// let config = Config::new(["/api-doc/openapi.json"])
     ///     .use_base_layout();
     /// ```
     pub fn use_base_layout(mut self) -> Self {
-        self.layout = SWAGGER_BASE_LAYOUT.to_string();
+        self.layout = SWAGGER_BASE_LAYOUT;
 
         self
     }
