@@ -1260,7 +1260,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"#;
 
     #[test]
@@ -1278,6 +1277,7 @@ window.ui = SwaggerUIBundle({
     "dom_id": "#swagger-ui",
   "url": "/api-doc/openapi1.json",
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1285,7 +1285,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config)
@@ -1311,6 +1310,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1318,7 +1318,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1349,6 +1348,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1356,7 +1356,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1390,6 +1389,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1397,7 +1397,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1427,6 +1426,7 @@ window.ui = SwaggerUIBundle({
     }
   ],
   "deepLinking": true,
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
@@ -1434,7 +1434,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
@@ -1452,6 +1451,7 @@ window.ui = SwaggerUIBundle({
                 .display_operation_id(true)
                 .display_request_duration(true)
                 .filter(true)
+                .use_base_layout()
                 .doc_expansion(r#"["list"*]"#)
                 .max_displayed_tags(1)
                 .oauth2_redirect_url("http://auth")
@@ -1484,6 +1484,7 @@ window.ui = SwaggerUIBundle({
   "displayRequestDuration": true,
   "docExpansion": "[\"list\"*]",
   "filter": true,
+  "layout": "BaseLayout",
   "maxDisplayedTags": 1,
   "showExtensions": true,
   "showCommonExtensions": true,
@@ -1504,7 +1505,6 @@ window.ui = SwaggerUIBundle({
   plugins: [
     SwaggerUIBundle.plugins.DownloadUrl
   ],
-  layout: "StandaloneLayout"
 });"###;
 
         assert_diff_equal(EXPECTED, &formatted_config);
