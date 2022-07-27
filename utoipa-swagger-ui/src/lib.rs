@@ -390,7 +390,6 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
 
 pub const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
 pub const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
-fn swagger_default_layout() -> &'static str { SWAGGER_STANDALONE_LAYOUT }
 
 /// Object used to alter Swagger UI settings.
 ///
@@ -545,7 +544,6 @@ pub struct Config<'a> {
     oauth: Option<oauth::Config>,
 
     /// [ layout ] the layout of Swagger UI uses, default is "StandaloneLayout"
-    #[serde(default = "swagger_default_layout")]
     layout: &'a str,
 }
 
