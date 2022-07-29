@@ -51,19 +51,28 @@
 //! * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
 //!   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [rocket extras support][rocket_path]
 //!   or [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details
+//! * **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams`
+//!   without defining the `parameter_in` attribute. See [axum extras support][axum_path]
+//!   or [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 //! * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration` types. By default these types
-//!   are parsed to `string` types without
-//!   additional format. If you want to have formats added to the types use _chrono_with_format_ feature.
-//!   This is useful because OpenAPI 3.1 spec does not have date-time formats.
+//!   are parsed to `string` types without additional format. If you want to have formats added to the types use _chrono_with_format_ feature.
+//!   This is useful because OpenAPI 3.1 spec does not have date-time formats. To override default `string` representation
+//!   users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
 //! * **chrono_with_format** Add support to [chrono](https://crates.io/crates/chrono) types described above with additional `format`
 //!   information type. `date-time` for `DateTime` and `date` for `Date` according
-//!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`.
+//!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To override default `string` representation
+//!   users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
+//! * **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
+//!   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
+//!   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
+//!   to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
 //! * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `String`. If you wish to change the format you need to override the type.
 //!   See the `value_type` in [component derive docs][component_derive].
 //! * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
+//! * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [component derive][serde] for more details.
 //!
@@ -123,7 +132,7 @@
 //!             (status = 404, description = "Pet was not found")
 //!         ),
 //!         params(
-//!             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 //!         )
 //!     )]
 //!     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -159,7 +168,7 @@
 //! #             (status = 404, description = "Pet was not found")
 //! #         ),
 //! #         params(
-//! #             ("id" = u64, path, description = "Pet database id to get Pet for"),
+//! #             ("id" = u64, Path, description = "Pet database id to get Pet for"),
 //! #         )
 //! #     )]
 //! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -195,6 +204,7 @@
 //! [path]: attr.path.html
 //! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
 //! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
+//! [axum_path]: attr.path.html#axum_extras-suppport-for-axum
 //! [serde]: derive.Component.html#partial-serde-attributes-support
 //!
 //! [security]: openapi/security/index.html
@@ -344,7 +354,7 @@ pub trait Component {
 ///         (status = 404, description = "Pet was not found")
 ///     ),
 ///     params(
-///         ("id" = u64, path, description = "Pet database id to get Pet for"),
+///         ("id" = u64, Path, description = "Pet database id to get Pet for"),
 ///     )
 /// )]
 /// async fn get_pet_by_id(pet_id: u64) -> Pet {
@@ -472,7 +482,7 @@ pub trait Modify {
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
-/// Trait used to convert implementing type to OpenAPI parameters for **actix-web** framework.
+/// Trait used to convert implementing type to OpenAPI parameters.
 ///
 /// This trait is [derivable][derive] for structs which are used to describe `path` or `query` parameters.
 /// For more details of `#[derive(IntoParams)]` refer to [derive documentation][derive].
@@ -482,7 +492,7 @@ pub trait Modify {
 /// Derive [`IntoParams`] implementation. This example will fail to compile because [`IntoParams`] cannot
 /// be used alone and it need to be used together with endpoint using the params as well. See
 /// [derive documentation][derive] for more details.
-/// ```compile_fail
+/// ```
 /// use utoipa::{IntoParams};
 ///
 /// #[derive(IntoParams)]
@@ -503,12 +513,14 @@ pub trait Modify {
 /// #    name: String,
 /// # }
 /// impl utoipa::IntoParams for PetParams {
-///     fn into_params() -> Vec<utoipa::openapi::path::Parameter> {
+///     fn into_params(
+///         parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>
+///     ) -> Vec<utoipa::openapi::path::Parameter> {
 ///         vec![
 ///             utoipa::openapi::path::ParameterBuilder::new()
 ///                 .name("id")
 ///                 .required(utoipa::openapi::Required::True)
-///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
@@ -519,7 +531,7 @@ pub trait Modify {
 ///             utoipa::openapi::path::ParameterBuilder::new()
 ///                 .name("name")
 ///                 .required(utoipa::openapi::Required::True)
-///                 .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
@@ -531,7 +543,6 @@ pub trait Modify {
 /// }
 /// ```
 /// [derive]: derive.IntoParams.html
-#[cfg(feature = "actix_extras")]
 pub trait IntoParams {
     /// Provide [`Vec`] of [`openapi::path::Parameter`]s to caller. The result is used in `utoipa-gen` library to
     /// provide OpenAPI parameter information for the endpoint using the parameters.

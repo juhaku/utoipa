@@ -1,4 +1,4 @@
-//! Rust implementation of Openapi Spec V3
+//! Rust implementation of Openapi Spec V3.
 
 use serde::{de::Visitor, Deserialize, Serialize, Serializer};
 
@@ -20,6 +20,7 @@ pub use self::{
 };
 
 pub mod content;
+pub mod encoding;
 pub mod external_docs;
 pub mod header;
 pub mod info;
@@ -396,10 +397,18 @@ macro_rules! builder {
         #[doc = concat!("Builder for [`", stringify!($name),
             "`] with chainable configuration methods to create a new [`", stringify!($name) , "`].")]
         $( #[$builder_meta] )*
-        #[derive(Default)]
         #[cfg_attr(feature = "debug", derive(Debug))]
         $vis $key $builder_name {
             $( $field: $field_ty, )*
+        }
+
+        impl Default for $builder_name {
+            fn default() -> Self {
+                let meta_default: $name = $name::default();
+                Self {
+                    $( $field: meta_default.$field, )*
+                }
+            }
         }
 
         impl $builder_name {

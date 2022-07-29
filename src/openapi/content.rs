@@ -1,10 +1,12 @@
 //! Implements content object for request body and response.
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::{build_fn, from, new, set_value, Component};
+use super::{build_fn, encoding::Encoding, from, new, set_value, Component};
 
 /// Content holds request body content or response content.
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -23,13 +25,24 @@ pub struct Content {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
     pub example: Option<String>,
+
+    /// A map between a property name and its encoding information.
+    ///
+    /// The key, being the property name, MUST exist in the [`Content::schema`] as a property, with
+    /// `schema` being a [`Component::Object`] and this object containing the same property key in
+    /// [`Object::properties`](crate::openapi::schema::Object::properties).
+    ///
+    /// The encoding object SHALL only apply to `request_body` objects when the media type is
+    /// multipart or `application/x-www-form-urlencoded`.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub encoding: BTreeMap<String, Encoding>,
 }
 
 impl Content {
     pub fn new<I: Into<Component>>(schema: I) -> Self {
         Self {
             schema: schema.into(),
-            example: None,
+            ..Self::default()
         }
     }
 }
@@ -44,9 +57,11 @@ pub struct ContentBuilder {
 
     #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
+
+    encoding: BTreeMap<String, Encoding>,
 }
 
-from!(Content ContentBuilder schema, example);
+from!(Content ContentBuilder schema, example, encoding);
 
 impl ContentBuilder {
     new!(pub ContentBuilder);
@@ -68,5 +83,22 @@ impl ContentBuilder {
         set_value!(self example example.map(|example| example.into()))
     }
 
-    build_fn!(pub Content schema, example);
+    /// Add an encoding.
+    ///
+    /// The `property_name` MUST exist in the [`Content::schema`] as a property,
+    /// with `schema` being a [`Component::Object`] and this object containing the same property
+    /// key in [`Object::properties`](crate::openapi::schema::Object::properties).
+    ///
+    /// The encoding object SHALL only apply to `request_body` objects when the media type is
+    /// multipart or `application/x-www-form-urlencoded`.
+    pub fn encoding<S: Into<String>, E: Into<Encoding>>(
+        mut self,
+        property_name: S,
+        encoding: E,
+    ) -> Self {
+        self.encoding.insert(property_name.into(), encoding.into());
+        self
+    }
+
+    build_fn!(pub Content schema, example, encoding);
 }

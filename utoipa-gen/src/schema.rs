@@ -1,13 +1,11 @@
+use std::borrow::Cow;
+
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
-use syn::{
-    punctuated::Pair, AngleBracketedGenericArguments, Attribute, GenericArgument, PathArguments,
-    PathSegment, Type, TypePath,
-};
+use syn::{Attribute, GenericArgument, PathArguments, PathSegment, Type, TypePath};
 
 use crate::{component_type::ComponentType, Deprecated};
 
-#[cfg(feature = "actix_extras")]
 pub mod into_params;
 
 pub mod component;
@@ -24,134 +22,143 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     })
 }
 
+/// [`TypeTree`] of items which represents a single parsed `type` of a
+/// `Component`, `Parameter` or `FnArg`
 #[derive(PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-/// Linked list of implementing types of a field in a struct.
-struct ComponentPart<'a> {
-    pub ident: &'a Ident,
+pub struct TypeTree<'t> {
+    pub path: Option<Cow<'t, TypePath>>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
-    pub child: Option<Box<ComponentPart<'a>>>,
+    pub children: Option<Vec<TypeTree<'t>>>,
 }
 
-impl<'a> ComponentPart<'a> {
-    pub fn from_type(ty: &'a Type) -> ComponentPart<'a> {
-        ComponentPart::from_type_path(
-            Self::get_type_path(ty),
-            ComponentPart::convert,
-            ComponentPart::resolve_component_type,
-        )
+impl<'t> TypeTree<'t> {
+    pub fn from_type(ty: &'t Type) -> TypeTree<'t> {
+        Self::from_type_paths(Self::get_type_paths(ty))
     }
 
-    fn get_type_path(ty: &'a Type) -> &'a TypePath {
+    fn get_type_paths(ty: &'t Type) -> Vec<&'t TypePath> {
         match ty {
-            Type::Path(path) => path,
-            Type::Reference(reference) => match reference.elem.as_ref() {
-                Type::Path(path) => path,
-                _ => abort_call_site!("unexpected type in reference, expected Type:Path"),
-            },
-            Type::Group(group) => Self::get_type_path(group.elem.as_ref()),
+            Type::Path(path) => vec![path],
+            Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
+            Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
+            Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
+            Type::Array(array) => Self::get_type_paths(&array.elem),
             _ => abort_call_site!(
                 "unexpected type in component part get type path, expected one of: Path, Reference, Group"
             ),
         }
     }
 
-    fn from_ident(ty: &'a Ident) -> ComponentPart<'a> {
-        ComponentPart {
-            child: None,
-            generic_type: None,
-            ident: ty,
-            value_type: if ComponentType(ty).is_primitive() {
-                ValueType::Primitive
-            } else {
-                ValueType::Object
-            },
+    fn from_type_paths(paths: Vec<&'t TypePath>) -> TypeTree<'t> {
+        if paths.len() > 1 {
+            TypeTree {
+                path: None,
+                children: Some(Self::convert_types(paths).collect()),
+                generic_type: None,
+                value_type: ValueType::Tuple,
+            }
+        } else {
+            Self::convert_types(paths)
+                .into_iter()
+                .next()
+                .expect("TypeTreeValue from_type_paths expected at least one TypePath")
         }
     }
 
-    fn from_type_path(
-        type_path: &'a TypePath,
-        op: impl Fn(&'a Ident, &'a PathSegment) -> ComponentPart<'a>,
-        or_else: impl Fn(&'a PathSegment) -> ComponentPart<'a>,
-    ) -> ComponentPart<'a> {
-        let segment = type_path
-            .path
-            .segments
-            .pairs()
-            .find_map(|pair| match pair {
-                Pair::Punctuated(_, _) => None,
-                Pair::End(segment) => Some(segment),
-            })
-            .unwrap();
+    fn convert_types(paths: Vec<&'t TypePath>) -> impl Iterator<Item = TypeTree<'t>> {
+        paths.into_iter().map(|path| {
+            // there will always be one segment at least
+            let last_segment = path
+                .path
+                .segments
+                .last()
+                .expect("at least one segment within path in TypeTree::convert_types");
 
-        if segment.arguments.is_empty() {
-            op(&segment.ident, segment)
-        } else {
-            or_else(segment)
-        }
+            if last_segment.arguments.is_empty() {
+                Self::convert(Cow::Borrowed(path), last_segment)
+            } else {
+                Self::resolve_component_type(Cow::Borrowed(path), last_segment)
+            }
+        })
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_component_type(segment: &'a PathSegment) -> ComponentPart<'a> {
-        if segment.arguments.is_empty() {
+    fn resolve_component_type(
+        path: Cow<'t, TypePath>,
+        last_segment: &'t PathSegment,
+    ) -> TypeTree<'t> {
+        if last_segment.arguments.is_empty() {
             abort!(
-                segment.ident,
+                last_segment.ident,
                 "expected at least one angle bracket argument but was 0"
             );
         };
 
-        let mut generic_component_type = ComponentPart::convert(&segment.ident, segment);
+        let mut generic_component_type = Self::convert(path, last_segment);
 
-        generic_component_type.child = Some(Box::new(ComponentPart::from_type(
-            match &segment.arguments {
-                PathArguments::AngleBracketed(angle_bracketed_args) => {
-                    ComponentPart::get_generic_arg_type(0, angle_bracketed_args)
+        let mut generic_types = match &last_segment.arguments {
+            PathArguments::AngleBracketed(angle_bracketed_args) => {
+                // if all type arguments are lifetimes we ignore the generic type
+                if angle_bracketed_args
+                    .args
+                    .iter()
+                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
+                {
+                    None
+                } else {
+                    Some(
+                        angle_bracketed_args
+                            .args
+                            .iter()
+                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_)))
+                            .map(|arg| match arg {
+                                GenericArgument::Type(arg) => arg,
+                                _ => abort!(
+                                    arg,
+                                    "expected generic argument type or generic argument lifetime"
+                                ),
+                            }),
+                    )
                 }
-                _ => abort!(
-                    segment.ident,
-                    "unexpected path argument, expected angle bracketed path argument"
-                ),
-            },
-        )));
+            }
+            _ => abort!(
+                last_segment.ident,
+                "unexpected path argument, expected angle bracketed path argument"
+            ),
+        };
+
+        generic_component_type.children = generic_types
+            .as_mut()
+            .map(|generic_type| generic_type.map(Self::from_type).collect());
 
         generic_component_type
     }
 
-    fn get_generic_arg_type(index: usize, args: &'a AngleBracketedGenericArguments) -> &'a Type {
-        let generic_arg = args.args.iter().nth(index);
-
-        match generic_arg {
-            Some(GenericArgument::Type(generic_type)) => generic_type,
-            Some(GenericArgument::Lifetime(_)) => {
-                ComponentPart::get_generic_arg_type(index + 1, args)
-            }
-            _ => abort!(
-                generic_arg,
-                "expected generic argument type or generic argument lifetime"
-            ),
-        }
-    }
-
-    fn convert(ident: &'a Ident, segment: &PathSegment) -> ComponentPart<'a> {
-        let generic_type = ComponentPart::get_generic(segment);
+    fn convert(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
+        let generic_type = Self::get_generic_type(last_segment);
+        let is_primitive = ComponentType(&*path).is_primitive();
 
         Self {
-            ident,
-            value_type: if ComponentType(ident).is_primitive() {
+            path: Some(path),
+            value_type: if is_primitive {
                 ValueType::Primitive
             } else {
                 ValueType::Object
             },
             generic_type,
-            child: None,
+            children: None,
         }
     }
 
-    fn get_generic(segment: &PathSegment) -> Option<GenericType> {
+    // TODO should we recognize unknown generic types with `GenericType::Unkonwn` instead of `None`?
+    fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
         match &*segment.ident.to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
+            #[cfg(feature = "smallvec")]
+            "SmallVec" => Some(GenericType::Vec),
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
             "Box" => Some(GenericType::Box),
@@ -160,47 +167,77 @@ impl<'a> ComponentPart<'a> {
         }
     }
 
-    fn find_mut_by_ident(&mut self, ident: &'a Ident) -> Option<&mut Self> {
-        match self.generic_type {
-            Some(GenericType::Map) => None,
-            Some(GenericType::Vec)
-            | Some(GenericType::Option)
-            | Some(GenericType::Cow)
-            | Some(GenericType::Box)
-            | Some(GenericType::RefCell) => {
-                Self::find_mut_by_ident(self.child.as_mut().unwrap().as_mut(), ident)
-            }
-            None => {
-                if ident == self.ident {
-                    Some(self)
-                } else {
-                    None
-                }
-            }
+    /// Check whether [`TypeTreeValue`]'s [`syn::TypePath`] or any if it's `children`s [`syn::TypePath`]
+    /// is a given type as [`str`].
+    pub fn is(&self, s: &str) -> bool {
+        let mut is = self
+            .path
+            .as_ref()
+            .map(|path| {
+                path.path
+                    .segments
+                    .last()
+                    .expect("expected at least one segment in TreeTypeValue path")
+                    .ident
+                    == s
+            })
+            .unwrap_or(false);
+
+        if let Some(ref children) = self.children {
+            is = is || children.iter().any(|child| child.is(s));
+        }
+
+        is
+    }
+
+    fn find_mut_by_ident(&mut self, ident: &'_ Ident) -> Option<&mut Self> {
+        let is = self
+            .path
+            .as_mut()
+            .map(|path| {
+                path.path
+                    .segments
+                    .iter()
+                    .any(|segment| &segment.ident == ident)
+            })
+            .unwrap_or(false);
+
+        if is {
+            Some(self)
+        } else {
+            self.children.as_mut().and_then(|children| {
+                children
+                    .iter_mut()
+                    .find_map(|child| Self::find_mut_by_ident(child, ident))
+            })
         }
     }
 
-    fn update_ident(&mut self, ident: &'a Ident) {
-        self.ident = ident
+    fn update_path(&mut self, ident: &'t Ident) {
+        self.path = Some(Cow::Owned(TypePath {
+            qself: None,
+            path: syn::Path::from(ident.clone()),
+        }))
     }
-}
 
-impl<'a> AsMut<ComponentPart<'a>> for ComponentPart<'a> {
-    fn as_mut(&mut self) -> &mut ComponentPart<'a> {
-        self
+    /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
+    /// with `value_type` attribute to hinder the actual type.
+    fn is_any(&self) -> bool {
+        self.is("Any")
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone, Copy, PartialEq)]
-enum ValueType {
+pub enum ValueType {
     Primitive,
     Object,
+    Tuple,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Clone, Copy)]
-enum GenericType {
+pub enum GenericType {
     Vec,
     Map,
     Option,
@@ -214,62 +251,34 @@ pub mod serde {
 
     use std::str::FromStr;
 
-    use proc_macro2::{Span, TokenTree};
+    use proc_macro2::{Ident, Span, TokenTree};
     use proc_macro_error::ResultExt;
     use syn::{buffer::Cursor, Attribute, Error};
 
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub enum Serde {
-        Container(SerdeContainer),
-        Value(SerdeValue),
+    #[inline]
+    fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
+        match next.token_tree() {
+            Some((tt, next)) => match tt {
+                TokenTree::Punct(punct) if punct.as_char() == '=' => parse_next_lit_str(next),
+                TokenTree::Literal(literal) => {
+                    Some((literal.to_string().replace('\"', ""), literal.span()))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
-    impl Serde {
-        #[inline]
-        fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
-            match next.token_tree() {
-                Some((tt, next)) => match tt {
-                    TokenTree::Punct(punct) if punct.as_char() == '=' => {
-                        Serde::parse_next_lit_str(next)
-                    }
-                    TokenTree::Literal(literal) => {
-                        Some((literal.to_string().replace('\"', ""), literal.span()))
-                    }
-                    _ => None,
-                },
-                _ => None,
-            }
-        }
+    #[derive(Default)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct SerdeValue {
+        pub skip: Option<bool>,
+        pub rename: Option<String>,
+    }
 
-        fn parse_container(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            let mut container = SerdeContainer::default();
-
-            input.step(|cursor| {
-                let mut rest = *cursor;
-                while let Some((tt, next)) = rest.token_tree() {
-                    match tt {
-                        TokenTree::Ident(ident) if ident == "rename_all" => {
-                            if let Some((literal, span)) = Serde::parse_next_lit_str(next) {
-                                container.rename_all = Some(
-                                    literal
-                                        .parse::<RenameRule>()
-                                        .map_err(|error| Error::new(span, error.to_string()))?,
-                                );
-                            };
-                        }
-                        _ => (),
-                    }
-
-                    rest = next;
-                }
-                Ok(((), rest))
-            })?;
-
-            Ok(Serde::Container(container))
-        }
-
-        fn parse_value(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            let mut value = SerdeValue::default();
+    impl SerdeValue {
+        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+            let mut value = Self::default();
 
             input.step(|cursor| {
                 let mut rest = *cursor;
@@ -277,7 +286,7 @@ pub mod serde {
                     match tt {
                         TokenTree::Ident(ident) if ident == "skip" => value.skip = Some(true),
                         TokenTree::Ident(ident) if ident == "rename" => {
-                            if let Some((literal, _)) = Serde::parse_next_lit_str(next) {
+                            if let Some((literal, _)) = parse_next_lit_str(next) {
                                 value.rename = Some(literal)
                             };
                         }
@@ -289,41 +298,80 @@ pub mod serde {
                 Ok(((), rest))
             })?;
 
-            Ok(Serde::Value(value))
+            Ok(value)
         }
     }
 
-    #[derive(Default)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct SerdeValue {
-        pub skip: Option<bool>,
-        pub rename: Option<String>,
-    }
-
+    /// Attributes defined within a `#[serde(...)]` container attribute.
     #[derive(Default)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct SerdeContainer {
         pub rename_all: Option<RenameRule>,
+        pub tag: Option<String>,
     }
 
-    pub fn parse_value(attributes: &[Attribute]) -> Option<Serde> {
+    impl SerdeContainer {
+        /// Parse a single serde attribute, currently `rename_all = ...` and `tag = ...` attributes
+        /// are supported.
+        fn parse_attribute(&mut self, ident: Ident, next: Cursor) -> syn::Result<()> {
+            match ident.to_string().as_str() {
+                "rename_all" => {
+                    if let Some((literal, span)) = parse_next_lit_str(next) {
+                        self.rename_all = Some(
+                            literal
+                                .parse::<RenameRule>()
+                                .map_err(|error| Error::new(span, error.to_string()))?,
+                        );
+                    };
+                }
+                "tag" => {
+                    if let Some((literal, _span)) = parse_next_lit_str(next) {
+                        self.tag = Some(literal)
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+
+        /// Parse the attributes inside a `#[serde(...)]` container attribute.
+        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+            let mut container = Self::default();
+
+            input.step(|cursor| {
+                let mut rest = *cursor;
+                while let Some((tt, next)) = rest.token_tree() {
+                    if let TokenTree::Ident(ident) = tt {
+                        container.parse_attribute(ident, next)?
+                    }
+
+                    rest = next;
+                }
+                Ok(((), rest))
+            })?;
+
+            Ok(container)
+        }
+    }
+
+    pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
         attributes
             .iter()
             .find(|attribute| attribute.path.is_ident("serde"))
             .map(|serde_attribute| {
                 serde_attribute
-                    .parse_args_with(Serde::parse_value)
+                    .parse_args_with(SerdeValue::parse)
                     .unwrap_or_abort()
             })
     }
 
-    pub fn parse_container(attributes: &[Attribute]) -> Option<Serde> {
+    pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
         attributes
             .iter()
             .find(|attribute| attribute.path.is_ident("serde"))
             .map(|serde_attribute| {
                 serde_attribute
-                    .parse_args_with(Serde::parse_container)
+                    .parse_args_with(SerdeContainer::parse)
                     .unwrap_or_abort()
             })
     }

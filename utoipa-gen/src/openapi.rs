@@ -12,8 +12,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementAttr, Array,
-    ExternalDocs,
+    parse_utils, path::PATH_STRUCT_PREFIX, schema::component,
+    security_requirement::SecurityRequirementAttr, Array, ExternalDocs,
 };
 
 mod info;
@@ -89,8 +89,9 @@ impl Parse for OpenApiAttr {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Component {
-    ty: Ident,
+    path: ExprPath,
     generics: Generics,
+    alias: Option<syn::TypePath>,
 }
 
 impl Component {
@@ -100,13 +101,28 @@ impl Component {
             .iter()
             .any(|generic| matches!(generic, GenericParam::Lifetime(_)))
     }
+
+    fn get_ident(&self) -> Option<&Ident> {
+        self.path.path.segments.last().map(|segment| &segment.ident)
+    }
 }
 
 impl Parse for Component {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let path: ExprPath = input.parse()?;
+        let generics: Generics = input.parse()?;
+
+        let alias: Option<syn::TypePath> = if input.peek(Token![as]) {
+            input.parse::<Token![as]>()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
+
         Ok(Component {
-            ty: input.parse()?,
-            generics: input.parse()?,
+            path,
+            generics,
+            alias,
         })
     }
 }
@@ -209,20 +225,12 @@ impl ToTokens for OpenApi {
         let OpenApi(attributes, ident) = self;
 
         let info = info::impl_info();
-        let components = impl_components(&attributes.components, tokens).map(|components| {
+        let components = impl_components(&attributes.components).map(|components| {
             quote! { .components(Some(#components)) }
         });
 
         let modifiers = &attributes.modifiers;
         let modifiers_len = modifiers.len();
-
-        modifiers.iter().for_each(|modifier| {
-            let assert_modifier = format_ident!("_Assert{}", modifier.ident);
-            let ident = &modifier.ident;
-            quote_spanned! {modifier.ident.span()=>
-                struct #assert_modifier where #ident : utoipa::Modify;
-            };
-        });
 
         let path_items = impl_paths(&attributes.handlers);
 
@@ -264,37 +272,31 @@ impl ToTokens for OpenApi {
     }
 }
 
-fn impl_components(
-    components: &Punctuated<Component, Comma>,
-    tokens: &mut TokenStream,
-) -> Option<TokenStream> {
+fn impl_components(components: &Punctuated<Component, Comma>) -> Option<TokenStream> {
     if !components.is_empty() {
         let mut components_tokens = components.iter().fold(
             quote! { utoipa::openapi::ComponentsBuilder::new() },
             |mut schema, component| {
-                let ident = &component.ty;
-                let span = ident.span();
-                let component_name = &*ident.to_string();
-                let (_, ty_generics, _) = component.generics.split_for_impl();
+                let path = &component.path;
+                let ident = component.get_ident().unwrap();
 
-                let assert_ty_generics = if component.has_lifetime_generics() {
-                    Some(quote! {<'static>})
-                } else {
-                    Some(ty_generics.to_token_stream())
-                };
-                let assert_component = format_ident!("_AssertComponent{}", component_name);
-                tokens.extend(quote_spanned! {span=>
-                    struct #assert_component where #ident #assert_ty_generics: utoipa::Component;
-                });
+                let component_name: String = component
+                    .alias
+                    .as_ref()
+                    .map(component::format_path_ref)
+                    .unwrap_or_else(|| ident.to_token_stream().to_string());
+
+                let (_, ty_generics, _) = component.generics.split_for_impl();
 
                 let ty_generics = if component.has_lifetime_generics() {
                     None
                 } else {
                     Some(ty_generics)
                 };
-                schema.extend(quote! {
-                    .component(#component_name, <#ident #ty_generics>::component())
-                    .components_from_iter(<#ident #ty_generics>::aliases())
+
+                schema.extend(quote_spanned! {ident.span()=>
+                    .component(#component_name, <#path #ty_generics>::component())
+                    .components_from_iter(<#path #ty_generics>::aliases())
                 });
 
                 schema

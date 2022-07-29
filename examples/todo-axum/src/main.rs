@@ -3,15 +3,15 @@ use std::{
     sync::Arc,
 };
 
-use axum::{extract::Path, response::IntoResponse, routing, Extension, Json, Router, Server};
-use hyper::{Error, StatusCode};
+use axum::{routing, Extension, Router, Server};
+use hyper::Error;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
-use utoipa_swagger_ui::Config;
+use utoipa_swagger_ui::SwaggerUi;
 
-use crate::todo::{Store, Todo, TodoError};
+use crate::todo::Store;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -19,11 +19,12 @@ async fn main() -> Result<(), Error> {
     #[openapi(
         handlers(
             todo::list_todos,
+            todo::search_todos,
             todo::create_todo,
             todo::mark_done,
             todo::delete_todo,
         ),
-        components(Todo, TodoError),
+        components(todo::Todo, todo::TodoError),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")
@@ -44,27 +45,14 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let api_doc = ApiDoc::openapi();
-    let config = Arc::new(Config::from("/api-doc/openapi.json"));
-
     let store = Arc::new(Store::default());
     let app = Router::new()
-        .route(
-            "/api-doc/openapi.json",
-            routing::get({
-                let doc = api_doc.clone();
-                move || async { Json(doc) }
-            }),
-        )
-        .route(
-            "/swagger-ui/*tail",
-            routing::get(serve_swagger_ui).layer(Extension(config)),
-        )
+        .merge(SwaggerUi::new("/swagger-ui/*tail").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .route(
             "/todo",
-            routing::get(todo::list_todos)
-                .post(todo::create_todo)
+            routing::get(todo::list_todos).post(todo::create_todo),
         )
+        .route("/todo/search", routing::get(todo::search_todos))
         .route(
             "/todo/:id",
             routing::put(todo::mark_done).delete(todo::delete_todo),
@@ -75,33 +63,18 @@ async fn main() -> Result<(), Error> {
     Server::bind(&address).serve(app.into_make_service()).await
 }
 
-async fn serve_swagger_ui(
-    Path(tail): Path<String>,
-    Extension(state): Extension<Arc<Config<'static>>>,
-) -> impl IntoResponse {
-    match utoipa_swagger_ui::serve(&tail[1..], state) {
-        Ok(file) => file
-            .map(|file| {
-                (
-                    StatusCode::OK,
-                    [("Content-Type", file.content_type)],
-                    file.bytes,
-                )
-                    .into_response()
-            })
-            .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response()),
-        Err(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
-    }
-}
-
 mod todo {
     use std::sync::Arc;
 
-    use axum::{extract::Path, response::IntoResponse, Extension, Json};
+    use axum::{
+        extract::{Path, Query},
+        response::IntoResponse,
+        Extension, Json,
+    };
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::Component;
+    use utoipa::{Component, IntoParams};
 
     /// In-memonry todo store
     pub(super) type Store = Mutex<Vec<Todo>>;
@@ -143,6 +116,46 @@ mod todo {
         let todos = store.lock().await.clone();
 
         Json(todos)
+    }
+
+    /// Todo search query
+    #[derive(Deserialize, IntoParams)]
+    pub(super) struct TodoSearchQuery {
+        /// Search by value. Search is incase sensitive.
+        value: String,
+        /// Search by `done` status.
+        done: bool,
+    }
+
+    /// Search Todos by query params.
+    ///
+    /// Search `Todo`s by query parmas and return matching `Todo`s.
+    #[utoipa::path(
+        get,
+        path = "/todo/search",
+        params(
+            TodoSearchQuery
+        ),
+        responses(
+            (status = 200, description = "List matching todos by query", body = [Todo])
+        )
+    )]
+    pub(super) async fn search_todos(
+        Extension(store): Extension<Arc<Store>>,
+        query: Query<TodoSearchQuery>,
+    ) -> Json<Vec<Todo>> {
+        Json(
+            store
+                .lock()
+                .await
+                .iter()
+                .filter(|todo| {
+                    todo.value.to_lowercase() == query.value.to_lowercase()
+                        && todo.done == query.done
+                })
+                .cloned()
+                .collect(),
+        )
     }
 
     /// Create new Todo
@@ -194,7 +207,7 @@ mod todo {
             (status = 404, description = "Todo not found")
         ),
         params(
-            ("id" = i32, path, description = "Todo database id")
+            ("id" = i32, Path, description = "Todo database id")
         ),
         security(
             (), // <-- make optional authentication
@@ -235,7 +248,7 @@ mod todo {
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
         params(
-            ("id" = i32, path, description = "Todo database id")
+            ("id" = i32, Path, description = "Todo database id")
         ),
         security(
             ("api_key" = [])

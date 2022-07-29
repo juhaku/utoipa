@@ -42,7 +42,7 @@ fn main() {
     let mut zip = ZipArchive::new(swagger_ui_zip).unwrap();
     extract_within_path(&mut zip, [SWAGGER_UI_DIST_ZIP, "dist"], &target_dir).unwrap();
 
-    replace_default_url(&target_dir);
+    replace_default_url_with_config(&target_dir);
 }
 
 fn extract_within_path<const N: usize>(
@@ -91,9 +91,9 @@ fn extract_within_path<const N: usize>(
     Ok(())
 }
 
-fn replace_default_url(target_dir: &str) {
+fn replace_default_url_with_config(target_dir: &str) {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r#"url: ".*","#).unwrap();
+        static ref RE: Regex = Regex::new(r#"(?ms)url:.*deep.*true,"#).unwrap();
     }
 
     let path = [
@@ -105,9 +105,10 @@ fn replace_default_url(target_dir: &str) {
     .iter()
     .collect::<PathBuf>();
 
-    let swagger_initializer = fs::read_to_string(&path).unwrap();
+    let mut swagger_initializer = fs::read_to_string(&path).unwrap();
+    swagger_initializer = swagger_initializer.replace("layout: \"StandaloneLayout\"", "");
 
-    let replaced_swagger_initializer = RE.replace(&swagger_initializer, "{{urls}},");
+    let replaced_swagger_initializer = RE.replace(&swagger_initializer, "{{config}},");
 
     fs::write(&path, replaced_swagger_initializer.as_ref()).unwrap();
 }

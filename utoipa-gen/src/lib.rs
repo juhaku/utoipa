@@ -17,16 +17,15 @@ use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
-#[cfg(feature = "actix_extras")]
 use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
-    bracketed,
-    parse::{Parse, ParseBuffer, ParseStream},
+    parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
+    spanned::Spanned,
+    AngleBracketedGenericArguments, DeriveInput, ExprPath, GenericArgument, ItemFn, Lit, LitStr,
+    PathArguments, PathSegment, Token, TypePath,
 };
 
 mod component_type;
@@ -39,12 +38,16 @@ mod security_requirement;
 
 use crate::path::{Path, PathAttr};
 
-#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
 use ext::ArgumentResolver;
 
 #[proc_macro_error]
 #[proc_macro_derive(Component, attributes(component, aliases))]
-/// Component derive macro
+/// Component derive macro.
 ///
 /// This is `#[derive]` implementation for [`Component`][c] trait. The macro accepts one `component`
 /// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
@@ -72,25 +75,27 @@ use ext::ArgumentResolver;
 /// # Unnamed Field Struct Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
-///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
-///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`Component`][c]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
 ///
 /// # Named Fields Optional Configuration Options for `#[component(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
-///   This is useful in cases the where default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not components nor primitive types. With **value_type** we can enforce
-///   type used to certain type. Value type may only be [`primitive`][primitive] type or [`String`]. Generic types are not allowed.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`Component`][c]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
+/// * `inline` If the type of this field implements [`Component`][c], then the schema definition
+///   will be inlined. **warning:** Don't use this for recursive data types!
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -114,8 +119,13 @@ use ext::ArgumentResolver;
 /// * `rename_all = "..."` Supported in container level.
 /// * `rename = "..."` Supported **only** in field or variant level.
 /// * `skip = "..."` Supported  **only** in field or variant level.
+/// * `tag = "..."` Supported in container level.
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
+///
+/// **Note!** `tag` attribute has some limitations like it cannot be used
+/// with **unnamed field structs** and **tuple types**.  See more at
+/// [enum representation docs](https://serde.rs/enum-representations.html).
 ///
 /// ```rust
 /// # use serde::Serialize;
@@ -136,6 +146,24 @@ use ext::ArgumentResolver;
 ///     UnnamedFields(Foo),
 ///     #[serde(skip)]
 ///     SkipMe,
+/// }
+/// ```
+///
+/// Add custom `tag` to change JSON representation to be internally tagged.
+/// ```rust
+/// # use serde::Serialize;
+/// # use utoipa::Component;
+/// #[derive(Serialize, Component)]
+/// struct Foo(String);
+///
+/// #[derive(Serialize, Component)]
+/// #[serde(tag = "tag")]
+/// enum Bar {
+///     UnitValue,
+///     NamedFields {
+///         id: &'static str,
+///         names: Option<Vec<String>>
+///     },
 /// }
 /// ```
 ///
@@ -236,6 +264,18 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
+/// It is possible to specify the title of each variant to help generators create named structures.
+/// ```rust
+/// # use utoipa::Component;
+/// #[derive(Component)]
+/// enum ErrorResponse {
+///     #[component(title = "InvalidCredentials")]
+///     InvalidCredentials,
+///     #[component(title = "NotFound")]
+///     NotFound(String),
+/// }
+/// ```
+///
 /// Use `xml` attribute to manipulate xml output.
 /// ```rust
 /// # use utoipa::Component;
@@ -274,7 +314,7 @@ use ext::ArgumentResolver;
 /// #[derive(Component)]
 /// struct Post {
 ///     id: i32,
-///     #[component(value_type = String, format = ComponentFormat::Binary)]
+///     #[component(value_type = String, format = Binary)]
 ///     value: Vec<u8>,
 /// }
 /// ```
@@ -287,10 +327,43 @@ use ext::ArgumentResolver;
 /// struct Value(i64);
 /// ```
 ///
+/// Override the `Bar` reference with a `custom::NewBar` reference.
+/// ```rust
+/// # use utoipa::Component;
+/// #  mod custom {
+/// #      struct NewBar;
+/// #  }
+/// #
+/// # struct Bar;
+/// #[derive(Component)]
+/// struct Value {
+///     #[component(value_type = custom::NewBar)]
+///     field: Bar,
+/// };
+/// ```
+///
+/// Use a virtual `Any` type to render generic `object` in OpenAPI spec.
+/// ```rust
+/// # use utoipa::Component;
+/// # mod custom {
+/// #    struct NewBar;
+/// # }
+/// #
+/// # struct Bar;
+/// #[derive(Component)]
+/// struct Value {
+///     #[component(value_type = Any)]
+///     field: Bar,
+/// };
+/// ```
+///
+/// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
+///
 /// [c]: trait.Component.html
 /// [format]: openapi/schema/enum.ComponentFormat.html
 /// [binary]: openapi/schema/enum.ComponentFormat.html#variant.Binary
 /// [xml]: openapi/xml/struct.Xml.html
+/// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 pub fn derive_component(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -308,7 +381,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_attribute]
-/// Path attribute macro
+/// Path attribute macro.
 ///
 /// This is a `#[derive]` implementation for [`Path`][path] trait. Macro accepts set of attributes that can
 /// be used to configure and override default values what are resolved automatically.
@@ -343,7 +416,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Request Body Attributes
 ///
 /// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_.
+///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`Component`][component],
+///   it can also be  wrapped in `inline(...)` in order to inline the component schema definition.
+///   E.g. _`inline(Pet)`_.
 /// * `description = "..."` Define the description for the request body object as str.
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
@@ -367,7 +442,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `status = ...` Is valid http status code. E.g. _`200`_
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_
+///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`Component`][component],
+///   it can also be wrapped in `inline(...)` in order to inline the component schema definition. E.g. _`inline(Pet)`_.
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
@@ -381,20 +457,27 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// **Minimal response format:**
 /// ```text
-/// (status = 200, description = "success response")
+/// responses(
+///     (status = 200, description = "success response"),
+///     (status = 404, description = "resource missing"),
+/// )
 /// ```
 ///
 /// **Response with all possible values:**
 /// ```text
-/// (status = 200, description = "Success response", body = Pet, content_type = "application/json",
-///     headers(...),
-///     example = json!({"id": 1, "name": "bob the cat"})
+/// responses(
+///     (status = 200, description = "Success response", body = Pet, content_type = "application/json",
+///         headers(...),
+///         example = json!({"id": 1, "name": "bob the cat"})
+///     )
 /// )
 /// ```
 ///
 /// **Response with multiple response content types:**
 /// ```text
-/// (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+/// responses(
+///     (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
+/// )
 /// ```
 ///
 /// # Response Header Attributes
@@ -413,12 +496,23 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # Params Attributes
 ///
+/// The list of attributes inside the `params(...)` attribute can take two forms: [Tuples](#tuples) or [IntoParams
+/// Type](#intoparams-type).
+///
+/// ## Tuples
+///
+/// In the tuples format, parameters are specified using the following attributes inside a list of
+/// tuples seperated by commas:
+///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice or option.
+/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
+///   option `Option<Type>`. Where the type implments [`Component`][component], it can also be wrapped in `inline(MyComponent)`
+///   in order to inline the component schema definition.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
-///   E.g. _`path, query, header, cookie`_
+///   This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
+///   E.g. _`Path, Query, Header, Cookie`_
 /// * `deprecated` Define whether the parameter is deprecated or not.
 /// * `description = "..."` Define possible description for the parameter as str.
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
@@ -427,12 +521,47 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
 ///   will override any example in underlying parameter type.
 ///
-/// **Params supports following representation formats:**
+/// **For example:**
 ///
 /// ```text
-/// ("id" = String, path, deprecated, description = "Pet database id"),
-/// ("id", path, deprecated, description = "Pet database id"),
-/// ("value" = Option<[String]>, query, description = "Value description", style = Form, allow_reserved, deprecated, explode, example = json!(["Value"]))
+/// params(
+///     ("id" = String, Path, deprecated, description = "Pet database id"),
+///     ("name", Path, deprecated, description = "Pet name"),
+///     (
+///         "value" = inline(Option<[String]>),
+///         Query,
+///         description = "Value description",
+///         style = Form,
+///         allow_reserved,
+///         deprecated,
+///         explode,
+///         example = json!(["Value"]))
+///     )
+/// )
+/// ```
+///
+/// ## IntoParams Type
+///
+/// In the IntoParams parameters format, the parameters are specified using an identifier for a type
+/// that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
+/// example.
+///
+/// [into_params]: ./trait.IntoParams.html
+/// **For example:**
+///
+/// ```text
+/// params(MyParameters)
+/// ```
+///
+/// Note that `MyParameters` can also be used in combination with the [tuples
+/// representation](#tuples) or other structs. **For example:**
+///
+/// ```text
+/// params(
+///     MyParameters1,
+///     MyParameters2,
+///     ("id" = String, Path, deprecated, description = "Pet database id"),
+/// )
 /// ```
 ///
 /// # Security Requirement Attributes
@@ -464,7 +593,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ///
-/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation** and **parameter types** [^actix_extras].
+/// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation**
+/// and **parameter types** [^actix_extras].
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -484,8 +614,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// With **actix_extras** you may also not to list any _**params**_ if you do not want to specify any description for them. Params are resolved from
-/// path and the argument types of handler. [^actix_extras]
+/// With **actix_extras** you may also not to list any _**params**_ if you do not want to specify any description for them. Params are
+/// resolved from path and the argument types of handler. [^actix_extras]
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -504,14 +634,49 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// # rocket_extras support for rocket
 ///
-/// **rocket_extras** feature gives **utoipa** ability to use **rocket** path operation macros such as _`#[get(...)]`_ to
-/// resolve path for `#[utoipa::path]`.  Also it is able to parse the `path` and `query` parameters from path operation macro
-/// combined with function arguments of the operation. Allowing you leave out types from parameters in `params(...)` section
-/// or even leave out the section if description is not needed for parameters. Utoipa is only able to parse parameter types
-/// for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`] type. Other function arguments are
-/// simply ignored.
+/// **rocket_extras** feature enahances path operation parameter support. It gives **utoipa** ability to parse `path`, `path parameters`
+/// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.  
+///
+/// 1. It is able to parse parameter types for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`]
+///    type.
+/// 2. It is able to determine `parameter_in` for [`IntoParams`][into_params] trait used for `FromForm` type of query parameters.
 ///
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
+///
+///
+/// # axum_extras suppport for axum
+///
+/// **axum_extras** feature enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
+/// _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+/// ```rust
+/// # use serde::Deserialize;
+/// # use utoipa::IntoParams;
+/// # use axum::{extract::Query, Json};
+/// #[derive(Deserialize, IntoParams)]
+/// struct TodoSearchQuery {
+///     /// Search by value. Search is incase sensitive.
+///     value: String,
+///     /// Search by `done` status.
+///     done: bool,
+/// }
+///
+/// /// Search Todos by query params.
+/// #[utoipa::path(
+///     get,
+///     path = "/todo/search",
+///     params(
+///         TodoSearchQuery
+///     ),
+///     responses(
+///         (status = 200, description = "List matching todos by query", body = [String])
+///     )
+/// )]
+/// async fn search_todos(
+///     query: Query<TodoSearchQuery>,
+/// ) -> Json<Vec<String>> {
+///     Json(vec![])
+/// }
+/// ```
 ///
 /// # Examples
 ///
@@ -537,7 +702,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         ),
 ///    ),
 ///    params(
-///      ("x-csrf-token" = String, header, deprecated, description = "Current csrf token of user"),
+///      ("x-csrf-token" = String, Header, deprecated, description = "Current csrf token of user"),
 ///    ),
 ///    security(
 ///        (),
@@ -572,7 +737,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///         ),
 ///    ),
 ///    params(
-///      ("x-csrf-token", header, description = "Current csrf token of user"),
+///      ("x-csrf-token", Header, description = "Current csrf token of user"),
 ///    )
 /// )]
 /// fn post_pet(pet: Pet) -> Pet {
@@ -617,13 +782,17 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
+///
+/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
+/// [component]: trait.Component.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html
+/// [into_params_derive]: derive.IntoParams.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///
@@ -631,7 +800,11 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
@@ -646,15 +819,25 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
     );
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     let mut resolved_path = resolved_path;
 
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     {
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
-        let arguments = PathOperations::resolve_path_arguments(&ast_fn.sig.inputs, args);
+        let (arguments, into_params_types) =
+            PathOperations::resolve_arguments(&ast_fn.sig.inputs, args);
 
         path_attribute.update_parameters(arguments);
+        path_attribute.update_parameters_parameter_in(into_params_types);
     }
 
     let path = Path::new(path_attribute, fn_name)
@@ -679,7 +862,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(OpenApi, attributes(openapi))]
-/// OpenApi derive macro
+/// OpenApi derive macro.
 ///
 /// This is `#[derive]` implementation for [`OpenApi`][openapi] trait. The macro accepts one `openapi` argument.
 ///
@@ -776,10 +959,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     openapi.to_token_stream().into()
 }
 
-#[cfg(feature = "actix_extras")]
 #[proc_macro_error]
 #[proc_macro_derive(IntoParams, attributes(param, into_params))]
-/// IntoParams derive macro for **actix-web** only.
+/// IntoParams derive macro.
 ///
 /// This is `#[derive]` implementation for [`IntoParams`][into_params] trait.
 ///
@@ -796,17 +978,35 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
-/// # IntoParams Attributes for `#[param(...)]`
+/// # IntoParams Container Attributes for `#[into_params(...)]`
 ///
-/// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
-/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// The following attributes are available for use in on the container attribute `#[into_params(...)]` for the struct
+/// deriving `IntoParams`:
+///
+/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
+/// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
+///    values are based on _`parameter_in`_ attribute.
+/// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
+///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
+///    supplied, then the value is determined by the `parameter_in_provider` in
+///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+///
+/// # IntoParams Field Attributes for `#[param(...)]`
+///
+/// The following attributes are available for use in the `#[param(...)]` on struct fields:
+///
+/// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
+/// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
 ///   will override any example in underlying parameter type.
-///
-/// # IntoParams Attributes for `#[into_params(...)]`
-///
-/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`Component`][component]s nor [`primitive` types][primitive].
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
+///    _`Any`_ will be rendered as generic OpenAPI object.
+/// * `inline` If set, the schema for this field's type needs to be a [`Component`][component], and
+///   the component schema definition will be inlined.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -829,7 +1029,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// ```
 /// # Examples
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with resolving `path` and `query` parameters
+/// Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
 /// for `get_pet` endpoint. [^actix]
 /// ```rust
 /// use actix_web::{get, HttpResponse, Responder};
@@ -855,6 +1055,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(
+///     params(PetPathArgs, Filter),
 ///     responses(
 ///         (status = 200, description = "success response")
 ///     )
@@ -865,28 +1066,134 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
+/// be used as a path query, and inlining a component query field:
+/// ```rust
+/// use serde::Deserialize;
+/// use utoipa::{IntoParams, Component};
+///
+/// #[derive(Deserialize, Component)]
+/// #[serde(rename_all = "snake_case")]
+/// enum PetKind {
+///     Dog,
+///     Cat,
+/// }
+///
+/// #[derive(Deserialize, IntoParams)]
+/// #[into_params(style = Form, parameter_in = Query)]
+/// struct PetQuery {
+///     /// Name of pet
+///     name: Option<String>,
+///     /// Age of pet
+///     age: Option<i32>,
+///     /// Kind of pet
+///     #[param(inline)]
+///     kind: PetKind
+/// }
+///
+/// #[utoipa::path(
+///     get,
+///     path = "/get_pet",
+///     params(PetQuery),
+///     responses(
+///         (status = 200, description = "success response")
+///     )
+/// )]
+/// async fn get_pet(query: PetQuery) {
+///     // ...
+/// }
+/// ```
+///
+/// Override `String` with `i64` using `value_type` attribute.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = i64)]
+///     id: String,
+/// }
+/// ```
+///
+/// Override `String` with `Any` using `value_type` attribute. _`Any`_ will render as `type: object` in OpenAPI spec.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Any)]
+///     id: String,
+/// }
+/// ```
+///
+/// You can use a generic type to override the default type of the field.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Option<String>)]
+///     id: String
+/// }
+/// ```
+///
+/// You can even overide a [`Vec`] with another one.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Vec<i32>)]
+///     id: Vec<String>
+/// }
+/// ```
+///
+/// We can override value with another [`Component`][component].
+/// ```rust
+/// # use utoipa::{IntoParams, Component};
+/// #
+/// #[derive(Component)]
+/// struct Id {
+///     value: i64,
+/// }
+///
+/// #[derive(IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Filter {
+///     #[param(value_type = Id)]
+///     id: String
+/// }
+/// ```
+///
+/// [component]: trait.Component.html
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
+/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
+        attrs,
         ident,
         generics,
         data,
-        attrs,
         ..
     } = syn::parse_macro_input!(input);
 
     let into_params = IntoParams {
+        attrs,
         generics,
         data,
         ident,
-        attrs,
     };
 
     into_params.to_token_stream().into()
@@ -1006,63 +1313,208 @@ impl ToTokens for Required {
 ///   * `Option<type>` type is option of type
 ///   * `Option<[type]>` type is an option of array of types
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
 struct Type<'a> {
-    ty: Cow<'a, Ident>,
+    ty: Cow<'a, TypePath>,
     is_array: bool,
     is_option: bool,
+    is_inline: bool,
 }
 
 impl<'a> Type<'a> {
-    #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn new(ident: Cow<'a, Ident>, is_array: bool, is_option: bool) -> Self {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn new(type_path: Cow<'a, TypePath>, is_array: bool, is_option: bool) -> Self {
         Self {
-            ty: ident,
+            ty: type_path,
             is_array,
             is_option,
+            is_inline: false,
         }
+    }
+}
+
+/// A parser for [`Type`] to parse as as `inline(Type)` where `Type` is anything parsed by
+/// [`ArrayOrOptionType`].
+struct InlineType<'a>(Type<'a>);
+
+impl Parse for InlineType<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_DEFINITION: &str = "unexpected attribute, expected any of inline(Type)";
+        let ident: Ident = input.parse().map_err(|error| {
+            syn::Error::new(
+                error.span(),
+                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+            )
+        })?;
+
+        match &*ident.to_string() {
+            "inline" => {
+                let content;
+                syn::parenthesized!(content in input);
+
+                let mut t: Type = content
+                    .parse::<ArrayOrOptionType>()
+                    .map_err(|error| {
+                        syn::Error::new(
+                            error.span(),
+                            format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                        )
+                    })?
+                    .0;
+
+                t.is_inline = true;
+
+                Ok(Self(t))
+            }
+            _ => Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION)),
+        }
+    }
+}
+
+/// A parser for [`Type`] to parse as
+///  * `Type`
+///  * `[Type]`
+///  * `Option<Type>`
+///  * `Option<[Type]>`
+struct ArrayOrOptionType<'a>(Type<'a>);
+
+impl Parse for ArrayOrOptionType<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_TYPE_MESSAGE: &str =
+            "Expected a type/path such as path::to::Foo, or Foo. May also be Option<Foo> or [Foo].";
+
+        fn parse_type<'a>(t: syn::Type) -> syn::Result<Type<'a>> {
+            let mut is_option: bool = false;
+            let mut is_array: bool = false;
+            let path: TypePath = match t {
+                syn::Type::Path(mut path) => {
+                    let type_segment: &PathSegment =
+                        path.path.segments.last().ok_or_else(|| {
+                            syn::Error::new(path.path.span(), "No last path segment")
+                        })?;
+                    let ident = &type_segment.ident;
+
+                    // is option of type or [type]
+                    if ident == "Option" {
+                        is_option = true;
+
+                        let angle_bracketed: &AngleBracketedGenericArguments = match &type_segment
+                            .arguments
+                        {
+                            PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed,
+                            _ => {
+                                return Err(syn::Error::new(type_segment.span(), "Option must have its generic type parameter specified. e.g. Option<String>"));
+                            }
+                        };
+
+                        if angle_bracketed.args.len() != 1 {
+                            return Err(syn::Error::new(type_segment.span(), "Option must have only a single generic parameter specified. e.g. Option<String>"));
+                        }
+
+                        let argument: &GenericArgument = angle_bracketed.args.first().expect(
+                            "Expected there to be 1 angle bracketed argument for Option<...>",
+                        );
+
+                        let argument_path: &TypePath = match argument {
+                            GenericArgument::Type(syn::Type::Path(path)) => path,
+                            GenericArgument::Type(syn::Type::Slice(slice)) => {
+                                is_array = true;
+                                match &*slice.elem {
+                                    syn::Type::Path(path) => path,
+                                    unsupported_type => {
+                                        return Err(syn::Error::new(
+                                            unsupported_type.span(),
+                                            format!(
+                                                "Unsupported slice type. {}",
+                                                EXPECTED_TYPE_MESSAGE
+                                            ),
+                                        ))
+                                    }
+                                }
+                            }
+                            unsupported_type => {
+                                return Err(syn::Error::new(
+                                    unsupported_type.span(),
+                                    format!("Unsupported argument type. {}", EXPECTED_TYPE_MESSAGE),
+                                ))
+                            }
+                        };
+
+                        path = argument_path.clone();
+                    }
+
+                    path
+                }
+                syn::Type::Slice(type_slice) => {
+                    is_array = true;
+                    match &*type_slice.elem {
+                        syn::Type::Path(path) => path.clone(),
+                        unsupported_type => {
+                            return Err(syn::Error::new(
+                                unsupported_type.span(),
+                                format!("Unsupported slice type. {}", EXPECTED_TYPE_MESSAGE),
+                            ))
+                        }
+                    }
+                }
+                syn::Type::Group(group) => {
+                    return parse_type(*group.elem);
+                }
+                unsupported_type => {
+                    return Err(syn::Error::new(
+                        unsupported_type.span(),
+                        format!(
+                            "Unsupported type {}. {}",
+                            unsupported_type.to_token_stream(),
+                            EXPECTED_TYPE_MESSAGE
+                        ),
+                    ))
+                }
+            };
+
+            Ok(Type {
+                ty: Cow::Owned(path),
+                is_array,
+                is_option,
+                is_inline: false,
+            })
+        }
+
+        let t: syn::Type = input
+            .parse::<syn::Type>()
+            .map_err(|error| syn::Error::new(error.span(), EXPECTED_TYPE_MESSAGE))?;
+
+        parse_type(t).map(ArrayOrOptionType)
     }
 }
 
 impl Parse for Type<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut is_array = false;
-        let mut is_option = false;
+        const EXPECTED_TYPE_DEFINITION: &str =
+            "unexpected attribute, expected `inline(Type)` or `Type`, where `Type` can be `Type`, `[Type]` or `Option<Type>`";
 
-        let mut parse_array = |input: &ParseBuffer| {
-            is_array = true;
-            let group;
-            bracketed!(group in input);
-            group.parse::<Ident>()
-        };
+        // Try parsing as `inline(Type)`
+        if input.fork().parse::<InlineType>().is_ok() {
+            let t: Self = input.parse::<InlineType>()?.0;
+            return Ok(t);
+        }
 
-        let ty = if input.peek(syn::Ident) {
-            let mut ident: Ident = input.parse()?;
+        // Try parsing as `Type`, `[Type]` or `Option<Type>`)
+        let t: Type = input
+            .parse::<ArrayOrOptionType>()
+            .map_err(|error| {
+                syn::Error::new(
+                    error.span(),
+                    format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
+                )
+            })?
+            .0;
 
-            // is option of type or [type]
-            if (ident == "Option" && input.peek(Token![<]))
-                && (input.peek2(syn::Ident) || input.peek2(Bracket))
-            {
-                is_option = true;
-
-                input.parse::<Token![<]>()?;
-
-                if input.peek(syn::Ident) {
-                    ident = input.parse::<Ident>()?;
-                } else {
-                    ident = parse_array(input)?;
-                }
-                input.parse::<Token![>]>()?;
-            }
-            Ok(ident)
-        } else {
-            parse_array(input)
-        }?;
-
-        Ok(Type {
-            ty: Cow::Owned(ty),
-            is_array,
-            is_option,
-        })
+        Ok(t)
     }
 }
 
@@ -1223,7 +1675,7 @@ impl ToTokens for AnyValue {
 
 /// Parsing utils
 mod parse_utils {
-    use proc_macro2::{Group, Ident, TokenStream};
+    use proc_macro2::{Group, Ident, TokenStream, TokenTree};
     use proc_macro_error::ResultExt;
     use syn::{
         parenthesized,
@@ -1233,6 +1685,21 @@ mod parse_utils {
         Error, LitBool, LitStr, Token,
     };
 
+    pub fn skip_past_next_comma(input: ParseStream) -> syn::Result<()> {
+        input.step(|cursor| {
+            let mut rest = *cursor;
+            while let Some((tt, next)) = rest.token_tree() {
+                match &tt {
+                    TokenTree::Punct(punct) if punct.as_char() == ',' => {
+                        return Ok(((), next));
+                    }
+                    _ => rest = next,
+                }
+            }
+            Ok(((), rest))
+        })
+    }
+
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
             .parse::<Token![=]>()
@@ -1240,11 +1707,11 @@ mod parse_utils {
         next()
     }
 
-    pub fn parse_next_literal_str(input: ParseStream) -> Result<String, Error> {
+    pub fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
-    pub fn parse_groups<T, R>(input: ParseStream) -> Result<R, Error>
+    pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
     where
         T: Sized,
         T: Parse,
@@ -1254,13 +1721,13 @@ mod parse_utils {
             groups
                 .into_iter()
                 .map(|group| syn::parse2::<T>(group.stream()))
-                .collect::<Result<R, Error>>()
+                .collect::<syn::Result<R>>()
         })
     }
 
     pub fn parse_punctuated_within_parenthesis<T>(
         input: ParseStream,
-    ) -> Result<Punctuated<T, Comma>, Error>
+    ) -> syn::Result<Punctuated<T, Comma>>
     where
         T: Parse,
     {
@@ -1269,7 +1736,7 @@ mod parse_utils {
         Punctuated::<T, Comma>::parse_terminated(&content)
     }
 
-    pub fn parse_bool_or_true(input: ParseStream) -> Result<bool, syn::Error> {
+    pub fn parse_bool_or_true(input: ParseStream) -> syn::Result<bool> {
         if input.peek(Token![=]) && input.peek2(LitBool) {
             input.parse::<Token![=]>()?;
 
@@ -1279,7 +1746,7 @@ mod parse_utils {
         }
     }
 
-    pub fn parse_json_token_stream(input: ParseStream) -> Result<TokenStream, Error> {
+    pub fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
         if input.peek(syn::Ident) && input.peek2(Token![!]) {
             input.parse::<Ident>().and_then(|ident| {
                 if ident != "json" {

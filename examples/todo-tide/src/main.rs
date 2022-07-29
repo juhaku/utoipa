@@ -8,7 +8,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::Config;
 
-use crate::todo::{Store, Todo, TodoError};
+use crate::todo::Store;
 
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
@@ -24,7 +24,7 @@ async fn main() -> std::io::Result<()> {
             todo::delete_todo,
             todo::mark_done
         ),
-        components(Todo, TodoError),
+        components(todo::Todo, todo::TodoError),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management endpoints.")
@@ -174,7 +174,7 @@ mod todo {
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
         params(
-            ("id" = i32, path, description = "Id of todo item to delete")
+            ("id" = i32, Path, description = "Id of todo item to delete")
         ),
         security(
             ("api_key" = [])
@@ -215,7 +215,7 @@ mod todo {
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
         ),
         params(
-            ("id" = i32, path, description = "Id of todo item to mark done")
+            ("id" = i32, Path, description = "Id of todo item to mark done")
         )
     )]
     pub(super) async fn mark_done(req: Request<Store>) -> tide::Result<Response> {

@@ -1,6 +1,7 @@
 #![cfg(feature = "rocket_extras")]
 
-use serde_json::Value;
+use assert_json_diff::assert_json_eq;
+use serde_json::{json, Value};
 use utoipa::OpenApi;
 
 mod common;
@@ -26,7 +27,7 @@ fn resolve_route_with_simple_url() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let operation = common::get_json_path(value, "paths./hello.get");
+    let operation = value.pointer("/paths/~1hello/get").unwrap();
 
     assert_ne!(operation, &Value::Null, "expected paths.hello.get not null");
 }
@@ -52,7 +53,9 @@ fn resolve_get_with_multiple_args() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{id}/{name}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 3);
     assert_ne!(
@@ -87,7 +90,7 @@ fn resolve_get_with_multiple_args() {
 }
 
 #[test]
-fn resolve_get_with_optinal_query_args() {
+fn resolve_get_with_optional_query_args() {
     mod rocket_get_operation {
         use rocket::get;
 
@@ -107,7 +110,7 @@ fn resolve_get_with_optinal_query_args() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello.get.parameters"#);
+    let parameters = value.pointer("/paths/~1hello/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_ne!(
@@ -116,16 +119,23 @@ fn resolve_get_with_optinal_query_args() {
         "expected paths.hello.get.parameters not null"
     );
 
-    assert_value! {parameters=>
-        "[0].schema.type" = r#""array""#, "Query parameter type"
-        "[0].schema.format" = r#"null"#, "Query parameter format"
-        "[0].schema.items.type" = r#""string""#, "Query items parameter type"
-        "[0].schema.items.format" = r#"null"#, "Query items parameter format"
-        "[0].name" = r#""colors""#, "Query parameter name"
-        "[0].required" = r#"false"#, "Query parameter required"
-        "[0].deprecated" = r#"false"#, "Query parameter required"
-        "[0].in" = r#""query""#, "Query parameter in"
-    }
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "in": "query",
+                "name": "colors",
+                "required": false,
+                "schema": {
+                    "items": {
+                        "type": "string",
+                    },
+                    "type": "array"
+                }
+            }
+        ])
+    );
 }
 
 #[test]
@@ -149,7 +159,9 @@ fn resolve_path_arguments_not_same_order() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{id}/{name}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_ne!(
@@ -196,8 +208,9 @@ fn resolve_get_path_with_anonymous_parts() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters =
-        common::get_json_path(value, r#"paths./hello/{arg0}/{arg1}/{id}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{arg0}~1{arg1}~1{id}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 3);
     assert_ne!(
@@ -253,7 +266,9 @@ fn resolve_get_path_with_tail() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{tail}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{tail}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_ne!(
@@ -298,7 +313,9 @@ fn resolve_get_path_and_update_params() {
 
     let openapi = ApiDoc::openapi();
     let value = &serde_json::to_value(&openapi).unwrap();
-    let parameters = common::get_json_path(value, r#"paths./hello/{id}/{name}.get.parameters"#);
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_ne!(
@@ -324,6 +341,80 @@ fn resolve_get_path_and_update_params() {
         "[1].deprecated" = r#"false"#, "Name parameter required"
         "[1].in" = r#""path""#, "Name parameter in"
     }
+}
+
+#[test]
+fn resolve_path_query_params_from_form() {
+    mod rocket_get_operation {
+        use rocket::{get, FromForm};
+        use utoipa::IntoParams;
+
+        #[derive(serde::Deserialize, FromForm, IntoParams)]
+        #[allow(unused)]
+        struct QueryParams {
+            foo: String,
+            bar: i64,
+        }
+
+        #[utoipa::path(
+            responses(
+                (status = 200, description = "Hello from server")
+            ),
+            params(
+                ("id", description = "Hello id"),
+                QueryParams
+            )
+        )]
+        #[get("/hello/<id>?<rest..>")]
+        #[allow(unused)]
+        fn hello(id: i32, rest: QueryParams) -> String {
+            "Hello".to_string()
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(handlers(rocket_get_operation::hello))]
+    struct ApiDoc;
+
+    let openapi = ApiDoc::openapi();
+    let value = &serde_json::to_value(&openapi).unwrap();
+    let parameters = value
+        .pointer("/paths/~1hello~1{id}/get/parameters")
+        .unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Hello id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            {
+                "in": "query",
+                "name": "foo",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "in": "query",
+                "name": "bar",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            }
+        ])
+    )
 }
 
 macro_rules! test_derive_path_operations {
@@ -352,8 +443,9 @@ macro_rules! test_derive_path_operations {
 
                 let openapi = ApiDoc::openapi();
                 let value = &serde_json::to_value(&openapi).unwrap();
-                let op =
-                    common::get_json_path(value, &format!("paths./hello.{}", stringify!($operation)));
+                let op = value
+                    .pointer(&*format!("/paths/~1hello/{}", stringify!($operation)))
+                    .unwrap();
 
                 assert_ne!(
                     op,

@@ -8,6 +8,7 @@
 //!
 //! * **actix-web** `version >= 4`
 //! * **rocket** `version >=0.5.0-rc.1`
+//! * **axum** `version >=0.5`
 //!
 //! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -17,10 +18,12 @@
 //!
 //! # Features
 //!
-//! * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
+//! * **actix-web** Enables `actix-web` integration with pre-configured SwaggerUI service factory allowing
 //!   users to use the Swagger UI without a hassle.
-//! * **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI
+//! * **rocket** Enables `rocket` integration with with pre-configured routes for serving the Swagger UI
 //!   and api doc without a hassle.
+//! * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
+//!   hazzle free.
 //!
 //! # Install
 //!
@@ -40,7 +43,7 @@
 //!
 //! # Examples
 //!
-//! Serve Swagger UI with api doc via actix-web. [^actix]
+//! Serve Swagger UI with api doc via **`actix-web`**. See full example from [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 //! ```no_run
 //! # use actix_web::{App, HttpServer};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -60,7 +63,7 @@
 //!     .run();
 //! ```
 //!
-//! Serve Swagger UI with api doc via rocket [^rocket]
+//! Serve Swagger UI with api doc via **`rocket`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 //! ```no_run
 //! # use rocket::{Build, Rocket};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -81,36 +84,35 @@
 //! }
 //! ```
 //!
-//! [^actix]: **actix-web** feature need to be enabled.
-//!
-//! [^rocket]: **rocket** feature need to be enabled.
-use std::{borrow::Cow, error::Error, sync::Arc};
+//! Setup Router to serve Swagger UI with **`axum`** framework. See full implementation of how to serve
+//! Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
+//!```no_run
+//! # use axum::{routing, Router, body::HttpBody};
+//! # use utoipa_swagger_ui::SwaggerUi;
+//! # use utoipa::OpenApi;
+//!# #[derive(OpenApi)]
+//!# #[openapi()]
+//!# struct ApiDoc;
+//!#
+//!# fn inner<B>()
+//!# where
+//!#     B: HttpBody + Send + 'static,
+//!# {
+//! let app = Router::<B>::new()
+//!     .merge(SwaggerUi::new("/swagger-ui/*tail")
+//!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
+//!# }
+//! ```
+use std::{borrow::Cow, error::Error, mem, sync::Arc};
 
+mod actix;
+mod axum;
 pub mod oauth;
-
-#[cfg(feature = "actix-web")]
-use actix_web::{
-    dev::HttpServiceFactory, guard::Get, web, web::Data, HttpResponse, Resource,
-    Responder as ActixResponder,
-};
-
-#[cfg(feature = "rocket")]
-use std::io::Cursor;
-
-#[cfg(feature = "rocket")]
-use rocket::{
-    http::{Header, Status},
-    response::{
-        status::{self, NotFound},
-        Responder as RocketResponder,
-    },
-    route::{Handler, Outcome},
-    serde::json::Json,
-    Data as RocketData, Request, Response, Route,
-};
+mod rocket;
 
 use rust_embed::RustEmbed;
-#[cfg(any(feature = "actix-web", feature = "rocket"))]
+use serde::Serialize;
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 use utoipa::openapi::OpenApi;
 
 #[derive(RustEmbed)]
@@ -118,19 +120,46 @@ use utoipa::openapi::OpenApi;
 struct SwaggerUiDist;
 
 /// Entry point for serving Swagger UI and api docs in application. It uses provides
-/// builder style chainable configuration methods for configuring api doc urls. **In actix-web only** [^actix]
+/// builder style chainable configuration methods for configuring api doc urls.
 ///
-/// [^actix]: **actix-web** feature need to be enabled.
+/// Currently _**`actix-web, rocket, axum`**_ frameworks supports [`SwaggerUi`] type.
+///
+/// # Examples
+///
+/// Create new [`SwaggerUi`] with defaults.
+/// ```rust
+/// # use utoipa_swagger_ui::SwaggerUi;
+/// # use utoipa::OpenApi;
+/// # #[derive(OpenApi)]
+/// # #[openapi(handlers())]
+/// # struct ApiDoc;
+/// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+///     .url("/api-doc/openapi.json", ApiDoc::openapi());
+/// ```
+///
+/// Create a new [`SwaggerUi`] with custom [`Config`] and [`oauth::Config`].
+/// ```rust
+/// # use utoipa_swagger_ui::{SwaggerUi, Config, oauth};
+/// # use utoipa::OpenApi;
+/// # #[derive(OpenApi)]
+/// # #[openapi(handlers())]
+/// # struct ApiDoc;
+/// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+///     .url("/api-doc/openapi.json", ApiDoc::openapi())
+///     .config(Config::default().try_it_out_enabled(true).filter(true))
+///     .oauth(oauth::Config::new());
+/// ```
+///
 #[non_exhaustive]
 #[derive(Clone)]
-#[cfg(any(feature = "actix-web", feature = "rocket"))]
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
-    oauth: Option<oauth::Config>,
+    config: Option<Config<'static>>,
 }
 
-#[cfg(any(feature = "actix-web", feature = "rocket"))]
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
     ///
@@ -149,7 +178,7 @@ impl SwaggerUi {
         Self {
             path: path.into(),
             urls: Vec::new(),
-            oauth: None,
+            config: None,
         }
     }
 
@@ -243,138 +272,45 @@ impl SwaggerUi {
     ///     );
     /// ```
     pub fn oauth(mut self, oauth: oauth::Config) -> Self {
-        self.oauth = Some(oauth);
+        let config = self.config.get_or_insert(Default::default());
+        config.oauth = Some(oauth);
+
+        self
+    }
+
+    /// Add custom [`Config`] into [`SwaggerUi`] which gives users more granular control over
+    /// Swagger UI options.
+    ///
+    /// Methods takes one [`Config`] argument which exposes Swagger UI's configurable options
+    /// to the users.
+    ///
+    /// # Examples
+    ///
+    /// Create a new [`SwaggerUi`] with custom configuration.
+    /// ```rust
+    /// # use utoipa_swagger_ui::{SwaggerUi, Config};
+    /// # use utoipa::OpenApi;
+    /// # #[derive(OpenApi)]
+    /// # #[openapi(handlers())]
+    /// # struct ApiDoc;
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
+    ///     .config(Config::default().try_it_out_enabled(true).filter(true));
+    /// ```
+    pub fn config(mut self, config: Config<'static>) -> Self {
+        self.config = Some(config);
 
         self
     }
 }
 
-#[cfg(feature = "actix-web")]
-impl HttpServiceFactory for SwaggerUi {
-    fn register(self, config: &mut actix_web::dev::AppService) {
-        let urls = self
-            .urls
-            .into_iter()
-            .map(|url| {
-                let (url, openapi) = url;
-                register_api_doc_url_resource(url.url.as_ref(), openapi, config);
-                url
-            })
-            .collect::<Vec<_>>();
-
-        let swagger_resource = Resource::new(self.path.as_ref())
-            .guard(Get())
-            .app_data(Data::new(Config {
-                urls: urls,
-                oauth: self.oauth,
-            }))
-            .to(serve_swagger_ui);
-
-        HttpServiceFactory::register(swagger_resource, config);
-    }
-}
-
-#[cfg(feature = "actix-web")]
-fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web::dev::AppService) {
-    pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl ActixResponder {
-        HttpResponse::Ok().json(api_doc.as_ref())
-    }
-
-    let url_resource = Resource::new(url)
-        .guard(Get())
-        .app_data(Data::new(api))
-        .to(get_api_doc);
-    HttpServiceFactory::register(url_resource, config);
-}
-
-#[cfg(feature = "rocket")]
-impl From<SwaggerUi> for Vec<Route> {
-    fn from(swagger_ui: SwaggerUi) -> Self {
-        let mut routes = Vec::<Route>::with_capacity(swagger_ui.urls.len() + 1);
-        let mut api_docs = Vec::<Route>::with_capacity(swagger_ui.urls.len());
-
-        let urls = swagger_ui.urls.into_iter().map(|(url, openapi)| {
-            api_docs.push(Route::new(
-                rocket::http::Method::Get,
-                url.url.as_ref(),
-                ServeApiDoc(openapi),
-            ));
-            url
-        });
-
-        routes.push(Route::new(
-            rocket::http::Method::Get,
-            swagger_ui.path.as_ref(),
-            ServeSwagger(
-                swagger_ui.path.clone(),
-                Arc::new(Config {
-                    urls: urls.collect(),
-                    oauth: swagger_ui.oauth,
-                }),
-            ),
-        ));
-        routes.extend(api_docs);
-
-        routes
-    }
-}
-
-#[cfg(feature = "rocket")]
-#[derive(Clone)]
-struct ServeApiDoc(utoipa::openapi::OpenApi);
-
-#[cfg(feature = "rocket")]
-#[rocket::async_trait]
-impl Handler for ServeApiDoc {
-    async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
-        Outcome::from(request, Json(self.0.clone()))
-    }
-}
-
-#[cfg(feature = "rocket")]
-#[derive(Clone)]
-struct ServeSwagger(Cow<'static, str>, Arc<Config<'static>>);
-
-#[cfg(feature = "rocket")]
-#[rocket::async_trait]
-impl Handler for ServeSwagger {
-    async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
-        let mut path = self.0.as_ref();
-        if let Some(index) = self.0.find('<') {
-            path = &path[..index];
-        }
-
-        match serve(&request.uri().path().as_str()[path.len()..], self.1.clone()) {
-            Ok(swagger_file) => swagger_file
-                .map(|file| Outcome::from(request, file))
-                .unwrap_or_else(|| Outcome::from(request, NotFound("Swagger UI file not found"))),
-            Err(error) => Outcome::from(
-                request,
-                status::Custom(Status::InternalServerError, error.to_string()),
-            ),
-        }
-    }
-}
-
-#[cfg(feature = "rocket")]
-impl<'r, 'o: 'r> RocketResponder<'r, 'o> for SwaggerFile<'o> {
-    fn respond_to(self, _: &'r Request<'_>) -> rocket::response::Result<'o> {
-        rocket::response::Result::Ok(
-            Response::build()
-                .header(Header::new("Content-Type", self.content_type))
-                .sized_body(self.bytes.len(), Cursor::new(self.bytes.to_vec()))
-                .status(Status::Ok)
-                .finalize(),
-        )
-    }
-}
-
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Serialize, Clone, Debug)]
 pub struct Url<'a> {
     name: Cow<'a, str>,
     url: Cow<'a, str>,
+    #[serde(skip)]
     primary: bool,
 }
 
@@ -423,18 +359,6 @@ impl<'a> Url<'a> {
             primary,
         }
     }
-
-    fn to_json_object_string(&self) -> String {
-        format!(
-            r#"{{name: "{}", url: "{}"}}"#,
-            if self.name.is_empty() {
-                &self.url
-            } else {
-                &self.name
-            },
-            self.url
-        )
-    }
 }
 
 impl<'a> From<&'a str> for Url<'a> {
@@ -464,25 +388,17 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
     }
 }
 
-#[cfg(feature = "actix-web")]
-async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) -> HttpResponse {
-    match serve(&*path.into_inner(), data.into_inner()) {
-        Ok(swagger_file) => swagger_file
-            .map(|file| {
-                HttpResponse::Ok()
-                    .content_type(file.content_type)
-                    .body(file.bytes.to_vec())
-            })
-            .unwrap_or_else(|| HttpResponse::NotFound().finish()),
-        Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
-    }
-}
+pub const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
+pub const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 
 /// Object used to alter Swagger UI settings.
 ///
+/// Config struct provides [Swagger UI configuration](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/configuration.md)
+/// for settings which could be altered with **docker variables**.
+///
 /// # Examples
 ///
-/// Simple case is to create config directly from url that points to the api doc json.
+/// In simple case create config directly from url that points to the api doc json.
 /// ```rust
 /// # use utoipa_swagger_ui::Config;
 /// let config = Config::from("/api-doc.json");
@@ -503,7 +419,7 @@ async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) 
 /// ]);
 /// ```
 ///
-/// With oauth config
+/// With oauth config.
 /// ```rust
 /// # use utoipa_swagger_ui::{Config, oauth};
 /// let config = Config::with_oauth_config(
@@ -512,15 +428,194 @@ async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) 
 /// );
 /// ```
 #[non_exhaustive]
-#[derive(Default, Clone)]
+#[derive(Default, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Config<'a> {
+    /// Url to fetch external configuration from.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config_url: Option<String>,
+
+    /// Id of the DOM element where `Swagger UI` will put it's user interface.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "dom_id")]
+    dom_id: Option<String>,
+
+    /// [`Url`] the Swagger UI is serving.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+
+    /// Name of the primary url if any.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "urls.primaryName")]
+    urls_primary_name: Option<String>,
+
     /// [`Url`]s the Swagger UI is serving.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     urls: Vec<Url<'a>>,
+
+    /// Enables overriding configuration parameters with url query parameters.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    query_config_enabled: Option<bool>,
+
+    /// Controls whether [deep linking](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/deep-linking.md)
+    /// is enabled in OpenAPI spec.
+    ///
+    /// Deep linking automatically scrolls and expands UI to given url fragment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    deep_linking: Option<bool>,
+
+    /// Controls whether operation id is shown in the operation list.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    display_operation_id: Option<bool>,
+
+    /// Default models expansion depth; -1 will completely hide the models.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default_models_expand_depth: Option<isize>,
+
+    /// Default model expansion depth from model example section.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default_model_expand_depth: Option<isize>,
+
+    /// Defines how models is show when API is first rendered.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    default_model_rendering: Option<String>,
+
+    /// Define whether request duration in milliseconds is displayed for "Try it out" requests.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    display_request_duration: Option<bool>,
+
+    /// Controls default expansion for operations and tags.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    doc_expansion: Option<String>,
+
+    /// Defines is filtering of tagged operations allowed with edit box in top bar.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filter: Option<bool>,
+
+    /// Controls how many tagged operations are shown. By default all operations are shown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_displayed_tags: Option<usize>,
+
+    /// Defines whether extensions are shown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    show_extensions: Option<bool>,
+
+    /// Defines whether common extensions are shown.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    show_common_extensions: Option<bool>,
+
+    /// Defines whether "Try it out" section should be enabled by default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    try_it_out_enabled: Option<bool>,
+
+    /// Defines whether request snippets section is enabled. If disabled legacy curl snipped
+    /// will be used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    request_snippets_enabled: Option<bool>,
+
+    /// Oauth redirect url.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    oauth2_redirect_url: Option<String>,
+
+    /// Defines whether request mutated with `requestInterceptor` will be used to produce curl command
+    /// in the UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    show_mutated_request: Option<bool>,
+
+    /// Define supported http request submit methods.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    supported_submit_methods: Option<Vec<String>>,
+
+    /// Define validator url which is used to validate the Swagger spec. By default the validator swagger.io's
+    /// online validator is used. Setting this to none will disable spec validation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    validator_url: Option<String>,
+
+    /// Enables passing credentials to CORS requests as defined
+    /// [fetch standards](https://fetch.spec.whatwg.org/#credentials).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    with_credentials: Option<bool>,
+
+    /// Defines whether authorizations is persisted throughout browser refresh and close.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    persist_authorization: Option<bool>,
+
     /// [`oauth::Config`] the Swagger UI is using for auth flow.
+    #[serde(skip)]
     oauth: Option<oauth::Config>,
+
+    /// [ layout ] the layout of Swagger UI uses, default is "StandaloneLayout"
+    layout: &'a str,
 }
 
 impl<'a> Config<'a> {
+    fn new_<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(
+        urls: I,
+        oauth_config: Option<oauth::Config>,
+    ) -> Self {
+        let urls = urls.into_iter().map(Into::into).collect::<Vec<Url<'a>>>();
+        let urls_len = urls.len();
+
+        Self {
+            oauth: oauth_config,
+            deep_linking: Some(true),
+            dom_id: Some("#swagger-ui".to_string()),
+            layout: SWAGGER_STANDALONE_LAYOUT,
+            ..if urls_len == 1 {
+                Self::new_config_with_single_url(urls)
+            } else {
+                Self::new_config_with_multiple_urls(urls)
+            }
+        }
+    }
+
+    fn new_config_with_multiple_urls(urls: Vec<Url<'a>>) -> Self {
+        let primary_name = urls
+            .iter()
+            .find(|url| url.primary)
+            .map(|url| url.name.to_string());
+
+        Self {
+            urls_primary_name: primary_name,
+            urls: urls
+                .into_iter()
+                .map(|mut url| {
+                    if url.name == "" {
+                        url.name = Cow::Owned(String::from(&url.url[..]));
+
+                        url
+                    } else {
+                        url
+                    }
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    fn new_config_with_single_url(mut urls: Vec<Url<'a>>) -> Self {
+        let url = urls.get_mut(0).map(mem::take).unwrap();
+        let primary_name = if url.primary {
+            Some(url.name.to_string())
+        } else {
+            None
+        };
+
+        Self {
+            urls_primary_name: primary_name,
+            url: if url.name == "" {
+                Some(url.url.to_string())
+            } else {
+                None
+            },
+            urls: if url.name != "" {
+                vec![url]
+            } else {
+                Vec::new()
+            },
+            ..Default::default()
+        }
+    }
+
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
     ///
     /// # Examples
@@ -530,16 +625,13 @@ impl<'a> Config<'a> {
     /// let config = Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]);
     /// ```
     pub fn new<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(urls: I) -> Self {
-        Self {
-            urls: urls.into_iter().map(|url| url.into()).collect(),
-            oauth: None,
-        }
+        Self::new_(urls, None)
     }
 
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
     ///
     /// # Examples
-    /// Create new config with oauth config
+    /// Create new config with oauth config.
     /// ```rust
     /// # use utoipa_swagger_ui::{Config, oauth};
     /// let config = Config::with_oauth_config(
@@ -551,28 +643,492 @@ impl<'a> Config<'a> {
         urls: I,
         oauth_config: oauth::Config,
     ) -> Self {
-        Self {
-            urls: urls.into_iter().map(|url| url.into()).collect(),
-            oauth: Some(oauth_config),
-        }
+        Self::new_(urls, Some(oauth_config))
+    }
+
+    /// Configure defaults for current [`Config`].
+    ///
+    /// A new [`Config`] will be created with given `urls` and its _**default values**_ and
+    /// _**url, urls and urls_primary_name**_ will be moved to the current [`Config`] the method
+    /// is called on.
+    ///
+    /// Current config will be returned with configured default values.
+    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    fn configure_defaults<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(mut self, urls: I) -> Self {
+        let Config {
+            dom_id,
+            deep_linking,
+            url,
+            urls,
+            urls_primary_name,
+            ..
+        } = Config::new(urls);
+
+        self.dom_id = dom_id;
+        self.deep_linking = deep_linking;
+        self.url = url;
+        self.urls = urls;
+        self.urls_primary_name = urls_primary_name;
+
+        self
+    }
+
+    /// Add url to fetch external configuration from.
+    ///
+    /// # Examples
+    ///
+    /// Set extneral config url.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .config_url("http://url.to.external.config");
+    /// ```
+    pub fn config_url<S: Into<String>>(mut self, config_url: S) -> Self {
+        self.config_url = Some(config_url.into());
+
+        self
+    }
+
+    /// Add id of the DOM element where `Swagger UI` will put it's user interface.
+    ///
+    /// The default value is `#swagger-ui`.
+    ///
+    /// # Examples
+    ///
+    /// Set custom dom id where the Swagger UI will place it's content.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"]).dom_id("#my-id");
+    /// ```
+    pub fn dom_id<S: Into<String>>(mut self, dom_id: S) -> Self {
+        self.dom_id = Some(dom_id.into());
+
+        self
+    }
+
+    /// Set `query_config_enabled` to allow overriding configuration parameters via url `query`
+    /// parameters.
+    ///
+    /// Default value is `false`.
+    ///
+    /// # Examples
+    ///
+    /// Enable query config.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .query_config_enabled(true);
+    /// ```
+    pub fn query_config_enabled(mut self, query_config_enabled: bool) -> Self {
+        self.query_config_enabled = Some(query_config_enabled);
+
+        self
+    }
+
+    /// Set `deep_linking` to allow deep linking tags and operations.
+    ///
+    /// Deep linking will automatically scroll to and expand operation when Swagger UI is
+    /// given corresponding url fragment. See more at
+    /// [deep linking docs](https://github.com/swagger-api/swagger-ui/blob/master/docs/usage/deep-linking.md).
+    ///
+    /// Deep linking is enabled by default.
+    ///
+    /// # Examples
+    ///
+    /// Disable the deep linking.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .deep_linking(false);
+    /// ```
+    pub fn deep_linking(mut self, deep_linking: bool) -> Self {
+        self.deep_linking = Some(deep_linking);
+
+        self
+    }
+
+    /// Set `display_operation_id` to `true` to show operation id in the operations list.
+    ///
+    /// Default value is `false`.
+    ///
+    /// # Examples
+    ///
+    /// Allow operation id to be shown.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .display_operation_id(true);
+    /// ```
+    pub fn display_operation_id(mut self, display_operation_id: bool) -> Self {
+        self.display_operation_id = Some(display_operation_id);
+
+        self
+    }
+
+    /// Set 'layout' to 'BaseLayout' to only use the base swagger layout without a search header.
+    ///
+    /// Default value is 'StandaloneLayout'.
+    ///
+    /// # Examples
+    ///
+    /// Configure Swagger to use Base Layout instead of Standalone
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .use_base_layout();
+    /// ```
+    pub fn use_base_layout(mut self) -> Self {
+        self.layout = SWAGGER_BASE_LAYOUT;
+
+        self
+    }
+
+    /// Add default models expansion depth.
+    ///
+    /// Setting this to `-1` will completely hide the models.
+    ///
+    /// # Examples
+    ///
+    /// Hide all the models.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .default_models_expand_depth(-1);
+    /// ```
+    pub fn default_models_expand_depth(mut self, default_models_expand_depth: isize) -> Self {
+        self.default_models_expand_depth = Some(default_models_expand_depth);
+
+        self
+    }
+
+    /// Add default model expansion depth for model on the example section.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .default_model_expand_depth(1);
+    /// ```
+    pub fn default_model_expand_depth(mut self, default_model_expand_depth: isize) -> Self {
+        self.default_model_expand_depth = Some(default_model_expand_depth);
+
+        self
+    }
+
+    /// Add `default_model_rendering` to set how models is show when API is first rendered.
+    ///
+    /// The user can always switch the rendering for given model by cliking the `Model` and `Example Value` links.
+    ///
+    /// * `example` Makes example rendered first by default.
+    /// * `model` Makes model rendered first by default.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .default_model_rendering(r#"["example"*, "model"]"#);
+    /// ```
+    pub fn default_model_rendering<S: Into<String>>(mut self, default_model_rendering: S) -> Self {
+        self.default_model_rendering = Some(default_model_rendering.into());
+
+        self
+    }
+
+    /// Set to `true` to show request duration of _**'Try it out'**_ requests _**(in milliseconds)**_.
+    ///
+    /// Default value is `false`.
+    ///
+    /// # Examples
+    /// Enable request duration of the _**'Try it out'**_ requests.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .display_request_duration(true);
+    /// ```
+    pub fn display_request_duration(mut self, display_request_duration: bool) -> Self {
+        self.display_request_duration = Some(display_request_duration);
+
+        self
+    }
+
+    /// Add `doc_expansion` to control default expansion for operations and tags.
+    ///
+    /// * `list` Will expand only tags.
+    /// * `full` Will expand tags and operations.
+    /// * `none` Will expand nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .doc_expansion(r#"["list"*, "full", "none"]"#);
+    /// ```
+    pub fn doc_expansion<S: Into<String>>(mut self, doc_expansion: S) -> Self {
+        self.doc_expansion = Some(doc_expansion.into());
+
+        self
+    }
+
+    /// Add `filter` to allow filtering of tagged operations.
+    ///
+    /// When enabled top bar will show and edit box that can be used to filter visible tagged operations.
+    /// Filter behaves case sensitive manner and matches anywhere inside the tag.
+    ///
+    /// Default value is `false`.
+    ///
+    /// # Examples
+    ///
+    /// Enable filtering.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .filter(true);
+    /// ```
+    pub fn filter(mut self, filter: bool) -> Self {
+        self.filter = Some(filter);
+
+        self
+    }
+
+    /// Add `max_displayed_tags` to restrict shown tagged operations.
+    ///
+    /// By default all operations are shown.
+    ///
+    /// # Examples
+    ///
+    /// Display only 4 operations.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .max_displayed_tags(4);
+    /// ```
+    pub fn max_displayed_tags(mut self, max_displayed_tags: usize) -> Self {
+        self.max_displayed_tags = Some(max_displayed_tags);
+
+        self
+    }
+
+    /// Set `show_extensions` to adjust whether vendor extension _**`(x-)`**_ fields and values
+    /// are shown for operations, parameters, responses and schemas.
+    ///
+    /// # Example
+    ///
+    /// Show vendor extensions.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .show_extensions(true);
+    /// ```
+    pub fn show_extensions(mut self, show_extensions: bool) -> Self {
+        self.show_extensions = Some(show_extensions);
+
+        self
+    }
+
+    /// Add `show_common_extensions` to define whether common extension
+    /// _**`(pattern, maxLength, minLength, maximum, minimum)`**_ fields and values are shown
+    /// for parameters.
+    ///
+    /// # Examples
+    ///
+    /// Show common extensions.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .show_common_extensions(true);
+    /// ```
+    pub fn show_common_extensions(mut self, show_common_extensions: bool) -> Self {
+        self.show_common_extensions = Some(show_common_extensions);
+
+        self
+    }
+
+    /// Add `try_it_out_enabled` to enable _**'Try it out'**_ section by default.
+    ///
+    /// Default value is `false`.
+    ///
+    /// # Examples
+    ///
+    /// Enable _**'Try it out'**_ section by default.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .try_it_out_enabled(true);
+    /// ```
+    pub fn try_it_out_enabled(mut self, try_it_out_enabled: bool) -> Self {
+        self.try_it_out_enabled = Some(try_it_out_enabled);
+
+        self
+    }
+
+    /// Set `request_snippets_enabled` to enable request snippets section.
+    ///
+    /// If disabled legacy curl snipped will be used.
+    ///
+    /// Default value is `false`.
+    ///
+    /// # Examples
+    ///
+    /// Enable request snippets section.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .request_snippets_enabled(true);
+    /// ```
+    pub fn request_snippets_enabled(mut self, request_snippets_enabled: bool) -> Self {
+        self.request_snippets_enabled = Some(request_snippets_enabled);
+
+        self
+    }
+
+    /// Add oauth redirect url.
+    ///
+    /// # Examples
+    ///
+    /// Add oauth redirect url.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .oauth2_redirect_url("http://my.oauth2.redirect.url");
+    /// ```
+    pub fn oauth2_redirect_url<S: Into<String>>(mut self, oauth2_redirect_url: S) -> Self {
+        self.oauth2_redirect_url = Some(oauth2_redirect_url.into());
+
+        self
+    }
+
+    /// Add `show_mutated_request` to use request returned from `requestInterceptor`
+    /// to produce curl command in the UI. If set to `false` the request before `requestInterceptor`
+    /// was applied will be used.
+    ///
+    /// # Examples
+    ///
+    /// Use request after `requestInterceptor` to produce the curl command.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .show_mutated_request(true);
+    /// ```
+    pub fn show_mutated_request(mut self, show_mutated_request: bool) -> Self {
+        self.show_mutated_request = Some(show_mutated_request);
+
+        self
+    }
+
+    /// Add supported http methods for _**'Try it out'**_ operation.
+    ///
+    /// _**'Try it out'**_ will be enabled based on the given list of http methods when
+    /// the operation's http method is included within the list.
+    /// By giving an empty list will disable _**'Try it out'**_ from all operations but it will
+    /// **not** filter operations from the UI.
+    ///
+    /// By default all http operations are enabled.
+    ///
+    /// # Examples
+    ///
+    /// Set allowed http methods explisitly.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .supported_submit_methods(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
+    /// ```
+    ///
+    /// Allow _**'Try it out'**_ for only GET operations.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .supported_submit_methods(["get"]);
+    /// ```
+    pub fn supported_submit_methods<I: IntoIterator<Item = S>, S: Into<String>>(
+        mut self,
+        supported_submit_methods: I,
+    ) -> Self {
+        self.supported_submit_methods = Some(
+            supported_submit_methods
+                .into_iter()
+                .map(|method| method.into())
+                .collect(),
+        );
+
+        self
+    }
+
+    /// Add validator url which is used to validate the Swagger spec.
+    ///
+    /// This can also be set to use locally deployed validator for example see
+    /// [Validator Badge](https://github.com/swagger-api/validator-badge) for more details.
+    ///
+    /// By default swagger.io's online validator _**`(https://validator.swagger.io/validator)`**_ will be used.
+    /// Setting this to `none` will disable the validator.
+    ///
+    /// # Examples
+    ///
+    /// Disable the validator.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .validator_url("none");
+    /// ```
+    pub fn validator_url<S: Into<String>>(mut self, validator_url: S) -> Self {
+        self.validator_url = Some(validator_url.into());
+
+        self
+    }
+
+    /// Set `with_credentials` to enable passing credentials to CORS requests send by browser as defined
+    /// [fetch standards](https://fetch.spec.whatwg.org/#credentials).
+    ///
+    /// **Note!** that Swagger UI cannot currently set cookies cross-domain
+    /// (see [swagger-js#1163](https://github.com/swagger-api/swagger-js/issues/1163)) -
+    /// as a result, you will have to rely on browser-supplied cookies (which this setting enables sending)
+    /// that Swagger UI cannot control.
+    ///
+    /// # Examples
+    ///
+    /// Enable passing credentials to CORS requests.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .with_credentials(true);
+    /// ```
+    pub fn with_credentials(mut self, with_credentials: bool) -> Self {
+        self.with_credentials = Some(with_credentials);
+
+        self
+    }
+
+    /// Set to `true` to enable authorizations to be persisted throughout browser refresh and close.
+    ///
+    /// Default value is `false`.
+    ///
+    ///
+    /// # Examples
+    ///
+    /// Persists authorization throughout browser close and refresh.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-doc/openapi.json"])
+    ///     .persist_authorization(true);
+    /// ```
+    pub fn persist_authorization(mut self, persist_authorization: bool) -> Self {
+        self.persist_authorization = Some(persist_authorization);
+
+        self
     }
 }
 
 impl<'a> From<&'a str> for Config<'a> {
     fn from(s: &'a str) -> Self {
-        Self {
-            urls: vec![Url::from(s)],
-            oauth: None,
-        }
+        Self::new([s])
     }
 }
 
 impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
-        Self {
-            urls: vec![Url::from(s)],
-            oauth: None,
-        }
+        Self::new([s])
     }
 }
 
@@ -643,10 +1199,11 @@ pub fn serve<'a>(
 
         if file_path == "swagger-initializer.js" {
             let mut file = match String::from_utf8(bytes.to_vec()) {
-                Ok(index) => index,
+                Ok(file) => file,
                 Err(error) => return Err(Box::new(error)),
             };
-            file = format_swagger_config_urls(&mut config.urls.iter(), file);
+
+            file = format_config(config.as_ref(), file)?;
 
             if let Some(oauth) = &config.oauth {
                 match oauth::format_swagger_config(oauth, file) {
@@ -670,95 +1227,285 @@ pub fn serve<'a>(
 }
 
 #[inline]
-fn format_swagger_config_urls<'a, U: ExactSizeIterator<Item = &'a Url<'a>>>(
-    urls: &mut U,
-    file: String,
-) -> String {
-    if urls.len() > 1 {
-        let mut primary = None::<Cow<'a, str>>;
-        let mut urls_string = format!(
-            "urls: [{}],",
-            &urls
-                .inspect(|url| if url.primary {
-                    primary = Some(Cow::Borrowed(url.name.as_ref()))
-                })
-                .map(Url::to_json_object_string)
-                .collect::<Vec<_>>()
-                .join(",")
-        );
+fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error>> {
+    let config_json = match serde_json::to_string_pretty(&config) {
+        Ok(config) => config,
+        Err(error) => return Err(Box::new(error)),
+    };
 
-        if let Some(primary) = primary {
-            urls_string.push_str(&format!(r#""urls.primaryName": "{}","#, primary));
-        }
-        file.replace(r"{{urls}},", &urls_string)
-    } else if let Some(url) = urls.next() {
-        file.replace(r"{{urls}}", &format!(r#"url: "{}""#, url.url))
-    } else {
-        file
-    }
+    // Replace {{config}} with pretty config json and remove the curly brackets `{ }` from beginning and the end.
+    Ok(file.replace("{{config}}", &config_json[2..&config_json.len() - 2]))
 }
 
 #[cfg(test)]
 mod tests {
+    use similar::TextDiff;
+
     use super::*;
 
-    const TEST_CONTENT: &str = r###""window.ui = SwaggerUIBundle({
-    {{urls}},
-    dom_id: '#swagger-ui',
-    deepLinking: true,
-    presets: [
-      SwaggerUIBundle.presets.apis,
-      SwaggerUIStandalonePreset
-    ],
-    plugins: [
-      SwaggerUIBundle.plugins.DownloadUrl
-    ],
-    layout: "StandaloneLayout"
-  });""###;
+    fn assert_diff_equal(expected: &str, new: &str) {
+        let diff = TextDiff::from_lines(expected, new);
+
+        assert_eq!(expected, new, "\nDifference:\n{}", diff.unified_diff());
+    }
+
+    const TEST_INITIAL_CONFIG: &str = r#"
+window.ui = SwaggerUIBundle({
+  {{config}},
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"#;
 
     #[test]
-    fn format_swagger_config_urls_with_one_url() {
-        let config = Config::from("/api-doc.json");
-        let file =
-            super::format_swagger_config_urls(&mut config.urls.iter(), TEST_CONTENT.to_string());
+    fn format_swagger_config_json_single_url() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-doc/openapi1.json"]),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
 
-        assert!(
-            file.contains(r#"url: "/api-doc.json","#),
-            "expected file to contain {}",
-            r#"url: "/api-doc.json","#
-        )
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-doc/openapi1.json",
+  "deepLinking": true,
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config)
     }
 
     #[test]
-    fn format_swagger_config_urls_multiple() {
-        let config = Config::new(["/api-doc.json", "/api-doc2.json"]);
-        let file =
-            super::format_swagger_config_urls(&mut config.urls.iter(), TEST_CONTENT.to_string());
+    fn format_swagger_config_json_single_url_with_name() {
+        let formatted_config = match format_config(
+            &Config::new([Url::new("api-doc1", "/api-doc/openapi1.json")]),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
 
-        assert!(
-            file.contains(r#"urls: [{name: "/api-doc.json", url: "/api-doc.json"},{name: "/api-doc2.json", url: "/api-doc2.json"}],"#),
-            "expected file to contain {}",
-            r#"urls: [{name: "/api-doc.json", url: "/api-doc.json"}, {name: "/api-doc2.json", url: "/api-doc2.json"}],"#
-        )
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "urls": [
+    {
+      "name": "api-doc1",
+      "url": "/api-doc/openapi1.json"
     }
-    #[test]
-    fn format_swagger_config_urls_with_primary() {
-        let config = Config::new([
-            Url::new("api1", "/api-doc.json"),
-            Url::with_primary("api2", "/api-doc2.json", true),
-        ]);
-        let file =
-            super::format_swagger_config_urls(&mut config.urls.iter(), TEST_CONTENT.to_string());
+  ],
+  "deepLinking": true,
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
 
-        assert!(
-            file.contains(r#"urls: [{name: "api1", url: "/api-doc.json"},{name: "api2", url: "/api-doc2.json"}],"#),
-            "expected file to contain {}",
-            r#"urls: [{name: "api1", url: "/api-doc.json"}, {name: "api2", url: "/api-doc2.json"}],"#
-        );
-        assert!(
-            file.contains(r#""urls.primaryName": "api2","#),
-            "expected file to contain {}",
-            r#""urls.primaryName": "api2","#
-        )
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_json_single_url_primary() {
+        let formatted_config = match format_config(
+            &Config::new([Url::with_primary(
+                "api-doc1",
+                "/api-doc/openapi1.json",
+                true,
+            )]),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "urls.primaryName": "api-doc1",
+  "urls": [
+    {
+      "name": "api-doc1",
+      "url": "/api-doc/openapi1.json"
+    }
+  ],
+  "deepLinking": true,
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_multiple_urls_with_primary() {
+        let formatted_config = match format_config(
+            &Config::new([
+                Url::with_primary("api-doc1", "/api-doc/openapi1.json", true),
+                Url::new("api-doc2", "/api-doc/openapi2.json"),
+            ]),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "urls.primaryName": "api-doc1",
+  "urls": [
+    {
+      "name": "api-doc1",
+      "url": "/api-doc/openapi1.json"
+    },
+    {
+      "name": "api-doc2",
+      "url": "/api-doc/openapi2.json"
+    }
+  ],
+  "deepLinking": true,
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_multiple_urls() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "urls": [
+    {
+      "name": "/api-doc/openapi1.json",
+      "url": "/api-doc/openapi1.json"
+    },
+    {
+      "name": "/api-doc/openapi2.json",
+      "url": "/api-doc/openapi2.json"
+    }
+  ],
+  "deepLinking": true,
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_multiple_fields() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-doc/openapi1.json"])
+                .deep_linking(false)
+                .dom_id("#another-el")
+                .default_model_expand_depth(-1)
+                .default_model_rendering(r#"["example"*]"#)
+                .default_models_expand_depth(1)
+                .display_operation_id(true)
+                .display_request_duration(true)
+                .filter(true)
+                .use_base_layout()
+                .doc_expansion(r#"["list"*]"#)
+                .max_displayed_tags(1)
+                .oauth2_redirect_url("http://auth")
+                .persist_authorization(true)
+                .query_config_enabled(true)
+                .request_snippets_enabled(true)
+                .show_common_extensions(true)
+                .show_extensions(true)
+                .show_mutated_request(true)
+                .supported_submit_methods(["get"])
+                .try_it_out_enabled(true)
+                .validator_url("none")
+                .with_credentials(true),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#another-el",
+  "url": "/api-doc/openapi1.json",
+  "queryConfigEnabled": true,
+  "deepLinking": false,
+  "displayOperationId": true,
+  "defaultModelsExpandDepth": 1,
+  "defaultModelExpandDepth": -1,
+  "defaultModelRendering": "[\"example\"*]",
+  "displayRequestDuration": true,
+  "docExpansion": "[\"list\"*]",
+  "filter": true,
+  "maxDisplayedTags": 1,
+  "showExtensions": true,
+  "showCommonExtensions": true,
+  "tryItOutEnabled": true,
+  "requestSnippetsEnabled": true,
+  "oauth2RedirectUrl": "http://auth",
+  "showMutatedRequest": true,
+  "supportedSubmitMethods": [
+    "get"
+  ],
+  "validatorUrl": "none",
+  "withCredentials": true,
+  "persistAuthorization": true,
+  "layout": "BaseLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
     }
 }

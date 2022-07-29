@@ -1,5 +1,6 @@
 #![cfg(feature = "json")]
 
+use serde_json::Value;
 use utoipa::OpenApi;
 
 mod common;
@@ -77,4 +78,30 @@ fn derive_openapi_with_external_docs_only_url() {
         "externalDocs.url" = r###""http://localhost.more.about.api""###, "External docs url"
         "externalDocs.description" = r###"null"###, "External docs description"
     }
+}
+
+#[test]
+fn derive_openapi_with_components_in_different_module() {
+    mod custom {
+        use utoipa::Component;
+
+        #[derive(Component)]
+        #[allow(unused)]
+        pub(super) struct Todo {
+            name: String,
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(custom::Todo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let todo = doc.pointer("/components/schemas/Todo").unwrap();
+
+    assert_ne!(
+        todo,
+        &Value::Null,
+        "Expected components.schemas.Todo not to be null"
+    );
 }

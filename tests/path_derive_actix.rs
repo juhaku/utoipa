@@ -43,7 +43,7 @@ fn derive_path_one_value_actix_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -86,7 +86,7 @@ fn derive_path_with_unnamed_regex_actix_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{arg0}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{arg0}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -130,7 +130,7 @@ fn derive_path_with_named_regex_actix_success() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
-    let parameters = common::get_json_path(&doc, "paths./foo/{tail}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{tail}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -168,7 +168,9 @@ fn derive_path_with_multiple_args() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/bar/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1bar~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -214,7 +216,7 @@ fn derive_complex_actix_web_path() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -256,7 +258,9 @@ fn derive_path_with_multiple_args_with_descriptions() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/bar/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1bar~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -300,7 +304,7 @@ fn derive_path_with_context_path() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let path = common::get_json_path(&doc, "paths./api/foo.get");
+    let path = doc.pointer("/paths/~1api~1foo/get").unwrap();
 
     assert_ne!(path, &Value::Null, "expected path with context path /api");
 }
@@ -364,6 +368,10 @@ fn path_with_struct_variables_with_into_params() {
     }
 
     #[utoipa::path(
+        params(
+            Person,
+            Filter
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -379,7 +387,9 @@ fn path_with_struct_variables_with_into_params() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 3);
     assert_value! {parameters=>
@@ -426,6 +436,10 @@ fn derive_path_with_struct_variables_with_into_params() {
     }
 
     #[utoipa::path(
+        params(
+            Person,
+            Filter
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -441,7 +455,9 @@ fn derive_path_with_struct_variables_with_into_params() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 3);
     assert_value! {parameters=>
@@ -481,6 +497,9 @@ fn derive_path_with_multiple_instances_same_path_params() {
     struct Id(u64);
 
     #[utoipa::path(
+        params(
+            Id
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -492,6 +511,9 @@ fn derive_path_with_multiple_instances_same_path_params() {
     }
 
     #[utoipa::path(
+        params(
+            Id
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -509,8 +531,9 @@ fn derive_path_with_multiple_instances_same_path_params() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     for operation in ["get", "delete"] {
-        let parameters =
-            common::get_json_path(&doc, &format!("paths./foo/{{id}}.{operation}.parameters"));
+        let parameters = doc
+            .pointer(&*format!("/paths/~1foo~1{{id}}/{operation}/parameters"))
+            .unwrap();
 
         common::assert_json_array_len(parameters, 1);
         assert_value! {parameters=>
@@ -533,6 +556,7 @@ fn derive_path_with_multiple_into_params_names() {
     struct IdAndName(u64, String);
 
     #[utoipa::path(
+        params(IdAndName),
         responses(
             (status = 200, description = "success response")
         )
@@ -549,7 +573,9 @@ fn derive_path_with_multiple_into_params_names() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -600,6 +626,10 @@ fn derive_into_params_with_custom_attributes() {
     }
 
     #[utoipa::path(
+        params(
+            Person,
+            Filter
+        ),
         responses(
             (status = 200, description = "success response")
         )
@@ -615,7 +645,9 @@ fn derive_into_params_with_custom_attributes() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{name}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{name}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 4);
     assert_value! {parameters=>
@@ -664,6 +696,50 @@ fn derive_into_params_with_custom_attributes() {
     }
 }
 
+#[test]
+fn derive_into_params_in_another_module() {
+    use actix_web::{get, HttpResponse, Responder};
+    use utoipa::OpenApi;
+    pub mod params {
+        use serde::Deserialize;
+        use utoipa::IntoParams;
+
+        #[derive(Deserialize, IntoParams)]
+        pub struct FooParams {
+            pub id: String,
+        }
+    }
+
+    /// Foo test
+    #[utoipa::path(
+        params(
+            params::FooParams,
+        ),
+        responses(
+            (status = 200, description = "Todo foo operation success"),
+        )
+    )]
+    #[get("/todo/foo/{id}")]
+    pub async fn foo_todos(_path: Path<params::FooParams>) -> impl Responder {
+        HttpResponse::Ok()
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(foo_todos))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc
+        .pointer("/paths/~1todo~1foo~1{id}/get/parameters")
+        .unwrap();
+
+    common::assert_json_array_len(parameters, 1);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+    }
+}
+
 macro_rules! test_derive_path_operations {
     ( $( $name:ident, $mod:ident: $operation:ident)* ) => {
         $(
@@ -692,8 +768,8 @@ macro_rules! test_derive_path_operations {
             let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
             let op_str = stringify!($operation);
-            let path = format!("paths./foo.{}", op_str);
-            let value = common::get_json_path(&doc, &path);
+            let path = format!("/paths/~1foo/{}", op_str);
+            let value = doc.pointer(&path).unwrap_or(&serde_json::Value::Null);
             assert!(value != &Value::Null, "expected to find operation with: {}", path);
         }
         )*

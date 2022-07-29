@@ -1,7 +1,7 @@
 //! Implements [OpenApi Responses][responses].
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use indexmap::{IndexMap};
 
 use serde::{Deserialize, Serialize};
@@ -73,8 +73,8 @@ builder! {
         pub description: String,
 
         /// Map of headers identified by their name. `Content-Type` header will be ignored.
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub headers: HashMap<String, Header>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        pub headers: BTreeMap<String, Header>,
 
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
         #[serde(skip_serializing_if = "IndexMap::is_empty")]

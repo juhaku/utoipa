@@ -36,7 +36,7 @@ Existing [examples](./examples) for following frameworks:
 * **[rocket](https://github.com/SergioBenitez/Rocket)**
 
 Even if there is no example for your favourite framework `utoipa` can be used with any 
-web framework which supports decorating functions with macros similarly to **axum**, **warp** and **tide** examples.
+web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
 
 ## What's up with the word play?
 
@@ -49,25 +49,34 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 * **json** Enables **serde_json** serialization of OpenAPI objects which also allows usage of JSON within
   OpenAPI values e.g. within `example` value. This is enabled by default.
 * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
-* **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) intgration with being able to 
+* **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to 
   parse `path` and `path and query parameters` from actix web path attribute macros. See 
   [docs](https://docs.rs/utoipa/1.1.0/utoipa/attr.path.html#actix_extras-support-for-actix-web) or [examples](./examples) for more details.
 * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/attr.path.html#rocket_extras-support-for-rocket)
   or [examples](./examples) for more details.
+* **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without defining the `parameter_in` attribute. See 
+  [docs](https://docs.rs/utoipa/1.1.0/utoipa/attr.path.html#axum_extras-suppport-for-axum) or [examples](./examples) for more details.
 * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration`
   types. By default these types are parsed to `string` types without additional format. If you want to have 
   formats added to the types use *chrono_with_format* feature. This is useful because OpenAPI 3.1 spec 
-  does not have date-time formats.
+  does not have date-time formats. To override default `string` representation 
+  users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
 * **chrono_with_format** Add support to [chrono](https://crates.io/crates/chrono) types described above 
   with additional `format` information type. `date-time` for `DateTime` and `date` for `Date` according
-  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`.
+  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To override default `string` representation 
+  users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
+* **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
+  By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
+  `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
+  to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
 * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default** 
   it is interpreted as `String`. If you wish to change the format you need to override the type. 
   See the `value_type` in [component derive docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html).
 * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
+* **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html#partial-serde-attributes-support) for more details.
 
@@ -87,6 +96,10 @@ utoipa = { version = "1", features = ["actix_extras"] }
 ```
 
 **Note!** To use `utoipa` together with Swagger UI you can use the [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate.
+
+## Breaking changes in next release 2.0.0
+
+Please read the incoming changes from here: https://github.com/juhaku/utoipa/discussions/181.
 
 ## Examples
 

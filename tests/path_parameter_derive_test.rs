@@ -16,7 +16,7 @@ mod derive_params_all_options {
             (status = 200, description = "success"),
         ),
         params(
-            ("id" = i32, path, deprecated, description = "Search foos by ids"),
+            ("id" = i32, Path, deprecated, description = "Search foos by ids"),
         )
     )]
     #[allow(unused)]
@@ -32,7 +32,7 @@ fn derive_path_parameters_with_all_options_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -73,7 +73,7 @@ fn derive_path_parameters_minimal_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -115,7 +115,9 @@ fn derive_path_parameter_multiple_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}/{digest}.get.parameters");
+    let parameters = doc
+        .pointer("/paths/~1foo~1{id}~1{digest}/get/parameters")
+        .unwrap();
 
     common::assert_json_array_len(parameters, 2);
     assert_value! {parameters=>
@@ -148,11 +150,11 @@ mod mod_derive_parameters_all_types {
             (status = 200, description = "success"),
         ),
         params(
-            ("id" = i32, path, description = "Foo id"),
-            ("since" = String, deprecated, query, description = "Datetime since"),
-            ("numbers" = Option<[u64]>, query, description = "Foo numbers list"),
-            ("token" = String, header, deprecated, description = "Token of foo"),
-            ("cookieval" = String, cookie, deprecated, description = "Foo cookie"),
+            ("id" = i32, Path, description = "Foo id"),
+            ("since" = String, deprecated, Query, description = "Datetime since"),
+            ("numbers" = Option<[u64]>, Query, description = "Foo numbers list"),
+            ("token" = String, Header, deprecated, description = "Token of foo"),
+            ("cookieval" = String, Cookie, deprecated, description = "Foo cookie"),
         )
     )]
     #[allow(unused)]
@@ -168,7 +170,7 @@ fn derive_parameters_with_all_types() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 5);
     assert_value! {parameters=>
@@ -224,7 +226,7 @@ mod derive_params_without_args {
             (status = 200, description = "success"),
         ),
         params(
-            ("id" = i32, path, description = "Foo id"),
+            ("id" = i32, Path, description = "Foo id"),
         )
     )]
     #[allow(unused)]
@@ -240,7 +242,7 @@ fn derive_params_without_fn_args() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo/{id}.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>
@@ -263,7 +265,7 @@ fn derive_params_with_params_ext() {
             (status = 200, description = "success"),
         ),
         params(
-            ("value" = Option<[String]>, query, description = "Foo value description", style = Form, allow_reserved, deprecated, explode)
+            ("value" = Option<[String]>, Query, description = "Foo value description", style = Form, allow_reserved, deprecated, explode)
         )
     )]
     #[allow(unused)]
@@ -276,7 +278,7 @@ fn derive_params_with_params_ext() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let parameters = common::get_json_path(&doc, "paths./foo.get.parameters");
+    let parameters = doc.pointer("/paths/~1foo/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
     assert_value! {parameters=>

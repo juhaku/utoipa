@@ -6,12 +6,11 @@ use utoipa::{
 };
 use utoipa_swagger_ui::Config;
 use warp::{
+    http::Uri,
     hyper::{Response, StatusCode},
-    path::Tail,
+    path::{FullPath, Tail},
     Filter, Rejection, Reply,
 };
-
-use crate::todo::Todo;
 
 #[tokio::main]
 async fn main() {
@@ -22,7 +21,7 @@ async fn main() {
     #[derive(OpenApi)]
     #[openapi(
         handlers(todo::list_todos, todo::create_todo, todo::delete_todo),
-        components(Todo),
+        components(todo::Todo),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")
@@ -48,6 +47,7 @@ async fn main() {
 
     let swagger_ui = warp::path("swagger-ui")
         .and(warp::get())
+        .and(warp::path::full())
         .and(warp::path::tail())
         .and(warp::any().map(move || config.clone()))
         .and_then(serve_swagger);
@@ -58,9 +58,16 @@ async fn main() {
 }
 
 async fn serve_swagger(
+    full_path: FullPath,
     tail: Tail,
     config: Arc<Config<'static>>,
 ) -> Result<Box<dyn Reply + 'static>, Rejection> {
+    if full_path.as_str() == "/swagger-ui" {
+        return Ok(Box::new(warp::redirect::found(Uri::from_static(
+            "/swagger-ui/",
+        ))));
+    }
+
     let path = tail.as_str();
     match utoipa_swagger_ui::serve(path, config) {
         Ok(file) => {
@@ -89,7 +96,7 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::Component;
+    use utoipa::{Component, IntoParams};
     use warp::{hyper::StatusCode, Filter, Reply};
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
@@ -105,6 +112,24 @@ mod todo {
         value: String,
     }
 
+    #[derive(Debug, Deserialize, Component)]
+    #[serde(rename_all = "snake_case")]
+    pub enum Order {
+        AscendingId,
+        DescendingId,
+    }
+
+    #[derive(Debug, Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    pub struct ListQueryParams {
+        /// Filters the returned `Todo` items according to whether they contain the specified string.
+        #[param(style = Form, example = json!("task"))]
+        contains: Option<String>,
+        /// Order the returned `Todo` items.
+        #[param(inline)]
+        order: Option<Order>,
+    }
+
     pub fn handlers() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         let store = Store::default();
 
@@ -112,6 +137,7 @@ mod todo {
             .and(warp::get())
             .and(warp::path::end())
             .and(with_store(store.clone()))
+            .and(warp::query::<ListQueryParams>())
             .and_then(list_todos);
 
         let create = warp::path("todo")
@@ -141,14 +167,40 @@ mod todo {
     #[utoipa::path(
         get,
         path = "/todo",
+        params(ListQueryParams),
         responses(
             (status = 200, description = "List todos successfully", body = [Todo])
         )
     )]
-    pub async fn list_todos(store: Store) -> Result<impl Reply, Infallible> {
+    pub async fn list_todos(
+        store: Store,
+        query: ListQueryParams,
+    ) -> Result<impl Reply, Infallible> {
         let todos = store.lock().unwrap();
 
-        Ok(warp::reply::json(&todos.clone()))
+        let mut todos: Vec<Todo> = if let Some(contains) = query.contains {
+            todos
+                .iter()
+                .filter(|todo| todo.value.contains(&contains))
+                .cloned()
+                .collect()
+        } else {
+            todos.clone()
+        };
+
+        if let Some(order) = query.order {
+            match order {
+                Order::AscendingId => {
+                    todos.sort_by_key(|todo| todo.id);
+                }
+                Order::DescendingId => {
+                    todos.sort_by_key(|todo| todo.id);
+                    todos.reverse();
+                }
+            }
+        }
+
+        Ok(warp::reply::json(&todos))
     }
 
     /// Create new todo item.
@@ -194,7 +246,7 @@ mod todo {
             (status = 404, description = "Todo not found to delete"),
         ),
         params(
-            ("id" = i64, path, description = "Todo's unique id")
+            ("id" = i64, Path, description = "Todo's unique id")
         ),
         security(
             ("api_key" = [])

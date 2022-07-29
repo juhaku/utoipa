@@ -24,12 +24,15 @@ default = ["json"]
 debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]
 rocket_extras = ["utoipa-gen/rocket_extras"]
+axum_extras = ["utoipa-gen/axum_extras"]
 json = ["serde_json", "utoipa-gen/json"]
 chrono = ["utoipa-gen/chrono"]
 chrono_with_format = ["utoipa-gen/chrono_with_format"]
 decimal = ["utoipa-gen/decimal"]
 yaml = ["serde_yaml"]
 uuid = ["utoipa-gen/uuid"]
+time = ["utoipa-gen/time"]
+smallvec = ["utoipa-gen/smallvec"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -39,12 +42,16 @@ utoipa-gen = { version = "1.1.0", path = "./utoipa-gen" }
 indexmap = { version="1", features = ["serde"] }
 
 [dev-dependencies]
-actix-web = { version = "4", default-features=false }
+actix-web = { version = "4", features = [ "macros" ], default-features = false }
+axum = "0.5"
+assert-json-diff = "2"
 paste = "1"
 chrono = { version  = "0.4", features = ["serde"] }
 rust_decimal = "1"
 rocket = "0.5.0-rc.1"
 uuid = "1"
+time = { version = "0.3.11", features = [ "serde-human-readable" ] }
+smallvec = { version = "1.9.0", features = [ "serde" ] }
 
 [workspace]
 members = [

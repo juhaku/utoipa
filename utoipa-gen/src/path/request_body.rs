@@ -122,11 +122,11 @@ impl ContentTypeResolver for RequestBodyAttr<'_> {}
 
 impl ToTokens for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        if let Some(ref body_type) = self.content {
-            let property = Property::new(body_type.is_array, &body_type.ty);
+        if let Some(body_type) = &self.content {
+            let property = Property::new(body_type);
 
             let content_type =
-                self.resolve_content_type(self.content_type.as_ref(), &property.component_type);
+                self.resolve_content_type(self.content_type.as_ref(), &property.component_type());
             let required: Required = (!body_type.is_option).into();
 
             tokens.extend(quote! {

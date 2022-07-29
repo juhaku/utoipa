@@ -2,7 +2,7 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
@@ -46,14 +46,14 @@ builder! {
         /// Map of reusable [OpenAPI Schema Object][schema]s.
         ///
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub schemas: HashMap<String, Component>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        pub schemas: BTreeMap<String, Component>,
 
         /// Map of reusable [OpenAPI Security Schema Object][security_schema]s.
         ///
         /// [security_schema]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub security_schemes: HashMap<String, SecurityScheme>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        pub security_schemes: BTreeMap<String, SecurityScheme>,
     }
 }
 
@@ -287,6 +287,10 @@ pub struct Property {
     #[serde(rename = "type")]
     pub component_type: ComponentType,
 
+    /// Changes the [`Property`] title.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+
     /// Additional format for detailing the component type.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<ComponentFormat>,
@@ -358,6 +362,8 @@ impl ToArray for Property {}
 pub struct PropertyBuilder {
     component_type: ComponentType,
 
+    title: Option<String>,
+
     format: Option<ComponentFormat>,
 
     description: Option<String>,
@@ -386,7 +392,7 @@ pub struct PropertyBuilder {
 }
 
 from!(Property PropertyBuilder
-    component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+    component_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 
 impl PropertyBuilder {
     new!(pub PropertyBuilder);
@@ -394,6 +400,11 @@ impl PropertyBuilder {
     /// Add or change type of the property e.g [`ComponentType::String`].
     pub fn component_type(mut self, component_type: ComponentType) -> Self {
         set_value!(self component_type component_type)
+    }
+
+    /// Add or change the title of the [`Property`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 
     /// Add or change additional format for detailing the component type.
@@ -462,7 +473,7 @@ impl PropertyBuilder {
     to_array_builder!();
 
     build_fn!(pub Property
-        component_type, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+        component_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 }
 
 component_from_builder!(PropertyBuilder);
@@ -480,13 +491,24 @@ pub struct Object {
     #[serde(rename = "type")]
     component_type: ComponentType,
 
+    /// Changes the [`Object`] title.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+
     /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub required: Vec<String>,
 
     /// Map of fields with their [`Component`] types.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub properties: HashMap<String, Component>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub properties: BTreeMap<String, Component>,
+
+    /// Additional [`Component`] for non specified fields (Useful for typed maps).
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "additionalProperties"
+    )]
+    pub additional_properties: Option<Box<Component>>,
 
     /// Description of the [`Object`]. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -532,9 +554,13 @@ impl ToArray for Object {}
 pub struct ObjectBuilder {
     component_type: ComponentType,
 
+    title: Option<String>,
+
     required: Vec<String>,
 
-    properties: HashMap<String, Component>,
+    properties: BTreeMap<String, Component>,
+
+    additional_properties: Option<Box<Component>>,
 
     description: Option<String>,
 
@@ -566,11 +592,23 @@ impl ObjectBuilder {
         self
     }
 
+    pub fn additional_properties<I: Into<Component>>(
+        mut self,
+        additional_properties: Option<I>,
+    ) -> Self {
+        set_value!(self additional_properties additional_properties.map(|additional_properties| Box::new(additional_properties.into())))
+    }
+
     /// Add field to the required fields of [`Object`].
     pub fn required<I: Into<String>>(mut self, required_field: I) -> Self {
         self.required.push(required_field.into());
 
         self
+    }
+
+    /// Add or change the title of the [`Object`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 
     /// Add or change description of the property. Markdown syntax is supported.
@@ -602,10 +640,10 @@ impl ObjectBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Object component_type, required, properties, description, deprecated, example, xml);
+    build_fn!(pub Object component_type, title, required, properties, description, deprecated, example, xml, additional_properties);
 }
 
-from!(Object ObjectBuilder component_type, required, properties, description, deprecated, example, xml);
+from!(Object ObjectBuilder component_type, title, required, properties, description, deprecated, example, xml, additional_properties);
 component_from_builder!(ObjectBuilder);
 
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
@@ -654,7 +692,7 @@ builder! {
     ///
     /// See [`Component::Array`] for more details.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
@@ -679,6 +717,18 @@ builder! {
     }
 }
 
+impl Default for Array {
+    fn default() -> Self {
+        Self {
+            component_type: ComponentType::Array,
+            items: Default::default(),
+            max_items: Default::default(),
+            min_items: Default::default(),
+            xml: Default::default(),
+        }
+    }
+}
+
 impl Array {
     /// Construct a new [`Array`] component from given [`Component`].
     ///
@@ -691,7 +741,6 @@ impl Array {
     /// ```
     pub fn new<I: Into<Component>>(component: I) -> Self {
         Self {
-            component_type: ComponentType::Array,
             items: Box::new(component.into()),
             ..Default::default()
         }
@@ -809,6 +858,7 @@ pub enum ComponentFormat {
 #[cfg(test)]
 #[cfg(feature = "serde_json")]
 mod tests {
+    use assert_json_diff::assert_json_eq;
     use serde_json::{json, Value};
 
     use super::*;
@@ -926,6 +976,50 @@ mod tests {
         Ok(())
     }
 
+    // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
+    #[test]
+    fn test_additional_properties() {
+        let json_value = ObjectBuilder::new()
+            .additional_properties(Some(
+                PropertyBuilder::new().component_type(ComponentType::String),
+            ))
+            .build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "additionalProperties": {
+                    "type": "string"
+                }
+            })
+        );
+
+        let json_value = ObjectBuilder::new()
+            .additional_properties(Some(Ref::from_component_name("ComplexModel")))
+            .build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ComplexModel"
+                }
+            })
+        )
+    }
+
+    #[test]
+    fn test_object_with_title() {
+        let json_value = ObjectBuilder::new().title(Some("SomeName")).build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "title": "SomeName"
+            })
+        );
+    }
+
     #[test]
     fn derive_object_with_example() {
         let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
@@ -945,5 +1039,39 @@ mod tests {
         path.split('.').into_iter().fold(value, |acc, fragment| {
             acc.get(fragment).unwrap_or(&serde_json::value::Value::Null)
         })
+    }
+
+    #[test]
+    fn test_array_new() {
+        let array = Array::new(
+            ObjectBuilder::new().property(
+                "id",
+                PropertyBuilder::new()
+                    .component_type(ComponentType::Integer)
+                    .format(Some(ComponentFormat::Int32))
+                    .description(Some("Id of credential"))
+                    .default(Some(json!(1i32))),
+            ),
+        );
+
+        assert!(matches!(array.component_type, ComponentType::Array));
+    }
+
+    #[test]
+    fn test_array_builder() {
+        let array: Array = ArrayBuilder::new()
+            .items(
+                ObjectBuilder::new().property(
+                    "id",
+                    PropertyBuilder::new()
+                        .component_type(ComponentType::Integer)
+                        .format(Some(ComponentFormat::Int32))
+                        .description(Some("Id of credential"))
+                        .default(Some(json!(1i32))),
+                ),
+            )
+            .build();
+
+        assert!(matches!(array.component_type, ComponentType::Array));
     }
 }

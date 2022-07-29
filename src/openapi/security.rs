@@ -3,7 +3,7 @@
 //! Refer to [`SecurityScheme`] for usage and more details.
 //!
 //! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-use std::{collections::HashMap, iter};
+use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ use super::{build_fn, builder, from, new};
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SecurityRequirement {
     #[serde(flatten)]
-    value: HashMap<String, Vec<String>>,
+    value: BTreeMap<String, Vec<String>>,
 }
 
 impl SecurityRequirement {
@@ -55,7 +55,7 @@ impl SecurityRequirement {
         scopes: S,
     ) -> Self {
         Self {
-            value: HashMap::from_iter(iter::once_with(|| {
+            value: BTreeMap::from_iter(iter::once_with(|| {
                 (
                     Into::<String>::into(name),
                     scopes
@@ -187,7 +187,7 @@ builder! {
     ///
     /// Methods can be chained to configure _bearer_format_ or to add _description_.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, Default)]
     #[serde(rename_all = "camelCase")]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Http {
@@ -347,7 +347,7 @@ impl OpenIdConnect {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
-    pub flows: HashMap<String, Flow>,
+    pub flows: BTreeMap<String, Flow>,
 
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -363,7 +363,6 @@ impl OAuth2 {
     ///
     /// Create new OAuth2 flow with multiple authentication flows.
     /// ```rust
-    /// # use std::collections::HashMap;
     /// # use utoipa::openapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
     /// OAuth2::new([Flow::Password(
     ///     Password::with_refresh_url(
@@ -387,7 +386,7 @@ impl OAuth2 {
     /// ```
     pub fn new<I: IntoIterator<Item = Flow>>(flows: I) -> Self {
         Self {
-            flows: HashMap::from_iter(
+            flows: BTreeMap::from_iter(
                 flows
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
@@ -402,7 +401,6 @@ impl OAuth2 {
     ///
     /// Create new OAuth2 flow with multiple authentication flows with description.
     /// ```rust
-    /// # use std::collections::HashMap;
     /// # use utoipa::openapi::security::{OAuth2, Flow, Password, AuthorizationCode, Scopes};
     /// OAuth2::with_description([Flow::Password(
     ///     Password::with_refresh_url(
@@ -430,7 +428,7 @@ impl OAuth2 {
         description: S,
     ) -> Self {
         Self {
-            flows: HashMap::from_iter(
+            flows: BTreeMap::from_iter(
                 flows
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
@@ -759,7 +757,6 @@ impl ClientCredentials {
     ///
     /// Create new client credentials flow with scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
     /// # use utoipa::openapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::new(
     ///     "https://localhost/token",
@@ -772,7 +769,6 @@ impl ClientCredentials {
     ///
     /// Create new client credentials flow without any scopes.
     /// ```rust
-    /// # use std::collections::HashMap;
     /// # use utoipa::openapi::security::{ClientCredentials, Scopes};
     /// ClientCredentials::new(
     ///     "https://localhost/token",
@@ -849,7 +845,7 @@ impl ClientCredentials {
 #[derive(Default, Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Scopes {
-    scopes: HashMap<String, String>,
+    scopes: BTreeMap<String, String>,
 }
 
 impl Scopes {
@@ -883,7 +879,7 @@ impl Scopes {
     /// ```
     pub fn one<S: Into<String>>(scope: S, description: S) -> Self {
         Self {
-            scopes: HashMap::from_iter(iter::once_with(|| (scope.into(), description.into()))),
+            scopes: BTreeMap::from_iter(iter::once_with(|| (scope.into(), description.into()))),
         }
     }
 }

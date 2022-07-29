@@ -1,4 +1,5 @@
-#![cfg(feature = "actix_extras")]
+#![cfg(feature = "yaml")]
+#![cfg(feature = "json")]
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
@@ -58,7 +59,7 @@ mod pet_api {
             (status = 404, description = "Pet was not found")
         ),
         params(
-            ("id" = u64, path, description = "Pet database id to get Pet for"),
+            ("id" = u64, Path, description = "Pet database id to get Pet for"),
         ),
         security(
             (),
@@ -126,6 +127,20 @@ fn derive_openapi() {
     println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 
     build_foo!(GetFooBody, Foo, FooResources);
+}
+
+#[test]
+fn stable_yaml() {
+    let left = ApiDoc::openapi().to_yaml().unwrap();
+    let right = ApiDoc::openapi().to_yaml().unwrap();
+    assert_eq!(left, right);
+}
+
+#[test]
+fn stable_json() {
+    let left = ApiDoc::openapi().to_json().unwrap();
+    let right = ApiDoc::openapi().to_json().unwrap();
+    assert_eq!(left, right);
 }
 
 impl Modify for Foo {

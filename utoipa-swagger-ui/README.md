@@ -13,6 +13,7 @@ works as a bridge for serving the OpenAPI documetation created with
 
 * **actix-web** `version >= 4`
 * **rocket** `version >=0.5.0-rc.1`
+* **axum** `version >=0.5`
 
 Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
 other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -25,6 +26,8 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/1.1.0/utoipa_swagger_u
   users to use the Swagger UI without a hazzle.
 * **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI 
   and api doc without a hazzle.
+* **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
+  hazzle free.
 
 # Install
 
@@ -44,7 +47,7 @@ utoipa-swagger-ui = { version = "1", features = ["actix-web"] }
 
 # Examples
 
-Serve Swagger UI with api doc via actix-web. 
+Serve Swagger UI with api doc via **`actix-web`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ```rust
 HttpServer::new(move || {
     App::new()
@@ -56,9 +59,8 @@ HttpServer::new(move || {
   .bind((Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
   .run();
 ```
-**actix-web** feature need to be enabled.
 
-Serve Swagger UI with api doc via rocket.
+Serve Swagger UI with api doc via **`rocket`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ```rust
 #[rocket::launch]
 fn rocket() -> Rocket<Build> {
@@ -70,7 +72,14 @@ fn rocket() -> Rocket<Build> {
         )
 }
 ```
-**rocket** feature need to be enabled.
+
+Setup Router to serve Swagger UI with **`axum`** framework. See full implementation of how to serve
+Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
+```rust
+let app = Router::new()
+    .merge(SwaggerUi::new("/swagger-ui/*tail")
+        .url("/api-doc/openapi.json", ApiDoc::openapi()));
+```
 
 # License
 

@@ -1,5 +1,9 @@
 #![cfg(feature = "serde_json")]
+use assert_json_diff::assert_json_eq;
 use paste::paste;
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use utoipa::{Component, IntoParams, OpenApi};
 
 mod common;
 
@@ -11,8 +15,13 @@ macro_rules! test_api_fn_doc {
         struct ApiDoc;
 
         let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
-        let operation =
-            common::get_json_path(doc, &format!("paths.{}.{}", $path, stringify!($operation)));
+        let operation = doc
+            .pointer(&format!(
+                "/paths/{}/{}",
+                $path.replace("/", "~1"),
+                stringify!($operation)
+            ))
+            .unwrap_or(&serde_json::Value::Null);
         operation.clone()
     }};
 }
@@ -66,7 +75,7 @@ macro_rules! test_path_operation {
             }
 
             let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-            let operation_value = common::get_json_path(&doc, &format!("paths./foo.{}", stringify!($operation)));
+            let operation_value = doc.pointer(&*format!("/paths/~1foo/{}", stringify!($operation))).unwrap_or(&serde_json::Value::Null);
             assert!(operation_value != &serde_json::Value::Null,
                 "expected to find operation with: {}", &format!("paths./foo.{}", stringify!($operation)));
         })*
@@ -107,7 +116,7 @@ fn derive_path_with_all_info_success() {
         path: "/foo/bar/{id}"
     };
 
-    common::assert_json_array_len(common::get_json_path(&operation, "parameters"), 1);
+    common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 1);
     assert_value! {operation=>
        "deprecated" = r#"true"#, "Api fn deprecated status"
        "description" = r#""This is test operation description\n\nAdditional info in long description\n""#, "Api fn description"
@@ -157,7 +166,7 @@ fn derive_path_with_defaults_success() {
     ),
     params(
         ("id" = u64, description = "Foo database id"),
-        ("since" = Option<String>, query, description = "Datetime since foo is updated")
+        ("since" = Option<String>, Query, description = "Datetime since foo is updated")
     )
 )]
 #[allow(unused)]
@@ -173,7 +182,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
         path: "/foo/{id}"
     };
 
-    common::assert_json_array_len(common::get_json_path(&operation, "parameters"), 2);
+    common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 2);
     assert_value! {operation=>
         "deprecated" = r#"false"#, "Api operation deprecated"
         "description" = r#""This is test operation\n\nThis is long description for test operation\n""#, "Api operation description"
@@ -229,6 +238,566 @@ fn derive_path_with_security_requirements() {
         "security.[1].api_oauth.[1]" = r###""edit:items""###, "api_oauth second scope"
         "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
     }
+}
+
+#[test]
+fn derive_path_with_parameter_schema() {
+    #[derive(serde::Deserialize, utoipa::Component)]
+    struct Since {
+        /// Some date
+        #[allow(dead_code)]
+        date: String,
+        /// Some time
+        #[allow(dead_code)]
+        time: String,
+    }
+
+    /// This is test operation
+    ///
+    /// This is long description for test operation
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = u64, description = "Foo database id"),
+            ("since" = Option<Since>, Query, description = "Datetime since foo is updated")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_foos_by_id_since() -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        get_foos_by_id_since,
+        operation: get,
+        path: "/foo/{id}"
+    };
+
+    let parameters: &Value = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Foo database id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            {
+                "deprecated": false,
+                "description": "Datetime since foo is updated",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "$ref": "#/components/schemas/Since"
+                }
+            }
+        ])
+    );
+}
+
+#[test]
+fn derive_path_with_parameter_inline_schema() {
+    #[derive(serde::Deserialize, utoipa::Component)]
+    struct Since {
+        /// Some date
+        #[allow(dead_code)]
+        date: String,
+        /// Some time
+        #[allow(dead_code)]
+        time: String,
+    }
+
+    /// This is test operation
+    ///
+    /// This is long description for test operation
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = u64, description = "Foo database id"),
+            ("since" = inline(Option<Since>), Query, description = "Datetime since foo is updated")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_foos_by_id_since() -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        get_foos_by_id_since,
+        operation: get,
+        path: "/foo/{id}"
+    };
+
+    let parameters: &Value = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "deprecated": false,
+                "description": "Foo database id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            {
+                "deprecated": false,
+                "description": "Datetime since foo is updated",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "properties": {
+                        "date": {
+                            "description": "Some date",
+                            "type": "string"
+                        },
+                        "time": {
+                            "description": "Some time",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "date",
+                        "time"
+                    ],
+                    "type": "object"
+                }
+            }
+        ])
+    );
+}
+
+#[test]
+fn derive_path_params_map() {
+    #[derive(serde::Deserialize, Component)]
+    enum Foo {
+        Bar,
+        Baz,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct MyParams {
+        with_ref: HashMap<String, Foo>,
+        with_type: HashMap<String, String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+        )
+    )]
+    #[allow(unused)]
+    fn use_maps(params: MyParams) -> String {
+        "".to_string()
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(use_maps))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        use_maps,
+        operation: get,
+        path: "/foo"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "path",
+            "name": "with_ref",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Foo"
+              },
+              "type": "object"
+            }
+          },
+          {
+            "in": "path",
+            "name": "with_type",
+            "required": true,
+            "schema": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
+fn derive_path_params_intoparams() {
+    #[derive(serde::Deserialize, Component)]
+    #[component(default = "foo1", example = "foo1")]
+    #[serde(rename_all = "snake_case")]
+    enum Foo {
+        Foo1,
+        Foo2,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(style = Form, parameter_in = Query)]
+    struct MyParams {
+        /// Foo database id.
+        #[param(example = 1)]
+        #[allow(unused)]
+        id: u64,
+        /// Datetime since foo is updated.
+        #[param(example = "2020-04-12T10:23:00Z")]
+        #[allow(unused)]
+        since: Option<String>,
+        /// A Foo item ref.
+        #[allow(unused)]
+        foo_ref: Foo,
+        /// A Foo item inline.
+        #[param(inline)]
+        #[allow(unused)]
+        foo_inline: Foo,
+        /// An optional Foo item inline.
+        #[param(inline)]
+        #[allow(unused)]
+        foo_inline_option: Option<Foo>,
+        /// A vector of Foo item inline.
+        #[param(inline)]
+        #[allow(unused)]
+        foo_inline_vec: Vec<Foo>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/list/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+            ("id" = i64, Path, description = "Id of some items to list")
+        )
+    )]
+    #[allow(unused)]
+    fn list(id: i64, params: MyParams) -> String {
+        "".to_string()
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(list))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/list/{id}"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "description": "Foo database id.",
+                "example": 1,
+                "in": "query",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                },
+                "style": "form"
+            },
+            {
+                "description": "Datetime since foo is updated.",
+                "example": "2020-04-12T10:23:00Z",
+                "in": "query",
+                "name": "since",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                },
+                "style": "form"
+            },
+            {
+                "description": "A Foo item ref.",
+                "in": "query",
+                "name": "foo_ref",
+                "required": true,
+                "schema": {
+                    "$ref": "#/components/schemas/Foo"
+                },
+                "style": "form"
+            },
+            {
+                "description": "A Foo item inline.",
+                "in": "query",
+                "name": "foo_inline",
+                "required": true,
+                "schema": {
+                    "default": "foo1",
+                    "example": "foo1",
+                    "enum": ["foo1", "foo2"],
+                    "type": "string",
+                },
+                "style": "form"
+            },
+            {
+                "description": "An optional Foo item inline.",
+                "in": "query",
+                "name": "foo_inline_option",
+                "required": false,
+                "schema": {
+                    "default": "foo1",
+                    "example": "foo1",
+                    "enum": ["foo1", "foo2"],
+                    "type": "string",
+                },
+                "style": "form"
+            },
+            {
+                "description": "A vector of Foo item inline.",
+                "in": "query",
+                "name": "foo_inline_vec",
+                "required": true,
+                "schema": {
+                    "items": {
+                        "default": "foo1",
+                        "example": "foo1",
+                        "enum": ["foo1", "foo2"],
+                        "type": "string",
+                    },
+                    "type": "array",
+                },
+                "style": "form",
+            },
+            {
+                "deprecated": false,
+                "description": "Id of some items to list",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            }
+        ])
+    )
+}
+
+#[test]
+fn derive_path_params_into_params_with_value_type() {
+    use utoipa::OpenApi;
+
+    #[derive(Component)]
+    struct Foo {
+        #[allow(unused)]
+        value: String,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Filter {
+        #[param(value_type = i64, style = Simple)]
+        id: String,
+        #[param(value_type = Any)]
+        another_id: String,
+        #[param(value_type = Vec<Vec<String>>)]
+        value1: Vec<i64>,
+        #[param(value_type = Vec<String>)]
+        value2: Vec<i64>,
+        #[param(value_type = Option<String>)]
+        value3: i64,
+        #[param(value_type = Option<Any>)]
+        value4: i64,
+        #[param(value_type = Vec<Any>)]
+        value5: i64,
+        #[param(value_type = Vec<Foo>)]
+        value6: i64,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([{
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "style": "simple",
+            "schema": {
+                "format": "int64",
+                "type": "integer"
+            }
+        },
+        {
+            "in": "query",
+            "name": "another_id",
+            "required": true,
+            "schema": {
+                "type": "object"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value1",
+            "required": true,
+            "schema": {
+                "items": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "array"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value2",
+            "required": true,
+            "schema": {
+                "items": {
+                    "type": "string"
+                },
+                "type": "array"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value3",
+            "required": false,
+            "schema": {
+                "type": "string"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value4",
+            "required": false,
+            "schema": {
+                "type": "object"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value5",
+            "required": true,
+            "schema": {
+                "items": {
+                    "type": "object"
+                },
+                "type": "array"
+            }
+        },
+        {
+            "in": "query",
+            "name": "value6",
+            "required": true,
+            "schema": {
+                "items": {
+                    "$ref": "#/components/schemas/Foo"
+                },
+                "type": "array"
+            }
+        }])
+    )
+}
+
+#[test]
+fn derive_path_params_into_params_with_raw_identifier() {
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Path)]
+    struct Filter {
+        #[allow(unused)]
+        r#in: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(path: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(handlers(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([{
+            "in": "path",
+            "name": "in",
+            "required": true,
+            "schema": {
+                "type": "string"
+            }
+        }])
+    )
 }
 
 #[cfg(feature = "uuid")]
