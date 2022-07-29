@@ -2,6 +2,7 @@
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
 use std::collections::{BTreeMap, HashMap};
+use indexmap::{IndexMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -76,8 +77,8 @@ builder! {
         pub headers: HashMap<String, Header>,
 
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
-        #[serde(skip_serializing_if = "HashMap::is_empty")]
-        pub content: HashMap<String, Content>,
+        #[serde(skip_serializing_if = "IndexMap::is_empty")]
+        pub content: IndexMap<String, Content>,
     }
 }
 
