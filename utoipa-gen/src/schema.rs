@@ -239,6 +239,7 @@ impl PartialEq for TypeTree<'_> {
                 self_path.path.to_token_stream().to_string()
                     == other_path.into_token_stream().to_string()
             }
+            (None, None) => true,
             _ => false,
         };
 
