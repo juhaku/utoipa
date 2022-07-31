@@ -172,6 +172,9 @@ impl ComponentsBuilder {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Component {
+    /// Defines object component. This is formed from structs holding [`Property`] components
+    /// created from it's fields.
+    Object(Object),
     /// Defines property component typically used together with
     /// [`Component::Object`] or [`Component::Array`]. It is used to map
     /// field types to OpenAPI documentation.
@@ -179,9 +182,6 @@ pub enum Component {
     /// Creates a reference component _`$ref=#/components/schemas/ComponentName`_. Which
     /// can be used to reference a other reusable component in [`Components`].
     Ref(Ref),
-    /// Defines object component. This is formed from structs holding [`Property`] components
-    /// created from it's fields.
-    Object(Object),
     /// Defines array component from another component. Typically used with
     /// [`Component::Property`] or [`Component::Object`] component. Slice and Vec
     /// types are translated to [`Component::Array`] types.
@@ -504,10 +504,7 @@ pub struct Object {
     pub properties: BTreeMap<String, Component>,
 
     /// Additional [`Component`] for non specified fields (Useful for typed maps).
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        rename = "additionalProperties"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<Box<Component>>,
 
     /// Description of the [`Object`]. Markdown syntax is supported.
@@ -1073,5 +1070,66 @@ mod tests {
             .build();
 
         assert!(matches!(array.component_type, ComponentType::Array));
+    }
+
+    #[test]
+    fn reserialize_deserialized_schema_components() {
+        let components = ComponentsBuilder::new()
+            .components_from_iter(vec![(
+                "Comp",
+                ObjectBuilder::new()
+                    .property(
+                        "name",
+                        PropertyBuilder::new().component_type(ComponentType::String),
+                    )
+                    .required("name"),
+            )])
+            .security_scheme("TLS", SecurityScheme::MutualTls { description: None })
+            .build();
+
+        let serialized_components = serde_json::to_string(&components).unwrap();
+        let deserialized_components: Components =
+            serde_json::from_str(serialized_components.as_str()).unwrap();
+
+        assert_eq!(
+            serialized_components,
+            serde_json::to_string(&deserialized_components).unwrap()
+        )
+    }
+
+    #[test]
+    fn reserialize_deserialized_object_component() {
+        let prop = ObjectBuilder::new()
+            .property(
+                "name",
+                PropertyBuilder::new().component_type(ComponentType::String),
+            )
+            .required("name")
+            .build();
+
+        let serialized_components = serde_json::to_string(&prop).unwrap();
+        let deserialized_components: Object =
+            serde_json::from_str(serialized_components.as_str()).unwrap();
+
+        assert_eq!(
+            serialized_components,
+            serde_json::to_string(&deserialized_components).unwrap()
+        )
+    }
+
+    #[test]
+    fn reserialize_deserialized_property() {
+        let prop = PropertyBuilder::new()
+            .component_type(ComponentType::String)
+            .build();
+
+        let serialized_components = serde_json::to_string(&prop).unwrap();
+        let deserialized_components: Property =
+            serde_json::from_str(serialized_components.as_str()).unwrap();
+
+        assert_eq!(
+            serialized_components,
+            serde_json::to_string(&deserialized_components).unwrap()
+        )
     }
 }
