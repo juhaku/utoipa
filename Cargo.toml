@@ -33,6 +33,7 @@ yaml = ["serde_yaml"]
 uuid = ["utoipa-gen/uuid"]
 time = ["utoipa-gen/time"]
 smallvec = ["utoipa-gen/smallvec"]
+openapi_extensions = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

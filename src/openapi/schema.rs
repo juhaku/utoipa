@@ -671,6 +671,12 @@ impl Ref {
         Self::new(&format!("#/components/schemas/{}", component_name.into()))
     }
 
+    /// Construct a new [`Ref`] from provided response name. This will create a [`Ref`] that
+    /// references the reusable response.
+    pub fn from_response_name<I: Into<String>>(response_name: I) -> Self {
+        Self::new(&format!("#/components/responses/{}", response_name.into()))
+    }
+
     to_array_builder!();
 }
 
