@@ -32,7 +32,7 @@ builder! {
 }
 
 impl RequestBody {
-    /// Constrcut a new [`RequestBody`].
+    /// Construct a new [`RequestBody`].
     pub fn new() -> Self {
         Default::default()
     }
@@ -69,7 +69,7 @@ impl RequestBodyBuilder {
 /// that references a [`crate::Component`] schema using content-tpe "application/json":
 ///
 /// ```rust
-/// use utoipa::openapi::request_body::{RequestBodyBuilder, RequestBodyBuilderExt};
+/// use utoipa::openapi::request_body::{RequestBodyBuilder, RequestBodyExt};
 ///
 /// let request = RequestBodyBuilder::new().json_component_ref("EmailPayload").build();
 /// ```
@@ -89,12 +89,26 @@ impl RequestBodyBuilder {
 /// ```
 ///
 #[cfg(feature = "openapi_extensions")]
-pub trait RequestBodyBuilderExt {
+pub trait RequestBodyExt {
     fn json_component_ref(self, ref_name: &str) -> Self;
 }
 
 #[cfg(feature = "openapi_extensions")]
-impl RequestBodyBuilderExt for RequestBodyBuilder {
+impl RequestBodyExt for RequestBody {
+    /// Add [`Content`] to [`RequestBody`] referring to a component-schema
+    /// with Content-Type `application/json`.
+    fn json_component_ref(mut self, ref_name: &str) -> RequestBody {
+        self.content.insert(
+            "application/json".to_string(),
+            crate::openapi::Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+        );
+        self
+    }
+}
+
+
+#[cfg(feature = "openapi_extensions")]
+impl RequestBodyExt for RequestBodyBuilder {
     /// Add [`Content`] to [`RequestBody`] referring to a component-schema
     /// with Content-Type `application/json`.
     fn json_component_ref(self, ref_name: &str) -> RequestBodyBuilder {
@@ -150,7 +164,28 @@ mod tests {
         Ok(())
     }
     #[cfg(feature = "openapi_extensions")]
-    use super::RequestBodyBuilderExt;
+    use super::RequestBodyExt;
+
+    #[cfg(feature = "openapi_extensions")]
+    #[test]
+    fn request_body_ext() {
+        let request_body = RequestBodyBuilder::new()
+            .build()
+            // build a RequestBody first to test the method
+            .json_component_ref("EmailPayload");
+        assert_json_eq!(
+            request_body,
+            json!({
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/EmailPayload"
+                    }
+                  }
+                }
+              })
+        );
+    }
 
     #[cfg(feature = "openapi_extensions")]
     #[test]

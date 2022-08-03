@@ -126,7 +126,7 @@ impl ResponseBuilder {
 /// that references a responses (or component) schema using content-tpe "application/json":
 ///
 /// ```rust
-/// use utoipa::openapi::response::{ResponseBuilder, ResponseBuilderExt};
+/// use utoipa::openapi::response::{ResponseBuilder, ResponseExt};
 ///
 /// let request = ResponseBuilder::new()
 ///     .description("A sample response")
@@ -151,13 +151,37 @@ impl ResponseBuilder {
 /// ```
 ///
 #[cfg(feature = "openapi_extensions")]
-pub trait ResponseBuilderExt {
+pub trait ResponseExt {
     fn json_component_ref(self, ref_name: &str) -> Self;
     fn json_response_ref(self, ref_name: &str) -> Self;
 }
 
+
 #[cfg(feature = "openapi_extensions")]
-impl ResponseBuilderExt for ResponseBuilder {
+impl ResponseExt for Response {
+    /// Add [`Content`] to [`Response`] referring to a component-schema
+    /// with Content-Type `application/json`.
+    fn json_component_ref(mut self, ref_name: &str) -> Response {
+        self.content.insert(
+            "application/json".to_string(),
+            Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+        );
+        self
+    }
+
+    /// Add [`Content`] to [`Response`] referring to a component-response
+    /// with Content-Type `application/json`.
+    fn json_response_ref(mut self, ref_name: &str) -> Response {
+        self.content.insert(
+            "application/json".to_string(),
+            Content::new(crate::openapi::Ref::from_response_name(ref_name)),
+        );
+        self
+    }
+}
+
+#[cfg(feature = "openapi_extensions")]
+impl ResponseExt for ResponseBuilder {
     /// Add [`Content`] to [`Response`] referring to a component-schema
     /// with Content-Type `application/json`.
     fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
@@ -176,6 +200,8 @@ impl ResponseBuilderExt for ResponseBuilder {
         )
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -217,7 +243,30 @@ mod tests {
         Ok(())
     }
     #[cfg(feature = "openapi_extensions")]
-    use super::ResponseBuilderExt;
+    use super::ResponseExt;
+
+    #[cfg(feature = "openapi_extensions")]
+    #[test]
+    fn response_ext() {
+        let request_body = ResponseBuilder::new()
+            .description("A sample response")
+                .build()
+                .json_response_ref("MyResponsePayload");
+
+        assert_json_eq!(
+            request_body,
+            json!({
+                "description": "A sample response",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/responses/MyResponsePayload"
+                    }
+                  }
+                }
+              })
+        );
+    }
 
     #[cfg(feature = "openapi_extensions")]
     #[test]
