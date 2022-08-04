@@ -90,13 +90,13 @@ impl RequestBodyBuilder {
 ///
 #[cfg(feature = "openapi_extensions")]
 pub trait RequestBodyExt {
+    /// Add [`Content`] to [`RequestBody`] referring to a schema
+    /// with Content-Type `application/json`.
     fn json_component_ref(self, ref_name: &str) -> Self;
 }
 
 #[cfg(feature = "openapi_extensions")]
 impl RequestBodyExt for RequestBody {
-    /// Add [`Content`] to [`RequestBody`] referring to a component-schema
-    /// with Content-Type `application/json`.
     fn json_component_ref(mut self, ref_name: &str) -> RequestBody {
         self.content.insert(
             "application/json".to_string(),
@@ -109,8 +109,6 @@ impl RequestBodyExt for RequestBody {
 
 #[cfg(feature = "openapi_extensions")]
 impl RequestBodyExt for RequestBodyBuilder {
-    /// Add [`Content`] to [`RequestBody`] referring to a component-schema
-    /// with Content-Type `application/json`.
     fn json_component_ref(self, ref_name: &str) -> RequestBodyBuilder {
         self.content(
             "application/json",

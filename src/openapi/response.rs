@@ -152,15 +152,19 @@ impl ResponseBuilder {
 ///
 #[cfg(feature = "openapi_extensions")]
 pub trait ResponseExt {
+    /// Add [`Content`] to [`Response`] referring to a schema
+    /// with Content-Type `application/json`.
     fn json_component_ref(self, ref_name: &str) -> Self;
+
+    /// Add [`Content`] to [`Response`] referring to a response
+    /// with Content-Type `application/json`.
     fn json_response_ref(self, ref_name: &str) -> Self;
 }
 
 
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for Response {
-    /// Add [`Content`] to [`Response`] referring to a component-schema
-    /// with Content-Type `application/json`.
+
     fn json_component_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
@@ -169,8 +173,6 @@ impl ResponseExt for Response {
         self
     }
 
-    /// Add [`Content`] to [`Response`] referring to a component-response
-    /// with Content-Type `application/json`.
     fn json_response_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
@@ -182,8 +184,7 @@ impl ResponseExt for Response {
 
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for ResponseBuilder {
-    /// Add [`Content`] to [`Response`] referring to a component-schema
-    /// with Content-Type `application/json`.
+
     fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
             "application/json",
@@ -191,8 +192,6 @@ impl ResponseExt for ResponseBuilder {
         )
     }
 
-    /// Add [`Content`] to [`Response`] referring to a component-response
-    /// with Content-Type `application/json`.
     fn json_response_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
             "application/json",
