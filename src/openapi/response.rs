@@ -96,11 +96,11 @@ builder! {
         pub description: String,
 
         /// Map of headers identified by their name. `Content-Type` header will be ignored.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub headers: BTreeMap<String, Header>,
 
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub content: BTreeMap<String, Content>,
     }
 }
@@ -138,14 +138,173 @@ impl ResponseBuilder {
     }
 }
 
+/// Trait with convenience functions for documenting response bodies.
+///
+/// This trait requires a feature-flag to enable:
+/// ```text
+/// [dependencies]
+/// utoipa = { version = "1", features = ["openapi_extensions"] }
+/// ```
+///
+/// Once enabled, with a single method call we can add [`Content`] to our ResponseBuilder
+/// that references a responses (or component) schema using content-tpe "application/json":
+///
+/// ```rust
+/// use utoipa::openapi::response::{ResponseBuilder, ResponseExt};
+///
+/// let request = ResponseBuilder::new()
+///     .description("A sample response")
+///     .json_response_ref("MyResponsePayload").build();
+/// // Alternately for component, use
+/// // let request = ResponseBuilder::new().json_component_ref("MyResponsePayload").build();
+/// ```
+///
+/// If serialized to JSON, the above will result in a response schema like this:
+///
+/// ```json
+/// {
+///   "description": "A sample response",
+///   "content": {
+///     "application/json": {
+///       "schema": {
+///         "$ref": "#/components/responses/MyResponsePayload"
+///       }
+///     }
+///   }
+/// }
+/// ```
+///
+#[cfg(feature = "openapi_extensions")]
+pub trait ResponseExt {
+    /// Add [`Content`] to [`Response`] referring to a schema
+    /// with Content-Type `application/json`.
+    fn json_component_ref(self, ref_name: &str) -> Self;
+
+    /// Add [`Content`] to [`Response`] referring to a response
+    /// with Content-Type `application/json`.
+    fn json_response_ref(self, ref_name: &str) -> Self;
+}
+
+#[cfg(feature = "openapi_extensions")]
+impl ResponseExt for Response {
+    fn json_component_ref(mut self, ref_name: &str) -> Response {
+        self.content.insert(
+            "application/json".to_string(),
+            Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+        );
+        self
+    }
+
+    fn json_response_ref(mut self, ref_name: &str) -> Response {
+        self.content.insert(
+            "application/json".to_string(),
+            Content::new(crate::openapi::Ref::from_response_name(ref_name)),
+        );
+        self
+    }
+}
+
+#[cfg(feature = "openapi_extensions")]
+impl ResponseExt for ResponseBuilder {
+    fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
+        self.content(
+            "application/json",
+            Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+        )
+    }
+
+    fn json_response_ref(self, ref_name: &str) -> ResponseBuilder {
+        self.content(
+            "application/json",
+            Content::new(crate::openapi::Ref::from_response_name(ref_name)),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Responses;
+    use super::{Content, ResponseBuilder, Responses};
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
 
     #[test]
     fn responses_new() {
         let responses = Responses::new();
 
         assert!(responses.responses.is_empty());
+    }
+
+    #[test]
+    fn response_builder() -> Result<(), serde_json::Error> {
+        let request_body = ResponseBuilder::new()
+            .description("A sample response")
+            .content(
+                "application/json",
+                Content::new(crate::openapi::Ref::from_response_name("MyResponsePayload")),
+            )
+            .build();
+        let serialized = serde_json::to_string_pretty(&request_body)?;
+        println!("serialized json:\n {}", serialized);
+        assert_json_eq!(
+            request_body,
+            json!({
+              "description": "A sample response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/responses/MyResponsePayload"
+                  }
+                }
+              }
+            })
+        );
+        Ok(())
+    }
+    #[cfg(feature = "openapi_extensions")]
+    use super::ResponseExt;
+
+    #[cfg(feature = "openapi_extensions")]
+    #[test]
+    fn response_ext() {
+        let request_body = ResponseBuilder::new()
+            .description("A sample response")
+            .build()
+            .json_response_ref("MyResponsePayload");
+
+        assert_json_eq!(
+            request_body,
+            json!({
+              "description": "A sample response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/responses/MyResponsePayload"
+                  }
+                }
+              }
+            })
+        );
+    }
+
+    #[cfg(feature = "openapi_extensions")]
+    #[test]
+    fn response_builder_ext() {
+        let request_body = ResponseBuilder::new()
+            .description("A sample response")
+            .json_response_ref("MyResponsePayload")
+            .build();
+        assert_json_eq!(
+            request_body,
+            json!({
+              "description": "A sample response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/responses/MyResponsePayload"
+                  }
+                }
+              }
+            })
+        );
     }
 }

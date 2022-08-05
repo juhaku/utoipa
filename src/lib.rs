@@ -73,6 +73,9 @@
 //! * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
 //! * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
+//! * **openapi_extensions** Adds convenience functions for documenting common scenarios, such as JSON request bodies and responses.
+//!   See the [`request_body`](https://docs.rs/utoipa/latest/utoipa/openapi/request_body/index.html) and
+//!   [`response`](https://docs.rs/utoipa/latest/utoipa/openapi/response/index.html) docs for examples.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [component derive][serde] for more details.
 //!
@@ -114,7 +117,7 @@
 //! mod pet_api {
 //! #     use utoipa::OpenApi;
 //! #     use utoipa::Component;
-//! #     
+//! #
 //! #     #[derive(Component)]
 //! #     struct Pet {
 //! #       id: u64,
@@ -123,7 +126,7 @@
 //! #     }
 //!     /// Get pet by id
 //!     ///
-//!     /// Get pet from database by pet id  
+//!     /// Get pet from database by pet id
 //!     #[utoipa::path(
 //!         get,
 //!         path = "/pets/{id}",
@@ -149,7 +152,7 @@
 //! ```rust
 //! # mod pet_api {
 //! #     use utoipa::Component;
-//! #     
+//! #
 //! #     #[derive(Component)]
 //! #     struct Pet {
 //! #       id: u64,
@@ -159,7 +162,7 @@
 //! #
 //! #     /// Get pet by id
 //! #     ///
-//! #     /// Get pet from database by pet id  
+//! #     /// Get pet from database by pet id
 //! #     #[utoipa::path(
 //! #         get,
 //! #         path = "/pets/{id}",
@@ -348,7 +351,7 @@ pub trait Component {
 /// #
 /// /// Get pet by id
 /// ///
-/// /// Get pet from database by pet database id  
+/// /// Get pet from database by pet database id
 /// #[utoipa::path(
 ///     get,
 ///     path = "/pets/{id}",

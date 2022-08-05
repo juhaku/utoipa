@@ -24,8 +24,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Component`, `Parameter` or `FnArg`
-#[derive(PartialEq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, TypePath>>,
     pub value_type: ValueType,
@@ -224,6 +223,30 @@ impl<'t> TypeTree<'t> {
     /// with `value_type` attribute to hinder the actual type.
     fn is_any(&self) -> bool {
         self.is("Any")
+    }
+}
+
+#[cfg(not(feature = "debug"))]
+impl PartialEq for TypeTree<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        use quote::ToTokens;
+        let path_eg = match (self.path.as_ref(), other.path.as_ref()) {
+            (Some(Cow::Borrowed(self_path)), Some(Cow::Borrowed(other_path))) => {
+                self_path.into_token_stream().to_string()
+                    == other_path.into_token_stream().to_string()
+            }
+            (Some(Cow::Owned(self_path)), Some(Cow::Owned(other_path))) => {
+                self_path.path.to_token_stream().to_string()
+                    == other_path.into_token_stream().to_string()
+            }
+            (None, None) => true,
+            _ => false,
+        };
+
+        path_eg
+            && self.value_type == other.value_type
+            && self.generic_type == other.generic_type
+            && self.children == other.children
     }
 }
 

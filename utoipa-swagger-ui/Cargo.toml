@@ -32,6 +32,5 @@ similar = "2.1"
 features = ["actix-web", "rocket"]
 
 [build-dependencies]
-zip = "0.6"
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 regex = "1.5"  
-lazy_static = "1.4"

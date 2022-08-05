@@ -251,14 +251,6 @@ impl ToTokens for OpenApi {
         let modifiers = &attributes.modifiers;
         let modifiers_len = modifiers.len();
 
-        modifiers.iter().for_each(|modifier| {
-            let assert_modifier = format_ident!("_Assert{}", modifier.ident);
-            let ident = &modifier.ident;
-            quote_spanned! {modifier.ident.span()=>
-                struct #assert_modifier where #ident : utoipa::Modify;
-            };
-        });
-
         let path_items = impl_paths(&attributes.handlers);
 
         let securities = attributes.security.as_ref().map(|securities| {
@@ -309,8 +301,7 @@ fn impl_components(
             |mut builder_tokens, component| {
                 let path = &component.path;
                 let ident = component.get_ident().unwrap();
-                let span = ident.span();
-                // let component_name: String = ident.to_string();
+
                 let component_name: String = component
                     .alias
                     .as_ref()
@@ -325,7 +316,7 @@ fn impl_components(
                     Some(ty_generics)
                 };
 
-                builder_tokens.extend(quote_spanned! { span =>
+                builder_tokens.extend(quote_spanned! { ident.span() =>
                     .schema(#component_name, <#path #ty_generics as utoipa::Component>::component())
                     .schemas_from_iter(<#path #ty_generics as utoipa::Component>::aliases())
                 });

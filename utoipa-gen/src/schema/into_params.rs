@@ -471,7 +471,10 @@ impl ToTokens for ParamType<'_> {
                         }
                     }
                     ValueType::Object => {
-                        let component_path: &syn::TypePath = &*component.path.as_ref().expect("component should have a path");
+                        let component_path: &syn::TypePath = &*component
+                            .path
+                            .as_ref()
+                            .expect("component should have a path");
                         if inline {
                             tokens.extend(quote_spanned! {component_path.span()=>
                                 <#component_path as utoipa::Component>::component()
