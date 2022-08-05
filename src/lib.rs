@@ -215,6 +215,9 @@
 
 pub mod openapi;
 
+use std::collections::BTreeMap;
+
+use openapi::Response;
 pub use utoipa_gen::*;
 
 /// Trait for implementing OpenAPI specification in Rust.
@@ -552,4 +555,63 @@ pub trait IntoParams {
     fn into_params(
         parameter_in_provider: impl Fn() -> Option<openapi::path::ParameterIn>,
     ) -> Vec<openapi::path::Parameter>;
+}
+
+/// This trait is implemented to document a type (like an enum) which can represent multiple
+/// responses, to be used in an operation.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::BTreeMap;
+/// use utoipa::{
+///     openapi::{Response, ResponseBuilder, ResponsesBuilder},
+///     IntoResponses,
+/// };
+///
+/// enum MyResponse {
+///     Ok,
+///     NotFound,
+/// }
+///
+/// impl IntoResponses for MyResponse {
+///     fn responses() -> BTreeMap<String, Response> {
+///         ResponsesBuilder::new()
+///             .response("200", ResponseBuilder::new().description("Ok"))
+///             .response("404", ResponseBuilder::new().description("Not Found"))
+///             .build()
+///             .into()
+///     }
+/// }
+/// ```
+pub trait IntoResponses {
+    /// Returns an ordered map of response codes to responses.
+    fn responses() -> BTreeMap<String, Response>;
+}
+
+/// This trait is implemented to document a type which represents a single response which can be
+/// referenced or reused as a component in multiple operations.
+///
+/// # Examples
+///
+/// ```
+/// use utoipa::{
+///     openapi::{Response, ResponseBuilder},
+///     ToResponse,
+/// };
+///
+/// struct MyResponse;
+///
+/// impl ToResponse for MyResponse {
+///     fn response() -> (String, Response) {
+///         (
+///             "MyResponse".to_string(),
+///             ResponseBuilder::new().description("My Response").build(),
+///         )
+///     }
+/// }
+/// ```
+pub trait ToResponse {
+    /// Returns a map of response component name (to be referenced) to a response.
+    fn response() -> (String, Response);
 }

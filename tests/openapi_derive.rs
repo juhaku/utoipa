@@ -1,7 +1,11 @@
 #![cfg(feature = "json")]
 
-use serde_json::Value;
-use utoipa::OpenApi;
+use assert_json_diff::assert_json_eq;
+use serde_json::{json, Value};
+use utoipa::{
+    openapi::{Response, ResponseBuilder},
+    OpenApi, ToResponse,
+};
 
 mod common;
 
@@ -104,4 +108,35 @@ fn derive_openapi_with_components_in_different_module() {
         &Value::Null,
         "Expected components.schemas.Todo not to be null"
     );
+}
+
+#[test]
+fn derive_openapi_with_responses() {
+    #[allow(unused)]
+    struct MyResponse;
+
+    impl ToResponse for MyResponse {
+        fn response() -> (String, Response) {
+            (
+                "MyResponse".to_string(),
+                ResponseBuilder::new().description("Ok").build(),
+            )
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(responses(MyResponse))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/components/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "MyResponse": {
+                "description": "Ok"
+            },
+        })
+    )
 }

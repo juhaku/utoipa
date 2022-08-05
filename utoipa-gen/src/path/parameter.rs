@@ -41,7 +41,7 @@ pub enum Parameter<'a> {
 
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(syn::Ident) {
+        if input.fork().parse::<ExprPath>().is_ok() {
             Ok(Self::Struct(StructParameter {
                 path: input.parse()?,
                 parameter_in_fn: None,
@@ -68,7 +68,7 @@ impl ToTokens for Parameter<'_> {
                     .unwrap_or(default_parameter_in_provider);
                 tokens.extend(quote_spanned! {last_ident.span()=>
                     .parameters(
-                        Some(<#path>::into_params(#parameter_in_provider))
+                        Some(<#path as utoipa::IntoParams>::into_params(#parameter_in_provider))
                     )
                 })
             }

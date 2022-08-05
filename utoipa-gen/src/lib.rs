@@ -480,6 +480,15 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
+/// ## Responses from `IntoResponses`
+///
+/// Responses for a path can be specified with one or more types that implement
+/// [`IntoResponses`][into_responses_trait]:
+///
+/// ```text
+/// responses(MyResponse)
+/// ```
+///
 /// # Response Header Attributes
 ///
 /// * `name` Name of the header. E.g. _`x-csrf-token`_
@@ -792,6 +801,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html
+/// [into_responses_trait]: trait.IntoResponses.html
 /// [into_params_derive]: derive.IntoParams.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
@@ -869,7 +879,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// **Accepted argument attributes:**
 ///
 /// * `handlers(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
-/// * `components(...)`  List of [`Component`][component]s in OpenAPI schema.
+/// * `components(...)` List of [`Component`][component]s in OpenAPI schema.
+/// * `responses(...)` List of types that implement
+/// [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
 /// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
@@ -947,6 +959,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [path_security]: attr.path.html#security-requirement-attributes
 /// [tags]: openapi/tag/struct.Tag.html
+/// [to_response_trait]: trait.ToResponse.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 

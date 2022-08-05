@@ -471,23 +471,26 @@ impl ToTokens for ParamType<'_> {
                         }
                     }
                     ValueType::Object => {
-                        let type_path = &**component.path.as_ref().unwrap();
-                        let name: String = type_path
+                        let component_path: &syn::TypePath = &*component
                             .path
-                            .segments
-                            .last()
-                            .expect("Expected there to be at least one element in the path")
-                            .ident
-                            .to_string();
+                            .as_ref()
+                            .expect("component should have a path");
                         if inline {
-                            tokens.extend(quote_spanned! {type_path.span()=>
-                                <#type_path as utoipa::Component>::component()
+                            tokens.extend(quote_spanned! {component_path.span()=>
+                                <#component_path as utoipa::Component>::component()
                             })
                         } else if component.is_any() {
                             tokens.extend(quote! {
                                 utoipa::openapi::ObjectBuilder::new()
                             });
                         } else {
+                            let name: String = component_path
+                                .path
+                                .segments
+                                .last()
+                                .expect("Expected there to be at least one element in the path")
+                                .ident
+                                .to_string();
                             tokens.extend(quote! {
                                 utoipa::openapi::Ref::from_component_name(#name)
                             });

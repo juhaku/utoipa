@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::IntoResponses;
+
 use super::{build_fn, builder, from, header::Header, new, set_value, Content};
 
 builder! {
@@ -33,11 +35,33 @@ impl Responses {
 }
 
 impl ResponsesBuilder {
-    /// Add response to responses.
+    /// Add a [`Response`].
     pub fn response<S: Into<String>, R: Into<Response>>(mut self, code: S, response: R) -> Self {
         self.responses.insert(code.into(), response.into());
 
         self
+    }
+
+    /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
+    pub fn responses_from_iter<I: Iterator<Item = (C, R)>, C: Into<String>, R: Into<Response>>(
+        mut self,
+        iter: I,
+    ) -> Self {
+        self.responses
+            .extend(iter.map(|(code, response)| (code.into(), response.into())));
+        self
+    }
+
+    /// Add responses from a type that implements [`IntoResponses`].
+    pub fn responses_from_into_responses<I: IntoResponses>(mut self) -> Self {
+        self.responses.extend(I::responses());
+        self
+    }
+}
+
+impl From<Responses> for BTreeMap<String, Response> {
+    fn from(responses: Responses) -> Self {
+        responses.responses
     }
 }
 
@@ -72,11 +96,11 @@ builder! {
         pub description: String,
 
         /// Map of headers identified by their name. `Content-Type` header will be ignored.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub headers: BTreeMap<String, Header>,
 
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub content: BTreeMap<String, Content>,
     }
 }
@@ -161,10 +185,8 @@ pub trait ResponseExt {
     fn json_response_ref(self, ref_name: &str) -> Self;
 }
 
-
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for Response {
-
     fn json_component_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
@@ -184,7 +206,6 @@ impl ResponseExt for Response {
 
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for ResponseBuilder {
-
     fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
             "application/json",
@@ -200,13 +221,11 @@ impl ResponseExt for ResponseBuilder {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
+    use super::{Content, ResponseBuilder, Responses};
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
-    use super::{Content, Responses, ResponseBuilder};
 
     #[test]
     fn responses_new() {
@@ -229,15 +248,15 @@ mod tests {
         assert_json_eq!(
             request_body,
             json!({
-            "description": "A sample response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/responses/MyResponsePayload"
+              "description": "A sample response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/responses/MyResponsePayload"
+                  }
                 }
               }
-            }
-          })
+            })
         );
         Ok(())
     }
@@ -249,21 +268,21 @@ mod tests {
     fn response_ext() {
         let request_body = ResponseBuilder::new()
             .description("A sample response")
-                .build()
-                .json_response_ref("MyResponsePayload");
+            .build()
+            .json_response_ref("MyResponsePayload");
 
         assert_json_eq!(
             request_body,
             json!({
-                "description": "A sample response",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "$ref": "#/components/responses/MyResponsePayload"
-                    }
+              "description": "A sample response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/responses/MyResponsePayload"
                   }
                 }
-              })
+              }
+            })
         );
     }
 
@@ -272,19 +291,20 @@ mod tests {
     fn response_builder_ext() {
         let request_body = ResponseBuilder::new()
             .description("A sample response")
-            .json_response_ref("MyResponsePayload").build();
+            .json_response_ref("MyResponsePayload")
+            .build();
         assert_json_eq!(
             request_body,
             json!({
-                "description": "A sample response",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "$ref": "#/components/responses/MyResponsePayload"
-                    }
+              "description": "A sample response",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/responses/MyResponsePayload"
                   }
                 }
-              })
+              }
+            })
         );
     }
 }

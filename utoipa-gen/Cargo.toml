@@ -31,14 +31,14 @@ actix-web = { version = "4", features = [ "macros" ], default-features = false }
 axum = "0.5"
 
 [features]
-debug = ["syn/extra-traits"]
-actix_extras = ["regex", "lazy_static"]
+debug = []
+actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
 chrono = []
 chrono_with_format = []
 json = []
 decimal = []
-rocket_extras = ["regex", "lazy_static"]
+rocket_extras = ["regex", "lazy_static", "syn/extra-traits"]
 uuid = ["dep:uuid"]
-axum_extras = []
+axum_extras = ["syn/extra-traits"]
 time = []
 smallvec = []

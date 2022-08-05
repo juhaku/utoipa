@@ -9,11 +9,8 @@ use syn::{parenthesized, parse::Parse, Token};
 use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
 use crate::{parse_utils, Deprecated};
 
-use self::{
-    parameter::Parameter,
-    request_body::RequestBodyAttr,
-    response::{Response, Responses},
-};
+use self::response::Response;
+use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
 
 #[cfg(any(
     feature = "actix_extras",
@@ -75,7 +72,7 @@ pub struct PathAttr<'p> {
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
-    params: Option<Vec<Parameter<'p>>>,
+    params: Vec<Parameter<'p>>,
     security: Option<Array<SecurityRequirementAttr>>,
     context_path: Option<String>,
 }
@@ -91,8 +88,9 @@ impl<'p> PathAttr<'p> {
         'a: 'p,
     {
         if let Some(mut arguments) = arguments {
-            if let Some(ref mut parameters) = self.params {
-                let mut value_parameters = parameters
+            if !self.params.is_empty() {
+                let mut value_parameters: Vec<&mut ValueParameter> = self
+                    .params
                     .iter_mut()
                     .filter_map(|parameter| match parameter {
                         Parameter::Value(value) => Some(value),
@@ -106,7 +104,7 @@ impl<'p> PathAttr<'p> {
 
                 let new_params =
                     &mut PathAttr::get_new_value_parameters(&value_parameters, arguments);
-                parameters.append(new_params);
+                self.params.append(new_params);
             } else {
                 // no parameters at all, add arguments to the parameters
                 let mut parameters = Vec::with_capacity(arguments.len());
@@ -115,7 +113,7 @@ impl<'p> PathAttr<'p> {
                     .into_iter()
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
-                self.params = Some(parameters);
+                self.params = parameters;
             }
         }
     }
@@ -154,21 +152,25 @@ impl<'p> PathAttr<'p> {
         &mut self,
         into_params_types: Option<Vec<IntoParamsType>>,
     ) {
-        if let Some(ref mut params) = self.params {
+        if !self.params.is_empty() {
             if let Some(mut into_params_types) = into_params_types {
-                let parameters = params.iter_mut().filter_map(|parameter| match parameter {
-                    Parameter::Value(_) => None,
-                    Parameter::Struct(parameter) => Some(parameter),
-                });
-                for parameter in parameters {
-                    if let Some(into_params_argument) = into_params_types
-                        .iter_mut()
-                        .find(|argument| matches!(&argument.type_path, Some(path) if path.path == parameter.path.path))
-                    {
-                        parameter
-                            .update_parameter_in(&mut into_params_argument.parameter_in_provider);
-                    }
-                }
+                self.params
+                    .iter_mut()
+                    .filter_map(|parameter| match parameter {
+                        Parameter::Value(_) => None,
+                        Parameter::Struct(parameter) => Some(parameter),
+                    })
+                    .for_each(|parameter| {
+                        if let Some(into_params_argument) =
+                            into_params_types
+                                .iter_mut()
+                                .find(|argument| matches!(&argument.type_path, Some(path) if path.path == parameter.path.path))
+                        {
+                            parameter.update_parameter_in(
+                                &mut into_params_argument.parameter_in_provider,
+                            );
+                        }
+                    })
             }
         }
     }
@@ -230,15 +232,15 @@ impl Parse for PathAttr<'_> {
                     let responses;
                     parenthesized!(responses in input);
                     path_attr.responses =
-                        parse_utils::parse_groups::<Response, Vec<_>>(&responses)?;
+                        Punctuated::<Response, Token![,]>::parse_terminated(&responses)
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
                 }
                 "params" => {
                     let params;
                     parenthesized!(params in input);
-                    path_attr.params = Some(
+                    path_attr.params =
                         Punctuated::<Parameter, Token![,]>::parse_terminated(&params)
-                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?,
-                    );
+                            .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
@@ -508,7 +510,7 @@ struct Operation<'a> {
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
-    parameters: Option<&'a Vec<Parameter<'a>>>,
+    parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<SecurityRequirementAttr>>,
@@ -564,11 +566,9 @@ impl ToTokens for Operation<'_> {
             })
         }
 
-        if let Some(parameters) = self.parameters {
-            parameters
-                .iter()
-                .for_each(|parameter| parameter.to_tokens(tokens));
-        }
+        self.parameters
+            .iter()
+            .for_each(|parameter| parameter.to_tokens(tokens));
     }
 }
 

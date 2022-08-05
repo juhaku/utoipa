@@ -106,7 +106,6 @@ impl RequestBodyExt for RequestBody {
     }
 }
 
-
 #[cfg(feature = "openapi_extensions")]
 impl RequestBodyExt for RequestBodyBuilder {
     fn json_component_ref(self, ref_name: &str) -> RequestBodyBuilder {
@@ -148,16 +147,16 @@ mod tests {
         assert_json_eq!(
             request_body,
             json!({
-            "description": "A sample requestBody",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailPayload"
+              "description": "A sample requestBody",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EmailPayload"
+                  }
                 }
-              }
-            },
-            "required": true
-          })
+              },
+              "required": true
+            })
         );
         Ok(())
     }
@@ -174,32 +173,34 @@ mod tests {
         assert_json_eq!(
             request_body,
             json!({
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "$ref": "#/components/schemas/EmailPayload"
-                    }
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EmailPayload"
                   }
                 }
-              })
+              }
+            })
         );
     }
 
     #[cfg(feature = "openapi_extensions")]
     #[test]
     fn request_body_builder_ext() {
-        let request_body = RequestBodyBuilder::new().json_component_ref("EmailPayload").build();
+        let request_body = RequestBodyBuilder::new()
+            .json_component_ref("EmailPayload")
+            .build();
         assert_json_eq!(
             request_body,
             json!({
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "$ref": "#/components/schemas/EmailPayload"
-                    }
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EmailPayload"
                   }
                 }
-              })
+              }
+            })
         );
     }
 }

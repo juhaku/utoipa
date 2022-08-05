@@ -1,21 +1,41 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     bracketed, parenthesized,
-    parse::Parse,
+    parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    spanned::Spanned,
     token::{Bracket, Comma},
-    Error, LitInt, LitStr, Token,
+    Error, ExprPath, LitInt, LitStr, Token,
 };
 
 use crate::{parse_utils, AnyValue, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
+pub enum Response<'r> {
+    /// A type that implements `utoipa::IntoResponses`.
+    IntoResponses(ExprPath),
+    /// The tuple definition of a response.
+    Value(ResponseValue<'r>),
+}
+
+impl Parse for Response<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.fork().parse::<ExprPath>().is_ok() {
+            Ok(Self::IntoResponses(input.parse()?))
+        } else {
+            let response;
+            parenthesized!(response in input);
+            Ok(Self::Value(response.parse()?))
+        }
+    }
+}
+
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Response<'r> {
+pub struct ResponseValue<'r> {
     status_code: i32,
     description: String,
     response_type: Option<Type<'r>>,
@@ -24,10 +44,10 @@ pub struct Response<'r> {
     example: Option<AnyValue>,
 }
 
-impl Parse for Response<'_> {
+impl Parse for ResponseValue<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers";
-        let mut response = Response::default();
+        let mut response = ResponseValue::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
@@ -93,7 +113,7 @@ impl Parse for Response<'_> {
     }
 }
 
-impl ToTokens for Response<'_> {
+impl ToTokens for ResponseValue<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let description = &self.description;
         tokens.extend(quote! {
@@ -138,26 +158,33 @@ impl ToTokens for Response<'_> {
     }
 }
 
-impl ContentTypeResolver for Response<'_> {}
+impl ContentTypeResolver for ResponseValue<'_> {}
 
 pub struct Responses<'a>(pub &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        if self.0.is_empty() {
-            tokens.extend(quote! { utoipa::openapi::Responses::new() })
-        } else {
-            let responses = self.0.iter().fold(quote! {}, |mut acc, response| {
-                let code = &response.status_code.to_string();
-                acc.extend(quote! { (#code, #response), });
+        tokens.extend(self.0.iter().fold(
+            quote! { utoipa::openapi::ResponsesBuilder::new() },
+            |mut acc, response| {
+                match response {
+                    Response::IntoResponses(path) => {
+                        let span = path.span();
+                        acc.extend(quote_spanned! {span =>
+                            .responses_from_into_responses::<#path>()
+                        })
+                    }
+                    Response::Value(response) => {
+                        let code = &response.status_code.to_string();
+                        acc.extend(quote! { .response(#code, #response) });
+                    }
+                }
 
                 acc
-            });
+            },
+        ));
 
-            tokens.extend(quote! {
-                utoipa::openapi::Responses::from_iter([#responses])
-            });
-        }
+        tokens.extend(quote! { .build() });
     }
 }
 
