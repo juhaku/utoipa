@@ -12,7 +12,7 @@ use super::{
     build_fn, builder, from, new, security::SecurityScheme, set_value, xml::Xml, Deprecated,
     Response,
 };
-use crate::ResponseComponent;
+use crate::ToResponse;
 
 macro_rules! component_from_builder {
     ( $name:ident ) => {
@@ -163,7 +163,7 @@ impl ComponentsBuilder {
         self
     }
 
-    pub fn response_from_into<I: ResponseComponent>(self) -> Self {
+    pub fn response_from_into<I: ToResponse>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }

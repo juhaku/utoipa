@@ -881,7 +881,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `handlers(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
 /// * `components(...)` List of [`Component`][component]s in OpenAPI schema.
 /// * `responses(...)` List of types that implement
-/// [`ResponseComponent`][response_component_trait].
+/// [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
 /// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
@@ -959,7 +959,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [path_security]: attr.path.html#security-requirement-attributes
 /// [tags]: openapi/tag/struct.Tag.html
-/// [response_component_trait]: trait.ResponseComponent.html
+/// [to_response_trait]: trait.ToResponse.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 

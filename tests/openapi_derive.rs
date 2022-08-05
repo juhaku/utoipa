@@ -4,7 +4,7 @@ use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::{
     openapi::{Response, ResponseBuilder},
-    OpenApi, ResponseComponent,
+    OpenApi, ToResponse,
 };
 
 mod common;
@@ -115,7 +115,7 @@ fn derive_openapi_with_responses() {
     #[allow(unused)]
     struct MyResponse;
 
-    impl ResponseComponent for MyResponse {
+    impl ToResponse for MyResponse {
         fn response() -> (String, Response) {
             (
                 "MyResponse".to_string(),
