@@ -404,7 +404,7 @@ impl<'c> Parse for SchemaAttr<NamedField<'c>> {
 pub fn parse_schema_attr<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.get_ident().unwrap() == "component")
+        .find(|attribute| attribute.path.get_ident().unwrap() == "schema")
         .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
 }
 
