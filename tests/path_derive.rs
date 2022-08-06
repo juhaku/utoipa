@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
-    Component, IntoParams, IntoResponses, OpenApi,
+    IntoParams, IntoResponses, OpenApi, ToSchema,
 };
 
 mod common;
@@ -247,7 +247,7 @@ fn derive_path_with_security_requirements() {
 
 #[test]
 fn derive_path_with_parameter_schema() {
-    #[derive(serde::Deserialize, utoipa::Component)]
+    #[derive(serde::Deserialize, utoipa::derive_to_schema)]
     struct Since {
         /// Some date
         #[allow(dead_code)]
@@ -314,7 +314,7 @@ fn derive_path_with_parameter_schema() {
 
 #[test]
 fn derive_path_with_parameter_inline_schema() {
-    #[derive(serde::Deserialize, utoipa::Component)]
+    #[derive(serde::Deserialize, utoipa::derive_to_schema)]
     struct Since {
         /// Some date
         #[allow(dead_code)]

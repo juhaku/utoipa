@@ -279,8 +279,8 @@ pub trait OpenApi {
 ///
 /// Use `#[derive]` to implement `Component` trait.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// #[component(example = json!({"name": "bob the cat", "id": 1}))]
 /// struct Pet {
 ///     id: u64,
@@ -297,8 +297,8 @@ pub trait OpenApi {
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl utoipa::Component for Pet {
-///     fn component() -> utoipa::openapi::schema::Component {
+/// impl utoipa::ToSchema for Pet {
+///     fn schema() -> utoipa::openapi::schema::Schema {
 ///         use utoipa::openapi::ToArray;
 ///         utoipa::openapi::ObjectBuilder::new()
 ///             .property(
@@ -326,10 +326,10 @@ pub trait OpenApi {
 ///     }
 /// }
 /// ```
-pub trait Component {
-    fn component() -> openapi::schema::Component;
+pub trait ToSchema {
+    fn schema() -> openapi::schema::Schema;
 
-    fn aliases() -> Vec<(&'static str, openapi::schema::Component)> {
+    fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
         Vec::new()
     }
 }

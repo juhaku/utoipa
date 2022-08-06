@@ -4,7 +4,7 @@ use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use syn::{Attribute, GenericArgument, PathArguments, PathSegment, Type, TypePath};
 
-use crate::{component_type::ComponentType, Deprecated};
+use crate::{component_type::SchemaType, Deprecated};
 
 pub mod into_params;
 
@@ -137,7 +137,7 @@ impl<'t> TypeTree<'t> {
 
     fn convert(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
-        let is_primitive = ComponentType(&*path).is_primitive();
+        let is_primitive = SchemaType(&*path).is_primitive();
 
         Self {
             path: Some(path),

@@ -6,7 +6,7 @@ use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
-use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
+use crate::{component_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
 use crate::{parse_utils, Deprecated};
 
 use self::response::Response;
@@ -576,7 +576,7 @@ trait ContentTypeResolver {
     fn resolve_content_type<'a>(
         &self,
         content_type: Option<&'a String>,
-        component_type: &ComponentType<'a>,
+        component_type: &SchemaType<'a>,
     ) -> &'a str {
         if let Some(content_type) = content_type {
             content_type

@@ -4,9 +4,9 @@ use quote::{quote, ToTokens};
 use syn::{parse::Parse, Error, Ident, TypePath};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub struct ComponentType<'a>(pub &'a syn::TypePath);
+pub struct SchemaType<'a>(pub &'a syn::TypePath);
 
-impl ComponentType<'_> {
+impl SchemaType<'_> {
     /// Check whether type is known to be primitive in wich case returns true.
     pub fn is_primitive(&self) -> bool {
         let last_segment = match self.0.path.segments.last() {
@@ -108,7 +108,7 @@ fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
 
-impl ToTokens for ComponentType<'_> {
+impl ToTokens for SchemaType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let last_segment = self.0.path.segments.last().unwrap_or_else(|| {
             abort_call_site!("expected there to be at least one segment in the path")
@@ -117,43 +117,43 @@ impl ToTokens for ComponentType<'_> {
 
         match name {
             "String" | "str" | "char" => {
-                tokens.extend(quote! {utoipa::openapi::ComponentType::String})
+                tokens.extend(quote! {utoipa::openapi::SchemaType::String})
             }
-            "bool" => tokens.extend(quote! { utoipa::openapi::ComponentType::Boolean }),
+            "bool" => tokens.extend(quote! { utoipa::openapi::SchemaType::Boolean }),
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => tokens.extend(quote! { utoipa::openapi::ComponentType::Integer }),
-            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::ComponentType::Number }),
+            | "u128" | "usize" => tokens.extend(quote! { utoipa::openapi::SchemaType::Integer }),
+            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
             #[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
             "DateTime" | "Date" | "Duration" => {
-                tokens.extend(quote! { utoipa::openapi::ComponentType::String })
+                tokens.extend(quote! { utoipa::openapi::SchemaType::String })
             }
             #[cfg(feature = "decimal")]
-            "Decimal" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "rocket_extras")]
-            "PathBuf" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
+            "PathBuf" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
+            "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "time")]
             "Date" | "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { utoipa::openapi::ComponentType::String })
+                tokens.extend(quote! { utoipa::openapi::SchemaType::String })
             }
             #[cfg(feature = "time")]
-            "Duration" => tokens.extend(quote! { utoipa::openapi::ComponentType::String }),
-            _ => tokens.extend(quote! { utoipa::openapi::ComponentType::Object }),
+            "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            _ => tokens.extend(quote! { utoipa::openapi::SchemaType::Object }),
         }
     }
 }
 
-/// Either Rust type component variant or enum variant component variant.
+/// Either Rust type component variant or enum variant schema variant.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum ComponentFormat<'c> {
-    /// [`utoipa::openapi::shcema::ComponentFormat`] enum variant component format.
+pub enum SchemaFormat<'c> {
+    /// [`utoipa::openapi::shcema::SchemaFormat`] enum variant schema format.
     Variant(Variant),
-    /// Rust type component format.
+    /// Rust type schema format.
     Type(Type<'c>),
 }
 
-impl ComponentFormat<'_> {
+impl SchemaFormat<'_> {
     pub fn is_known_format(&self) -> bool {
         match self {
             Self::Type(ty) => ty.is_known_format(),
@@ -162,19 +162,19 @@ impl ComponentFormat<'_> {
     }
 }
 
-impl<'a> From<&'a TypePath> for ComponentFormat<'a> {
+impl<'a> From<&'a TypePath> for SchemaFormat<'a> {
     fn from(type_path: &'a TypePath) -> Self {
         Self::Type(Type(type_path))
     }
 }
 
-impl Parse for ComponentFormat<'_> {
+impl Parse for SchemaFormat<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self::Variant(input.parse()?))
     }
 }
 
-impl ToTokens for ComponentFormat<'_> {
+impl ToTokens for SchemaFormat<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Type(ty) => ty.to_tokens(tokens),
@@ -242,28 +242,28 @@ impl ToTokens for Type<'_> {
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
-                tokens.extend(quote! { utoipa::openapi::ComponentFormat::Int32 })
+                tokens.extend(quote! { utoipa::openapi::SchemaFormat::Int32 })
             }
-            "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Int64 }),
-            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Float }),
+            "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Int64 }),
+            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Float }),
             #[cfg(feature = "chrono_with_format")]
-            "DateTime" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::DateTime }),
+            "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::DateTime }),
             #[cfg(feature = "chrono_with_format")]
-            "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date }),
+            "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Date }),
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Uuid }),
+            "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Uuid }),
             #[cfg(feature = "time")]
-            "Date" => tokens.extend(quote! { utoipa::openapi::ComponentFormat::Date }),
+            "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Date }),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { utoipa::openapi::ComponentFormat::DateTime })
+                tokens.extend(quote! { utoipa::openapi::SchemaFormat::DateTime })
             }
             _ => (),
         }
     }
 }
 
-/// [`Parse`] and [`ToTokens`] implementation for [`utoipa::openapi::schema::ComponentFormat`].
+/// [`Parse`] and [`ToTokens`] implementation for [`utoipa::openapi::schema::SchemaFormat`].
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Variant {
     Int32,
@@ -328,21 +328,21 @@ impl Parse for Variant {
 impl ToTokens for Variant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Int32 => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Int32)),
-            Self::Int64 => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Int64)),
-            Self::Float => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Float)),
-            Self::Double => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Double)),
-            Self::Byte => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Byte)),
-            Self::Binary => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Binary)),
-            Self::Date => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Date)),
+            Self::Int32 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Int32)),
+            Self::Int64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Int64)),
+            Self::Float => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Float)),
+            Self::Double => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Double)),
+            Self::Byte => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Byte)),
+            Self::Binary => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Binary)),
+            Self::Date => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Date)),
             Self::DateTime => {
-                tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::DateTime))
+                tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::DateTime))
             }
             Self::Password => {
-                tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Password))
+                tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Password))
             }
             #[cfg(feature = "uuid")]
-            Self::Uuid => tokens.extend(quote!(utoipa::openapi::schema::ComponentFormat::Uuid)),
+            Self::Uuid => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Uuid)),
         };
     }
 }

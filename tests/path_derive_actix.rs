@@ -7,9 +7,9 @@ use serde_json::Value;
 use utoipa::{
     openapi::{
         path::{Parameter, ParameterBuilder, ParameterIn},
-        Array, ComponentFormat, PropertyBuilder,
+        Array, PropertyBuilder, SchemaFormat,
     },
-    Component, IntoParams, OpenApi,
+    IntoParams, OpenApi, ToSchema,
 };
 
 mod common;

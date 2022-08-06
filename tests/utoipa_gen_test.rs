@@ -9,7 +9,7 @@ use utoipa::{
         security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
         server::{ServerBuilder, ServerVariableBuilder},
     },
-    Component, Modify, OpenApi,
+    Modify, OpenApi, ToSchema,
 };
 
 #[derive(Deserialize, Serialize, Component)]

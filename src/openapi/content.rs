@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::{build_fn, encoding::Encoding, from, new, set_value, Component};
+use super::{build_fn, encoding::Encoding, from, new, set_value, Schema};
 
 /// Content holds request body content or response content.
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -14,7 +14,7 @@ use super::{build_fn, encoding::Encoding, from, new, set_value, Component};
 #[non_exhaustive]
 pub struct Content {
     /// Schema used in response body or request body.
-    pub schema: Component,
+    pub schema: Schema,
 
     /// Example for request body or response body.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,7 +39,7 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn new<I: Into<Component>>(schema: I) -> Self {
+    pub fn new<I: Into<Schema>>(schema: I) -> Self {
         Self {
             schema: schema.into(),
             ..Self::default()
@@ -50,7 +50,7 @@ impl Content {
 /// Builder for [`Content`] with chainable configuration methods to create a new [`Content`].
 #[derive(Default)]
 pub struct ContentBuilder {
-    schema: Component,
+    schema: Schema,
 
     #[cfg(feature = "serde_json")]
     example: Option<Value>,
@@ -67,7 +67,7 @@ impl ContentBuilder {
     new!(pub ContentBuilder);
 
     /// Add schema.
-    pub fn schema<I: Into<Component>>(mut self, component: I) -> Self {
+    pub fn schema<I: Into<Schema>>(mut self, component: I) -> Self {
         set_value!(self schema component.into())
     }
 

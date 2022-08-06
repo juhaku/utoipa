@@ -87,7 +87,7 @@ fn derive_openapi_with_external_docs_only_url() {
 #[test]
 fn derive_openapi_with_components_in_different_module() {
     mod custom {
-        use utoipa::Component;
+        use utoipa::ToSchema;
 
         #[derive(Component)]
         #[allow(unused)]

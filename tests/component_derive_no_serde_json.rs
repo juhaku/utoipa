@@ -2,7 +2,7 @@
 
 use std::{print, println};
 
-use utoipa::Component;
+use utoipa::ToSchema;
 
 #[test]
 fn derive_component_with_string_example_compiles_success() {

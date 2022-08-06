@@ -8,13 +8,13 @@ use syn::{
 };
 
 use crate::{
-    component_type::{ComponentFormat, ComponentType},
+    component_type::{SchemaFormat, SchemaType},
     doc_comment::CommentAttributes,
     Array, Deprecated,
 };
 
 use self::{
-    attr::{ComponentAttr, Enum, IsInline, NamedField, Title, UnnamedFieldStruct},
+    attr::{Enum, IsInline, NamedField, SchemaAttr, Title, UnnamedFieldStruct},
     xml::Xml,
 };
 
@@ -26,16 +26,16 @@ use super::{
 mod attr;
 mod xml;
 
-pub struct Component<'a> {
+pub struct Schema<'a> {
     ident: &'a Ident,
     attributes: &'a [Attribute],
     generics: &'a Generics,
-    aliases: Option<Punctuated<AliasComponent, Comma>>,
+    aliases: Option<Punctuated<AliasSchema, Comma>>,
     data: &'a Data,
     vis: &'a Visibility,
 }
 
-impl<'a> Component<'a> {
+impl<'a> Schema<'a> {
     pub fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
@@ -60,19 +60,19 @@ impl<'a> Component<'a> {
     }
 }
 
-impl ToTokens for Component<'_> {
+impl ToTokens for Schema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ident = self.ident;
-        let variant = ComponentVariant::new(self.data, self.attributes, ident, self.generics, None);
+        let variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics, None);
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let aliases = self.aliases.as_ref().map(|aliases| {
-            let alias_components = aliases
+            let alias_schemas = aliases
                 .iter()
                 .map(|alias| {
                     let name = &*alias.name;
 
-                    let variant = ComponentVariant::new(
+                    let variant = SchemaVariant::new(
                         self.data,
                         self.attributes,
                         ident,
@@ -85,7 +85,7 @@ impl ToTokens for Component<'_> {
 
             quote! {
                 fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Component)> {
-                    #alias_components.to_vec()
+                    #alias_schemas.to_vec()
                 }
             }
         });
@@ -111,8 +111,8 @@ impl ToTokens for Component<'_> {
         });
 
         tokens.extend(quote! {
-            impl #impl_generics utoipa::Component for #ident #ty_generics #where_clause {
-                fn component() -> utoipa::openapi::schema::Component {
+            impl #impl_generics utoipa::ToSchema for #ident #ty_generics #where_clause {
+                fn schema() -> utoipa::openapi::schema::Schema {
                     #variant.into()
                 }
 
@@ -124,32 +124,32 @@ impl ToTokens for Component<'_> {
     }
 }
 
-enum ComponentVariant<'a> {
-    Named(NamedStructComponent<'a>),
-    Unnamed(UnnamedStructComponent<'a>),
-    Enum(EnumComponent<'a>),
+enum SchemaVariant<'a> {
+    Named(NamedStructSchema<'a>),
+    Unnamed(UnnamedStructSchema<'a>),
+    Enum(EnumSchema<'a>),
 }
 
-impl<'a> ComponentVariant<'a> {
+impl<'a> SchemaVariant<'a> {
     pub fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-        alias: Option<&'a AliasComponent>,
-    ) -> ComponentVariant<'a> {
+        alias: Option<&'a AliasSchema>,
+    ) -> SchemaVariant<'a> {
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
                     let FieldsUnnamed { unnamed, .. } = fields;
-                    Self::Unnamed(UnnamedStructComponent {
+                    Self::Unnamed(UnnamedStructSchema {
                         attributes,
                         fields: unnamed,
                     })
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-                    Self::Named(NamedStructComponent {
+                    Self::Named(NamedStructSchema {
                         attributes,
                         fields: named,
                         generics: Some(generics),
@@ -161,7 +161,7 @@ impl<'a> ComponentVariant<'a> {
                     "unexpected Field::Unit expected struct with Field::Named or Field::Unnamed"
                 ),
             },
-            Data::Enum(content) => Self::Enum(EnumComponent {
+            Data::Enum(content) => Self::Enum(EnumSchema {
                 attributes,
                 variants: &content.variants,
             }),
@@ -173,25 +173,25 @@ impl<'a> ComponentVariant<'a> {
     }
 }
 
-impl ToTokens for ComponentVariant<'_> {
+impl ToTokens for SchemaVariant<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Enum(component) => component.to_tokens(tokens),
-            Self::Named(component) => component.to_tokens(tokens),
-            Self::Unnamed(component) => component.to_tokens(tokens),
+            Self::Enum(schema) => schema.to_tokens(tokens),
+            Self::Named(schema) => schema.to_tokens(tokens),
+            Self::Unnamed(schema) => schema.to_tokens(tokens),
         }
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct NamedStructComponent<'a> {
+struct NamedStructSchema<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
     generics: Option<&'a Generics>,
-    alias: Option<&'a AliasComponent>,
+    alias: Option<&'a AliasSchema>,
 }
 
-impl ToTokens for NamedStructComponent<'_> {
+impl ToTokens for NamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
 
@@ -236,7 +236,7 @@ impl ToTokens for NamedStructComponent<'_> {
 
                 let deprecated = super::get_deprecated(&field.attrs);
                 let attrs =
-                    ComponentAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
+                    SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
 
                 let override_type_tree = attrs
                     .as_ref()
@@ -247,7 +247,7 @@ impl ToTokens for NamedStructComponent<'_> {
                     .and_then(|named_field| named_field.as_ref().xml.as_ref());
                 let comments = CommentAttributes::from_attributes(&field.attrs);
 
-                let component = ComponentProperty::new(
+                let schema_property = SchemaProperty::new(
                     override_type_tree.as_ref().unwrap_or(type_tree),
                     Some(&comments),
                     attrs.as_ref(),
@@ -256,10 +256,10 @@ impl ToTokens for NamedStructComponent<'_> {
                 );
 
                 tokens.extend(quote! {
-                    .property(#name, #component)
+                    .property(#name, #schema_property)
                 });
 
-                if !component.is_option() {
+                if !schema_property.is_option() {
                     tokens.extend(quote! {
                         .required(#name)
                     })
@@ -270,7 +270,7 @@ impl ToTokens for NamedStructComponent<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        let attrs = ComponentAttr::<attr::Struct>::from_attributes_validated(self.attributes);
+        let attrs = SchemaAttr::<attr::Struct>::from_attributes_validated(self.attributes);
         if let Some(attrs) = attrs {
             tokens.extend(attrs.to_token_stream());
         }
@@ -284,12 +284,12 @@ impl ToTokens for NamedStructComponent<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct UnnamedStructComponent<'a> {
+struct UnnamedStructSchema<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
 }
 
-impl ToTokens for UnnamedStructComponent<'_> {
+impl ToTokens for UnnamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let fields_len = self.fields.len();
         let first_field = self.fields.first().unwrap();
@@ -299,16 +299,15 @@ impl ToTokens for UnnamedStructComponent<'_> {
 
         let all_fields_are_same = fields_len == 1
             || self.fields.iter().skip(1).all(|field| {
-                let component_part = &TypeTree::from_type(&field.ty);
+                let schema_part = &TypeTree::from_type(&field.ty);
 
-                first_part == component_part
+                first_part == schema_part
             });
 
-        let attrs =
-            attr::parse_component_attr::<ComponentAttr<UnnamedFieldStruct>>(self.attributes);
+        let attrs = attr::parse_schema_attr::<SchemaAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let override_component = attrs.as_ref().and_then(|unnamed_struct| {
+            let override_schema = attrs.as_ref().and_then(|unnamed_struct| {
                 unnamed_struct
                     .as_ref()
                     .value_type
@@ -316,16 +315,16 @@ impl ToTokens for UnnamedStructComponent<'_> {
                     .map(TypeTree::from_type)
             });
 
-            if override_component.is_some() {
-                is_object = override_component
+            if override_schema.is_some() {
+                is_object = override_schema
                     .as_ref()
                     .map(|override_type| matches!(override_type.value_type, ValueType::Object))
                     .unwrap_or_default();
             }
 
             tokens.extend(
-                ComponentProperty::new(
-                    override_component.as_ref().unwrap_or(first_part),
+                SchemaProperty::new(
+                    override_schema.as_ref().unwrap_or(first_part),
                     None,
                     attrs.as_ref(),
                     deprecated.as_ref(),
@@ -368,12 +367,12 @@ impl ToTokens for UnnamedStructComponent<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct EnumComponent<'a> {
+struct EnumSchema<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
 }
 
-impl ToTokens for EnumComponent<'_> {
+impl ToTokens for EnumSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if self
             .variants
@@ -418,7 +417,7 @@ impl SimpleEnum<'_> {
                         .property(
                             #tag,
                             utoipa::openapi::schema::PropertyBuilder::new()
-                                .component_type(utoipa::openapi::ComponentType::String)
+                                .schema_type(utoipa::openapi::ComponentType::String)
                                 .enum_values::<[&str; 1], &str>(Some([#enum_value]))
                         )
                         .required(#tag)
@@ -441,7 +440,7 @@ impl SimpleEnum<'_> {
         let len = enum_values.len();
         quote! {
             utoipa::openapi::PropertyBuilder::new()
-            .component_type(utoipa::openapi::ComponentType::String)
+            .schema_type(utoipa::openapi::ComponentType::String)
             .enum_values::<[&str; #len], &str>(Some(#enum_values))
         }
     }
@@ -476,7 +475,7 @@ impl ToTokens for SimpleEnum<'_> {
             _ => Self::variants_tokens(enum_values),
         });
 
-        let attrs = attr::parse_component_attr::<ComponentAttr<Enum>>(self.attributes);
+        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
         if let Some(attributes) = attrs {
             tokens.extend(attributes.to_token_stream());
         }
@@ -501,24 +500,24 @@ struct ComplexEnum<'a> {
 impl ComplexEnum<'_> {
     fn unit_variant_tokens(
         variant_name: String,
-        variant_title: Option<ComponentAttr<Title>>,
+        variant_title: Option<SchemaAttr<Title>>,
     ) -> TokenStream {
         quote! {
             utoipa::openapi::PropertyBuilder::new()
                 #variant_title
-                .component_type(utoipa::openapi::ComponentType::String)
+                .schema_type(utoipa::openapi::ComponentType::String)
                 .enum_values::<[&str; 1], &str>(Some([#variant_name]))
         }
     }
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
     fn variant_tokens(
         variant_name: String,
-        variant_title: Option<ComponentAttr<Title>>,
+        variant_title: Option<SchemaAttr<Title>>,
         variant: &Variant,
     ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let named_enum = NamedStructComponent {
+                let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
                     fields: &named_fields.named,
                     generics: None,
@@ -532,7 +531,7 @@ impl ComplexEnum<'_> {
                 }
             }
             Fields::Unnamed(unnamed_fields) => {
-                let unnamed_enum = UnnamedStructComponent {
+                let unnamed_enum = UnnamedStructSchema {
                     attributes: &variant.attrs,
                     fields: &unnamed_fields.unnamed,
                 };
@@ -552,12 +551,12 @@ impl ComplexEnum<'_> {
     fn tagged_variant_tokens(
         tag: &str,
         variant_name: String,
-        variant_title: Option<ComponentAttr<Title>>,
+        variant_title: Option<SchemaAttr<Title>>,
         variant: &Variant,
     ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let named_enum = NamedStructComponent {
+                let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
                     fields: &named_fields.named,
                     generics: None,
@@ -599,13 +598,13 @@ impl ToTokens for ComplexEnum<'_> {
         if self
             .attributes
             .iter()
-            .any(|attribute| attribute.path.get_ident().unwrap() == "component")
+            .any(|attribute| attribute.path.get_ident().unwrap() == "schema")
         {
             abort!(
                 self.attributes.first().unwrap(),
-                "component macro attribute not expected on complex enum";
+                "schema macro attribute not expected on complex enum";
 
-                help = "Try adding the #[component(...)] on variant of the enum";
+                help = "Try adding the #[schema(...)] on variant of the enum";
             );
         }
 
@@ -635,8 +634,7 @@ impl ToTokens for ComplexEnum<'_> {
                 let variant_name =
                     rename_variant(&container_rules, &mut variant_serde_rules, variant_name)
                         .unwrap_or_else(|| String::from(variant_name));
-                let variant_title =
-                    attr::parse_component_attr::<ComponentAttr<Title>>(&variant.attrs);
+                let variant_title = attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
 
                 if let Some(tag) = &tag {
                     Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
@@ -671,24 +669,24 @@ impl ToTokens for ComplexEnum<'_> {
 struct TypeTuple<'a, T>(T, &'a Ident);
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct ComponentProperty<'a, T> {
-    component_part: &'a TypeTree<'a>,
+struct SchemaProperty<'a, T> {
+    schema_part: &'a TypeTree<'a>,
     comments: Option<&'a CommentAttributes>,
-    attrs: Option<&'a ComponentAttr<T>>,
+    attrs: Option<&'a SchemaAttr<T>>,
     deprecated: Option<&'a Deprecated>,
     xml: Option<&'a Xml>,
 }
 
-impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
+impl<'a, T: Sized + ToTokens> SchemaProperty<'a, T> {
     fn new(
-        component_part: &'a TypeTree<'a>,
+        schema_part: &'a TypeTree<'a>,
         comments: Option<&'a CommentAttributes>,
-        attrs: Option<&'a ComponentAttr<T>>,
+        attrs: Option<&'a SchemaAttr<T>>,
         deprecated: Option<&'a Deprecated>,
         xml: Option<&'a Xml>,
     ) -> Self {
         Self {
-            component_part,
+            schema_part,
             comments,
             attrs,
             deprecated,
@@ -698,29 +696,29 @@ impl<'a, T: Sized + ToTokens> ComponentProperty<'a, T> {
 
     /// Check wheter property is required or not
     fn is_option(&self) -> bool {
-        matches!(self.component_part.generic_type, Some(GenericType::Option))
+        matches!(self.schema_part.generic_type, Some(GenericType::Option))
     }
 }
 
-impl<T> ToTokens for ComponentProperty<'_, T>
+impl<T> ToTokens for SchemaProperty<'_, T>
 where
     T: Sized + quote::ToTokens + IsInline,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self.component_part.generic_type {
+        match self.schema_part.generic_type {
             Some(GenericType::Map) => {
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
-                // maps have 2 child components and we are interested the second one of them
+                // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
-                let component_property = ComponentProperty::new(
-                    self.component_part
+                let schema_property = SchemaProperty::new(
+                    self.schema_part
                         .children
                         .as_ref()
-                        .expect("ComponentProperty Map type should have children")
+                        .expect("SchemaProperty Map type should have children")
                         .iter()
                         .nth(1)
-                        .expect("ComponentProperty Map type should have 2 child"),
+                        .expect("SchemaProperty Map type should have 2 child"),
                     self.comments,
                     self.attrs,
                     self.deprecated,
@@ -728,7 +726,7 @@ where
                 );
 
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#component_property))
+                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#schema_property))
                 });
 
                 if let Some(description) = self.comments.and_then(|attributes| attributes.0.first())
@@ -739,14 +737,14 @@ where
                 }
             }
             Some(GenericType::Vec) => {
-                let component_property = ComponentProperty::new(
-                    self.component_part
+                let schema_property = SchemaProperty::new(
+                    self.schema_part
                         .children
                         .as_ref()
-                        .expect("ComponentProperty Vec should have children")
+                        .expect("SchemaProperty Vec should have children")
                         .iter()
                         .next()
-                        .expect("ComponentProperty Vec should have 1 child"),
+                        .expect("SchemaProperty Vec should have 1 child"),
                     self.comments,
                     self.attrs,
                     self.deprecated,
@@ -755,7 +753,7 @@ where
 
                 tokens.extend(quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
-                        .items(#component_property)
+                        .items(#schema_property)
                 });
 
                 if let Some(xml_value) = self.xml {
@@ -771,35 +769,35 @@ where
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let component_property = ComponentProperty::new(
-                    self.component_part
+                let schema_property = SchemaProperty::new(
+                    self.schema_part
                         .children
                         .as_ref()
-                        .expect("ComponentProperty generic container type should have children")
+                        .expect("SchemaProperty generic container type should have children")
                         .iter()
                         .next()
-                        .expect("ComponentProperty generic container type should have 1 child"),
+                        .expect("SchemaProperty generic container type should have 1 child"),
                     self.comments,
                     self.attrs,
                     self.deprecated,
                     self.xml,
                 );
 
-                tokens.extend(component_property.into_token_stream())
+                tokens.extend(schema_property.into_token_stream())
             }
             None => {
-                let type_tree = self.component_part;
+                let type_tree = self.schema_part;
 
                 match type_tree.value_type {
                     ValueType::Primitive => {
                         let type_path = &**type_tree.path.as_ref().unwrap();
-                        let component_type = ComponentType(type_path);
+                        let schema_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
-                            utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
+                            utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
                         });
 
-                        let format: ComponentFormat = (type_path).into();
+                        let format: SchemaFormat = (type_path).into();
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
@@ -844,12 +842,12 @@ where
                             let type_path = &**type_tree.path.as_ref().unwrap();
                             if is_inline {
                                 tokens.extend(quote_spanned! {type_path.span() =>
-                                    <#type_path as utoipa::Component>::component()
+                                    <#type_path as utoipa::ToSchema>::schema()
                                 });
                             } else {
                                 let name = format_path_ref(type_path);
                                 tokens.extend(quote! {
-                                    utoipa::openapi::Ref::from_component_name(#name)
+                                    utoipa::openapi::Ref::from_schema_name(#name)
                                 })
                             }
                         }
@@ -862,7 +860,7 @@ where
     }
 }
 
-/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact component reference,
+/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact schema reference,
 /// by removing spaces between colon punctuation and `::` and the path segments.
 pub(crate) fn format_path_ref(path: &TypePath) -> String {
     let mut path: TypePath = path.clone();
@@ -932,13 +930,13 @@ fn rename<'a>(
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct AliasComponent {
+pub struct AliasSchema {
     pub name: String,
     pub ty: Ident,
     pub generics: Generics,
 }
 
-impl Parse for AliasComponent {
+impl Parse for AliasSchema {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = input.parse::<Ident>()?;
         input.parse::<Token![=]>()?;
@@ -951,13 +949,13 @@ impl Parse for AliasComponent {
     }
 }
 
-fn parse_aliases(attributes: &[Attribute]) -> Option<Punctuated<AliasComponent, Comma>> {
+fn parse_aliases(attributes: &[Attribute]) -> Option<Punctuated<AliasSchema, Comma>> {
     attributes
         .iter()
         .find(|attribute| attribute.path.is_ident("aliases"))
         .map(|aliases| {
             aliases
-                .parse_args_with(Punctuated::<AliasComponent, Comma>::parse_terminated)
+                .parse_args_with(Punctuated::<AliasSchema, Comma>::parse_terminated)
                 .unwrap_or_abort()
         })
 }

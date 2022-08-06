@@ -139,7 +139,7 @@ mod tests {
             .required(Some(Required::True))
             .content(
                 "application/json",
-                Content::new(crate::openapi::Ref::from_component_name("EmailPayload")),
+                Content::new(crate::openapi::Ref::from_schema_name("EmailPayload")),
             )
             .build();
         let serialized = serde_json::to_string_pretty(&request_body)?;

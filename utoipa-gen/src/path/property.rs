@@ -2,7 +2,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::{
-    component_type::{ComponentFormat, ComponentType},
+    component_type::{SchemaFormat, SchemaType},
     schema::component,
     Type,
 };
@@ -16,8 +16,8 @@ impl<'a> Property<'a> {
         Self(type_definition)
     }
 
-    pub fn component_type(&'a self) -> ComponentType<'a> {
-        ComponentType(&*self.0.ty)
+    pub fn component_type(&'a self) -> SchemaType<'a> {
+        SchemaType(&*self.0.ty)
     }
 }
 
@@ -30,7 +30,7 @@ impl ToTokens for Property<'_> {
                 utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
             };
 
-            let format: ComponentFormat = (&*component_type.0).into();
+            let format: SchemaFormat = (&*component_type.0).into();
             if format.is_known_format() {
                 component.extend(quote! {
                     .format(Some(#format))

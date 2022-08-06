@@ -7,7 +7,7 @@ use chrono::{Date, DateTime, Duration, Utc};
 
 use serde::Serialize;
 use serde_json::{json, Value};
-use utoipa::{Component, OpenApi};
+use utoipa::{OpenApi, ToSchema};
 
 mod common;
 
@@ -537,7 +537,7 @@ fn derive_with_box_and_refcell() {
 
 #[test]
 fn derive_struct_with_inline() {
-    #[derive(utoipa::Component)]
+    #[derive(utoipa::derive_to_schema)]
     #[allow(unused)]
     struct Foo {
         name: &'static str,

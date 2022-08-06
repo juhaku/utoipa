@@ -7,7 +7,7 @@ use syn::{
 };
 
 use crate::{
-    component_type::{ComponentFormat, ComponentType},
+    component_type::{SchemaFormat, SchemaType},
     doc_comment::CommentAttributes,
     parse_utils,
     path::parameter::{ParameterExt, ParameterIn, ParameterStyle},
@@ -457,13 +457,13 @@ impl ToTokens for ParamType<'_> {
                 match component.value_type {
                     ValueType::Primitive => {
                         let type_path = &**component.path.as_ref().unwrap();
-                        let component_type = ComponentType(type_path);
+                        let component_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
                             utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
                         });
 
-                        let format: ComponentFormat = (type_path).into();
+                        let format: SchemaFormat = (type_path).into();
                         if format.is_known_format() {
                             tokens.extend(quote! {
                                 .format(Some(#format))
