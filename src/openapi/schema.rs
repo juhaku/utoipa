@@ -49,7 +49,7 @@ builder! {
         ///
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub schemas: BTreeMap<String, Schema>,
+        pub schemas: BTreeMap<String, RefOr<Schema>>,
 
         /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
         /// Reference][reference]s to [OpenAPI Response Object][response]s.
@@ -115,8 +115,8 @@ impl ComponentsBuilder {
     /// Add [`Schema`] to [`Components`].
     ///
     /// Accpets two arguments where first is name of the schema and second is the schema itself.
-    pub fn schema<S: Into<String>, I: Into<Schema>>(mut self, name: S, component: I) -> Self {
-        self.schemas.insert(name.into(), component.into());
+    pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+        self.schemas.insert(name.into(), schema.into());
 
         self
     }
@@ -126,25 +126,31 @@ impl ComponentsBuilder {
     /// # Examples
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
-    /// #    PropertyBuilder, SchemaType};
+    /// #    PropertyBuilder, SchemaType, Schema};
     /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
-    ///     ObjectBuilder::new()
-    ///         .property(
-    ///             "name",
-    ///             PropertyBuilder::new().schema_type(SchemaType::String),
-    ///         )
-    ///         .required("name"),
+    ///     Schema::from(
+    ///         ObjectBuilder::new()
+    ///             .property(
+    ///                 "name",
+    ///                 PropertyBuilder::new().schema_type(SchemaType::String),
+    ///             )
+    ///             .required("name")
+    ///     ),
     /// )]);
     /// ```
-    pub fn schemas_from_iter<I: IntoIterator<Item = (S, C)>, C: Into<Schema>, S: Into<String>>(
+    pub fn schemas_from_iter<
+        I: IntoIterator<Item = (S, C)>,
+        C: Into<RefOr<Schema>>,
+        S: Into<String>,
+    >(
         mut self,
-        components: I,
+        schemas: I,
     ) -> Self {
         self.schemas.extend(
-            components
+            schemas
                 .into_iter()
-                .map(|(name, component)| (name.into(), component.into())),
+                .map(|(name, schema)| (name.into(), schema.into())),
         );
 
         self
@@ -924,42 +930,44 @@ mod tests {
             .paths(Paths::new())
             .components(Some(
                 ComponentsBuilder::new()
-                    .schema("Person", Ref::new("#/components/PersonModel"))
+                    .schema("Person", RefOr::Ref(Ref::new("#/components/PersonModel")))
                     .schema(
                         "Credential",
-                        ObjectBuilder::new()
-                            .property(
-                                "id",
-                                PropertyBuilder::new()
-                                    .schema_type(SchemaType::Integer)
-                                    .format(Some(SchemaFormat::Int32))
-                                    .description(Some("Id of credential"))
-                                    .default(Some(json!(1i32))),
-                            )
-                            .property(
-                                "name",
-                                PropertyBuilder::new()
-                                    .schema_type(SchemaType::String)
-                                    .description(Some("Name of credential")),
-                            )
-                            .property(
-                                "status",
-                                PropertyBuilder::new()
-                                    .schema_type(SchemaType::String)
-                                    .default(Some(json!("Active")))
-                                    .description(Some("Credential status"))
-                                    .enum_values(Some([
-                                        "Active",
-                                        "NotActive",
-                                        "Locked",
-                                        "Expired",
-                                    ])),
-                            )
-                            .property(
-                                "history",
-                                Array::new(Ref::from_schema_name("UpdateHistory")),
-                            )
-                            .property("tags", Property::new(SchemaType::String).to_array()),
+                        Schema::from(
+                            ObjectBuilder::new()
+                                .property(
+                                    "id",
+                                    PropertyBuilder::new()
+                                        .schema_type(SchemaType::Integer)
+                                        .format(Some(SchemaFormat::Int32))
+                                        .description(Some("Id of credential"))
+                                        .default(Some(json!(1i32))),
+                                )
+                                .property(
+                                    "name",
+                                    PropertyBuilder::new()
+                                        .schema_type(SchemaType::String)
+                                        .description(Some("Name of credential")),
+                                )
+                                .property(
+                                    "status",
+                                    PropertyBuilder::new()
+                                        .schema_type(SchemaType::String)
+                                        .default(Some(json!("Active")))
+                                        .description(Some("Credential status"))
+                                        .enum_values(Some([
+                                            "Active",
+                                            "NotActive",
+                                            "Locked",
+                                            "Expired",
+                                        ])),
+                                )
+                                .property(
+                                    "history",
+                                    Array::new(Ref::from_schema_name("UpdateHistory")),
+                                )
+                                .property("tags", Property::new(SchemaType::String).to_array()),
+                        ),
                     )
                     .build(),
             ))
@@ -1131,12 +1139,14 @@ mod tests {
         let components = ComponentsBuilder::new()
             .schemas_from_iter(vec![(
                 "Comp",
-                ObjectBuilder::new()
-                    .property(
-                        "name",
-                        PropertyBuilder::new().schema_type(SchemaType::String),
-                    )
-                    .required("name"),
+                Schema::from(
+                    ObjectBuilder::new()
+                        .property(
+                            "name",
+                            PropertyBuilder::new().schema_type(SchemaType::String),
+                        )
+                        .required("name"),
+                ),
             )])
             .responses_from_iter(vec![(
                 "200",
