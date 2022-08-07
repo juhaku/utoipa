@@ -80,7 +80,7 @@ mod pet_api {
 #[derive(Default, OpenApi)]
 #[openapi(
     handlers(pet_api::get_pet_by_id),
-    components(Pet, GenericC, GenericD),
+    components(schemas(Pet, GenericC, GenericD)),
     modifiers(&Foo),
     security(
         (),
