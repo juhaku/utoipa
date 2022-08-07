@@ -186,7 +186,7 @@ use ext::ArgumentResolver;
 ///
 /// #[derive(OpenApi)]
 /// #[openapi(
-///     components(StatusMessage, StatusNumber)
+///     components(schemas(StatusMessage, StatusNumber))
 /// )]
 /// struct ApiDoc;
 /// ```
@@ -936,7 +936,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// #[derive(OpenApi)]
 /// #[openapi(
 ///     handlers(get_pet, get_status),
-///     components(Pet, Status),
+///     components(schemas(Pet, Status)),
 ///     security(
 ///         (),
 ///         ("my_auth" = ["read:items", "edit:items"]),
