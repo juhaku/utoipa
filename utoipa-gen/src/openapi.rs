@@ -13,7 +13,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, schema::component,
+    parse_utils, path::PATH_STRUCT_PREFIX, schema::schema,
     security_requirement::SecurityRequirementAttr, Array, ExternalDocs,
 };
 
@@ -305,7 +305,7 @@ fn impl_components(
                 let component_name: String = component
                     .alias
                     .as_ref()
-                    .map(component::format_path_ref)
+                    .map(schema::format_path_ref)
                     .unwrap_or_else(|| ident.to_token_stream().to_string());
 
                 let (_, ty_generics, _) = component.generics.split_for_impl();

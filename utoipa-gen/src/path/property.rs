@@ -2,8 +2,8 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::{
-    component_type::{SchemaFormat, SchemaType},
-    schema::component,
+    schema_type::{SchemaFormat, SchemaType},
+    schema::schema,
     Type,
 };
 
@@ -53,7 +53,7 @@ impl ToTokens for Property<'_> {
                     <#schema_name_path as utoipa::ToSchema>::schema()
                 }
             } else {
-                let name = component::format_path_ref(schema_name_path);
+                let name = schema::format_path_ref(schema_name_path);
                 quote! {
                     utoipa::openapi::Ref::from_schema_name(#name)
                 }

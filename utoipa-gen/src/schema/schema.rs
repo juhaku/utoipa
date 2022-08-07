@@ -8,7 +8,7 @@ use syn::{
 };
 
 use crate::{
-    component_type::{SchemaFormat, SchemaType},
+    schema_type::{SchemaFormat, SchemaType},
     doc_comment::CommentAttributes,
     Array, Deprecated,
 };

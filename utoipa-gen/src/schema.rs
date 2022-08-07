@@ -4,11 +4,11 @@ use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use syn::{Attribute, GenericArgument, PathArguments, PathSegment, Type, TypePath};
 
-use crate::{component_type::SchemaType, Deprecated};
+use crate::{schema_type::SchemaType, Deprecated};
 
 pub mod into_params;
 
-pub mod component;
+pub mod schema;
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.

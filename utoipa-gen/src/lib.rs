@@ -10,7 +10,7 @@
 use std::{borrow::Cow, mem, ops::Deref};
 
 use doc_comment::CommentAttributes;
-use schema::component::Schema;
+use schema::schema::Schema;
 
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
@@ -28,7 +28,7 @@ use syn::{
     PathArguments, PathSegment, Token, TypePath,
 };
 
-mod component_type;
+mod schema_type;
 mod doc_comment;
 mod ext;
 mod openapi;

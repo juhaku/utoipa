@@ -6,7 +6,7 @@ use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
-use crate::{component_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
+use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
 use crate::{parse_utils, Deprecated};
 
 use self::response::Response;
