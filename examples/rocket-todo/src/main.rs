@@ -82,12 +82,12 @@ mod todo {
         FromForm, Request, State,
     };
     use serde::{Deserialize, Serialize};
-    use utoipa::{Component, IntoParams};
+    use utoipa::{ToSchema, IntoParams};
 
     pub(super) type TodoStore = Arc<Mutex<Vec<Todo>>>;
 
     /// Todo operation error.
-    #[derive(Serialize, Component, Responder, Debug)]
+    #[derive(Serialize, ToSchema, Responder, Debug)]
     pub(super) enum TodoError {
         /// When there is conflict creating a new todo.
         #[response(status = 409)]
@@ -144,13 +144,13 @@ mod todo {
     }
 
     /// Task to do.
-    #[derive(Serialize, Deserialize, Component, Clone)]
+    #[derive(Serialize, Deserialize, ToSchema, Clone)]
     pub(super) struct Todo {
         /// Unique todo id.
-        #[component(example = 1)]
+        #[schema(example = 1)]
         id: i32,
         /// Description of a taks.
-        #[component(example = "Buy groceries")]
+        #[schema(example = "Buy groceries")]
         value: String,
         /// Indicatation whether task is done or not.
         done: bool,

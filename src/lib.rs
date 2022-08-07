@@ -58,18 +58,18 @@
 //! * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration` types. By default these types
 //!   are parsed to `string` types without additional format. If you want to have formats added to the types use _chrono_with_format_ feature.
 //!   This is useful because OpenAPI 3.1 spec does not have date-time formats. To override default `string` representation
-//!   users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
+//!   users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.ToSchema.html) for more details.
 //! * **chrono_with_format** Add support to [chrono](https://crates.io/crates/chrono) types described above with additional `format`
 //!   information type. `date-time` for `DateTime` and `date` for `Date` according
 //!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To override default `string` representation
-//!   users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
+//!   users have to use `value_type` attribute to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.ToSchema.html) for more details.
 //! * **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
 //!   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
 //!   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
-//!   to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
+//!   to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.ToSchema.html) for more details.
 //! * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `String`. If you wish to change the format you need to override the type.
-//!   See the `value_type` in [component derive docs][component_derive].
+//!   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
 //! * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
 //! * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
@@ -77,7 +77,7 @@
 //!   See the [`request_body`](https://docs.rs/utoipa/latest/utoipa/openapi/request_body/index.html) and
 //!   [`response`](https://docs.rs/utoipa/latest/utoipa/openapi/response/index.html) docs for examples.
 //!
-//! Utoipa implicitly has partial support for `serde` attributes. See [component derive][serde] for more details.
+//! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
 //!
 //! # Install
 //!
@@ -100,11 +100,11 @@
 //!
 //! # Examples
 //!
-//! Create a struct or it could be an enum also. Add `Component` derive macro to it so it can be registered
+//! Create a struct or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
 //! as a component in openapi schema.
 //! ```rust
-//! use utoipa::Component;
-//! #[derive(Component)]
+//! use utoipa::ToSchema;
+//! #[derive(ToSchema)]
 //! struct Pet {
 //!    id: u64,
 //!    name: String,
@@ -116,9 +116,9 @@
 //! ```rust
 //! mod pet_api {
 //! #     use utoipa::OpenApi;
-//! #     use utoipa::Component;
+//! #     use utoipa::ToSchema;
 //! #
-//! #     #[derive(Component)]
+//! #     #[derive(ToSchema)]
 //! #     struct Pet {
 //! #       id: u64,
 //! #       name: String,
@@ -151,9 +151,9 @@
 //! Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
 //! ```rust
 //! # mod pet_api {
-//! #     use utoipa::Component;
+//! #     use utoipa::ToSchema;
 //! #
-//! #     #[derive(Component)]
+//! #     #[derive(ToSchema)]
 //! #     struct Pet {
 //! #       id: u64,
 //! #       name: String,
@@ -182,9 +182,9 @@
 //! #         }
 //! #     }
 //! # }
-//! # use utoipa::Component;
+//! # use utoipa::ToSchema;
 //! #
-//! # #[derive(Component)]
+//! # #[derive(ToSchema)]
 //! # struct Pet {
 //! #   id: u64,
 //! #   name: String,
@@ -208,10 +208,10 @@
 //! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
 //! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
 //! [axum_path]: attr.path.html#axum_extras-suppport-for-axum
-//! [serde]: derive.Component.html#partial-serde-attributes-support
+//! [serde]: derive.ToSchema.html#partial-serde-attributes-support
 //!
 //! [security]: openapi/security/index.html
-//! [component_derive]: derive.Component.html
+//! [to_schema_derive]: derive.ToSchema.html
 
 pub mod openapi;
 
@@ -224,7 +224,7 @@ pub use utoipa_gen::*;
 ///
 /// This trait is derivable and can be used with `#[derive]` attribute. The derived implementation
 /// will use Cargo provided environment variables to implement the default information. For a details of
-/// `#[derive(Component)]` refer to [derive documentation][derive].
+/// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
 /// # Examples
 ///
@@ -245,7 +245,7 @@ pub use utoipa_gen::*;
 ///
 /// impl utoipa::OpenApi for OpenApiDoc {
 ///     fn openapi() -> utoipa::openapi::OpenApi {
-///         use utoipa::{Component, Path};
+///         use utoipa::{ToSchema, Path};
 ///         utoipa::openapi::OpenApiBuilder::new()
 ///             .info(utoipa::openapi::InfoBuilder::new()
 ///                 .title("application name")
@@ -271,17 +271,17 @@ pub trait OpenApi {
 /// Trait for implementing OpenAPI Schema object.
 ///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
-/// `#[derive(Component)]` refer to [derive documentation][derive].
+/// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
-/// [derive]: derive.Component.html
+/// [derive]: derive.ToSchema.html
 ///
 /// # Examples
 ///
-/// Use `#[derive]` to implement `Component` trait.
+/// Use `#[derive]` to implement `ToSchema` trait.
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
-/// #[component(example = json!({"name": "bob the cat", "id": 1}))]
+/// #[schema(example = json!({"name": "bob the cat", "id": 1}))]
 /// struct Pet {
 ///     id: u64,
 ///     name: String,
@@ -304,20 +304,20 @@ pub trait OpenApi {
 ///             .property(
 ///                 "id",
 ///                 utoipa::openapi::PropertyBuilder::new()
-///                     .component_type(utoipa::openapi::ComponentType::Integer)
-///                     .format(Some(utoipa::openapi::ComponentFormat::Int64)),
+///                     .schema_type(utoipa::openapi::SchemaType::Integer)
+///                     .format(Some(utoipa::openapi::SchemaFormat::Int64)),
 ///             )
 ///             .required("id")
 ///             .property(
 ///                 "name",
-///                 utoipa::openapi::Property::new(utoipa::openapi::ComponentType::String),
+///                 utoipa::openapi::Property::new(utoipa::openapi::SchemaType::String),
 ///             )
 ///             .required("name")
 ///             .property(
 ///                 "age",
 ///                 utoipa::openapi::PropertyBuilder::new()
-///                     .component_type(utoipa::openapi::ComponentType::Integer)
-///                     .format(Some(utoipa::openapi::ComponentFormat::Int32)),
+///                     .schema_type(utoipa::openapi::SchemaType::Integer)
+///                     .format(Some(utoipa::openapi::SchemaFormat::Int32)),
 ///             )
 ///             .example(Some(serde_json::json!({
 ///               "name": "bob the cat", "id": 1
@@ -386,7 +386,7 @@ pub trait ToSchema {
 ///                                 .description("Pet found successfully")
 ///                                 .content("application/json",
 ///                                     utoipa::openapi::Content::new(
-///                                         utoipa::openapi::Ref::from_component_name("Pet"),
+///                                         utoipa::openapi::Ref::from_schema_name("Pet"),
 ///                                     ),
 ///                             ),
 ///                         )
@@ -405,8 +405,8 @@ pub trait ToSchema {
 ///                         .description(Some("Pet database id to get Pet for"))
 ///                         .schema(
 ///                             Some(utoipa::openapi::PropertyBuilder::new()
-///                                 .component_type(utoipa::openapi::ComponentType::Integer)
-///                                 .format(Some(utoipa::openapi::ComponentFormat::Int64))),
+///                                 .schema_type(utoipa::openapi::SchemaType::Integer)
+///                                 .format(Some(utoipa::openapi::SchemaFormat::Int64))),
 ///                         ),
 ///                 )
 ///                 .tag("pet_api"),
@@ -530,8 +530,8 @@ pub trait Modify {
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
-///                         .component_type(utoipa::openapi::ComponentType::Integer)
-///                         .format(Some(utoipa::openapi::ComponentFormat::Int64)),
+///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .format(Some(utoipa::openapi::SchemaFormat::Int64)),
 ///                 ))
 ///                 .build(),
 ///             utoipa::openapi::path::ParameterBuilder::new()
@@ -541,7 +541,7 @@ pub trait Modify {
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::PropertyBuilder::new()
-///                         .component_type(utoipa::openapi::ComponentType::String),
+///                         .schema_type(utoipa::openapi::SchemaType::String),
 ///                 ))
 ///                 .build(),
 ///         ]

@@ -112,7 +112,7 @@ impl Components {
 }
 
 impl ComponentsBuilder {
-    /// Add [`Component`] to [`Components`].
+    /// Add [`Schema`] to [`Components`].
     ///
     /// Accpets two arguments where first is name of the schema and second is the schema itself.
     pub fn schema<S: Into<String>, I: Into<Schema>>(mut self, name: S, component: I) -> Self {
@@ -121,18 +121,18 @@ impl ComponentsBuilder {
         self
     }
 
-    /// Add [`Component`]s from iterator.
+    /// Add [`Schema`]s from iterator.
     ///
     /// # Examples
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
-    /// #    PropertyBuilder, ComponentType};
+    /// #    PropertyBuilder, SchemaType};
     /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
     ///     ObjectBuilder::new()
     ///         .property(
     ///             "name",
-    ///             PropertyBuilder::new().component_type(ComponentType::String),
+    ///             PropertyBuilder::new().schema_type(SchemaType::String),
     ///         )
     ///         .required("name"),
     /// )]);
@@ -212,19 +212,19 @@ pub enum Schema {
     /// created from it's fields.
     Object(Object),
     /// Defines property component typically used together with
-    /// [`Component::Object`] or [`Component::Array`]. It is used to map
+    /// [`Schema::Object`] or [`Schema::Array`]. It is used to map
     /// field types to OpenAPI documentation.
     Property(Property),
-    /// Creates a reference component _`$ref=#/components/schemas/ComponentName`_. Which
+    /// Creates a reference component _`$ref=#/components/schemas/SchemaName`_. Which
     /// can be used to reference a other reusable component in [`Components`].
     Ref(Ref),
     /// Defines array component from another component. Typically used with
-    /// [`Component::Property`] or [`Component::Object`] component. Slice and Vec
-    /// types are translated to [`Component::Array`] types.
+    /// [`Schema::Property`] or [`Schema::Object`] component. Slice and Vec
+    /// types are translated to [`Schema::Array`] types.
     Array(Array),
     /// Creates a _OneOf_ type [Discriminator Object][discriminator] component. This component
     /// is used to map multiple components together where API endpoint could return any of them.
-    /// [`Component::OneOf`] is created form complex enum where enum holds other than unit types.
+    /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
@@ -242,7 +242,7 @@ builder! {
     /// OneOf [Discriminator Object][discriminator] component holds
     /// multiple components together where API endpoint could return any of them.
     ///
-    /// See [`Component::OneOf`] for more details.
+    /// See [`Schema::OneOf`] for more details.
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
     #[derive(Serialize, Deserialize, Clone, Default)]
@@ -377,9 +377,9 @@ pub struct Property {
 }
 
 impl Property {
-    pub fn new(component_type: SchemaType) -> Self {
+    pub fn new(schema_type: SchemaType) -> Self {
         Self {
-            schema_type: component_type,
+            schema_type,
             ..Default::default()
         }
     }
@@ -433,7 +433,7 @@ from!(Property PropertyBuilder
 impl PropertyBuilder {
     new!(pub PropertyBuilder);
 
-    /// Add or change type of the property e.g [`ComponentType::String`].
+    /// Add or change type of the property e.g [`SchemaType::String`].
     pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
         set_value!(self schema_type schema_type)
     }
@@ -515,7 +515,7 @@ impl PropertyBuilder {
 component_from_builder!(PropertyBuilder);
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
-/// adding other [`Component`]s as **properties** to this [`Component`].
+/// adding other [`Schema`]s as **properties** to this [`Schema`].
 ///
 /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
@@ -523,7 +523,7 @@ component_from_builder!(PropertyBuilder);
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
-    /// Data type of [`Object`]. Will always be [`ComponentType::Object`]
+    /// Data type of [`Object`]. Will always be [`SchemaType::Object`]
     #[serde(rename = "type")]
     schema_type: SchemaType,
 
@@ -535,11 +535,11 @@ pub struct Object {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub required: Vec<String>,
 
-    /// Map of fields with their [`Component`] types.
+    /// Map of fields with their [`Schema`] types.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub properties: BTreeMap<String, Schema>,
 
-    /// Additional [`Component`] for non specified fields (Useful for typed maps).
+    /// Additional [`Schema`] for non specified fields (Useful for typed maps).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<Box<Schema>>,
 
@@ -694,7 +694,7 @@ pub struct Ref {
 
 impl Ref {
     /// Construct a new [`Ref`] with custom ref location. In most cases this is not necessary
-    /// and [`Ref::from_component_name`] could be used instead.
+    /// and [`Ref::from_schema_name`] could be used instead.
     pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
             ref_location: ref_location.into(),
@@ -741,19 +741,19 @@ impl<T> From<T> for RefOr<T> {
 builder! {
     ArrayBuilder;
 
-    /// Component represents [`Vec`] or [`slice`] type  of items.
+    /// Array represents [`Vec`] or [`slice`] type  of items.
     ///
-    /// See [`Component::Array`] for more details.
+    /// See [`Schema::Array`] for more details.
     #[non_exhaustive]
     #[derive(Serialize, Deserialize, Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
-        /// Type will always be [`ComponentType::Array`]
+        /// Type will always be [`SchemaType::Array`]
         #[serde(rename = "type")]
         schema_type: SchemaType,
 
-        /// Component representing the array items type.
+        /// Schema representing the array items type.
         pub items: Box<Schema>,
 
         /// Max length of the array.
@@ -783,14 +783,14 @@ impl Default for Array {
 }
 
 impl Array {
-    /// Construct a new [`Array`] component from given [`Component`].
+    /// Construct a new [`Array`] component from given [`Schema`].
     ///
     /// # Examples
     ///
     /// Create a `String` array component.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Component, Array, ComponentType, Property};
-    /// let string_array = Array::new(Property::new(ComponentType::String));
+    /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Property};
+    /// let string_array = Array::new(Property::new(SchemaType::String));
     /// ```
     pub fn new<I: Into<Schema>>(component: I) -> Self {
         Self {
@@ -806,7 +806,7 @@ impl Array {
 }
 
 impl ArrayBuilder {
-    /// Set [`Component`] type for the [`Array`].
+    /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<Schema>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
     }
@@ -849,13 +849,13 @@ where
     }
 }
 
-/// Represents data type of [`Component`].
+/// Represents data type of [`Schema`].
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum SchemaType {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
-    /// _component_type_ [`ComponentType::Object`].
+    /// _schema_type_ [`SchemaType::Object`].
     Object,
     /// Indicates string type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     String,
@@ -876,8 +876,8 @@ impl Default for SchemaType {
     }
 }
 
-/// Additional format for [`ComponentType`] to fine tune the data type used. If the **format** is not
-/// supported by the UI it may default back to [`ComponentType`] alone.
+/// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
+/// supported by the UI it may default back to [`SchemaType`] alone.
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]

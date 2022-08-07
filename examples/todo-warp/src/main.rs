@@ -96,23 +96,23 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{Component, IntoParams};
+    use utoipa::{ToSchema, IntoParams};
     use warp::{hyper::StatusCode, Filter, Reply};
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 
     /// Item to complete.
-    #[derive(Serialize, Deserialize, Component, Clone)]
+    #[derive(Serialize, Deserialize, ToSchema, Clone)]
     pub struct Todo {
         /// Unique database id.
-        #[component(example = 1)]
+        #[schema(example = 1)]
         id: i64,
         /// Description of what need to be done.
-        #[component(example = "Buy movie tickets")]
+        #[schema(example = "Buy movie tickets")]
         value: String,
     }
 
-    #[derive(Debug, Deserialize, Component)]
+    #[derive(Debug, Deserialize, ToSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum Order {
         AscendingId,

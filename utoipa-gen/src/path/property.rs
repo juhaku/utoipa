@@ -16,23 +16,23 @@ impl<'a> Property<'a> {
         Self(type_definition)
     }
 
-    pub fn component_type(&'a self) -> SchemaType<'a> {
+    pub fn schema_type(&'a self) -> SchemaType<'a> {
         SchemaType(&*self.0.ty)
     }
 }
 
 impl ToTokens for Property<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let component_type = self.component_type();
+        let schema_type = self.schema_type();
 
-        if component_type.is_primitive() {
-            let mut component = quote! {
-                utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
+        if schema_type.is_primitive() {
+            let mut schema = quote! {
+                utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
             };
 
-            let format: SchemaFormat = (&*component_type.0).into();
+            let format: SchemaFormat = (&*schema_type.0).into();
             if format.is_known_format() {
-                component.extend(quote! {
+                schema.extend(quote! {
                     .format(Some(#format))
                 })
             }
@@ -40,32 +40,32 @@ impl ToTokens for Property<'_> {
             tokens.extend(if self.0.is_array {
                 quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
-                        .items(#component)
+                        .items(#schema)
                 }
             } else {
-                component
+                schema
             });
         } else {
-            let component_name_path = component_type.0;
+            let schema_name_path = schema_type.0;
 
-            let component = if self.0.is_inline {
-                quote_spanned! { component_name_path.span()=>
-                    <#component_name_path as utoipa::Component>::component()
+            let schema = if self.0.is_inline {
+                quote_spanned! { schema_name_path.span()=>
+                    <#schema_name_path as utoipa::ToSchema>::schema()
                 }
             } else {
-                let name = component::format_path_ref(component_name_path);
+                let name = component::format_path_ref(schema_name_path);
                 quote! {
-                    utoipa::openapi::Ref::from_component_name(#name)
+                    utoipa::openapi::Ref::from_schema_name(#name)
                 }
             };
 
             tokens.extend(if self.0.is_array {
                 quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
-                        .items(#component)
+                        .items(#schema)
                 }
             } else {
-                component
+                schema
             });
         }
     }

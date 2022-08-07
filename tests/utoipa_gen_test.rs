@@ -12,26 +12,26 @@ use utoipa::{
     Modify, OpenApi, ToSchema,
 };
 
-#[derive(Deserialize, Serialize, Component)]
-#[component(example = json!({"name": "bob the cat", "id": 1}))]
+#[derive(Deserialize, Serialize, ToSchema)]
+#[schema(example = json!({"name": "bob the cat", "id": 1}))]
 struct Pet {
     id: u64,
     name: String,
     age: Option<i32>,
 }
 
-// #[derive(Component)]
+// #[derive(ToSchema)]
 // struct Status<StatusType> {
 //     status: StatusType,
 // }
 
-// #[derive(Component)]
+// #[derive(ToSchema)]
 // enum StatusType {
 //     Ok,
 //     NotOk,
 // }
 
-// #[derive(Component)]
+// #[derive(ToSchema)]
 // enum Random {
 //     Response { id: String },
 //     PetResponse(Pet),
@@ -39,7 +39,7 @@ struct Pet {
 //     UnitValue,
 // }
 
-// #[derive(Serialize, Deserialize, Component)]
+// #[derive(Serialize, Deserialize, ToSchema)]
 // struct Simple {
 //     greeting: &'static str,
 //     cow: Cow<'static, str>,
@@ -92,7 +92,7 @@ struct ApiDoc;
 
 macro_rules! build_foo {
     ($typ: ident, $d: ty, $r: ty) => {
-        #[derive(Debug, Serialize, Component)]
+        #[derive(Debug, Serialize, ToSchema)]
         struct $typ {
             data: $d,
             resources: $r,
@@ -100,17 +100,17 @@ macro_rules! build_foo {
     };
 }
 
-#[derive(Deserialize, Serialize, Component)]
+#[derive(Deserialize, Serialize, ToSchema)]
 struct A {
     a: String,
 }
 
-#[derive(Deserialize, Serialize, Component)]
+#[derive(Deserialize, Serialize, ToSchema)]
 struct B {
     b: i64,
 }
 
-#[derive(Deserialize, Serialize, Component)]
+#[derive(Deserialize, Serialize, ToSchema)]
 #[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
 struct C<T, R> {
     field_1: R,

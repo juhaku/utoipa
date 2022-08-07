@@ -76,7 +76,7 @@ use ext::ArgumentResolver;
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`SchemaFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
@@ -86,7 +86,7 @@ use ext::ArgumentResolver;
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`SchemaFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
@@ -177,7 +177,7 @@ use ext::ArgumentResolver;
 /// with `#[aliases(...)]` that it is going to be used with [`std::string::String`] and [`i32`] values.
 /// The generic argument could also be another [`ToSchema`][to_schema] as well.
 /// ```rust
-/// # use utoipa::{Component, OpenApi};
+/// # use utoipa::{ToSchema, OpenApi};
 /// #[derive(ToSchema)]
 /// #[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
 /// struct Status<T> {
@@ -309,7 +309,7 @@ use ext::ArgumentResolver;
 /// ```
 ///
 /// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
-/// with [`ComponentFormat::Binary`][binary].
+/// with [`SchemaFormat::Binary`][binary].
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -361,8 +361,8 @@ use ext::ArgumentResolver;
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
 /// [to_schema]: trait.ToSchema.html
-/// [format]: openapi/schema/enum.ComponentFormat.html
-/// [binary]: openapi/schema/enum.ComponentFormat.html#variant.Binary
+/// [format]: openapi/schema/enum.SchemaFormat.html
+/// [binary]: openapi/schema/enum.SchemaFormat.html#variant.Binary
 /// [xml]: openapi/xml/struct.Xml.html
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
@@ -907,7 +907,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// Define OpenApi schema with some paths and components.
 /// ```rust
-/// # use utoipa::{OpenApi, Component};
+/// # use utoipa::{OpenApi, ToSchema};
 /// #
 /// #[derive(ToSchema)]
 /// struct Pet {
@@ -1084,9 +1084,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// be used as a path query, and inlining a schema query field:
 /// ```rust
 /// use serde::Deserialize;
-/// use utoipa::{IntoParams, Component};
+/// use utoipa::{IntoParams, ToSchema};
 ///
-/// #[derive(Deserialize, Component)]
+/// #[derive(Deserialize, ToSchema)]
 /// #[serde(rename_all = "snake_case")]
 /// enum PetKind {
 ///     Dog,
@@ -1168,7 +1168,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// We can override value with another [`ToSchema`][to_schema].
 /// ```rust
-/// # use utoipa::{IntoParams, Component};
+/// # use utoipa::{IntoParams, ToSchema};
 /// #
 /// #[derive(ToSchema)]
 /// struct Id {

@@ -410,7 +410,7 @@ impl ToTokens for ParamType<'_> {
                 };
 
                 tokens.extend(quote! {
-                    utoipa::openapi::Component::Array(
+                    utoipa::openapi::Schema::Array(
                         utoipa::openapi::ArrayBuilder::new().items(#param_type).build()
                     )
                 });
@@ -457,10 +457,10 @@ impl ToTokens for ParamType<'_> {
                 match component.value_type {
                     ValueType::Primitive => {
                         let type_path = &**component.path.as_ref().unwrap();
-                        let component_type = SchemaType(type_path);
+                        let schema_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
-                            utoipa::openapi::PropertyBuilder::new().component_type(#component_type)
+                            utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
                         });
 
                         let format: SchemaFormat = (type_path).into();
@@ -477,7 +477,7 @@ impl ToTokens for ParamType<'_> {
                             .expect("component should have a path");
                         if inline {
                             tokens.extend(quote_spanned! {component_path.span()=>
-                                <#component_path as utoipa::Component>::component()
+                                <#component_path as utoipa::ToSchema>::schema()
                             })
                         } else if component.is_any() {
                             tokens.extend(quote! {
@@ -492,7 +492,7 @@ impl ToTokens for ParamType<'_> {
                                 .ident
                                 .to_string();
                             tokens.extend(quote! {
-                                utoipa::openapi::Ref::from_component_name(#name)
+                                utoipa::openapi::Ref::from_schema_name(#name)
                             });
                         }
                     }

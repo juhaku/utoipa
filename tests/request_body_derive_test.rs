@@ -9,7 +9,7 @@ macro_rules! test_fn {
     ( module: $name:ident, body: $($body:tt)* ) => {
         #[allow(unused)]
         mod $name {
-            #[derive(utoipa::Component)]
+            #[derive(utoipa::ToSchema)]
             /// Some struct
             pub struct Foo {
                 /// Some name

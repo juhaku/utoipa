@@ -29,7 +29,7 @@ pub struct Content {
     /// A map between a property name and its encoding information.
     ///
     /// The key, being the property name, MUST exist in the [`Content::schema`] as a property, with
-    /// `schema` being a [`Component::Object`] and this object containing the same property key in
+    /// `schema` being a [`Schema::Object`] and this object containing the same property key in
     /// [`Object::properties`](crate::openapi::schema::Object::properties).
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
@@ -86,7 +86,7 @@ impl ContentBuilder {
     /// Add an encoding.
     ///
     /// The `property_name` MUST exist in the [`Content::schema`] as a property,
-    /// with `schema` being a [`Component::Object`] and this object containing the same property
+    /// with `schema` being a [`Schema::Object`] and this object containing the same property
     /// key in [`Object::properties`](crate::openapi::schema::Object::properties).
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is

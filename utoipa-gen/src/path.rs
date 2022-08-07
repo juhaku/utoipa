@@ -576,11 +576,11 @@ trait ContentTypeResolver {
     fn resolve_content_type<'a>(
         &self,
         content_type: Option<&'a String>,
-        component_type: &SchemaType<'a>,
+        schema_type: &SchemaType<'a>,
     ) -> &'a str {
         if let Some(content_type) = content_type {
             content_type
-        } else if component_type.is_primitive() {
+        } else if schema_type.is_primitive() {
             "text/plain"
         } else {
             "application/json"

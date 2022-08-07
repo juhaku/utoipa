@@ -84,7 +84,7 @@ impl ToTokens for Schema<'_> {
                 .collect::<Array<TokenStream>>();
 
             quote! {
-                fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Component)> {
+                fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Schema)> {
                     #alias_schemas.to_vec()
                 }
             }
@@ -417,7 +417,7 @@ impl SimpleEnum<'_> {
                         .property(
                             #tag,
                             utoipa::openapi::schema::PropertyBuilder::new()
-                                .schema_type(utoipa::openapi::ComponentType::String)
+                                .schema_type(utoipa::openapi::SchemaType::String)
                                 .enum_values::<[&str; 1], &str>(Some([#enum_value]))
                         )
                         .required(#tag)
@@ -440,7 +440,7 @@ impl SimpleEnum<'_> {
         let len = enum_values.len();
         quote! {
             utoipa::openapi::PropertyBuilder::new()
-            .schema_type(utoipa::openapi::ComponentType::String)
+            .schema_type(utoipa::openapi::SchemaType::String)
             .enum_values::<[&str; #len], &str>(Some(#enum_values))
         }
     }
@@ -505,7 +505,7 @@ impl ComplexEnum<'_> {
         quote! {
             utoipa::openapi::PropertyBuilder::new()
                 #variant_title
-                .schema_type(utoipa::openapi::ComponentType::String)
+                .schema_type(utoipa::openapi::SchemaType::String)
                 .enum_values::<[&str; 1], &str>(Some([#variant_name]))
         }
     }

@@ -247,7 +247,7 @@ fn derive_path_with_security_requirements() {
 
 #[test]
 fn derive_path_with_parameter_schema() {
-    #[derive(serde::Deserialize, utoipa::derive_to_schema)]
+    #[derive(serde::Deserialize, utoipa::ToSchema)]
     struct Since {
         /// Some date
         #[allow(dead_code)]
@@ -314,7 +314,7 @@ fn derive_path_with_parameter_schema() {
 
 #[test]
 fn derive_path_with_parameter_inline_schema() {
-    #[derive(serde::Deserialize, utoipa::derive_to_schema)]
+    #[derive(serde::Deserialize, utoipa::ToSchema)]
     struct Since {
         /// Some date
         #[allow(dead_code)]
@@ -395,7 +395,7 @@ fn derive_path_with_parameter_inline_schema() {
 
 #[test]
 fn derive_path_params_map() {
-    #[derive(serde::Deserialize, Component)]
+    #[derive(serde::Deserialize, ToSchema)]
     enum Foo {
         Bar,
         Baz,
@@ -467,8 +467,8 @@ fn derive_path_params_map() {
 
 #[test]
 fn derive_path_params_intoparams() {
-    #[derive(serde::Deserialize, Component)]
-    #[component(default = "foo1", example = "foo1")]
+    #[derive(serde::Deserialize, ToSchema)]
+    #[schema(default = "foo1", example = "foo1")]
     #[serde(rename_all = "snake_case")]
     enum Foo {
         Foo1,
@@ -629,7 +629,7 @@ fn derive_path_params_intoparams() {
 fn derive_path_params_into_params_with_value_type() {
     use utoipa::OpenApi;
 
-    #[derive(Component)]
+    #[derive(ToSchema)]
     struct Foo {
         #[allow(unused)]
         value: String,

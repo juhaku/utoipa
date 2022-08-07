@@ -23,7 +23,7 @@ mod info;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiAttr {
     handlers: Punctuated<ExprPath, Comma>,
-    schemas: Punctuated<Component, Comma>,
+    schemas: Punctuated<Schema, Comma>,
     responses: Punctuated<Responses, Comma>,
     modifiers: Punctuated<Modifier, Comma>,
     security: Option<Array<SecurityRequirementAttr>>,
@@ -93,13 +93,13 @@ impl Parse for OpenApiAttr {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Component {
+struct Schema {
     path: ExprPath,
     generics: Generics,
     alias: Option<syn::TypePath>,
 }
 
-impl Component {
+impl Schema {
     fn has_lifetime_generics(&self) -> bool {
         self.generics
             .params
@@ -112,7 +112,7 @@ impl Component {
     }
 }
 
-impl Parse for Component {
+impl Parse for Schema {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let path: ExprPath = input.parse()?;
         let generics: Generics = input.parse()?;
@@ -124,7 +124,7 @@ impl Parse for Component {
             None
         };
 
-        Ok(Component {
+        Ok(Schema {
             path,
             generics,
             alias,
@@ -272,7 +272,7 @@ impl ToTokens for OpenApi {
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
-                    use utoipa::{Component, Path};
+                    use utoipa::{ToSchema, Path};
                     let mut openapi = utoipa::openapi::OpenApiBuilder::new()
                         .info(#info)
                         .paths(#path_items)
@@ -292,7 +292,7 @@ impl ToTokens for OpenApi {
 }
 
 fn impl_components(
-    schemas: &Punctuated<Component, Comma>,
+    schemas: &Punctuated<Schema, Comma>,
     responses: &Punctuated<Responses, Comma>,
 ) -> Option<TokenStream> {
     if !(schemas.is_empty() && responses.is_empty()) {
@@ -317,8 +317,8 @@ fn impl_components(
                 };
 
                 builder_tokens.extend(quote_spanned! { ident.span() =>
-                    .schema(#component_name, <#path #ty_generics as utoipa::Component>::component())
-                    .schemas_from_iter(<#path #ty_generics as utoipa::Component>::aliases())
+                    .schema(#component_name, <#path #ty_generics as utoipa::ToSchema>::schema())
+                    .schemas_from_iter(<#path #ty_generics as utoipa::ToSchema>::aliases())
                 });
 
                 builder_tokens

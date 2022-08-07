@@ -216,7 +216,7 @@ impl Parse for SchemaAttr<Struct> {
 
             match name {
                 "title" => {
-                    parse_utils::parse_next_literal_str(input)?; // Handled by ComponentAttr<Title>
+                    parse_utils::parse_next_literal_str(input)?; // Handled by SchemaAttr<Title>
                 }
                 "example" => {
                     struct_.example = Some(parse_utils::parse_next(input, || {
@@ -257,7 +257,7 @@ impl<'c> Parse for SchemaAttr<UnnamedFieldStruct<'c>> {
 
             match name {
                 "title" => {
-                    parse_utils::parse_next_literal_str(input)?; // Handled by ComponentAttr<Title>
+                    parse_utils::parse_next_literal_str(input)?; // Handled by SchemaAttr<Title>
                 }
                 "default" => {
                     unnamed_struct.default = Some(parse_utils::parse_next(input, || {

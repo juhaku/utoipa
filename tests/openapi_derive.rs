@@ -89,7 +89,7 @@ fn derive_openapi_with_components_in_different_module() {
     mod custom {
         use utoipa::ToSchema;
 
-        #[derive(Component)]
+        #[derive(ToSchema)]
         #[allow(unused)]
         pub(super) struct Todo {
             name: String,

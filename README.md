@@ -105,12 +105,12 @@ Please read the incoming changes from here: https://github.com/juhaku/utoipa/dis
 
 ## Examples
 
-Create a struct or it could be an enum also. Add `Component` derive macro to it so it can be registered
-as a component in OpenApi schema.
+Create a struct or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
+as an an OpenAPI schema.
 ```rust
-use utoipa::Component;
+use utoipa::ToSchema;
 
-#[derive(Component)]
+#[derive(ToSchema)]
 struct Pet {
    id: u64,
    name: String,
@@ -145,12 +145,12 @@ mod pet_api {
 }
 ```
 
-Tie the `Component` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
+Tie the `Schema` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
 ```rust
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
-#[openapi(handlers(pet_api::get_pet_by_id), components(Pet))]
+#[openapi(handlers(pet_api::get_pet_by_id), components(schemas(Pet)))]
 struct ApiDoc;
 
 println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());

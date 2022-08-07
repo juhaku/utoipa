@@ -190,7 +190,7 @@ impl ResponseExt for Response {
     fn json_component_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
-            Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+            Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
         );
         self
     }
@@ -209,7 +209,7 @@ impl ResponseExt for ResponseBuilder {
     fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
             "application/json",
-            Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+            Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
         )
     }
 

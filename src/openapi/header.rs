@@ -34,14 +34,13 @@ impl Header {
     /// Create new [`Header`] with integer type.
     /// ```rust
     /// # use utoipa::openapi::header::Header;
-    /// # use utoipa::openapi::{Property, ComponentType};
-    /// let header = Header::new(Property::new(ComponentType::Integer));
+    /// # use utoipa::openapi::{Property, SchemaType};
+    /// let header = Header::new(Property::new(SchemaType::Integer));
     /// ```
     ///
     /// Create a new [`Header`] with default type `String`
     /// ```rust
     /// # use utoipa::openapi::header::Header;
-    /// # use utoipa::openapi::{Property, ComponentType};
     /// let header = Header::default();
     /// ```
     pub fn new<C: Into<Schema>>(component: C) -> Self {
