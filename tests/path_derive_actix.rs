@@ -640,7 +640,7 @@ fn derive_into_params_with_custom_attributes() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo), components(Sort))]
+    #[openapi(handlers(get_foo), components(schemas(Sort)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
