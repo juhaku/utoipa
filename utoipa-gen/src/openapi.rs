@@ -23,8 +23,7 @@ mod info;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiAttr {
     handlers: Punctuated<ExprPath, Comma>,
-    schemas: Punctuated<Schema, Comma>,
-    responses: Punctuated<Responses, Comma>,
+    components: Components,
     modifiers: Punctuated<Modifier, Comma>,
     security: Option<Array<SecurityRequirementAttr>>,
     tags: Option<Array<Tag>>,
@@ -55,10 +54,7 @@ impl Parse for OpenApiAttr {
                     openapi.handlers = parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
                 "components" => {
-                    openapi.schemas = parse_utils::parse_punctuated_within_parenthesis(input)?;
-                }
-                "responses" => {
-                    openapi.responses = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    openapi.components = input.parse()?;
                 }
                 "modifiers" => {
                     openapi.modifiers = parse_utils::parse_punctuated_within_parenthesis(input)?;
@@ -243,10 +239,14 @@ impl ToTokens for OpenApi {
         let OpenApi(attributes, ident) = self;
 
         let info = info::impl_info();
-        let components =
-            impl_components(&attributes.schemas, &attributes.responses).map(|components| {
-                quote! { .components(Some(#components)) }
-            });
+
+        let components_builder_stream = attributes.components.to_token_stream();
+
+        let components = if !components_builder_stream.to_token_stream().is_empty() {
+            Some(quote! { .components(Some(#components_builder_stream)) })
+        } else {
+            None
+        };
 
         let modifiers = &attributes.modifiers;
         let modifiers_len = modifiers.len();
@@ -279,7 +279,8 @@ impl ToTokens for OpenApi {
                         #components
                         #securities
                         #tags
-                        #external_docs.build();
+                        #external_docs
+                        .build();
 
                     let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
                     _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
@@ -291,12 +292,61 @@ impl ToTokens for OpenApi {
     }
 }
 
-fn impl_components(
-    schemas: &Punctuated<Schema, Comma>,
-    responses: &Punctuated<Responses, Comma>,
-) -> Option<TokenStream> {
-    if !(schemas.is_empty() && responses.is_empty()) {
-        let builder_tokens = schemas.iter().fold(
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Components {
+    schemas: Vec<Schema>,
+    responses: Vec<Responses>,
+}
+
+impl Parse for Components {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut content;
+        parenthesized!(content in input);
+        const EXPECTED_ATTRIBUTE: &str =
+            "unexpected attribute. expected one of: schemas, responses";
+
+        let mut schemas: Vec<Schema> = Vec::new();
+        let mut responses: Vec<Responses> = Vec::new();
+
+        while !content.is_empty() {
+            let ident = content.parse::<Ident>().map_err(|error| {
+                Error::new(error.span(), &format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+            })?;
+            let attribute = &*ident.to_string();
+
+            match attribute {
+                "schemas" => {
+                    let punctuated: Punctuated<Schema, Comma> =
+                        parse_utils::parse_punctuated_within_parenthesis(&mut content)?;
+                    let mut v: Vec<Schema> = punctuated.into_iter().collect();
+                    schemas.append(&mut v)
+                }
+                "responses" => {
+                    let punctuated: Punctuated<Responses, Comma> =
+                        parse_utils::parse_punctuated_within_parenthesis(&mut content)?;
+                    let mut v: Vec<Responses> = punctuated.into_iter().collect();
+                    responses.append(&mut v)
+                }
+                _ => return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
+            }
+
+            if !content.is_empty() {
+                content.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(Self { schemas, responses })
+    }
+}
+
+impl ToTokens for Components {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if self.schemas.is_empty() && self.responses.is_empty() {
+            return;
+        }
+
+        let builder_tokens = self.schemas.iter().fold(
             quote! { utoipa::openapi::ComponentsBuilder::new() },
             |mut builder_tokens, component| {
                 let path = &component.path;
@@ -326,7 +376,7 @@ fn impl_components(
         );
 
         let builder_tokens =
-            responses
+            self.responses
                 .iter()
                 .fold(builder_tokens, |mut builder_tokens, responses| {
                     let path = &responses.path;
@@ -337,10 +387,7 @@ fn impl_components(
                     builder_tokens
                 });
 
-        let components_tokens = quote! { #builder_tokens.build() };
-        Some(components_tokens)
-    } else {
-        None
+        tokens.extend(quote! { #builder_tokens.build() });
     }
 }
 

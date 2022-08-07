@@ -7,10 +7,10 @@ use syn::{
 };
 
 use crate::{
-    schema_type::{SchemaFormat, SchemaType},
     doc_comment::CommentAttributes,
     parse_utils,
     path::parameter::{ParameterExt, ParameterIn, ParameterStyle},
+    schema_type::{SchemaFormat, SchemaType},
     Array, Required,
 };
 

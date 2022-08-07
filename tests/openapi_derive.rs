@@ -97,7 +97,7 @@ fn derive_openapi_with_components_in_different_module() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(components(custom::Todo))]
+    #[openapi(components(schemas(custom::Todo)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -125,7 +125,7 @@ fn derive_openapi_with_responses() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(responses(MyResponse))]
+    #[openapi(components(responses(MyResponse)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();

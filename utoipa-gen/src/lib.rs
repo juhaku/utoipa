@@ -28,12 +28,12 @@ use syn::{
     PathArguments, PathSegment, Token, TypePath,
 };
 
-mod schema_type;
 mod doc_comment;
 mod ext;
 mod openapi;
 mod path;
 mod schema;
+mod schema_type;
 mod security_requirement;
 
 use crate::path::{Path, PathAttr};

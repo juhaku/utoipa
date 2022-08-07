@@ -386,7 +386,7 @@ fn derive_request_body_primitive_ref_path_success() {
     #[derive(OpenApi, Default)]
     #[openapi(
         handlers(derive_request_body_primitive_ref_path::post_foo),
-        components(derive_request_body_primitive_ref_path::Foo as path::to::Foo)
+        components(schemas(derive_request_body_primitive_ref_path::Foo as path::to::Foo))
     )]
     struct ApiDoc;
 

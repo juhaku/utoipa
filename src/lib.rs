@@ -192,7 +192,7 @@
 //! # }
 //! # use utoipa::OpenApi;
 //! #[derive(OpenApi)]
-//! #[openapi(handlers(pet_api::get_pet_by_id), components(Pet))]
+//! #[openapi(handlers(pet_api::get_pet_by_id), components(schemas(Pet)))]
 //! struct ApiDoc;
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());

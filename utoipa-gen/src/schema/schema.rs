@@ -8,8 +8,8 @@ use syn::{
 };
 
 use crate::{
-    schema_type::{SchemaFormat, SchemaType},
     doc_comment::CommentAttributes,
+    schema_type::{SchemaFormat, SchemaType},
     Array, Deprecated,
 };
 

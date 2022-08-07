@@ -41,7 +41,7 @@ macro_rules! api_doc {
 
     ( @doc $name:ident $( $generic:tt )* ) => {{
         #[derive(OpenApi)]
-        #[openapi(components($name$($generic)*))]
+        #[openapi(components(schemas($name$($generic)*)))]
         struct ApiDoc;
 
         let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -1599,7 +1599,7 @@ fn derive_component_with_aliases() {
     struct A;
 
     #[derive(Debug, OpenApi)]
-    #[openapi(components(MyAlias))]
+    #[openapi(components(schemas(MyAlias)))]
     struct ApiDoc;
 
     #[derive(ToSchema)]

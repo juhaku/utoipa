@@ -2,8 +2,8 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::{
-    schema_type::{SchemaFormat, SchemaType},
     schema::schema,
+    schema_type::{SchemaFormat, SchemaType},
     Type,
 };
 

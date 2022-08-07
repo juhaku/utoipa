@@ -6,9 +6,9 @@ use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
-    schema_type::SchemaFormat,
     parse_utils,
     schema::{GenericType, TypeTree},
+    schema_type::SchemaFormat,
     AnyValue,
 };
 
