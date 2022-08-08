@@ -15,7 +15,7 @@ fn rocket() -> Rocket<Build> {
 
     #[derive(OpenApi)]
     #[openapi(
-        handlers(
+        paths(
             todo::get_tasks,
             todo::create_todo,
             todo::mark_done,

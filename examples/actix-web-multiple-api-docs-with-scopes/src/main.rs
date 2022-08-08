@@ -9,11 +9,11 @@ async fn main() -> Result<(), impl Error> {
     env_logger::init();
 
     #[derive(OpenApi)]
-    #[openapi(handlers(api1::hello1))]
+    #[openapi(paths(api1::hello1))]
     struct ApiDoc1;
 
     #[derive(OpenApi)]
-    #[openapi(handlers(api2::hello2))]
+    #[openapi(paths(api2::hello2))]
     struct ApiDoc2;
 
     HttpServer::new(move || {

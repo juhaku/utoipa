@@ -50,7 +50,7 @@
 //! # use utoipa::OpenApi;
 //! # use std::net::Ipv4Addr;
 //! # #[derive(OpenApi)]
-//! # #[openapi(handlers())]
+//! # #[openapi()]
 //! # struct ApiDoc;
 //! HttpServer::new(move || {
 //!         App::new()
@@ -131,7 +131,7 @@ struct SwaggerUiDist;
 /// # use utoipa_swagger_ui::SwaggerUi;
 /// # use utoipa::OpenApi;
 /// # #[derive(OpenApi)]
-/// # #[openapi(handlers())]
+/// # #[openapi()]
 /// # struct ApiDoc;
 /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
 ///     .url("/api-doc/openapi.json", ApiDoc::openapi());
@@ -142,7 +142,7 @@ struct SwaggerUiDist;
 /// # use utoipa_swagger_ui::{SwaggerUi, Config, oauth};
 /// # use utoipa::OpenApi;
 /// # #[derive(OpenApi)]
-/// # #[openapi(handlers())]
+/// # #[openapi()]
 /// # struct ApiDoc;
 /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
 ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
@@ -206,7 +206,7 @@ impl SwaggerUi {
     /// # use utoipa_swagger_ui::SwaggerUi;
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers())]
+    /// # #[openapi()]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-doc/openapi.json", ApiDoc::openapi());
@@ -231,10 +231,10 @@ impl SwaggerUi {
     /// # use utoipa_swagger_ui::{SwaggerUi, Url};
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers())]
+    /// # #[openapi()]
     /// # struct ApiDoc;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers())]
+    /// # #[openapi()]
     /// # struct ApiDoc2;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .urls(
@@ -261,7 +261,7 @@ impl SwaggerUi {
     /// # use utoipa_swagger_ui::{SwaggerUi, oauth};
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers())]
+    /// # #[openapi()]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
@@ -291,7 +291,7 @@ impl SwaggerUi {
     /// # use utoipa_swagger_ui::{SwaggerUi, Config};
     /// # use utoipa::OpenApi;
     /// # #[derive(OpenApi)]
-    /// # #[openapi(handlers())]
+    /// # #[openapi()]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
@@ -543,7 +543,7 @@ pub struct Config<'a> {
     #[serde(skip)]
     oauth: Option<oauth::Config>,
 
-    /// [ layout ] the layout of Swagger UI uses, default is "StandaloneLayout"
+    /// The layout of Swagger UI uses, default is `"StandaloneLayout"`
     layout: &'a str,
 }
 

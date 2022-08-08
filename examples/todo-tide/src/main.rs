@@ -18,7 +18,7 @@ async fn main() -> std::io::Result<()> {
 
     #[derive(OpenApi)]
     #[openapi(
-        handlers(
+        paths(
             todo::list_todos,
             todo::create_todo,
             todo::delete_todo,

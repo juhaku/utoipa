@@ -16,11 +16,11 @@ async fn main() {
     let config = Arc::new(Config::new(["/api-doc1.json", "/api-doc2.json"]));
 
     #[derive(OpenApi)]
-    #[openapi(handlers(api1::hello1))]
+    #[openapi(paths(api1::hello1))]
     struct ApiDoc1;
 
     #[derive(OpenApi)]
-    #[openapi(handlers(api2::hello2))]
+    #[openapi(paths(api2::hello2))]
     struct ApiDoc2;
 
     let api_doc1 = warp::path("api-doc1.json")
@@ -59,7 +59,9 @@ async fn serve_swagger(
     config: Arc<Config<'static>>,
 ) -> Result<Box<dyn Reply + 'static>, Rejection> {
     if full_path.as_str() == "/swagger-ui" {
-        return Ok(Box::new(warp::redirect::found(Uri::from_static("/swagger-ui/"))));
+        return Ok(Box::new(warp::redirect::found(Uri::from_static(
+            "/swagger-ui/",
+        ))));
     }
 
     let path = tail.as_str();

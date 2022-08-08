@@ -30,7 +30,7 @@ async fn main() -> Result<(), impl Error> {
 
     #[derive(OpenApi)]
     #[openapi(
-        handlers(
+        paths(
             todo::get_todos,
             todo::create_todo,
             todo::delete_todo,

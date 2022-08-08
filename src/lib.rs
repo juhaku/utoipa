@@ -192,7 +192,7 @@
 //! # }
 //! # use utoipa::OpenApi;
 //! #[derive(OpenApi)]
-//! #[openapi(handlers(pet_api::get_pet_by_id), components(schemas(Pet)))]
+//! #[openapi(paths(pet_api::get_pet_by_id), components(schemas(Pet)))]
 //! struct ApiDoc;
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
@@ -232,7 +232,7 @@ pub use utoipa_gen::*;
 /// ```rust
 /// use utoipa::OpenApi;
 /// #[derive(OpenApi)]
-/// #[openapi(handlers())]
+/// #[openapi()]
 /// struct OpenApiDoc;
 /// ```
 ///

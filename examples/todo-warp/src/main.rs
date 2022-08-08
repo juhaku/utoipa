@@ -20,7 +20,7 @@ async fn main() {
 
     #[derive(OpenApi)]
     #[openapi(
-        handlers(todo::list_todos, todo::create_todo, todo::delete_todo),
+        paths(todo::list_todos, todo::create_todo, todo::delete_todo),
         components(
             schemas(todo::Todo)
         ),
