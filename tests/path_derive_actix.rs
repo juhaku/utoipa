@@ -39,7 +39,7 @@ mod mod_derive_path_actix {
 #[test]
 fn derive_path_one_value_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_path_actix::get_foo_by_id))]
+    #[openapi(paths(mod_derive_path_actix::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -82,7 +82,7 @@ mod mod_derive_path_unnamed_regex_actix {
 #[test]
 fn derive_path_with_unnamed_regex_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_path_unnamed_regex_actix::get_foo_by_id))]
+    #[openapi(paths(mod_derive_path_unnamed_regex_actix::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -125,7 +125,7 @@ mod mod_derive_path_named_regex_actix {
 #[test]
 fn derive_path_with_named_regex_actix_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_path_named_regex_actix::get_foo_by_id))]
+    #[openapi(paths(mod_derive_path_named_regex_actix::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -164,7 +164,7 @@ fn derive_path_with_multiple_args() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_path_multiple_args::get_foo_by_id))]
+    #[openapi(paths(mod_derive_path_multiple_args::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -212,7 +212,7 @@ fn derive_complex_actix_web_path() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_complex_actix_path::get_foo_by_id))]
+    #[openapi(paths(mod_derive_complex_actix_path::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -254,7 +254,7 @@ fn derive_path_with_multiple_args_with_descriptions() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_path_multiple_args::get_foo_by_id))]
+    #[openapi(paths(mod_derive_path_multiple_args::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -300,7 +300,7 @@ fn derive_path_with_context_path() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -382,7 +382,7 @@ fn path_with_struct_variables_with_into_params() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -450,7 +450,7 @@ fn derive_path_with_struct_variables_with_into_params() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -524,7 +524,7 @@ fn derive_path_with_multiple_instances_same_path_params() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo, delete_foo))]
+    #[openapi(paths(get_foo, delete_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -567,7 +567,7 @@ fn derive_path_with_multiple_into_params_names() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -640,7 +640,7 @@ fn derive_into_params_with_custom_attributes() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo), components(schemas(Sort)))]
+    #[openapi(paths(get_foo), components(schemas(Sort)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -724,7 +724,7 @@ fn derive_into_params_in_another_module() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(foo_todos))]
+    #[openapi(paths(foo_todos))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -761,7 +761,7 @@ macro_rules! test_derive_path_operations {
         #[test]
         fn $name() {
             #[derive(OpenApi, Default)]
-            #[openapi(handlers($mod::test_operation))]
+            #[openapi(paths($mod::test_operation))]
             struct ApiDoc;
 
             let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();

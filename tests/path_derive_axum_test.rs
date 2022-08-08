@@ -47,7 +47,7 @@ fn derive_path_params_into_params_axum() {
     async fn get_person(person: Path<Person>, query: Query<custom::Filter>) {}
 
     #[derive(OpenApi)]
-    #[openapi(handlers(get_person))]
+    #[openapi(paths(get_person))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -117,7 +117,7 @@ fn get_todo_with_extension() {
     fn list_todos(Extension(store): Extension<Arc<Store>>) {}
 
     #[derive(OpenApi)]
-    #[openapi(handlers(list_todos))]
+    #[openapi(paths(list_todos))]
     struct ApiDoc;
 
     serde_json::to_value(ApiDoc::openapi())
@@ -144,7 +144,7 @@ fn derive_path_params_into_params_unnamed() {
     async fn get_person(person: Path<IdAndName>) {}
 
     #[derive(OpenApi)]
-    #[openapi(handlers(get_person))]
+    #[openapi(paths(get_person))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();

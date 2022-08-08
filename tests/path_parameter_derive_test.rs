@@ -28,7 +28,7 @@ mod derive_params_all_options {
 #[test]
 fn derive_path_parameters_with_all_options_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(derive_params_all_options::get_foo_by_id))]
+    #[openapi(paths(derive_params_all_options::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -69,7 +69,7 @@ mod derive_params_minimal {
 #[test]
 fn derive_path_parameters_minimal_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(derive_params_minimal::get_foo_by_id))]
+    #[openapi(paths(derive_params_minimal::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -111,7 +111,7 @@ mod derive_params_multiple {
 #[test]
 fn derive_path_parameter_multiple_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(derive_params_multiple::get_foo_by_id))]
+    #[openapi(paths(derive_params_multiple::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -166,7 +166,7 @@ mod mod_derive_parameters_all_types {
 #[test]
 fn derive_parameters_with_all_types() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(mod_derive_parameters_all_types::get_foo_by_id))]
+    #[openapi(paths(mod_derive_parameters_all_types::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -238,7 +238,7 @@ mod derive_params_without_args {
 #[test]
 fn derive_params_without_fn_args() {
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(derive_params_without_args::get_foo_by_id))]
+    #[openapi(paths(derive_params_without_args::get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -274,7 +274,7 @@ fn derive_params_with_params_ext() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo_by_id))]
+    #[openapi(paths(get_foo_by_id))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();

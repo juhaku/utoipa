@@ -22,7 +22,7 @@ mod info;
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiAttr {
-    handlers: Punctuated<ExprPath, Comma>,
+    paths: Punctuated<ExprPath, Comma>,
     components: Components,
     modifiers: Punctuated<Modifier, Comma>,
     security: Option<Array<SecurityRequirementAttr>>,
@@ -50,8 +50,8 @@ impl Parse for OpenApiAttr {
             let attribute = &*ident.to_string();
 
             match attribute {
-                "handlers" => {
-                    openapi.handlers = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                "paths" => {
+                    openapi.paths = parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
                 "components" => {
                     openapi.components = input.parse()?;
@@ -251,7 +251,7 @@ impl ToTokens for OpenApi {
         let modifiers = &attributes.modifiers;
         let modifiers_len = modifiers.len();
 
-        let path_items = impl_paths(&attributes.handlers);
+        let path_items = impl_paths(&attributes.paths);
 
         let securities = attributes.security.as_ref().map(|securities| {
             quote! {

@@ -22,7 +22,7 @@ fn resolve_route_with_simple_url() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_route_operation::hello))]
+    #[openapi(paths(rocket_route_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -48,7 +48,7 @@ fn resolve_get_with_multiple_args() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -105,7 +105,7 @@ fn resolve_get_with_optional_query_args() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -154,7 +154,7 @@ fn resolve_path_arguments_not_same_order() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -203,7 +203,7 @@ fn resolve_get_path_with_anonymous_parts() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -261,7 +261,7 @@ fn resolve_get_path_with_tail() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -308,7 +308,7 @@ fn resolve_get_path_and_update_params() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -373,7 +373,7 @@ fn resolve_path_query_params_from_form() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(handlers(rocket_get_operation::hello))]
+    #[openapi(paths(rocket_get_operation::hello))]
     struct ApiDoc;
 
     let openapi = ApiDoc::openapi();
@@ -438,7 +438,7 @@ macro_rules! test_derive_path_operations {
                 }
 
                 #[derive(OpenApi)]
-                #[openapi(handlers(rocket_operation::hello))]
+                #[openapi(paths(rocket_operation::hello))]
                 struct ApiDoc;
 
                 let openapi = ApiDoc::openapi();

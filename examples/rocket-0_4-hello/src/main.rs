@@ -11,7 +11,7 @@ use utoipa_swagger_ui::Config;
 
 fn main() {
     #[derive(OpenApi)]
-    #[openapi(handlers(hello))]
+    #[openapi(paths(hello))]
     struct ApiDoc;
 
     rocket::ignite()

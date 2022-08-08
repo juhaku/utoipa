@@ -16,7 +16,7 @@ macro_rules! test_api_fn_doc {
     ( $handler:path, operation: $operation:expr, path: $path:literal ) => {{
         use utoipa::OpenApi;
         #[derive(OpenApi, Default)]
-        #[openapi(handlers($handler))]
+        #[openapi(paths($handler))]
         struct ApiDoc;
 
         let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -73,7 +73,7 @@ macro_rules! test_path_operation {
             paste!{
                 use utoipa::OpenApi;
                 #[derive(OpenApi, Default)]
-                #[openapi(handlers(
+                #[openapi(paths(
                     [<mod_ $name>]::test_operation
                  ))]
                 struct ApiDoc;
@@ -425,7 +425,7 @@ fn derive_path_params_map() {
 
     use utoipa::OpenApi;
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(use_maps))]
+    #[openapi(paths(use_maps))]
     struct ApiDoc;
 
     let operation: Value = test_api_fn_doc! {
@@ -521,7 +521,7 @@ fn derive_path_params_intoparams() {
 
     use utoipa::OpenApi;
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(list))]
+    #[openapi(paths(list))]
     struct ApiDoc;
 
     let operation: Value = test_api_fn_doc! {
@@ -671,7 +671,7 @@ fn derive_path_params_into_params_with_value_type() {
     fn get_foo(query: Filter) {}
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -786,7 +786,7 @@ fn derive_path_params_into_params_with_raw_identifier() {
     fn get_foo(query: Filter) {}
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -829,7 +829,7 @@ fn derive_path_with_into_responses() {
     fn get_foo() {}
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo))]
+    #[openapi(paths(get_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();

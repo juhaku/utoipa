@@ -879,9 +879,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// **Accepted argument attributes:**
 ///
-/// * `handlers(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
-/// * `components(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
-/// * `responses(...)` List of types that implement
+/// * `paths(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
+/// * `components(schemas(...), responses(...))` Takes available _`component`_ configurations. Currently only
+///    _`schema`_ and _`response`_ components are supported.
+///    * `schemas(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
+///    * `responses(...)` List of types that implement
 /// [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
@@ -935,7 +937,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// #[derive(OpenApi)]
 /// #[openapi(
-///     handlers(get_pet, get_status),
+///     paths(get_pet, get_status),
 ///     components(schemas(Pet, Status)),
 ///     security(
 ///         (),

@@ -17,7 +17,7 @@ use crate::todo::Store;
 async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
-        handlers(
+        paths(
             todo::list_todos,
             todo::search_todos,
             todo::create_todo,

@@ -201,7 +201,7 @@ builder! {
         /// List of tags used for groupping operations.
         ///
         /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the default
-        /// value used will be resolved from handler path provided in `#[openapi(handlers(...))]` with
+        /// value used will be resolved from handler path provided in `#[openapi(paths(...))]` with
         /// [`#[derive(OpenApi)]`][derive_openapi] macro. If path resolves to `None` value `crate` will
         /// be used by default.
         ///
