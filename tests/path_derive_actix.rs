@@ -7,9 +7,9 @@ use serde_json::Value;
 use utoipa::{
     openapi::{
         path::{Parameter, ParameterBuilder, ParameterIn},
-        Array, ComponentFormat, PropertyBuilder,
+        Array, PropertyBuilder, SchemaFormat,
     },
-    Component, IntoParams, OpenApi,
+    IntoParams, OpenApi, ToSchema,
 };
 
 mod common;
@@ -329,8 +329,7 @@ fn path_with_struct_variables_with_into_params() {
                 ParameterBuilder::new()
                     .name("name")
                     .schema(Some(
-                        PropertyBuilder::new()
-                            .component_type(utoipa::openapi::ComponentType::String),
+                        PropertyBuilder::new().schema_type(utoipa::openapi::SchemaType::String),
                     ))
                     .parameter_in(ParameterIn::Path)
                     .build(),
@@ -338,8 +337,8 @@ fn path_with_struct_variables_with_into_params() {
                     .name("id")
                     .schema(Some(
                         PropertyBuilder::new()
-                            .component_type(utoipa::openapi::ComponentType::Integer)
-                            .format(Some(ComponentFormat::Int64)),
+                            .schema_type(utoipa::openapi::SchemaType::Integer)
+                            .format(Some(SchemaFormat::Int64)),
                     ))
                     .parameter_in(ParameterIn::Path)
                     .build(),
@@ -360,7 +359,7 @@ fn path_with_struct_variables_with_into_params() {
             vec![ParameterBuilder::new()
                 .name("age")
                 .schema(Some(Array::new(
-                    PropertyBuilder::new().component_type(utoipa::openapi::ComponentType::String),
+                    PropertyBuilder::new().schema_type(utoipa::openapi::SchemaType::String),
                 )))
                 .parameter_in(ParameterIn::Query)
                 .build()]
@@ -492,7 +491,7 @@ fn derive_path_with_multiple_instances_same_path_params() {
     use actix_web::{delete, get, HttpResponse, Responder};
     use serde_json::json;
 
-    #[derive(Deserialize, Serialize, Component, IntoParams)]
+    #[derive(Deserialize, Serialize, ToSchema, IntoParams)]
     #[into_params(names("id"))]
     struct Id(u64);
 
@@ -619,7 +618,7 @@ fn derive_into_params_with_custom_attributes() {
         sort: Sort,
     }
 
-    #[derive(Deserialize, Component)]
+    #[derive(Deserialize, ToSchema)]
     enum Sort {
         Asc,
         Desc,
@@ -641,7 +640,7 @@ fn derive_into_params_with_custom_attributes() {
     }
 
     #[derive(OpenApi, Default)]
-    #[openapi(handlers(get_foo), components(Sort))]
+    #[openapi(handlers(get_foo), components(schemas(Sort)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();

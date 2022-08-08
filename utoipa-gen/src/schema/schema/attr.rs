@@ -6,9 +6,9 @@ use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
-    component_type::ComponentFormat,
     parse_utils,
     schema::{GenericType, TypeTree},
+    schema_type::SchemaFormat,
     AnyValue,
 };
 
@@ -21,14 +21,14 @@ pub(super) trait IsInline {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ComponentAttr<T>
+pub struct SchemaAttr<T>
 where
     T: Sized,
 {
     inner: T,
 }
 
-impl<T> AsRef<T> for ComponentAttr<T>
+impl<T> AsRef<T> for SchemaAttr<T>
 where
     T: Sized,
 {
@@ -37,7 +37,7 @@ where
     }
 }
 
-impl<T> IsInline for ComponentAttr<T>
+impl<T> IsInline for SchemaAttr<T>
 where
     T: IsInline,
 {
@@ -86,7 +86,7 @@ impl IsInline for Struct {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct UnnamedFieldStruct<'c> {
     pub(super) value_type: Option<syn::Type>,
-    format: Option<ComponentFormat<'c>>,
+    format: Option<SchemaFormat<'c>>,
     default: Option<AnyValue>,
     example: Option<AnyValue>,
 }
@@ -102,7 +102,7 @@ impl IsInline for UnnamedFieldStruct<'_> {
 pub struct NamedField<'c> {
     example: Option<AnyValue>,
     pub(super) value_type: Option<syn::Type>,
-    format: Option<ComponentFormat<'c>>,
+    format: Option<SchemaFormat<'c>>,
     default: Option<AnyValue>,
     write_only: Option<bool>,
     read_only: Option<bool>,
@@ -117,7 +117,7 @@ impl IsInline for NamedField<'_> {
     }
 }
 
-impl Parse for ComponentAttr<Title> {
+impl Parse for SchemaAttr<Title> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: title";
         let mut title_attr = Title::default();
@@ -143,7 +143,7 @@ impl Parse for ComponentAttr<Title> {
     }
 }
 
-impl Parse for ComponentAttr<Enum> {
+impl Parse for SchemaAttr<Enum> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: default, example";
@@ -180,9 +180,9 @@ impl Parse for ComponentAttr<Enum> {
     }
 }
 
-impl ComponentAttr<Struct> {
+impl SchemaAttr<Struct> {
     pub(super) fn from_attributes_validated(attributes: &[Attribute]) -> Option<Self> {
-        parse_component_attr::<ComponentAttr<Struct>>(attributes).map(|attrs| {
+        parse_schema_attr::<SchemaAttr<Struct>>(attributes).map(|attrs| {
             if let Some(ref wrapped_ident) = attrs
                 .as_ref()
                 .xml_attr
@@ -199,7 +199,7 @@ impl ComponentAttr<Struct> {
     }
 }
 
-impl Parse for ComponentAttr<Struct> {
+impl Parse for SchemaAttr<Struct> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: title, example, xml";
@@ -216,7 +216,7 @@ impl Parse for ComponentAttr<Struct> {
 
             match name {
                 "title" => {
-                    parse_utils::parse_next_literal_str(input)?; // Handled by ComponentAttr<Title>
+                    parse_utils::parse_next_literal_str(input)?; // Handled by SchemaAttr<Title>
                 }
                 "example" => {
                     struct_.example = Some(parse_utils::parse_next(input, || {
@@ -240,7 +240,7 @@ impl Parse for ComponentAttr<Struct> {
     }
 }
 
-impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
+impl<'c> Parse for SchemaAttr<UnnamedFieldStruct<'c>> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: title, default, example, format, value_type";
@@ -257,7 +257,7 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
 
             match name {
                 "title" => {
-                    parse_utils::parse_next_literal_str(input)?; // Handled by ComponentAttr<Title>
+                    parse_utils::parse_next_literal_str(input)?; // Handled by SchemaAttr<Title>
                 }
                 "default" => {
                     unnamed_struct.default = Some(parse_utils::parse_next(input, || {
@@ -271,7 +271,7 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
                 }
                 "format" => {
                     unnamed_struct.format = Some(parse_utils::parse_next(input, || {
-                        input.parse::<ComponentFormat<'c>>()
+                        input.parse::<SchemaFormat<'c>>()
                     })?)
                 }
                 "value_type" => {
@@ -293,12 +293,12 @@ impl<'c> Parse for ComponentAttr<UnnamedFieldStruct<'c>> {
     }
 }
 
-impl<'c> ComponentAttr<NamedField<'c>> {
+impl<'c> SchemaAttr<NamedField<'c>> {
     pub(super) fn from_attributes_validated(
         attributes: &[Attribute],
         component_part: &TypeTree,
     ) -> Option<Self> {
-        parse_component_attr::<ComponentAttr<NamedField>>(attributes)
+        parse_schema_attr::<SchemaAttr<NamedField>>(attributes)
             .map(|attrs| {
                 is_valid_xml_attr(&attrs, component_part);
 
@@ -328,7 +328,7 @@ impl<'c> ComponentAttr<NamedField<'c>> {
 }
 
 #[inline]
-fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &TypeTree) {
+fn is_valid_xml_attr(attrs: &SchemaAttr<NamedField>, component_part: &TypeTree) {
     if !matches!(
         component_part.generic_type,
         Some(crate::schema::GenericType::Vec)
@@ -346,7 +346,7 @@ fn is_valid_xml_attr(attrs: &ComponentAttr<NamedField>, component_part: &TypeTre
     }
 }
 
-impl<'c> Parse for ComponentAttr<NamedField<'c>> {
+impl<'c> Parse for SchemaAttr<NamedField<'c>> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml, value_type, inline";
         let mut field = NamedField::default();
@@ -368,7 +368,7 @@ impl<'c> Parse for ComponentAttr<NamedField<'c>> {
                 }
                 "format" => {
                     field.format = Some(parse_utils::parse_next(input, || {
-                        input.parse::<ComponentFormat>()
+                        input.parse::<SchemaFormat>()
                     })?)
                 }
                 "default" => {
@@ -401,14 +401,14 @@ impl<'c> Parse for ComponentAttr<NamedField<'c>> {
     }
 }
 
-pub fn parse_component_attr<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
+pub fn parse_schema_attr<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.get_ident().unwrap() == "component")
+        .find(|attribute| attribute.path.get_ident().unwrap() == "schema")
         .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
 }
 
-impl<T> ToTokens for ComponentAttr<T>
+impl<T> ToTokens for SchemaAttr<T>
 where
     T: quote::ToTokens,
 {

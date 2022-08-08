@@ -16,7 +16,7 @@ use crate::ToResponse;
 
 macro_rules! component_from_builder {
     ( $name:ident ) => {
-        impl From<$name> for Component {
+        impl From<$name> for Schema {
             fn from(builder: $name) -> Self {
                 builder.build().into()
             }
@@ -49,7 +49,7 @@ builder! {
         ///
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub schemas: BTreeMap<String, Component>,
+        pub schemas: BTreeMap<String, RefOr<Schema>>,
 
         /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
         /// Reference][reference]s to [OpenAPI Response Object][response]s.
@@ -112,43 +112,45 @@ impl Components {
 }
 
 impl ComponentsBuilder {
-    /// Add [`Component`] to [`Components`].
+    /// Add [`Schema`] to [`Components`].
     ///
     /// Accpets two arguments where first is name of the schema and second is the schema itself.
-    pub fn schema<S: Into<String>, I: Into<Component>>(mut self, name: S, component: I) -> Self {
-        self.schemas.insert(name.into(), component.into());
+    pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+        self.schemas.insert(name.into(), schema.into());
 
         self
     }
 
-    /// Add [`Component`]s from iterator.
+    /// Add [`Schema`]s from iterator.
     ///
     /// # Examples
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
-    /// #    PropertyBuilder, ComponentType};
+    /// #    PropertyBuilder, SchemaType, Schema};
     /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
-    ///     ObjectBuilder::new()
-    ///         .property(
-    ///             "name",
-    ///             PropertyBuilder::new().component_type(ComponentType::String),
-    ///         )
-    ///         .required("name"),
+    ///     Schema::from(
+    ///         ObjectBuilder::new()
+    ///             .property(
+    ///                 "name",
+    ///                 PropertyBuilder::new().schema_type(SchemaType::String),
+    ///             )
+    ///             .required("name")
+    ///     ),
     /// )]);
     /// ```
     pub fn schemas_from_iter<
         I: IntoIterator<Item = (S, C)>,
-        C: Into<Component>,
+        C: Into<RefOr<Schema>>,
         S: Into<String>,
     >(
         mut self,
-        components: I,
+        schemas: I,
     ) -> Self {
         self.schemas.extend(
-            components
+            schemas
                 .into_iter()
-                .map(|(name, component)| (name.into(), component.into())),
+                .map(|(name, schema)| (name.into(), schema.into())),
         );
 
         self
@@ -203,41 +205,40 @@ impl ComponentsBuilder {
     }
 }
 
-/// Is super type for [OpenAPI Schema Object][components] components. Component
-/// is reusable resource what can be referenced from path operations and other
-/// components using [`Ref`] component.
+/// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
+/// referenced from path operations and other components using [`Ref`] component.
 ///
-/// [components]: https://spec.openapis.org/oas/latest.html#components-object
+/// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
-pub enum Component {
+pub enum Schema {
     /// Defines object component. This is formed from structs holding [`Property`] components
     /// created from it's fields.
     Object(Object),
     /// Defines property component typically used together with
-    /// [`Component::Object`] or [`Component::Array`]. It is used to map
+    /// [`Schema::Object`] or [`Schema::Array`]. It is used to map
     /// field types to OpenAPI documentation.
     Property(Property),
-    /// Creates a reference component _`$ref=#/components/schemas/ComponentName`_. Which
+    /// Creates a reference component _`$ref=#/components/schemas/SchemaName`_. Which
     /// can be used to reference a other reusable component in [`Components`].
     Ref(Ref),
     /// Defines array component from another component. Typically used with
-    /// [`Component::Property`] or [`Component::Object`] component. Slice and Vec
-    /// types are translated to [`Component::Array`] types.
+    /// [`Schema::Property`] or [`Schema::Object`] component. Slice and Vec
+    /// types are translated to [`Schema::Array`] types.
     Array(Array),
     /// Creates a _OneOf_ type [Discriminator Object][discriminator] component. This component
     /// is used to map multiple components together where API endpoint could return any of them.
-    /// [`Component::OneOf`] is created form complex enum where enum holds other than unit types.
+    /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
 }
 
-impl Default for Component {
+impl Default for Schema {
     fn default() -> Self {
-        Component::Object(Object::default())
+        Schema::Object(Object::default())
     }
 }
 
@@ -247,7 +248,7 @@ builder! {
     /// OneOf [Discriminator Object][discriminator] component holds
     /// multiple components together where API endpoint could return any of them.
     ///
-    /// See [`Component::OneOf`] for more details.
+    /// See [`Schema::OneOf`] for more details.
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
     #[derive(Serialize, Deserialize, Clone, Default)]
@@ -255,7 +256,7 @@ builder! {
     pub struct OneOf {
         /// Components of _OneOf_ component.
         #[serde(rename = "oneOf")]
-        pub items: Vec<Component>,
+        pub items: Vec<Schema>,
 
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
@@ -291,10 +292,10 @@ impl OneOf {
 }
 
 impl OneOfBuilder {
-    /// Adds a given [`Component`] to [`OneOf`] [Discriminator Object][discriminator]
+    /// Adds a given [`Schema`] to [`OneOf`] [Discriminator Object][discriminator]
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
-    pub fn item<I: Into<Component>>(mut self, component: I) -> Self {
+    pub fn item<I: Into<Schema>>(mut self, component: I) -> Self {
         self.items.push(component.into());
 
         self
@@ -308,7 +309,7 @@ impl OneOfBuilder {
     to_array_builder!();
 }
 
-impl From<OneOf> for Component {
+impl From<OneOf> for Schema {
     fn from(one_of: OneOf) -> Self {
         Self::OneOf(one_of)
     }
@@ -324,17 +325,17 @@ component_from_builder!(OneOfBuilder);
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Property {
-    /// Type of the property e.g [`ComponentType::String`].
+    /// Type of the property e.g [`SchemaType::String`].
     #[serde(rename = "type")]
-    pub component_type: ComponentType,
+    pub schema_type: SchemaType,
 
     /// Changes the [`Property`] title.
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
 
-    /// Additional format for detailing the component type.
+    /// Additional format for detailing the schema type.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<ComponentFormat>,
+    pub format: Option<SchemaFormat>,
 
     /// Description of the property. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -382,15 +383,15 @@ pub struct Property {
 }
 
 impl Property {
-    pub fn new(component_type: ComponentType) -> Self {
+    pub fn new(schema_type: SchemaType) -> Self {
         Self {
-            component_type,
+            schema_type,
             ..Default::default()
         }
     }
 }
 
-impl From<Property> for Component {
+impl From<Property> for Schema {
     fn from(property: Property) -> Self {
         Self::Property(property)
     }
@@ -401,11 +402,11 @@ impl ToArray for Property {}
 /// Builder for [`Property`] with chainable configuration methods to create a new [`Property`].
 #[derive(Default)]
 pub struct PropertyBuilder {
-    component_type: ComponentType,
+    schema_type: SchemaType,
 
     title: Option<String>,
 
-    format: Option<ComponentFormat>,
+    format: Option<SchemaFormat>,
 
     description: Option<String>,
 
@@ -433,14 +434,14 @@ pub struct PropertyBuilder {
 }
 
 from!(Property PropertyBuilder
-    component_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+    schema_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 
 impl PropertyBuilder {
     new!(pub PropertyBuilder);
 
-    /// Add or change type of the property e.g [`ComponentType::String`].
-    pub fn component_type(mut self, component_type: ComponentType) -> Self {
-        set_value!(self component_type component_type)
+    /// Add or change type of the property e.g [`SchemaType::String`].
+    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
+        set_value!(self schema_type schema_type)
     }
 
     /// Add or change the title of the [`Property`].
@@ -449,7 +450,7 @@ impl PropertyBuilder {
     }
 
     /// Add or change additional format for detailing the component type.
-    pub fn format(mut self, format: Option<ComponentFormat>) -> Self {
+    pub fn format(mut self, format: Option<SchemaFormat>) -> Self {
         set_value!(self format format)
     }
 
@@ -514,13 +515,13 @@ impl PropertyBuilder {
     to_array_builder!();
 
     build_fn!(pub Property
-        component_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
+        schema_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
 }
 
 component_from_builder!(PropertyBuilder);
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
-/// adding other [`Component`]s as **properties** to this [`Component`].
+/// adding other [`Schema`]s as **properties** to this [`Schema`].
 ///
 /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
@@ -528,9 +529,9 @@ component_from_builder!(PropertyBuilder);
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
-    /// Data type of [`Object`]. Will always be [`ComponentType::Object`]
+    /// Data type of [`Object`]. Will always be [`SchemaType::Object`]
     #[serde(rename = "type")]
-    component_type: ComponentType,
+    schema_type: SchemaType,
 
     /// Changes the [`Object`] title.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -540,13 +541,13 @@ pub struct Object {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub required: Vec<String>,
 
-    /// Map of fields with their [`Component`] types.
+    /// Map of fields with their [`Schema`] types.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub properties: BTreeMap<String, Component>,
+    pub properties: BTreeMap<String, Schema>,
 
-    /// Additional [`Component`] for non specified fields (Useful for typed maps).
+    /// Additional [`Schema`] for non specified fields (Useful for typed maps).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_properties: Option<Box<Component>>,
+    pub additional_properties: Option<Box<Schema>>,
 
     /// Description of the [`Object`]. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -579,7 +580,7 @@ impl Object {
     }
 }
 
-impl From<Object> for Component {
+impl From<Object> for Schema {
     fn from(s: Object) -> Self {
         Self::Object(s)
     }
@@ -590,15 +591,15 @@ impl ToArray for Object {}
 /// Builder for [`Object`] with chainable configuration methods to create a new [`Object`].
 #[derive(Default)]
 pub struct ObjectBuilder {
-    component_type: ComponentType,
+    schema_type: SchemaType,
 
     title: Option<String>,
 
     required: Vec<String>,
 
-    properties: BTreeMap<String, Component>,
+    properties: BTreeMap<String, Schema>,
 
-    additional_properties: Option<Box<Component>>,
+    additional_properties: Option<Box<Schema>>,
 
     description: Option<String>,
 
@@ -619,7 +620,7 @@ impl ObjectBuilder {
     /// Add new property to the [`Object`].
     ///
     /// Method accepts property name and property component as an arguments.
-    pub fn property<S: Into<String>, I: Into<Component>>(
+    pub fn property<S: Into<String>, I: Into<Schema>>(
         mut self,
         property_name: S,
         component: I,
@@ -630,7 +631,7 @@ impl ObjectBuilder {
         self
     }
 
-    pub fn additional_properties<I: Into<Component>>(
+    pub fn additional_properties<I: Into<Schema>>(
         mut self,
         additional_properties: Option<I>,
     ) -> Self {
@@ -678,10 +679,10 @@ impl ObjectBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Object component_type, title, required, properties, description, deprecated, example, xml, additional_properties);
+    build_fn!(pub Object schema_type, title, required, properties, description, deprecated, example, xml, additional_properties);
 }
 
-from!(Object ObjectBuilder component_type, title, required, properties, description, deprecated, example, xml, additional_properties);
+from!(Object ObjectBuilder schema_type, title, required, properties, description, deprecated, example, xml, additional_properties);
 component_from_builder!(ObjectBuilder);
 
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
@@ -699,17 +700,17 @@ pub struct Ref {
 
 impl Ref {
     /// Construct a new [`Ref`] with custom ref location. In most cases this is not necessary
-    /// and [`Ref::from_component_name`] could be used instead.
+    /// and [`Ref::from_schema_name`] could be used instead.
     pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
             ref_location: ref_location.into(),
         }
     }
 
-    /// Construct a new [`Ref`] from provided component name. This will create a [`Ref`] that
+    /// Construct a new [`Ref`] from provided schema name. This will create a [`Ref`] that
     /// references the the reusable schemas.
-    pub fn from_component_name<I: Into<String>>(component_name: I) -> Self {
-        Self::new(&format!("#/components/schemas/{}", component_name.into()))
+    pub fn from_schema_name<I: Into<String>>(schema_name: I) -> Self {
+        Self::new(&format!("#/components/schemas/{}", schema_name.into()))
     }
 
     /// Construct a new [`Ref`] from provided response name. This will create a [`Ref`] that
@@ -721,7 +722,7 @@ impl Ref {
     to_array_builder!();
 }
 
-impl From<Ref> for Component {
+impl From<Ref> for Schema {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
     }
@@ -746,20 +747,20 @@ impl<T> From<T> for RefOr<T> {
 builder! {
     ArrayBuilder;
 
-    /// Component represents [`Vec`] or [`slice`] type  of items.
+    /// Array represents [`Vec`] or [`slice`] type  of items.
     ///
-    /// See [`Component::Array`] for more details.
+    /// See [`Schema::Array`] for more details.
     #[non_exhaustive]
     #[derive(Serialize, Deserialize, Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
-        /// Type will always be [`ComponentType::Array`]
+        /// Type will always be [`SchemaType::Array`]
         #[serde(rename = "type")]
-        component_type: ComponentType,
+        schema_type: SchemaType,
 
-        /// Component representing the array items type.
-        pub items: Box<Component>,
+        /// Schema representing the array items type.
+        pub items: Box<Schema>,
 
         /// Max length of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -778,7 +779,7 @@ builder! {
 impl Default for Array {
     fn default() -> Self {
         Self {
-            component_type: ComponentType::Array,
+            schema_type: SchemaType::Array,
             items: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
@@ -788,16 +789,16 @@ impl Default for Array {
 }
 
 impl Array {
-    /// Construct a new [`Array`] component from given [`Component`].
+    /// Construct a new [`Array`] component from given [`Schema`].
     ///
     /// # Examples
     ///
     /// Create a `String` array component.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Component, Array, ComponentType, Property};
-    /// let string_array = Array::new(Property::new(ComponentType::String));
+    /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Property};
+    /// let string_array = Array::new(Property::new(SchemaType::String));
     /// ```
-    pub fn new<I: Into<Component>>(component: I) -> Self {
+    pub fn new<I: Into<Schema>>(component: I) -> Self {
         Self {
             items: Box::new(component.into()),
             ..Default::default()
@@ -811,8 +812,8 @@ impl Array {
 }
 
 impl ArrayBuilder {
-    /// Set [`Component`] type for the [`Array`].
-    pub fn items<I: Into<Component>>(mut self, component: I) -> Self {
+    /// Set [`Schema`] type for the [`Array`].
+    pub fn items<I: Into<Schema>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
     }
 
@@ -836,7 +837,7 @@ impl ArrayBuilder {
 
 component_from_builder!(ArrayBuilder);
 
-impl From<Array> for Component {
+impl From<Array> for Schema {
     fn from(array: Array) -> Self {
         Self::Array(array)
     }
@@ -846,7 +847,7 @@ impl ToArray for Array {}
 
 pub trait ToArray
 where
-    Component: From<Self>,
+    Schema: From<Self>,
     Self: Sized,
 {
     fn to_array(self) -> Array {
@@ -854,13 +855,13 @@ where
     }
 }
 
-/// Represents data type of [`Component`].
+/// Represents data type of [`Schema`].
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
-pub enum ComponentType {
+pub enum SchemaType {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
-    /// _component_type_ [`ComponentType::Object`].
+    /// _schema_type_ [`SchemaType::Object`].
     Object,
     /// Indicates string type of content. Typically used with [`Property`] and [`PropertyBuilder`].
     String,
@@ -875,18 +876,18 @@ pub enum ComponentType {
     Array,
 }
 
-impl Default for ComponentType {
+impl Default for SchemaType {
     fn default() -> Self {
         Self::Object
     }
 }
 
-/// Additional format for [`ComponentType`] to fine tune the data type used. If the **format** is not
-/// supported by the UI it may default back to [`ComponentType`] alone.
+/// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
+/// supported by the UI it may default back to [`SchemaType`] alone.
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
-pub enum ComponentFormat {
+pub enum SchemaFormat {
     /// 32 bit integer.
     Int32,
     /// 64 bit integer.
@@ -929,42 +930,44 @@ mod tests {
             .paths(Paths::new())
             .components(Some(
                 ComponentsBuilder::new()
-                    .schema("Person", Ref::new("#/components/PersonModel"))
+                    .schema("Person", RefOr::Ref(Ref::new("#/components/PersonModel")))
                     .schema(
                         "Credential",
-                        ObjectBuilder::new()
-                            .property(
-                                "id",
-                                PropertyBuilder::new()
-                                    .component_type(ComponentType::Integer)
-                                    .format(Some(ComponentFormat::Int32))
-                                    .description(Some("Id of credential"))
-                                    .default(Some(json!(1i32))),
-                            )
-                            .property(
-                                "name",
-                                PropertyBuilder::new()
-                                    .component_type(ComponentType::String)
-                                    .description(Some("Name of credential")),
-                            )
-                            .property(
-                                "status",
-                                PropertyBuilder::new()
-                                    .component_type(ComponentType::String)
-                                    .default(Some(json!("Active")))
-                                    .description(Some("Credential status"))
-                                    .enum_values(Some([
-                                        "Active",
-                                        "NotActive",
-                                        "Locked",
-                                        "Expired",
-                                    ])),
-                            )
-                            .property(
-                                "history",
-                                Array::new(Ref::from_component_name("UpdateHistory")),
-                            )
-                            .property("tags", Property::new(ComponentType::String).to_array()),
+                        Schema::from(
+                            ObjectBuilder::new()
+                                .property(
+                                    "id",
+                                    PropertyBuilder::new()
+                                        .schema_type(SchemaType::Integer)
+                                        .format(Some(SchemaFormat::Int32))
+                                        .description(Some("Id of credential"))
+                                        .default(Some(json!(1i32))),
+                                )
+                                .property(
+                                    "name",
+                                    PropertyBuilder::new()
+                                        .schema_type(SchemaType::String)
+                                        .description(Some("Name of credential")),
+                                )
+                                .property(
+                                    "status",
+                                    PropertyBuilder::new()
+                                        .schema_type(SchemaType::String)
+                                        .default(Some(json!("Active")))
+                                        .description(Some("Credential status"))
+                                        .enum_values(Some([
+                                            "Active",
+                                            "NotActive",
+                                            "Locked",
+                                            "Expired",
+                                        ])),
+                                )
+                                .property(
+                                    "history",
+                                    Array::new(Ref::from_schema_name("UpdateHistory")),
+                                )
+                                .property("tags", Property::new(SchemaType::String).to_array()),
+                        ),
                     )
                     .build(),
             ))
@@ -1038,9 +1041,7 @@ mod tests {
     #[test]
     fn test_additional_properties() {
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(
-                PropertyBuilder::new().component_type(ComponentType::String),
-            ))
+            .additional_properties(Some(PropertyBuilder::new().schema_type(SchemaType::String)))
             .build();
         assert_json_eq!(
             json_value,
@@ -1053,7 +1054,7 @@ mod tests {
         );
 
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(Ref::from_component_name("ComplexModel")))
+            .additional_properties(Some(Ref::from_schema_name("ComplexModel")))
             .build();
         assert_json_eq!(
             json_value,
@@ -1105,14 +1106,14 @@ mod tests {
             ObjectBuilder::new().property(
                 "id",
                 PropertyBuilder::new()
-                    .component_type(ComponentType::Integer)
-                    .format(Some(ComponentFormat::Int32))
+                    .schema_type(SchemaType::Integer)
+                    .format(Some(SchemaFormat::Int32))
                     .description(Some("Id of credential"))
                     .default(Some(json!(1i32))),
             ),
         );
 
-        assert!(matches!(array.component_type, ComponentType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Array));
     }
 
     #[test]
@@ -1122,15 +1123,15 @@ mod tests {
                 ObjectBuilder::new().property(
                     "id",
                     PropertyBuilder::new()
-                        .component_type(ComponentType::Integer)
-                        .format(Some(ComponentFormat::Int32))
+                        .schema_type(SchemaType::Integer)
+                        .format(Some(SchemaFormat::Int32))
                         .description(Some("Id of credential"))
                         .default(Some(json!(1i32))),
                 ),
             )
             .build();
 
-        assert!(matches!(array.component_type, ComponentType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Array));
     }
 
     #[test]
@@ -1138,12 +1139,14 @@ mod tests {
         let components = ComponentsBuilder::new()
             .schemas_from_iter(vec![(
                 "Comp",
-                ObjectBuilder::new()
-                    .property(
-                        "name",
-                        PropertyBuilder::new().component_type(ComponentType::String),
-                    )
-                    .required("name"),
+                Schema::from(
+                    ObjectBuilder::new()
+                        .property(
+                            "name",
+                            PropertyBuilder::new().schema_type(SchemaType::String),
+                        )
+                        .required("name"),
+                ),
             )])
             .responses_from_iter(vec![(
                 "200",
@@ -1168,7 +1171,7 @@ mod tests {
         let prop = ObjectBuilder::new()
             .property(
                 "name",
-                PropertyBuilder::new().component_type(ComponentType::String),
+                PropertyBuilder::new().schema_type(SchemaType::String),
             )
             .required("name")
             .build();
@@ -1186,7 +1189,7 @@ mod tests {
     #[test]
     fn reserialize_deserialized_property() {
         let prop = PropertyBuilder::new()
-            .component_type(ComponentType::String)
+            .schema_type(SchemaType::String)
             .build();
 
         let serialized_components = serde_json::to_string(&prop).unwrap();

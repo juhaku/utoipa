@@ -9,7 +9,7 @@ macro_rules! test_fn {
     ( module: $name:ident, body: $($body:tt)* ) => {
         #[allow(unused)]
         mod $name {
-            #[derive(utoipa::Component)]
+            #[derive(utoipa::ToSchema)]
             /// Some struct
             pub struct Foo {
                 /// Some name
@@ -386,7 +386,7 @@ fn derive_request_body_primitive_ref_path_success() {
     #[derive(OpenApi, Default)]
     #[openapi(
         handlers(derive_request_body_primitive_ref_path::post_foo),
-        components(derive_request_body_primitive_ref_path::Foo as path::to::Foo)
+        components(schemas(derive_request_body_primitive_ref_path::Foo as path::to::Foo))
     )]
     struct ApiDoc;
 

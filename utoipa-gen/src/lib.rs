@@ -10,7 +10,7 @@
 use std::{borrow::Cow, mem, ops::Deref};
 
 use doc_comment::CommentAttributes;
-use schema::component::Component;
+use schema::schema::Schema;
 
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
@@ -28,12 +28,12 @@ use syn::{
     PathArguments, PathSegment, Token, TypePath,
 };
 
-mod component_type;
 mod doc_comment;
 mod ext;
 mod openapi;
 mod path;
 mod schema;
+mod schema_type;
 mod security_requirement;
 
 use crate::path::{Path, PathAttr};
@@ -46,10 +46,11 @@ use crate::path::{Path, PathAttr};
 use ext::ArgumentResolver;
 
 #[proc_macro_error]
-#[proc_macro_derive(Component, attributes(component, aliases))]
-/// Component derive macro.
+#[proc_macro_derive(ToSchema, attributes(schema, aliases))]
+/// ToSchema derive macro.
 ///
-/// This is `#[derive]` implementation for [`Component`][c] trait. The macro accepts one `component`
+/// This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
+/// `schema`
 /// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
 /// at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
 /// not have any effect.
@@ -61,40 +62,40 @@ use ext::ArgumentResolver;
 /// OpenAPI. OpenAPI has only a boolean flag to determine deprecation. While it is totally okay to declare deprecated with reason
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
-/// # Struct Optional Configuration Options for `#[component(...)]`
+/// # Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be either _`json!(...)`_ or literal string that can be parsed to json. _`json!`_
 ///   should be something that _`serde_json::json!`_ can parse as a _`serde_json::Value`_. [^json]
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 ///  
 /// [^json]: **json** feature need to be enabled for _`json!(...)`_ type to work.
 ///
-/// # Enum Optional Configuration Options for `#[component(...)]`
+/// # Enum Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 ///
-/// # Unnamed Field Struct Optional Configuration Options for `#[component(...)]`
+/// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`SchemaFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not [`Component`][c]s nor [`primitive` types][primitive].
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
 ///
-/// # Named Fields Optional Configuration Options for `#[component(...)]`
+/// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` Any variant of a [`ComponentFormat`][format] to use for the property. By default the format is derived from
+/// * `format = ...` Any variant of a [`SchemaFormat`][format] to use for the property. By default the format is derived from
 ///   the type of the property according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not [`Component`][c]s nor [`primitive` types][primitive].
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
-/// * `inline` If the type of this field implements [`Component`][c], then the schema definition
+/// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
@@ -112,7 +113,7 @@ use ext::ArgumentResolver;
 ///
 /// # Partial `#[serde(...)]` attributes support
 ///
-/// Component derive has partial support for [serde attributes](https://serde.rs/attributes.html). These supported attributes will reflect to the
+/// ToSchema derive has partial support for [serde attributes](https://serde.rs/attributes.html). These supported attributes will reflect to the
 /// generated OpenAPI doc. For example if _`#[serde(skip)]`_ is defined the attribute will not show up in the OpenAPI spec at all since it will not never
 /// be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
 ///
@@ -129,11 +130,11 @@ use ext::ArgumentResolver;
 ///
 /// ```rust
 /// # use serde::Serialize;
-/// # use utoipa::Component;
-/// #[derive(Serialize, Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(Serialize, ToSchema)]
 /// struct Foo(String);
 ///
-/// #[derive(Serialize, Component)]
+/// #[derive(Serialize, ToSchema)]
 /// #[serde(rename_all = "camelCase")]
 /// enum Bar {
 ///     UnitValue,
@@ -152,11 +153,11 @@ use ext::ArgumentResolver;
 /// Add custom `tag` to change JSON representation to be internally tagged.
 /// ```rust
 /// # use serde::Serialize;
-/// # use utoipa::Component;
-/// #[derive(Serialize, Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(Serialize, ToSchema)]
 /// struct Foo(String);
 ///
-/// #[derive(Serialize, Component)]
+/// #[derive(Serialize, ToSchema)]
 /// #[serde(tag = "tag")]
 /// enum Bar {
 ///     UnitValue,
@@ -167,17 +168,17 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// # Generic components with aliases
+/// # Generic schemas with aliases
 ///
-/// Components can also be generic which allows reusing types. This enables certain behaviour patters
+/// Schemas can also be generic which allows reusing types. This enables certain behaviour patters
 /// where super type delcares common code for type aliases.
 ///
 /// In this example we have common `Status` type which accepts one generic type. It is then defined
 /// with `#[aliases(...)]` that it is going to be used with [`std::string::String`] and [`i32`] values.
-/// The generic argument could also be another [`Component`][c] as well.
+/// The generic argument could also be another [`ToSchema`][to_schema] as well.
 /// ```rust
-/// # use utoipa::{Component, OpenApi};
-/// #[derive(Component)]
+/// # use utoipa::{ToSchema, OpenApi};
+/// #[derive(ToSchema)]
 /// #[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
 /// struct Status<T> {
 ///     value: T
@@ -185,7 +186,7 @@ use ext::ArgumentResolver;
 ///
 /// #[derive(OpenApi)]
 /// #[openapi(
-///     components(StatusMessage, StatusNumber)
+///     components(schemas(StatusMessage, StatusNumber))
 /// )]
 /// struct ApiDoc;
 /// ```
@@ -200,9 +201,9 @@ use ext::ArgumentResolver;
 ///
 /// Example struct with struct level example.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
-/// #[component(example = json!({"name": "bob the cat", "id": 0}))]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
+/// #[schema(example = json!({"name": "bob the cat", "id": 0}))]
 /// struct Pet {
 ///     id: u64,
 ///     name: String,
@@ -210,12 +211,12 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// The `component` attribute can also be placed at field level as follows.
+/// The `schema` attribute can also be placed at field level as follows.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// struct Pet {
-///     #[component(example = 1, default = 0)]
+///     #[schema(example = 1, default = 0)]
 ///     id: u64,
 ///     name: String,
 ///     age: Option<i32>,
@@ -224,12 +225,12 @@ use ext::ArgumentResolver;
 ///
 /// You can also use method reference for attribute values.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// struct Pet {
-///     #[component(example = u64::default, default = u64::default)]
+///     #[schema(example = u64::default, default = u64::default)]
 ///     id: u64,
-///     #[component(default = default_name)]
+///     #[schema(default = default_name)]
 ///     name: String,
 ///     age: Option<i32>,
 /// }
@@ -239,11 +240,11 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// For enums and unnamed field structs you can define `component` at type level.
+/// For enums and unnamed field structs you can define `schema` at type level.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
-/// #[component(example = "Bus")]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
+/// #[schema(example = "Bus")]
 /// enum VehicleType {
 ///     Rocket, Car, Bus, Submarine
 /// }
@@ -251,14 +252,14 @@ use ext::ArgumentResolver;
 ///
 /// Also you write complex enum combining all above types.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// enum ErrorResponse {
 ///     InvalidCredentials,
-///     #[component(default = String::default, example = "Pet not found")]
+///     #[schema(default = String::default, example = "Pet not found")]
 ///     NotFound(String),
 ///     System {
-///         #[component(example = "Unknown system failure")]
+///         #[schema(example = "Unknown system failure")]
 ///         details: String,
 ///     }
 /// }
@@ -266,37 +267,37 @@ use ext::ArgumentResolver;
 ///
 /// It is possible to specify the title of each variant to help generators create named structures.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// enum ErrorResponse {
-///     #[component(title = "InvalidCredentials")]
+///     #[schema(title = "InvalidCredentials")]
 ///     InvalidCredentials,
-///     #[component(title = "NotFound")]
+///     #[schema(title = "NotFound")]
 ///     NotFound(String),
 /// }
 /// ```
 ///
 /// Use `xml` attribute to manipulate xml output.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
-/// #[component(xml(name = "user", prefix = "u", namespace = "https://user.xml.schema.test"))]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
+/// #[schema(xml(name = "user", prefix = "u", namespace = "https://user.xml.schema.test"))]
 /// struct User {
-///     #[component(xml(attribute, prefix = "u"))]
+///     #[schema(xml(attribute, prefix = "u"))]
 ///     id: i64,
-///     #[component(xml(name = "user_name", prefix = "u"))]
+///     #[schema(xml(name = "user_name", prefix = "u"))]
 ///     username: String,
-///     #[component(xml(wrapped(name = "linkList"), name = "link"))]
+///     #[schema(xml(wrapped(name = "linkList"), name = "link"))]
 ///     links: Vec<String>,
-///     #[component(xml(wrapped, name = "photo_url"))]
+///     #[schema(xml(wrapped, name = "photo_url"))]
 ///     photos_urls: Vec<String>
 /// }
 /// ```
 ///
 /// Use of Rust's own `#[deprecated]` attribute will reflect to generated OpenAPI spec.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// #[deprecated]
 /// struct User {
 ///     id: i64,
@@ -308,64 +309,64 @@ use ext::ArgumentResolver;
 /// ```
 ///
 /// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
-/// with [`ComponentFormat::Binary`][binary].
+/// with [`SchemaFormat::Binary`][binary].
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
 /// struct Post {
 ///     id: i32,
-///     #[component(value_type = String, format = Binary)]
+///     #[schema(value_type = String, format = Binary)]
 ///     value: Vec<u8>,
 /// }
 /// ```
 ///
 /// Enforce type being used in OpenAPI spec to [`String`] with `value_type` option.
 /// ```rust
-/// # use utoipa::Component;
-/// #[derive(Component)]
-/// #[component(value_type = String)]
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema)]
+/// #[schema(value_type = String)]
 /// struct Value(i64);
 /// ```
 ///
 /// Override the `Bar` reference with a `custom::NewBar` reference.
 /// ```rust
-/// # use utoipa::Component;
+/// # use utoipa::ToSchema;
 /// #  mod custom {
 /// #      struct NewBar;
 /// #  }
 /// #
 /// # struct Bar;
-/// #[derive(Component)]
+/// #[derive(ToSchema)]
 /// struct Value {
-///     #[component(value_type = custom::NewBar)]
+///     #[schema(value_type = custom::NewBar)]
 ///     field: Bar,
 /// };
 /// ```
 ///
 /// Use a virtual `Any` type to render generic `object` in OpenAPI spec.
 /// ```rust
-/// # use utoipa::Component;
+/// # use utoipa::ToSchema;
 /// # mod custom {
 /// #    struct NewBar;
 /// # }
 /// #
 /// # struct Bar;
-/// #[derive(Component)]
+/// #[derive(ToSchema)]
 /// struct Value {
-///     #[component(value_type = Any)]
+///     #[schema(value_type = Any)]
 ///     field: Bar,
 /// };
 /// ```
 ///
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
-/// [c]: trait.Component.html
-/// [format]: openapi/schema/enum.ComponentFormat.html
-/// [binary]: openapi/schema/enum.ComponentFormat.html#variant.Binary
+/// [to_schema]: trait.ToSchema.html
+/// [format]: openapi/schema/enum.SchemaFormat.html
+/// [binary]: openapi/schema/enum.SchemaFormat.html#variant.Binary
 /// [xml]: openapi/xml/struct.Xml.html
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
-pub fn derive_component(input: TokenStream) -> TokenStream {
+pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
@@ -374,9 +375,9 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    let component = Component::new(&data, &attrs, &ident, &generics, &vis);
+    let schema = Schema::new(&data, &attrs, &ident, &generics, &vis);
 
-    component.to_token_stream().into()
+    schema.to_token_stream().into()
 }
 
 #[proc_macro_error]
@@ -416,8 +417,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// # Request Body Attributes
 ///
 /// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`Component`][component],
-///   it can also be  wrapped in `inline(...)` in order to inline the component schema definition.
+///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`ToSchema`][to_schema],
+///   it can also be  wrapped in `inline(...)` in order to inline the schema definition.
 ///   E.g. _`inline(Pet)`_.
 /// * `description = "..."` Define the description for the request body object as str.
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
@@ -442,8 +443,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 /// * `status = ...` Is valid http status code. E.g. _`200`_
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`Component`][component],
-///   it can also be wrapped in `inline(...)` in order to inline the component schema definition. E.g. _`inline(Pet)`_.
+///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`ToSchema`][to_schema],
+///   it can also be wrapped in `inline(...)` in order to inline the schema definition. E.g. _`inline(Pet)`_.
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
@@ -515,8 +516,8 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
 /// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
-///   option `Option<Type>`. Where the type implments [`Component`][component], it can also be wrapped in `inline(MyComponent)`
-///   in order to inline the component schema definition.
+///   option `Option<Type>`. Where the type implments [`ToSchema`][to_schema], it can also be wrapped in `inline(MySchema)`
+///   in order to inline the schema definition.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -794,7 +795,7 @@ pub fn derive_component(input: TokenStream) -> TokenStream {
 ///
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
-/// [component]: trait.Component.html
+/// [to_schema]: trait.ToSchema.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
 /// [security_schema]: openapi/security/struct.SecuritySchema.html
@@ -879,7 +880,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// **Accepted argument attributes:**
 ///
 /// * `handlers(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
-/// * `components(...)` List of [`Component`][component]s in OpenAPI schema.
+/// * `components(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
 /// * `responses(...)` List of types that implement
 /// [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
@@ -906,15 +907,15 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// Define OpenApi schema with some paths and components.
 /// ```rust
-/// # use utoipa::{OpenApi, Component};
+/// # use utoipa::{OpenApi, ToSchema};
 /// #
-/// #[derive(Component)]
+/// #[derive(ToSchema)]
 /// struct Pet {
 ///     name: String,
 ///     age: i32,
 /// }
 ///
-/// #[derive(Component)]
+/// #[derive(ToSchema)]
 /// enum Status {
 ///     Active, InActive, Locked,
 /// }
@@ -935,7 +936,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// #[derive(OpenApi)]
 /// #[openapi(
 ///     handlers(get_pet, get_status),
-///     components(Pet, Status),
+///     components(schemas(Pet, Status)),
 ///     security(
 ///         (),
 ///         ("my_auth" = ["read:items", "edit:items"]),
@@ -952,7 +953,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// [openapi]: trait.OpenApi.html
 /// [openapi_struct]: openapi/struct.OpenApi.html
-/// [component]: derive.Component.html
+/// [to_schema]: derive.ToSchema.html
 /// [path]: attr.path.html
 /// [modify]: trait.Modify.html
 /// [info]: openapi/info/struct.Info.html
@@ -1015,11 +1016,11 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   will override any example in underlying parameter type.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not [`Component`][component]s nor [`primitive` types][primitive].
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
 ///    _`Any`_ will be rendered as generic OpenAPI object.
-/// * `inline` If set, the schema for this field's type needs to be a [`Component`][component], and
-///   the component schema definition will be inlined.
+/// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
+///   the schema definition will be inlined.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -1080,12 +1081,12 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
-/// be used as a path query, and inlining a component query field:
+/// be used as a path query, and inlining a schema query field:
 /// ```rust
 /// use serde::Deserialize;
-/// use utoipa::{IntoParams, Component};
+/// use utoipa::{IntoParams, ToSchema};
 ///
-/// #[derive(Deserialize, Component)]
+/// #[derive(Deserialize, ToSchema)]
 /// #[serde(rename_all = "snake_case")]
 /// enum PetKind {
 ///     Dog,
@@ -1165,11 +1166,11 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// We can override value with another [`Component`][component].
+/// We can override value with another [`ToSchema`][to_schema].
 /// ```rust
-/// # use utoipa::{IntoParams, Component};
+/// # use utoipa::{IntoParams, ToSchema};
 /// #
-/// #[derive(Component)]
+/// #[derive(ToSchema)]
 /// struct Id {
 ///     value: i64,
 /// }
@@ -1182,7 +1183,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// [component]: trait.Component.html
+/// [to_schema]: trait.ToSchema.html
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html

@@ -66,7 +66,7 @@ impl RequestBodyBuilder {
 /// ```
 ///
 /// Once enabled, with a single method call we can add [`Content`] to our RequestBodyBuilder
-/// that references a [`crate::Component`] schema using content-tpe "application/json":
+/// that references a [`crate::ToSchema`] schema using content-tpe "application/json":
 ///
 /// ```rust
 /// use utoipa::openapi::request_body::{RequestBodyBuilder, RequestBodyExt};
@@ -100,7 +100,7 @@ impl RequestBodyExt for RequestBody {
     fn json_component_ref(mut self, ref_name: &str) -> RequestBody {
         self.content.insert(
             "application/json".to_string(),
-            crate::openapi::Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+            crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
         );
         self
     }
@@ -111,7 +111,7 @@ impl RequestBodyExt for RequestBodyBuilder {
     fn json_component_ref(self, ref_name: &str) -> RequestBodyBuilder {
         self.content(
             "application/json",
-            crate::openapi::Content::new(crate::openapi::Ref::from_component_name(ref_name)),
+            crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
         )
     }
 }
@@ -139,7 +139,7 @@ mod tests {
             .required(Some(Required::True))
             .content(
                 "application/json",
-                Content::new(crate::openapi::Ref::from_component_name("EmailPayload")),
+                Content::new(crate::openapi::Ref::from_schema_name("EmailPayload")),
             )
             .build();
         let serialized = serde_json::to_string_pretty(&request_body)?;

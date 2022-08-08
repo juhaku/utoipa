@@ -7,14 +7,14 @@ use chrono::{Date, DateTime, Duration, Utc};
 
 use serde::Serialize;
 use serde_json::{json, Value};
-use utoipa::{Component, OpenApi};
+use utoipa::{OpenApi, ToSchema};
 
 mod common;
 
 macro_rules! api_doc {
     ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt ) => {{
         #[allow(dead_code)]
-        #[derive(Component)]
+        #[derive(ToSchema)]
         $(#[$attr])*
         $key $name $body
 
@@ -23,7 +23,7 @@ macro_rules! api_doc {
 
     ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt; ) => {{
         #[allow(dead_code)]
-        #[derive(Component)]
+        #[derive(ToSchema)]
         $(#[$attr])*
         $key $name $body;
 
@@ -32,7 +32,7 @@ macro_rules! api_doc {
 
     ( $( #[$attr:meta] )* $key:ident $name:ident< $($life:lifetime)? $($generic:ident)? > $body:tt ) => {{
         #[allow(dead_code)]
-        #[derive(Component)]
+        #[derive(ToSchema)]
         $(#[$attr])*
         $key $name<$($life)? $($generic)?> $body
 
@@ -41,7 +41,7 @@ macro_rules! api_doc {
 
     ( @doc $name:ident $( $generic:tt )* ) => {{
         #[derive(OpenApi)]
-        #[openapi(components($name$($generic)*))]
+        #[openapi(components(schemas($name$($generic)*)))]
         struct ApiDoc;
 
         let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -67,7 +67,7 @@ fn derive_map_type() {
 
 #[test]
 fn derive_map_ref() {
-    #[derive(Component)]
+    #[derive(ToSchema)]
     enum Foo {}
 
     let map = api_doc! {
@@ -84,7 +84,7 @@ fn derive_map_ref() {
 #[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
-        #[component(default = "Mode1", example = "Mode2")]
+        #[schema(default = "Mode1", example = "Mode2")]
         enum Mode {
             Mode1, Mode2
         }
@@ -120,7 +120,7 @@ fn derive_enum_with_defaults_success() {
 #[test]
 fn derive_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
-        #[component(default = mode_custom_default_fn)]
+        #[schema(default = mode_custom_default_fn)]
         enum Mode {
             Mode1,
             Mode2
@@ -162,9 +162,9 @@ fn derive_struct_with_defaults_success() {
 fn derive_struct_with_custom_properties_success() {
     let book = api_doc! {
         struct Book {
-            #[component(default = String::default)]
+            #[schema(default = String::default)]
             name: String,
-            #[component(
+            #[schema(
                 default = "testhash",
                 example = "base64 text",
                 format = Byte,
@@ -190,7 +190,7 @@ fn derive_struct_with_optional_properties_success() {
     struct Book;
     let owner = api_doc! {
         struct Owner {
-            #[component(default = 1)]
+            #[schema(default = 1)]
             id: u64,
             enabled: Option<bool>,
             books: Option<Vec<Book>>,
@@ -379,7 +379,7 @@ fn derive_struct_nested_vec_success() {
 #[test]
 fn derive_struct_with_example() {
     let pet = api_doc! {
-        #[component(example = json!({"name": "bob the cat", "age": 8}))]
+        #[schema(example = json!({"name": "bob the cat", "age": 8}))]
         struct Pet {
             name: String,
             age: i32
@@ -419,7 +419,7 @@ fn derive_unnamed_struct_deprecated_success() {
     #[allow(deprecated)]
     let pet_age = api_doc! {
         #[deprecated]
-        #[component(example = 8)]
+        #[schema(example = 8)]
         struct PetAge(u64);
     };
 
@@ -432,7 +432,7 @@ fn derive_unnamed_struct_deprecated_success() {
 #[test]
 fn derive_unnamed_struct_example_json_array_success() {
     let pet_age = api_doc! {
-        #[component(example = "0", default = u64::default)]
+        #[schema(example = "0", default = u64::default)]
         struct PetAge(u64, u64);
     };
 
@@ -537,7 +537,7 @@ fn derive_with_box_and_refcell() {
 
 #[test]
 fn derive_struct_with_inline() {
-    #[derive(utoipa::Component)]
+    #[derive(utoipa::ToSchema)]
     #[allow(unused)]
     struct Foo {
         name: &'static str,
@@ -545,13 +545,13 @@ fn derive_struct_with_inline() {
 
     let greeting = api_doc! {
         struct Greeting {
-            #[component(inline)]
+            #[schema(inline)]
             foo1: Foo,
-            #[component(inline)]
+            #[schema(inline)]
             foo2: Option<Foo>,
-            #[component(inline)]
+            #[schema(inline)]
             foo3: Option<Box<Foo>>,
-            #[component(inline)]
+            #[schema(inline)]
             foo4: Vec<Foo>,
         }
     };
@@ -807,13 +807,13 @@ fn derive_complex_enum_title() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
         enum Bar {
-            #[component(title = "Unit")]
+            #[schema(title = "Unit")]
             UnitValue,
-            #[component(title = "Named")]
+            #[schema(title = "Named")]
             NamedFields {
                 id: &'static str,
             },
-            #[component(title = "Unnamed")]
+            #[schema(title = "Unnamed")]
             UnnamedFields(Foo),
         }
     };
@@ -1065,9 +1065,9 @@ fn derive_complex_enum_serde_tag_title() {
         #[derive(Serialize)]
         #[serde(tag = "tag")]
         enum Bar {
-            #[component(title = "Unit")]
+            #[schema(title = "Unit")]
             UnitValue,
-            #[component(title = "Named")]
+            #[schema(title = "Named")]
             NamedFields {
                 id: &'static str,
             },
@@ -1121,9 +1121,9 @@ fn derive_complex_enum_serde_tag_title() {
 fn derive_struct_with_read_only_and_write_only() {
     let user = api_doc! {
         struct User {
-            #[component(read_only)]
+            #[schema(read_only)]
             username: String,
-            #[component(write_only)]
+            #[schema(write_only)]
             password: String
         }
     };
@@ -1141,15 +1141,15 @@ fn derive_struct_with_read_only_and_write_only() {
 #[test]
 fn derive_struct_xml() {
     let user = api_doc! {
-        #[component(xml(name = "user", prefix = "u", namespace = "https://mynamespace.test"))]
+        #[schema(xml(name = "user", prefix = "u", namespace = "https://mynamespace.test"))]
         struct User {
-            #[component(xml(attribute, prefix = "u"))]
+            #[schema(xml(attribute, prefix = "u"))]
             id: i64,
-            #[component(xml(name = "user_name", prefix = "u"))]
+            #[schema(xml(name = "user_name", prefix = "u"))]
             username: String,
-            #[component(xml(wrapped(name = "linkList"), name = "link"))]
+            #[schema(xml(wrapped(name = "linkList"), name = "link"))]
             links: Vec<String>,
-            #[component(xml(wrapped, name = "photo_url"))]
+            #[schema(xml(wrapped, name = "photo_url"))]
             photos_urls: Vec<String>
         }
     };
@@ -1294,7 +1294,7 @@ fn derive_struct_component_field_type_override() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String)]
+            #[schema(value_type = String)]
             value: i64,
         }
     };
@@ -1312,7 +1312,7 @@ fn derive_struct_component_field_type_path_override() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = path::to::Foo)]
+            #[schema(value_type = path::to::Foo)]
             value: i64,
         }
     };
@@ -1330,7 +1330,7 @@ fn derive_struct_component_field_type_override_with_format() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String, format = Byte)]
+            #[schema(value_type = String, format = Byte)]
             value: i64,
         }
     };
@@ -1348,7 +1348,7 @@ fn derive_struct_component_field_type_override_with_format_with_vec() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = String, format = Binary)]
+            #[schema(value_type = String, format = Binary)]
             value: Vec<u8>,
         }
     };
@@ -1362,9 +1362,9 @@ fn derive_struct_component_field_type_override_with_format_with_vec() {
 }
 
 #[test]
-fn derive_unnamed_struct_component_type_override() {
+fn derive_unnamed_struct_schema_type_override() {
     let value = api_doc! {
-        #[component(value_type = String)]
+        #[schema(value_type = String)]
         struct Value(i64);
     };
 
@@ -1375,9 +1375,9 @@ fn derive_unnamed_struct_component_type_override() {
 }
 
 #[test]
-fn derive_unnamed_struct_component_type_override_with_format() {
+fn derive_unnamed_struct_schema_type_override_with_format() {
     let value = api_doc! {
-        #[component(value_type = String, format = Byte)]
+        #[schema(value_type = String, format = Byte)]
         struct Value(i64);
     };
 
@@ -1391,7 +1391,7 @@ fn derive_unnamed_struct_component_type_override_with_format() {
 fn derive_struct_override_type_with_any_type() {
     let value = api_doc! {
         struct Value {
-            #[component(value_type = Any)]
+            #[schema(value_type = Any)]
             field: String,
         }
     };
@@ -1419,7 +1419,7 @@ fn derive_struct_override_type_with_a_reference() {
 
     let value = api_doc! {
         struct Value {
-            #[component(value_type = NewBar)]
+            #[schema(value_type = NewBar)]
             field: String,
         }
     };
@@ -1466,7 +1466,7 @@ fn derive_struct_with_rust_decimal_with_type_override() {
     let post = api_doc! {
         struct Post {
             id: i32,
-            #[component(value_type = f64)]
+            #[schema(value_type = f64)]
             rating: Decimal,
         }
     };
@@ -1599,10 +1599,10 @@ fn derive_component_with_aliases() {
     struct A;
 
     #[derive(Debug, OpenApi)]
-    #[openapi(components(MyAlias))]
+    #[openapi(components(schemas(MyAlias)))]
     struct ApiDoc;
 
-    #[derive(Component)]
+    #[derive(ToSchema)]
     #[aliases(MyAlias = Bar<A>)]
     struct Bar<R> {
         #[allow(dead_code)]
@@ -1620,7 +1620,7 @@ fn derive_component_with_aliases() {
 
 #[test]
 fn derive_component_with_into_params_value_type() {
-    #[derive(Component)]
+    #[derive(ToSchema)]
     struct Foo {
         #[allow(unused)]
         value: String,
@@ -1629,21 +1629,21 @@ fn derive_component_with_into_params_value_type() {
     let doc = api_doc! {
         #[allow(unused)]
         struct Random {
-            #[component(value_type = i64)]
+            #[schema(value_type = i64)]
             id: String,
-            #[component(value_type = Any)]
+            #[schema(value_type = Any)]
             another_id: String,
-            #[component(value_type = Vec<Vec<String>>)]
+            #[schema(value_type = Vec<Vec<String>>)]
             value1: Vec<i64>,
-            #[component(value_type = Vec<String>)]
+            #[schema(value_type = Vec<String>)]
             value2: Vec<i64>,
-            #[component(value_type = Option<String>)]
+            #[schema(value_type = Option<String>)]
             value3: i64,
-            #[component(value_type = Option<Any>)]
+            #[schema(value_type = Option<Any>)]
             value4: i64,
-            #[component(value_type = Vec<Any>)]
+            #[schema(value_type = Vec<Any>)]
             value5: i64,
-            #[component(value_type = Vec<Foo>)]
+            #[schema(value_type = Vec<Foo>)]
             value6: i64,
         }
     };
@@ -1708,7 +1708,7 @@ fn derive_component_with_into_params_value_type() {
 
 #[test]
 fn derive_component_with_complex_enum_lifetimes() {
-    #[derive(Component)]
+    #[derive(ToSchema)]
     struct Foo<'foo> {
         #[allow(unused)]
         field: &'foo str,

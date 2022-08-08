@@ -140,7 +140,7 @@ impl ToTokens for ResponseValue<'_> {
                     })
                 })
             } else {
-                let default_type = self.resolve_content_type(None, &property.component_type());
+                let default_type = self.resolve_content_type(None, &property.schema_type());
                 tokens.extend(quote! {
                     .content(#default_type, #content.build())
                 });

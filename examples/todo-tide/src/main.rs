@@ -89,23 +89,23 @@ mod todo {
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use tide::{Request, Response};
-    use utoipa::Component;
+    use utoipa::ToSchema;
 
     /// Item to complete
-    #[derive(Serialize, Deserialize, Component, Clone)]
+    #[derive(Serialize, Deserialize, ToSchema, Clone)]
     pub(super) struct Todo {
         /// Unique database id for `Todo`
-        #[component(example = 1)]
+        #[schema(example = 1)]
         id: i32,
         /// Description of task to complete
-        #[component(example = "Buy coffee")]
+        #[schema(example = "Buy coffee")]
         value: String,
         /// Indicates whether task is done or not
         done: bool,
     }
 
     /// Error that might occur when managing `Todo` items
-    #[derive(Serialize, Deserialize, Component)]
+    #[derive(Serialize, Deserialize, ToSchema)]
     pub(super) enum TodoError {
         /// Happens when Todo item alredy exists
         Config(String),

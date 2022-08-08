@@ -74,31 +74,31 @@ mod todo {
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::{Component, IntoParams};
+    use utoipa::{ToSchema, IntoParams};
 
     /// In-memonry todo store
     pub(super) type Store = Mutex<Vec<Todo>>;
 
     /// Item to do.
-    #[derive(Serialize, Deserialize, Component, Clone)]
+    #[derive(Serialize, Deserialize, ToSchema, Clone)]
     pub(super) struct Todo {
         id: i32,
-        #[component(example = "Buy groceries")]
+        #[schema(example = "Buy groceries")]
         value: String,
         done: bool,
     }
 
     /// Todo operation errors
-    #[derive(Serialize, Deserialize, Component)]
+    #[derive(Serialize, Deserialize, ToSchema)]
     pub(super) enum TodoError {
         /// Todo already exists conflict.
-        #[component(example = "Todo already exists")]
+        #[schema(example = "Todo already exists")]
         Conflict(String),
         /// Todo not found by id.
-        #[component(example = "id = 1")]
+        #[schema(example = "id = 1")]
         NotFound(String),
         /// Todo operation unauthorized
-        #[component(example = "missing api key")]
+        #[schema(example = "missing api key")]
         Unauthorized(String),
     }
 

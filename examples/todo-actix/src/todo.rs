@@ -6,7 +6,7 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use serde::{Deserialize, Serialize};
-use utoipa::{Component, IntoParams};
+use utoipa::{ToSchema, IntoParams};
 
 use crate::{LogApiKey, RequireApiKey};
 
@@ -29,30 +29,30 @@ pub(super) fn configure(store: Data<TodoStore>) -> impl FnOnce(&mut ServiceConfi
 }
 
 /// Task to do.
-#[derive(Serialize, Deserialize, Component, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub(super) struct Todo {
     /// Unique id for the todo item.
-    #[component(example = 1)]
+    #[schema(example = 1)]
     id: i32,
     /// Description of the taks to do.
-    #[component(example = "Remember to buy groceries")]
+    #[schema(example = "Remember to buy groceries")]
     value: String,
     /// Mark is the task done or not
     checked: bool,
 }
 
 /// Request to update existing `Todo` item.
-#[derive(Serialize, Deserialize, Component, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub(super) struct TodoUpdateRequest {
     /// Optional new value for the `Todo` task.
-    #[component(example = "Dentist at 14.00")]
+    #[schema(example = "Dentist at 14.00")]
     value: Option<String>,
     /// Optional check status to mark is the task done or not.
     checked: Option<bool>,
 }
 
 /// Todo endpoint error responses
-#[derive(Serialize, Deserialize, Clone, Component)]
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub(super) enum ErrorResponse {
     /// When Todo is not found by search term.
     NotFound(String),

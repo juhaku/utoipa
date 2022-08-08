@@ -2,12 +2,12 @@
 
 use std::{print, println};
 
-use utoipa::Component;
+use utoipa::ToSchema;
 
 #[test]
 fn derive_component_with_string_example_compiles_success() {
-    #[derive(Component)]
-    #[component(example = r#"{"foo": "bar"}"#)]
+    #[derive(ToSchema)]
+    #[schema(example = r#"{"foo": "bar"}"#)]
     struct Foo {
         bar: String,
     }
@@ -15,9 +15,9 @@ fn derive_component_with_string_example_compiles_success() {
 
 #[test]
 fn derive_component_with_string_example_attributes_compiles_success() {
-    #[derive(Component)]
+    #[derive(ToSchema)]
     struct Foo {
-        #[component(example = r#""bar""#, default = r#""foobar""#)]
+        #[schema(example = r#""bar""#, default = r#""foobar""#)]
         bar: String,
     }
 }

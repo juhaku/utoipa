@@ -6,8 +6,8 @@ use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::{parenthesized, parse::Parse, Token};
 
-use crate::{component_type::ComponentType, security_requirement::SecurityRequirementAttr, Array};
 use crate::{parse_utils, Deprecated};
+use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
 
 use self::response::Response;
 use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
@@ -576,11 +576,11 @@ trait ContentTypeResolver {
     fn resolve_content_type<'a>(
         &self,
         content_type: Option<&'a String>,
-        component_type: &ComponentType<'a>,
+        schema_type: &SchemaType<'a>,
     ) -> &'a str {
         if let Some(content_type) = content_type {
             content_type
-        } else if component_type.is_primitive() {
+        } else if schema_type.is_primitive() {
             "text/plain"
         } else {
             "application/json"

@@ -4,11 +4,11 @@ use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
 use syn::{Attribute, GenericArgument, PathArguments, PathSegment, Type, TypePath};
 
-use crate::{component_type::ComponentType, Deprecated};
+use crate::{schema_type::SchemaType, Deprecated};
 
 pub mod into_params;
 
-pub mod component;
+pub mod schema;
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
@@ -23,7 +23,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 }
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
-/// `Component`, `Parameter` or `FnArg`
+/// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, TypePath>>,
@@ -78,16 +78,13 @@ impl<'t> TypeTree<'t> {
             if last_segment.arguments.is_empty() {
                 Self::convert(Cow::Borrowed(path), last_segment)
             } else {
-                Self::resolve_component_type(Cow::Borrowed(path), last_segment)
+                Self::resolve_schema_type(Cow::Borrowed(path), last_segment)
             }
         })
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_component_type(
-        path: Cow<'t, TypePath>,
-        last_segment: &'t PathSegment,
-    ) -> TypeTree<'t> {
+    fn resolve_schema_type(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
         if last_segment.arguments.is_empty() {
             abort!(
                 last_segment.ident,
@@ -95,7 +92,7 @@ impl<'t> TypeTree<'t> {
             );
         };
 
-        let mut generic_component_type = Self::convert(path, last_segment);
+        let mut generic_schema_type = Self::convert(path, last_segment);
 
         let mut generic_types = match &last_segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed_args) => {
@@ -128,16 +125,16 @@ impl<'t> TypeTree<'t> {
             ),
         };
 
-        generic_component_type.children = generic_types
+        generic_schema_type.children = generic_types
             .as_mut()
             .map(|generic_type| generic_type.map(Self::from_type).collect());
 
-        generic_component_type
+        generic_schema_type
     }
 
     fn convert(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
-        let is_primitive = ComponentType(&*path).is_primitive();
+        let is_primitive = SchemaType(&*path).is_primitive();
 
         Self {
             path: Some(path),

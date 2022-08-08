@@ -10,9 +10,8 @@ pub use self::{
     path::{PathItem, PathItemType, Paths, PathsBuilder},
     response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
-        Array, ArrayBuilder, Component, ComponentFormat, ComponentType, Components,
-        ComponentsBuilder, Object, ObjectBuilder, OneOf, OneOfBuilder, Property, PropertyBuilder,
-        Ref, ToArray,
+        Array, ArrayBuilder, Components, ComponentsBuilder, Object, ObjectBuilder, OneOf,
+        OneOfBuilder, Property, PropertyBuilder, Ref, Schema, SchemaFormat, SchemaType, ToArray,
     },
     security::SecurityRequirement,
     server::{Server, ServerBuilder, ServerVariable, ServerVariableBuilder},

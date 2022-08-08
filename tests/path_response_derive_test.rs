@@ -9,7 +9,7 @@ macro_rules! test_fn {
         #[allow(unused)]
         mod $name {
             #[allow(unused)]
-            #[derive(utoipa::Component)]
+            #[derive(utoipa::ToSchema)]
             struct Foo {
                 name: String,
             }
