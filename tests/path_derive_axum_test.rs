@@ -1,8 +1,13 @@
 #![cfg(feature = "axum_extras")]
 #![cfg(feature = "serde_json")]
 
+use std::sync::{Arc, Mutex};
+
 use assert_json_diff::assert_json_eq;
-use axum::extract::{Path, Query};
+use axum::{
+    extract::{Path, Query},
+    Extension,
+};
 use serde::Deserialize;
 use serde_json::json;
 use utoipa::{IntoParams, OpenApi};
@@ -87,6 +92,38 @@ fn derive_path_params_into_params_axum() {
             },
         ])
     )
+}
+
+#[test]
+fn get_todo_with_extension() {
+    struct Todo {
+        #[allow(unused)]
+        id: i32,
+    }
+    /// In-memonry todo store
+    type Store = Mutex<Vec<Todo>>;
+    /// List all Todo items
+
+    ///
+    /// List all Todo items from in-memory storage.
+    #[utoipa::path(
+        get,
+        path = "/todo",
+        responses(
+            (status = 200, description = "List all todos successfully", body = [Todo])
+        )
+    )]
+    #[allow(unused)]
+    fn list_todos(Extension(store): Extension<Arc<Store>>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(handlers(list_todos))]
+    struct ApiDoc;
+
+    serde_json::to_value(ApiDoc::openapi())
+        .unwrap()
+        .pointer("/paths/~1todo/get")
+        .expect("Expected to find /paths/todo/get");
 }
 
 #[test]
