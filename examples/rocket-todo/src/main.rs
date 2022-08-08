@@ -22,7 +22,9 @@ fn rocket() -> Rocket<Build> {
             todo::delete_todo,
             todo::search_todos
         ),
-        components(todo::Todo, todo::TodoError),
+        components(
+            schemas(todo::Todo, todo::TodoError)
+        ),
         tags(
             (name = "todo", description = "Todo management endpoints.")
         ),
@@ -82,7 +84,7 @@ mod todo {
         FromForm, Request, State,
     };
     use serde::{Deserialize, Serialize};
-    use utoipa::{ToSchema, IntoParams};
+    use utoipa::{IntoParams, ToSchema};
 
     pub(super) type TodoStore = Arc<Mutex<Vec<Todo>>>;
 

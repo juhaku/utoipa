@@ -9,15 +9,15 @@
 
 use std::{borrow::Cow, mem, ops::Deref};
 
+use component::schema::Schema;
 use doc_comment::CommentAttributes;
-use schema::schema::Schema;
 
+use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
 use quote::{quote, ToTokens, TokenStreamExt};
-use schema::into_params::IntoParams;
 
 use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
@@ -28,11 +28,11 @@ use syn::{
     PathArguments, PathSegment, Token, TypePath,
 };
 
+mod component;
 mod doc_comment;
 mod ext;
 mod openapi;
 mod path;
-mod schema;
 mod schema_type;
 mod security_requirement;
 

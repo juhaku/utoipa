@@ -732,6 +732,7 @@ impl ToArray for Ref {}
 
 /// A [`Ref`] or some other type `T`
 #[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum RefOr<T> {
     Ref(Ref),

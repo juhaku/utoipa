@@ -7,9 +7,9 @@ use regex::{Captures, Regex};
 use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
 
 use crate::{
+    component::{TypeTree, ValueType},
     ext::ArgValue,
     path::PathOperation,
-    schema::{TypeTree, ValueType},
 };
 
 use super::{

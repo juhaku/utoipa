@@ -8,9 +8,9 @@ use regex::{Captures, Regex};
 use syn::{parse::Parse, LitStr, Token, TypePath};
 
 use crate::{
+    component::{GenericType, TypeTree, ValueType},
     ext::{ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument},
     path::PathOperation,
-    schema::{GenericType, TypeTree, ValueType},
 };
 
 use super::{

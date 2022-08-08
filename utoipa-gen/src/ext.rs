@@ -139,9 +139,9 @@ pub mod fn_arg {
     use quote::quote;
     use syn::{punctuated::Punctuated, token::Comma, PatType, TypePath};
 
-    use crate::schema::TypeTree;
+    use crate::component::TypeTree;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
-    use crate::schema::ValueType;
+    use crate::component::ValueType;
 
     use super::IntoParamsType;
 

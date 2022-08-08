@@ -13,6 +13,7 @@ use crate::{parse_utils, AnyValue, Type};
 
 use super::{property::Property, ContentTypeResolver};
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response<'r> {
     /// A type that implements `utoipa::IntoResponses`.
     IntoResponses(ExprPath),

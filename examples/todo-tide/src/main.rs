@@ -24,7 +24,9 @@ async fn main() -> std::io::Result<()> {
             todo::delete_todo,
             todo::mark_done
         ),
-        components(todo::Todo, todo::TodoError),
+        components(
+            schemas(todo::Todo, todo::TodoError)
+        ),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management endpoints.")

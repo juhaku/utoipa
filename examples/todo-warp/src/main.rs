@@ -21,7 +21,9 @@ async fn main() {
     #[derive(OpenApi)]
     #[openapi(
         handlers(todo::list_todos, todo::create_todo, todo::delete_todo),
-        components(todo::Todo),
+        components(
+            schemas(todo::Todo)
+        ),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")
@@ -96,7 +98,7 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{ToSchema, IntoParams};
+    use utoipa::{IntoParams, ToSchema};
     use warp::{hyper::StatusCode, Filter, Reply};
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;

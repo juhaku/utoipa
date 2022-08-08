@@ -24,7 +24,9 @@ async fn main() -> Result<(), Error> {
             todo::mark_done,
             todo::delete_todo,
         ),
-        components(todo::Todo, todo::TodoError),
+        components(
+            schemas(todo::Todo, todo::TodoError)
+        ),
         modifiers(&SecurityAddon),
         tags(
             (name = "todo", description = "Todo items management API")
@@ -74,7 +76,7 @@ mod todo {
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::{ToSchema, IntoParams};
+    use utoipa::{IntoParams, ToSchema};
 
     /// In-memonry todo store
     pub(super) type Store = Mutex<Vec<Todo>>;

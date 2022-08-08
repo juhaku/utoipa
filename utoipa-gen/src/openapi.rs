@@ -13,7 +13,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, schema::schema,
+    component::schema, parse_utils, path::PATH_STRUCT_PREFIX,
     security_requirement::SecurityRequirementAttr, Array, ExternalDocs,
 };
 
@@ -301,7 +301,7 @@ struct Components {
 
 impl Parse for Components {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut content;
+        let content;
         parenthesized!(content in input);
         const EXPECTED_ATTRIBUTE: &str =
             "unexpected attribute. expected one of: schemas, responses";
@@ -318,13 +318,13 @@ impl Parse for Components {
             match attribute {
                 "schemas" => {
                     let punctuated: Punctuated<Schema, Comma> =
-                        parse_utils::parse_punctuated_within_parenthesis(&mut content)?;
+                        parse_utils::parse_punctuated_within_parenthesis(&content)?;
                     let mut v: Vec<Schema> = punctuated.into_iter().collect();
                     schemas.append(&mut v)
                 }
                 "responses" => {
                     let punctuated: Punctuated<Responses, Comma> =
-                        parse_utils::parse_punctuated_within_parenthesis(&mut content)?;
+                        parse_utils::parse_punctuated_within_parenthesis(&content)?;
                     let mut v: Vec<Responses> = punctuated.into_iter().collect();
                     responses.append(&mut v)
                 }

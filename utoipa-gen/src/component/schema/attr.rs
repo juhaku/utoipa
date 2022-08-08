@@ -6,8 +6,8 @@ use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse, Attribute, Error, Token};
 
 use crate::{
+    component::{GenericType, TypeTree},
     parse_utils,
-    schema::{GenericType, TypeTree},
     schema_type::SchemaFormat,
     AnyValue,
 };
@@ -331,7 +331,7 @@ impl<'c> SchemaAttr<NamedField<'c>> {
 fn is_valid_xml_attr(attrs: &SchemaAttr<NamedField>, component_part: &TypeTree) {
     if !matches!(
         component_part.generic_type,
-        Some(crate::schema::GenericType::Vec)
+        Some(crate::component::GenericType::Vec)
     ) {
         if let Some(wrapped_ident) = attrs
             .as_ref()

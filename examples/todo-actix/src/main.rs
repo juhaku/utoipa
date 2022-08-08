@@ -38,7 +38,9 @@ async fn main() -> Result<(), impl Error> {
             todo::update_todo,
             todo::search_todos
         ),
-        components(todo::Todo, todo::TodoUpdateRequest, todo::ErrorResponse),
+        components(
+            schemas(todo::Todo, todo::TodoUpdateRequest, todo::ErrorResponse)
+        ),
         tags(
             (name = "todo", description = "Todo management endpoints.")
         ),

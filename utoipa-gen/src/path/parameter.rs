@@ -15,7 +15,7 @@ use syn::{
 ))]
 use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{
-    parse_utils, schema::into_params::FieldParamContainerAttributes, AnyValue, Deprecated,
+    component::into_params::FieldParamContainerAttributes, parse_utils, AnyValue, Deprecated,
     Required, Type,
 };
 
