@@ -137,7 +137,7 @@ pub mod fn_arg {
     use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
-    use syn::{punctuated::Punctuated, token::Comma, PatType, TypePath};
+    use syn::{punctuated::Punctuated, token::Comma, Pat, PatType, TypePath};
 
     use crate::component::TypeTree;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
@@ -184,15 +184,26 @@ pub mod fn_arg {
             .map(|arg| {
                 let pat_type = get_fn_arg_pat_type(arg);
 
-                let arg_name = match pat_type.pat.as_ref() {
-                    syn::Pat::Ident(ident) => &ident.ident,
-                    _ => abort!(pat_type.pat.as_ref(),
-                        "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
-                    ),
-                };
+                let arg_name = get_pat_ident(pat_type.pat.as_ref());
                 (TypeTree::from_type(&pat_type.ty), arg_name)
             })
             .map(FnArg::from)
+    }
+
+    #[inline]
+    fn get_pat_ident(pat: &Pat) -> &Ident {
+        let arg_name = match pat {
+            syn::Pat::Ident(ident) => &ident.ident,
+            syn::Pat::TupleStruct(tuple_struct) => {
+                get_pat_ident(tuple_struct.pat.elems.first().as_ref().expect(
+                    "PatTuple expected to have at least one element, cannot get fn argument",
+                ))
+            }
+            _ => abort!(pat,
+                "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
+            ),
+        };
+        arg_name
     }
 
     #[inline]
