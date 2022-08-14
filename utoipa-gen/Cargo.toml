@@ -22,6 +22,8 @@ proc-macro-error = "1.0"
 regex = { version = "1.5", optional = true } 
 lazy_static = { version = "1.4", optional = true }
 uuid = { version = "1", optional = true }
+utoipa-corelib = { path = "../utoipa-corelib", version = "0.1" }
+utoipa-gen-actix-web = { path = "../utoipa-gen-actix-web", version = "0.1", optional = true }
 
 [dev-dependencies]
 utoipa = { path = "..", default-features = false }
@@ -38,7 +40,7 @@ assert-json-diff = "2"
 
 [features]
 debug = []
-actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
+actix_extras = ["regex", "lazy_static", "syn/extra-traits", "utoipa-gen-actix-web"]
 chrono = []
 chrono_with_format = []
 json = []

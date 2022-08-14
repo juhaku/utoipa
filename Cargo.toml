@@ -47,7 +47,9 @@ assert-json-diff = "2"
 [workspace]
 members = [
   "utoipa-gen",
-  "utoipa-swagger-ui"
+  "utoipa-swagger-ui",
+  "utoipa-corelib",
+  "utoipa-gen-actix-web"
 ]
 
 [package.metadata.docs.rs]
