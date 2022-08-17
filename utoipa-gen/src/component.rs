@@ -579,7 +579,7 @@ mod tests {
         for s in [
             "lowercase",
             "UPPERCASE",
-            "Pascal",
+            "PascalCase",
             "camelCase",
             "snake_case",
             "SCREAMING_SNAKE_CASE",
