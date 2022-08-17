@@ -487,7 +487,7 @@ pub mod serde {
             [
                 ("lowercase", RenameRule::Lower),
                 ("UPPERCASE", RenameRule::Upper),
-                ("Pascal", RenameRule::Pascal),
+                ("PascalCase", RenameRule::Pascal),
                 ("camelCase", RenameRule::Camel),
                 ("snake_case", RenameRule::Snake),
                 ("SCREAMING_SNAKE_CASE", RenameRule::ScreamingSnake),
@@ -499,7 +499,7 @@ pub mod serde {
             .ok_or_else(|| {
                 Error::new(
                     Span::call_site(),
-                    r#"unexpected rename rule, expected one of: "lowercase", "UPPERCASE", "Pascal", "camelCase", "snake_case", "SCREAMING_SNAKE_CASE", "kebab-case", "SCREAMING-KEBAB-CASE""#,
+                    r#"unexpected rename rule, expected one of: "lowercase", "UPPERCASE", "PascalCase", "camelCase", "snake_case", "SCREAMING_SNAKE_CASE", "kebab-case", "SCREAMING-KEBAB-CASE""#,
                 )
             })
         }
@@ -579,7 +579,7 @@ mod tests {
         for s in [
             "lowercase",
             "UPPERCASE",
-            "Pascal",
+            "PascalCase",
             "camelCase",
             "snake_case",
             "SCREAMING_SNAKE_CASE",
