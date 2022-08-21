@@ -4,4 +4,5 @@ Cargo.lock
 .idea
 .vscode
 target
+.nvim
 
