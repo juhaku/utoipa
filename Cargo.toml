@@ -29,7 +29,7 @@ json = ["serde_json", "utoipa-gen/json"]
 chrono = ["utoipa-gen/chrono"]
 chrono_with_format = ["utoipa-gen/chrono_with_format"]
 decimal = ["utoipa-gen/decimal"]
-yaml = ["serde_yaml"]
+yaml = ["serde_yaml", "utoipa-gen/yaml"]
 uuid = ["utoipa-gen/uuid"]
 time = ["utoipa-gen/time"]
 smallvec = ["utoipa-gen/smallvec"]
@@ -42,16 +42,7 @@ serde_yaml = { version = "0.9", optional = true }
 utoipa-gen = { version = "1.1.0", path = "./utoipa-gen" }
 
 [dev-dependencies]
-actix-web = { version = "4", features = [ "macros" ], default-features = false }
-axum = "0.5"
 assert-json-diff = "2"
-paste = "1"
-chrono = { version  = "0.4", features = ["serde"] }
-rust_decimal = "1"
-rocket = "0.5.0-rc.1"
-uuid = "1"
-time = { version = "0.3.11", features = [ "serde-human-readable" ] }
-smallvec = { version = "1.9.0", features = [ "serde" ] }
 
 [workspace]
 members = [

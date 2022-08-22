@@ -1,7 +1,5 @@
 #![cfg(not(feature = "serde_json"))]
 
-use std::{print, println};
-
 use utoipa::ToSchema;
 
 #[test]

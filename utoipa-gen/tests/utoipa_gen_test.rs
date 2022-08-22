@@ -1,4 +1,3 @@
-#![cfg(feature = "yaml")]
 #![cfg(feature = "json")]
 #![allow(dead_code)]
 
@@ -117,32 +116,6 @@ struct C<T, R> {
     field_2: T,
 }
 
-#[test]
-#[ignore = "this is just a test bed to run macros"]
-fn derive_openapi() {
-    utoipa::openapi::OpenApi::new(
-        utoipa::openapi::Info::new("my application", "0.1.0"),
-        utoipa::openapi::Paths::new(),
-    );
-    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
-
-    build_foo!(GetFooBody, Foo, FooResources);
-}
-
-#[test]
-fn stable_yaml() {
-    let left = ApiDoc::openapi().to_yaml().unwrap();
-    let right = ApiDoc::openapi().to_yaml().unwrap();
-    assert_eq!(left, right);
-}
-
-#[test]
-fn stable_json() {
-    let left = ApiDoc::openapi().to_json().unwrap();
-    let right = ApiDoc::openapi().to_json().unwrap();
-    assert_eq!(left, right);
-}
-
 impl Modify for Foo {
     fn modify(&self, openapi: &mut openapi::OpenApi) {
         if let Some(schema) = openapi.components.as_mut() {
@@ -175,3 +148,15 @@ struct Foo;
 
 #[derive(Debug, Serialize)]
 struct FooResources;
+
+#[test]
+#[ignore = "this is just a test bed to run macros"]
+fn derive_openapi() {
+    utoipa::openapi::OpenApi::new(
+        utoipa::openapi::Info::new("my application", "0.1.0"),
+        utoipa::openapi::Paths::new(),
+    );
+    println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+
+    build_foo!(GetFooBody, Foo, FooResources);
+}

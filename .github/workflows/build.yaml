@@ -6,7 +6,7 @@ on:
       - "**.rs"
       - "**Cargo.toml"
   pull_request:
-    branches: [ master ]
+    branches: [master]
     paths:
       - "**.rs"
       - "**Cargo.toml"
@@ -25,53 +25,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 2
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
 
-    - uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Resolve changed paths
-      id: changes
-      run: |
-        root_changed=false
-        gen_changed=false
-        swagger_changed=false
-        while read -r change; do
-          if [[ "$change" == "utoipa-gen" ]]; then
-            gen_changed=true
-          elif [[ "$change" == "utoipa-swagger-ui" ]]; then
-            swagger_changed=true
-          else
-            root_changed=true
+      - name: Resolve changed paths
+        id: changes
+        run: |
+          root_changed=false
+          gen_changed=false
+          swagger_changed=false
+          while read -r change; do
+            if [[ "$change" == "utoipa-gen" ]]; then
+              gen_changed=true
+            elif [[ "$change" == "utoipa-swagger-ui" ]]; then
+              swagger_changed=true
+            else
+              root_changed=true
+            fi
+          done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
+          echo "::set-output name=root_changed::$root_changed"
+          echo "::set-output name=gen_changed::$gen_changed"
+          echo "::set-output name=swagger_changed::$swagger_changed"
+
+      - name: Run tests
+        run: |
+          if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
+            cargo test -p utoipa --features openapi_extensions,yaml
+            cargo test --test path_response_derive_test_no_serde_json --no-default-features
+            cargo test --test schema_derive_no_serde_json --no-default-features
+          elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
+            cargo test -p utoipa-gen --features utoipa/actix_extras,uuid,chrono,decimal,json
+
+            cargo test -p utoipa-gen --test schema_derive_test --features chrono_with_format,json
+            cargo test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
+            cargo test -p utoipa-gen --test path_derive_rocket --features rocket_extras,json
+            cargo test -p utoipa-gen --test path_derive_axum_test --features axum_extras,json
+          elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
+            cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
           fi
-        done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
-        echo "::set-output name=root_changed::$root_changed"
-        echo "::set-output name=gen_changed::$gen_changed"
-        echo "::set-output name=swagger_changed::$swagger_changed"
-
-    - name: Run tests
-      run: |
-        if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
-          cargo test --features uuid,openapi_extensions
-          cargo test --test path_response_derive_test_no_serde_json --no-default-features
-          cargo test --test schema_derive_no_serde_json --no-default-features
-          cargo test --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
-          cargo test --test schema_derive_test --features chrono,decimal,uuid
-          cargo test --test schema_derive_test --features chrono_with_format
-          cargo test --test path_derive_rocket --features rocket_extras,json
-          cargo test --test path_derive_axum_test --features axum_extras,json
-          cargo test --test utoipa_gen_test --features json,yaml
-        elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
-          cargo test -p utoipa-gen --features utoipa/actix_extras
-        elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
-          cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
-        fi
