@@ -6,6 +6,9 @@ crate="$1"
 
 echo "Testing crate: $crate..."
 
+
+
+
 if [[ "$crate" == "utoipa" ]]; then
     cargo test -p utoipa --features openapi_extensions,yaml
     cargo test --test path_response_derive_test_no_serde_json --no-default-features
