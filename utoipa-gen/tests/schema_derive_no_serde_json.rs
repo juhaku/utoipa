@@ -1,4 +1,4 @@
-#![cfg(not(feature = "serde_json"))]
+#![cfg(not(feature = "json"))]
 
 use utoipa::ToSchema;
 

@@ -62,15 +62,16 @@ jobs:
         run: |
           if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
             cargo test -p utoipa --features openapi_extensions,yaml
-            cargo test --test path_response_derive_test_no_serde_json --no-default-features
-            cargo test --test schema_derive_no_serde_json --no-default-features
           elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
-            cargo test -p utoipa-gen --features utoipa/actix_extras,uuid,chrono,decimal,json,utoipa/uuid
+            cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,json,utoipa/uuid,utoipa/json
 
-            cargo test -p utoipa-gen --test schema_derive_test --features chrono_with_format,json
+            cargo test -p utoipa-gen --test path_response_derive_test_no_serde_json --no-default-features
+            cargo test -p utoipa-gen --test schema_derive_no_serde_json --no-default-features
+
+            cargo test -p utoipa-gen --test schema_derive_test --features chrono_with_format,json,utoipa/json
             cargo test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,json,utoipa/json
-            cargo test -p utoipa-gen --test path_derive_rocket --features rocket_extras,json
-            cargo test -p utoipa-gen --test path_derive_axum_test --features axum_extras,json
+            cargo test -p utoipa-gen --test path_derive_rocket --features rocket_extras,json,utoipa/json
+            cargo test -p utoipa-gen --test path_derive_axum_test --features axum_extras,json,utoipa/json
           elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
             cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
           fi
