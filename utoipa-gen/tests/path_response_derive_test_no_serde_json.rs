@@ -1,4 +1,4 @@
-#![cfg(not(feature = "serde_json"))]
+#![cfg(not(feature = "json"))]
 
 macro_rules! test_fn {
     ( module: $name:ident, responses: $($responses:tt)* ) => {

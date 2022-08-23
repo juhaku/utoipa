@@ -1,4 +1,4 @@
-#![cfg(feature = "serde_json")]
+#![cfg(feature = "json")]
 use std::collections::BTreeMap;
 
 use assert_json_diff::assert_json_eq;
