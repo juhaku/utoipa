@@ -49,7 +49,9 @@ members = [
   "utoipa-gen",
   "utoipa-swagger-ui",
   "utoipa-corelib",
-  "utoipa-gen-actix-web"
+  "utoipa-gen-actix-web",
+  "utoipa-gen-rocket",
+  "utoipa-gen-axum"
 ]
 
 [package.metadata.docs.rs]
@@ -57,3 +59,4 @@ features = ["json", "actix_extras"]
 
 [package.metadata.publish]
 order = ["utoipa-gen", "utoipa", "utoipa-swagger-ui"]
+

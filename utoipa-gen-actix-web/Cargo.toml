@@ -1,17 +1,16 @@
 [package]
 name = "utoipa-gen-actix-web"
-description = "Utoipa-gen actix-web extra code generations"
+description = "utoipa-gen actix-web extra code generations"
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "MIT or Apache-2.0"
 readme = "README.md"
-keywords = ["openapi", "codegen", "proc-macro", "documentation", "compile-time"]
+keywords = ["codegen", "proc-macro", "documentation", "compile-time", "actix-web-extras"]
 repository = "https://github.com/juhaku/utoipa"
 authors = [
   "Juha Kukkonen <juha7kukkonen@gmail.com>"
 ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
@@ -23,7 +22,7 @@ lazy_static = { version = "1.4" }
 utoipa-corelib = { path = "../utoipa-corelib", features = ["actix_extras"] }
 
 [dev-dependencies]
-utoipa = { path = ".." }
+utoipa = { path = "..", default-features = false }
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = [ "macros" ], default-features = false }

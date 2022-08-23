@@ -8,13 +8,13 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn, TypePath};
 
 use crate::path::PathOperation;
 
-#[cfg(feature = "actix_extras")]
+#[cfg(feature = "actix_extras_not_available")]
 pub mod actix;
 
-#[cfg(feature = "axum_extras")]
+#[cfg(feature = "axum_extras_not_availabe")]
 pub mod axum;
 
-#[cfg(feature = "rocket_extras")]
+#[cfg(feature = "rocket_extras_not_available")]
 pub mod rocket;
 
 /// Represents single argument of handler operation.
@@ -112,6 +112,75 @@ pub trait PathOperationResolver {
 
 pub struct PathOperations;
 
+impl PathOperations {
+    pub fn resolve_arguments(
+        fn_args: &'_ Punctuated<syn::FnArg, Comma>,
+        macro_args: Option<Vec<utoipa_corelib::MacroArg>>,
+    ) -> (
+        Option<Vec<utoipa_corelib::ValueArgument<'_>>>,
+        Option<Vec<utoipa_corelib::IntoParamsType<'_>>>,
+    ) {
+        #[cfg(feature = "actix_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_actix_web::PathOperationExt>
+                ::resolve_arguments(fn_args, macro_args)
+        }
+        #[cfg(feature = "rocket_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_rocket::PathOperationsExt>
+                ::resolve_arguments(fn_args, macro_args)
+        }
+        #[cfg(feature = "axum_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_axum::PathOperationsExt>
+                ::resolve_arguments(fn_args, macro_args)
+        }
+
+        #[cfg(not(any(
+            feature = "actix_extras",
+            feature = "rocket_extras",
+            feature = "axum_extras"
+        )))]
+        (None, None)
+    }
+
+    #[allow(unused_variables)]
+    pub fn resolve_path(path: &Option<String>) -> Option<utoipa_corelib::MacroPath> {
+        #[cfg(feature = "actix_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_actix_web::PathOperationExt>::resolve_path(
+                path,
+            )
+        }
+
+        #[cfg(feature = "rocket_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_rocket::PathOperationsExt>::resolve_path(
+                path,
+            )
+        }
+
+        #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras",)))]
+        None
+    }
+
+    #[allow(unused_variables)]
+    pub fn resolve_operation(item_fn: &ItemFn) -> Option<utoipa_corelib::ResolvedOperation> {
+        #[cfg(feature = "actix_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_actix_web::PathOperationExt>::resolve_operation(item_fn)
+        }
+
+        #[cfg(feature = "rocket_extras")]
+        {
+            <utoipa_corelib::PathOperations as utoipa_gen_rocket::PathOperationsExt>::resolve_operation(item_fn)
+        }
+
+        #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras",)))]
+        None
+    }
+}
+
 #[cfg(not(any(
     feature = "actix_extras",
     feature = "rocket_extras",
@@ -125,11 +194,7 @@ impl PathResolver for PathOperations {}
 #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
 impl PathOperationResolver for PathOperations {}
 
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "axum_extras",
-    feature = "rocket_extras"
-))]
+#[cfg(any(feature = "axum_extras", feature = "rocket_extras"))]
 pub mod fn_arg {
     use std::borrow::Cow;
 

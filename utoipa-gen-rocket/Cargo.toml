@@ -1,0 +1,37 @@
+[package]
+name = "utoipa-gen-rocket"
+version = "0.1.0"
+description = "Utoipa-gen rocket extra code generations"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["codegen", "proc-macro", "documentation", "compile-time", "rocket-extras"]
+repository = "https://github.com/juhaku/utoipa"
+authors = [
+  "Juha Kukkonen <juha7kukkonen@gmail.com>"
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+proc-macro2 = "1.0"
+syn = { version = "1.0", features = ["full"] }
+quote = "1.0"
+proc-macro-error = "1.0"
+regex = { version = "1.5" } 
+lazy_static = { version = "1.4" }
+utoipa-corelib = { path = "../utoipa-corelib", features = ["rocket_extras"] }
+
+[dev-dependencies]
+utoipa = { path = "..", default-featres = false }
+serde_json = "1"
+serde = "1"
+rocket = "0.5.0-rc.1"
+
+[features]
+debug = []
+chrono = []
+chrono_with_format = []
+json = []
+decimal = []
+time = []
+smallvec = []

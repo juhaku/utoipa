@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Error, str::FromStr};
 
 use proc_macro2::{Ident, TokenStream};
+use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, token::Comma, ItemFn, TypePath};
 
 pub mod fn_arg;
@@ -66,6 +67,24 @@ impl FromStr for PathOperation {
     }
 }
 
+impl ToTokens for PathOperation {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let path_item_type = match self {
+            Self::Get => quote! { utoipa::openapi::PathItemType::Get },
+            Self::Post => quote! { utoipa::openapi::PathItemType::Post },
+            Self::Put => quote! { utoipa::openapi::PathItemType::Put },
+            Self::Delete => quote! { utoipa::openapi::PathItemType::Delete },
+            Self::Options => quote! { utoipa::openapi::PathItemType::Options },
+            Self::Head => quote! { utoipa::openapi::PathItemType::Head },
+            Self::Patch => quote! { utoipa::openapi::PathItemType::Patch },
+            Self::Trace => quote! { utoipa::openapi::PathItemType::Trace },
+            Self::Connect => quote! { utoipa::openapi::PathItemType::Connect },
+        };
+
+        tokens.extend(path_item_type);
+    }
+}
+
 /// Represents single argument of handler operation.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ValueArgument<'a> {
@@ -106,10 +125,13 @@ pub enum MacroArg {
     Query(ArgValue),
 }
 
+#[cfg(feature = "rocket_extras")]
+use std::cmp::Ordering;
+
 impl MacroArg {
     /// Get ordering by name
     #[cfg(feature = "rocket_extras")]
-    fn by_name(a: &MacroArg, b: &MacroArg) -> Ordering {
+    pub fn by_name(a: &MacroArg, b: &MacroArg) -> Ordering {
         a.get_value().name.cmp(&b.get_value().name)
     }
 
@@ -135,41 +157,9 @@ pub struct ResolvedOperation {
     pub path: String,
 }
 
-pub trait ArgumentResolver {
-    fn resolve_arguments(
-        _: &'_ Punctuated<syn::FnArg, Comma>,
-        _: Option<Vec<MacroArg>>,
-    ) -> (
-        Option<Vec<ValueArgument<'_>>>,
-        Option<Vec<IntoParamsType<'_>>>,
-    ) {
-        (None, None)
-    }
-}
-
-pub trait PathResolver {
-    fn resolve_path(_: &Option<String>) -> Option<MacroPath> {
-        None
-    }
-}
-
-pub trait PathOperationResolver {
-    fn resolve_operation(_: &ItemFn) -> Option<ResolvedOperation> {
-        None
-    }
-}
-
 pub struct PathOperations;
 
-impl ArgumentResolver for PathOperations {}
-
-impl PathResolver for PathOperations {}
-
-impl PathOperationResolver for PathOperations {}
-
-pub struct PathOperations2;
-
-impl PathOperations2 {
+impl PathOperations {
     pub fn resolve_path(_: &Option<String>) -> Option<String> {
         None
     }

@@ -81,11 +81,11 @@ impl ToTokens for Parameter<'_> {
     feature = "rocket_extras",
     feature = "axum_extras"
 ))]
-impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
-    fn from(argument: ValueArgument<'a>) -> Self {
+impl<'a> From<utoipa_corelib::ValueArgument<'a>> for Parameter<'a> {
+    fn from(argument: utoipa_corelib::ValueArgument<'a>) -> Self {
         Self::Value(ValueParameter {
             name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
-            parameter_in: if argument.argument_in == ArgumentIn::Path {
+            parameter_in: if argument.argument_in == utoipa_corelib::ArgumentIn::Path {
                 ParameterIn::Path
             } else {
                 ParameterIn::Query

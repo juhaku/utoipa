@@ -11,8 +11,6 @@ authors = [
   "Juha Kukkonen <juha7kukkonen@gmail.com>"
 ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
@@ -21,3 +19,6 @@ quote = "1.0"
 
 [features]
 actix_extras = []
+rocket_extras = []
+axum_extras = []
+debug = []

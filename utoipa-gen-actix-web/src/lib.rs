@@ -8,45 +8,11 @@ use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
 
 use utoipa_corelib::{
     fn_arg::{self, FnArg, TypeTree, ValueType},
-    ArgValue, ArgumentIn, ArgumentResolver, IntoParamsType, MacroArg, MacroPath, PathOperation,
-    PathOperationResolver, PathOperations, PathOperations2, PathResolver, ResolvedOperation,
-    ValueArgument,
+    ArgValue, ArgumentIn, IntoParamsType, MacroArg, MacroPath, PathOperation, PathOperations,
+    ResolvedOperation, ValueArgument,
 };
 
-fn get_primitive_args(value_args: Vec<FnArg>) -> impl Iterator<Item = TypeTree> {
-    value_args
-        .into_iter()
-        .filter(|arg| arg.ty.is("Path"))
-        .flat_map(|path_arg| {
-            path_arg
-                .ty
-                .children
-                .expect("Path argument must have children")
-        })
-        .flat_map(|path_arg| match path_arg.value_type {
-            ValueType::Primitive => vec![path_arg],
-            ValueType::Tuple => path_arg
-                .children
-                .expect("ValueType::Tuple will always have children"),
-            ValueType::Object => {
-                unreachable!("Value arguments does not have ValueType::Object arguments")
-            }
-        })
-}
-
-fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> ValueArgument {
-    ValueArgument {
-        name: match macro_arg {
-            MacroArg::Path(path) => Some(Cow::Owned(path.name)),
-        },
-        type_path: primitive_arg.path,
-        is_array: false,
-        is_option: false,
-        argument_in: ArgumentIn::Path,
-    }
-}
-
-trait PathOperationExt {
+pub trait PathOperationExt {
     fn resolve_arguments(
         fn_args: &Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<MacroArg>>,
@@ -171,6 +137,48 @@ impl PathOperationExt for PathOperations {
     }
 }
 
+fn get_primitive_args(value_args: Vec<FnArg>) -> impl Iterator<Item = TypeTree> {
+    value_args
+        .into_iter()
+        .filter(|arg| arg.ty.is("Path"))
+        .flat_map(|path_arg| {
+            path_arg
+                .ty
+                .children
+                .expect("Path argument must have children")
+        })
+        .flat_map(|path_arg| match path_arg.value_type {
+            ValueType::Primitive => vec![path_arg],
+            ValueType::Tuple => path_arg
+                .children
+                .expect("ValueType::Tuple will always have children"),
+            ValueType::Object => {
+                unreachable!("Value arguments does not have ValueType::Object arguments")
+            }
+        })
+}
+
+fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> ValueArgument {
+    ValueArgument {
+        name: match macro_arg {
+            MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+            // MacroArg::Query(_) => {
+            //     unreachable!("MacroArg::Query is not possible with actix-web path attribute macros")
+            // }
+        },
+        type_path: primitive_arg.path,
+        is_array: false,
+        is_option: false,
+        argument_in: ArgumentIn::Path,
+    }
+}
+
+#[inline]
+fn is_valid_request_type(ident: Option<&Ident>) -> bool {
+    matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
+        .iter().any(|expected_operation| operation == expected_operation))
+}
+
 struct Path(String);
 
 impl Parse for Path {
@@ -189,37 +197,3 @@ impl Parse for Path {
         Ok(Self(path))
     }
 }
-
-#[inline]
-fn is_valid_request_type(ident: Option<&Ident>) -> bool {
-    matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
-        .iter().any(|expected_operation| operation == expected_operation))
-}
-
-// #[cfg(test)]
-// mod tests {
-//     #[test]
-//     fn it_works() {
-//         let result = 2 + 2;
-//         assert_eq!(result, 4);
-//     }
-// }
-
-pub trait PathOperations2Ext {
-    fn resolve_path(_: &Option<String>) -> Option<String> {
-        Some(String::from("sfsfsfsfsfsf"))
-    }
-
-    fn resolve_operation(_: &ItemFn) -> Option<String> {
-        Some("barfooo".to_string())
-    }
-
-    fn resolve_arguments(
-        _: &'_ Punctuated<syn::FnArg, Comma>,
-        _: Option<Vec<MacroArg>>,
-    ) -> (Option<String>, Option<String>) {
-        (Some(String::from("barfoo")), Some(String::from("foobar")))
-    }
-}
-
-impl PathOperations2Ext for PathOperations2 {}

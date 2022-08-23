@@ -66,7 +66,7 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
-    path_operation: Option<PathOperation>,
+    path_operation: Option<utoipa_corelib::PathOperation>,
     request_body: Option<RequestBodyAttr<'p>>,
     responses: Vec<Response<'p>>,
     pub(super) path: Option<String>,
@@ -83,8 +83,10 @@ impl<'p> PathAttr<'p> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn update_parameters<'a>(&mut self, arguments: Option<Vec<ValueArgument<'a>>>)
-    where
+    pub fn update_parameters<'a>(
+        &mut self,
+        arguments: Option<Vec<utoipa_corelib::ValueArgument<'a>>>,
+    ) where
         'a: 'p,
     {
         if let Some(mut arguments) = arguments {
@@ -125,7 +127,7 @@ impl<'p> PathAttr<'p> {
     ))]
     fn update_existing_value_parameters_types<'a>(
         parameters: &mut [&mut ValueParameter<'a>],
-        arguments: &'_ mut [ValueArgument<'a>],
+        arguments: &'_ mut [utoipa_corelib::ValueArgument<'a>],
     ) {
         use std::borrow::Cow;
 
@@ -150,7 +152,7 @@ impl<'p> PathAttr<'p> {
     ))]
     pub fn update_parameters_parameter_in(
         &mut self,
-        into_params_types: Option<Vec<IntoParamsType>>,
+        into_params_types: Option<Vec<utoipa_corelib::IntoParamsType>>,
     ) {
         if !self.params.is_empty() {
             if let Some(mut into_params_types) = into_params_types {
@@ -182,7 +184,7 @@ impl<'p> PathAttr<'p> {
     ))]
     fn get_new_value_parameters<'a>(
         parameters: &[&mut ValueParameter<'p>],
-        arguments: Vec<ValueArgument<'a>>,
+        arguments: Vec<utoipa_corelib::ValueArgument<'a>>,
     ) -> Vec<Parameter<'p>>
     where
         'a: 'p,
@@ -255,8 +257,10 @@ impl Parse for PathAttr<'_> {
                 }
                 _ => {
                     // any other case it is expected to be path operation
-                    if let Some(path_operation) =
-                        attribute_name.parse::<PathOperation>().into_iter().next()
+                    if let Some(path_operation) = attribute_name
+                        .parse::<utoipa_corelib::PathOperation>()
+                        .into_iter()
+                        .next()
                     {
                         path_attr.path_operation = Some(path_operation)
                     } else {
@@ -350,10 +354,11 @@ impl ToTokens for PathOperation {
         tokens.extend(path_item_type);
     }
 }
+
 pub struct Path<'p> {
     path_attr: PathAttr<'p>,
     fn_name: String,
-    path_operation: Option<PathOperation>,
+    path_operation: Option<utoipa_corelib::PathOperation>,
     path: Option<String>,
     doc_comments: Option<Vec<String>>,
     deprecated: Option<bool>,
@@ -371,7 +376,7 @@ impl<'p> Path<'p> {
         }
     }
 
-    pub fn path_operation(mut self, path_operation: Option<PathOperation>) -> Self {
+    pub fn path_operation(mut self, path_operation: Option<utoipa_corelib::PathOperation>) -> Self {
         self.path_operation = path_operation;
 
         self

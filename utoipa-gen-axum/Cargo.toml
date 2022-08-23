@@ -1,0 +1,35 @@
+[package]
+name = "utoipa-gen-axum"
+description = "utoipa-gen axum extra code generations"
+version = "0.1.0"
+edition = "2021"
+license = "mit or apache-2.0"
+readme = "readme.md"
+keywords = ["codegen", "proc-macro", "documentation", "compile-time", "axum-extras"]
+repository = "https://github.com/juhaku/utoipa"
+authors = [
+  "juha kukkonen <juha7kukkonen@gmail.com>"
+]
+
+[dependencies]
+proc-macro2 = "1.0"
+syn = { version = "1.0", features = ["full"] }
+proc-macro-error = "1.0"
+regex = { version = "1.5" } 
+lazy_static = { version = "1.4" }
+utoipa-corelib = { path = "../utoipa-corelib", features = ["axum_extras"] }
+
+[dev-dependencies]
+utoipa = { path = "..", default-features = false }
+serde_json = "1"
+serde = "1"
+axum = "0.5"
+
+[features]
+debug = []
+chrono = []
+chrono_with_format = []
+json = []
+decimal = []
+time = []
+smallvec = []

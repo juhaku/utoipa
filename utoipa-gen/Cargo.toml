@@ -24,6 +24,8 @@ lazy_static = { version = "1.4", optional = true }
 uuid = { version = "1", optional = true }
 utoipa-corelib = { path = "../utoipa-corelib", version = "0.1" }
 utoipa-gen-actix-web = { path = "../utoipa-gen-actix-web", version = "0.1", optional = true }
+utoipa-gen-rocket = { path = "../utoipa-gen-rocket", version = "0.1", optional = true }
+utoipa-gen-axum = { path = "../utoipa-gen-axum", version = "0.1", optional = true }
 
 [dev-dependencies]
 utoipa = { path = "..", default-features = false }
@@ -39,15 +41,15 @@ chrono = { version  = "0.4", features = ["serde"] }
 assert-json-diff = "2"
 
 [features]
-debug = []
-actix_extras = ["regex", "lazy_static", "syn/extra-traits", "utoipa-gen-actix-web"]
+debug = ["utoipa-corelib/debug", "utoipa-gen-actix-web/debug", "utoipa-gen-rocket/debug", "utoipa-gen-axum/debug"]
+actix_extras = ["regex", "lazy_static", "syn/extra-traits", "utoipa-gen-actix-web", "utoipa-corelib/actix_extras"]
+rocket_extras = ["regex", "lazy_static", "syn/extra-traits", "utoipa-gen-rocket", "utoipa-corelib/rocket_extras"]
+axum_extras = ["syn/extra-traits", "utoipa-gen-axum", "utoipa-corelib/axum_extras"]
 chrono = []
 chrono_with_format = []
 json = []
 yaml = []
 decimal = []
-rocket_extras = ["regex", "lazy_static", "syn/extra-traits"]
 uuid = ["dep:uuid"]
-axum_extras = ["syn/extra-traits"]
 time = []
 smallvec = []
