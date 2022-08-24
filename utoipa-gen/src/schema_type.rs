@@ -103,7 +103,7 @@ fn is_primitive_chrono(name: &str) -> bool {
 }
 
 #[inline]
-#[cfg(feature = "chrono")]
+#[cfg(feature = "decimal")]
 fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
