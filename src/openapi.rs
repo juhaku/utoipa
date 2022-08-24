@@ -219,7 +219,7 @@ impl Default for OpenApiVersion {
 /// Value used to indicate whether reusable schema, parameter or operation is deprecated.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Deprecated {
     True,
@@ -271,7 +271,7 @@ impl Default for Deprecated {
 /// Value used to indicate whether parameter or property is required.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Required {
     True,

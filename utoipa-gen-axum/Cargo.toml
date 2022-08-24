@@ -17,7 +17,7 @@ syn = { version = "1.0", features = ["full"] }
 proc-macro-error = "1.0"
 regex = { version = "1.5" } 
 lazy_static = { version = "1.4" }
-utoipa-corelib = { path = "../utoipa-corelib", features = ["axum_extras"] }
+utoipa-corelib = { path = "../utoipa-corelib", version = "0.1", features = ["axum_extras"] }
 
 [dev-dependencies]
 utoipa = { path = "..", default-features = false }
@@ -27,9 +27,3 @@ axum = "0.5"
 
 [features]
 debug = []
-chrono = []
-chrono_with_format = []
-json = []
-decimal = []
-time = []
-smallvec = []

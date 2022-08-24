@@ -593,7 +593,7 @@ impl ParameterBuilder {
 }
 
 /// In definition of [`Parameter`].
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {

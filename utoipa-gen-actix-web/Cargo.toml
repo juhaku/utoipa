@@ -14,12 +14,10 @@ authors = [
 [dependencies]
 proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
-# quote = "1.0"
 proc-macro-error = "1.0"
 regex = { version = "1.5" } 
 lazy_static = { version = "1.4" }
-# uuid = { version = "1", optional = true }
-utoipa-corelib = { path = "../utoipa-corelib", features = ["actix_extras"] }
+utoipa-corelib = { path = "../utoipa-corelib", version = "0.1", features = ["actix_extras"] }
 
 [dev-dependencies]
 utoipa = { path = "..", default-features = false }
@@ -29,11 +27,3 @@ actix-web = { version = "4", features = [ "macros" ], default-features = false }
 
 [features]
 debug = []
-# actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
-chrono = []
-chrono_with_format = []
-json = []
-decimal = []
-# uuid = ["dep:uuid"]
-time = []
-smallvec = []

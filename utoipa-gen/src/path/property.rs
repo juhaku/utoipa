@@ -30,7 +30,7 @@ impl ToTokens for Property<'_> {
                 utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
             };
 
-            let format: SchemaFormat = (&*schema_type.0).into();
+            let format: SchemaFormat = schema_type.0.into();
             if format.is_known_format() {
                 schema.extend(quote! {
                     .format(Some(#format))

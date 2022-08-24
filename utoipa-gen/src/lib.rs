@@ -13,7 +13,7 @@ use component::schema::Schema;
 use doc_comment::CommentAttributes;
 
 use component::into_params::IntoParams;
-use ext::{PathOperationResolver, PathOperations, PathResolver};
+use ext::PathOperations;
 use openapi::OpenApi;
 use proc_macro::TokenStream;
 use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
@@ -37,13 +37,6 @@ mod schema_type;
 mod security_requirement;
 
 use crate::path::{Path, PathAttr};
-
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "rocket_extras",
-    feature = "axum_extras"
-))]
-use ext::ArgumentResolver;
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]

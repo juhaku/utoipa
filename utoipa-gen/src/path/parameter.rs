@@ -8,12 +8,6 @@ use syn::{
     Error, ExprPath, LitStr, Token,
 };
 
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "rocket_extras",
-    feature = "axum_extras"
-))]
-use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{
     component::into_params::FieldParamContainerAttributes, parse_utils, AnyValue, Deprecated,
     Required, Type,
@@ -272,7 +266,7 @@ impl StructParameter {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum ParameterIn {
     Query,
     Path,

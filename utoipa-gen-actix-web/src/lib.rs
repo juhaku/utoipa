@@ -162,9 +162,9 @@ fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> Valu
     ValueArgument {
         name: match macro_arg {
             MacroArg::Path(path) => Some(Cow::Owned(path.name)),
-            // MacroArg::Query(_) => {
-            //     unreachable!("MacroArg::Query is not possible with actix-web path attribute macros")
-            // }
+            _ => {
+                unreachable!("MacroArg::Query is not possible with actix-web path attribute macros")
+            }
         },
         type_path: primitive_arg.path,
         is_array: false,

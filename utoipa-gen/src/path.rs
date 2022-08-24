@@ -19,13 +19,6 @@ use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Respon
 ))]
 use self::parameter::ValueParameter;
 
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "rocket_extras",
-    feature = "axum_extras"
-))]
-use crate::ext::{IntoParamsType, ValueArgument};
-
 pub mod parameter;
 mod property;
 mod request_body;

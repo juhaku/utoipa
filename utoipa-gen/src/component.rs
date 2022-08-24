@@ -248,7 +248,7 @@ impl PartialEq for TypeTree<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ValueType {
     Primitive,
     Object,
@@ -256,7 +256,7 @@ pub enum ValueType {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum GenericType {
     Vec,
     Map,
