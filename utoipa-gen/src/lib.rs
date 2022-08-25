@@ -451,7 +451,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///  _`json`_ and _`xml`_ formats.
+///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 /// * `example = ...` Can be either `json!(...)` or literal str that can be parsed to json. `json!`
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]

@@ -3,6 +3,7 @@
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
 use std::collections::BTreeMap;
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::IntoResponses;
@@ -100,8 +101,11 @@ builder! {
         pub headers: BTreeMap<String, Header>,
 
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub content: BTreeMap<String, Content>,
+        ///
+        /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
+        /// will create and show default example according to the first entry in `content` map.
+        #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
+        pub content: IndexMap<String, Content>,
     }
 }
 
