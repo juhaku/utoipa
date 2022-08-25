@@ -43,6 +43,7 @@ jobs:
         id: changes
         run: |
           root_changed=false
+          utoipa_changed=false
           gen_changed=false
           swagger_changed=false
           while read -r change; do
@@ -50,17 +51,20 @@ jobs:
               gen_changed=true
             elif [[ "$change" == "utoipa-swagger-ui" ]]; then
               swagger_changed=true
+            elif [[ "$change" == "utoipa" ]]; then
+              utoipa_changed=true
             else
               root_changed=true
             fi
           done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
           echo "::set-output name=root_changed::$root_changed"
+          echo "::set-output name=utoipa_changed::$utoipa_changed"
           echo "::set-output name=gen_changed::$gen_changed"
           echo "::set-output name=swagger_changed::$swagger_changed"
 
       - name: Run tests
         run: |
-          if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.root_changed }} == true ]]; then
+          if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.utoipa_changed }} == true ]]; then
             cargo test -p utoipa --features openapi_extensions,yaml
           elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
             cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,json,utoipa/uuid,utoipa/json
