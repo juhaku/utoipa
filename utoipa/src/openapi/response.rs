@@ -103,7 +103,7 @@ builder! {
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
         ///
         /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
-        /// will create and show default example according the first entry in `content` map.
+        /// will create and show default example according to the first entry in `content` map.
         #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
         pub content: IndexMap<String, Content>,
     }
