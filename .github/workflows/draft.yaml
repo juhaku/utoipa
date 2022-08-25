@@ -19,68 +19,63 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - uses: ./.github/actions/gitlog
-      name: Get changed commits
-      id: gitlog
-      with:
-        output-file: ./draft-gitlog.md
-        crate: ${{ matrix.crate }}
+      - uses: ./.github/actions/gitlog
+        name: Get changed commits
+        id: gitlog
+        with:
+          output-file: ./draft-gitlog.md
+          crate: ${{ matrix.crate }}
 
-    - name: Prepare changes
-      run: |
-        echo "## What's New :gem: :new: :tada:" > ./draft-changes.md
-        cat < ./draft-gitlog.md >> ./draft-changes.md
+      - name: Prepare changes
+        run: |
+          echo "## What's New :gem: :new: :tada:" > ./draft-changes.md
+          cat < ./draft-gitlog.md >> ./draft-changes.md
 
-    - name: Get release info
-      id: release_info
-      run: |
-        version=""
-        if [[ "${{ matrix.crate }}" == "utoipa" ]]; then
-          version=$(cargo read-manifest | jq -r .version)
-        else 
-          version=$(cargo read-manifest --manifest-path "${{ matrix.crate }}/Cargo.toml" | jq -r .version)
-        fi
+      - name: Get release info
+        id: release_info
+        run: |
+          version=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name | test("'"$module"'$")) | .version')
+          prerelease=false
+          if [[ "$version" =~ .*-.* ]]; then
+            prerelease=true
+          fi
 
-        prerelease=false
-        if [[ "$version" =~ .*-.* ]]; then
-          prerelease=true
-        fi
-        echo "::set-output name=is_prerelease::$prerelease"
-        echo "::set-output name=version::$version"
-    
-    - name: Add full change log link
-      run: |
-        echo -e "#### Full [change log](${{ github.server_url }}/${{ github.repository }}/compare/${{ steps.gitlog.outputs.last_release }}...${{ matrix.crate }}-${{ steps.release_info.outputs.version }})" >> ./draft-changes.md
+          echo "::set-output name=is_prerelease::$prerelease"
+          echo "::set-output name=version::$version"
 
-    - name: Check existing release
-      id: existing_release
-      run: |
-        if git tag | grep -e ^${{ matrix.crate }}-${{ steps.release_info.outputs.version }}$ > /dev/null; then 
-          echo "Tag tag with ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} already exists, cannot draft a release for already existing tag!, Consider upgrading versions to Cargo.toml file"
-          echo "::set-output name=is_new::false"
-        else 
-          echo "::set-output name=is_new::true"
-        fi
+      - name: Add full change log link
+        run: |
+          echo -e "#### Full [change log](${{ github.server_url }}/${{ github.repository }}/compare/${{ steps.gitlog.outputs.last_release }}...${{ matrix.crate }}-${{ steps.release_info.outputs.version }})" >> ./draft-changes.md
 
-    - name: Remove previous release
-      if: ${{ steps.existing_release.outputs.is_new == 'true' }}
-      run: |
-        echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-        gh release delete ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} -y || true
+      - name: Check existing release
+        id: existing_release
+        run: |
+          if git tag | grep -e ^${{ matrix.crate }}-${{ steps.release_info.outputs.version }}$ > /dev/null; then 
+            echo "Tag tag with ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} already exists, cannot draft a release for already existing tag!, Consider upgrading versions to Cargo.toml file"
+            echo "::set-output name=is_new::false"
+          else 
+            echo "::set-output name=is_new::true"
+          fi
 
-    - name: Create release
-      id: create_release
-      if: ${{ steps.existing_release.outputs.is_new == 'true' }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ matrix.crate }}-${{ steps.release_info.outputs.version }}
-        release_name: ${{ matrix.crate }}-${{ steps.release_info.outputs.version }}
-        body_path: ./draft-changes.md
-        draft: true
-        prerelease: ${{ steps.release_info.outputs.is_prerelease }}
+      - name: Remove previous release
+        if: ${{ steps.existing_release.outputs.is_new == 'true' }}
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
+          gh release delete ${{ matrix.crate }}-${{ steps.release_info.outputs.version }} -y || true
+
+      - name: Create release
+        id: create_release
+        if: ${{ steps.existing_release.outputs.is_new == 'true' }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ matrix.crate }}-${{ steps.release_info.outputs.version }}
+          release_name: ${{ matrix.crate }}-${{ steps.release_info.outputs.version }}
+          body_path: ./draft-changes.md
+          draft: true
+          prerelease: ${{ steps.release_info.outputs.is_prerelease }}

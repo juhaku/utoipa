@@ -24,7 +24,7 @@ lazy_static = { version = "1.4", optional = true }
 uuid = { version = "1", optional = true }
 
 [dev-dependencies]
-utoipa = { path = "..", default-features = false }
+utoipa = { path = "../utoipa", default-features = false }
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = [ "macros" ], default-features = false }
