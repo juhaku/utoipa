@@ -272,7 +272,7 @@ impl StructParameter {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum ParameterIn {
     Query,
     Path,

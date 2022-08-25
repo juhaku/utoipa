@@ -36,7 +36,7 @@ pub struct IntoParamsType<'a> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ArgumentIn {
     Path,
     #[cfg(feature = "rocket_extras")]

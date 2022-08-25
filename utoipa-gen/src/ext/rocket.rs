@@ -263,7 +263,7 @@ impl PathResolver for PathOperations {
 
             whole_path
                 .split_once('?')
-                .or(Some((&*whole_path, "")))
+                .or(Some((whole_path, "")))
                 .map(|(path, query)| {
                     let mut names =
                         Vec::<MacroArg>::with_capacity(RE.find_iter(whole_path).count());

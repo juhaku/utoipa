@@ -471,7 +471,7 @@ impl ToTokens for ParamType<'_> {
                         }
                     }
                     ValueType::Object => {
-                        let component_path: &syn::TypePath = &*component
+                        let component_path = component
                             .path
                             .as_ref()
                             .expect("component should have a path");

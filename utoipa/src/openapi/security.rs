@@ -270,7 +270,7 @@ impl HttpBuilder {
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1).
 ///
 /// Types are maintainted at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum HttpAuthScheme {
