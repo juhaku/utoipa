@@ -416,7 +416,7 @@ impl SimpleEnum<'_> {
                     utoipa::openapi::schema::ObjectBuilder::new()
                         .property(
                             #tag,
-                            utoipa::openapi::schema::PropertyBuilder::new()
+                            utoipa::openapi::schema::ObjectBuilder::new()
                                 .schema_type(utoipa::openapi::SchemaType::String)
                                 .enum_values::<[&str; 1], &str>(Some([#enum_value]))
                         )
@@ -439,7 +439,7 @@ impl SimpleEnum<'_> {
     fn variants_tokens(enum_values: Array<String>) -> TokenStream {
         let len = enum_values.len();
         quote! {
-            utoipa::openapi::PropertyBuilder::new()
+            utoipa::openapi::ObjectBuilder::new()
             .schema_type(utoipa::openapi::SchemaType::String)
             .enum_values::<[&str; #len], &str>(Some(#enum_values))
         }
@@ -503,7 +503,7 @@ impl ComplexEnum<'_> {
         variant_title: Option<SchemaAttr<Title>>,
     ) -> TokenStream {
         quote! {
-            utoipa::openapi::PropertyBuilder::new()
+            utoipa::openapi::ObjectBuilder::new()
                 #variant_title
                 .schema_type(utoipa::openapi::SchemaType::String)
                 .enum_values::<[&str; 1], &str>(Some([#variant_name]))
@@ -794,7 +794,7 @@ where
                         let schema_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
-                            utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
+                            utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
                         });
 
                         let format: SchemaFormat = (type_path).into();

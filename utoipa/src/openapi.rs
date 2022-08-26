@@ -11,7 +11,7 @@ pub use self::{
     response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
         Array, ArrayBuilder, Components, ComponentsBuilder, Object, ObjectBuilder, OneOf,
-        OneOfBuilder, Property, PropertyBuilder, Ref, Schema, SchemaFormat, SchemaType, ToArray,
+        OneOfBuilder, Ref, Schema, SchemaFormat, SchemaType, ToArray,
     },
     security::SecurityRequirement,
     server::{Server, ServerBuilder, ServerVariable, ServerVariableBuilder},

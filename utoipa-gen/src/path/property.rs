@@ -27,7 +27,7 @@ impl ToTokens for Property<'_> {
 
         if schema_type.is_primitive() {
             let mut schema = quote! {
-                utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
+                utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
             };
 
             let format: SchemaFormat = schema_type.0.into();
