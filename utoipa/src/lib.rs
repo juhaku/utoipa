@@ -303,19 +303,19 @@ pub trait OpenApi {
 ///         utoipa::openapi::ObjectBuilder::new()
 ///             .property(
 ///                 "id",
-///                 utoipa::openapi::PropertyBuilder::new()
+///                 utoipa::openapi::ObjectBuilder::new()
 ///                     .schema_type(utoipa::openapi::SchemaType::Integer)
 ///                     .format(Some(utoipa::openapi::SchemaFormat::Int64)),
 ///             )
 ///             .required("id")
 ///             .property(
 ///                 "name",
-///                 utoipa::openapi::Property::new(utoipa::openapi::SchemaType::String),
+///                 utoipa::openapi::Object::with_type(utoipa::openapi::SchemaType::String),
 ///             )
 ///             .required("name")
 ///             .property(
 ///                 "age",
-///                 utoipa::openapi::PropertyBuilder::new()
+///                 utoipa::openapi::ObjectBuilder::new()
 ///                     .schema_type(utoipa::openapi::SchemaType::Integer)
 ///                     .format(Some(utoipa::openapi::SchemaFormat::Int32)),
 ///             )
@@ -404,7 +404,7 @@ pub trait ToSchema {
 ///                         .deprecated(Some(utoipa::openapi::Deprecated::False))
 ///                         .description(Some("Pet database id to get Pet for"))
 ///                         .schema(
-///                             Some(utoipa::openapi::PropertyBuilder::new()
+///                             Some(utoipa::openapi::ObjectBuilder::new()
 ///                                 .schema_type(utoipa::openapi::SchemaType::Integer)
 ///                                 .format(Some(utoipa::openapi::SchemaFormat::Int64))),
 ///                         ),
@@ -529,7 +529,7 @@ pub trait Modify {
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
-///                     utoipa::openapi::PropertyBuilder::new()
+///                     utoipa::openapi::ObjectBuilder::new()
 ///                         .schema_type(utoipa::openapi::SchemaType::Integer)
 ///                         .format(Some(utoipa::openapi::SchemaFormat::Int64)),
 ///                 ))
@@ -540,7 +540,7 @@ pub trait Modify {
 ///                 .parameter_in(parameter_in_provider().unwrap_or_default())
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
-///                     utoipa::openapi::PropertyBuilder::new()
+///                     utoipa::openapi::ObjectBuilder::new()
 ///                         .schema_type(utoipa::openapi::SchemaType::String),
 ///                 ))
 ///                 .build(),

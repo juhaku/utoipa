@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{build_fn, builder, from, new, set_value, Property, Schema, SchemaType};
+use super::{build_fn, builder, from, new, set_value, Object, Schema, SchemaType};
 
 builder! {
     HeaderBuilder;
@@ -34,8 +34,8 @@ impl Header {
     /// Create new [`Header`] with integer type.
     /// ```rust
     /// # use utoipa::openapi::header::Header;
-    /// # use utoipa::openapi::{Property, SchemaType};
-    /// let header = Header::new(Property::new(SchemaType::Integer));
+    /// # use utoipa::openapi::{Object, SchemaType};
+    /// let header = Header::new(Object::with_type(SchemaType::Integer));
     /// ```
     ///
     /// Create a new [`Header`] with default type `String`
@@ -55,7 +55,7 @@ impl Default for Header {
     fn default() -> Self {
         Self {
             description: Default::default(),
-            schema: Property::new(SchemaType::String).into(),
+            schema: Object::with_type(SchemaType::String).into(),
         }
     }
 }

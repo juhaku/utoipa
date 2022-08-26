@@ -126,14 +126,14 @@ impl ComponentsBuilder {
     /// # Examples
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
-    /// #    PropertyBuilder, SchemaType, Schema};
+    /// #    SchemaType, Schema};
     /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
     ///     Schema::from(
     ///         ObjectBuilder::new()
     ///             .property(
     ///                 "name",
-    ///                 PropertyBuilder::new().schema_type(SchemaType::String),
+    ///                 ObjectBuilder::new().schema_type(SchemaType::String),
     ///             )
     ///             .required("name")
     ///     ),
@@ -214,19 +214,14 @@ impl ComponentsBuilder {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
-    /// Defines object component. This is formed from structs holding [`Property`] components
-    /// created from it's fields.
+    /// Defines object component. Object is either `object` hodling **properties** which are other [`Schema`]s 
+    /// or can be a field within the [`Object`].
     Object(Object),
-    /// Defines property component typically used together with
-    /// [`Schema::Object`] or [`Schema::Array`]. It is used to map
-    /// field types to OpenAPI documentation.
-    Property(Property),
     /// Creates a reference component _`$ref=#/components/schemas/SchemaName`_. Which
     /// can be used to reference a other reusable component in [`Components`].
     Ref(Ref),
     /// Defines array component from another component. Typically used with
-    /// [`Schema::Property`] or [`Schema::Object`] component. Slice and Vec
-    /// types are translated to [`Schema::Array`] types.
+    /// [`Schema::Object`] component. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
     /// Creates a _OneOf_ type [Discriminator Object][discriminator] component. This component
     /// is used to map multiple components together where API endpoint could return any of them.
@@ -317,211 +312,10 @@ impl From<OneOf> for Schema {
 
 component_from_builder!(OneOfBuilder);
 
-/// Implements special subset of [OpenAPI Schema Object][schema] which can be
-/// used to define field property or enum values or type for array items.
-///
-/// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-#[derive(Default, Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Property {
-    /// Type of the property e.g [`SchemaType::String`].
-    #[serde(rename = "type")]
-    pub schema_type: SchemaType,
-
-    /// Changes the [`Property`] title.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    title: Option<String>,
-
-    /// Additional format for detailing the schema type.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<SchemaFormat>,
-
-    /// Description of the property. Markdown syntax is supported.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-
-    /// Default value for the property which is provided when user has not provided the input.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub default: Option<Value>,
-
-    /// Default value for the property which is provided when user has not provided the input.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub default: Option<String>,
-
-    /// Enum type property possible variants.
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    pub enum_values: Option<Vec<String>>,
-
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub example: Option<String>,
-
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub example: Option<Value>,
-
-    /// Changes the [`Property`] deprecated status.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<Deprecated>,
-
-    /// Write only property will be only sent in _write_ requests like _POST, PUT_.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub write_only: Option<bool>,
-
-    /// Read only property will be only sent in _read_ requests like _GET_.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub read_only: Option<bool>,
-
-    /// Additional [`Xml`] formatting of the [`Property`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub xml: Option<Xml>,
-}
-
-impl Property {
-    pub fn new(schema_type: SchemaType) -> Self {
-        Self {
-            schema_type,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<Property> for Schema {
-    fn from(property: Property) -> Self {
-        Self::Property(property)
-    }
-}
-
-impl ToArray for Property {}
-
-/// Builder for [`Property`] with chainable configuration methods to create a new [`Property`].
-#[derive(Default)]
-pub struct PropertyBuilder {
-    schema_type: SchemaType,
-
-    title: Option<String>,
-
-    format: Option<SchemaFormat>,
-
-    description: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    default: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    default: Option<String>,
-
-    enum_values: Option<Vec<String>>,
-
-    #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    example: Option<Value>,
-
-    deprecated: Option<Deprecated>,
-
-    write_only: Option<bool>,
-
-    read_only: Option<bool>,
-
-    xml: Option<Xml>,
-}
-
-from!(Property PropertyBuilder
-    schema_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
-
-impl PropertyBuilder {
-    new!(pub PropertyBuilder);
-
-    /// Add or change type of the property e.g [`SchemaType::String`].
-    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
-        set_value!(self schema_type schema_type)
-    }
-
-    /// Add or change the title of the [`Property`].
-    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
-        set_value!(self title title.map(|title| title.into()))
-    }
-
-    /// Add or change additional format for detailing the component type.
-    pub fn format(mut self, format: Option<SchemaFormat>) -> Self {
-        set_value!(self format format)
-    }
-
-    /// Add or change description of the property. Markdown syntax is supported.
-    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
-        set_value!(self description description.map(|description| description.into()))
-    }
-
-    /// Add or change default value for the property which is provided when user has not provided the input.
-    #[cfg(feature = "serde_json")]
-    pub fn default(mut self, default: Option<Value>) -> Self {
-        set_value!(self default default)
-    }
-
-    /// Add or change default value for the property which is provided when user has not provided the input.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
-        set_value!(self default default.map(|default| default.into()))
-    }
-
-    /// Add or change enum property variants.
-    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<String>>(
-        mut self,
-        enum_values: Option<I>,
-    ) -> Self {
-        set_value!(self enum_values
-            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        set_value!(self example example.map(|example| example.into()))
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(feature = "serde_json")]
-    pub fn example(mut self, example: Option<Value>) -> Self {
-        set_value!(self example example)
-    }
-
-    /// Add or change deprecated status for [`Property`].
-    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
-        set_value!(self deprecated deprecated)
-    }
-
-    /// Add or change write only flag for [`Property`].
-    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        set_value!(self write_only write_only)
-    }
-
-    /// Add or change read only flag for [`Property`].
-    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        set_value!(self read_only read_only)
-    }
-
-    /// Add or change additional [`Xml`] formatting of the [`Property`].
-    pub fn xml(mut self, xml: Option<Xml>) -> Self {
-        set_value!(self xml xml)
-    }
-
-    to_array_builder!();
-
-    build_fn!(pub Property
-        schema_type, title, format, description, default, enum_values, example, deprecated, write_only, read_only, xml);
-}
-
-component_from_builder!(PropertyBuilder);
-
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Schema`]s as **properties** to this [`Schema`].
+///
+/// This is a generic OpenAPI schema object which can used to present `object`, `field` or an `enum`.
 ///
 /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
@@ -529,13 +323,37 @@ component_from_builder!(PropertyBuilder);
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Object {
-    /// Data type of [`Object`]. Will always be [`SchemaType::Object`]
+    /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
+    /// `string` types.
     #[serde(rename = "type")]
     schema_type: SchemaType,
 
     /// Changes the [`Object`] title.
     #[serde(skip_serializing_if = "Option::is_none")]
     title: Option<String>,
+
+    /// Additional format for detailing the schema type.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<SchemaFormat>,
+
+    /// Description of the [`Object`]. Markdown syntax is supported.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Default value which is provided when user has not provided the input in Swagger UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub default: Option<Value>,
+
+
+    /// Default value which is provided when user has not provided the input in Swagger UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub default: Option<String>,
+
+    /// Enum variants of fields that can be represented as `unit` type `enums`
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<String>>,
 
     /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -548,10 +366,6 @@ pub struct Object {
     /// Additional [`Schema`] for non specified fields (Useful for typed maps).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_properties: Option<Box<Schema>>,
-
-    /// Description of the [`Object`]. Markdown syntax is supported.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
 
     /// Changes the [`Object`] deprecated status.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -567,14 +381,37 @@ pub struct Object {
     #[cfg(not(feature = "serde_json"))]
     pub example: Option<String>,
 
+    /// Write only property will be only sent in _write_ requests like _POST, PUT_.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub write_only: Option<bool>,
+
+    /// Read only property will be only sent in _read_ requests like _GET_.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_only: Option<bool>,
+
     /// Additional [`Xml`] formatting of the [`Object`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xml: Option<Xml>,
 }
 
 impl Object {
+    /// Initialize a new [`Object`] with default [`SchemaType`]. This effectifly same as calling
+    /// [`Object::with_type(SchemaType::Object)`].
     pub fn new() -> Self {
         Self {
+            ..Default::default()
+        }
+    }
+
+    /// Initialize new [`Object`] with given [`SchemaType`].
+    ///
+    /// Create [`string`] object type which can be used to define `string` field of an object.
+    /// ```rust
+    /// let object = Object::with_type(SchemaType::String);
+    /// ```
+    pub fn with_type(schema_type: SchemaType) -> Self {
+        Self {
+            schema_type,
             ..Default::default()
         }
     }
@@ -595,15 +432,29 @@ pub struct ObjectBuilder {
 
     title: Option<String>,
 
+    format: Option<SchemaFormat>,
+
+    description: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    default: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    default: Option<String>,
+
+    deprecated: Option<Deprecated>,
+
+    enum_values: Option<Vec<String>>,
+
     required: Vec<String>,
 
     properties: BTreeMap<String, Schema>,
 
     additional_properties: Option<Box<Schema>>,
 
-    description: Option<String>,
+    write_only: Option<bool>,
 
-    deprecated: Option<Deprecated>,
+    read_only: Option<bool>,
 
     #[cfg(feature = "serde_json")]
     example: Option<Value>,
@@ -616,6 +467,16 @@ pub struct ObjectBuilder {
 
 impl ObjectBuilder {
     new!(pub ObjectBuilder);
+
+    /// Add or change type of the object e.g [`SchemaType::String`].
+    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
+        set_value!(self schema_type schema_type)
+    }
+
+    /// Add or change additional format for detailing the schema type.
+    pub fn format(mut self, format: Option<SchemaFormat>) -> Self {
+        set_value!(self format format)
+    }
 
     /// Add new property to the [`Object`].
     ///
@@ -655,9 +516,30 @@ impl ObjectBuilder {
         set_value!(self description description.map(|description| description.into()))
     }
 
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[cfg(feature = "serde_json")]
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
+    }
+
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
+        set_value!(self default default.map(|default| default.into()))
+    }
+
     /// Add or change deprecated status for [`Object`].
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
         set_value!(self deprecated deprecated)
+    }
+
+    /// Add or change enum property variants.
+    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<String>>(
+        mut self,
+        enum_values: Option<I>,
+    ) -> Self {
+        set_value!(self enum_values
+            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
     }
 
     /// Add or change example shown in UI of the value for richier documentation.
@@ -672,6 +554,16 @@ impl ObjectBuilder {
         set_value!(self example example.map(|example| example.into()))
     }
 
+    /// Add or change write only flag for [`Object`].
+    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
+        set_value!(self write_only write_only)
+    }
+
+    /// Add or change read only flag for [`Object`].
+    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
+        set_value!(self read_only read_only)
+    }
+
     /// Add or change additional [`Xml`] formatting of the [`Object`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         set_value!(self xml xml)
@@ -679,10 +571,13 @@ impl ObjectBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Object schema_type, title, required, properties, description, deprecated, example, xml, additional_properties);
+    build_fn!(pub Object schema_type, format, title, required, properties, description, 
+              deprecated, default, enum_values, example, write_only, read_only, xml, additional_properties);
 }
 
-from!(Object ObjectBuilder schema_type, title, required, properties, description, deprecated, example, xml, additional_properties);
+from!(Object ObjectBuilder schema_type, format, title, required, properties, description,
+      deprecated, default, enum_values,  example, write_only, read_only, xml, additional_properties);
+
 component_from_builder!(ObjectBuilder);
 
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
@@ -796,8 +691,8 @@ impl Array {
     ///
     /// Create a `String` array component.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Property};
-    /// let string_array = Array::new(Property::new(SchemaType::String));
+    /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Object};
+    /// let string_array = Array::new(Object::with_type(SchemaType::String));
     /// ```
     pub fn new<I: Into<Schema>>(component: I) -> Self {
         Self {
@@ -864,14 +759,17 @@ pub enum SchemaType {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
     /// _schema_type_ [`SchemaType::Object`].
     Object,
-    /// Indicates string type of content. Typically used with [`Property`] and [`PropertyBuilder`].
+    /// Indicates string type of content. Used with [`Object`] and [`ObjectBuilder`] on a `string`
+    /// field.
     String,
-    /// Indicates integer type of content. Typically used with [`Property`] and [`PropertyBuilder`].
+    /// Indicates integer type of content. Used with [`Object`] and [`ObjectBuilder`] on a `number`
+    /// field.
     Integer,
-    /// Indicates floating point number type of content. Typically used with
-    /// [`Property`] and [`PropertyBuilder`].
+    /// Indicates floating point number type of content. Used with
+    /// [`Object`] and [`ObjectBuilder`] on a `number` field.
     Number,
-    /// Indicates boolean type of content. Typically used with [`Property`] and [`PropertyBuilder`].
+    /// Indicates boolean type of content. Used with [`Object`] and [`ObjectBuilder`] on
+    /// a `bool` field.
     Boolean,
     /// Used with [`Array`] and [`ArrayBuilder`]. Indicates array type of content.
     Array,
@@ -938,7 +836,7 @@ mod tests {
                             ObjectBuilder::new()
                                 .property(
                                     "id",
-                                    PropertyBuilder::new()
+                                    ObjectBuilder::new()
                                         .schema_type(SchemaType::Integer)
                                         .format(Some(SchemaFormat::Int32))
                                         .description(Some("Id of credential"))
@@ -946,13 +844,13 @@ mod tests {
                                 )
                                 .property(
                                     "name",
-                                    PropertyBuilder::new()
+                                    ObjectBuilder::new()
                                         .schema_type(SchemaType::String)
                                         .description(Some("Name of credential")),
                                 )
                                 .property(
                                     "status",
-                                    PropertyBuilder::new()
+                                    ObjectBuilder::new()
                                         .schema_type(SchemaType::String)
                                         .default(Some(json!("Active")))
                                         .description(Some("Credential status"))
@@ -967,7 +865,7 @@ mod tests {
                                     "history",
                                     Array::new(Ref::from_schema_name("UpdateHistory")),
                                 )
-                                .property("tags", Property::new(SchemaType::String).to_array()),
+                                .property("tags", Object::with_type(SchemaType::String).to_array()),
                         ),
                     )
                     .build(),
@@ -1042,7 +940,7 @@ mod tests {
     #[test]
     fn test_additional_properties() {
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(PropertyBuilder::new().schema_type(SchemaType::String)))
+            .additional_properties(Some(ObjectBuilder::new().schema_type(SchemaType::String)))
             .build();
         assert_json_eq!(
             json_value,
@@ -1106,7 +1004,7 @@ mod tests {
         let array = Array::new(
             ObjectBuilder::new().property(
                 "id",
-                PropertyBuilder::new()
+                ObjectBuilder::new()
                     .schema_type(SchemaType::Integer)
                     .format(Some(SchemaFormat::Int32))
                     .description(Some("Id of credential"))
@@ -1123,7 +1021,7 @@ mod tests {
             .items(
                 ObjectBuilder::new().property(
                     "id",
-                    PropertyBuilder::new()
+                    ObjectBuilder::new()
                         .schema_type(SchemaType::Integer)
                         .format(Some(SchemaFormat::Int32))
                         .description(Some("Id of credential"))
@@ -1144,7 +1042,7 @@ mod tests {
                     ObjectBuilder::new()
                         .property(
                             "name",
-                            PropertyBuilder::new().schema_type(SchemaType::String),
+                            ObjectBuilder::new().schema_type(SchemaType::String),
                         )
                         .required("name"),
                 ),
@@ -1172,7 +1070,7 @@ mod tests {
         let prop = ObjectBuilder::new()
             .property(
                 "name",
-                PropertyBuilder::new().schema_type(SchemaType::String),
+                ObjectBuilder::new().schema_type(SchemaType::String),
             )
             .required("name")
             .build();
@@ -1189,12 +1087,12 @@ mod tests {
 
     #[test]
     fn reserialize_deserialized_property() {
-        let prop = PropertyBuilder::new()
+        let prop = ObjectBuilder::new()
             .schema_type(SchemaType::String)
             .build();
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
-        let deserialized_components: Property =
+        let deserialized_components: Object =
             serde_json::from_str(serialized_components.as_str()).unwrap();
 
         assert_eq!(

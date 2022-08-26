@@ -460,7 +460,7 @@ impl ToTokens for ParamType<'_> {
                         let schema_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
-                            utoipa::openapi::PropertyBuilder::new().schema_type(#schema_type)
+                            utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
                         });
 
                         let format: SchemaFormat = (type_path).into();
