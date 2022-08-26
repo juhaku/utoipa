@@ -49,7 +49,7 @@ builder! {
         ///
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub schemas: BTreeMap<String, RefOr<Schema>>,
+        pub schemas: BTreeMap<String, Schema>,
 
         /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
         /// Reference][reference]s to [OpenAPI Response Object][response]s.
@@ -115,7 +115,7 @@ impl ComponentsBuilder {
     /// Add [`Schema`] to [`Components`].
     ///
     /// Accpets two arguments where first is name of the schema and second is the schema itself.
-    pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
+    pub fn schema<S: Into<String>, I: Into<Schema>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
 
         self
@@ -141,7 +141,7 @@ impl ComponentsBuilder {
     /// ```
     pub fn schemas_from_iter<
         I: IntoIterator<Item = (S, C)>,
-        C: Into<RefOr<Schema>>,
+        C: Into<Schema>,
         S: Into<String>,
     >(
         mut self,
@@ -356,11 +356,11 @@ pub struct Object {
     pub enum_values: Option<Vec<String>>,
 
     /// Vector of required field names.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
     pub required: Vec<String>,
 
     /// Map of fields with their [`Schema`] types.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default = "BTreeMap::new")]
     pub properties: BTreeMap<String, Schema>,
 
     /// Additional [`Schema`] for non specified fields (Useful for typed maps).
@@ -407,6 +407,7 @@ impl Object {
     ///
     /// Create [`string`] object type which can be used to define `string` field of an object.
     /// ```rust
+    /// # use utoipa::openapi::schema::{Object, SchemaType};
     /// let object = Object::with_type(SchemaType::String);
     /// ```
     pub fn with_type(schema_type: SchemaType) -> Self {
@@ -829,7 +830,7 @@ mod tests {
             .paths(Paths::new())
             .components(Some(
                 ComponentsBuilder::new()
-                    .schema("Person", RefOr::Ref(Ref::new("#/components/PersonModel")))
+                    .schema("Person", Ref::new("#/components/PersonModel"))
                     .schema(
                         "Credential",
                         Schema::from(
