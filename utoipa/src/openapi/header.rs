@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{build_fn, builder, from, new, set_value, Object, Schema, SchemaType};
+use super::{build_fn, builder, from, new, schema::RefOr, set_value, Object, Schema, SchemaType};
 
 builder! {
     HeaderBuilder;
@@ -17,7 +17,7 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Header {
         /// Schema of header type.
-        pub schema: Schema,
+        pub schema: RefOr<Schema>,
 
         /// Additional descripiton of the header value.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -43,7 +43,7 @@ impl Header {
     /// # use utoipa::openapi::header::Header;
     /// let header = Header::default();
     /// ```
-    pub fn new<C: Into<Schema>>(component: C) -> Self {
+    pub fn new<C: Into<RefOr<Schema>>>(component: C) -> Self {
         Self {
             schema: component.into(),
             ..Default::default()
@@ -62,7 +62,7 @@ impl Default for Header {
 
 impl HeaderBuilder {
     /// Add schema of header.
-    pub fn schema<I: Into<Schema>>(mut self, component: I) -> Self {
+    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self schema component.into())
     }
 

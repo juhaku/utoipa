@@ -11,6 +11,7 @@ use super::{
     build_fn, builder, from, new,
     request_body::RequestBody,
     response::{Response, Responses},
+    schema::RefOr,
     set_value, Deprecated, ExternalDocs, Required, Schema, SecurityRequirement, Server,
 };
 
@@ -441,7 +442,7 @@ pub struct Parameter {
     // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
     /// Schema of the parameter. Typically [`Schema::Property`] is used.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub schema: Option<Schema>,
+    pub schema: Option<RefOr<Schema>>,
 
     /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of a content).
     /// Default value is based on [`ParameterIn`].
@@ -506,7 +507,7 @@ pub struct ParameterBuilder {
 
     deprecated: Option<Deprecated>,
 
-    schema: Option<Schema>,
+    schema: Option<RefOr<Schema>>,
 
     style: Option<ParameterStyle>,
 
@@ -558,7 +559,7 @@ impl ParameterBuilder {
     }
 
     /// Add or change [`Parameter`]s schema.
-    pub fn schema<I: Into<Schema>>(mut self, component: Option<I>) -> Self {
+    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: Option<I>) -> Self {
         set_value!(self schema component.map(|component| component.into()))
     }
 

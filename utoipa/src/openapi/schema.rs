@@ -38,6 +38,9 @@ builder! {
 
     /// Implements [OpenAPI Components Object][components] which holds supported
     /// reusable objects.
+    /// 
+    /// Components can hold either reusable types themselves or references to other reusable 
+    /// types.
     ///
     /// [components]: https://spec.openapis.org/oas/latest.html#components-object
     #[non_exhaustive]
@@ -49,7 +52,7 @@ builder! {
         ///
         /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub schemas: BTreeMap<String, Schema>,
+        pub schemas: BTreeMap<String, RefOr<Schema>>,
 
         /// Map of reusable response name, to [OpenAPI Response Object][response]s or [OpenAPI
         /// Reference][reference]s to [OpenAPI Response Object][response]s.
@@ -59,9 +62,9 @@ builder! {
         #[serde(skip_serializing_if = "HashMap::is_empty", default)]
         pub responses: HashMap<String, RefOr<Response>>,
 
-        /// Map of reusable [OpenAPI Security Schema Object][security_schema]s.
+        /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
         ///
-        /// [security_schema]: https://spec.openapis.org/oas/latest.html#security-scheme-object
+        /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub security_schemes: BTreeMap<String, SecurityScheme>,
     }
@@ -115,7 +118,7 @@ impl ComponentsBuilder {
     /// Add [`Schema`] to [`Components`].
     ///
     /// Accpets two arguments where first is name of the schema and second is the schema itself.
-    pub fn schema<S: Into<String>, I: Into<Schema>>(mut self, name: S, schema: I) -> Self {
+    pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
 
         self
@@ -141,7 +144,7 @@ impl ComponentsBuilder {
     /// ```
     pub fn schemas_from_iter<
         I: IntoIterator<Item = (S, C)>,
-        C: Into<Schema>,
+        C: Into<RefOr<Schema>>,
         S: Into<String>,
     >(
         mut self,
@@ -206,7 +209,7 @@ impl ComponentsBuilder {
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
-/// referenced from path operations and other components using [`Ref`] component.
+/// referenced from path operations and other components using [`Ref`].
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
@@ -214,17 +217,14 @@ impl ComponentsBuilder {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
-    /// Defines object component. Object is either `object` hodling **properties** which are other [`Schema`]s 
+    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s 
     /// or can be a field within the [`Object`].
     Object(Object),
-    /// Creates a reference component _`$ref=#/components/schemas/SchemaName`_. Which
-    /// can be used to reference a other reusable component in [`Components`].
-    Ref(Ref),
-    /// Defines array component from another component. Typically used with
-    /// [`Schema::Object`] component. Slice and Vec types are translated to [`Schema::Array`] types.
+    /// Defines array schema from another schema. Typically used with
+    /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
-    /// Creates a _OneOf_ type [Discriminator Object][discriminator] component. This component
-    /// is used to map multiple components together where API endpoint could return any of them.
+    /// Creates a _OneOf_ type [Discriminator Object][discriminator] schema. This schema
+    /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
@@ -251,7 +251,7 @@ builder! {
     pub struct OneOf {
         /// Components of _OneOf_ component.
         #[serde(rename = "oneOf")]
-        pub items: Vec<Schema>,
+        pub items: Vec<RefOr<Schema>>,
 
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
@@ -290,7 +290,7 @@ impl OneOfBuilder {
     /// Adds a given [`Schema`] to [`OneOf`] [Discriminator Object][discriminator]
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
-    pub fn item<I: Into<Schema>>(mut self, component: I) -> Self {
+    pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.items.push(component.into());
 
         self
@@ -307,6 +307,12 @@ impl OneOfBuilder {
 impl From<OneOf> for Schema {
     fn from(one_of: OneOf) -> Self {
         Self::OneOf(one_of)
+    }
+}
+
+impl From<OneOfBuilder> for RefOr<Schema> {
+    fn from(one_of: OneOfBuilder) -> Self {
+        Self::T(Schema::OneOf(one_of.build()))
     }
 }
 
@@ -361,11 +367,11 @@ pub struct Object {
 
     /// Map of fields with their [`Schema`] types.
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default = "BTreeMap::new")]
-    pub properties: BTreeMap<String, Schema>,
+    pub properties: BTreeMap<String, RefOr<Schema>>,
 
     /// Additional [`Schema`] for non specified fields (Useful for typed maps).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_properties: Option<Box<Schema>>,
+    pub additional_properties: Option<Box<RefOr<Schema>>>,
 
     /// Changes the [`Object`] deprecated status.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -449,9 +455,9 @@ pub struct ObjectBuilder {
 
     required: Vec<String>,
 
-    properties: BTreeMap<String, Schema>,
+    properties: BTreeMap<String, RefOr<Schema>>,
 
-    additional_properties: Option<Box<Schema>>,
+    additional_properties: Option<Box<RefOr<Schema>>>,
 
     write_only: Option<bool>,
 
@@ -482,7 +488,7 @@ impl ObjectBuilder {
     /// Add new property to the [`Object`].
     ///
     /// Method accepts property name and property component as an arguments.
-    pub fn property<S: Into<String>, I: Into<Schema>>(
+    pub fn property<S: Into<String>, I: Into<RefOr<Schema>>>(
         mut self,
         property_name: S,
         component: I,
@@ -493,7 +499,7 @@ impl ObjectBuilder {
         self
     }
 
-    pub fn additional_properties<I: Into<Schema>>(
+    pub fn additional_properties<I: Into<RefOr<Schema>>>(
         mut self,
         additional_properties: Option<I>,
     ) -> Self {
@@ -581,8 +587,14 @@ from!(Object ObjectBuilder schema_type, format, title, required, properties, des
 
 component_from_builder!(ObjectBuilder);
 
+impl From<ObjectBuilder> for RefOr<Schema> {
+    fn from(builder: ObjectBuilder) -> Self {
+        Self::T(Schema::Object(builder.build()))
+    }
+}
+
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
-/// reusable components.
+/// reusable components such as [`Schema`]s or [`Response`]s.
 ///
 /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]
@@ -618,15 +630,17 @@ impl Ref {
     to_array_builder!();
 }
 
-impl From<Ref> for Schema {
+impl From<Ref> for RefOr<Schema> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
     }
 }
 
-impl ToArray for Ref {}
 
-/// A [`Ref`] or some other type `T`
+/// A [`Ref`] or some other type `T`. 
+/// 
+/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any 
+/// other given type such as [`Schema`] or [`Response`].
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
@@ -638,6 +652,26 @@ pub enum RefOr<T> {
 impl<T> From<T> for RefOr<T> {
     fn from(t: T) -> Self {
         Self::T(t)
+    }
+}
+
+impl Default for RefOr<Schema> {
+    fn default() -> Self {
+        Self::T(Schema::Object(Object::new()))
+    }
+}
+
+impl ToArray for RefOr<Schema> {}
+
+impl From<Object> for RefOr<Schema> {
+    fn from(object: Object) -> Self {
+        Self::T(Schema::Object(object))
+    }
+}
+
+impl From<Array> for RefOr<Schema> {
+    fn from(array: Array) -> Self {
+        Self::T(Schema::Array(array))
     }
 }
 
@@ -657,7 +691,7 @@ builder! {
         schema_type: SchemaType,
 
         /// Schema representing the array items type.
-        pub items: Box<Schema>,
+        pub items: Box<RefOr<Schema>>,
 
         /// Max length of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -695,7 +729,7 @@ impl Array {
     /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Object};
     /// let string_array = Array::new(Object::with_type(SchemaType::String));
     /// ```
-    pub fn new<I: Into<Schema>>(component: I) -> Self {
+    pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
             items: Box::new(component.into()),
             ..Default::default()
@@ -710,7 +744,7 @@ impl Array {
 
 impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
-    pub fn items<I: Into<Schema>>(mut self, component: I) -> Self {
+    pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
     }
 
@@ -740,11 +774,17 @@ impl From<Array> for Schema {
     }
 }
 
+impl From<ArrayBuilder> for RefOr<Schema> {
+    fn from(array: ArrayBuilder) -> Self {
+        Self::T(Schema::Array(array.build()))
+    }
+}
+
 impl ToArray for Array {}
 
 pub trait ToArray
 where
-    Schema: From<Self>,
+    RefOr<Schema>: From<Self>,
     Self: Sized,
 {
     fn to_array(self) -> Array {
