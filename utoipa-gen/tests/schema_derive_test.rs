@@ -2,7 +2,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::assert_json_eq;
-#[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
+#[cfg(feature = "chrono")]
 use chrono::{Date, DateTime, Duration, Utc};
 
 use serde::Serialize;
@@ -1190,9 +1190,9 @@ fn derive_struct_xml() {
     }
 }
 
-#[cfg(feature = "chrono_with_format")]
+#[cfg(feature = "chrono")]
 #[test]
-fn derive_component_with_chrono_with_chrono_with_format_feature() {
+fn derive_component_with_chrono_feature() {
     let post = api_doc! {
         struct Post {
             id: i32,
@@ -1208,33 +1208,6 @@ fn derive_component_with_chrono_with_chrono_with_format_feature() {
         "properties.datetime.format" = r#""date-time""#, "Post datetime format"
         "properties.date.type" = r#""string""#, "Post date type"
         "properties.date.format" = r#""date""#, "Post date format"
-        "properties.duration.type" = r#""string""#, "Post duration type"
-        "properties.duration.format" = r#"null"#, "Post duration format"
-        "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.value.type" = r#""string""#, "Post value type"
-        "properties.value.format" = r#"null"#, "Post value format"
-    }
-}
-
-#[cfg(feature = "chrono")]
-#[test]
-fn derive_component_with_chrono_with_chrono_feature() {
-    let post = api_doc! {
-        struct Post {
-            id: i32,
-            value: String,
-            datetime: DateTime<Utc>,
-            date: Date<Utc>,
-            duration: Duration,
-        }
-    };
-
-    assert_value! {post=>
-        "properties.datetime.type" = r#""string""#, "Post datetime type"
-        "properties.datetime.format" = r#"null"#, "Post datetime format"
-        "properties.date.type" = r#""string""#, "Post date type"
-        "properties.date.format" = r#"null"#, "Post date format"
         "properties.duration.type" = r#""string""#, "Post duration type"
         "properties.duration.format" = r#"null"#, "Post duration format"
         "properties.id.type" = r#""integer""#, "Post id type"

@@ -41,7 +41,6 @@ time = { version = "0.3.11", features = [ "serde-human-readable" ] }
 debug = []
 actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
 chrono = []
-chrono_with_format = []
 json = []
 yaml = []
 decimal = []
