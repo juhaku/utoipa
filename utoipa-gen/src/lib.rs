@@ -81,7 +81,7 @@ use ext::ArgumentResolver;
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
 ///
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
@@ -94,7 +94,7 @@ use ext::ArgumentResolver;
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
 ///
@@ -343,7 +343,7 @@ use ext::ArgumentResolver;
 /// };
 /// ```
 ///
-/// Use a virtual `Any` type to render generic `object` in OpenAPI spec.
+/// Use a virtual `Object` type to render generic `object` in OpenAPI spec.
 /// ```rust
 /// # use utoipa::ToSchema;
 /// # mod custom {
@@ -353,7 +353,7 @@ use ext::ArgumentResolver;
 /// # struct Bar;
 /// #[derive(ToSchema)]
 /// struct Value {
-///     #[schema(value_type = Any)]
+///     #[schema(value_type = Object)]
 ///     field: Bar,
 /// };
 /// ```
@@ -1020,8 +1020,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Any`_.
-///    _`Any`_ will be rendered as generic OpenAPI object.
+///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+///    _`Object`_ will be rendered as generic OpenAPI object.
 /// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
 ///   the schema definition will be inlined.
 ///
@@ -1133,14 +1133,14 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Override `String` with `Any` using `value_type` attribute. _`Any`_ will render as `type: object` in OpenAPI spec.
+/// Override `String` with `Object` using `value_type` attribute. _`Object`_ will render as `type: object` in OpenAPI spec.
 /// ```rust
 /// # use utoipa::IntoParams;
 /// #
 /// #[derive(IntoParams)]
 /// #[into_params(parameter_in = Query)]
 /// struct Filter {
-///     #[param(value_type = Any)]
+///     #[param(value_type = Object)]
 ///     id: String,
 /// }
 /// ```

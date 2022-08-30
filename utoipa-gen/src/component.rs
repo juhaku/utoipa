@@ -216,10 +216,10 @@ impl<'t> TypeTree<'t> {
         }))
     }
 
-    /// `Any` virtual type is used when generic object is required in OpenAPI spec. Typically used
+    /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
-    fn is_any(&self) -> bool {
-        self.is("Any")
+    fn is_object(&self) -> bool {
+        self.is("Object")
     }
 }
 
