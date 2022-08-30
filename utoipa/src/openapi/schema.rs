@@ -411,7 +411,7 @@ impl Object {
 
     /// Initialize new [`Object`] with given [`SchemaType`].
     ///
-    /// Create [`string`] object type which can be used to define `string` field of an object.
+    /// Create [`std::string`] object type which can be used to define `string` field of an object.
     /// ```rust
     /// # use utoipa::openapi::schema::{Object, SchemaType};
     /// let object = Object::with_type(SchemaType::String);

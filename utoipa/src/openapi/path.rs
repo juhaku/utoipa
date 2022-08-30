@@ -440,7 +440,7 @@ pub struct Parameter {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
-    /// Schema of the parameter. Typically [`Schema::Property`] is used.
+    /// Schema of the parameter. Typically [`Schema::Object`] is used.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub schema: Option<RefOr<Schema>>,
 
