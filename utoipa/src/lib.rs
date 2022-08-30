@@ -60,11 +60,11 @@
 //!   `format: date-time` for `DateTime` and `format: date` for `Date` according
 //!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
 //!   override default `string` representation users have to use `value_type` attribute to override the type.
-//!   See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.Component.html) for more details.
+//!   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.Component.html) for more details.
 //! * **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
 //!   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
 //!   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
-//!   to override the type. See [docs](https://docs.rs/utoipa/1.1.0/utoipa/derive.ToSchema.html) for more details.
+//!   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 //! * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `String`. If you wish to change the format you need to override the type.
 //!   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
@@ -80,16 +80,16 @@
 //! # Install
 //!
 //! Add minimal dependency declaration to Cargo.toml.
-//! ```text
+//! ```toml
 //! [dependencies]
-//! utoipa = "1"
+//! utoipa = "2"
 //! ```
 //!
 //! To enable more features such as use actix framework extras you could define the
 //! dependency as follows.
-//! ```text
+//! ```toml
 //! [dependencies]
-//! utoipa = { version = "1", features = ["actix_extras"] }
+//! utoipa = { version = "2", features = ["actix_extras"] }
 //! ```
 //!
 //! **Note!** To use `utoipa` together with Swagger UI you can use the [`utoipa-swagger-ui`][utoipa_swagger] crate.

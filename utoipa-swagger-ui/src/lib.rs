@@ -28,22 +28,23 @@
 //! # Install
 //!
 //! Use only the raw types without any boiler plate implementation.
-//! ```text
+//! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = "1"
+//! utoipa-swagger-ui = "2"
 //!
 //! ```
 //! Enable actix-web framework with Swagger UI you could define the dependency as follows.
-//! ```text
+//! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = { version = "1", features = ["actix-web"] }
+//! utoipa-swagger-ui = { version = "2", features = ["actix-web"] }
 //! ```
 //!
 //! **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
 //!
 //! # Examples
 //!
-//! Serve Swagger UI with api doc via **`actix-web`**. See full example from [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
+//! Serve Swagger UI with api doc via **`actix-web`**. See full example from
+//! [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 //! ```no_run
 //! # use actix_web::{App, HttpServer};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -63,7 +64,8 @@
 //!     .run();
 //! ```
 //!
-//! Serve Swagger UI with api doc via **`rocket`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
+//! Serve Swagger UI with api doc via **`rocket`**. See full example from
+//! [examples](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 //! ```no_run
 //! # use rocket::{Build, Rocket};
 //! # use utoipa_swagger_ui::SwaggerUi;
