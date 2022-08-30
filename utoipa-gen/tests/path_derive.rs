@@ -641,7 +641,7 @@ fn derive_path_params_into_params_with_value_type() {
     struct Filter {
         #[param(value_type = i64, style = Simple)]
         id: String,
-        #[param(value_type = Any)]
+        #[param(value_type = Object)]
         another_id: String,
         #[param(value_type = Vec<Vec<String>>)]
         value1: Vec<i64>,
@@ -649,9 +649,9 @@ fn derive_path_params_into_params_with_value_type() {
         value2: Vec<i64>,
         #[param(value_type = Option<String>)]
         value3: i64,
-        #[param(value_type = Option<Any>)]
+        #[param(value_type = Option<Object>)]
         value4: i64,
-        #[param(value_type = Vec<Any>)]
+        #[param(value_type = Vec<Object>)]
         value5: i64,
         #[param(value_type = Vec<Foo>)]
         value6: i64,

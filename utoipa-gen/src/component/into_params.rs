@@ -479,7 +479,7 @@ impl ToTokens for ParamType<'_> {
                             tokens.extend(quote_spanned! {component_path.span()=>
                                 <#component_path as utoipa::ToSchema>::schema()
                             })
-                        } else if component.is_any() {
+                        } else if component.is_object() {
                             tokens.extend(quote! {
                                 utoipa::openapi::ObjectBuilder::new()
                             });

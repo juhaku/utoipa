@@ -1388,10 +1388,10 @@ fn derive_unnamed_struct_schema_type_override_with_format() {
 }
 
 #[test]
-fn derive_struct_override_type_with_any_type() {
+fn derive_struct_override_type_with_object_type() {
     let value = api_doc! {
         struct Value {
-            #[schema(value_type = Any)]
+            #[schema(value_type = Object)]
             field: String,
         }
     };
@@ -1631,7 +1631,7 @@ fn derive_component_with_into_params_value_type() {
         struct Random {
             #[schema(value_type = i64)]
             id: String,
-            #[schema(value_type = Any)]
+            #[schema(value_type = Object)]
             another_id: String,
             #[schema(value_type = Vec<Vec<String>>)]
             value1: Vec<i64>,
@@ -1639,9 +1639,9 @@ fn derive_component_with_into_params_value_type() {
             value2: Vec<i64>,
             #[schema(value_type = Option<String>)]
             value3: i64,
-            #[schema(value_type = Option<Any>)]
+            #[schema(value_type = Option<Object>)]
             value4: i64,
-            #[schema(value_type = Vec<Any>)]
+            #[schema(value_type = Vec<Object>)]
             value5: i64,
             #[schema(value_type = Vec<Foo>)]
             value6: i64,

@@ -42,4 +42,3 @@ assert-json-diff = "2"
 
 [package.metadata.docs.rs]
 features = ["json", "actix_extras", "axum_extras"]
-

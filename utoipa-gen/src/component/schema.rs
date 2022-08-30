@@ -836,7 +836,7 @@ where
                             .attrs
                             .map(|attributes| attributes.is_inline())
                             .unwrap_or(false);
-                        if type_tree.is_any() {
+                        if type_tree.is_object() {
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else {
                             let type_path = &**type_tree.path.as_ref().unwrap();
