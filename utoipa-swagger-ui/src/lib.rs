@@ -390,8 +390,8 @@ impl<'a> From<Cow<'static, str>> for Url<'a> {
     }
 }
 
-pub const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
-pub const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
+const SWAGGER_STANDALONE_LAYOUT: &str = "StandaloneLayout";
+const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 
 /// Object used to alter Swagger UI settings.
 ///
