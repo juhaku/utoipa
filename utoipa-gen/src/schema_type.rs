@@ -17,7 +17,6 @@ impl SchemaType<'_> {
 
         #[cfg(not(any(
             feature = "chrono",
-            feature = "chrono_with_format",
             feature = "decimal",
             feature = "rocket_extras",
             feature = "uuid",
@@ -29,7 +28,6 @@ impl SchemaType<'_> {
 
         #[cfg(any(
             feature = "chrono",
-            feature = "chrono_with_format",
             feature = "decimal",
             feature = "rocket_extras",
             feature = "uuid",
@@ -38,7 +36,7 @@ impl SchemaType<'_> {
         {
             let mut primitive = is_primitive(name);
 
-            #[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
+            #[cfg(feature = "chrono")]
             if !primitive {
                 primitive = is_primitive_chrono(name);
             }
@@ -97,7 +95,7 @@ fn is_primitive(name: &str) -> bool {
 }
 
 #[inline]
-#[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
+#[cfg(feature = "chrono")]
 fn is_primitive_chrono(name: &str) -> bool {
     matches!(name, "DateTime" | "Date" | "Duration")
 }
@@ -123,10 +121,10 @@ impl ToTokens for SchemaType<'_> {
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
             | "u128" | "usize" => tokens.extend(quote! { utoipa::openapi::SchemaType::Integer }),
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
-            #[cfg(any(feature = "chrono", feature = "chrono_with_format"))]
-            "DateTime" | "Date" | "Duration" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaType::String })
-            }
+            #[cfg(feature = "chrono")]
+            "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            #[cfg(any(feature = "chrono", feature = "time"))]
+            "Date" | "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "decimal")]
             "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "rocket_extras")]
@@ -134,11 +132,9 @@ impl ToTokens for SchemaType<'_> {
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "time")]
-            "Date" | "PrimitiveDateTime" | "OffsetDateTime" => {
+            "PrimitiveDateTime" | "OffsetDateTime" => {
                 tokens.extend(quote! { utoipa::openapi::SchemaType::String })
             }
-            #[cfg(feature = "time")]
-            "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             _ => tokens.extend(quote! { utoipa::openapi::SchemaType::Object }),
         }
     }
@@ -196,16 +192,16 @@ impl Type<'_> {
         };
         let name = &*last_segment.ident.to_string();
 
-        #[cfg(not(any(feature = "chrono_with_format", feature = "uuid", feature = "time")))]
+        #[cfg(not(any(feature = "chrono", feature = "uuid", feature = "time")))]
         {
             is_known_format(name)
         }
 
-        #[cfg(any(feature = "chrono_with_format", feature = "uuid", feature = "time"))]
+        #[cfg(any(feature = "chrono", feature = "uuid", feature = "time"))]
         {
             let mut known_format = is_known_format(name);
 
-            #[cfg(feature = "chrono_with_format")]
+            #[cfg(feature = "chrono")]
             if !known_format {
                 known_format = matches!(name, "DateTime" | "Date");
             }
@@ -246,14 +242,12 @@ impl ToTokens for Type<'_> {
             }
             "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Int64 }),
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Float }),
-            #[cfg(feature = "chrono_with_format")]
+            #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::DateTime }),
-            #[cfg(feature = "chrono_with_format")]
+            #[cfg(any(feature = "chrono", feature = "Time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Date }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Uuid }),
-            #[cfg(feature = "time")]
-            "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Date }),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
                 tokens.extend(quote! { utoipa::openapi::SchemaFormat::DateTime })
