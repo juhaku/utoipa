@@ -736,6 +736,36 @@ fn derive_complex_unnamed_field_reference_with_comment() {
     );
 }
 
+#[test]
+fn derive_enum_with_unnamed_single_field_with_tag() {
+    #[derive(Serialize)]
+    struct ReferenceValue(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "enum")]
+        enum EnumWithReference {
+            Value(ReferenceValue),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "Value": {
+                            "$ref": "#/components/schemas/ReferenceValue",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
 /// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_enum() {

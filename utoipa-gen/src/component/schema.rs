@@ -572,13 +572,28 @@ impl ComplexEnum<'_> {
                         .required(#tag)
                 }
             }
-            Fields::Unnamed(_) => {
-                abort!(
-                    variant,
-                    "Unnamed (tuple) enum variants are unsupported for internally tagged enums using the `tag = ` serde attribute";
+            Fields::Unnamed(unnamed_fields) => {
+                dbg!(unnamed_fields);
+                if unnamed_fields.unnamed.len() == 1 {
+                    let unnamed_enum = UnnamedStructSchema {
+                        attributes: &variant.attrs,
+                        fields: &unnamed_fields.unnamed,
+                    };
 
-                    help = "Try using a different serde enum representation";
-                );
+                    quote! {
+                        utoipa::openapi::schema::ObjectBuilder::new()
+                            #variant_title
+                            .property(#variant_name, #unnamed_enum)
+                    }
+                } else {
+                    abort!(
+                        variant,
+                        "Unnamed (tuple) enum variants are unsupported for internally tagged enums using the `tag = ` serde attribute";
+
+                        help = "Try using a different serde enum representation";
+                        note = "See more about enum limitations here: `https://serde.rs/enum-representations.html#internally-tagged`"
+                    );
+                }
             }
             Fields::Unit => {
                 let variant_tokens = Self::unit_variant_tokens(variant_name, None);
