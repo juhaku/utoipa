@@ -573,7 +573,6 @@ impl ComplexEnum<'_> {
                 }
             }
             Fields::Unnamed(unnamed_fields) => {
-                dbg!(unnamed_fields);
                 if unnamed_fields.unnamed.len() == 1 {
                     let unnamed_enum = UnnamedStructSchema {
                         attributes: &variant.attrs,
