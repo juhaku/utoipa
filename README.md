@@ -9,7 +9,7 @@ Want to have your API documented with OpenAPI? But you dont want to see the
 trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
 be like utopic? Don't worry utoipa is just there to fill this gap. It aims to do if not all then
 the most of heavy lifting for you enabling you to focus writing the actual API logic instead of
-documentation. It aims to be *minimal*, *simple* and *fast*. It uses simple proc macros which
+documentation. It aims to be _minimal_, _simple_ and _fast_. It uses simple proc macros which
 you can use to annotate your code to have items documented.
 
 Utoipa crate provides auto generated OpenAPI documentation for Rust REST APIs. It treats
@@ -29,11 +29,11 @@ being portable and standalone one of it's key aspects is simple integration with
 
 Existing [examples](./examples) for following frameworks:
 
-* **[actix-web](https://github.com/actix/actix-web)**
-* **[axum](https://github.com/tokio-rs/axum)**
-* **[warp](https://github.com/seanmonstar/warp)**
-* **[tide](https://github.com/http-rs/tide)**
-* **[rocket](https://github.com/SergioBenitez/Rocket)**
+- **[actix-web](https://github.com/actix/actix-web)**
+- **[axum](https://github.com/tokio-rs/axum)**
+- **[warp](https://github.com/seanmonstar/warp)**
+- **[tide](https://github.com/http-rs/tide)**
+- **[rocket](https://github.com/SergioBenitez/Rocket)**
 
 Even if there is no example for your favourite framework `utoipa` can be used with any
 web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
@@ -45,43 +45,44 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 
 ## Features
 
-* **default** Default enabled features are **json**.
-* **json** Enables **serde_json** serialization of OpenAPI objects which also allows usage of JSON within
+- **default** Default enabled features are **json**.
+- **json** Enables **serde_json** serialization of OpenAPI objects which also allows usage of JSON within
   OpenAPI values e.g. within `example` value. This is enabled by default.
-* **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
-* **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
+- **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
+- **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
   parse `path` and `path and query parameters` from actix web path attribute macros. See
   [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-support-for-actix-web) or [examples](./examples) for more details.
-* **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
+- **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
   or [examples](./examples) for more details.
-* **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without defining the `parameter_in` attribute. See
+- **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without defining the `parameter_in` attribute. See
   [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-suppport-for-axum) or [examples](./examples) for more details.
-* **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
-* **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration`
-  types. By default these types are parsed to `string` types with additional `format` information. 
-  `format: date-time` for `DateTime` and `format: date` for `Date` according 
-  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To 
-  override default `string` representation users have to use `value_type` attribute to override the type. 
-  See [docs](https://docs.rs/utoipa/latest/utoipa/derive.Component.html) for more details.
-* **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
+- **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
+- **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration`
+  types. By default these types are parsed to `string` types with additional `format` information.
+  `format: date-time` for `DateTime` and `format: date` for `Date` according
+  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
+  override default `string` representation users have to use `value_type` attribute to override the type.
+  See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
+- **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
-  to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.Component.html) for more details.
-* **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
+  to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
+- **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `String`. If you wish to change the format you need to override the type.
-  See the `value_type` in [component derive docs](https://docs.rs/utoipa/latest/utoipa/derive.Component.html).
-* **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
+  See the `value_type` in [component derive docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html).
+- **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
-* **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
-* **openapi_extensions** Adds traits and functions that provide extra convenience functions.
+- **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
+- **openapi_extensions** Adds traits and functions that provide extra convenience functions.
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.
 
-Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.Component.html#partial-serde-attributes-support) for more details.
+Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 
 ## Install
 
 Add minimal dependency declaration to Cargo.toml.
+
 ```toml
 [dependencies]
 utoipa = "2"
@@ -89,6 +90,7 @@ utoipa = "2"
 
 To enable more features such as use actix framework extras you could define the
 dependency as follows.
+
 ```toml
 [dependencies]
 utoipa = { version = "2", features = ["actix_extras"] }
@@ -100,6 +102,7 @@ utoipa = { version = "2", features = ["actix_extras"] }
 
 Create a struct or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
 as an an OpenAPI schema.
+
 ```rust
 use utoipa::ToSchema;
 
@@ -112,6 +115,7 @@ struct Pet {
 ```
 
 Create a handler that would handle your business logic and add `path` proc attribute macro over it.
+
 ```rust
 mod pet_api {
     /// Get pet by id
@@ -139,6 +143,7 @@ mod pet_api {
 ```
 
 Tie the `Schema` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
+
 ```rust
 use utoipa::OpenApi;
 
@@ -150,6 +155,7 @@ println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 ```
 
 This would produce api doc something similar to:
+
 ```json
 {
   "openapi": "3.0.3",
@@ -158,7 +164,7 @@ This would produce api doc something similar to:
     "description": "description from Cargo.toml",
     "contact": {
       "name": "author name from Cargo.toml",
-      "email":"author email from Cargo.toml"
+      "email": "author email from Cargo.toml"
     },
     "license": {
       "name": "license from Cargo.toml"
@@ -168,9 +174,7 @@ This would produce api doc something similar to:
   "paths": {
     "/pets/{id}": {
       "get": {
-        "tags": [
-          "pet_api"
-        ],
+        "tags": ["pet_api"],
         "summary": "Get pet by id",
         "description": "Get pet by id\n\nGet pet from database by pet id\n",
         "operationId": "get_pet_by_id",
@@ -210,10 +214,7 @@ This would produce api doc something similar to:
     "schemas": {
       "Pet": {
         "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
+        "required": ["id", "name"],
         "properties": {
           "id": {
             "type": "integer",
@@ -235,10 +236,10 @@ This would produce api doc something similar to:
 
 ## Go beyond the surface
 
-* See how to serve OpenAPI doc via Swagger UI check [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate for more details.
-* Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
-* Modify generated OpenAPI at runtime check [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for more details.
-* More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
+- See how to serve OpenAPI doc via Swagger UI check [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate for more details.
+- Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
+- Modify generated OpenAPI at runtime check [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for more details.
+- More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
 
 # License
 

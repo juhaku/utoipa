@@ -60,7 +60,7 @@
 //!   `format: date-time` for `DateTime` and `format: date` for `Date` according
 //!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
 //!   override default `string` representation users have to use `value_type` attribute to override the type.
-//!   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.Component.html) for more details.
+//!   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 //! * **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
 //!   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
 //!   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
