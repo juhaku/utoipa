@@ -14,6 +14,7 @@ authors = [
 
 [features]
 debug = []
+debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
 rust-embed = { version = "6.3", features = ["interpolate-folder-path"] }

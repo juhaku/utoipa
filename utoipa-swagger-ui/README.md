@@ -28,7 +28,8 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
   and api doc without a hazzle.
 * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
   hazzle free.
-
+* **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
+  builds as well.
 # Install
 
 Use only the raw types without any boiler plate implementation.

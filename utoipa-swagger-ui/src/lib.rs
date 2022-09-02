@@ -24,6 +24,8 @@
 //!   and api doc without a hassle.
 //! * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
 //!   hazzle free.
+//! * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
+//!   builds as well.
 //!
 //! # Install
 //!
