@@ -294,6 +294,7 @@ pub mod serde {
     pub struct SerdeValue {
         pub skip: Option<bool>,
         pub rename: Option<String>,
+        pub default: Option<bool>,
     }
 
     impl SerdeValue {
@@ -310,6 +311,7 @@ pub mod serde {
                                 value.rename = Some(literal)
                             };
                         }
+                        TokenTree::Ident(ident) if ident == "default" => value.default = Some(true),
                         _ => (),
                     }
 
@@ -328,11 +330,12 @@ pub mod serde {
     pub struct SerdeContainer {
         pub rename_all: Option<RenameRule>,
         pub tag: Option<String>,
+        pub default: Option<bool>,
     }
 
     impl SerdeContainer {
-        /// Parse a single serde attribute, currently `rename_all = ...` and `tag = ...` attributes
-        /// are supported.
+        /// Parse a single serde attribute, currently `rename_all = ...`, `tag = ...` and
+        /// `defaut = ...` attributes are supported.
         fn parse_attribute(&mut self, ident: Ident, next: Cursor) -> syn::Result<()> {
             match ident.to_string().as_str() {
                 "rename_all" => {
@@ -348,6 +351,9 @@ pub mod serde {
                     if let Some((literal, _span)) = parse_next_lit_str(next) {
                         self.tag = Some(literal)
                     }
+                }
+                "default" => {
+                    self.default = Some(true);
                 }
                 _ => {}
             }

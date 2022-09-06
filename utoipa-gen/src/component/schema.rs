@@ -259,7 +259,13 @@ impl ToTokens for NamedStructSchema<'_> {
                     .property(#name, #schema_property)
                 });
 
-                if !schema_property.is_option() {
+                // TODO check also container rule? should it then be in separate function?
+                if !schema_property.is_option()
+                    && field_rule
+                        .as_ref()
+                        .map(|rule| rule.default.is_none())
+                        .unwrap_or(true)
+                {
                     tokens.extend(quote! {
                         .required(#name)
                     })

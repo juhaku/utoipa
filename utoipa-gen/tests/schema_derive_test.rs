@@ -1805,3 +1805,26 @@ fn derive_component_with_smallvec_feature() {
         })
     )
 }
+
+#[test]
+fn derive_schema_with_default_field() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        struct MyValue {
+            #[serde(default)]
+            field: String
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "field": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        })
+    )
+}
