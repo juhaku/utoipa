@@ -142,6 +142,9 @@ mod pet_api {
 }
 ```
 
+This attribute macro substantially will create another struct named with `__path_` prefix + handler function name.
+So when you implement `some_handler` function in different file and want to export this, make sure `__path_some_handler` in the module can also be accessible from the root.
+
 Tie the `Schema` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
 
 ```rust
