@@ -1828,3 +1828,26 @@ fn derive_schema_with_default_field() {
         })
     )
 }
+
+#[test]
+fn derive_schema_with_default_struct() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize, Default)]
+        #[serde(default)]
+        struct MyValue {
+            field: String
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "field": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        })
+    )
+}
