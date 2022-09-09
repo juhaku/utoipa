@@ -113,7 +113,7 @@ use ext::ArgumentResolver;
 ///
 /// # Partial `#[serde(...)]` attributes support
 ///
-/// ToSchema derive has partial support for [serde attributes](https://serde.rs/attributes.html). These supported attributes will reflect to the
+/// ToSchema derive has partial support for [serde attributes]. These supported attributes will reflect to the
 /// generated OpenAPI doc. For example if _`#[serde(skip)]`_ is defined the attribute will not show up in the OpenAPI spec at all since it will not never
 /// be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
 ///
@@ -121,6 +121,7 @@ use ext::ArgumentResolver;
 /// * `rename = "..."` Supported **only** in field or variant level.
 /// * `skip = "..."` Supported  **only** in field or variant level.
 /// * `tag = "..."` Supported in container level.
+/// * `default` Supported in container level and field level according to [serde attributes].
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
 ///
@@ -166,6 +167,17 @@ use ext::ArgumentResolver;
 ///         names: Option<Vec<String>>
 ///     },
 /// }
+/// ```
+///
+/// Add serde `default` attribute for MyValue struct. Similarly `default` could be added to
+/// individual fields as well. If `default` is given the field's affected will be treated
+/// as optional.
+/// ```rust
+///  #[derive(utoipa::ToSchema, serde::Deserialize, Default)]
+///  #[serde(default)]
+///  struct MyValue {
+///      field: String
+///  }
 /// ```
 ///
 /// # Generic schemas with aliases
@@ -366,6 +378,7 @@ use ext::ArgumentResolver;
 /// [xml]: openapi/xml/struct.Xml.html
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+/// [serde attributes]: https://serde.rs/attributes.html
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

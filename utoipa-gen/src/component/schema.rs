@@ -259,7 +259,7 @@ impl ToTokens for NamedStructSchema<'_> {
                     .property(#name, #schema_property)
                 });
 
-                if !schema_property.is_option() {
+                if !schema_property.is_option() && !is_default(&container_rules, &field_rule) {
                     tokens.extend(quote! {
                         .required(#name)
                     })
@@ -281,6 +281,18 @@ impl ToTokens for NamedStructSchema<'_> {
             })
         }
     }
+}
+
+#[inline]
+fn is_default(container_rules: &Option<SerdeContainer>, field_rule: &Option<SerdeValue>) -> bool {
+    *container_rules
+        .as_ref()
+        .and_then(|rule| rule.default.as_ref())
+        .unwrap_or(&false)
+        || *field_rule
+            .as_ref()
+            .and_then(|rule| rule.default.as_ref())
+            .unwrap_or(&false)
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
