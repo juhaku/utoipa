@@ -38,6 +38,7 @@ jobs:
       - name: Get release info
         id: release_info
         run: |
+          module="${{ matrix.crate }}"
           version=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name | test("'"$module"'$")) | .version')
           prerelease=false
           if [[ "$version" =~ .*-.* ]]; then
