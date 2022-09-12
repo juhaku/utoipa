@@ -1,15 +1,13 @@
 [package]
 name = "utoipa-gen"
 description = "Code generation implementation for utoipa"
-version = "2.0.1"
+version = "2.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["openapi", "codegen", "proc-macro", "documentation", "compile-time"]
 repository = "https://github.com/juhaku/utoipa"
-authors = [
-  "Juha Kukkonen <juha7kukkonen@gmail.com>"
-]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 
 [lib]
 proc-macro = true
@@ -19,7 +17,7 @@ proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
 proc-macro-error = "1.0"
-regex = { version = "1.5", optional = true } 
+regex = { version = "1.5", optional = true }
 lazy_static = { version = "1.4", optional = true }
 uuid = { version = "1", optional = true }
 
@@ -27,15 +25,15 @@ uuid = { version = "1", optional = true }
 utoipa = { path = "../utoipa", default-features = false }
 serde_json = "1"
 serde = "1"
-actix-web = { version = "4", features = [ "macros" ], default-features = false }
+actix-web = { version = "4", features = ["macros"], default-features = false }
 axum = "0.5"
 paste = "1"
 rocket = "0.5.0-rc.1"
-smallvec = { version = "1.9.0", features = [ "serde" ] }
+smallvec = { version = "1.9.0", features = ["serde"] }
 rust_decimal = "1"
-chrono = { version  = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 assert-json-diff = "2"
-time = { version = "0.3.11", features = [ "serde-human-readable" ] }
+time = { version = "0.3.11", features = ["serde-human-readable"] }
 
 [features]
 debug = []
