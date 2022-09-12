@@ -44,4 +44,4 @@ indexmap = { version = "1", features = ["serde"] }
 assert-json-diff = "2"
 
 [package.metadata.docs.rs]
-features = ["json", "actix_extras"]
+features = ["json", "actix_extras", "openapi_extensions"]
