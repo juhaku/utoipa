@@ -541,12 +541,12 @@ impl ObjectBuilder {
     }
 
     /// Add or change enum property variants.
-    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<String>>(
+    pub fn enum_values<I: IntoIterator<Item = E>, E: ToString>(
         mut self,
         enum_values: Option<I>,
     ) -> Self {
         set_value!(self enum_values
-            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
+            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.to_string()).collect()))
     }
 
     /// Add or change example shown in UI of the value for richier documentation.

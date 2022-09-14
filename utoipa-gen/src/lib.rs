@@ -1250,6 +1250,20 @@ where
     }
 }
 
+impl<T> IntoIterator for Array<T>
+where
+    T: Sized + ToTokens,
+{
+    type Item = T;
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Array::Owned(owned) => owned.into_iter(),
+        }
+    }
+}
+
 impl<T> Deref for Array<T>
 where
     T: Sized + ToTokens,

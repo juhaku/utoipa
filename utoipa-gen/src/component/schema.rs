@@ -391,13 +391,34 @@ impl ToTokens for EnumSchema<'_> {
             .iter()
             .all(|variant| matches!(variant.fields, Fields::Unit))
         {
-            tokens.extend(
-                SimpleEnum {
-                    attributes: self.attributes,
-                    variants: self.variants,
-                }
-                .to_token_stream(),
-            )
+            let repr_match = self.attributes
+                .iter()
+                .find_map(|attr| {
+                    if attr.path.is_ident("repr") {
+                        attr.parse_args::<Ident>().ok()
+                    } else {
+                        None
+                    }
+                });
+
+            if let Some(ty) = repr_match {
+                tokens.extend(
+                    ReprEnum {
+                        attributes: self.attributes,
+                        variants: self.variants,
+                        rtype: ty,
+                    }
+                    .to_token_stream()
+                )
+            } else {
+                tokens.extend(
+                    SimpleEnum {
+                        attributes: self.attributes,
+                        variants: self.variants,
+                    }
+                    .to_token_stream(),
+                )
+            }
         } else {
             tokens.extend(
                 ComplexEnum {
@@ -407,6 +428,53 @@ impl ToTokens for EnumSchema<'_> {
                 .to_token_stream(),
             )
         };
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ReprEnum<'a> {
+    variants: &'a Punctuated<Variant, Comma>,
+    attributes: &'a [Attribute],
+    rtype: Ident,
+}
+
+impl ReprEnum<'_> {
+    /// Produce tokens that represent each variant.
+    fn variants_tokens(&self) -> TokenStream {
+        let iter = self.variants.iter().map(|variant| &variant.ident);
+        let ty = self.rtype.clone();
+        let enum_values = quote!{
+            [
+                #(Self::#iter as #ty,)*
+            ]
+        };
+
+        quote! {
+            utoipa::openapi::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::SchemaType::Integer)
+            .enum_values(Some(#enum_values))
+        }
+    }
+}
+
+impl ToTokens for ReprEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.variants_tokens());
+
+        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
+        if let Some(attributes) = attrs {
+            tokens.extend(attributes.to_token_stream());
+        }
+
+        if let Some(deprecated) = super::get_deprecated(self.attributes) {
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
+
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
+            tokens.extend(quote! {
+                .description(Some(#comment))
+            })
+        }
     }
 }
 
