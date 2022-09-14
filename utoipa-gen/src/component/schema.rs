@@ -439,14 +439,42 @@ struct ReprEnum<'a> {
 }
 
 impl ReprEnum<'_> {
+    /// Produce tokens that represent each variant for the situation where the serde enum tag =
+    /// "<tag>" attribute applies.
+    fn tagged_variants_tokens(tag: String, ty: Ident, idents: Array<Ident>) -> TokenStream {
+        let len = idents.len();
+        let items: TokenStream = idents
+            .into_iter()
+            .map(|ident| {
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(
+                            #tag,
+                            utoipa::openapi::schema::ObjectBuilder::new()
+                                .schema_type(utoipa::openapi::SchemaType::Integer)
+                                .enum_values(Some([Self::#ident as #ty]))
+                        )
+                        .required(#tag)
+                }
+            })
+            .map(|object: TokenStream| {
+                quote! {
+                    .item(#object)
+                }
+            })
+            .collect();
+        quote! {
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                #items
+        }
+    }
+
     /// Produce tokens that represent each variant.
-    fn variants_tokens(&self) -> TokenStream {
-        let iter = self.variants.iter().map(|variant| &variant.ident);
-        let ty = self.rtype.clone();
+    fn variants_tokens(ty: Ident, idents: Array<Ident>) -> TokenStream
+    {
+        let iter = idents.into_iter();
         let enum_values = quote!{
-            [
-                #(Self::#iter as #ty,)*
-            ]
+            [ #(Self::#iter as #ty,)* ]
         };
 
         quote! {
@@ -459,7 +487,28 @@ impl ReprEnum<'_> {
 
 impl ToTokens for ReprEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.variants_tokens());
+        let container_rules = serde::parse_container(self.attributes);
+
+        let idents: Array<_> = self
+            .variants
+            .iter()
+            .filter_map(|variant| {
+                let variant_rules = serde::parse_value(&variant.attrs);
+                if is_not_skipped(&variant_rules) {
+                    Some(variant.ident.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        tokens.extend(match container_rules {
+            Some(serde_container) if serde_container.tag.is_some() => {
+                let tag = serde_container.tag.expect("Expected tag to be present");
+                Self::tagged_variants_tokens(tag, self.rtype.clone(), idents)
+            }
+            _ => Self::variants_tokens(self.rtype.clone(), idents),
+        });
 
         let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
         if let Some(attributes) = attrs {
