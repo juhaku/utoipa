@@ -1851,3 +1851,148 @@ fn derive_schema_with_default_struct() {
         })
     )
 }
+
+#[test]
+fn derive_schema_for_repr_enum() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[repr(i32)]
+        enum ExitCode {
+            Error  = -1,
+            Ok     = 0,
+            Unknow = 1,
+        }
+    };
+
+    assert_value! {value=>
+        "enum" = r#"["-1","0","1"]"#, "ExitCode enum variants"
+        "type" = r#""integer""#, "ExitCode enum type"
+    };
+}
+
+#[test]
+fn derive_schema_for_tagged_repr_enum() {
+    let value: Value = api_doc! {
+        #[derive(serde::Deserialize, serde::Serialize)]
+        #[serde(tag = "tag")]
+        #[repr(u8)]
+        enum TaggedEnum {
+            One = 0,
+            Two,
+            Three,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "integer",
+                            "enum": [
+                                "0",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "integer",
+                            "enum": [
+                                "1",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "integer",
+                            "enum": [
+                                "2",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "tag",
+                    ],
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn derive_schema_for_skipped_repr_enum() {
+    let value: Value = api_doc! {
+        #[derive(serde::Deserialize, serde::Serialize)]
+        #[repr(i32)]
+        enum SkippedEnum {
+            Error  = -1,
+            Ok     = 0,
+            #[serde(skip)]
+            Unknow = 1,
+        }
+    };
+
+    assert_value! {value=>
+        "enum" = r#"["-1","0"]"#, "SkippedEnum enum variants"
+        "type" = r#""integer""#, "SkippedEnum enum type"
+    };
+}
+
+#[test]
+fn derive_repr_enum_with_with_custom_default_fn_success() {
+    let mode = api_doc! {
+        #[schema(default = repr_mode_default_fn)]
+        #[repr(u16)]
+        enum ReprDefautlMode {
+            Mode1 = 0,
+            Mode2
+        }
+    };
+
+    assert_value! {mode=>
+        "default" = r#""1""#, "ReprDefautlMode default"
+        "enum" = r#"["0","1"]"#, "ReprDefautlMode enum variants"
+        "type" = r#""integer""#, "ReprDefautlMode type"
+    };
+    assert_value! {mode=>
+        "example" = Value::Null, "ReprDefautlMode example"
+    }
+}
+
+fn repr_mode_default_fn() -> String {
+    "1".to_string()
+}
+
+#[test]
+fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
+    let mode = api_doc! {
+        #[schema(default = repr_mode_default_fn, example = "1")]
+        #[repr(u16)]
+        enum ReprDefautlMode {
+            Mode1 = 0,
+            Mode2
+        }
+    };
+
+    assert_value! {mode=>
+        "default" = r#""1""#, "ReprDefautlMode default"
+        "enum" = r#"["0","1"]"#, "ReprDefautlMode enum variants"
+        "type" = r#""integer""#, "ReprDefautlMode type"
+        "example" = r#""1""#, "ReprDefautlMode example"
+    };
+}
