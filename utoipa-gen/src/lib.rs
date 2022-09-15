@@ -182,7 +182,12 @@ use ext::ArgumentResolver;
 ///
 /// # `#[repr(...)]` attribute support
 /// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
+/// This allows you to create enums from thier discriminant values.
+/// **repr** feature need to be enabled.
+/// Otherwise, string representations of the fields will be used as values.
 /// ```rust
+/// # use serde::{Deserialize, Serialize};
+/// # use utoipa::ToSchema;
 /// #[derive(ToSchema, Deserialize, Serialize)]
 /// #[repr(u8)]
 /// enum ApiVersion {
@@ -193,6 +198,8 @@ use ext::ArgumentResolver;
 /// ```
 /// You can use `skip` and `tag` attributes from serde.
 /// ```rust
+/// # use serde::{Deserialize, Serialize};
+/// # use utoipa::ToSchema;
 /// #[derive(ToSchema, Deserialize, Serialize)]
 /// #[repr(i8)]
 /// #[serde(tag = "code")]
@@ -205,6 +212,8 @@ use ext::ArgumentResolver;
 /// ```
 /// As well as [`schema attributes`][enum_schema] for enums.
 /// ```rust
+/// # use serde::{Deserialize, Serialize};
+/// # use utoipa::ToSchema;
 /// #[derive(ToSchema, Deserialize, Serialize)]
 /// #[repr(u8)]
 /// #[schema(default = default_value, example = 2)]
