@@ -384,6 +384,55 @@ struct EnumSchema<'a> {
     attributes: &'a [Attribute],
 }
 
+#[cfg(feature = "repr")]
+impl ToTokens for EnumSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if self
+            .variants
+            .iter()
+            .all(|variant| matches!(variant.fields, Fields::Unit))
+        {
+            let repr_match = self.attributes
+                .iter()
+                .find_map(|attr| {
+                    if attr.path.is_ident("repr") {
+                        attr.parse_args::<Ident>().ok()
+                    } else {
+                        None
+                    }
+                });
+
+            if let Some(ty) = repr_match {
+                tokens.extend(
+                    ReprEnum {
+                        attributes: self.attributes,
+                        variants: self.variants,
+                        rtype: ty,
+                    }
+                    .to_token_stream()
+                )
+            } else {
+                tokens.extend(
+                    SimpleEnum {
+                        attributes: self.attributes,
+                        variants: self.variants,
+                    }
+                    .to_token_stream(),
+                )
+            }
+        } else {
+            tokens.extend(
+                ComplexEnum {
+                    attributes: self.attributes,
+                    variants: self.variants,
+                }
+                .to_token_stream(),
+            )
+        };
+    }
+}
+
+#[cfg(not(feature = "repr"))]
 impl ToTokens for EnumSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if self
@@ -396,7 +445,7 @@ impl ToTokens for EnumSchema<'_> {
                     attributes: self.attributes,
                     variants: self.variants,
                 }
-                .to_token_stream(),
+                    .to_token_stream(),
             )
         } else {
             tokens.extend(
@@ -404,9 +453,109 @@ impl ToTokens for EnumSchema<'_> {
                     attributes: self.attributes,
                     variants: self.variants,
                 }
-                .to_token_stream(),
+                    .to_token_stream(),
             )
         };
+    }
+}
+
+
+#[cfg(feature = "repr")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ReprEnum<'a> {
+    variants: &'a Punctuated<Variant, Comma>,
+    attributes: &'a [Attribute],
+    rtype: Ident,
+}
+
+#[cfg(feature = "repr")]
+impl ReprEnum<'_> {
+    /// Produce tokens that represent each variant for the situation where the serde enum tag =
+    /// "<tag>" attribute applies.
+    fn tagged_variants_tokens(tag: String, ty: Ident, idents: Array<Ident>) -> TokenStream {
+        let len = idents.len();
+        let items: TokenStream = idents
+            .into_iter()
+            .map(|ident| {
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(
+                            #tag,
+                            utoipa::openapi::schema::ObjectBuilder::new()
+                                .schema_type(utoipa::openapi::SchemaType::Integer)
+                                .enum_values(Some([Self::#ident as #ty]))
+                        )
+                        .required(#tag)
+                }
+            })
+            .map(|object: TokenStream| {
+                quote! {
+                    .item(#object)
+                }
+            })
+            .collect();
+        quote! {
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                #items
+        }
+    }
+
+    /// Produce tokens that represent each variant.
+    fn variants_tokens(ty: Ident, idents: Array<Ident>) -> TokenStream
+    {
+        let iter = idents.into_iter();
+        let enum_values = quote!{
+            [ #(Self::#iter as #ty,)* ]
+        };
+
+        quote! {
+            utoipa::openapi::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::SchemaType::Integer)
+            .enum_values(Some(#enum_values))
+        }
+    }
+}
+
+#[cfg(feature = "repr")]
+impl ToTokens for ReprEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let container_rules = serde::parse_container(self.attributes);
+
+        let idents: Array<_> = self
+            .variants
+            .iter()
+            .filter_map(|variant| {
+                let variant_rules = serde::parse_value(&variant.attrs);
+                if is_not_skipped(&variant_rules) {
+                    Some(variant.ident.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        tokens.extend(match container_rules {
+            Some(serde_container) if serde_container.tag.is_some() => {
+                let tag = serde_container.tag.expect("Expected tag to be present");
+                Self::tagged_variants_tokens(tag, self.rtype.clone(), idents)
+            }
+            _ => Self::variants_tokens(self.rtype.clone(), idents),
+        });
+
+        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
+        if let Some(attributes) = attrs {
+            tokens.extend(attributes.to_token_stream());
+        }
+
+        if let Some(deprecated) = super::get_deprecated(self.attributes) {
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
+
+        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
+            tokens.extend(quote! {
+                .description(Some(#comment))
+            })
+        }
     }
 }
 

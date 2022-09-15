@@ -180,6 +180,53 @@ use ext::ArgumentResolver;
 ///  }
 /// ```
 ///
+/// # `#[repr(...)]` attribute support
+/// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
+/// This allows you to create enums from thier discriminant values.
+/// **repr** feature need to be enabled.
+/// Otherwise, string representations of the fields will be used as values.
+/// ```rust
+/// # use serde::{Deserialize, Serialize};
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[repr(u8)]
+/// enum ApiVersion {
+///     One = 1,
+///     Two,
+///     Three,
+/// }
+/// ```
+/// You can use `skip` and `tag` attributes from serde.
+/// ```rust
+/// # use serde::{Deserialize, Serialize};
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[repr(i8)]
+/// #[serde(tag = "code")]
+/// enum ExitCode {
+///     Error = -1,
+///     #[serde(skip)]
+///     Unknown = 0,
+///     Ok = 1,
+///  }
+/// ```
+/// As well as [`schema attributes`][enum_schema] for enums.
+/// ```rust
+/// # use serde::{Deserialize, Serialize};
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[repr(u8)]
+/// #[schema(default = default_value, example = 2)]
+/// enum Mode {
+///     One = 1,
+///     Two,
+///  }
+///
+/// fn default_value() -> u8 {
+///     1
+/// }
+/// ```
+///
 /// # Generic schemas with aliases
 ///
 /// Schemas can also be generic which allows reusing types. This enables certain behaviour patters
@@ -379,6 +426,7 @@ use ext::ArgumentResolver;
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
+/// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -1247,6 +1295,20 @@ where
 {
     fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
         Self::Owned(iter.into_iter().collect())
+    }
+}
+
+impl<T> IntoIterator for Array<T>
+where
+    T: Sized + ToTokens,
+{
+    type Item = T;
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Array::Owned(owned) => owned.into_iter(),
+        }
     }
 }
 

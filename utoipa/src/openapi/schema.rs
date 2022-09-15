@@ -359,7 +359,13 @@ pub struct Object {
 
     /// Enum variants of fields that can be represented as `unit` type `enums`
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "repr"))]
     pub enum_values: Option<Vec<String>>,
+
+    /// Enum variants of fields that can be represented as `unit` type `enums`
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "repr")]
+    enum_values: Option<Vec<Value>>,
 
     /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
@@ -451,7 +457,11 @@ pub struct ObjectBuilder {
 
     deprecated: Option<Deprecated>,
 
+    #[cfg(not(feature = "repr"))]
     enum_values: Option<Vec<String>>,
+
+    #[cfg(feature = "repr")]
+    enum_values: Option<Vec<Value>>,
 
     required: Vec<String>,
 
@@ -541,6 +551,17 @@ impl ObjectBuilder {
     }
 
     /// Add or change enum property variants.
+    #[cfg(feature = "repr")]
+    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<Value>>(
+        mut self,
+        enum_values: Option<I>,
+    ) -> Self {
+        set_value!(self enum_values
+            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
+    }
+
+    /// Add or change enum property variants.
+    #[cfg(not(feature = "repr"))]
     pub fn enum_values<I: IntoIterator<Item = E>, E: Into<String>>(
         mut self,
         enum_values: Option<I>,

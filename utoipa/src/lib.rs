@@ -74,6 +74,8 @@
 //! * **openapi_extensions** Adds convenience functions for documenting common scenarios, such as JSON request bodies and responses.
 //!   See the [`request_body`](https://docs.rs/utoipa/latest/utoipa/openapi/request_body/index.html) and
 //!   [`response`](https://docs.rs/utoipa/latest/utoipa/openapi/response/index.html) docs for examples.
+//! * **repr** Add support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
+//!   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
 //!
