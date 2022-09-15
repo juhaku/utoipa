@@ -9,7 +9,7 @@ echo "Testing crate: $crate..."
 if [[ "$crate" == "utoipa" ]]; then
     cargo test -p utoipa --features openapi_extensions
 elif [[ "$crate" == "utoipa-gen" ]]; then
-    cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,json,utoipa/uuid,utoipa/json,utoipa/time,time
+    cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,json,utoipa/uuid,utoipa/json,utoipa/time,time,utoipa/repr
 
     cargo test -p utoipa-gen --test path_response_derive_test_no_serde_json --no-default-features
     cargo test -p utoipa-gen --test schema_derive_no_serde_json --no-default-features

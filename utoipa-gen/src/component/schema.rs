@@ -1,10 +1,12 @@
+use std::slice::Iter;
+
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath, Variant,
-    Visibility,
+    parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
+    Data, Field, Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath,
+    Variant, Visibility,
 };
 
 use crate::{
@@ -392,15 +394,18 @@ impl ToTokens for EnumSchema<'_> {
             .iter()
             .all(|variant| matches!(variant.fields, Fields::Unit))
         {
-            let repr_match = self.attributes
-                .iter()
-                .find_map(|attr| {
-                    if attr.path.is_ident("repr") {
-                        attr.parse_args::<Ident>().ok()
-                    } else {
-                        None
-                    }
-                });
+            #[cfg(feature = "repr")]
+            {
+                // TODO
+            }
+
+            let repr_match = self.attributes.iter().find_map(|attr| {
+                if attr.path.is_ident("repr") {
+                    attr.parse_args::<Ident>().ok()
+                } else {
+                    None
+                }
+            });
 
             if let Some(ty) = repr_match {
                 tokens.extend(
@@ -409,7 +414,7 @@ impl ToTokens for EnumSchema<'_> {
                         variants: self.variants,
                         rtype: ty,
                     }
-                    .to_token_stream()
+                    .to_token_stream(),
                 )
             } else {
                 tokens.extend(
@@ -445,7 +450,7 @@ impl ToTokens for EnumSchema<'_> {
                     attributes: self.attributes,
                     variants: self.variants,
                 }
-                    .to_token_stream(),
+                .to_token_stream(),
             )
         } else {
             tokens.extend(
@@ -453,12 +458,11 @@ impl ToTokens for EnumSchema<'_> {
                     attributes: self.attributes,
                     variants: self.variants,
                 }
-                    .to_token_stream(),
+                .to_token_stream(),
             )
         };
     }
 }
-
 
 #[cfg(feature = "repr")]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -501,17 +505,16 @@ impl ReprEnum<'_> {
     }
 
     /// Produce tokens that represent each variant.
-    fn variants_tokens(ty: Ident, idents: Array<Ident>) -> TokenStream
-    {
+    fn variants_tokens(ty: Ident, idents: Array<Ident>) -> TokenStream {
         let iter = idents.into_iter();
-        let enum_values = quote!{
+        let enum_values = quote! {
             [ #(Self::#iter as #ty,)* ]
         };
 
         quote! {
             utoipa::openapi::ObjectBuilder::new()
-            .schema_type(utoipa::openapi::SchemaType::Integer)
-            .enum_values(Some(#enum_values))
+                .schema_type(utoipa::openapi::SchemaType::Integer)
+                .enum_values(Some(#enum_values))
         }
     }
 }
@@ -559,27 +562,53 @@ impl ToTokens for ReprEnum<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct SimpleEnum<'a> {
-    variants: &'a Punctuated<Variant, Comma>,
-    attributes: &'a [Attribute],
+trait ToEnumTokens<EnumType> {
+    fn len(&self, enum_values: &EnumType) -> usize;
+
+    fn get_enum_type(&self, enum_values: &EnumType) -> TokenStream;
+
+    fn to_enum_tokens(&self, enum_values: EnumType) -> TokenStream
+    where
+        EnumType: quote::ToTokens,
+    {
+        let len = self.len(&enum_values);
+        let ty = self.get_enum_type(&enum_values);
+
+        quote! {
+            utoipa::openapi::ObjectBuilder::new()
+                .schema_type(utoipa::openapi::SchemaType::String)
+                .enum_values::<[#ty; #len], #ty>(Some(#enum_values))
+        }
+    }
 }
 
-impl SimpleEnum<'_> {
-    /// Produce tokens that represent each variant for the situation where the serde enum tag =
-    /// "<tag>" attribute applies.
-    fn tagged_variants_tokens(tag: String, enum_values: Array<String>) -> TokenStream {
-        let len = enum_values.len();
+trait ToTaggedEnumTokens<EnumValues>
+where
+    Self: ToEnumTokens<Self::Item>,
+    Self: ToEnumTokens<EnumValues>,
+    EnumValues: IntoIterator<Item = Self::Item>,
+{
+    type Item;
+
+    fn to_tagged_enum_tokens(&self, tag: &str, enum_values: EnumValues) -> TokenStream
+    where
+        Self::Item: quote::ToTokens,
+    {
+        // let len = 1;
+
+        let len = <Self as ToEnumTokens<EnumValues>>::len(self, &enum_values);
+        // let a = self.len(&enum_values);
+
         let items: TokenStream = enum_values
-            .iter()
-            .map(|enum_value: &String| {
+            .into_iter()
+            .map(|enum_value| {
+                // let enum_tokens = quote! {};
+                let enum_token = self.to_enum_tokens(enum_value);
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
                         .property(
                             #tag,
-                            utoipa::openapi::schema::ObjectBuilder::new()
-                                .schema_type(utoipa::openapi::SchemaType::String)
-                                .enum_values::<[&str; 1], &str>(Some([#enum_value]))
+                            #enum_token
                         )
                         .required(#tag)
                 }
@@ -595,14 +624,167 @@ impl SimpleEnum<'_> {
                 #items
         }
     }
+}
 
-    /// Produce tokens that represent each variant.
-    fn variants_tokens(enum_values: Array<String>) -> TokenStream {
-        let len = enum_values.len();
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct SimpleEnum<'a> {
+    variants: &'a Punctuated<Variant, Comma>,
+    attributes: &'a [Attribute],
+}
+
+impl SimpleEnum<'_> {
+    // /// Produce tokens that represent each variant for the situation where the serde enum tag =
+    // /// "<tag>" attribute applies.
+    // fn tagged_variants_tokens(tag: String, enum_values: Array<String>) -> TokenStream {
+    //     let len = enum_values.len();
+    //     let items: TokenStream = enum_values
+    //         .iter()
+    //         .map(|enum_value: &String| {
+    //             quote! {
+    //                 utoipa::openapi::schema::ObjectBuilder::new()
+    //                     .property(
+    //                         #tag,
+    //                         utoipa::openapi::schema::ObjectBuilder::new()
+    //                             .schema_type(utoipa::openapi::SchemaType::String)
+    //                             .enum_values::<[&str; 1], &str>(Some([#enum_value]))
+    //                     )
+    //                     .required(#tag)
+    //             }
+    //         })
+    //         .map(|object: TokenStream| {
+    //             quote! {
+    //                 .item(#object)
+    //             }
+    //         })
+    //         .collect();
+    //     quote! {
+    //         Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+    //             #items
+    //     }
+    // }
+
+    // /// Produce tokens that represent each variant.
+    // fn variants_tokens(enum_values: Array<String>) -> TokenStream {
+    //     let len = enum_values.len();
+    //     quote! {
+    //         utoipa::openapi::ObjectBuilder::new()
+    //         .schema_type(utoipa::openapi::SchemaType::String)
+    //         .enum_values::<[&str; #len], &str>(Some(#enum_values))
+    //     }
+    // }
+}
+
+impl ToEnumTokens<Array<String>> for SimpleEnum<'_> {
+    fn len(&self, enum_values: &Array<String>) -> usize {
+        enum_values.len()
+    }
+
+    fn get_enum_type(&self, _: &Array<String>) -> TokenStream {
+        quote! { &str }
+    }
+}
+
+impl ToTaggedEnumTokens<Array<String>> for SimpleEnum<'_> {
+    type Item = String;
+}
+
+impl ToEnumTokens<String> for SimpleEnum<'_> {
+    fn len(&self, _: &String) -> usize {
+        1
+    }
+
+    fn get_enum_type(&self, _: &String) -> TokenStream {
+        quote! { &str }
+    }
+
+    // fn to_enum_tokens(&self, enum_values: String) -> TokenStream
+    // where
+    //     String: quote::ToTokens,
+    // {
+    //     quote! {
+    //         Some([#enum_values])
+    //     }
+    // }
+}
+
+struct SimpleEnum2<'e> {
+    variants: &'e Punctuated<Variant, Comma>,
+    attributes: &'e [Attribute],
+    ty: &'e Ident,
+}
+
+impl SimpleEnum2<'_> {}
+
+impl ToTokens for SimpleEnum2<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        todo!()
+    }
+}
+
+struct EnumRepresentation<'e, T: quote::ToTokens>(Option<&'e TypePath>, Array<T>);
+
+impl<'e, T> EnumRepresentation<'e, T>
+where
+    T: quote::ToTokens,
+{
+    fn tokens(&self) -> TokenStream {
+        let EnumRepresentation(type_path, values) = self;
+        let len = values.len();
+        let (schema_type, enum_type) = if let Some(ty) = *type_path {
+            (SchemaType(ty).to_token_stream(), ty.into_token_stream())
+        } else {
+            let a: TypePath = parse_quote!(&str);
+
+            (SchemaType(&a).to_token_stream(), quote! {#a})
+        };
+
         quote! {
             utoipa::openapi::ObjectBuilder::new()
-            .schema_type(utoipa::openapi::SchemaType::String)
-            .enum_values::<[&str; #len], &str>(Some(#enum_values))
+                .schema_type(#schema_type)
+                .enum_values::<[#enum_type; #len], #enum_type>(Some(#values))
+        }
+    }
+}
+
+trait TaggedEnumRepresentation {
+    fn tagged_tokens(&self, tag: &str) -> TokenStream;
+}
+
+impl<'e, T> TaggedEnumRepresentation for EnumRepresentation<'e, T>
+where
+    T: quote::ToTokens,
+{
+    fn tagged_tokens(&self, tag: &str) -> TokenStream {
+        let EnumRepresentation(_, values) = self;
+        let len = values.len();
+
+        let items = values
+            .iter()
+            .map(|enum_value| {
+                let a = Array::Owned(vec![enum_value]);
+                let aa = EnumRepresentation(None, a);
+
+                // TODO
+                // let e = [*enum_value];
+                // let aa = EnumRepresentation(None, &e);
+                let enum_tokens = aa.tokens();
+                // let enum_tokens = quote! {};
+
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .property(
+                            #tag,
+                            #enum_tokens
+                        )
+                        .required(#tag)
+                }
+            })
+            .map(|quote| quote! {.item(#quote)})
+            .collect::<TokenStream>();
+
+        quote! {
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                #items
         }
     }
 }
@@ -631,9 +813,19 @@ impl ToTokens for SimpleEnum<'_> {
         tokens.extend(match container_rules {
             Some(serde_container) if serde_container.tag.is_some() => {
                 let tag = serde_container.tag.expect("Expected tag to be present");
-                Self::tagged_variants_tokens(tag, enum_values)
+
+                let e = EnumRepresentation(None, enum_values);
+
+                e.tagged_tokens(&*tag)
+                // self.to_tagged_enum_tokens(&*tag, enum_values)
             }
-            _ => Self::variants_tokens(enum_values),
+            _ => {
+                // self.to_enum_tokens(enum_values)
+
+                let e = EnumRepresentation(None, enum_values);
+
+                e.tokens()
+            } // _ => Self::variants_tokens(enum_values),
         });
 
         let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);

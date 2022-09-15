@@ -365,7 +365,7 @@ pub struct Object {
     /// Enum variants of fields that can be represented as `unit` type `enums`
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "repr")]
-    enum_values: Option<Vec<Value>>,
+    pub enum_values: Option<Vec<Value>>,
 
     /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]

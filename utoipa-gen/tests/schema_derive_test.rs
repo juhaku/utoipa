@@ -653,6 +653,14 @@ fn derive_simple_enum_serde_tag() {
         }
     };
 
+    // #[derive(ToSchema, Serialize)]
+    // #[serde(tag = "tag")]
+    // enum Bar {
+    //     A,
+    //     B,
+    //     C,
+    // }
+
     assert_json_eq!(
         value,
         json!({
