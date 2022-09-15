@@ -1853,6 +1853,7 @@ fn derive_schema_with_default_struct() {
 }
 
 #[test]
+#[cfg(feature = "repr")]
 fn derive_schema_for_repr_enum() {
     let value = api_doc! {
         #[derive(serde::Deserialize)]
@@ -1865,12 +1866,13 @@ fn derive_schema_for_repr_enum() {
     };
 
     assert_value! {value=>
-        "enum" = r#"["-1","0","1"]"#, "ExitCode enum variants"
+        "enum" = r#"[-1,0,1]"#, "ExitCode enum variants"
         "type" = r#""integer""#, "ExitCode enum type"
     };
 }
 
 #[test]
+#[cfg(feature = "repr")]
 fn derive_schema_for_tagged_repr_enum() {
     let value: Value = api_doc! {
         #[derive(serde::Deserialize, serde::Serialize)]
@@ -1893,7 +1895,7 @@ fn derive_schema_for_tagged_repr_enum() {
                         "tag": {
                             "type": "integer",
                             "enum": [
-                                "0",
+                                0,
                             ],
                         },
                     },
@@ -1907,7 +1909,7 @@ fn derive_schema_for_tagged_repr_enum() {
                         "tag": {
                             "type": "integer",
                             "enum": [
-                                "1",
+                                1,
                             ],
                         },
                     },
@@ -1921,7 +1923,7 @@ fn derive_schema_for_tagged_repr_enum() {
                         "tag": {
                             "type": "integer",
                             "enum": [
-                                "2",
+                                2,
                             ],
                         },
                     },
@@ -1935,6 +1937,7 @@ fn derive_schema_for_tagged_repr_enum() {
 }
 
 #[test]
+#[cfg(feature = "repr")]
 fn derive_schema_for_skipped_repr_enum() {
     let value: Value = api_doc! {
         #[derive(serde::Deserialize, serde::Serialize)]
@@ -1948,12 +1951,13 @@ fn derive_schema_for_skipped_repr_enum() {
     };
 
     assert_value! {value=>
-        "enum" = r#"["-1","0"]"#, "SkippedEnum enum variants"
+        "enum" = r#"[-1,0]"#, "SkippedEnum enum variants"
         "type" = r#""integer""#, "SkippedEnum enum type"
     };
 }
 
 #[test]
+#[cfg(feature = "repr")]
 fn derive_repr_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
         #[schema(default = repr_mode_default_fn)]
@@ -1965,8 +1969,8 @@ fn derive_repr_enum_with_with_custom_default_fn_success() {
     };
 
     assert_value! {mode=>
-        "default" = r#""1""#, "ReprDefautlMode default"
-        "enum" = r#"["0","1"]"#, "ReprDefautlMode enum variants"
+        "default" = r#"1"#, "ReprDefautlMode default"
+        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
         "type" = r#""integer""#, "ReprDefautlMode type"
     };
     assert_value! {mode=>
@@ -1974,14 +1978,16 @@ fn derive_repr_enum_with_with_custom_default_fn_success() {
     }
 }
 
-fn repr_mode_default_fn() -> String {
-    "1".to_string()
+#[cfg(feature = "repr")]
+fn repr_mode_default_fn() -> u16 {
+    1
 }
 
 #[test]
+#[cfg(feature = "repr")]
 fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
     let mode = api_doc! {
-        #[schema(default = repr_mode_default_fn, example = "1")]
+        #[schema(default = repr_mode_default_fn, example = 1)]
         #[repr(u16)]
         enum ReprDefautlMode {
             Mode1 = 0,
@@ -1990,9 +1996,9 @@ fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
     };
 
     assert_value! {mode=>
-        "default" = r#""1""#, "ReprDefautlMode default"
-        "enum" = r#"["0","1"]"#, "ReprDefautlMode enum variants"
+        "default" = r#"1"#, "ReprDefautlMode default"
+        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
         "type" = r#""integer""#, "ReprDefautlMode type"
-        "example" = r#""1""#, "ReprDefautlMode example"
+        "example" = r#"1"#, "ReprDefautlMode example"
     };
 }

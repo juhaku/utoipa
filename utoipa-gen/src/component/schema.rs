@@ -384,6 +384,7 @@ struct EnumSchema<'a> {
     attributes: &'a [Attribute],
 }
 
+#[cfg(feature = "repr")]
 impl ToTokens for EnumSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if self
@@ -431,6 +432,35 @@ impl ToTokens for EnumSchema<'_> {
     }
 }
 
+#[cfg(not(feature = "repr"))]
+impl ToTokens for EnumSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if self
+            .variants
+            .iter()
+            .all(|variant| matches!(variant.fields, Fields::Unit))
+        {
+            tokens.extend(
+                SimpleEnum {
+                    attributes: self.attributes,
+                    variants: self.variants,
+                }
+                    .to_token_stream(),
+            )
+        } else {
+            tokens.extend(
+                ComplexEnum {
+                    attributes: self.attributes,
+                    variants: self.variants,
+                }
+                    .to_token_stream(),
+            )
+        };
+    }
+}
+
+
+#[cfg(feature = "repr")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ReprEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
@@ -438,6 +468,7 @@ struct ReprEnum<'a> {
     rtype: Ident,
 }
 
+#[cfg(feature = "repr")]
 impl ReprEnum<'_> {
     /// Produce tokens that represent each variant for the situation where the serde enum tag =
     /// "<tag>" attribute applies.
@@ -485,6 +516,7 @@ impl ReprEnum<'_> {
     }
 }
 
+#[cfg(feature = "repr")]
 impl ToTokens for ReprEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
