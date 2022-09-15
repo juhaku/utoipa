@@ -180,6 +180,44 @@ use ext::ArgumentResolver;
 ///  }
 /// ```
 ///
+/// # `#[repr(...)]` attribute support
+/// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
+/// ```rust
+/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[repr(u8)]
+/// enum ApiVersion {
+///     One = 1,
+///     Two,
+///     Three,
+/// }
+/// ```
+/// You can use `skip` and `tag` attributes from serde.
+/// ```rust
+/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[repr(i8)]
+/// #[serde(tag = "code")]
+/// enum ExitCode {
+///     Error = -1,
+///     #[serde(skip)]
+///     Unknown = 0,
+///     Ok = 1,
+///  }
+/// ```
+/// As well as [`schema attributes`][enum_schema] for enums.
+/// ```rust
+/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[repr(u8)]
+/// #[schema(default = default_value, example = 2)]
+/// enum Mode {
+///     One = 1,
+///     Two,
+///  }
+///
+/// fn default_value() -> u8 {
+///     1
+/// }
+/// ```
+///
 /// # Generic schemas with aliases
 ///
 /// Schemas can also be generic which allows reusing types. This enables certain behaviour patters
@@ -379,6 +417,7 @@ use ext::ArgumentResolver;
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
+/// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

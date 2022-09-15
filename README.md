@@ -76,6 +76,8 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 - **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 - **openapi_extensions** Adds traits and functions that provide extra convenience functions.
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.
+- **repr** Add support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
+  See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 
