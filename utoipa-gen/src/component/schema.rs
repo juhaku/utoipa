@@ -1,8 +1,8 @@
-use std::{fmt::Debug, slice::Iter};
+use std::fmt::Debug;
 
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
     Data, Field, Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath,
@@ -919,15 +919,32 @@ impl ComplexEnum<'_> {
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
+                    let is_reference = unnamed_fields.unnamed.iter().any(|field| {
+                        let ty = TypeTree::from_type(&field.ty);
+
+                        ty.value_type == ValueType::Object
+                    });
+
+                    if is_reference {
+                        abort!(
+                            variant, "Unnamed field enum variant with schema references are not supported with serde `tag = ...` attribute.";
+                            help = "See `https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860` for more details."
+                        );
+                    }
+
                     let unnamed_enum = UnnamedStructSchema {
                         attributes: &variant.attrs,
                         fields: &unnamed_fields.unnamed,
                     };
 
+                    let variant_name_tokens = Self::unit_variant_tokens(variant_name, None);
+
                     quote! {
-                        utoipa::openapi::schema::ObjectBuilder::new()
+                        #unnamed_enum
                             #variant_title
-                            .property(#variant_name, #unnamed_enum)
+                            .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                            .property(#tag, #variant_name_tokens)
+                            .required(#tag)
                     }
                 } else {
                     abort!(

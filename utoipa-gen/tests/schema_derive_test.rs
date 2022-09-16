@@ -737,15 +737,15 @@ fn derive_complex_unnamed_field_reference_with_comment() {
 }
 
 #[test]
-fn derive_enum_with_unnamed_single_field_with_tag() {
+fn derive_enum_with_unnamed_primitive_field_with_tag() {
     #[derive(Serialize)]
     struct ReferenceValue(String);
 
     let value: Value = api_doc! {
         #[derive(Serialize)]
-        #[serde(tag = "enum")]
+        #[serde(tag = "tag")]
         enum EnumWithReference {
-            Value(ReferenceValue),
+            Value(String),
         }
     };
 
@@ -756,10 +756,94 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
                 {
                     "type": "object",
                     "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": ["Value"]
+                        },
+                    },
+                    "required": ["tag"]
+                },
+            ],
+        })
+    );
+}
+
+// TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
+#[test]
+#[ignore = "fix me, see: https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860"]
+fn derive_enum_with_unnamed_single_field_with_tag() {
+    #[derive(Serialize)]
+    struct ReferenceValue(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "enum")]
+        enum EnumWithReference {
+            Value(String),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "enum": {
+                            "type": "string",
+                            "enum": ["Value"]
+
+                        },
                         "Value": {
                             "$ref": "#/components/schemas/ReferenceValue",
                         },
                     },
+                    "required": ["enum"]
+                },
+            ],
+        })
+    );
+}
+
+// TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
+#[test]
+#[ignore = "fix me, see: https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860"]
+fn derive_enum_with_named_fields_with_reference_with_tag() {
+    #[derive(Serialize)]
+    struct ReferenceValue(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "enum")]
+        enum EnumWithReference {
+            Value {
+                field: ReferenceValue,
+                a: String
+            },
+            // UnnamedValue(ReferenceValue),
+            UnitValue,
+        }
+    };
+
+    println!("{}", serde_json::to_string_pretty(&value).unwrap());
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "enum": {
+                            "type": "string",
+                            "enum": ["Value"]
+
+                        },
+                        "Value": {
+                            "$ref": "#/components/schemas/ReferenceValue",
+                        },
+                    },
+                    "required": ["enum"]
                 },
             ],
         })
