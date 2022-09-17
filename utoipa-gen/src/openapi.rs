@@ -25,8 +25,8 @@ pub struct OpenApiAttr {
     paths: Punctuated<ExprPath, Comma>,
     components: Components,
     modifiers: Punctuated<Modifier, Comma>,
-    security: Option<Array<SecurityRequirementAttr>>,
-    tags: Option<Array<Tag>>,
+    security: Option<Array<'static, SecurityRequirementAttr>>,
+    tags: Option<Array<'static, Tag>>,
     external_docs: Option<ExternalDocs>,
 }
 

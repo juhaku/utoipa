@@ -727,9 +727,9 @@ impl SimpleEnum<'_> {
 //     }
 // }
 
-struct EnumRepresentation<'e, T: quote::ToTokens>(Option<&'e TypePath>, Array<T>);
+struct EnumRepresentation<'e, 'a, T: quote::ToTokens>(Option<&'e TypePath>, Array<'a, T>);
 
-impl<'e, T> EnumRepresentation<'e, T>
+impl<'e, 'a, T> EnumRepresentation<'e, 'a, T>
 where
     T: quote::ToTokens,
 {
@@ -757,7 +757,7 @@ trait TaggedEnumRepresentation {
     fn to_tagged_tokens(&self, tag: &str) -> TokenStream;
 }
 
-impl<'e, T> TaggedEnumRepresentation for EnumRepresentation<'e, T>
+impl<'e, 'a, T> TaggedEnumRepresentation for EnumRepresentation<'e, 'a, T>
 where
     T: quote::ToTokens,
 {
@@ -768,8 +768,9 @@ where
         let items = values
             .iter()
             .map(|enum_value| {
+                let values = [enum_value];
                 let enum_tokens =
-                    EnumRepresentation(*enum_type, Array::Owned(vec![enum_value])).to_tokens();
+                    EnumRepresentation(*enum_type, Array::Borrowed(&values)).to_tokens();
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
