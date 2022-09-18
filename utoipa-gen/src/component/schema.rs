@@ -386,7 +386,6 @@ struct EnumSchema<'a> {
     attributes: &'a [Attribute],
 }
 
-#[cfg(feature = "repr")]
 impl ToTokens for EnumSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if self
@@ -396,27 +395,36 @@ impl ToTokens for EnumSchema<'_> {
         {
             #[cfg(feature = "repr")]
             {
-                // TODO
+                tokens.extend(
+                    self.attributes
+                        .iter()
+                        .find_map(|attribute| {
+                            if attribute.path.is_ident("repr") {
+                                attribute.parse_args::<TypePath>().ok()
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|enum_type| {
+                            ReprEnum {
+                                variants: self.variants,
+                                attributes: self.attributes,
+                                enum_type,
+                            }
+                            .to_token_stream()
+                        })
+                        .unwrap_or_else(|| {
+                            SimpleEnum {
+                                attributes: self.attributes,
+                                variants: self.variants,
+                            }
+                            .to_token_stream()
+                        }),
+                )
             }
 
-            let repr_match = self.attributes.iter().find_map(|attr| {
-                if attr.path.is_ident("repr") {
-                    attr.parse_args::<TypePath>().ok()
-                } else {
-                    None
-                }
-            });
-
-            if let Some(ty) = repr_match {
-                tokens.extend(
-                    ReprEnum {
-                        attributes: self.attributes,
-                        variants: self.variants,
-                        enum_type: ty,
-                    }
-                    .to_token_stream(),
-                )
-            } else {
+            #[cfg(not(feature = "repr"))]
+            {
                 tokens.extend(
                     SimpleEnum {
                         attributes: self.attributes,
@@ -425,33 +433,6 @@ impl ToTokens for EnumSchema<'_> {
                     .to_token_stream(),
                 )
             }
-        } else {
-            tokens.extend(
-                ComplexEnum {
-                    attributes: self.attributes,
-                    variants: self.variants,
-                }
-                .to_token_stream(),
-            )
-        };
-    }
-}
-
-#[cfg(not(feature = "repr"))]
-impl ToTokens for EnumSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if self
-            .variants
-            .iter()
-            .all(|variant| matches!(variant.fields, Fields::Unit))
-        {
-            tokens.extend(
-                SimpleEnum {
-                    attributes: self.attributes,
-                    variants: self.variants,
-                }
-                .to_token_stream(),
-            )
         } else {
             tokens.extend(
                 ComplexEnum {
@@ -473,61 +454,34 @@ struct ReprEnum<'a> {
 }
 
 #[cfg(feature = "repr")]
+impl<'e> EnumTokens<'e> for ReprEnum<'e> {
+    fn variant_to_tokens_stream(
+        &self,
+        variant: &Variant,
+        _: &Option<SerdeContainer>,
+    ) -> Option<TokenStream> {
+        let variant_rules = serde::parse_value(&variant.attrs);
+        if is_not_skipped(&variant_rules) {
+            let ty = &variant.ident;
+            let repr = &self.enum_type;
+
+            Some(quote! {
+                Self::#ty as #repr
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "repr")]
 impl ToTokens for ReprEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let container_rules = serde::parse_container(self.attributes);
-
-        let variants = self
-            .variants
-            .iter()
-            .filter_map(|variant| {
-                let variant_rules = serde::parse_value(&variant.attrs);
-                if is_not_skipped(&variant_rules) {
-                    let ty = &variant.ident;
-                    let repr = &self.enum_type;
-
-                    Some(quote! {
-                        Self::#ty as #repr
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        tokens.extend(match container_rules {
-            Some(serde_container) if serde_container.tag.is_some() => {
-                let tag = serde_container.tag.expect("Expected tag to be present");
-
-                EnumRepresentation {
-                    enum_type: Some(&self.enum_type),
-                    values: variants,
-                    title: &None,
-                }
-                .to_tagged_tokens(&*tag)
-            }
-            _ => EnumRepresentation {
-                enum_type: Some(&self.enum_type),
-                values: variants,
-                title: &None,
-            }
-            .to_tokens(),
-        });
-
-        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
-        if let Some(attributes) = attrs {
-            tokens.extend(attributes.to_token_stream());
-        }
-
-        if let Some(deprecated) = super::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
-
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
-        }
+        Self::to_enum_tokens(
+            self,
+            (self.variants, self.attributes, Some(&self.enum_type)),
+            tokens,
+        )
     }
 }
 
@@ -537,56 +491,86 @@ struct SimpleEnum<'a> {
     attributes: &'a [Attribute],
 }
 
+impl<'e> EnumTokens<'e> for SimpleEnum<'e> {
+    fn variant_to_tokens_stream(
+        &self,
+        variant: &Variant,
+        container_rules: &Option<SerdeContainer>,
+    ) -> Option<TokenStream> {
+        let mut variant_rules = serde::parse_value(&variant.attrs);
+
+        if is_not_skipped(&variant_rules) {
+            let name = &*variant.ident.to_string();
+            let renamed = rename_variant(container_rules, &mut variant_rules, name);
+
+            if let Some(renamed_name) = renamed {
+                Some(quote! { #renamed_name })
+            } else {
+                Some(quote! { #name })
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl ToTokens for SimpleEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let container_rules = serde::parse_container(self.attributes);
+        Self::to_enum_tokens(self, (self.variants, self.attributes, None), tokens)
+    }
+}
 
-        let enum_values = self
-            .variants
+type EnumContent<'e> = (
+    &'e Punctuated<Variant, Comma>,
+    &'e [Attribute],
+    Option<&'e TypePath>,
+);
+
+trait EnumTokens<'e>: ToTokens {
+    fn variant_to_tokens_stream(
+        &self,
+        variant: &Variant,
+        container_rules: &Option<SerdeContainer>,
+    ) -> Option<TokenStream>;
+
+    fn to_enum_tokens(&self, content: EnumContent, tokens: &mut TokenStream) {
+        let (variants, attributes, enum_type) = content;
+        let container_rules = serde::parse_container(attributes);
+
+        let enum_values = variants
             .iter()
-            .filter_map(|variant| {
-                let mut variant_rules = serde::parse_value(&variant.attrs);
-
-                if is_not_skipped(&variant_rules) {
-                    let name = &*variant.ident.to_string();
-                    let renamed = rename_variant(&container_rules, &mut variant_rules, name);
-
-                    renamed.or_else(|| Some(String::from(name)))
-                } else {
-                    None
-                }
-            })
-            .collect::<Array<String>>();
+            .filter_map(|variant| self.variant_to_tokens_stream(variant, &container_rules))
+            .collect::<Array<TokenStream>>();
 
         tokens.extend(match container_rules {
             Some(serde_container) if serde_container.tag.is_some() => {
                 let tag = serde_container.tag.expect("Expected tag to be present");
 
                 EnumRepresentation {
-                    enum_type: None,
+                    enum_type,
                     values: enum_values,
                     title: &None,
                 }
                 .to_tagged_tokens(&*tag)
             }
             _ => EnumRepresentation {
-                enum_type: None,
+                enum_type,
                 values: enum_values,
                 title: &None,
             }
             .to_tokens(),
         });
 
-        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
+        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(attributes);
         if let Some(attributes) = attrs {
             tokens.extend(attributes.to_token_stream());
         }
 
-        if let Some(deprecated) = super::get_deprecated(self.attributes) {
+        if let Some(deprecated) = super::get_deprecated(attributes) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
+        if let Some(comment) = CommentAttributes::from_attributes(attributes).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -712,19 +696,6 @@ impl ComplexEnum<'_> {
 
 impl ToTokens for ComplexEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        if self
-            .attributes
-            .iter()
-            .any(|attribute| attribute.path.get_ident().unwrap() == "schema")
-        {
-            abort!(
-                self.attributes.first().unwrap(),
-                "schema macro attribute is not expected on complex enum";
-
-                help = "Try adding the #[schema(...)] on variant of the enum";
-            );
-        }
-
         let capacity = self.variants.len();
 
         let mut container_rules = serde::parse_container(self.attributes);
@@ -772,6 +743,15 @@ impl ToTokens for ComplexEnum<'_> {
                     #items
             }
         );
+
+        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
+        if let Some(attributes) = attrs {
+            tokens.extend(attributes.to_token_stream());
+        }
+
+        if let Some(deprecated) = super::get_deprecated(self.attributes) {
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
 
         if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
             tokens.extend(quote! {

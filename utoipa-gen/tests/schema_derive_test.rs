@@ -738,9 +738,6 @@ fn derive_complex_unnamed_field_reference_with_comment() {
 
 #[test]
 fn derive_enum_with_unnamed_primitive_field_with_tag() {
-    #[derive(Serialize)]
-    struct ReferenceValue(String);
-
     let value: Value = api_doc! {
         #[derive(Serialize)]
         #[serde(tag = "tag")]
@@ -766,6 +763,71 @@ fn derive_enum_with_unnamed_primitive_field_with_tag() {
             ],
         })
     );
+}
+
+#[test]
+fn derive_complex_enum_with_schema_properties() {
+    let value: Value = api_doc! {
+        /// This is the description
+        #[derive(Serialize)]
+        #[schema(example = json!(EnumWithProperites::Variant2{name: String::from("foobar")}),
+            default = json!(EnumWithProperites::Variant{id: String::from("1")}))]
+        enum EnumWithProperites {
+            Variant {
+                id: String
+            },
+            Variant2{
+                name: String
+            }
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "description": "This is the description",
+            "default": {
+                "Variant": {
+                    "id": "1"
+                }
+            },
+            "example": {
+                "Variant2": {
+                    "name": "foobar"
+                }
+            },
+            "oneOf": [
+                {
+                    "properties": {
+                        "Variant": {
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["id"],
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "Variant2": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        })
+    )
 }
 
 // TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
