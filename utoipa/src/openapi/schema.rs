@@ -237,12 +237,42 @@ impl Default for Schema {
     }
 }
 
-/// OneOf [Discriminator Object][discriminator] component holds
+/// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
+/// [`OneOf`] composite object.
+/// 
+/// [discriminator]: https://swagger.io/specification/#discriminator-object
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Discriminator {
+    /// Defines a discriminator property name which must be found within all composite
+    /// objects.
+    pub property_name: String,
+}
+
+impl Discriminator {
+    /// Construct a new [`Discriminator`] object with property name.
+    /// 
+    /// # Examples
+    /// 
+    /// Create a new [`Discriminator`] object for `pet_type` property.
+    /// ```rust
+    /// # use utoipa::openapi::schema::Discriminator;
+    /// let discriminator = Discriminator::new("pet_type");
+    /// ```
+    pub fn new<I: Into<String>>(property_name: I) -> Self {
+        Self {
+            property_name: property_name.into(),
+        }
+    }
+}
+
+/// OneOf [Composite Object][oneof] component holds
 /// multiple components together where API endpoint could return any of them.
 ///
 /// See [`Schema::OneOf`] for more details.
 ///
-/// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
+/// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OneOf {
@@ -272,6 +302,11 @@ pub struct OneOf {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(not(feature = "serde_json"))]
     pub example: Option<String>,
+
+    /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
+    /// specific schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discriminator: Option<Discriminator>
 }
 
 impl OneOf {
@@ -320,6 +355,8 @@ pub struct OneOfBuilder {
 
     #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
+
+    discriminator: Option<Discriminator>
 }
 
 impl OneOfBuilder {
@@ -363,12 +400,17 @@ impl OneOfBuilder {
         set_value!(self example example.map(|example| example.into()))
     }
 
+    /// Add or change discriminator field of the composite [`OneOf`] type.
+    pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
+        set_value!(self discriminator discriminator)
+    }
+
     to_array_builder!();
 
-    build_fn!(pub OneOf items, description, default, example);
+    build_fn!(pub OneOf items, description, default, example, discriminator);
 }
 
-from!(OneOf OneOfBuilder items, description, default, example);
+from!(OneOf OneOfBuilder items, description, default, example, discriminator);
 
 impl From<OneOf> for Schema {
     fn from(one_of: OneOf) -> Self {

@@ -481,9 +481,9 @@ impl ToTokens for ReprEnum<'_> {
             self,
             (self.variants, self.attributes, Some(&self.enum_type)),
             tokens,
-            |tokens| {
+            |tokens, container_rules| {
                 self.unit_enum_tokens(
-                    serde::parse_container(self.attributes),
+                    container_rules,
                     (self.variants, self.attributes, Some(&self.enum_type)),
                     tokens,
                 )
@@ -527,9 +527,9 @@ impl ToTokens for SimpleEnum<'_> {
             self,
             (self.variants, self.attributes, None),
             tokens,
-            |tokens| {
+            |tokens, container_rules| {
                 self.unit_enum_tokens(
-                    serde::parse_container(self.attributes),
+                    container_rules,
                     (self.variants, self.attributes, None),
                     tokens,
                 )
@@ -557,13 +557,14 @@ trait EnumTokens<'e>: ToTokens {
         &self,
         content: EnumContent,
         tokens: &mut TokenStream,
-        enum_value_to_tokens: impl FnOnce(&mut TokenStream),
+        enum_value_to_tokens: impl FnOnce(&mut TokenStream, &Option<SerdeContainer>),
     ) where
         Self: Sized,
     {
         let (_, attributes, _) = content;
 
-        enum_value_to_tokens(tokens);
+        let container_rules = serde::parse_container(attributes);
+        enum_value_to_tokens(tokens, &container_rules);
 
         let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(attributes);
         if let Some(attributes) = attrs {
@@ -583,7 +584,7 @@ trait EnumTokens<'e>: ToTokens {
 
     fn unit_enum_tokens(
         &self,
-        container_rules: Option<SerdeContainer>,
+        container_rules: &Option<SerdeContainer>,
         content: EnumContent,
         tokens: &mut TokenStream,
     ) {
@@ -591,7 +592,7 @@ trait EnumTokens<'e>: ToTokens {
 
         let enum_values = variants
             .iter()
-            .filter_map(|variant| self.variant_to_tokens_stream(variant, &container_rules))
+            .filter_map(|variant| self.variant_to_tokens_stream(variant, container_rules))
             .collect::<Array<TokenStream>>();
 
         tokens.extend(match container_rules {
@@ -742,15 +743,11 @@ impl ToTokens for ComplexEnum<'_> {
             self,
             (self.variants, self.attributes, None),
             tokens,
-            |tokens| {
-                let mut container_rules = serde::parse_container(self.attributes);
-                let tag: Option<String> = if let Some(serde_container) = &mut container_rules {
-                    serde_container.tag.take()
-                } else {
-                    None
-                };
-
+            |tokens, container_rules| {
                 let capacity = self.variants.len();
+                let tag = container_rules
+                    .as_ref()
+                    .and_then(|rules| rules.tag.as_ref());
                 // serde, externally tagged format supported by now
                 let items: TokenStream = self
                     .variants
@@ -765,16 +762,13 @@ impl ToTokens for ComplexEnum<'_> {
                     })
                     .map(|(variant, mut variant_serde_rules)| {
                         let variant_name = &*variant.ident.to_string();
-                        let variant_name = rename_variant(
-                            &container_rules,
-                            &mut variant_serde_rules,
-                            variant_name,
-                        )
-                        .unwrap_or_else(|| String::from(variant_name));
+                        let variant_name =
+                            rename_variant(container_rules, &mut variant_serde_rules, variant_name)
+                                .unwrap_or_else(|| String::from(variant_name));
                         let variant_title =
                             attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
 
-                        if let Some(tag) = &tag {
+                        if let Some(tag) = tag {
                             Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
                         } else {
                             Self::variant_tokens(variant_name, variant_title, variant)
@@ -786,11 +780,18 @@ impl ToTokens for ComplexEnum<'_> {
                         }
                     })
                     .collect();
+                // for now just use tag as a discriminator
+                let discriminator = tag.map(|tag| {
+                    quote! {
+                        .discriminator(Some(utoipa::openapi::schema::Discriminator::new(#tag)))
+                    }
+                });
 
                 tokens.extend(
                     quote! {
                         Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
                             #items
+                            #discriminator
                     }
                 );
             },
