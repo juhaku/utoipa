@@ -1299,21 +1299,6 @@ where
     }
 }
 
-// impl<T> IntoIterator for Array<'_, T>
-// where
-//     T: Sized + ToTokens,
-// {
-//     type Item = T;
-//     type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         match self {
-//             Array::Owned(owned) => owned.into_iter(),
-//             Array::Borrowed(borrowed) => borrowed.into_iter(),
-//         }
-//     }
-// }
-
 impl<'a, T> Deref for Array<'a, T>
 where
     T: Sized + ToTokens,

@@ -481,6 +481,13 @@ impl ToTokens for ReprEnum<'_> {
             self,
             (self.variants, self.attributes, Some(&self.enum_type)),
             tokens,
+            |tokens| {
+                self.unit_enum_tokens(
+                    serde::parse_container(self.attributes),
+                    (self.variants, self.attributes, Some(&self.enum_type)),
+                    tokens,
+                )
+            },
         )
     }
 }
@@ -516,7 +523,18 @@ impl<'e> EnumTokens<'e> for SimpleEnum<'e> {
 
 impl ToTokens for SimpleEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        Self::to_enum_tokens(self, (self.variants, self.attributes, None), tokens)
+        Self::to_enum_tokens(
+            self,
+            (self.variants, self.attributes, None),
+            tokens,
+            |tokens| {
+                self.unit_enum_tokens(
+                    serde::parse_container(self.attributes),
+                    (self.variants, self.attributes, None),
+                    tokens,
+                )
+            },
+        )
     }
 }
 
@@ -529,37 +547,23 @@ type EnumContent<'e> = (
 trait EnumTokens<'e>: ToTokens {
     fn variant_to_tokens_stream(
         &self,
-        variant: &Variant,
-        container_rules: &Option<SerdeContainer>,
-    ) -> Option<TokenStream>;
+        _: &Variant,
+        _: &Option<SerdeContainer>,
+    ) -> Option<TokenStream> {
+        None
+    }
 
-    fn to_enum_tokens(&self, content: EnumContent, tokens: &mut TokenStream) {
-        let (variants, attributes, enum_type) = content;
-        let container_rules = serde::parse_container(attributes);
+    fn to_enum_tokens(
+        &self,
+        content: EnumContent,
+        tokens: &mut TokenStream,
+        enum_value_to_tokens: impl FnOnce(&mut TokenStream),
+    ) where
+        Self: Sized,
+    {
+        let (_, attributes, _) = content;
 
-        let enum_values = variants
-            .iter()
-            .filter_map(|variant| self.variant_to_tokens_stream(variant, &container_rules))
-            .collect::<Array<TokenStream>>();
-
-        tokens.extend(match container_rules {
-            Some(serde_container) if serde_container.tag.is_some() => {
-                let tag = serde_container.tag.expect("Expected tag to be present");
-
-                EnumRepresentation {
-                    enum_type,
-                    values: enum_values,
-                    title: &None,
-                }
-                .to_tagged_tokens(&*tag)
-            }
-            _ => EnumRepresentation {
-                enum_type,
-                values: enum_values,
-                title: &None,
-            }
-            .to_tokens(),
-        });
+        enum_value_to_tokens(tokens);
 
         let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(attributes);
         if let Some(attributes) = attrs {
@@ -575,6 +579,42 @@ trait EnumTokens<'e>: ToTokens {
                 .description(Some(#comment))
             })
         }
+    }
+
+    fn unit_enum_tokens(
+        &self,
+        container_rules: Option<SerdeContainer>,
+        content: EnumContent,
+        tokens: &mut TokenStream,
+    ) {
+        let (variants, _, enum_type) = content;
+
+        let enum_values = variants
+            .iter()
+            .filter_map(|variant| self.variant_to_tokens_stream(variant, &container_rules))
+            .collect::<Array<TokenStream>>();
+
+        tokens.extend(match container_rules {
+            Some(serde_container) if serde_container.tag.is_some() => {
+                let tag = serde_container
+                    .tag
+                    .as_ref()
+                    .expect("Expected tag to be present");
+
+                EnumRepresentation {
+                    enum_type,
+                    values: enum_values,
+                    title: &None,
+                }
+                .to_tagged_tokens(tag.as_str())
+            }
+            _ => EnumRepresentation {
+                enum_type,
+                values: enum_values,
+                title: &None,
+            }
+            .to_tokens(),
+        });
     }
 }
 
@@ -694,70 +734,67 @@ impl ComplexEnum<'_> {
     }
 }
 
+impl<'e> EnumTokens<'e> for ComplexEnum<'e> {}
+
 impl ToTokens for ComplexEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let capacity = self.variants.len();
-
-        let mut container_rules = serde::parse_container(self.attributes);
-        let tag: Option<String> = if let Some(serde_container) = &mut container_rules {
-            serde_container.tag.take()
-        } else {
-            None
-        };
-
-        // serde, externally tagged format supported by now
-        let items: TokenStream = self
-            .variants
-            .iter()
-            .filter_map(|variant: &Variant| {
-                let variant_serde_rules = serde::parse_value(&variant.attrs);
-                if is_not_skipped(&variant_serde_rules) {
-                    Some((variant, variant_serde_rules))
+        Self::to_enum_tokens(
+            self,
+            (self.variants, self.attributes, None),
+            tokens,
+            |tokens| {
+                let mut container_rules = serde::parse_container(self.attributes);
+                let tag: Option<String> = if let Some(serde_container) = &mut container_rules {
+                    serde_container.tag.take()
                 } else {
                     None
-                }
-            })
-            .map(|(variant, mut variant_serde_rules)| {
-                let variant_name = &*variant.ident.to_string();
-                let variant_name =
-                    rename_variant(&container_rules, &mut variant_serde_rules, variant_name)
+                };
+
+                let capacity = self.variants.len();
+                // serde, externally tagged format supported by now
+                let items: TokenStream = self
+                    .variants
+                    .iter()
+                    .filter_map(|variant: &Variant| {
+                        let variant_serde_rules = serde::parse_value(&variant.attrs);
+                        if is_not_skipped(&variant_serde_rules) {
+                            Some((variant, variant_serde_rules))
+                        } else {
+                            None
+                        }
+                    })
+                    .map(|(variant, mut variant_serde_rules)| {
+                        let variant_name = &*variant.ident.to_string();
+                        let variant_name = rename_variant(
+                            &container_rules,
+                            &mut variant_serde_rules,
+                            variant_name,
+                        )
                         .unwrap_or_else(|| String::from(variant_name));
-                let variant_title = attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
+                        let variant_title =
+                            attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
 
-                if let Some(tag) = &tag {
-                    Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
-                } else {
-                    Self::variant_tokens(variant_name, variant_title, variant)
-                }
-            })
-            .map(|inline_variant| {
-                quote! {
-                    .item(#inline_variant)
-                }
-            })
-            .collect();
+                        if let Some(tag) = &tag {
+                            Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
+                        } else {
+                            Self::variant_tokens(variant_name, variant_title, variant)
+                        }
+                    })
+                    .map(|inline_variant| {
+                        quote! {
+                            .item(#inline_variant)
+                        }
+                    })
+                    .collect();
 
-        tokens.extend(
-            quote! {
-                Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
-                    #items
-            }
+                tokens.extend(
+                    quote! {
+                        Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
+                            #items
+                    }
+                );
+            },
         );
-
-        let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(self.attributes);
-        if let Some(attributes) = attrs {
-            tokens.extend(attributes.to_token_stream());
-        }
-
-        if let Some(deprecated) = super::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
-
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
-        }
     }
 }
 
