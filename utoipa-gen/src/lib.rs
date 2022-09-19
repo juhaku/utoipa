@@ -1280,16 +1280,17 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
 /// or without correctly to OpenAPI JSON.
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum Array<T>
+enum Array<'a, T>
 where
     T: Sized + ToTokens,
 {
     Owned(Vec<T>),
+    Borrowed(&'a [T]),
 }
 
-impl<T> Array<T> where T: ToTokens + Sized {}
+impl<T> Array<'_, T> where T: ToTokens + Sized {}
 
-impl<V> FromIterator<V> for Array<V>
+impl<V> FromIterator<V> for Array<'_, V>
 where
     V: Sized + ToTokens,
 {
@@ -1298,44 +1299,33 @@ where
     }
 }
 
-impl<T> IntoIterator for Array<T>
+impl<'a, T> Deref for Array<'a, T>
 where
     T: Sized + ToTokens,
 {
-    type Item = T;
-    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self {
-            Array::Owned(owned) => owned.into_iter(),
-        }
-    }
-}
-
-impl<T> Deref for Array<T>
-where
-    T: Sized + ToTokens,
-{
-    type Target = Vec<T>;
+    type Target = [T];
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Owned(vec) => vec,
+            Self::Owned(vec) => vec.as_slice(),
+            Self::Borrowed(slice) => *slice,
         }
     }
 }
 
-impl<T> ToTokens for Array<T>
+impl<T> ToTokens for Array<'_, T>
 where
     T: Sized + ToTokens,
 {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let Array::Owned(values) = self;
+        let values = match self {
+            Self::Owned(values) => values.iter(),
+            Self::Borrowed(values) => values.iter(),
+        };
 
         tokens.append(Group::new(
             proc_macro2::Delimiter::Bracket,
             values
-                .iter()
                 .fold(Punctuated::new(), |mut punctuated, item| {
                     punctuated.push_value(item);
                     punctuated.push_punct(Punct::new(',', proc_macro2::Spacing::Alone));

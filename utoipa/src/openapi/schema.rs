@@ -237,25 +237,41 @@ impl Default for Schema {
     }
 }
 
-builder! {
-    OneOfBuilder;
+/// OneOf [Discriminator Object][discriminator] component holds
+/// multiple components together where API endpoint could return any of them.
+///
+/// See [`Schema::OneOf`] for more details.
+///
+/// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct OneOf {
+    /// Components of _OneOf_ component.
+    #[serde(rename = "oneOf")]
+    pub items: Vec<RefOr<Schema>>,
 
-    /// OneOf [Discriminator Object][discriminator] component holds
-    /// multiple components together where API endpoint could return any of them.
-    ///
-    /// See [`Schema::OneOf`] for more details.
-    ///
-    /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct OneOf {
-        /// Components of _OneOf_ component.
-        #[serde(rename = "oneOf")]
-        pub items: Vec<RefOr<Schema>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub description: Option<String>,
-    }
+    /// Default value which is provided when user has not provided the input in Swagger UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub default: Option<Value>,
+
+    /// Default value which is provided when user has not provided the input in Swagger UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub default: Option<String>,
+
+    /// Example shown in UI of the value for richier documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub example: Option<Value>,
+
+    /// Example shown in UI of the value for richier documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub example: Option<String>,
 }
 
 impl OneOf {
@@ -281,12 +297,34 @@ impl OneOf {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             items: Vec::with_capacity(capacity),
-            description: None,
+            ..Default::default()
         }
     }
 }
 
+/// Builder for [`OneOf`] with chainable configuration methods to create a new [`OneOf`].
+#[derive(Default)]
+pub struct OneOfBuilder {
+    items: Vec<RefOr<Schema>>,
+    
+    description: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    default: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    default: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    example: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    example: Option<String>,
+}
+
 impl OneOfBuilder {
+    new!(pub OneOfBuilder);
+
     /// Adds a given [`Schema`] to [`OneOf`] [Discriminator Object][discriminator]
     ///
     /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
@@ -301,8 +339,36 @@ impl OneOfBuilder {
         set_value!(self description description.map(|description| description.into()))
     }
 
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[cfg(feature = "serde_json")]
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
+    }
+
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
+        set_value!(self default default.map(|default| default.into()))
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(feature = "serde_json")]
+    pub fn example(mut self, example: Option<Value>) -> Self {
+        set_value!(self example example)
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
+        set_value!(self example example.map(|example| example.into()))
+    }
+
     to_array_builder!();
+
+    build_fn!(pub OneOf items, description, default, example);
 }
+
+from!(OneOf OneOfBuilder items, description, default, example);
 
 impl From<OneOf> for Schema {
     fn from(one_of: OneOf) -> Self {
@@ -365,7 +431,7 @@ pub struct Object {
     /// Enum variants of fields that can be represented as `unit` type `enums`
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "repr")]
-    enum_values: Option<Vec<Value>>,
+    pub enum_values: Option<Vec<Value>>,
 
     /// Vector of required field names.
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]

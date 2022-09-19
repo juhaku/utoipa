@@ -73,7 +73,7 @@ pub struct PathAttr<'p> {
     operation_id: Option<String>,
     tag: Option<String>,
     params: Vec<Parameter<'p>>,
-    security: Option<Array<SecurityRequirementAttr>>,
+    security: Option<Array<'p, SecurityRequirementAttr>>,
     context_path: Option<String>,
 }
 
@@ -513,7 +513,7 @@ struct Operation<'a> {
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
-    security: Option<&'a Array<SecurityRequirementAttr>>,
+    security: Option<&'a Array<'a, SecurityRequirementAttr>>,
 }
 
 impl ToTokens for Operation<'_> {
