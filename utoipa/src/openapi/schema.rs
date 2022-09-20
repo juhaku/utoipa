@@ -231,6 +231,7 @@ pub enum Schema {
     OneOf(OneOf),
 
     /// Creates a _AnyOf_ type [composite Object][composite] shcema.
+    /// 
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf)
 }
