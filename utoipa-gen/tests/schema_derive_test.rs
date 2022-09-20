@@ -761,6 +761,9 @@ fn derive_enum_with_unnamed_primitive_field_with_tag() {
                     "required": ["tag"]
                 },
             ],
+            "discriminator": {
+                "propertyName": "tag"
+            }
         })
     );
 }
@@ -1228,6 +1231,9 @@ fn derive_complex_enum_serde_tag() {
                     ],
                 },
             ],
+            "discriminator": {
+                "propertyName": "tag"
+            }
         })
     );
 }
@@ -1289,6 +1295,9 @@ fn derive_complex_enum_serde_tag_title() {
                     ],
                 },
             ],
+            "discriminator": {
+                "propertyName": "tag"
+            }
         })
     );
 }
