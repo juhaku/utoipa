@@ -223,12 +223,17 @@ pub enum Schema {
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
-    /// Creates a _OneOf_ type [Discriminator Object][discriminator] schema. This schema
+    /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
     ///
-    /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
+    /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
+
+    /// Creates a _AnyOf_ type [composite Object][composite] shcema.
+    /// 
+    /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
+    AllOf(AllOf)
 }
 
 impl Default for Schema {
@@ -280,6 +285,7 @@ pub struct OneOf {
     #[serde(rename = "oneOf")]
     pub items: Vec<RefOr<Schema>>,
 
+    /// Description of the [`OneOf`]. Markdown syntax is supported.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
@@ -362,9 +368,9 @@ pub struct OneOfBuilder {
 impl OneOfBuilder {
     new!(pub OneOfBuilder);
 
-    /// Adds a given [`Schema`] to [`OneOf`] [Discriminator Object][discriminator]
+    /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite]
     ///
-    /// [discriminator]: https://spec.openapis.org/oas/latest.html#components-object
+    /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         self.items.push(component.into());
 
@@ -425,6 +431,166 @@ impl From<OneOfBuilder> for RefOr<Schema> {
 }
 
 component_from_builder!(OneOfBuilder);
+
+/// AllOf [Composite Object][allof] component holds
+/// multiple components together where API endpoint will return a combination of all of them.
+///
+/// See [`Schema::AllOf`] for more details.
+///
+/// [allof]: https://spec.openapis.org/oas/latest.html#components-object
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct AllOf {
+    /// Components of _AllOf_ component.
+    #[serde(rename = "allOf")]
+    pub items: Vec<RefOr<Schema>>,
+
+    /// Description of the [`AllOf`]. Markdown syntax is supported.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Default value which is provided when user has not provided the input in Swagger UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub default: Option<Value>,
+
+    /// Default value which is provided when user has not provided the input in Swagger UI.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub default: Option<String>,
+
+    /// Example shown in UI of the value for richier documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub example: Option<Value>,
+
+    /// Example shown in UI of the value for richier documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub example: Option<String>,
+
+    /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
+    /// specific schema.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discriminator: Option<Discriminator>
+}
+
+impl AllOf {
+    /// Construct a new [`AllOf`] component.
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    /// Construct a new [`AllOf`] component with given capacity.
+    ///
+    /// AllOf component is then able to contain number of components without
+    /// reallocating.
+    ///
+    /// # Examples
+    ///
+    /// Create [`AllOf`] component with initial capacity of 5.
+    /// ```rust
+    /// # use utoipa::openapi::schema::AllOf;
+    /// let one_of = AllOf::with_capacity(5);
+    /// ```
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            items: Vec::with_capacity(capacity),
+            ..Default::default()
+        }
+    }
+}
+
+/// Builder for [`AllOf`] with chainable configuration methods to create a new [`AllOf`].
+#[derive(Default)]
+pub struct AllOfBuilder {
+    items: Vec<RefOr<Schema>>,
+    
+    description: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    default: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    default: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    example: Option<Value>,
+
+    #[cfg(not(feature = "serde_json"))]
+    example: Option<String>,
+
+    discriminator: Option<Discriminator>
+}
+
+impl AllOfBuilder {
+    new!(pub AllOfBuilder);
+
+    /// Adds a given [`Schema`] to [`AllOf`] [Composite Object][composite]
+    ///
+    /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
+    pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
+        self.items.push(component.into());
+
+        self
+    }
+
+    /// Add or change optional description for `AllOf` component.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[cfg(feature = "serde_json")]
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
+    }
+
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
+        set_value!(self default default.map(|default| default.into()))
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(feature = "serde_json")]
+    pub fn example(mut self, example: Option<Value>) -> Self {
+        set_value!(self example example)
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
+        set_value!(self example example.map(|example| example.into()))
+    }
+
+    /// Add or change discriminator field of the composite [`AllOf`] type.
+    pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
+        set_value!(self discriminator discriminator)
+    }
+
+    to_array_builder!();
+
+    build_fn!(pub AllOf items, description, default, example, discriminator);
+}
+
+from!(AllOf AllOfBuilder items, description, default, example, discriminator);
+
+impl From<AllOf> for Schema {
+    fn from(one_of: AllOf) -> Self {
+        Self::AllOf(one_of)
+    }
+}
+
+impl From<AllOfBuilder> for RefOr<Schema> {
+    fn from(one_of: AllOfBuilder) -> Self {
+        Self::T(Schema::AllOf(one_of.build()))
+    }
+}
+
+component_from_builder!(AllOfBuilder);
 
 /// Implements subset of [OpenAPI Schema Object][schema] which allows
 /// adding other [`Schema`]s as **properties** to this [`Schema`].
