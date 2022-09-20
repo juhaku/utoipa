@@ -661,7 +661,6 @@ impl ComplexEnum<'_> {
         variant_name: String,
         variant_title: Option<SchemaAttr<Title>>,
         variant: &Variant,
-        mut is_reference_op: impl FnMut(bool),
     ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
@@ -699,7 +698,6 @@ impl ComplexEnum<'_> {
                     });
 
                     if is_reference {
-                        is_reference_op(is_reference);
                         quote! {
                             utoipa::openapi::schema::AllOfBuilder::new()
                                 #variant_title
@@ -756,7 +754,7 @@ impl ToTokens for ComplexEnum<'_> {
                 let tag = container_rules
                     .as_ref()
                     .and_then(|rules| rules.tag.as_ref());
-                let mut is_reference = false;
+
                 // serde, externally tagged format supported by now
                 let items: TokenStream = self
                     .variants
@@ -778,13 +776,7 @@ impl ToTokens for ComplexEnum<'_> {
                             attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
 
                         if let Some(tag) = tag {
-                            Self::tagged_variant_tokens(
-                                tag,
-                                variant_name,
-                                variant_title,
-                                variant,
-                                |is_ref| is_reference = is_ref,
-                            )
+                            Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
                         } else {
                             Self::variant_tokens(variant_name, variant_title, variant)
                         }
@@ -802,23 +794,13 @@ impl ToTokens for ComplexEnum<'_> {
                     }
                 });
 
-                // TODO rewrite this to support allOf scenario when UnnamedStruct enum variant has a reference to another
-                // component, current implementation is biased towards oneOf only.
-                // FIXME, broken
-                if is_reference {
-                    tokens.extend(quote! {
-                        #items
-                        #discriminator
-                    });
-                } else {
-                    tokens.extend(
-                        quote! {
-                            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
-                                #items
-                                #discriminator
-                        }
-                    );
-                }
+                tokens.extend(
+                    quote! {
+                        Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
+                            #items
+                            #discriminator
+                    }
+                );
             },
         );
     }

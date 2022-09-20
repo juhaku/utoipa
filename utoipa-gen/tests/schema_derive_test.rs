@@ -835,7 +835,6 @@ fn derive_complex_enum_with_schema_properties() {
 
 // TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
 #[test]
-// #[ignore = "fix me, see: https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860"]
 fn derive_enum_with_unnamed_single_field_with_tag() {
     #[derive(Serialize)]
     struct ReferenceValue(String);
@@ -848,37 +847,37 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
         }
     };
 
-    println!("{}", serde_json::to_string_pretty(&value).unwrap());
-
     assert_json_eq!(
         value,
         json!({
-            "allOf": [
+            "oneOf": [
                 {
-                    "$ref": "#/components/schemas/ReferenceValue",
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "enum": {
-                            "type": "string",
-                            "enum": ["Value"]
-
+                    "allOf": [
+                        {
+                            "$ref": "#/components/schemas/ReferenceValue",
                         },
-                    },
-                    "required": ["enum"]
-                },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "enum": {
+                                    "type": "string",
+                                    "enum": ["Value"]
+
+                                },
+                            },
+                            "required": ["enum"]
+                        },
+                    ],
+                }
             ],
             "discriminator": {
-                "propertyName": "tag"
+                "propertyName": "enum"
             }
         })
     );
 }
 
-// TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
 #[test]
-#[ignore = "fix me, see: https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860"]
 fn derive_enum_with_named_fields_with_reference_with_tag() {
     #[derive(Serialize)]
     struct ReferenceValue(String);
@@ -891,31 +890,73 @@ fn derive_enum_with_named_fields_with_reference_with_tag() {
                 field: ReferenceValue,
                 a: String
             },
-            // UnnamedValue(ReferenceValue),
+            UnnamedValue(ReferenceValue),
             UnitValue,
         }
     };
 
-    println!("{}", serde_json::to_string_pretty(&value).unwrap());
     assert_json_eq!(
         value,
         json!({
             "oneOf": [
                 {
-                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "type": "string"
+                        },
+                        "enum": {
+                            "enum": [
+                                "Value"
+                            ],
+                            "type": "string"
+                        },
+                        "field": {
+                            "$ref": "#/components/schemas/ReferenceValue"
+                        }
+                    },
+                    "required": [
+                        "field",
+                        "a",
+                        "enum"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "allOf": [
+                        {
+                        "$ref": "#/components/schemas/ReferenceValue",
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "enum": {
+                                    "type": "string",
+                                    "enum": ["UnnamedValue"]
+
+                                },
+                            },
+                            "required": ["enum"]
+                        }
+                    ],
+                },
+                {
                     "properties": {
                         "enum": {
-                            "type": "string",
-                            "enum": ["Value"]
-
-                        },
-                        "Value": {
-                            "$ref": "#/components/schemas/ReferenceValue",
-                        },
+                            "enum": [
+                                "UnitValue"
+                            ],
+                            "type": "string"
+                        }
                     },
-                    "required": ["enum"]
-                },
+                    "required": [
+                        "enum"
+                    ],
+                    "type": "object"
+                }
             ],
+            "discriminator": {
+                "propertyName": "enum"
+            }
         })
     );
 }
