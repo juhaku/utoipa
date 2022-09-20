@@ -120,7 +120,7 @@ use ext::ArgumentResolver;
 /// * `rename_all = "..."` Supported in container level.
 /// * `rename = "..."` Supported **only** in field or variant level.
 /// * `skip = "..."` Supported  **only** in field or variant level.
-/// * `tag = "..."` Supported in container level.
+/// * `tag = "..."` Supported in container level. `tag` attribute also works as a [discriminator field][discriminator] for an enum.
 /// * `default` Supported in container level and field level according to [serde attributes].
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
@@ -426,6 +426,7 @@ use ext::ArgumentResolver;
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
+/// [discriminator]: openapi/schema/struct.Discriminator.html
 /// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {

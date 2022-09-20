@@ -240,7 +240,7 @@ impl Default for Schema {
 /// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
 /// [`OneOf`] composite object.
 /// 
-/// [discriminator]: https://swagger.io/specification/#discriminator-object
+/// [discriminator]: https://spec.openapis.org/oas/latest.html#discriminator-object
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
