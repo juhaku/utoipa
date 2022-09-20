@@ -661,6 +661,7 @@ impl ComplexEnum<'_> {
         variant_name: String,
         variant_title: Option<SchemaAttr<Title>>,
         variant: &Variant,
+        mut is_reference_op: impl FnMut(bool),
     ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
@@ -683,19 +684,6 @@ impl ComplexEnum<'_> {
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let is_reference = unnamed_fields.unnamed.iter().any(|field| {
-                        let ty = TypeTree::from_type(&field.ty);
-
-                        ty.value_type == ValueType::Object
-                    });
-
-                    if is_reference {
-                        abort!(
-                            variant, "Unnamed field enum variant with schema references are not supported with serde `tag = ...` attribute.";
-                            help = "See `https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860` for more details."
-                        );
-                    }
-
                     let unnamed_enum = UnnamedStructSchema {
                         attributes: &variant.attrs,
                         fields: &unnamed_fields.unnamed,
@@ -704,12 +692,32 @@ impl ComplexEnum<'_> {
                     let variant_name_tokens =
                         UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, None));
 
-                    quote! {
-                        #unnamed_enum
-                            #variant_title
-                            .schema_type(utoipa::openapi::schema::SchemaType::Object)
-                            .property(#tag, #variant_name_tokens)
-                            .required(#tag)
+                    let is_reference = unnamed_fields.unnamed.iter().any(|field| {
+                        let ty = TypeTree::from_type(&field.ty);
+
+                        ty.value_type == ValueType::Object
+                    });
+
+                    if is_reference {
+                        is_reference_op(is_reference);
+                        quote! {
+                            utoipa::openapi::schema::AllOfBuilder::new()
+                                #variant_title
+                                .item(#unnamed_enum)
+                                .item(utoipa::openapi::schema::ObjectBuilder::new()
+                                    .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                                    .property(#tag, #variant_name_tokens)
+                                    .required(#tag)
+                                )
+                        }
+                    } else {
+                        quote! {
+                            #unnamed_enum
+                                #variant_title
+                                .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                                .property(#tag, #variant_name_tokens)
+                                .required(#tag)
+                        }
                     }
                 } else {
                     abort!(
@@ -748,6 +756,7 @@ impl ToTokens for ComplexEnum<'_> {
                 let tag = container_rules
                     .as_ref()
                     .and_then(|rules| rules.tag.as_ref());
+                let mut is_reference = false;
                 // serde, externally tagged format supported by now
                 let items: TokenStream = self
                     .variants
@@ -769,7 +778,13 @@ impl ToTokens for ComplexEnum<'_> {
                             attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
 
                         if let Some(tag) = tag {
-                            Self::tagged_variant_tokens(tag, variant_name, variant_title, variant)
+                            Self::tagged_variant_tokens(
+                                tag,
+                                variant_name,
+                                variant_title,
+                                variant,
+                                |is_ref| is_reference = is_ref,
+                            )
                         } else {
                             Self::variant_tokens(variant_name, variant_title, variant)
                         }
@@ -787,13 +802,23 @@ impl ToTokens for ComplexEnum<'_> {
                     }
                 });
 
-                tokens.extend(
-                    quote! {
-                        Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
-                            #items
-                            #discriminator
-                    }
-                );
+                // TODO rewrite this to support allOf scenario when UnnamedStruct enum variant has a reference to another
+                // component, current implementation is biased towards oneOf only.
+                // FIXME, broken
+                if is_reference {
+                    tokens.extend(quote! {
+                        #items
+                        #discriminator
+                    });
+                } else {
+                    tokens.extend(
+                        quote! {
+                            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
+                                #items
+                                #discriminator
+                        }
+                    );
+                }
             },
         );
     }

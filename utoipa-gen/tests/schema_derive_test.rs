@@ -835,7 +835,7 @@ fn derive_complex_enum_with_schema_properties() {
 
 // TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
 #[test]
-#[ignore = "fix me, see: https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860"]
+// #[ignore = "fix me, see: https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860"]
 fn derive_enum_with_unnamed_single_field_with_tag() {
     #[derive(Serialize)]
     struct ReferenceValue(String);
@@ -844,14 +844,19 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
         #[derive(Serialize)]
         #[serde(tag = "enum")]
         enum EnumWithReference {
-            Value(String),
+            Value(ReferenceValue),
         }
     };
+
+    println!("{}", serde_json::to_string_pretty(&value).unwrap());
 
     assert_json_eq!(
         value,
         json!({
-            "oneOf": [
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/ReferenceValue",
+                },
                 {
                     "type": "object",
                     "properties": {
@@ -860,13 +865,13 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
                             "enum": ["Value"]
 
                         },
-                        "Value": {
-                            "$ref": "#/components/schemas/ReferenceValue",
-                        },
                     },
                     "required": ["enum"]
                 },
             ],
+            "discriminator": {
+                "propertyName": "tag"
+            }
         })
     );
 }
