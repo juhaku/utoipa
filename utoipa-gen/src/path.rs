@@ -164,7 +164,7 @@ impl<'p> PathAttr<'p> {
                         if let Some(into_params_argument) =
                             into_params_types
                                 .iter_mut()
-                                .find(|argument| matches!(&argument.type_path, Some(path) if path.path == parameter.path.path))
+                                .find(|argument| matches!(&argument.type_path, Some(path) if path.as_ref() == &parameter.path.path))
                         {
                             parameter.update_parameter_in(
                                 &mut into_params_argument.parameter_in_provider,

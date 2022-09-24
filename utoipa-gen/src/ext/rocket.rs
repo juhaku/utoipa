@@ -5,7 +5,7 @@ use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::quote;
 use regex::{Captures, Regex};
-use syn::{parse::Parse, LitStr, Token, TypePath};
+use syn::{parse::Parse, LitStr, Token};
 
 use crate::{
     component::{GenericType, TypeTree, ValueType},
@@ -90,7 +90,7 @@ fn to_anonymous_value_arg<'a>(macro_arg: MacroArg) -> ValueArgument<'a> {
 
 fn with_parameter_in(
     named_args: &[MacroArg],
-) -> impl Fn(FnArg) -> Option<(Option<Cow<'_, TypePath>>, TokenStream)> + '_ {
+) -> impl Fn(FnArg) -> Option<(Option<Cow<'_, syn::Path>>, TokenStream)> + '_ {
     move |arg: FnArg| {
         let parameter_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
@@ -137,7 +137,7 @@ fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg,
 }
 
 #[inline]
-fn get_value_type(ty: TypeTree<'_>) -> Option<Cow<TypePath>> {
+fn get_value_type(ty: TypeTree<'_>) -> Option<Cow<syn::Path>> {
     // TODO abort if map
     match ty.generic_type {
         Some(GenericType::Vec)

@@ -355,6 +355,7 @@ impl ToTokens for Components {
                 let component_name: String = component
                     .alias
                     .as_ref()
+                    .map(|path| &path.path)
                     .map(schema::format_path_ref)
                     .unwrap_or_else(|| ident.to_token_stream().to_string());
 

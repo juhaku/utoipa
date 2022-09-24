@@ -1,15 +1,16 @@
 use proc_macro2::TokenStream;
 use proc_macro_error::abort_call_site;
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, Error, Ident, TypePath};
+use syn::{parse::Parse, Error, Ident, Path};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub struct SchemaType<'a>(pub &'a syn::TypePath);
+pub struct SchemaType<'a>(pub &'a syn::Path);
 
 impl SchemaType<'_> {
     /// Check whether type is known to be primitive in wich case returns true.
     pub fn is_primitive(&self) -> bool {
-        let last_segment = match self.0.path.segments.last() {
+        let SchemaType(path) = self;
+        let last_segment = match path.segments.last() {
             Some(segment) => segment,
             None => return false,
         };
@@ -108,7 +109,7 @@ fn is_primitive_rust_decimal(name: &str) -> bool {
 
 impl ToTokens for SchemaType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let last_segment = self.0.path.segments.last().unwrap_or_else(|| {
+        let last_segment = self.0.segments.last().unwrap_or_else(|| {
             abort_call_site!("expected there to be at least one segment in the path")
         });
         let name = &*last_segment.ident.to_string();
@@ -158,9 +159,9 @@ impl SchemaFormat<'_> {
     }
 }
 
-impl<'a> From<&'a TypePath> for SchemaFormat<'a> {
-    fn from(type_path: &'a TypePath) -> Self {
-        Self::Type(Type(type_path))
+impl<'a> From<&'a Path> for SchemaFormat<'a> {
+    fn from(path: &'a Path) -> Self {
+        Self::Type(Type(path))
     }
 }
 
@@ -181,12 +182,12 @@ impl ToTokens for SchemaFormat<'_> {
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Type<'a>(&'a syn::TypePath);
+pub struct Type<'a>(&'a syn::Path);
 
 impl Type<'_> {
     /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
     pub fn is_known_format(&self) -> bool {
-        let last_segment = match self.0.path.segments.last() {
+        let last_segment = match self.0.segments.last() {
             Some(segment) => segment,
             None => return false,
         };
@@ -231,7 +232,7 @@ fn is_known_format(name: &str) -> bool {
 
 impl ToTokens for Type<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let last_segment = self.0.path.segments.last().unwrap_or_else(|| {
+        let last_segment = self.0.segments.last().unwrap_or_else(|| {
             abort_call_site!("expected there to be at least one segment in the path")
         });
         let name = &*last_segment.ident.to_string();

@@ -117,7 +117,7 @@ impl<'p> ValueParameter<'p> {
     ))]
     pub fn update_parameter_type(
         &mut self,
-        type_path: Option<Cow<'p, syn::TypePath>>,
+        type_path: Option<Cow<'p, syn::Path>>,
         is_array: bool,
         is_option: bool,
     ) {

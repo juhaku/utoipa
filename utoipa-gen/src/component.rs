@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
-use syn::{Attribute, GenericArgument, PathArguments, PathSegment, Type, TypePath};
+use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
 use crate::{schema_type::SchemaType, Deprecated};
 
@@ -22,11 +22,17 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     })
 }
 
+#[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
+pub enum TypeTreeValue<'t> {
+    TypePath(&'t TypePath),
+    Path(&'t Path),
+}
+
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
 pub struct TypeTree<'t> {
-    pub path: Option<Cow<'t, TypePath>>,
+    pub path: Option<Cow<'t, Path>>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
     pub children: Option<Vec<TypeTree<'t>>>,
@@ -37,20 +43,36 @@ impl<'t> TypeTree<'t> {
         Self::from_type_paths(Self::get_type_paths(ty))
     }
 
-    fn get_type_paths(ty: &'t Type) -> Vec<&'t TypePath> {
+    fn get_type_paths(ty: &'t Type) -> Vec<TypeTreeValue> {
         match ty {
-            Type::Path(path) => vec![path],
+            Type::Path(path) => {
+                vec![TypeTreeValue::TypePath(path)]
+            },
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
             Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
             Type::Array(array) => Self::get_type_paths(&array.elem),
+            Type::TraitObject(trait_object) => {
+                let types = trait_object
+                    .bounds
+                    .iter()
+                    .find_map(|bound| {
+                        match bound {
+                            syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
+                            syn::TypeParamBound::Lifetime(_) => None
+                        }
+                    })
+                    .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new);
+
+                types
+            }
             _ => abort_call_site!(
                 "unexpected type in component part get type path, expected one of: Path, Reference, Group"
             ),
         }
     }
 
-    fn from_type_paths(paths: Vec<&'t TypePath>) -> TypeTree<'t> {
+    fn from_type_paths(paths: Vec<TypeTreeValue<'t>>) -> TypeTree<'t> {
         if paths.len() > 1 {
             TypeTree {
                 path: None,
@@ -66,25 +88,28 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    fn convert_types(paths: Vec<&'t TypePath>) -> impl Iterator<Item = TypeTree<'t>> {
-        paths.into_iter().map(|path| {
+    fn convert_types(paths: Vec<TypeTreeValue<'t>>) -> impl Iterator<Item = TypeTree<'t>> {
+        paths.into_iter().map(|value| {
+            let path = match value {
+                TypeTreeValue::TypePath(type_path) => &type_path.path,
+                TypeTreeValue::Path(path) => path,
+            };
             // there will always be one segment at least
             let last_segment = path
-                .path
                 .segments
                 .last()
                 .expect("at least one segment within path in TypeTree::convert_types");
 
             if last_segment.arguments.is_empty() {
-                Self::convert(Cow::Borrowed(path), last_segment)
+                Self::convert(path, last_segment)
             } else {
-                Self::resolve_schema_type(Cow::Borrowed(path), last_segment)
+                Self::resolve_schema_type(path, last_segment)
             }
         })
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_schema_type(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
+    fn resolve_schema_type(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         if last_segment.arguments.is_empty() {
             abort!(
                 last_segment.ident,
@@ -132,12 +157,12 @@ impl<'t> TypeTree<'t> {
         generic_schema_type
     }
 
-    fn convert(path: Cow<'t, TypePath>, last_segment: &'t PathSegment) -> TypeTree<'t> {
+    fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
-        let is_primitive = SchemaType(&*path).is_primitive();
+        let is_primitive = SchemaType(path).is_primitive();
 
         Self {
-            path: Some(path),
+            path: Some(Cow::Borrowed(path)),
             value_type: if is_primitive {
                 ValueType::Primitive
             } else {
@@ -169,8 +194,8 @@ impl<'t> TypeTree<'t> {
         let mut is = self
             .path
             .as_ref()
-            .map(|path| {
-                path.path
+            .map(|value| {
+                value
                     .segments
                     .last()
                     .expect("expected at least one segment in TreeTypeValue path")
@@ -190,12 +215,7 @@ impl<'t> TypeTree<'t> {
         let is = self
             .path
             .as_mut()
-            .map(|path| {
-                path.path
-                    .segments
-                    .iter()
-                    .any(|segment| &segment.ident == ident)
-            })
+            .map(|value| value.segments.iter().any(|segment| &segment.ident == ident))
             .unwrap_or(false);
 
         if is {
@@ -209,11 +229,8 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    fn update_path(&mut self, ident: &'t Ident) {
-        self.path = Some(Cow::Owned(TypePath {
-            qself: None,
-            path: syn::Path::from(ident.clone()),
-        }))
+    fn update_path(&mut self, ident: &'_ Ident) {
+        self.path = Some(Cow::Owned(Path::from(ident.clone())))
     }
 
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
@@ -233,7 +250,7 @@ impl PartialEq for TypeTree<'_> {
                     == other_path.into_token_stream().to_string()
             }
             (Some(Cow::Owned(self_path)), Some(Cow::Owned(other_path))) => {
-                self_path.path.to_token_stream().to_string()
+                self_path.to_token_stream().to_string()
                     == other_path.into_token_stream().to_string()
             }
             (None, None) => true,

@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use proc_macro2::TokenStream;
-use syn::{punctuated::Punctuated, token::Comma, ItemFn, TypePath};
+use syn::{punctuated::Punctuated, token::Comma, ItemFn, Path};
 
 use crate::path::PathOperation;
 
@@ -22,7 +22,7 @@ pub mod rocket;
 pub struct ValueArgument<'a> {
     pub name: Option<Cow<'a, str>>,
     pub argument_in: ArgumentIn,
-    pub type_path: Option<Cow<'a, TypePath>>,
+    pub type_path: Option<Cow<'a, Path>>,
     pub is_array: bool,
     pub is_option: bool,
 }
@@ -32,7 +32,7 @@ pub struct ValueArgument<'a> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct IntoParamsType<'a> {
     pub parameter_in_provider: TokenStream,
-    pub type_path: Option<Cow<'a, TypePath>>,
+    pub type_path: Option<Cow<'a, syn::Path>>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -131,13 +131,14 @@ impl PathOperationResolver for PathOperations {}
     feature = "rocket_extras"
 ))]
 pub mod fn_arg {
+
     use std::borrow::Cow;
 
     use proc_macro2::{Ident, TokenStream};
     use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
-    use syn::{punctuated::Punctuated, token::Comma, Pat, PatType, TypePath};
+    use syn::{punctuated::Punctuated, token::Comma, Pat, PatType};
 
     use crate::component::TypeTree;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
@@ -217,7 +218,7 @@ pub mod fn_arg {
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     pub(super) fn with_parameter_in(
         arg: FnArg<'_>,
-    ) -> Option<(Option<Cow<'_, TypePath>>, TokenStream)> {
+    ) -> Option<(Option<std::borrow::Cow<'_, syn::Path>>, TokenStream)> {
         let parameter_in_provider = if arg.ty.is("Path") {
             quote! { || Some (utoipa::openapi::path::ParameterIn::Path) }
         } else if arg.ty.is("Query") {
@@ -239,7 +240,7 @@ pub mod fn_arg {
     }
 
     pub(super) fn into_into_params_type(
-        (type_path, parameter_in_provider): (Option<Cow<'_, TypePath>>, TokenStream),
+        (type_path, parameter_in_provider): (Option<Cow<'_, syn::Path>>, TokenStream),
     ) -> IntoParamsType<'_> {
         IntoParamsType {
             parameter_in_provider,

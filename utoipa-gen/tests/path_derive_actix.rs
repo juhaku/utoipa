@@ -149,6 +149,8 @@ fn derive_path_with_multiple_args() {
         use actix_web::{get, web, HttpResponse, Responder};
         use serde_json::json;
 
+        trait Store {}
+
         #[utoipa::path(
             responses(
                 (status = 200, description = "success response")
@@ -156,7 +158,10 @@ fn derive_path_with_multiple_args() {
         )]
         #[get("/foo/{id}/bar/{digest}")]
         #[allow(unused)]
-        async fn get_foo_by_id(path: web::Path<(i64, String)>) -> impl Responder {
+        async fn get_foo_by_id(
+            path: web::Path<(i64, String)>,
+            data: web::Data<&dyn Store>,
+        ) -> impl Responder {
             let (id, digest) = path.into_inner();
             HttpResponse::Ok().json(json!({ "id": &format!("{:?} {:?}", id, digest) }))
         }

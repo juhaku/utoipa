@@ -457,6 +457,7 @@ impl ToTokens for ParamType<'_> {
                 match component.value_type {
                     ValueType::Primitive => {
                         let type_path = &**component.path.as_ref().unwrap();
+                        // let type_path = &**component.path.as_ref().unwrap();
                         let schema_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
@@ -471,7 +472,7 @@ impl ToTokens for ParamType<'_> {
                         }
                     }
                     ValueType::Object => {
-                        let component_path = component
+                        let component_path = &**component
                             .path
                             .as_ref()
                             .expect("component should have a path");
@@ -485,7 +486,6 @@ impl ToTokens for ParamType<'_> {
                             });
                         } else {
                             let name: String = component_path
-                                .path
                                 .segments
                                 .last()
                                 .expect("Expected there to be at least one element in the path")
