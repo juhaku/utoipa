@@ -56,10 +56,7 @@ function is_crate_related {
   changes="$(git diff --name-only "$commit"~ "$commit" | awk -F / '{print $1}' | xargs)"
   
   is_related=false
-  if [[ "$crate" != "utoipa" ]] && [[ "$changes" == *"$crate"* ]]; then
-    is_related=true
-  fi
-  if [[ "$crate" == "utoipa" ]] && [[ $changes =~ (src|tests|Cargo.toml|README.md) ]]; then
+  if [[ "$changes" == *"$crate"* ]]; then
     is_related=true
   fi
   
