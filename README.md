@@ -61,7 +61,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 - **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration`
   types. By default these types are parsed to `string` types with additional `format` information.
   `format: date-time` for `DateTime` and `format: date` for `Date` according
-  [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
+  [RFC3339](https://www.rfc-editor.org/rfc/rfc3339#section-5.6) as `ISO-8601`. To
   override default `string` representation users have to use `value_type` attribute to override the type.
   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 - **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
