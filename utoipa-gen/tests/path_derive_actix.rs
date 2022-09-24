@@ -149,8 +149,6 @@ fn derive_path_with_multiple_args() {
         use actix_web::{get, web, HttpResponse, Responder};
         use serde_json::json;
 
-        trait Store {}
-
         #[utoipa::path(
             responses(
                 (status = 200, description = "success response")
@@ -158,10 +156,7 @@ fn derive_path_with_multiple_args() {
         )]
         #[get("/foo/{id}/bar/{digest}")]
         #[allow(unused)]
-        async fn get_foo_by_id(
-            path: web::Path<(i64, String)>,
-            data: web::Data<&dyn Store>,
-        ) -> impl Responder {
+        async fn get_foo_by_id(path: web::Path<(i64, String)>) -> impl Responder {
             let (id, digest) = path.into_inner();
             HttpResponse::Ok().json(json!({ "id": &format!("{:?} {:?}", id, digest) }))
         }
@@ -194,6 +189,29 @@ fn derive_path_with_multiple_args() {
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
     };
+}
+
+#[test]
+fn derive_path_with_dyn_trait_compiles() {
+    use actix_web::{get, web, HttpResponse, Responder};
+    use serde_json::json;
+
+    trait Store {}
+
+    #[utoipa::path(
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[get("/foo/{id}/bar/{digest}")]
+    #[allow(unused)]
+    async fn get_foo_by_id(
+        path: web::Path<(i64, String)>,
+        data: web::Data<&dyn Store>,
+    ) -> impl Responder {
+        let (id, digest) = path.into_inner();
+        HttpResponse::Ok().json(json!({ "id": &format!("{:?} {:?}", id, digest) }))
+    }
 }
 
 #[test]

@@ -1062,7 +1062,6 @@ where
 
                 match type_tree.value_type {
                     ValueType::Primitive => {
-                        // let type_path = &**type_tree.path.as_ref().unwrap();
                         let type_path = &**type_tree.path.as_ref().unwrap();
                         let schema_type = SchemaType(type_path);
 
@@ -1113,7 +1112,6 @@ where
                             tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
                         } else {
                             let type_path = &**type_tree.path.as_ref().unwrap();
-                            // let type_path = &**type_tree.path.as_ref().unwrap();
                             if is_inline {
                                 tokens.extend(quote_spanned! {type_path.span() =>
                                     <#type_path as utoipa::ToSchema>::schema()

@@ -23,7 +23,7 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
-pub enum TypeTreeValue<'t> {
+enum TypeTreeValue<'t> {
     TypePath(&'t TypePath),
     Path(&'t Path),
 }
@@ -53,7 +53,7 @@ impl<'t> TypeTree<'t> {
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
             Type::Array(array) => Self::get_type_paths(&array.elem),
             Type::TraitObject(trait_object) => {
-                let types = trait_object
+                trait_object
                     .bounds
                     .iter()
                     .find_map(|bound| {
@@ -62,9 +62,7 @@ impl<'t> TypeTree<'t> {
                             syn::TypeParamBound::Lifetime(_) => None
                         }
                     })
-                    .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new);
-
-                types
+                    .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
             }
             _ => abort_call_site!(
                 "unexpected type in component part get type path, expected one of: Path, Reference, Group"
@@ -194,9 +192,8 @@ impl<'t> TypeTree<'t> {
         let mut is = self
             .path
             .as_ref()
-            .map(|value| {
-                value
-                    .segments
+            .map(|path| {
+                path.segments
                     .last()
                     .expect("expected at least one segment in TreeTypeValue path")
                     .ident
@@ -215,7 +212,7 @@ impl<'t> TypeTree<'t> {
         let is = self
             .path
             .as_mut()
-            .map(|value| value.segments.iter().any(|segment| &segment.ident == ident))
+            .map(|path| path.segments.iter().any(|segment| &segment.ident == ident))
             .unwrap_or(false);
 
         if is {

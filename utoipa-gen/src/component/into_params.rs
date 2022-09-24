@@ -457,7 +457,6 @@ impl ToTokens for ParamType<'_> {
                 match component.value_type {
                     ValueType::Primitive => {
                         let type_path = &**component.path.as_ref().unwrap();
-                        // let type_path = &**component.path.as_ref().unwrap();
                         let schema_type = SchemaType(type_path);
 
                         tokens.extend(quote! {
