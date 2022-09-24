@@ -471,7 +471,7 @@ impl ToTokens for ParamType<'_> {
                         }
                     }
                     ValueType::Object => {
-                        let component_path = component
+                        let component_path = &**component
                             .path
                             .as_ref()
                             .expect("component should have a path");
@@ -485,7 +485,6 @@ impl ToTokens for ParamType<'_> {
                             });
                         } else {
                             let name: String = component_path
-                                .path
                                 .segments
                                 .last()
                                 .expect("Expected there to be at least one element in the path")

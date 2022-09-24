@@ -38,8 +38,8 @@ builder! {
 
     /// Implements [OpenAPI Components Object][components] which holds supported
     /// reusable objects.
-    /// 
-    /// Components can hold either reusable types themselves or references to other reusable 
+    ///
+    /// Components can hold either reusable types themselves or references to other reusable
     /// types.
     ///
     /// [components]: https://spec.openapis.org/oas/latest.html#components-object
@@ -217,7 +217,7 @@ impl ComponentsBuilder {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
-    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s 
+    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s
     /// or can be a field within the [`Object`].
     Object(Object),
     /// Defines array schema from another schema. Typically used with
@@ -231,9 +231,9 @@ pub enum Schema {
     OneOf(OneOf),
 
     /// Creates a _AnyOf_ type [composite Object][composite] shcema.
-    /// 
+    ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
-    AllOf(AllOf)
+    AllOf(AllOf),
 }
 
 impl Default for Schema {
@@ -244,7 +244,7 @@ impl Default for Schema {
 
 /// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
 /// [`OneOf`] composite object.
-/// 
+///
 /// [discriminator]: https://spec.openapis.org/oas/latest.html#discriminator-object
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -257,9 +257,9 @@ pub struct Discriminator {
 
 impl Discriminator {
     /// Construct a new [`Discriminator`] object with property name.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// Create a new [`Discriminator`] object for `pet_type` property.
     /// ```rust
     /// # use utoipa::openapi::schema::Discriminator;
@@ -312,7 +312,7 @@ pub struct OneOf {
     /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
     /// specific schema.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub discriminator: Option<Discriminator>
+    pub discriminator: Option<Discriminator>,
 }
 
 impl OneOf {
@@ -347,7 +347,7 @@ impl OneOf {
 #[derive(Default)]
 pub struct OneOfBuilder {
     items: Vec<RefOr<Schema>>,
-    
+
     description: Option<String>,
 
     #[cfg(feature = "serde_json")]
@@ -362,7 +362,7 @@ pub struct OneOfBuilder {
     #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
 
-    discriminator: Option<Discriminator>
+    discriminator: Option<Discriminator>,
 }
 
 impl OneOfBuilder {
@@ -472,7 +472,7 @@ pub struct AllOf {
     /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
     /// specific schema.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub discriminator: Option<Discriminator>
+    pub discriminator: Option<Discriminator>,
 }
 
 impl AllOf {
@@ -507,7 +507,7 @@ impl AllOf {
 #[derive(Default)]
 pub struct AllOfBuilder {
     items: Vec<RefOr<Schema>>,
-    
+
     description: Option<String>,
 
     #[cfg(feature = "serde_json")]
@@ -522,7 +522,7 @@ pub struct AllOfBuilder {
     #[cfg(not(feature = "serde_json"))]
     example: Option<String>,
 
-    discriminator: Option<Discriminator>
+    discriminator: Option<Discriminator>,
 }
 
 impl AllOfBuilder {
@@ -624,7 +624,6 @@ pub struct Object {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg(feature = "serde_json")]
     pub default: Option<Value>,
-
 
     /// Default value which is provided when user has not provided the input in Swagger UI.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -931,10 +930,9 @@ impl From<Ref> for RefOr<Schema> {
     }
 }
 
-
-/// A [`Ref`] or some other type `T`. 
-/// 
-/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any 
+/// A [`Ref`] or some other type `T`.
+///
+/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
 /// other given type such as [`Schema`] or [`Response`].
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -1376,10 +1374,7 @@ mod tests {
                 "Comp",
                 Schema::from(
                     ObjectBuilder::new()
-                        .property(
-                            "name",
-                            ObjectBuilder::new().schema_type(SchemaType::String),
-                        )
+                        .property("name", ObjectBuilder::new().schema_type(SchemaType::String))
                         .required("name"),
                 ),
             )])
@@ -1404,10 +1399,7 @@ mod tests {
     #[test]
     fn reserialize_deserialized_object_component() {
         let prop = ObjectBuilder::new()
-            .property(
-                "name",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
+            .property("name", ObjectBuilder::new().schema_type(SchemaType::String))
             .required("name")
             .build();
 
@@ -1423,9 +1415,7 @@ mod tests {
 
     #[test]
     fn reserialize_deserialized_property() {
-        let prop = ObjectBuilder::new()
-            .schema_type(SchemaType::String)
-            .build();
+        let prop = ObjectBuilder::new().schema_type(SchemaType::String).build();
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
         let deserialized_components: Object =

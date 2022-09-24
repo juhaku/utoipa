@@ -1398,7 +1398,7 @@ impl ToTokens for Required {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 struct Type<'a> {
-    ty: Cow<'a, TypePath>,
+    ty: Cow<'a, syn::Path>,
     is_array: bool,
     is_option: bool,
     is_inline: bool,
@@ -1410,9 +1410,9 @@ impl<'a> Type<'a> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn new(type_path: Cow<'a, TypePath>, is_array: bool, is_option: bool) -> Self {
+    pub fn new(path: Cow<'a, syn::Path>, is_array: bool, is_option: bool) -> Self {
         Self {
-            ty: type_path,
+            ty: path,
             is_array,
             is_option,
             is_inline: false,
@@ -1560,7 +1560,7 @@ impl Parse for ArrayOrOptionType<'_> {
             };
 
             Ok(Type {
-                ty: Cow::Owned(path),
+                ty: Cow::Owned(path.path),
                 is_array,
                 is_option,
                 is_inline: false,

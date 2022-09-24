@@ -1,12 +1,10 @@
-use std::fmt::Debug;
-
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
-    Data, Field, Fields, FieldsNamed, FieldsUnnamed, Generics, PathArguments, Token, TypePath,
-    Variant, Visibility,
+    Data, Field, Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Token,
+    TypePath, Variant, Visibility,
 };
 
 use crate::{
@@ -824,7 +822,10 @@ where
         } = self;
         let len = values.len();
         let (schema_type, enum_type) = if let Some(ty) = *enum_type {
-            (SchemaType(ty).to_token_stream(), ty.into_token_stream())
+            (
+                SchemaType(&ty.path).to_token_stream(),
+                ty.into_token_stream(),
+            )
         } else {
             (
                 SchemaType(&parse_quote!(str)).to_token_stream(),
@@ -1133,11 +1134,11 @@ where
 
 /// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact schema reference,
 /// by removing spaces between colon punctuation and `::` and the path segments.
-pub(crate) fn format_path_ref(path: &TypePath) -> String {
-    let mut path: TypePath = path.clone();
+pub(crate) fn format_path_ref(path: &Path) -> String {
+    let mut path = path.clone();
 
     // Generics and path arguments are unsupported
-    if let Some(last_segment) = path.path.segments.last_mut() {
+    if let Some(last_segment) = path.segments.last_mut() {
         last_segment.arguments = PathArguments::None;
     }
 

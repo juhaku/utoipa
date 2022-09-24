@@ -17,7 +17,7 @@ impl<'a> Property<'a> {
     }
 
     pub fn schema_type(&'a self) -> SchemaType<'a> {
-        SchemaType(&*self.0.ty)
+        SchemaType(&self.0.ty)
     }
 }
 
