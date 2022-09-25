@@ -34,7 +34,7 @@ pub struct Content {
     ///
     /// The encoding object SHALL only apply to `request_body` objects when the media type is
     /// multipart or `application/x-www-form-urlencoded`.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub encoding: BTreeMap<String, Encoding>,
 }
 
