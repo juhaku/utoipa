@@ -37,7 +37,7 @@ impl Parse for Response<'_> {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
-    status_code: i32,
+    status_code: String,
     description: String,
     response_type: Option<Type<'r>>,
     content_type: Option<Vec<String>>,
@@ -62,8 +62,18 @@ impl Parse for ResponseValue<'_> {
             match attribute_name {
                 "status" => {
                     response.status_code =
-                        parse_utils::parse_next(input, || input.parse::<LitInt>())?
-                            .base10_parse()?;
+                        parse_utils::parse_next(input, || {
+                            // Allows us to keep using integer literals to maintain compatibility
+                            // And also strings for "default" "4XX" etc.
+                            let lookahead = input.lookahead1();
+                            if lookahead.peek(LitInt) {
+                                input.parse::<LitInt>()?.base10_parse()
+                            } else if lookahead.peek(LitStr) {
+                                Ok(input.parse::<LitStr>()?.value())
+                            } else {
+                                Err(lookahead.error())
+                            }
+                        })?
                 }
                 "description" => {
                     response.description = parse_utils::parse_next_literal_str(input)?;

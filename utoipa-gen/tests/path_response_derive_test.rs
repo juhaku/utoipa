@@ -58,7 +58,9 @@ test_fn! {
         (status = 200, description = "success"),
         (status = 401, description = "unauthorized"),
         (status = 404, description = "not found"),
-        (status = 500, description = "server error")
+        (status = 500, description = "server error"),
+        (status = "5XX", description = "all other server errors"),
+        (status = "default", description = "default")
     )
 }
 
