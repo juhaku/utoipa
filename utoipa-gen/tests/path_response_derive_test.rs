@@ -58,7 +58,9 @@ test_fn! {
         (status = 200, description = "success"),
         (status = 401, description = "unauthorized"),
         (status = 404, description = "not found"),
-        (status = 500, description = "server error")
+        (status = 500, description = "server error"),
+        (status = "5XX", description = "all other server errors"),
+        (status = "default", description = "default")
     )
 }
 
@@ -79,6 +81,12 @@ fn derive_path_with_multiple_simple_responses() {
         "responses.500.description" = r#""server error""#, "Response description"
         "responses.500.content" = r#"null"#, "Response content"
         "responses.500.headers" = r#"null"#, "Response headers"
+        "responses.5XX.description" = r#""all other server errors""#, "Response description"
+        "responses.5XX.content" = r#"null"#, "Response content"
+        "responses.5XX.headers" = r#"null"#, "Response headers"
+        "responses.default.description" = r#""default""#, "Response description"
+        "responses.default.content" = r#"null"#, "Response content"
+        "responses.default.headers" = r#"null"#, "Response headers"
     }
 }
 

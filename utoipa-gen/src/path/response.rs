@@ -37,7 +37,7 @@ impl Parse for Response<'_> {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
-    status_code: i32,
+    status_code: String,
     description: String,
     response_type: Option<Type<'r>>,
     content_type: Option<Vec<String>>,
@@ -48,6 +48,9 @@ pub struct ResponseValue<'r> {
 impl Parse for ResponseValue<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers";
+        const VALID_STATUS_RANGES: &[&str] = &["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
+        const INVALID_STATUS_RANGE_MESSAGE: &str = "Invalid status range, expected one of:";
+
         let mut response = ResponseValue::default();
 
         while !input.is_empty() {
@@ -62,8 +65,23 @@ impl Parse for ResponseValue<'_> {
             match attribute_name {
                 "status" => {
                     response.status_code =
-                        parse_utils::parse_next(input, || input.parse::<LitInt>())?
-                            .base10_parse()?;
+                        parse_utils::parse_next(input, || {
+                            let lookahead = input.lookahead1();
+                            if lookahead.peek(LitInt) {
+                                input.parse::<LitInt>()?.base10_parse()
+                            } else if lookahead.peek(LitStr) {
+                                let value = input.parse::<LitStr>()?.value();
+                                if !VALID_STATUS_RANGES.contains(&value.as_str()) {
+                                    return Err(Error::new(
+                                        input.span(),
+                                        format!("{} {}", INVALID_STATUS_RANGE_MESSAGE, VALID_STATUS_RANGES.join(", ")),
+                                    ))
+                                }
+                                Ok(value)
+                            } else {
+                                Err(lookahead.error())
+                            }
+                        })?
                 }
                 "description" => {
                     response.description = parse_utils::parse_next_literal_str(input)?;
@@ -176,7 +194,7 @@ impl ToTokens for Responses<'_> {
                         })
                     }
                     Response::Value(response) => {
-                        let code = &response.status_code.to_string();
+                        let code = &response.status_code;
                         acc.extend(quote! { .response(#code, #response) });
                     }
                 }
