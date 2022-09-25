@@ -186,7 +186,7 @@ impl ToTokens for Responses<'_> {
                         })
                     }
                     Response::Value(response) => {
-                        let code = &response.status_code.to_string();
+                        let code = &response.status_code;
                         acc.extend(quote! { .response(#code, #response) });
                     }
                 }
