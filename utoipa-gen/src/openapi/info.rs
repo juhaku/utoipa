@@ -21,28 +21,31 @@ pub(crate) fn impl_info() -> TokenStream2 {
     }
 }
 
-fn get_parsed_author(author: Option<&str>) -> Option<(&str, String)> {
+fn get_parsed_author(author: Option<&str>) -> Option<(&str, &str)> {
     author.map(|author| {
-        if author.contains('<') && author.contains('>') {
-            let mut author_iter = author.split('<');
+        let mut author_iter = author.split('<');
 
-            let name = author_iter.next().unwrap_or_default();
-            let mut email = author_iter.next().unwrap_or_default().to_string();
-            email = email.replace('<', "").replace('>', "");
-
-            (name.trim_end(), email)
-        } else {
-            (author, "".to_string())
+        let name = author_iter.next().unwrap_or_default();
+        let mut email = author_iter.next().unwrap_or_default();
+        if !email.is_empty() {
+            email = &email[..email.len() - 1];
         }
+
+        (name.trim_end(), email)
     })
 }
 
 fn get_contact(authors: &str) -> TokenStream2 {
     if let Some((name, email)) = get_parsed_author(authors.split(':').into_iter().next()) {
+        let email_tokens = if email.is_empty() {
+            None
+        } else {
+            Some(quote! { .email(Some(#email)) })
+        };
         quote! {
             utoipa::openapi::ContactBuilder::new()
                 .name(Some(#name))
-                .email(Some(#email))
+                #email_tokens
                 .build()
         }
     } else {
