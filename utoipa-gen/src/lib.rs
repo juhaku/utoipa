@@ -545,6 +545,16 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
+/// **Reference a reusable response type:**
+///
+/// `ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait]
+///
+/// ```text
+/// responses(
+///     (status = 200, response_ref = ReusableResponse)
+/// )
+/// ```
+///
 /// ## Responses from `IntoResponses`
 ///
 /// Responses for a path can be specified with one or more types that implement
@@ -868,6 +878,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [style]: openapi/path/enum.ParameterStyle.html
 /// [into_responses_trait]: trait.IntoResponses.html
 /// [into_params_derive]: derive.IntoParams.html
+/// [to_response_trait]: trait.ToResponse.html
 ///
 /// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 ///

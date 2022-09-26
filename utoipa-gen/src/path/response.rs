@@ -10,7 +10,6 @@ use syn::{
 };
 
 use crate::{parse_utils, AnyValue, Type};
-use crate::component::schema;
 
 use super::{property::Property, ContentTypeResolver};
 
