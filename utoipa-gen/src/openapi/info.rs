@@ -38,7 +38,7 @@ fn get_parsed_author(author: Option<&str>) -> Option<(&str, String)> {
 }
 
 fn get_contact(authors: &str) -> TokenStream2 {
-    if let Some((name, email)) = get_parsed_author(authors.split(',').into_iter().next()) {
+    if let Some((name, email)) = get_parsed_author(authors.split(':').into_iter().next()) {
         quote! {
             utoipa::openapi::ContactBuilder::new()
                 .name(Some(#name))
