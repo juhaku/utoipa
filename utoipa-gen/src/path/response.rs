@@ -64,24 +64,27 @@ impl Parse for ResponseValue<'_> {
 
             match attribute_name {
                 "status" => {
-                    response.status_code =
-                        parse_utils::parse_next(input, || {
-                            let lookahead = input.lookahead1();
-                            if lookahead.peek(LitInt) {
-                                input.parse::<LitInt>()?.base10_parse()
-                            } else if lookahead.peek(LitStr) {
-                                let value = input.parse::<LitStr>()?.value();
-                                if !VALID_STATUS_RANGES.contains(&value.as_str()) {
-                                    return Err(Error::new(
-                                        input.span(),
-                                        format!("{} {}", INVALID_STATUS_RANGE_MESSAGE, VALID_STATUS_RANGES.join(", ")),
-                                    ))
-                                }
-                                Ok(value)
-                            } else {
-                                Err(lookahead.error())
+                    response.status_code = parse_utils::parse_next(input, || {
+                        let lookahead = input.lookahead1();
+                        if lookahead.peek(LitInt) {
+                            input.parse::<LitInt>()?.base10_parse()
+                        } else if lookahead.peek(LitStr) {
+                            let value = input.parse::<LitStr>()?.value();
+                            if !VALID_STATUS_RANGES.contains(&value.as_str()) {
+                                return Err(Error::new(
+                                    input.span(),
+                                    format!(
+                                        "{} {}",
+                                        INVALID_STATUS_RANGE_MESSAGE,
+                                        VALID_STATUS_RANGES.join(", ")
+                                    ),
+                                ));
                             }
-                        })?
+                            Ok(value)
+                        } else {
+                            Err(lookahead.error())
+                        }
+                    })?
                 }
                 "description" => {
                     response.description = parse_utils::parse_next_literal_str(input)?;

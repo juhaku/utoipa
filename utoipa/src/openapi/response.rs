@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+use crate::openapi::schema::RefOr;
 use crate::IntoResponses;
 
 use super::{build_fn, builder, from, header::Header, new, set_value, Content};
@@ -25,7 +26,7 @@ builder! {
     pub struct Responses {
         /// Map containing status code as a key with represented response as a value.
         #[serde(flatten)]
-        pub responses: BTreeMap<String, Response>,
+        pub responses: BTreeMap<String, RefOr<Response>>,
     }
 }
 
@@ -37,14 +38,22 @@ impl Responses {
 
 impl ResponsesBuilder {
     /// Add a [`Response`].
-    pub fn response<S: Into<String>, R: Into<Response>>(mut self, code: S, response: R) -> Self {
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        code: S,
+        response: R,
+    ) -> Self {
         self.responses.insert(code.into(), response.into());
 
         self
     }
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
-    pub fn responses_from_iter<I: Iterator<Item = (C, R)>, C: Into<String>, R: Into<Response>>(
+    pub fn responses_from_iter<
+        I: Iterator<Item = (C, R)>,
+        C: Into<String>,
+        R: Into<RefOr<Response>>,
+    >(
         mut self,
         iter: I,
     ) -> Self {
@@ -60,21 +69,22 @@ impl ResponsesBuilder {
     }
 }
 
-impl From<Responses> for BTreeMap<String, Response> {
+impl From<Responses> for BTreeMap<String, RefOr<Response>> {
     fn from(responses: Responses) -> Self {
         responses.responses
     }
 }
 
-impl<C> FromIterator<(C, Response)> for Responses
+impl<C, R> FromIterator<(C, R)> for Responses
 where
     C: Into<String>,
+    R: Into<RefOr<Response>>,
 {
-    fn from_iter<T: IntoIterator<Item = (C, Response)>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = (C, R)>>(iter: T) -> Self {
         Self {
             responses: BTreeMap::from_iter(
                 iter.into_iter()
-                    .map(|(code, response)| (code.into(), response)),
+                    .map(|(code, response)| (code.into(), response.into())),
             ),
         }
     }
@@ -139,6 +149,12 @@ impl ResponseBuilder {
         self.headers.insert(name.into(), header);
 
         self
+    }
+}
+
+impl From<ResponseBuilder> for RefOr<Response> {
+    fn from(builder: ResponseBuilder) -> Self {
+        Self::T(builder.build())
     }
 }
 
