@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::openapi::schema::RefOr;
+use crate::openapi::Ref;
 use crate::IntoResponses;
 
 use super::{build_fn, builder, from, header::Header, new, set_value, Content};
@@ -155,6 +156,12 @@ impl ResponseBuilder {
 impl From<ResponseBuilder> for RefOr<Response> {
     fn from(builder: ResponseBuilder) -> Self {
         Self::T(builder.build())
+    }
+}
+
+impl From<Ref> for RefOr<Response> {
+    fn from(r: Ref) -> Self {
+        Self::Ref(r)
     }
 }
 

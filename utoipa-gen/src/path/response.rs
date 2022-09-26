@@ -10,6 +10,7 @@ use syn::{
 };
 
 use crate::{parse_utils, AnyValue, Type};
+use crate::component::schema;
 
 use super::{property::Property, ContentTypeResolver};
 
@@ -43,15 +44,16 @@ pub struct ResponseValue<'r> {
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
     example: Option<AnyValue>,
+    ref_type: Option<Type<'r>>,
 }
 
 impl Parse for ResponseValue<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, response_ref";
         const VALID_STATUS_RANGES: &[&str] = &["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
-        const INVALID_STATUS_RANGE_MESSAGE: &str = "Invalid status range, expected one of:";
 
         let mut response = ResponseValue::default();
+        let mut ref_incompatible = false;
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
@@ -74,8 +76,7 @@ impl Parse for ResponseValue<'_> {
                                 return Err(Error::new(
                                     input.span(),
                                     format!(
-                                        "{} {}",
-                                        INVALID_STATUS_RANGE_MESSAGE,
+                                        "Invalid status range, expected one of: {}",
                                         VALID_STATUS_RANGES.join(", ")
                                     ),
                                 ));
@@ -88,10 +89,12 @@ impl Parse for ResponseValue<'_> {
                 }
                 "description" => {
                     response.description = parse_utils::parse_next_literal_str(input)?;
+                    ref_incompatible = true;
                 }
                 "body" => {
                     response.response_type =
                         Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
+                    ref_incompatible = true;
                 }
                 "content_type" => {
                     response.content_type = Some(parse_utils::parse_next(input, || {
@@ -111,23 +114,37 @@ impl Parse for ResponseValue<'_> {
                             Err(look_content_type.error())
                         }
                     })?);
+                    ref_incompatible = true;
                 }
                 "headers" => {
                     let headers;
                     parenthesized!(headers in input);
 
                     response.headers = parse_utils::parse_groups(&headers)?;
+                    ref_incompatible = true;
                 }
                 "example" => {
                     response.example = Some(parse_utils::parse_next(input, || {
                         AnyValue::parse_lit_str_or_json(input)
                     })?);
+                    ref_incompatible = true;
+                }
+                "response_ref" => {
+                    response.ref_type =
+                        Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
             if !input.is_empty() {
                 input.parse::<Token![,]>()?;
+            }
+
+            if response.ref_type.is_some() && ref_incompatible {
+                return Err(Error::new(
+                    input.span(),
+                    "The `response_ref` attribute may only be used in conjunction with the `status` attribute".to_string(),
+                ));
             }
         }
 
@@ -137,46 +154,55 @@ impl Parse for ResponseValue<'_> {
 
 impl ToTokens for ResponseValue<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-        let description = &self.description;
-        tokens.extend(quote! {
-            utoipa::openapi::ResponseBuilder::new().description(#description)
-        });
 
-        if let Some(response_type) = &self.response_type {
-            let property = Property::new(response_type);
-
-            let mut content = quote! {
-                utoipa::openapi::ContentBuilder::new().schema(#property)
-            };
-
-            if let Some(ref example) = self.example {
-                content.extend(quote! {
-                    .example(Some(#example))
-                })
-            }
-
-            if let Some(content_types) = self.content_type.as_ref() {
-                content_types.iter().for_each(|content_type| {
-                    tokens.extend(quote! {
-                        .content(#content_type, #content.build())
-                    })
-                })
-            } else {
-                let default_type = self.resolve_content_type(None, &property.schema_type());
-                tokens.extend(quote! {
-                    .content(#default_type, #content.build())
-                });
-            }
-        }
-
-        self.headers.iter().for_each(|header| {
-            let name = &header.name;
+        if let Some(ref_type) = &self.ref_type {
+            let path = &ref_type.ty;
             tokens.extend(quote! {
-                .header(#name, #header)
-            })
-        });
+                utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
+            });
 
-        tokens.extend(quote! { .build() })
+        } else {
+            let description = &self.description;
+            tokens.extend(quote! {
+                utoipa::openapi::ResponseBuilder::new().description(#description)
+            });
+
+            if let Some(response_type) = &self.response_type {
+                let property = Property::new(response_type);
+
+                let mut content = quote! {
+                    utoipa::openapi::ContentBuilder::new().schema(#property)
+                };
+
+                if let Some(ref example) = self.example {
+                    content.extend(quote! {
+                        .example(Some(#example))
+                    })
+                }
+
+                if let Some(content_types) = self.content_type.as_ref() {
+                    content_types.iter().for_each(|content_type| {
+                        tokens.extend(quote! {
+                            .content(#content_type, #content.build())
+                        })
+                    })
+                } else {
+                    let default_type = self.resolve_content_type(None, &property.schema_type());
+                    tokens.extend(quote! {
+                        .content(#default_type, #content.build())
+                    });
+                }
+            }
+
+            self.headers.iter().for_each(|header| {
+                let name = &header.name;
+                tokens.extend(quote! {
+                    .header(#name, #header)
+                })
+            });
+
+            tokens.extend(quote! { .build() });
+        }
     }
 }
 
