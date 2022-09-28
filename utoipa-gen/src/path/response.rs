@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     bracketed, parenthesized,
@@ -18,7 +18,7 @@ pub enum Response<'r> {
     /// A type that implements `utoipa::IntoResponses`.
     IntoResponses(ExprPath),
     /// The tuple definition of a response.
-    Value(ResponseValue<'r>),
+    Tuple(ResponseTuple<'r>),
 }
 
 impl Parse for Response<'_> {
@@ -28,7 +28,7 @@ impl Parse for Response<'_> {
         } else {
             let response;
             parenthesized!(response in input);
-            Ok(Self::Value(response.parse()?))
+            Ok(Self::Tuple(response.parse()?))
         }
     }
 }
@@ -36,23 +36,62 @@ impl Parse for Response<'_> {
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResponseValue<'r> {
+pub struct ResponseTuple<'r> {
     status_code: String,
+    inner: Option<ResponseTupleInner<'r>>,
+}
+
+const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
+    "The `response` attribute may only be used in conjunction with the `status` attribute";
+
+impl<'r> ResponseTuple<'r> {
+    // This will error if the `response` attribute has already been set
+    fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue<'r>> {
+        if self.inner.is_none() {
+            self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
+        }
+        if let ResponseTupleInner::Value(val) = self.inner.as_mut().unwrap() {
+            Ok(val)
+        } else {
+            Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
+        }
+    }
+
+    // Sets the `reference` attribute, this will fail if an incompatible attribute has already been set
+    fn set_ref_type(&mut self, span: Span, ty: Type<'r>) -> syn::Result<()> {
+        match &mut self.inner {
+            None => self.inner = Some(ResponseTupleInner::Ref(ty)),
+            Some(ResponseTupleInner::Ref(r)) => *r = ty,
+            Some(ResponseTupleInner::Value(_)) => {
+                return Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum ResponseTupleInner<'r> {
+    Value(ResponseValue<'r>),
+    Ref(Type<'r>),
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ResponseValue<'r> {
     description: String,
     response_type: Option<Type<'r>>,
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
     example: Option<AnyValue>,
-    ref_type: Option<Type<'r>>,
 }
 
-impl Parse for ResponseValue<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, response_ref";
+impl Parse for ResponseTuple<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, response";
         const VALID_STATUS_RANGES: &[&str] = &["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
 
-        let mut response = ResponseValue::default();
-        let mut ref_incompatible = false;
+        let mut response = ResponseTuple::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
@@ -87,50 +126,50 @@ impl Parse for ResponseValue<'_> {
                     })?
                 }
                 "description" => {
-                    response.description = parse_utils::parse_next_literal_str(input)?;
-                    ref_incompatible = true;
+                    response.as_value(input.span())?.description =
+                        parse_utils::parse_next_literal_str(input)?;
                 }
                 "body" => {
-                    response.response_type =
+                    response.as_value(input.span())?.response_type =
                         Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
-                    ref_incompatible = true;
                 }
                 "content_type" => {
-                    response.content_type = Some(parse_utils::parse_next(input, || {
-                        let look_content_type = input.lookahead1();
-                        if look_content_type.peek(LitStr) {
-                            Ok(vec![input.parse::<LitStr>()?.value()])
-                        } else if look_content_type.peek(Bracket) {
-                            let content_types;
-                            bracketed!(content_types in input);
-                            Ok(
-                                Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
-                                    .into_iter()
-                                    .map(|lit| lit.value())
-                                    .collect(),
-                            )
-                        } else {
-                            Err(look_content_type.error())
-                        }
-                    })?);
-                    ref_incompatible = true;
+                    response.as_value(input.span())?.content_type =
+                        Some(parse_utils::parse_next(input, || {
+                            let look_content_type = input.lookahead1();
+                            if look_content_type.peek(LitStr) {
+                                Ok(vec![input.parse::<LitStr>()?.value()])
+                            } else if look_content_type.peek(Bracket) {
+                                let content_types;
+                                bracketed!(content_types in input);
+                                Ok(
+                                    Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                                        .into_iter()
+                                        .map(|lit| lit.value())
+                                        .collect(),
+                                )
+                            } else {
+                                Err(look_content_type.error())
+                            }
+                        })?);
                 }
                 "headers" => {
                     let headers;
                     parenthesized!(headers in input);
 
-                    response.headers = parse_utils::parse_groups(&headers)?;
-                    ref_incompatible = true;
+                    response.as_value(input.span())?.headers = parse_utils::parse_groups(&headers)?;
                 }
                 "example" => {
-                    response.example = Some(parse_utils::parse_next(input, || {
-                        AnyValue::parse_lit_str_or_json(input)
-                    })?);
-                    ref_incompatible = true;
+                    response.as_value(input.span())?.example =
+                        Some(parse_utils::parse_next(input, || {
+                            AnyValue::parse_lit_str_or_json(input)
+                        })?);
                 }
-                "response_ref" => {
-                    response.ref_type =
-                        Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
+                "response" => {
+                    response.set_ref_type(
+                        input.span(),
+                        parse_utils::parse_next(input, || input.parse::<Type>())?,
+                    )?;
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
@@ -138,74 +177,72 @@ impl Parse for ResponseValue<'_> {
             if !input.is_empty() {
                 input.parse::<Token![,]>()?;
             }
+        }
 
-            if response.ref_type.is_some() && ref_incompatible {
-                return Err(Error::new(
-                    input.span(),
-                    "The `response_ref` attribute may only be used in conjunction with the `status` attribute".to_string(),
-                ));
-            }
+        if response.inner.is_none() {
+            response.inner = Some(ResponseTupleInner::Value(ResponseValue::default()))
         }
 
         Ok(response)
     }
 }
 
-impl ToTokens for ResponseValue<'_> {
+impl ToTokens for ResponseTuple<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
-
-        if let Some(ref_type) = &self.ref_type {
-            let path = &ref_type.ty;
-            tokens.extend(quote! {
-                utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
-            });
-
-        } else {
-            let description = &self.description;
-            tokens.extend(quote! {
-                utoipa::openapi::ResponseBuilder::new().description(#description)
-            });
-
-            if let Some(response_type) = &self.response_type {
-                let property = Property::new(response_type);
-
-                let mut content = quote! {
-                    utoipa::openapi::ContentBuilder::new().schema(#property)
-                };
-
-                if let Some(ref example) = self.example {
-                    content.extend(quote! {
-                        .example(Some(#example))
-                    })
-                }
-
-                if let Some(content_types) = self.content_type.as_ref() {
-                    content_types.iter().for_each(|content_type| {
-                        tokens.extend(quote! {
-                            .content(#content_type, #content.build())
-                        })
-                    })
-                } else {
-                    let default_type = self.resolve_content_type(None, &property.schema_type());
-                    tokens.extend(quote! {
-                        .content(#default_type, #content.build())
-                    });
-                }
-            }
-
-            self.headers.iter().for_each(|header| {
-                let name = &header.name;
+        match self.inner.as_ref().unwrap() {
+            ResponseTupleInner::Ref(res) => {
+                let path = &res.ty;
                 tokens.extend(quote! {
-                    .header(#name, #header)
-                })
-            });
+                    utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
+                });
+            }
+            ResponseTupleInner::Value(val) => {
+                let description = &val.description;
+                tokens.extend(quote! {
+                    utoipa::openapi::ResponseBuilder::new().description(#description)
+                });
 
-            tokens.extend(quote! { .build() });
+                if let Some(response_type) = &val.response_type {
+                    let property = Property::new(response_type);
+
+                    let mut content = quote! {
+                        utoipa::openapi::ContentBuilder::new().schema(#property)
+                    };
+
+                    if let Some(ref example) = val.example {
+                        content.extend(quote! {
+                            .example(Some(#example))
+                        })
+                    }
+
+                    if let Some(content_types) = val.content_type.as_ref() {
+                        content_types.iter().for_each(|content_type| {
+                            tokens.extend(quote! {
+                                .content(#content_type, #content.build())
+                            })
+                        })
+                    } else {
+                        let default_type = self.resolve_content_type(None, &property.schema_type());
+                        tokens.extend(quote! {
+                            .content(#default_type, #content.build())
+                        });
+                    }
+                }
+
+                val.headers.iter().for_each(|header| {
+                    let name = &header.name;
+                    tokens.extend(quote! {
+                        .header(#name, #header)
+                    })
+                });
+
+                tokens.extend(quote! { .build() });
+            }
         }
     }
 }
 
-impl ContentTypeResolver for ResponseValue<'_> {}
+impl ContentTypeResolver for ResponseTuple<'_> {}
 
 pub struct Responses<'a>(pub &'a [Response<'a>]);
 
@@ -221,7 +258,7 @@ impl ToTokens for Responses<'_> {
                             .responses_from_into_responses::<#path>()
                         })
                     }
-                    Response::Value(response) => {
+                    Response::Tuple(response) => {
                         let code = &response.status_code;
                         acc.extend(quote! { .response(#code, #response) });
                     }

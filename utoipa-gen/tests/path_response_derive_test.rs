@@ -3,9 +3,7 @@
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::openapi::Response;
-use utoipa::openapi::SchemaType::String;
 use utoipa::ToResponse;
-use std::string::String as StdString;
 
 mod common;
 
@@ -98,8 +96,11 @@ fn derive_path_with_multiple_simple_responses() {
 struct ReusableResponse;
 
 impl ToResponse for ReusableResponse {
-    fn response() -> (StdString, Response) {
-        (StdString::from("ReusableResponseName"), Response::new("reusable response"))
+    fn response() -> (String, Response) {
+        (
+            String::from("ReusableResponseName"),
+            Response::new("reusable response"),
+        )
     }
 }
 
@@ -107,7 +108,7 @@ test_fn! {
     module: reusable_responses,
     responses: (
         (status = 200, description = "success"),
-        (status = "default", response_ref = crate::ReusableResponse)
+        (status = "default", response = crate::ReusableResponse)
     )
 }
 
@@ -119,7 +120,6 @@ fn derive_path_with_reusable_responses() {
         "responses.200.description" = r#""success""#, "Response description"
         "responses.default.$ref" = "\"#/components/responses/ReusableResponseName\"", "Response reference"
     }
-
 }
 
 macro_rules! test_response_types {

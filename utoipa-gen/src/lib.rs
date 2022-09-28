@@ -551,7 +551,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// responses(
-///     (status = 200, response_ref = ReusableResponse)
+///     (status = 200, response = ReusableResponse)
 /// )
 /// ```
 ///
