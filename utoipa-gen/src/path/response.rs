@@ -57,7 +57,7 @@ impl<'r> ResponseTuple<'r> {
         }
     }
 
-    // Sets the `reference` attribute, this will fail if an incompatible attribute has already been set
+    // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
     fn set_ref_type(&mut self, span: Span, ty: Type<'r>) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
