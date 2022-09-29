@@ -2,6 +2,9 @@
 
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
+use utoipa::openapi::Response;
+use utoipa::ToResponse;
+
 mod common;
 
 macro_rules! test_fn {
@@ -87,6 +90,35 @@ fn derive_path_with_multiple_simple_responses() {
         "responses.default.description" = r#""default""#, "Response description"
         "responses.default.content" = r#"null"#, "Response content"
         "responses.default.headers" = r#"null"#, "Response headers"
+    }
+}
+
+struct ReusableResponse;
+
+impl ToResponse for ReusableResponse {
+    fn response() -> (String, Response) {
+        (
+            String::from("ReusableResponseName"),
+            Response::new("reusable response"),
+        )
+    }
+}
+
+test_fn! {
+    module: reusable_responses,
+    responses: (
+        (status = 200, description = "success"),
+        (status = "default", response = crate::ReusableResponse)
+    )
+}
+
+#[test]
+fn derive_path_with_reusable_responses() {
+    let doc = api_doc!(module: reusable_responses);
+
+    assert_value! {doc=>
+        "responses.200.description" = r#""success""#, "Response description"
+        "responses.default.$ref" = "\"#/components/responses/ReusableResponseName\"", "Response reference"
     }
 }
 

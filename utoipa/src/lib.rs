@@ -217,6 +217,7 @@ pub mod openapi;
 
 use std::collections::BTreeMap;
 
+use crate::openapi::schema::RefOr;
 use openapi::Response;
 pub use utoipa_gen::*;
 
@@ -565,7 +566,7 @@ pub trait IntoParams {
 /// ```
 /// use std::collections::BTreeMap;
 /// use utoipa::{
-///     openapi::{Response, ResponseBuilder, ResponsesBuilder},
+///     openapi::{Response, ResponseBuilder, ResponsesBuilder, schema::RefOr},
 ///     IntoResponses,
 /// };
 ///
@@ -575,7 +576,7 @@ pub trait IntoParams {
 /// }
 ///
 /// impl IntoResponses for MyResponse {
-///     fn responses() -> BTreeMap<String, Response> {
+///     fn responses() -> BTreeMap<String, RefOr<Response>> {
 ///         ResponsesBuilder::new()
 ///             .response("200", ResponseBuilder::new().description("Ok"))
 ///             .response("404", ResponseBuilder::new().description("Not Found"))
@@ -586,7 +587,7 @@ pub trait IntoParams {
 /// ```
 pub trait IntoResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> BTreeMap<String, Response>;
+    fn responses() -> BTreeMap<String, RefOr<Response>>;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be

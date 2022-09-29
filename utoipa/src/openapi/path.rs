@@ -362,8 +362,14 @@ impl OperationBuilder {
     ///
     /// * `code` must be valid HTTP status code.
     /// * `response` is instances of [`Response`].
-    pub fn response<S: Into<String>>(mut self, code: S, response: Response) -> Self {
-        self.responses.responses.insert(code.into(), response);
+    pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
+        mut self,
+        code: S,
+        response: R,
+    ) -> Self {
+        self.responses
+            .responses
+            .insert(code.into(), response.into());
 
         self
     }

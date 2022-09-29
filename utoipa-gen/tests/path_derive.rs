@@ -5,6 +5,7 @@ use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use utoipa::openapi::schema::RefOr;
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
     IntoParams, IntoResponses, OpenApi, ToSchema,
@@ -814,7 +815,7 @@ fn derive_path_with_into_responses() {
     }
 
     impl IntoResponses for MyResponse {
-        fn responses() -> BTreeMap<String, Response> {
+        fn responses() -> BTreeMap<String, RefOr<Response>> {
             let responses = ResponsesBuilder::new()
                 .response("200", ResponseBuilder::new().description("Ok"))
                 .response("404", ResponseBuilder::new().description("Not Found"))
