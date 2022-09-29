@@ -93,6 +93,32 @@ fn derive_path_with_multiple_simple_responses() {
     }
 }
 
+test_fn! {
+    module: http_status_code_responses,
+    responses: (
+        (status = OK, description = "success"),
+        (status = http::status::StatusCode::NOT_FOUND, description = "not found"),
+    )
+}
+
+#[test]
+fn derive_http_status_code_responses() {
+    let doc = api_doc!(module: http_status_code_responses);
+    let responses = doc.pointer("/responses");
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "description": "success"
+            },
+            "404": {
+                "description": "not found"
+            }
+        })
+    )
+}
+
 struct ReusableResponse;
 
 impl ToResponse for ReusableResponse {

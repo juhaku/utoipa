@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
@@ -11,7 +13,7 @@ use syn::{
 
 use crate::{parse_utils, AnyValue, Type};
 
-use super::{property::Property, ContentTypeResolver};
+use super::{property::Property, status::STATUS_CODES, ContentTypeResolver};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response<'r> {
@@ -37,7 +39,7 @@ impl Parse for Response<'_> {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseTuple<'r> {
-    status_code: String,
+    status_code: ResponseStatus,
     inner: Option<ResponseTupleInner<'r>>,
 }
 
@@ -89,7 +91,6 @@ pub struct ResponseValue<'r> {
 impl Parse for ResponseTuple<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, response";
-        const VALID_STATUS_RANGES: &[&str] = &["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
 
         let mut response = ResponseTuple::default();
 
@@ -104,26 +105,8 @@ impl Parse for ResponseTuple<'_> {
 
             match attribute_name {
                 "status" => {
-                    response.status_code = parse_utils::parse_next(input, || {
-                        let lookahead = input.lookahead1();
-                        if lookahead.peek(LitInt) {
-                            input.parse::<LitInt>()?.base10_parse()
-                        } else if lookahead.peek(LitStr) {
-                            let value = input.parse::<LitStr>()?.value();
-                            if !VALID_STATUS_RANGES.contains(&value.as_str()) {
-                                return Err(Error::new(
-                                    input.span(),
-                                    format!(
-                                        "Invalid status range, expected one of: {}",
-                                        VALID_STATUS_RANGES.join(", ")
-                                    ),
-                                ));
-                            }
-                            Ok(value)
-                        } else {
-                            Err(lookahead.error())
-                        }
-                    })?
+                    response.status_code =
+                        parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
                 }
                 "description" => {
                     response.as_value(input.span())?.description =
@@ -184,6 +167,85 @@ impl Parse for ResponseTuple<'_> {
         }
 
         Ok(response)
+    }
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ResponseStatus(TokenStream2);
+
+impl Parse for ResponseStatus {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        fn parse_lit_int(input: ParseStream) -> syn::Result<Cow<'_, str>> {
+            input.parse::<LitInt>()?.base10_parse().map(Cow::Owned)
+        }
+
+        fn parse_lit_str_status_range(input: ParseStream) -> syn::Result<Cow<'_, str>> {
+            const VALID_STATUS_RANGES: [&str; 6] = ["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
+
+            input
+                .parse::<LitStr>()
+                .and_then(|lit_str| {
+                    let value = lit_str.value();
+                    if !VALID_STATUS_RANGES.contains(&value.as_str()) {
+                        Err(Error::new(
+                            value.span(),
+                            format!(
+                                "Invalid status range, expected one of: {}",
+                                VALID_STATUS_RANGES.join(", "),
+                            ),
+                        ))
+                    } else {
+                        Ok(value)
+                    }
+                })
+                .map(Cow::Owned)
+        }
+
+        fn parse_http_status_code(input: ParseStream) -> syn::Result<TokenStream2> {
+            let http_status_path = input.parse::<ExprPath>()?;
+            let last_segment = http_status_path
+                .path
+                .segments
+                .last()
+                .expect("Expected at least one segment in http StatusCode");
+
+            STATUS_CODES
+                .iter()
+                .find_map(|(code, name)| {
+                    if last_segment.ident == name {
+                        Some(code.to_string().to_token_stream())
+                    } else {
+                        None
+                    }
+                })
+                .ok_or_else(|| {
+                    Error::new(
+                        last_segment.span(),
+                        &format!(
+                            "No associate item `{}` found for struct `http::StatusCode`",
+                            last_segment.ident
+                        ),
+                    )
+                })
+        }
+
+        let lookahead = input.lookahead1();
+        if lookahead.peek(LitInt) {
+            parse_lit_int(input).map(|status| Self(status.to_token_stream()))
+        } else if lookahead.peek(LitStr) {
+            parse_lit_str_status_range(input).map(|status| Self(status.to_token_stream()))
+        } else if lookahead.peek(syn::Ident) {
+            parse_http_status_code(input).map(Self)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for ResponseStatus {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        self.0.to_tokens(tokens);
     }
 }
 
