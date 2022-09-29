@@ -30,6 +30,7 @@ pub mod parameter;
 mod property;
 mod request_body;
 mod response;
+mod status;
 
 pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 
