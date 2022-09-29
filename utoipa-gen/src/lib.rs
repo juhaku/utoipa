@@ -518,6 +518,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 /// * `example = ...` Can be either `json!(...)` or literal str that can be parsed to json. `json!`
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+/// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
+///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 ///
 /// **Minimal response format:**
 /// ```text
