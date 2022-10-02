@@ -16,7 +16,7 @@ pub struct XmlAttr {
 }
 
 impl XmlAttr {
-    pub(super) fn with_wrapped(is_wrapped: Option<Ident>, wrap_name: Option<String>) -> Self {
+    pub fn with_wrapped(is_wrapped: Option<Ident>, wrap_name: Option<String>) -> Self {
         Self {
             is_wrapped,
             wrap_name,

@@ -15,6 +15,7 @@ use crate::{
 
 use self::{
     attr::{Enum, IsInline, NamedField, SchemaAttr, Title, UnnamedFieldStruct},
+    capabilities::{parse_scheme_capabilities, StructCapabilities},
     xml::Xml,
 };
 
@@ -24,6 +25,7 @@ use super::{
 };
 
 mod attr;
+mod capabilities;
 pub mod xml;
 
 pub struct Schema<'a> {
@@ -265,9 +267,9 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        let attrs = SchemaAttr::<attr::Struct>::from_attributes_validated(self.attributes);
-        if let Some(attrs) = attrs {
-            tokens.extend(attrs.to_token_stream());
+        let struct_capabilities = parse_scheme_capabilities::<StructCapabilities>(self.attributes);
+        if let Some(struct_capabilities) = struct_capabilities {
+            tokens.extend(struct_capabilities.0.to_token_stream())
         }
 
         if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
@@ -662,6 +664,7 @@ impl ComplexEnum<'_> {
         variant_title: Option<SchemaAttr<Title>>,
         variant: &Variant,
     ) -> TokenStream {
+        // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => FieldVariantTokens::to_tokens(
                 &EnumVariantTokens(&variant_name, variant_title),

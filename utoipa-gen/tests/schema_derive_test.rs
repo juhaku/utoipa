@@ -1043,6 +1043,7 @@ fn derive_complex_enum_title() {
         }
     };
 
+    dbg!(&value);
     assert_json_eq!(
         value,
         json!({

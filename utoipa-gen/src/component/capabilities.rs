@@ -1,13 +1,15 @@
+use std::mem;
+
 use proc_macro2::{Ident, Span};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse};
+use syn::{parenthesized, parse::Parse, Attribute};
 
 use crate::{parse_utils, schema_type::SchemaFormat, AnyValue};
 
-use super::schema;
+use super::{schema, GenericType, TypeTree};
 
-trait Name {
+pub trait Name {
     fn get_name() -> &'static str;
 }
 
@@ -35,7 +37,7 @@ pub enum Capability {
 }
 
 impl Capability {
-    fn parse_named<T: Name>(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    pub fn parse_named<T: Name>(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = T::get_name();
         match name {
             "default" => Default::parse(input).map(Self::Default),
@@ -126,8 +128,38 @@ impl ToTokens for Inline {
 
 name!(Inline = "inline");
 
+#[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct XmlAttr(schema::xml::XmlAttr);
+
+impl XmlAttr {
+    /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
+    /// one is for a vec and second one is for object field.
+    pub fn split_for_vec(&mut self, type_tree: &TypeTree) -> (Option<XmlAttr>, Option<XmlAttr>) {
+        if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
+            let mut value_xml = mem::take(&mut self.0);
+            let vec_xml = schema::xml::XmlAttr::with_wrapped(
+                mem::take(&mut value_xml.is_wrapped),
+                mem::take(&mut value_xml.wrap_name),
+            );
+
+            (Some(XmlAttr(vec_xml)), Some(XmlAttr(value_xml)))
+        } else {
+            self.validate_xml(&self.0);
+
+            (None, Some(mem::take(self)))
+        }
+    }
+
+    #[inline]
+    fn validate_xml(&self, xml: &schema::xml::XmlAttr) {
+        if let Some(wrapped_ident) = xml.is_wrapped.as_ref() {
+            abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
+                help = "Try removing `wrapped` attribute or make your field `Vec`"
+            }
+        }
+    }
+}
 
 impl Parse for XmlAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -231,17 +263,16 @@ impl ToTokens for Title {
 name!(Title = "title");
 
 macro_rules! parse_capability_set {
-    ($ident:ident as $( $capability:ident ),*) => {
+    ($ident:ident as $( $capability:path ),*) => {
         {
-            fn parse(input: syn::parse::ParseStream) -> syn::Result<Vec<Capability>> {
-                let names = [$( $capability::get_name(), )* ];
-                let mut capabilities = Vec::<Capability>::new();
+            fn parse(input: syn::parse::ParseStream) -> syn::Result<Vec<crate::component::capabilities::Capability>> {
+                let names = [$( <crate::component::capabilities::parse_capability_set!(@as_ident $capability) as crate::component::capabilities::Name>::get_name(), )* ];
+                let mut capabilities = Vec::<crate::component::capabilities::Capability>::new();
                 let attributes = names.join(", ");
-                let error_message = format!("unexpected attribute, expected any of: {attributes}");
 
                 while !input.is_empty() {
-                    let ident = input.parse::<Ident>().map_err(|error| {
-                        Error::new(
+                    let ident = input.parse::<syn::Ident>().map_err(|error| {
+                        syn::Error::new(
                             error.span(),
                             format!("unexpected attribute, expected any of: {attributes}, {error}"),
                         )
@@ -249,8 +280,8 @@ macro_rules! parse_capability_set {
                     let name = &*ident.to_string();
 
                     $(
-                        if name == $capability::get_name() {
-                            capabilities.push(Capability::parse_named::<$capability>(input)?);
+                        if name == <crate::component::capabilities::parse_capability_set!(@as_ident $capability) as crate::component::capabilities::Name>::get_name() {
+                            capabilities.push(crate::component::capabilities::Capability::parse_named::<$capability>(input)?);
                             if !input.is_empty() {
                                 input.parse::<syn::Token![,]>()?;
                             }
@@ -269,11 +300,14 @@ macro_rules! parse_capability_set {
             CapabilitySet(parse($ident)?)
         }
     };
+    (@as_ident $( $tt:tt )* ) => {
+        $( $tt )*
+    }
 }
 
 pub(crate) use parse_capability_set;
 
-pub struct CapabilitySet(Vec<Capability>);
+pub struct CapabilitySet(pub Vec<Capability>);
 
 impl ToTokens for CapabilitySet {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {

@@ -1,3 +1,7 @@
+#![deprecated(
+    since = "2.3.0",
+    note = "Will be replaced by schema::capablities gradually by a lot simplier and never implementaiton"
+)]
 use std::mem;
 
 use proc_macro2::{Ident, TokenStream};
