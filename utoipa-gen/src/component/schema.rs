@@ -24,7 +24,7 @@ use super::{
 };
 
 mod attr;
-mod xml;
+pub mod xml;
 
 pub struct Schema<'a> {
     ident: &'a Ident,

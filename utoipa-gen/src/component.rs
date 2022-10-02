@@ -1,8 +1,11 @@
-use std::{any::Any, borrow::Cow, fmt::Display};
+use std::borrow::Cow;
 
 use proc_macro2::Ident;
 use proc_macro_error::{abort, abort_call_site};
-use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
+use syn::{
+    parse::{Parse, ParseStream},
+    Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath,
+};
 
 use crate::{
     parse_utils,
@@ -14,6 +17,7 @@ pub mod into_params;
 
 pub mod schema;
 mod serde;
+mod capabilities;
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
