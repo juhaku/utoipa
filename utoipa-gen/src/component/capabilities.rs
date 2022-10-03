@@ -1,9 +1,13 @@
 use std::mem;
 
 use proc_macro2::{Ident, Span};
-use proc_macro_error::abort;
+use proc_macro_error::{abort, ResultExt};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, Attribute};
+use syn::{
+    parenthesized,
+    parse::{Parse, ParseStream},
+    Attribute,
+};
 
 use crate::{parse_utils, schema_type::SchemaFormat, AnyValue};
 
@@ -11,6 +15,10 @@ use super::{schema, GenericType, TypeTree};
 
 pub trait Name {
     fn get_name() -> &'static str;
+}
+
+pub trait ToCapabilities {
+    fn to_capablities(self) -> Vec<Capability>;
 }
 
 macro_rules! name {
@@ -197,6 +205,13 @@ name!(Format = "format");
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ValueType(syn::Type);
 
+impl ValueType {
+    /// Create [`TypeTree`] from current [`syn::Type`].
+    pub fn as_type_tree(&self) -> TypeTree {
+        TypeTree::from_type(&self.0)
+    }
+}
+
 impl Parse for ValueType {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<syn::Type>()).map(Self)
@@ -306,6 +321,16 @@ macro_rules! parse_capability_set {
 }
 
 pub(crate) use parse_capability_set;
+
+pub fn parse_capablities(
+    attributes: &[Attribute],
+    parser: impl FnOnce(ParseStream) -> syn::Result<CapabilitySet>,
+) -> Option<CapabilitySet> {
+    attributes
+        .iter()
+        .find(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .map(|attribute| attribute.parse_args_with(parser).unwrap_or_abort())
+}
 
 pub struct CapabilitySet(pub Vec<Capability>);
 
