@@ -273,9 +273,15 @@ impl ToTokens for Param<'_> {
                     .unwrap_or_abort()
             });
 
-        tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
-            .name(#name)
-        });
+        if let Some(IntoParamsFieldParamsAttr { rename: Some(ref name), ..}) = field_param_attrs {
+            tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
+                .name(#name)
+            });
+        } else {
+            tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
+                .name(#name)
+            });
+        }
 
         tokens.extend(
             if let Some(parameter_in) = self.container_attributes.parameter_in {
@@ -352,11 +358,12 @@ struct IntoParamsFieldParamsAttr {
     inline: bool,
     value_type: Option<syn::Type>,
     parameter_ext: Option<ParameterExt>,
+    rename: Option<String>,
 }
 
 impl Parse for IntoParamsFieldParamsAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: style, explode, allow_reserved, example, inline, value_type";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: style, explode, allow_reserved, example, inline, value_type, rename";
         let mut param = IntoParamsFieldParamsAttr::default();
 
         while !input.is_empty() {
@@ -373,6 +380,9 @@ impl Parse for IntoParamsFieldParamsAttr {
                         param.value_type = Some(parse_utils::parse_next(input, || {
                             input.parse::<syn::Type>()
                         })?)
+                    }
+                    "rename" => {
+                        param.rename = Some(parse_utils::parse_next_literal_str(input)?)
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
