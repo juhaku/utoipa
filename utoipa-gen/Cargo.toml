@@ -24,6 +24,7 @@ uuid = { version = "1", optional = true }
 [dev-dependencies]
 utoipa = { path = "../utoipa", default-features = false }
 serde_json = "1"
+serde_yaml = "*"
 serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
 axum = "0.5"
