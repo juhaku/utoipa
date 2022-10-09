@@ -1548,6 +1548,21 @@ fn derive_struct_component_field_type_override_with_format() {
 }
 
 #[test]
+fn derive_struct_component_field_type_override_with_custom_format() {
+    let post = api_doc! {
+        struct Post {
+            #[schema(value_type = String, format = "uri")]
+            value: String,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.value.type" = r#""string""#, "Post value type"
+        "properties.value.format" = r#""uri""#, "Post value format"
+    }
+}
+
+#[test]
 fn derive_struct_component_field_type_override_with_format_with_vec() {
     let post = api_doc! {
         struct Post {

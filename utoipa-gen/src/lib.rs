@@ -76,8 +76,9 @@ use ext::ArgumentResolver;
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` Any variant of a [`SchemaFormat`][format] to use for the property. By default the format is derived from
-///   the type of the property according OpenApi spec.
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -86,8 +87,9 @@ use ext::ArgumentResolver;
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `format = ...` Any variant of a [`SchemaFormat`][format] to use for the property. By default the format is derived from
-///   the type of the property according OpenApi spec.
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
@@ -368,7 +370,7 @@ use ext::ArgumentResolver;
 /// ```
 ///
 /// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
-/// with [`SchemaFormat::Binary`][binary].
+/// with [`SchemaFormat::KnownFormat(KnownFormat::Binary)`][binary].
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -420,8 +422,8 @@ use ext::ArgumentResolver;
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
 /// [to_schema]: trait.ToSchema.html
-/// [format]: openapi/schema/enum.SchemaFormat.html
-/// [binary]: openapi/schema/enum.SchemaFormat.html#variant.Binary
+/// [known_format]: openapi/schema/enum.KnownFormat.html
+/// [binary]: openapi/schema/enum.KnownFormat.html#variant.Binary
 /// [xml]: openapi/xml/struct.Xml.html
 /// [into_params]: derive.IntoParams.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html

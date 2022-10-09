@@ -306,7 +306,7 @@ pub trait OpenApi {
 ///                 "id",
 ///                 utoipa::openapi::ObjectBuilder::new()
 ///                     .schema_type(utoipa::openapi::SchemaType::Integer)
-///                     .format(Some(utoipa::openapi::SchemaFormat::Int64)),
+///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64))),
 ///             )
 ///             .required("id")
 ///             .property(
@@ -318,7 +318,7 @@ pub trait OpenApi {
 ///                 "age",
 ///                 utoipa::openapi::ObjectBuilder::new()
 ///                     .schema_type(utoipa::openapi::SchemaType::Integer)
-///                     .format(Some(utoipa::openapi::SchemaFormat::Int32)),
+///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32))),
 ///             )
 ///             .example(Some(serde_json::json!({
 ///               "name": "bob the cat", "id": 1
@@ -407,7 +407,7 @@ pub trait ToSchema {
 ///                         .schema(
 ///                             Some(utoipa::openapi::ObjectBuilder::new()
 ///                                 .schema_type(utoipa::openapi::SchemaType::Integer)
-///                                 .format(Some(utoipa::openapi::SchemaFormat::Int64))),
+///                                 .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64)))),
 ///                         ),
 ///                 )
 ///                 .tag("pet_api"),
@@ -532,7 +532,7 @@ pub trait Modify {
 ///                 .schema(Some(
 ///                     utoipa::openapi::ObjectBuilder::new()
 ///                         .schema_type(utoipa::openapi::SchemaType::Integer)
-///                         .format(Some(utoipa::openapi::SchemaFormat::Int64)),
+///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64))),
 ///                 ))
 ///                 .build(),
 ///             utoipa::openapi::path::ParameterBuilder::new()
