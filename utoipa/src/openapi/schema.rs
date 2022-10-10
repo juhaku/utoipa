@@ -1117,10 +1117,20 @@ impl Default for SchemaType {
 
 /// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
 /// supported by the UI it may default back to [`SchemaType`] alone.
+/// Format is an open value, so you can use any formats, even not those defined by the
+/// OpenAPI Specification.
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(rename_all = "lowercase", untagged)]
+pub enum SchemaFormat {
+    KnownFormat(KnownFormat),
+    Custom(String),
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
-pub enum SchemaFormat {
+pub enum KnownFormat {
     /// 32 bit integer.
     Int32,
     /// 64 bit integer.
@@ -1138,7 +1148,7 @@ pub enum SchemaFormat {
     /// ISO-8601 full date time [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     #[serde(rename = "date-time")]
     DateTime,
-    /// Hint to UI to obsucre input.
+    /// Hint to UI to obscure input.
     Password,
     /// Used with [`String`] values to indicate value is in UUID format.
     ///
@@ -1172,7 +1182,7 @@ mod tests {
                                     "id",
                                     ObjectBuilder::new()
                                         .schema_type(SchemaType::Integer)
-                                        .format(Some(SchemaFormat::Int32))
+                                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                                         .description(Some("Id of credential"))
                                         .default(Some(json!(1i32))),
                                 )
@@ -1340,7 +1350,7 @@ mod tests {
                 "id",
                 ObjectBuilder::new()
                     .schema_type(SchemaType::Integer)
-                    .format(Some(SchemaFormat::Int32))
+                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
                     .default(Some(json!(1i32))),
             ),
@@ -1357,7 +1367,7 @@ mod tests {
                     "id",
                     ObjectBuilder::new()
                         .schema_type(SchemaType::Integer)
-                        .format(Some(SchemaFormat::Int32))
+                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                         .description(Some("Id of credential"))
                         .default(Some(json!(1i32))),
                 ),

@@ -6,7 +6,7 @@ use serde_json::Value;
 use utoipa::{
     openapi::{
         path::{Parameter, ParameterBuilder, ParameterIn},
-        Array, ObjectBuilder, SchemaFormat,
+        Array, KnownFormat, ObjectBuilder, SchemaFormat,
     },
     IntoParams, OpenApi, ToSchema,
 };
@@ -360,7 +360,7 @@ fn path_with_struct_variables_with_into_params() {
                     .schema(Some(
                         ObjectBuilder::new()
                             .schema_type(utoipa::openapi::SchemaType::Integer)
-                            .format(Some(SchemaFormat::Int64)),
+                            .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64))),
                     ))
                     .parameter_in(ParameterIn::Path)
                     .build(),

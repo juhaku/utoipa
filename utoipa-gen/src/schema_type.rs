@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use proc_macro_error::abort_call_site;
 use quote::{quote, ToTokens};
-use syn::{parse::Parse, Error, Ident, Path};
+use syn::{parse::Parse, Error, Ident, LitStr, Path};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
 pub struct SchemaType<'a>(pub &'a syn::Path);
@@ -239,19 +239,19 @@ impl ToTokens for Type<'_> {
 
         match name {
             "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaFormat::Int32 })
+                tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32) })
             }
-            "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Int64 }),
-            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Float }),
+            "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
+            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Float) }),
             #[cfg(feature = "chrono")]
-            "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::DateTime }),
+            "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
             #[cfg(any(feature = "chrono", feature = "Time"))]
-            "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Date }),
+            "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::Uuid }),
+            "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uuid) }),
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaFormat::DateTime })
+                tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) })
             }
             _ => (),
         }
@@ -272,6 +272,7 @@ pub enum Variant {
     Password,
     #[cfg(feature = "uuid")]
     Uuid,
+    Custom(String),
 }
 
 impl Parse for Variant {
@@ -280,7 +281,7 @@ impl Parse for Variant {
             "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
             "Uuid",
         ];
-        let allowed_formats = FORMATS
+        let known_formats = FORMATS
             .into_iter()
             .filter(|_format| {
                 #[cfg(feature = "uuid")]
@@ -293,29 +294,37 @@ impl Parse for Variant {
                 }
             })
             .collect::<Vec<_>>();
-        let expected_formats = format!(
-            "unexpected format, expected one of: {}",
-            allowed_formats.join(", ")
-        );
-        let format = input.parse::<Ident>()?;
-        let name = &*format.to_string();
 
-        match name {
-            "Int32" => Ok(Self::Int32),
-            "Int64" => Ok(Self::Int64),
-            "Float" => Ok(Self::Float),
-            "Double" => Ok(Self::Double),
-            "Byte" => Ok(Self::Byte),
-            "Binary" => Ok(Self::Binary),
-            "Date" => Ok(Self::Date),
-            "DateTime" => Ok(Self::DateTime),
-            "Password" => Ok(Self::Password),
-            #[cfg(feature = "uuid")]
-            "Uuid" => Ok(Self::Uuid),
-            _ => Err(Error::new(
-                format.span(),
-                format!("unexpected format: {name}, expected one of: {expected_formats}"),
-            )),
+        let lookahead = input.lookahead1();
+        if lookahead.peek(Ident) {
+            let format = input.parse::<Ident>()?;
+            let name = &*format.to_string();
+
+            match name {
+                "Int32" => Ok(Self::Int32),
+                "Int64" => Ok(Self::Int64),
+                "Float" => Ok(Self::Float),
+                "Double" => Ok(Self::Double),
+                "Byte" => Ok(Self::Byte),
+                "Binary" => Ok(Self::Binary),
+                "Date" => Ok(Self::Date),
+                "DateTime" => Ok(Self::DateTime),
+                "Password" => Ok(Self::Password),
+                #[cfg(feature = "uuid")]
+                "Uuid" => Ok(Self::Uuid),
+                _ => Err(Error::new(
+                    format.span(),
+                    format!(
+                        "unexpected format: {name}, expected one of: {}",
+                        known_formats.join(", ")
+                    ),
+                )),
+            }
+        } else if lookahead.peek(LitStr) {
+            let value = input.parse::<LitStr>()?.value();
+            Ok(Self::Custom(value))
+        } else {
+            Err(lookahead.error())
         }
     }
 }
@@ -323,21 +332,40 @@ impl Parse for Variant {
 impl ToTokens for Variant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Int32 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Int32)),
-            Self::Int64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Int64)),
-            Self::Float => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Float)),
-            Self::Double => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Double)),
-            Self::Byte => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Byte)),
-            Self::Binary => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Binary)),
-            Self::Date => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Date)),
-            Self::DateTime => {
-                tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::DateTime))
-            }
-            Self::Password => {
-                tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Password))
-            }
+            Self::Int32 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Int32
+            ))),
+            Self::Int64 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Int64
+            ))),
+            Self::Float => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Float
+            ))),
+            Self::Double => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Double
+            ))),
+            Self::Byte => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Byte
+            ))),
+            Self::Binary => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Binary
+            ))),
+            Self::Date => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Date
+            ))),
+            Self::DateTime => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::DateTime
+            ))),
+            Self::Password => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Password
+            ))),
             #[cfg(feature = "uuid")]
-            Self::Uuid => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Uuid)),
+            Self::Uuid => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Uuid
+            ))),
+            Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::SchemaFormat::Custom(
+                String::from(#value)
+            ))),
         };
     }
 }
