@@ -1,8 +1,8 @@
-use std::mem;
+use std::{mem, ops::DerefMut};
 
-use proc_macro2::{Ident, Span};
+use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -73,15 +73,31 @@ impl ToTokens for Capability {
             Capability::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
             Capability::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
             Capability::Title(title) => quote! { .title(Some(#title)) },
-            _unexpected => {
+            Capability::ValueType(_) => {
                 abort! {
                     Span::call_site(),
-                    "unexpected capability: {}, expected one of: Default, Example, Inline, XmlAttr, Format, WriteOnly, ReadOnly, Title", stringify!(_unexpected),
+                    "unexpected capability: {}, expected one of: Default, Example, Inline, XmlAttr, Format, WriteOnly, ReadOnly, Title", "ValueType",
                 }
             }
         };
 
         tokens.extend(capability)
+    }
+}
+
+pub struct CapabilityRef<'c, T: Name + ToTokens>(pub &'c T);
+
+impl<T> ToTokens for CapabilityRef<'_, T>
+where
+    T: Name + ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let capability = self.0;
+        let name_ident = format_ident!("{}", T::get_name());
+
+        tokens.extend(quote! {
+            .#name_ident(Some(#capability))
+        })
     }
 }
 
@@ -145,13 +161,13 @@ impl XmlAttr {
     /// one is for a vec and second one is for object field.
     pub fn split_for_vec(&mut self, type_tree: &TypeTree) -> (Option<XmlAttr>, Option<XmlAttr>) {
         if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
-            let mut value_xml = mem::take(&mut self.0);
+            let mut value_xml = mem::take(self);
             let vec_xml = schema::xml::XmlAttr::with_wrapped(
-                mem::take(&mut value_xml.is_wrapped),
-                mem::take(&mut value_xml.wrap_name),
+                mem::take(&mut value_xml.0.is_wrapped),
+                mem::take(&mut value_xml.0.wrap_name),
             );
 
-            (Some(XmlAttr(vec_xml)), Some(XmlAttr(value_xml)))
+            (Some(XmlAttr(vec_xml)), Some(XmlAttr(value_xml.0)))
         } else {
             self.validate_xml(&self.0);
 
@@ -332,7 +348,20 @@ pub fn parse_capablities(
         .map(|attribute| attribute.parse_args_with(parser).unwrap_or_abort())
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct CapabilitySet(pub Vec<Capability>);
+
+impl CapabilitySet {
+    /// Removes the found [`Capability`] from [`CapabilitySet`] and returns it.
+    ///
+    /// If capablity is not found by given operation `None` will be returned.
+    pub fn pop_by(&mut self, op: impl FnMut(&Capability) -> bool) -> Option<Capability> {
+        self.0
+            .iter()
+            .position(op)
+            .map(|index| self.0.swap_remove(index))
+    }
+}
 
 impl ToTokens for CapabilitySet {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -348,6 +377,12 @@ impl std::ops::Deref for CapabilitySet {
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
+    }
+}
+
+impl DerefMut for CapabilitySet {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.as_mut()
     }
 }
 

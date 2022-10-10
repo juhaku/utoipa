@@ -17,10 +17,8 @@ use crate::{
     Array, Deprecated,
 };
 
-use self::xml::Xml;
-
 use super::{
-    capabilities::{parse_capability_set, Capability, CapabilitySet},
+    capabilities::{parse_capability_set, Capability, CapabilityRef, CapabilitySet, XmlAttr},
     serde::{self, RenameRule, SerdeContainer, SerdeValue},
     GenericType, TypeTree, ValueType,
 };
@@ -297,7 +295,7 @@ impl ToTokens for NamedStructSchema<'_> {
 fn with_field_as_schema_property<R>(
     schema: &NamedStructSchema,
     field: &Field,
-    yield_: impl FnOnce(SchemaProperty<'_, NamedField<'_>>) -> R,
+    yield_: impl FnOnce(SchemaProperty<'_>) -> R,
 ) -> R {
     let type_tree = &mut TypeTree::from_type(&field.ty);
 
@@ -314,13 +312,17 @@ fn with_field_as_schema_property<R>(
     }
 
     let deprecated = super::get_deprecated(&field.attrs);
-    let attrs = SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
-    let override_type_tree = attrs
-        .as_ref()
-        .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
-    let xml_value = attrs
-        .as_ref()
-        .and_then(|named_field| named_field.as_ref().xml.as_ref());
+    let override_type_tree = value_type.as_ref().and_then(|capability| match capability {
+        Capability::ValueType(value_type) => Some(value_type.as_type_tree()),
+        _ => None,
+    });
+    // let attrs = SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
+    // let override_type_tree = attrs
+    //     .as_ref()
+    //     .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
+    // let xml_value = attrs
+    //     .as_ref()
+    //     .and_then(|named_field| named_field.as_ref().xml.as_ref());
     let comments = CommentAttributes::from_attributes(&field.attrs);
 
     yield_(SchemaProperty::new(
@@ -328,7 +330,6 @@ fn with_field_as_schema_property<R>(
         Some(&comments),
         attrs.as_ref(),
         deprecated.as_ref(),
-        xml_value,
     ))
 }
 
@@ -366,7 +367,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 first_part == schema_part
             });
 
-        let unnamed_struct_capabilities = capabilities::parse_schema_capabilities_with(
+        let mut unnamed_struct_capabilities = capabilities::parse_schema_capabilities_with(
             self.attributes,
             capabilities::parse_unnamed_field_struct_capabilities,
         );
@@ -374,14 +375,44 @@ impl ToTokens for UnnamedStructSchema<'_> {
         // let attrs = attr::parse_schema_attr::<SchemaAttr<UnnamedFieldStruct>>(self.attributes);
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let override_schema = unnamed_struct_capabilities
-                .as_ref()
-                .and_then(|capabilities| {
-                    capabilities.iter().find_map(|capability| match capability {
-                        Capability::ValueType(value_type) => Some(value_type.as_type_tree()),
-                        _ => None,
-                    })
+            let value_type = unnamed_struct_capabilities
+                .as_mut()
+                .and_then(|capablities| {
+                    capablities.pop_by(|capability| matches!(capability, Capability::ValueType(_)))
                 });
+            let xml_attributes = unnamed_struct_capabilities
+                .as_mut()
+                .and_then(|capablities| {
+                    capablities.pop_by(|capability| matches!(capability, Capability::XmlAttr(_)))
+                })
+                .and_then(|xml| match xml {
+                    Capability::XmlAttr(mut xml) => Some(xml.split_for_vec(first_part)),
+                    _ => None,
+                });
+
+            let override_schema = value_type.as_ref().and_then(|capability| match capability {
+                Capability::ValueType(value_type) => Some(value_type.as_type_tree()),
+                _ => None,
+            });
+            // let xml_attributes = unnamed_struct_capabilities
+            //     .as_mut()
+            //     .and_then(|capabilities| {
+            //         capabilities
+            //             .iter_mut()
+            //             .find_map(|capability| match capability {
+            //                 Capability::XmlAttr(xml) => Some(xml.split_for_vec(first_part)),
+            //                 _ => None,
+            //             })
+            //     });
+
+            // let override_schema = unnamed_struct_capabilities
+            //     .as_ref()
+            //     .and_then(|capabilities| {
+            //         capabilities.iter().find_map(|capability| match capability {
+            //             Capability::ValueType(value_type) => Some(value_type.as_type_tree()),
+            //             _ => None,
+            //         })
+            //     });
 
             if override_schema.is_some() {
                 is_object = override_schema
@@ -394,8 +425,9 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 SchemaProperty::new(
                     override_schema.as_ref().unwrap_or(first_part),
                     None,
-                    unnamed_struct_capabilities.as_mut(),
+                    unnamed_struct_capabilities.as_ref(),
                     deprecated.as_ref(),
+                    xml_attributes.as_ref(),
                 )
                 .to_token_stream(),
             );
@@ -1061,9 +1093,10 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 struct SchemaProperty<'a> {
     schema_part: &'a TypeTree<'a>,
     comments: Option<&'a CommentAttributes>,
-    capabilities: Option<&'a mut CapabilitySet>,
+    capabilities: Option<&'a CapabilitySet>,
     // attrs: Option<&'a SchemaAttr<T>>,
     deprecated: Option<&'a Deprecated>,
+    xml_attributes: Option<&'a (Option<XmlAttr>, Option<XmlAttr>)>,
     // xml: Option<&'a Xml>,
 }
 
@@ -1071,9 +1104,10 @@ impl<'a> SchemaProperty<'a> {
     fn new(
         schema_part: &'a TypeTree<'a>,
         comments: Option<&'a CommentAttributes>,
-        capabilities: Option<&'a mut CapabilitySet>,
+        capabilities: Option<&'a CapabilitySet>,
         // attrs: Option<&'a SchemaAttr<T>>,
         deprecated: Option<&'a Deprecated>,
+        xml_attributes: Option<&'a (Option<XmlAttr>, Option<XmlAttr>)>,
         // xml: Option<&'a Xml>,
     ) -> Self {
         Self {
@@ -1082,6 +1116,7 @@ impl<'a> SchemaProperty<'a> {
             // attrs,
             capabilities,
             deprecated,
+            xml_attributes,
             // xml,
         }
     }
@@ -1111,6 +1146,7 @@ impl ToTokens for SchemaProperty<'_> {
                     self.comments,
                     self.capabilities,
                     self.deprecated,
+                    self.xml_attributes,
                     // self.xml,
                 );
 
@@ -1126,16 +1162,12 @@ impl ToTokens for SchemaProperty<'_> {
                 }
             }
             Some(GenericType::Vec) => {
-                let xml = self.capabilities.and_then(|capabilities| {
-                    capabilities
-                        .into_iter()
-                        .find_map(|capability| match capability {
-                            Capability::XmlAttr(mut xml) => {
-                                Some(xml.split_for_vec(self.schema_part))
-                            }
-                            _ => None,
-                        })
-                });
+                // let xml = self.capabilities.as_ref().and_then(|capabilities| {
+                //     capabilities.iter().find_map(|capability| match capability {
+                //         Capability::XmlAttr(xml) => Some(xml.split_for_vec(self.schema_part)),
+                //         _ => None,
+                //     })
+                // });
 
                 let schema_property = SchemaProperty::new(
                     self.schema_part
@@ -1148,6 +1180,7 @@ impl ToTokens for SchemaProperty<'_> {
                     self.comments,
                     self.capabilities,
                     self.deprecated,
+                    self.xml_attributes,
                     // self.xml,
                 );
 
@@ -1156,9 +1189,16 @@ impl ToTokens for SchemaProperty<'_> {
                         .items(#schema_property)
                 });
 
-                if let Some(vec_xml) = xml.and_then(|xml| xml.0) {
-                    let xml_attr = Capability::XmlAttr(vec_xml);
-                    tokens.extend(xml_attr.to_token_stream());
+                // let xml = self.capabilities.as_ref().and_then(|capabilities| {
+                //     capabilities.iter().find_map(|capability| match capability {
+                //         Capability::XmlAttr(xml) => Some(xml.split_for_vec(self.schema_part)),
+                //         _ => None,
+                //     })
+                // });
+                if let Some(vec_xml) = self.xml_attributes.and_then(|xml| xml.0.as_ref()) {
+                    let xml_attr_ref = CapabilityRef(vec_xml);
+                    // let xml_attr = Capability::XmlAttr(vec_xml); // TODO can clone be avoided?????
+                    tokens.extend(xml_attr_ref.to_token_stream());
                 };
             }
             Some(GenericType::Option)
@@ -1177,6 +1217,7 @@ impl ToTokens for SchemaProperty<'_> {
                     self.capabilities,
                     self.deprecated,
                     // self.xml,
+                    self.xml_attributes,
                 );
 
                 tokens.extend(schema_property.into_token_stream())
@@ -1212,36 +1253,31 @@ impl ToTokens for SchemaProperty<'_> {
                             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
                         }
 
-                        let xml = self.capabilities.and_then(|capabilities| {
-                            capabilities.iter().find_map(|capability| match capability {
-                                Capability::XmlAttr(xml) => {
-                                    Some(xml.split_for_vec(self.schema_part))
-                                }
-                                _ => None,
-                            })
-                        });
+                        // let xml = self.capabilities.as_ref().and_then(|capabilities| {
+                        //     capabilities.iter().find_map(|capability| match capability {
+                        //         Capability::XmlAttr(xml) => {
+                        //             Some(xml.split_for_vec(self.schema_part))
+                        //         }
+                        //         _ => None,
+                        //     })
+                        // });
 
-                        if let Some(xml_value) = xml.and_then(|xml| xml.1) {
-                            let xml_attr = Capability::XmlAttr(xml_value);
+                        if let Some(xml_value) = self.xml_attributes.and_then(|xml| xml.1.as_ref())
+                        {
+                            let xml_attr = CapabilityRef(xml_value);
+                            // let xml_attr = Capability::XmlAttr(xml_value);
                             tokens.extend(xml_attr.to_token_stream());
                         }
 
-                        if let Some(attributes) = self.capabilities {
-                            tokens.extend(
-                                attributes
-                                    .0
-                                    .into_iter()
-                                    .filter(|capability| {
-                                        !matches!(capability, Capability::XmlAttr(_))
-                                    })
-                                    .collect::<CapabilitySet>()
-                                    .to_token_stream(),
-                            )
+                        if let Some(ref attributes) = self.capabilities {
+                            // TODO should be without xml here and value_type
+                            tokens.extend(attributes.to_token_stream())
                         }
                     }
                     ValueType::Object => {
                         let is_inline = self
                             .capabilities
+                            .as_ref()
                             .and_then(|capabilities| {
                                 capabilities.iter().find_map(|capability| match capability {
                                     Capability::Inline(inline) => Some(inline),
