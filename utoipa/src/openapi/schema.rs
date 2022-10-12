@@ -677,6 +677,13 @@ pub struct Object {
     /// Additional [`Xml`] formatting of the [`Object`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xml: Option<Xml>,
+
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub nullable: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl Object {
@@ -753,6 +760,8 @@ pub struct ObjectBuilder {
     example: Option<String>,
 
     xml: Option<Xml>,
+
+    nullable: bool,
 }
 
 impl ObjectBuilder {
@@ -870,14 +879,21 @@ impl ObjectBuilder {
         set_value!(self xml xml)
     }
 
+    /// Add or change nullable flag for [`Object`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
+    }
+
     to_array_builder!();
 
     build_fn!(pub Object schema_type, format, title, required, properties, description, 
-              deprecated, default, enum_values, example, write_only, read_only, xml, additional_properties);
+              deprecated, default, enum_values, example, write_only, read_only, xml,
+              additional_properties, nullable);
 }
 
 from!(Object ObjectBuilder schema_type, format, title, required, properties, description,
-      deprecated, default, enum_values,  example, write_only, read_only, xml, additional_properties);
+      deprecated, default, enum_values,  example, write_only, read_only, xml,
+      additional_properties, nullable);
 
 component_from_builder!(ObjectBuilder);
 

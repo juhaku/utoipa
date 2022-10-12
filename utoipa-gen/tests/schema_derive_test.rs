@@ -1370,6 +1370,26 @@ fn derive_struct_with_read_only_and_write_only() {
 }
 
 #[test]
+fn derive_struct_with_nullable() {
+    let user = api_doc! {
+        struct User {
+            #[schema(nullable)]
+            phone: Option<Option<String>>,
+            #[schema(nullable = false)]
+            email: String,
+            name: String
+        }
+    };
+
+    assert_value! {user=>
+        "properties.phone.type" = r###""string""###, "User phone type"
+        "properties.phone.nullable" = r###"true"###, "User phone nullable"
+        "properties.email.nullable" = r###"null"###, "User email not nullable"
+        "properties.name.nullable" = r###"null"###, "User name not nullable"
+    }
+}
+
+#[test]
 fn derive_struct_xml() {
     let user = api_doc! {
         #[schema(xml(name = "user", prefix = "u", namespace = "https://mynamespace.test"))]

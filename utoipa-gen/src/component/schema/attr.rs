@@ -109,6 +109,7 @@ pub struct NamedField<'c> {
     xml_attr: Option<XmlAttr>,
     pub(super) xml: Option<Xml>,
     inline: bool,
+    nullable: Option<bool>,
 }
 
 impl IsInline for NamedField<'_> {
@@ -348,7 +349,7 @@ fn is_valid_xml_attr(attrs: &SchemaAttr<NamedField>, component_part: &TypeTree) 
 
 impl<'c> Parse for SchemaAttr<NamedField<'c>> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml, value_type, inline";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: example, format, default, write_only, read_only, xml, value_type, inline, nullable";
         let mut field = NamedField::default();
 
         while !input.is_empty() {
@@ -388,7 +389,8 @@ impl<'c> Parse for SchemaAttr<NamedField<'c>> {
                     field.value_type = Some(parse_utils::parse_next(input, || {
                         input.parse::<syn::Type>()
                     })?);
-                }
+                },
+                "nullable" => field.nullable = Some(parse_utils::parse_bool_or_true(input)?),
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
 
@@ -509,6 +511,12 @@ impl ToTokens for NamedField<'_> {
         if let Some(ref read_only) = self.read_only {
             tokens.extend(quote! {
                 .read_only(Some(#read_only))
+            })
+        }
+
+        if let Some(nullable) = self.nullable {
+            tokens.extend(quote! {
+                .nullable(#nullable)
             })
         }
     }
