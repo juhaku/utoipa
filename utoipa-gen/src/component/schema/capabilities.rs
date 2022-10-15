@@ -5,8 +5,8 @@ use syn::{
 };
 
 use crate::component::capabilities::{
-    parse_capability_set, CapabilitySet, Default, Example, Format, Inline, ReadOnly, Title,
-    ValueType, WriteOnly, XmlAttr,
+    parse_capability_set, CapabilitySet, Default, Example, Format, Inline, Nullable, ReadOnly,
+    Title, ValueType, WriteOnly, XmlAttr,
 };
 
 pub fn parse_struct_capabilities(input: ParseStream) -> syn::Result<CapabilitySet> {
@@ -37,7 +37,8 @@ pub fn parse_named_field_capabilities(attributes: &[Attribute]) -> Option<Capabi
             WriteOnly,
             ReadOnly,
             XmlAttr,
-            Inline
+            Inline,
+            Nullable
         ))
     })
 }

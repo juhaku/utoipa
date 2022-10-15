@@ -42,10 +42,11 @@ pub enum Capability {
     WriteOnly(WriteOnly),
     ReadOnly(ReadOnly),
     Title(Title),
+    Nullable(Nullable),
 }
 
 impl Capability {
-    pub fn parse_named<T: Name>(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    pub fn parse_named<T: Name>(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
         let name = T::get_name();
         match name {
             "default" => Default::parse(input).map(Self::Default),
@@ -57,7 +58,8 @@ impl Capability {
             "write_only" => WriteOnly::parse(input).map(Self::WriteOnly),
             "read_only" => ReadOnly::parse(input).map(Self::ReadOnly),
             "title" => Title::parse(input).map(Self::Title),
-            _unexpected => Err(syn::Error::new(Span::call_site(), format!("unexpected name: {}, expected one of: default, example, inline, xml, format, value_type, write_only, read_only, title", _unexpected))),
+            "nullable" => Nullable::parse(input).map(Self::Nullable),
+            _unexpected => Err(syn::Error::new(ident.span(), format!("unexpected name: {}, expected one of: default, example, inline, xml, format, value_type, write_only, read_only, title", _unexpected))),
         }
     }
 }
@@ -73,6 +75,7 @@ impl ToTokens for Capability {
             Capability::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
             Capability::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
             Capability::Title(title) => quote! { .title(Some(#title)) },
+            Capability::Nullable(nullable) => quote! { .nullable(#nullable) },
             Capability::ValueType(_) => {
                 abort! {
                     Span::call_site(),
@@ -293,6 +296,22 @@ impl ToTokens for Title {
 
 name!(Title = "title");
 
+pub struct Nullable(bool);
+
+impl Parse for Nullable {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for Nullable {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+name!(Nullable = "nullable");
+
 macro_rules! parse_capability_set {
     ($ident:ident as $( $capability:path ),*) => {
         {
@@ -312,7 +331,7 @@ macro_rules! parse_capability_set {
 
                     $(
                         if name == <crate::component::capabilities::parse_capability_set!(@as_ident $capability) as crate::component::capabilities::Name>::get_name() {
-                            capabilities.push(crate::component::capabilities::Capability::parse_named::<$capability>(input)?);
+                            capabilities.push(crate::component::capabilities::Capability::parse_named::<$capability>(input, ident)?);
                             if !input.is_empty() {
                                 input.parse::<syn::Token![,]>()?;
                             }
