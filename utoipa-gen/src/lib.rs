@@ -99,6 +99,7 @@ use ext::ArgumentResolver;
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
+/// * `nullable` Defines property is nullable (note this is different to non-required).
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
