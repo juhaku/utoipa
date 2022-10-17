@@ -2,6 +2,7 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
+use serde::Deserializer;
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
@@ -213,7 +214,7 @@ impl ComponentsBuilder {
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
@@ -234,6 +235,60 @@ pub enum Schema {
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf),
+}
+
+impl<'de> Deserialize<'de> for Schema {
+    fn deserialize<D>(deserializer: D) -> Result<Schema, D::Error>
+    where
+        D: Deserializer<'de>
+    {
+        let v: Value = serde::Deserialize::deserialize(deserializer)?;
+        match &v {
+            Value::Object(ob) => {
+                if ob.contains_key("type") {
+                    match ob.get("type").unwrap() {
+                        Value::String(s) => {
+                            if s == "object" {
+                                let ro: Result<Object, serde_json::Error> = serde::Deserialize::deserialize(v);
+                                match ro {
+                                    Ok(o) => Ok(Schema::Object(o)),
+                                    Err(msg) => panic!("{}", msg)
+                                }
+                            } else if s == "array" {
+                                let ro: Result<Array, serde_json::Error> = serde::Deserialize::deserialize(v);
+                                match ro {
+                                    Ok(o) => Ok(Schema::Array(o)),
+                                    Err(msg) => panic!("{}", msg)
+                                }
+                            } else if s == "oneof" {
+                                let ro: Result<OneOf, serde_json::Error> = serde::Deserialize::deserialize(v);
+                                match ro {
+                                    Ok(o) => Ok(Schema::OneOf(o)),
+                                    Err(msg) => panic!("{}", msg)
+                                }
+                            } else if s == "allof" {
+                                let ro: Result<AllOf, serde_json::Error> = serde::Deserialize::deserialize(v);
+                                match ro {
+                                    Ok(o) => Ok(Schema::AllOf(o)),
+                                    Err(msg) => panic!("{}", msg)
+                                }
+                            } else {
+                                panic!("Can not deserialize unsupported schema type '{}'!", s)
+                            }
+                        }
+                        _ => {
+                            panic!("Object `type` attribute needs to of type string!")
+                        }
+                    }
+                } else {
+                    panic!("Deserialized object has no key named `type`, can not derive Schema Type!")
+                }
+            }
+            _ => {
+                panic!("Deserializing Schema requires that the input is of type Object!")
+            }
+        }
+    }
 }
 
 impl Default for Schema {
