@@ -6,7 +6,6 @@ use serde::Deserializer;
 use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "serde_json")]
 use serde_json::Value;
 
 use super::{

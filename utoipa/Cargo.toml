@@ -24,7 +24,7 @@ debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]
 rocket_extras = ["utoipa-gen/rocket_extras"]
 axum_extras = ["utoipa-gen/axum_extras"]
-json = ["serde_json", "utoipa-gen/json"]
+json = [ "utoipa-gen/json"]
 chrono = ["utoipa-gen/chrono"]
 decimal = ["utoipa-gen/decimal"]
 yaml = ["serde_yaml", "utoipa-gen/yaml"]
@@ -36,7 +36,7 @@ repr = ["utoipa-gen/repr"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", optional = true }
+serde_json = { version = "1.0" }
 serde_yaml = { version = "0.9", optional = true }
 utoipa-gen = { version = "2.2.0", path = "../utoipa-gen" }
 indexmap = { version = "1", features = ["serde"] }
