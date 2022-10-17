@@ -271,7 +271,10 @@ impl<'de> Deserialize<'de> for Schema {
                                     Ok(o) => Ok(Schema::AllOf(o)),
                                     Err(msg) => panic!("{}", msg)
                                 }
-                            } else {
+                            } else if s == "string" {
+                                Ok(Schema::Object(ObjectBuilder::new().schema_type(SchemaType::String).build()))
+                            }
+                            else {
                                 println!("{v:#?}");
                                 panic!("Can not deserialize unsupported schema type '{}'!", s)
                             }
