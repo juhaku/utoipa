@@ -272,6 +272,7 @@ impl<'de> Deserialize<'de> for Schema {
                                     Err(msg) => panic!("{}", msg)
                                 }
                             } else {
+                                println!("{v:#?}");
                                 panic!("Can not deserialize unsupported schema type '{}'!", s)
                             }
                         }
