@@ -1285,11 +1285,18 @@ fn derive_complex_enum_serde_tag() {
 }
 
 #[test]
-fn derive_flatten() {
+fn derive_serde_flatten() {
     #[derive(Serialize)]
-    struct Payload {
+    struct Record {
         amount: i64,
         description: String,
+    }
+
+    #[derive(Serialize)]
+    struct Pagination {
+        page: i64,
+        next_page: i64,
+        per_page: i64,
     }
 
     let value: Value = api_doc! {
@@ -1297,18 +1304,21 @@ fn derive_flatten() {
         struct NamedFields {
             id: &'static str,
             #[serde(flatten)]
-            record: Payload
+            record: Record,
+            #[serde(flatten)]
+            pagination: Pagination
         }
     };
-
-    println!("{value:#?}");
 
     assert_json_eq!(
         value,
         json!({
             "allOf": [
                 {
-                    "$ref": "#/components/schemas/Payload"
+                    "$ref": "#/components/schemas/Record"
+                },
+                {
+                    "$ref": "#/components/schemas/Pagination"
                 },
                 {
                     "type": "object",
