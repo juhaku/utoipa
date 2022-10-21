@@ -230,52 +230,17 @@ impl ToTokens for NamedStructSchema<'_> {
                 let name = &rename_field(&container_rules, &mut field_rule, field_name)
                     .unwrap_or_else(|| String::from(field_name));
 
-                let type_tree = &mut TypeTree::from_type(&field.ty);
-
-                if let Some((generic_types, alias)) = self.generics.zip(self.alias) {
-                    generic_types
-                        .type_params()
-                        .enumerate()
-                        .for_each(|(index, generic)| {
-                            if let Some(generic_type) = type_tree.find_mut_by_ident(&generic.ident)
-                            {
-                                generic_type.update_path(
-                                    &alias.generics.type_params().nth(index).unwrap().ident,
-                                );
-                            };
-                        })
-                }
-
-                let deprecated = super::get_deprecated(&field.attrs);
-                let attrs =
-                    SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
-
-                let override_type_tree = attrs
-                    .as_ref()
-                    .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
-
-                let xml_value = attrs
-                    .as_ref()
-                    .and_then(|named_field| named_field.as_ref().xml.as_ref());
-                let comments = CommentAttributes::from_attributes(&field.attrs);
-
-                let schema_property = SchemaProperty::new(
-                    override_type_tree.as_ref().unwrap_or(type_tree),
-                    Some(&comments),
-                    attrs.as_ref(),
-                    deprecated.as_ref(),
-                    xml_value,
-                );
-
-                object_tokens.extend(quote! {
-                    .property(#name, #schema_property)
-                });
-
-                if !schema_property.is_option() && !is_default(&container_rules, &field_rule) {
+                with_field_as_schema_property(self, field, |schema_property| {
                     object_tokens.extend(quote! {
-                        .required(#name)
-                    })
-                }
+                        .property(#name, #schema_property)
+                    });
+
+                    if !schema_property.is_option() && !is_default(&container_rules, &field_rule) {
+                        object_tokens.extend(quote! {
+                            .required(#name)
+                        })
+                    }
+                })
             });
 
         if !flatten_fields.is_empty() {
@@ -284,32 +249,9 @@ impl ToTokens for NamedStructSchema<'_> {
             });
 
             for field in flatten_fields {
-                // TODO: Clean up duplicate code
-                let type_tree = &mut TypeTree::from_type(&field.ty);
-                let deprecated = super::get_deprecated(&field.attrs);
-                let attrs =
-                    SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
-
-                let override_type_tree = attrs
-                    .as_ref()
-                    .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
-
-                let xml_value = attrs
-                    .as_ref()
-                    .and_then(|named_field| named_field.as_ref().xml.as_ref());
-                let comments = CommentAttributes::from_attributes(&field.attrs);
-
-                let schema_property = SchemaProperty::new(
-                    override_type_tree.as_ref().unwrap_or(type_tree),
-                    Some(&comments),
-                    attrs.as_ref(),
-                    deprecated.as_ref(),
-                    xml_value,
-                );
-
-                tokens.extend(quote! {
-                    .item(#schema_property)
-                });
+                with_field_as_schema_property(self, field, |schema_property| {
+                    tokens.extend(quote! { .item(#schema_property) });
+                })
             }
 
             tokens.extend(quote! {
@@ -334,6 +276,44 @@ impl ToTokens for NamedStructSchema<'_> {
             })
         }
     }
+}
+
+fn with_field_as_schema_property<R>(
+    schema: &NamedStructSchema,
+    field: &Field,
+    yield_: impl FnOnce(SchemaProperty<'_, NamedField<'_>>) -> R,
+) -> R {
+    let type_tree = &mut TypeTree::from_type(&field.ty);
+
+    if let Some((generic_types, alias)) = schema.generics.zip(schema.alias) {
+        generic_types
+            .type_params()
+            .enumerate()
+            .for_each(|(index, generic)| {
+                if let Some(generic_type) = type_tree.find_mut_by_ident(&generic.ident) {
+                    generic_type
+                        .update_path(&alias.generics.type_params().nth(index).unwrap().ident);
+                };
+            })
+    }
+
+    let deprecated = super::get_deprecated(&field.attrs);
+    let attrs = SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
+    let override_type_tree = attrs
+        .as_ref()
+        .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
+    let xml_value = attrs
+        .as_ref()
+        .and_then(|named_field| named_field.as_ref().xml.as_ref());
+    let comments = CommentAttributes::from_attributes(&field.attrs);
+
+    yield_(SchemaProperty::new(
+        override_type_tree.as_ref().unwrap_or(type_tree),
+        Some(&comments),
+        attrs.as_ref(),
+        deprecated.as_ref(),
+        xml_value,
+    ))
 }
 
 #[inline]
