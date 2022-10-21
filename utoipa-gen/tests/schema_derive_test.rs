@@ -1285,6 +1285,48 @@ fn derive_complex_enum_serde_tag() {
 }
 
 #[test]
+fn derive_flatten() {
+    #[derive(Serialize)]
+    struct Payload {
+        amount: i64,
+        description: String,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        struct NamedFields {
+            id: &'static str,
+            #[serde(flatten)]
+            record: Payload
+        }
+    };
+
+    println!("{value:#?}");
+
+    assert_json_eq!(
+        value,
+        json!({
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/Payload"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                        },
+                    },
+                    "required": [
+                        "id",
+                    ],
+                },
+            ]
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_serde_tag_title() {
     #[derive(Serialize)]
     struct Foo(String);

@@ -194,13 +194,25 @@ struct NamedStructSchema<'a> {
 impl ToTokens for NamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
+        let mut object_tokens = quote! { utoipa::openapi::ObjectBuilder::new() };
 
-        tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() });
+        let flatten_fields: Vec<&Field> = self
+            .fields
+            .iter()
+            .filter(|field| {
+                let field_rule = serde::parse_value(&field.attrs);
+                is_flatten(&field_rule)
+            })
+            .collect();
 
         self.fields
             .iter()
             .filter_map(|field| {
                 let field_rule = serde::parse_value(&field.attrs);
+
+                if is_flatten(&field_rule) {
+                    return None;
+                };
 
                 if is_not_skipped(&field_rule) {
                     Some((field, field_rule))
@@ -255,16 +267,57 @@ impl ToTokens for NamedStructSchema<'_> {
                     xml_value,
                 );
 
-                tokens.extend(quote! {
+                object_tokens.extend(quote! {
                     .property(#name, #schema_property)
                 });
 
                 if !schema_property.is_option() && !is_default(&container_rules, &field_rule) {
-                    tokens.extend(quote! {
+                    object_tokens.extend(quote! {
                         .required(#name)
                     })
                 }
             });
+
+        if !flatten_fields.is_empty() {
+            tokens.extend(quote! {
+                utoipa::openapi::AllOfBuilder::new()
+            });
+
+            for field in flatten_fields {
+                // TODO: Clean up duplicate code
+                let type_tree = &mut TypeTree::from_type(&field.ty);
+                let deprecated = super::get_deprecated(&field.attrs);
+                let attrs =
+                    SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
+
+                let override_type_tree = attrs
+                    .as_ref()
+                    .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
+
+                let xml_value = attrs
+                    .as_ref()
+                    .and_then(|named_field| named_field.as_ref().xml.as_ref());
+                let comments = CommentAttributes::from_attributes(&field.attrs);
+
+                let schema_property = SchemaProperty::new(
+                    override_type_tree.as_ref().unwrap_or(type_tree),
+                    Some(&comments),
+                    attrs.as_ref(),
+                    deprecated.as_ref(),
+                    xml_value,
+                );
+
+                tokens.extend(quote! {
+                    .item(#schema_property)
+                });
+            }
+
+            tokens.extend(quote! {
+                .item(#object_tokens)
+            })
+        } else {
+            tokens.extend(object_tokens)
+        }
 
         if let Some(deprecated) = super::get_deprecated(self.attributes) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
@@ -1152,6 +1205,13 @@ fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
     rule.as_ref()
         .map(|value| value.skip.is_none())
         .unwrap_or(true)
+}
+
+#[inline]
+fn is_flatten(rule: &Option<SerdeValue>) -> bool {
+    rule.as_ref()
+        .map(|value| value.flatten.is_some())
+        .unwrap_or(false)
 }
 
 /// Resolves the appropriate [`RenameRule`] to apply to the specified `struct` `field` name given a
