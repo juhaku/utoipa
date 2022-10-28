@@ -272,15 +272,15 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(object_tokens)
         }
 
-        if let Some(deprecated) = super::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
+        // if let Some(deprecated) = super::get_deprecated(self.attributes) {
+        //     tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        // }
 
-        let struct_capabilities = capabilities::parse_schema_capabilities_with(
-            self.attributes,
-            capabilities::parse_struct_capabilities,
-        );
-        if let Some(struct_capabilities) = struct_capabilities {
+        // let struct_capabilities = capabilities::parse_schema_capabilities_with(
+        //     self.attributes,
+        //     capabilities::parse_struct_capabilities,
+        // );
+        if let Some(struct_capabilities) = self.capablities.as_ref() {
             tokens.extend(struct_capabilities.to_token_stream())
         }
 
@@ -298,6 +298,7 @@ fn with_field_as_schema_property<R>(
     yield_: impl FnOnce(SchemaProperty<'_>) -> R,
 ) -> R {
     let type_tree = &mut TypeTree::from_type(&field.ty);
+    let mut field_capablities = capabilities::parse_named_field_capabilities(&field.attrs);
 
     if let Some((generic_types, alias)) = schema.generics.zip(schema.alias) {
         generic_types
@@ -311,25 +312,32 @@ fn with_field_as_schema_property<R>(
             })
     }
 
+    let value_type = field_capablities.as_mut().and_then(|capablities| {
+        capablities.pop_by(|capability| matches!(capability, Capability::ValueType(_)))
+    });
     let deprecated = super::get_deprecated(&field.attrs);
     let override_type_tree = value_type.as_ref().and_then(|capability| match capability {
         Capability::ValueType(value_type) => Some(value_type.as_type_tree()),
         _ => None,
     });
-    // let attrs = SchemaAttr::<NamedField>::from_attributes_validated(&field.attrs, type_tree);
-    // let override_type_tree = attrs
-    //     .as_ref()
-    //     .and_then(|field| field.as_ref().value_type.as_ref().map(TypeTree::from_type));
-    // let xml_value = attrs
-    //     .as_ref()
-    //     .and_then(|named_field| named_field.as_ref().xml.as_ref());
+
+    let xml_attributes = field_capablities
+        .as_mut()
+        .and_then(|capablities| {
+            capablities.pop_by(|capability| matches!(capability, Capability::XmlAttr(_)))
+        })
+        .and_then(|xml| match xml {
+            Capability::XmlAttr(mut xml) => Some(xml.split_for_vec(type_tree)),
+            _ => None,
+        });
     let comments = CommentAttributes::from_attributes(&field.attrs);
 
     yield_(SchemaProperty::new(
         override_type_tree.as_ref().unwrap_or(type_tree),
         Some(&comments),
-        attrs.as_ref(),
+        field_capablities.as_ref(),
         deprecated.as_ref(),
+        xml_attributes.as_ref(),
     ))
 }
 
@@ -740,6 +748,7 @@ impl ComplexEnum<'_> {
                     capabilities::parse_struct_capabilities,
                 );
 
+                dbg!(&named_struct_capabilities);
                 FieldVariantTokens::to_tokens(
                     &EnumVariantTokens(&variant_name, CapabilitySet(title_capabilities)),
                     NamedStructSchema {
