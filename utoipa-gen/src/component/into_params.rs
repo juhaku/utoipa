@@ -273,7 +273,11 @@ impl ToTokens for Param<'_> {
                     .unwrap_or_abort()
             });
 
-        if let Some(IntoParamsFieldParamsAttr { rename: Some(ref name), ..}) = field_param_attrs {
+        if let Some(IntoParamsFieldParamsAttr {
+            rename: Some(ref name),
+            ..
+        }) = field_param_attrs
+        {
             tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
                 .name(#name)
             });
@@ -381,9 +385,7 @@ impl Parse for IntoParamsFieldParamsAttr {
                             input.parse::<syn::Type>()
                         })?)
                     }
-                    "rename" => {
-                        param.rename = Some(parse_utils::parse_next_literal_str(input)?)
-                    }
+                    "rename" => param.rename = Some(parse_utils::parse_next_literal_str(input)?),
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
 

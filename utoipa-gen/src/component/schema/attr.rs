@@ -389,7 +389,7 @@ impl<'c> Parse for SchemaAttr<NamedField<'c>> {
                     field.value_type = Some(parse_utils::parse_next(input, || {
                         input.parse::<syn::Type>()
                     })?);
-                },
+                }
                 "nullable" => field.nullable = Some(parse_utils::parse_bool_or_true(input)?),
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
             }
