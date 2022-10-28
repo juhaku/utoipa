@@ -1285,6 +1285,107 @@ fn derive_complex_enum_serde_tag() {
 }
 
 #[test]
+fn derive_serde_flatten() {
+    #[derive(Serialize)]
+    struct Metadata {
+        category: String,
+        total: u64,
+    }
+
+    #[derive(Serialize)]
+    struct Record {
+        amount: i64,
+        description: String,
+        #[serde(flatten)]
+        metadata: Metadata,
+    }
+
+    #[derive(Serialize)]
+    struct Pagination {
+        page: i64,
+        next_page: i64,
+        per_page: i64,
+    }
+
+    // Single flatten field
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        struct Record {
+            amount: i64,
+            description: String,
+            #[serde(flatten)]
+            metadata: Metadata,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "allOf": [
+            {
+                "$ref": "#/components/schemas/Metadata"
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "amount": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "description": {
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "amount",
+                    "description"
+                ],
+            },
+            ]
+        })
+    );
+
+    // Multiple flatten fields, with field that contain flatten as well.
+    // Record contain Metadata that is flatten as well, but it doesn't matter
+    // here as the generated spec will reference to Record directly.
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        struct NamedFields {
+            id: &'static str,
+            #[serde(flatten)]
+            record: Record,
+            #[serde(flatten)]
+            pagination: Pagination
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "allOf": [
+            {
+                "$ref": "#/components/schemas/Record"
+            },
+            {
+                "$ref": "#/components/schemas/Pagination"
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "id",
+                ],
+            },
+            ]
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_serde_tag_title() {
     #[derive(Serialize)]
     struct Foo(String);
