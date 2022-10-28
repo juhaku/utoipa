@@ -1407,40 +1407,40 @@ fn derive_complex_enum_serde_tag_title() {
         value,
         json!({
             "oneOf": [
-            {
-                "type": "object",
-                "title": "Unit",
-                "properties": {
-                    "tag": {
-                        "type": "string",
-                        "enum": [
-                            "UnitValue",
-                        ],
+                {
+                    "type": "object",
+                    "title": "Unit",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "UnitValue",
+                            ],
+                        },
                     },
+                    "required": [
+                        "tag",
+                    ],
                 },
-                "required": [
-                    "tag",
-                ],
-            },
-            {
-                "type": "object",
-                "title": "Named",
-                "properties": {
-                    "id": {
-                        "type": "string",
+                {
+                    "type": "object",
+                    "title": "Named",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                        },
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "NamedFields",
+                            ],
+                        },
                     },
-                    "tag": {
-                        "type": "string",
-                        "enum": [
-                            "NamedFields",
-                        ],
-                    },
+                    "required": [
+                        "id",
+                        "tag",
+                    ],
                 },
-                "required": [
-                    "id",
-                    "tag",
-                ],
-            },
             ],
             "discriminator": {
                 "propertyName": "tag"
@@ -1886,14 +1886,14 @@ fn derive_parse_serde_complex_enum() {
         enum Bar {
             UnitValue,
             #[serde(rename_all = "camelCase")]
-                NamedFields {
-                    #[serde(rename = "id")]
-                    named_id: &'static str,
-                    name_list: Option<Vec<String>>
-                },
-                UnnamedFields(Foo),
-                #[serde(skip)]
-                Random,
+            NamedFields {
+                #[serde(rename = "id")]
+                named_id: &'static str,
+                name_list: Option<Vec<String>>
+            },
+            UnnamedFields(Foo),
+            #[serde(skip)]
+            Random,
         }
     };
 
@@ -2066,28 +2066,28 @@ fn derive_component_with_complex_enum_lifetimes() {
         doc,
         json!({
             "oneOf": [
-            {
-                "properties": {
-                    "A": {
-                        "properties": {
-                            "foo": {
-                                "$ref": "#/components/schemas/Foo"
-                            }
+                {
+                    "properties": {
+                        "A": {
+                            "properties": {
+                                "foo": {
+                                    "$ref": "#/components/schemas/Foo"
+                                }
+                            },
+                            "required": ["foo"],
+                            "type": "object"
                         },
-                        "required": ["foo"],
-                        "type": "object"
                     },
+                    "type": "object"
                 },
-                "type": "object"
-            },
-            {
-                "enum": ["B"],
-                "type": "string"
-            },
-            {
-                "enum": ["C"],
-                "type": "string"
-            }
+                {
+                    "enum": ["B"],
+                    "type": "string"
+                },
+                {
+                    "enum": ["C"],
+                    "type": "string"
+                }
             ]
         })
     )
@@ -2226,48 +2226,48 @@ fn derive_schema_for_tagged_repr_enum() {
         value,
         json!({
             "oneOf": [
-            {
-                "type": "object",
-                "properties": {
-                    "tag": {
-                        "type": "integer",
-                        "enum": [
-                            0,
-                        ],
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                            ],
+                        },
                     },
+                    "required": [
+                        "tag",
+                    ],
                 },
-                "required": [
-                    "tag",
-                ],
-            },
-            {
-                "type": "object",
-                "properties": {
-                    "tag": {
-                        "type": "integer",
-                        "enum": [
-                            1,
-                        ],
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "integer",
+                            "enum": [
+                                1,
+                            ],
+                        },
                     },
+                    "required": [
+                        "tag",
+                    ],
                 },
-                "required": [
-                    "tag",
-                ],
-            },
-            {
-                "type": "object",
-                "properties": {
-                    "tag": {
-                        "type": "integer",
-                        "enum": [
-                            2,
-                        ],
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "integer",
+                            "enum": [
+                                2,
+                            ],
+                        },
                     },
+                    "required": [
+                        "tag",
+                    ],
                 },
-                "required": [
-                    "tag",
-                ],
-            },
             ],
         })
     );
