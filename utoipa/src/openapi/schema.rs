@@ -4,7 +4,7 @@
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
 use std::collections::{BTreeMap, HashMap};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 #[cfg(feature = "serde_json")]
 use serde_json::Value;
 

@@ -296,6 +296,7 @@ impl ToTokens for Title {
 
 name!(Title = "title");
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Nullable(bool);
 
 impl Parse for Nullable {
