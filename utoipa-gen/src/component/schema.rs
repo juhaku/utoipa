@@ -272,9 +272,9 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(object_tokens)
         }
 
-        // if let Some(deprecated) = super::get_deprecated(self.attributes) {
-        //     tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        // }
+        if let Some(deprecated) = super::get_deprecated(self.attributes) {
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
 
         // let struct_capabilities = capabilities::parse_schema_capabilities_with(
         //     self.attributes,
@@ -748,7 +748,6 @@ impl ComplexEnum<'_> {
                     capabilities::parse_struct_capabilities,
                 );
 
-                dbg!(&named_struct_capabilities);
                 FieldVariantTokens::to_tokens(
                     &EnumVariantTokens(&variant_name, CapabilitySet(title_capabilities)),
                     NamedStructSchema {
