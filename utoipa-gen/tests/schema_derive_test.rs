@@ -1287,9 +1287,17 @@ fn derive_complex_enum_serde_tag() {
 #[test]
 fn derive_serde_flatten() {
     #[derive(Serialize)]
+    struct Metadata {
+        category: String,
+        total: u64,
+    }
+
+    #[derive(Serialize)]
     struct Record {
         amount: i64,
         description: String,
+        #[serde(flatten)]
+        metadata: Metadata,
     }
 
     #[derive(Serialize)]
@@ -1299,6 +1307,47 @@ fn derive_serde_flatten() {
         per_page: i64,
     }
 
+    // Single flatten field
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        struct Record {
+            amount: i64,
+            description: String,
+            #[serde(flatten)]
+            metadata: Metadata,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "allOf": [
+            {
+                "$ref": "#/components/schemas/Metadata"
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "amount": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "description": {
+                        "type": "string",
+                    },
+                },
+                "required": [
+                    "amount",
+                    "description"
+                ],
+            },
+            ]
+        })
+    );
+
+    // Multiple flatten fields, with field that contain flatten as well.
+    // Record contain Metadata that is flatten as well, but it doesn't matter
+    // here as the generated spec will reference to Record directly.
     let value: Value = api_doc! {
         #[derive(Serialize)]
         struct NamedFields {
@@ -1314,23 +1363,23 @@ fn derive_serde_flatten() {
         value,
         json!({
             "allOf": [
-                {
-                    "$ref": "#/components/schemas/Record"
-                },
-                {
-                    "$ref": "#/components/schemas/Pagination"
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                        },
+            {
+                "$ref": "#/components/schemas/Record"
+            },
+            {
+                "$ref": "#/components/schemas/Pagination"
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
                     },
-                    "required": [
-                        "id",
-                    ],
                 },
+                "required": [
+                    "id",
+                ],
+            },
             ]
         })
     );
@@ -1358,40 +1407,40 @@ fn derive_complex_enum_serde_tag_title() {
         value,
         json!({
             "oneOf": [
-                {
-                    "type": "object",
-                    "title": "Unit",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "UnitValue",
-                            ],
-                        },
+            {
+                "type": "object",
+                "title": "Unit",
+                "properties": {
+                    "tag": {
+                        "type": "string",
+                        "enum": [
+                            "UnitValue",
+                        ],
                     },
-                    "required": [
-                        "tag",
-                    ],
                 },
-                {
-                    "type": "object",
-                    "title": "Named",
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                        },
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "NamedFields",
-                            ],
-                        },
+                "required": [
+                    "tag",
+                ],
+            },
+            {
+                "type": "object",
+                "title": "Named",
+                "properties": {
+                    "id": {
+                        "type": "string",
                     },
-                    "required": [
-                        "id",
-                        "tag",
-                    ],
+                    "tag": {
+                        "type": "string",
+                        "enum": [
+                            "NamedFields",
+                        ],
+                    },
                 },
+                "required": [
+                    "id",
+                    "tag",
+                ],
+            },
             ],
             "discriminator": {
                 "propertyName": "tag"
@@ -1413,11 +1462,11 @@ fn derive_struct_with_read_only_and_write_only() {
 
     assert_value! {user=>
         "properties.password.type" = r###""string""###, "User password type"
-        "properties.password.writeOnly" = r###"true"###, "User password write only"
-        "properties.password.readOnly" = r###"null"###, "User password read only"
-        "properties.username.type" = r###""string""###, "User username type"
-        "properties.username.readOnly" = r###"true"###, "User username read only"
-        "properties.username.writeOnly" = r###"null"###, "User username write only"
+            "properties.password.writeOnly" = r###"true"###, "User password write only"
+            "properties.password.readOnly" = r###"null"###, "User password read only"
+            "properties.username.type" = r###""string""###, "User username type"
+            "properties.username.readOnly" = r###"true"###, "User username read only"
+            "properties.username.writeOnly" = r###"null"###, "User username write only"
     }
 }
 
@@ -1435,9 +1484,9 @@ fn derive_struct_with_nullable() {
 
     assert_value! {user=>
         "properties.phone.type" = r###""string""###, "User phone type"
-        "properties.phone.nullable" = r###"true"###, "User phone nullable"
-        "properties.email.nullable" = r###"null"###, "User email not nullable"
-        "properties.name.nullable" = r###"null"###, "User name not nullable"
+            "properties.phone.nullable" = r###"true"###, "User phone nullable"
+            "properties.email.nullable" = r###"null"###, "User email not nullable"
+            "properties.name.nullable" = r###"null"###, "User name not nullable"
     }
 }
 
@@ -1459,37 +1508,37 @@ fn derive_struct_xml() {
 
     assert_value! {user=>
         "xml.attribute" = r###"null"###, "User xml attribute"
-        "xml.name" = r###""user""###, "User xml name"
-        "xml.prefix" = r###""u""###, "User xml prefix"
-        "xml.namespace" = r###""https://mynamespace.test""###, "User xml namespace"
-        "properties.id.xml.attribute" = r###"true"###, "User id xml attribute"
-        "properties.id.xml.name" = r###"null"###, "User id xml name"
-        "properties.id.xml.prefix" = r###""u""###, "User id xml prefix"
-        "properties.id.xml.namespace" = r###"null"###, "User id xml namespace"
-        "properties.username.xml.attribute" = r###"null"###, "User username xml attribute"
-        "properties.username.xml.name" = r###""user_name""###, "User username xml name"
-        "properties.username.xml.prefix" = r###""u""###, "User username xml prefix"
-        "properties.username.xml.namespace" = r###"null"###, "User username xml namespace"
-        "properties.links.xml.attribute" = r###"null"###, "User links xml attribute"
-        "properties.links.xml.name" = r###""linkList""###, "User links xml name"
-        "properties.links.xml.prefix" = r###"null"###, "User links xml prefix"
-        "properties.links.xml.namespace" = r###"null"###, "User links xml namespace"
-        "properties.links.xml.wrapped" = r###"true"###, "User links xml wrapped"
-        "properties.links.items.xml.attribute" = r###"null"###, "User links xml items attribute"
-        "properties.links.items.xml.name" = r###""link""###, "User links xml items name"
-        "properties.links.items.xml.prefix" = r###"null"###, "User links xml items prefix"
-        "properties.links.items.xml.namespace" = r###"null"###, "User links xml items namespace"
-        "properties.links.items.xml.wrapped" = r###"null"###, "User links xml items wrapped"
-        "properties.photos_urls.xml.attribute" = r###"null"###, "User photos_urls xml attribute"
-        "properties.photos_urls.xml.name" = r###"null"###, "User photos_urls xml name"
-        "properties.photos_urls.xml.prefix" = r###"null"###, "User photos_urls xml prefix"
-        "properties.photos_urls.xml.namespace" = r###"null"###, "User photos_urls xml namespace"
-        "properties.photos_urls.xml.wrapped" = r###"true"###, "User photos_urls xml wrapped"
-        "properties.photos_urls.items.xml.attribute" = r###"null"###, "User photos_urls xml items attribute"
-        "properties.photos_urls.items.xml.name" = r###""photo_url""###, "User photos_urls xml items name"
-        "properties.photos_urls.items.xml.prefix" = r###"null"###, "User photos_urls xml items prefix"
-        "properties.photos_urls.items.xml.namespace" = r###"null"###, "User photos_urls xml items namespace"
-        "properties.photos_urls.items.xml.wrapped" = r###"null"###, "User photos_urls links xml items wrapped"
+            "xml.name" = r###""user""###, "User xml name"
+            "xml.prefix" = r###""u""###, "User xml prefix"
+            "xml.namespace" = r###""https://mynamespace.test""###, "User xml namespace"
+            "properties.id.xml.attribute" = r###"true"###, "User id xml attribute"
+            "properties.id.xml.name" = r###"null"###, "User id xml name"
+            "properties.id.xml.prefix" = r###""u""###, "User id xml prefix"
+            "properties.id.xml.namespace" = r###"null"###, "User id xml namespace"
+            "properties.username.xml.attribute" = r###"null"###, "User username xml attribute"
+            "properties.username.xml.name" = r###""user_name""###, "User username xml name"
+            "properties.username.xml.prefix" = r###""u""###, "User username xml prefix"
+            "properties.username.xml.namespace" = r###"null"###, "User username xml namespace"
+            "properties.links.xml.attribute" = r###"null"###, "User links xml attribute"
+            "properties.links.xml.name" = r###""linkList""###, "User links xml name"
+            "properties.links.xml.prefix" = r###"null"###, "User links xml prefix"
+            "properties.links.xml.namespace" = r###"null"###, "User links xml namespace"
+            "properties.links.xml.wrapped" = r###"true"###, "User links xml wrapped"
+            "properties.links.items.xml.attribute" = r###"null"###, "User links xml items attribute"
+            "properties.links.items.xml.name" = r###""link""###, "User links xml items name"
+            "properties.links.items.xml.prefix" = r###"null"###, "User links xml items prefix"
+            "properties.links.items.xml.namespace" = r###"null"###, "User links xml items namespace"
+            "properties.links.items.xml.wrapped" = r###"null"###, "User links xml items wrapped"
+            "properties.photos_urls.xml.attribute" = r###"null"###, "User photos_urls xml attribute"
+            "properties.photos_urls.xml.name" = r###"null"###, "User photos_urls xml name"
+            "properties.photos_urls.xml.prefix" = r###"null"###, "User photos_urls xml prefix"
+            "properties.photos_urls.xml.namespace" = r###"null"###, "User photos_urls xml namespace"
+            "properties.photos_urls.xml.wrapped" = r###"true"###, "User photos_urls xml wrapped"
+            "properties.photos_urls.items.xml.attribute" = r###"null"###, "User photos_urls xml items attribute"
+            "properties.photos_urls.items.xml.name" = r###""photo_url""###, "User photos_urls xml items name"
+            "properties.photos_urls.items.xml.prefix" = r###"null"###, "User photos_urls xml items prefix"
+            "properties.photos_urls.items.xml.namespace" = r###"null"###, "User photos_urls xml items namespace"
+            "properties.photos_urls.items.xml.wrapped" = r###"null"###, "User photos_urls links xml items wrapped"
     }
 }
 
@@ -1508,15 +1557,15 @@ fn derive_component_with_chrono_feature() {
 
     assert_value! {post=>
         "properties.datetime.type" = r#""string""#, "Post datetime type"
-        "properties.datetime.format" = r#""date-time""#, "Post datetime format"
-        "properties.date.type" = r#""string""#, "Post date type"
-        "properties.date.format" = r#""date""#, "Post date format"
-        "properties.duration.type" = r#""string""#, "Post duration type"
-        "properties.duration.format" = r#"null"#, "Post duration format"
-        "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.value.type" = r#""string""#, "Post value type"
-        "properties.value.format" = r#"null"#, "Post value format"
+            "properties.datetime.format" = r#""date-time""#, "Post datetime format"
+            "properties.date.type" = r#""string""#, "Post date type"
+            "properties.date.format" = r#""date""#, "Post date format"
+            "properties.duration.type" = r#""string""#, "Post duration type"
+            "properties.duration.format" = r#"null"#, "Post duration format"
+            "properties.id.type" = r#""integer""#, "Post id type"
+            "properties.id.format" = r#""int32""#, "Post id format"
+            "properties.value.type" = r#""string""#, "Post value type"
+            "properties.value.format" = r#"null"#, "Post value format"
     }
 }
 
@@ -1577,9 +1626,9 @@ fn derive_struct_component_field_type_override() {
 
     assert_value! {post=>
         "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.value.type" = r#""string""#, "Post value type"
-        "properties.value.format" = r#"null"#, "Post value format"
+            "properties.id.format" = r#""int32""#, "Post id format"
+            "properties.value.type" = r#""string""#, "Post value type"
+            "properties.value.format" = r#"null"#, "Post value format"
     }
 }
 
@@ -1613,9 +1662,9 @@ fn derive_struct_component_field_type_override_with_format() {
 
     assert_value! {post=>
         "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.value.type" = r#""string""#, "Post value type"
-        "properties.value.format" = r#""byte""#, "Post value format"
+            "properties.id.format" = r#""int32""#, "Post id format"
+            "properties.value.type" = r#""string""#, "Post value type"
+            "properties.value.format" = r#""byte""#, "Post value format"
     }
 }
 
@@ -1630,7 +1679,7 @@ fn derive_struct_component_field_type_override_with_custom_format() {
 
     assert_value! {post=>
         "properties.value.type" = r#""string""#, "Post value type"
-        "properties.value.format" = r#""uri""#, "Post value format"
+            "properties.value.format" = r#""uri""#, "Post value format"
     }
 }
 
@@ -1646,9 +1695,9 @@ fn derive_struct_component_field_type_override_with_format_with_vec() {
 
     assert_value! {post=>
         "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.value.type" = r#""string""#, "Post value type"
-        "properties.value.format" = r#""binary""#, "Post value format"
+            "properties.id.format" = r#""int32""#, "Post id format"
+            "properties.value.type" = r#""string""#, "Post value type"
+            "properties.value.format" = r#""binary""#, "Post value format"
     }
 }
 
@@ -1661,7 +1710,7 @@ fn derive_unnamed_struct_schema_type_override() {
 
     assert_value! {value=>
         "type" = r#""string""#, "Value type"
-        "format" = r#"null"#, "Value format"
+            "format" = r#"null"#, "Value format"
     }
 }
 
@@ -1674,7 +1723,7 @@ fn derive_unnamed_struct_schema_type_override_with_format() {
 
     assert_value! {value=>
         "type" = r#""string""#, "Value type"
-        "format" = r#""byte""#, "Value format"
+            "format" = r#""byte""#, "Value format"
     }
 }
 
@@ -1743,9 +1792,9 @@ fn derive_struct_with_rust_decimal() {
 
     assert_value! {post=>
         "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.rating.type" = r#""string""#, "Post rating type"
-        "properties.rating.format" = r#"null"#, "Post rating format"
+            "properties.id.format" = r#""int32""#, "Post id format"
+            "properties.rating.type" = r#""string""#, "Post rating type"
+            "properties.rating.format" = r#"null"#, "Post rating format"
     }
 }
 
@@ -1764,9 +1813,9 @@ fn derive_struct_with_rust_decimal_with_type_override() {
 
     assert_value! {post=>
         "properties.id.type" = r#""integer""#, "Post id type"
-        "properties.id.format" = r#""int32""#, "Post id format"
-        "properties.rating.type" = r#""number""#, "Post rating type"
-        "properties.rating.format" = r#""float""#, "Post rating format"
+            "properties.id.format" = r#""int32""#, "Post id format"
+            "properties.rating.type" = r#""number""#, "Post rating type"
+            "properties.rating.format" = r#""float""#, "Post rating format"
     }
 }
 
@@ -1783,7 +1832,7 @@ fn derive_struct_with_uuid_type() {
 
     assert_value! {post=>
         "properties.id.type" = r#""string""#, "Post id type"
-        "properties.id.format" = r#""uuid""#, "Post id format"
+            "properties.id.format" = r#""uuid""#, "Post id format"
     }
 }
 
@@ -1804,8 +1853,8 @@ fn derive_parse_serde_field_attributes() {
 
     assert_value! {post=>
         "properties.uuid.type" = r#""string""#, "Post id type"
-        "properties.longFieldNum.type" = r#""integer""#, "Post long_field_num type"
-        "properties.longFieldNum.format" = r#""int64""#, "Post logn_field_num format"
+            "properties.longFieldNum.type" = r#""integer""#, "Post long_field_num type"
+            "properties.longFieldNum.format" = r#""int64""#, "Post logn_field_num format"
     }
 }
 
@@ -1837,27 +1886,27 @@ fn derive_parse_serde_complex_enum() {
         enum Bar {
             UnitValue,
             #[serde(rename_all = "camelCase")]
-            NamedFields {
-                #[serde(rename = "id")]
-                named_id: &'static str,
-                name_list: Option<Vec<String>>
-            },
-            UnnamedFields(Foo),
-            #[serde(skip)]
-            Random,
+                NamedFields {
+                    #[serde(rename = "id")]
+                    named_id: &'static str,
+                    name_list: Option<Vec<String>>
+                },
+                UnnamedFields(Foo),
+                #[serde(skip)]
+                Random,
         }
     };
 
     assert_value! {complex_enum=>
         "oneOf.[0].enum" = r#"["unitValue"]"#, "Unit value enum"
-        "oneOf.[0].type" = r#""string""#, "Unit value type"
+            "oneOf.[0].type" = r#""string""#, "Unit value type"
 
-        "oneOf.[1].properties.namedFields.properties.id.type" = r#""string""#, "Named fields id type"
-        "oneOf.[1].properties.namedFields.properties.nameList.type" = r#""array""#, "Named fields nameList type"
-        "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
-        "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
+            "oneOf.[1].properties.namedFields.properties.id.type" = r#""string""#, "Named fields id type"
+            "oneOf.[1].properties.namedFields.properties.nameList.type" = r#""array""#, "Named fields nameList type"
+            "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
+            "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
 
-        "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
+            "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
     }
 }
 
@@ -2017,28 +2066,28 @@ fn derive_component_with_complex_enum_lifetimes() {
         doc,
         json!({
             "oneOf": [
-                {
-                    "properties": {
-                        "A": {
-                            "properties": {
-                                "foo": {
-                                    "$ref": "#/components/schemas/Foo"
-                                }
-                            },
-                            "required": ["foo"],
-                            "type": "object"
+            {
+                "properties": {
+                    "A": {
+                        "properties": {
+                            "foo": {
+                                "$ref": "#/components/schemas/Foo"
+                            }
                         },
+                        "required": ["foo"],
+                        "type": "object"
                     },
-                    "type": "object"
                 },
-                {
-                    "enum": ["B"],
-                    "type": "string"
-                },
-                {
-                    "enum": ["C"],
-                    "type": "string"
-                }
+                "type": "object"
+            },
+            {
+                "enum": ["B"],
+                "type": "string"
+            },
+            {
+                "enum": ["C"],
+                "type": "string"
+            }
             ]
         })
     )
@@ -2155,7 +2204,7 @@ fn derive_schema_for_repr_enum() {
 
     assert_value! {value=>
         "enum" = r#"[-1,0,1]"#, "ExitCode enum variants"
-        "type" = r#""integer""#, "ExitCode enum type"
+            "type" = r#""integer""#, "ExitCode enum type"
     };
 }
 
@@ -2177,48 +2226,48 @@ fn derive_schema_for_tagged_repr_enum() {
         value,
         json!({
             "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "integer",
-                            "enum": [
-                                0,
-                            ],
-                        },
+            {
+                "type": "object",
+                "properties": {
+                    "tag": {
+                        "type": "integer",
+                        "enum": [
+                            0,
+                        ],
                     },
-                    "required": [
-                        "tag",
-                    ],
                 },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "integer",
-                            "enum": [
-                                1,
-                            ],
-                        },
+                "required": [
+                    "tag",
+                ],
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "tag": {
+                        "type": "integer",
+                        "enum": [
+                            1,
+                        ],
                     },
-                    "required": [
-                        "tag",
-                    ],
                 },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "integer",
-                            "enum": [
-                                2,
-                            ],
-                        },
+                "required": [
+                    "tag",
+                ],
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "tag": {
+                        "type": "integer",
+                        "enum": [
+                            2,
+                        ],
                     },
-                    "required": [
-                        "tag",
-                    ],
                 },
+                "required": [
+                    "tag",
+                ],
+            },
             ],
         })
     );
@@ -2240,7 +2289,7 @@ fn derive_schema_for_skipped_repr_enum() {
 
     assert_value! {value=>
         "enum" = r#"[-1,0]"#, "SkippedEnum enum variants"
-        "type" = r#""integer""#, "SkippedEnum enum type"
+            "type" = r#""integer""#, "SkippedEnum enum type"
     };
 }
 
@@ -2258,8 +2307,8 @@ fn derive_repr_enum_with_with_custom_default_fn_success() {
 
     assert_value! {mode=>
         "default" = r#"1"#, "ReprDefautlMode default"
-        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
-        "type" = r#""integer""#, "ReprDefautlMode type"
+            "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
+            "type" = r#""integer""#, "ReprDefautlMode type"
     };
     assert_value! {mode=>
         "example" = Value::Null, "ReprDefautlMode example"
@@ -2285,8 +2334,8 @@ fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
 
     assert_value! {mode=>
         "default" = r#"1"#, "ReprDefautlMode default"
-        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
-        "type" = r#""integer""#, "ReprDefautlMode type"
-        "example" = r#"1"#, "ReprDefautlMode example"
+            "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
+            "type" = r#""integer""#, "ReprDefautlMode type"
+            "example" = r#"1"#, "ReprDefautlMode example"
     };
 }

@@ -125,6 +125,7 @@ use ext::ArgumentResolver;
 /// * `skip = "..."` Supported  **only** in field or variant level.
 /// * `tag = "..."` Supported in container level. `tag` attribute also works as a [discriminator field][discriminator] for an enum.
 /// * `default` Supported in container level and field level according to [serde attributes].
+/// * `flatten` Supported in field level.
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
 ///
