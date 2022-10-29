@@ -1,13 +1,9 @@
-use std::{mem, ops::DerefMut};
+use std::mem;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, ResultExt};
+use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
-use syn::{
-    parenthesized,
-    parse::{Parse, ParseStream},
-    Attribute,
-};
+use syn::{parenthesized, parse::Parse};
 
 use crate::{parse_utils, schema_type::SchemaFormat, AnyValue};
 
@@ -348,7 +344,7 @@ macro_rules! parse_capability_set {
                 Ok(capabilities)
             }
 
-            CapabilitySet(parse($ident)?)
+            parse($ident)?
         }
     };
     (@as_ident $( $tt:tt )* ) => {
@@ -358,56 +354,42 @@ macro_rules! parse_capability_set {
 
 pub(crate) use parse_capability_set;
 
-pub fn parse_capablities(
-    attributes: &[Attribute],
-    parser: impl FnOnce(ParseStream) -> syn::Result<CapabilitySet>,
-) -> Option<CapabilitySet> {
-    attributes
-        .iter()
-        .find(|attribute| attribute.path.get_ident().unwrap() == "schema")
-        .map(|attribute| attribute.parse_args_with(parser).unwrap_or_abort())
+pub trait IsInline {
+    fn is_inline(&self) -> bool;
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct CapabilitySet(pub Vec<Capability>);
+impl IsInline for Vec<Capability> {
+    fn is_inline(&self) -> bool {
+        self.iter()
+            .find_map(|capability| match capability {
+                Capability::Inline(inline) => Some(inline),
+                _ => None,
+            })
+            .is_some()
+    }
+}
 
-impl CapabilitySet {
-    /// Removes the found [`Capability`] from [`CapabilitySet`] and returns it.
-    ///
-    /// If capablity is not found by given operation `None` will be returned.
-    pub fn pop_by(&mut self, op: impl FnMut(&Capability) -> bool) -> Option<Capability> {
-        self.0
-            .iter()
+pub trait ToTokensExt {
+    fn to_token_stream(&self) -> TokenStream;
+}
+
+impl ToTokensExt for Vec<Capability> {
+    fn to_token_stream(&self) -> TokenStream {
+        self.iter().fold(TokenStream::new(), |mut tokens, item| {
+            item.to_tokens(&mut tokens);
+            tokens
+        })
+    }
+}
+
+pub trait CapabilitiesExt {
+    fn pop_by(&mut self, op: impl FnMut(&Capability) -> bool) -> Option<Capability>;
+}
+
+impl CapabilitiesExt for Vec<Capability> {
+    fn pop_by(&mut self, op: impl FnMut(&Capability) -> bool) -> Option<Capability> {
+        self.iter()
             .position(op)
-            .map(|index| self.0.swap_remove(index))
-    }
-}
-
-impl ToTokens for CapabilitySet {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        for capability in &self.0 {
-            capability.to_tokens(tokens)
-        }
-        // tokens.extend(self.0.iter().map(|capability| capability.to_token_stream()))
-    }
-}
-
-impl std::ops::Deref for CapabilitySet {
-    type Target = [Capability];
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
-    }
-}
-
-impl DerefMut for CapabilitySet {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut()
-    }
-}
-
-impl FromIterator<Capability> for CapabilitySet {
-    fn from_iter<T: IntoIterator<Item = Capability>>(iter: T) -> Self {
-        Self(iter.into_iter().collect::<Vec<_>>())
+            .map(|index| self.swap_remove(index))
     }
 }
