@@ -13,10 +13,6 @@ pub trait Name {
     fn get_name() -> &'static str;
 }
 
-pub trait ToCapabilities {
-    fn to_capablities(self) -> Vec<Capability>;
-}
-
 macro_rules! name {
     ( $ident:ident = $name:literal ) => {
         impl Name for $ident {
@@ -28,7 +24,7 @@ macro_rules! name {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum Capability {
+pub enum Feature {
     Example(Example),
     Default(Default),
     Inline(Inline),
@@ -41,7 +37,7 @@ pub enum Capability {
     Nullable(Nullable),
 }
 
-impl Capability {
+impl Feature {
     pub fn parse_named<T: Name>(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
         let name = T::get_name();
         match name {
@@ -60,42 +56,42 @@ impl Capability {
     }
 }
 
-impl ToTokens for Capability {
+impl ToTokens for Feature {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let capability = match &self {
-            Capability::Default(default) => quote! { .default(Some(#default)) },
-            Capability::Example(example) => quote! { .example(Some(#example)) },
-            Capability::Inline(inline) => quote! { .inline(Some(#inline)) },
-            Capability::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
-            Capability::Format(format) => quote! { .format(Some(#format)) },
-            Capability::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
-            Capability::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
-            Capability::Title(title) => quote! { .title(Some(#title)) },
-            Capability::Nullable(nullable) => quote! { .nullable(#nullable) },
-            Capability::ValueType(_) => {
+        let feature = match &self {
+            Feature::Default(default) => quote! { .default(Some(#default)) },
+            Feature::Example(example) => quote! { .example(Some(#example)) },
+            Feature::Inline(inline) => quote! { .inline(Some(#inline)) },
+            Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
+            Feature::Format(format) => quote! { .format(Some(#format)) },
+            Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
+            Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
+            Feature::Title(title) => quote! { .title(Some(#title)) },
+            Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+            Feature::ValueType(_) => {
                 abort! {
                     Span::call_site(),
-                    "unexpected capability: {}, expected one of: Default, Example, Inline, XmlAttr, Format, WriteOnly, ReadOnly, Title", "ValueType",
+                    "unexpected feature: {}, expected one of: Default, Example, Inline, XmlAttr, Format, WriteOnly, ReadOnly, Title", "ValueType",
                 }
             }
         };
 
-        tokens.extend(capability)
+        tokens.extend(feature)
     }
 }
 
-pub struct CapabilityRef<'c, T: Name + ToTokens>(pub &'c T);
+pub struct FeatureRef<'c, T: Name + ToTokens>(pub &'c T);
 
-impl<T> ToTokens for CapabilityRef<'_, T>
+impl<T> ToTokens for FeatureRef<'_, T>
 where
     T: Name + ToTokens,
 {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let capability = self.0;
+        let feature = self.0;
         let name_ident = format_ident!("{}", T::get_name());
 
         tokens.extend(quote! {
-            .#name_ident(Some(#capability))
+            .#name_ident(Some(#feature))
         })
     }
 }
@@ -309,12 +305,12 @@ impl ToTokens for Nullable {
 
 name!(Nullable = "nullable");
 
-macro_rules! parse_capability_set {
-    ($ident:ident as $( $capability:path ),*) => {
+macro_rules! parse_features {
+    ($ident:ident as $( $feature:path ),*) => {
         {
-            fn parse(input: syn::parse::ParseStream) -> syn::Result<Vec<crate::component::capabilities::Capability>> {
-                let names = [$( <crate::component::capabilities::parse_capability_set!(@as_ident $capability) as crate::component::capabilities::Name>::get_name(), )* ];
-                let mut capabilities = Vec::<crate::component::capabilities::Capability>::new();
+            fn parse(input: syn::parse::ParseStream) -> syn::Result<Vec<crate::component::features::Feature>> {
+                let names = [$( <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::Name>::get_name(), )* ];
+                let mut features = Vec::<crate::component::features::Feature>::new();
                 let attributes = names.join(", ");
 
                 while !input.is_empty() {
@@ -327,8 +323,8 @@ macro_rules! parse_capability_set {
                     let name = &*ident.to_string();
 
                     $(
-                        if name == <crate::component::capabilities::parse_capability_set!(@as_ident $capability) as crate::component::capabilities::Name>::get_name() {
-                            capabilities.push(crate::component::capabilities::Capability::parse_named::<$capability>(input, ident)?);
+                        if name == <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::Name>::get_name() {
+                            features.push(crate::component::features::Feature::parse_named::<$feature>(input, ident)?);
                             if !input.is_empty() {
                                 input.parse::<syn::Token![,]>()?;
                             }
@@ -341,7 +337,7 @@ macro_rules! parse_capability_set {
                     }
                 }
 
-                Ok(capabilities)
+                Ok(features)
             }
 
             parse($ident)?
@@ -352,17 +348,17 @@ macro_rules! parse_capability_set {
     }
 }
 
-pub(crate) use parse_capability_set;
+pub(crate) use parse_features;
 
 pub trait IsInline {
     fn is_inline(&self) -> bool;
 }
 
-impl IsInline for Vec<Capability> {
+impl IsInline for Vec<Feature> {
     fn is_inline(&self) -> bool {
         self.iter()
-            .find_map(|capability| match capability {
-                Capability::Inline(inline) => Some(inline),
+            .find_map(|feature| match feature {
+                Feature::Inline(inline) => Some(inline),
                 _ => None,
             })
             .is_some()
@@ -373,7 +369,7 @@ pub trait ToTokensExt {
     fn to_token_stream(&self) -> TokenStream;
 }
 
-impl ToTokensExt for Vec<Capability> {
+impl ToTokensExt for Vec<Feature> {
     fn to_token_stream(&self) -> TokenStream {
         self.iter().fold(TokenStream::new(), |mut tokens, item| {
             item.to_tokens(&mut tokens);
@@ -382,12 +378,12 @@ impl ToTokensExt for Vec<Capability> {
     }
 }
 
-pub trait CapabilitiesExt {
-    fn pop_by(&mut self, op: impl FnMut(&Capability) -> bool) -> Option<Capability>;
+pub trait FeaturesExt {
+    fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature>;
 }
 
-impl CapabilitiesExt for Vec<Capability> {
-    fn pop_by(&mut self, op: impl FnMut(&Capability) -> bool) -> Option<Capability> {
+impl FeaturesExt for Vec<Feature> {
+    fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature> {
         self.iter()
             .position(op)
             .map(|index| self.swap_remove(index))

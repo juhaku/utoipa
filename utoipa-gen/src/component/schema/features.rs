@@ -4,8 +4,8 @@ use syn::{
     Attribute,
 };
 
-use crate::component::capabilities::{
-    parse_capability_set, Capability, Default, Example, Format, Inline, Nullable, ReadOnly, Title,
+use crate::component::features::{
+    parse_features, Default, Example, Feature, Format, Inline, Nullable, ReadOnly, Title,
     ValueType, WriteOnly, XmlAttr,
 };
 
@@ -15,14 +15,14 @@ pub trait IntoInner<T> {
 
 macro_rules! impl_into_inner {
     ($ident:ident) => {
-        impl IntoInner<Vec<Capability>> for $ident {
-            fn into_inner(self) -> Vec<Capability> {
+        impl IntoInner<Vec<Feature>> for $ident {
+            fn into_inner(self) -> Vec<Feature> {
                 self.0
             }
         }
 
-        impl IntoInner<Option<Vec<Capability>>> for Option<$ident> {
-            fn into_inner(self) -> Option<Vec<Capability>> {
+        impl IntoInner<Option<Vec<Feature>>> for Option<$ident> {
+            fn into_inner(self) -> Option<Vec<Feature>> {
                 self.map(IntoInner::into_inner)
             }
         }
@@ -30,11 +30,11 @@ macro_rules! impl_into_inner {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct NamedFieldStructCapabilities(Vec<Capability>);
+pub struct NamedFieldStructFeatures(Vec<Feature>);
 
-impl Parse for NamedFieldStructCapabilities {
+impl Parse for NamedFieldStructFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(NamedFieldStructCapabilities(parse_capability_set!(
+        Ok(NamedFieldStructFeatures(parse_features!(
             input as Example,
             XmlAttr,
             Title
@@ -42,14 +42,14 @@ impl Parse for NamedFieldStructCapabilities {
     }
 }
 
-impl_into_inner!(NamedFieldStructCapabilities);
+impl_into_inner!(NamedFieldStructFeatures);
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct UnnamedFieldStructCapabilities(Vec<Capability>);
+pub struct UnnamedFieldStructFeatures(Vec<Feature>);
 
-impl Parse for UnnamedFieldStructCapabilities {
+impl Parse for UnnamedFieldStructFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(UnnamedFieldStructCapabilities(parse_capability_set!(
+        Ok(UnnamedFieldStructFeatures(parse_features!(
             input as Example,
             Default,
             Title,
@@ -59,13 +59,13 @@ impl Parse for UnnamedFieldStructCapabilities {
     }
 }
 
-impl_into_inner!(UnnamedFieldStructCapabilities);
+impl_into_inner!(UnnamedFieldStructFeatures);
 
-pub struct EnumCapabilities(Vec<Capability>);
+pub struct EnumFeatures(Vec<Feature>);
 
-impl Parse for EnumCapabilities {
+impl Parse for EnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(EnumCapabilities(parse_capability_set!(
+        Ok(EnumFeatures(parse_features!(
             input as Example,
             Default,
             Title
@@ -73,13 +73,13 @@ impl Parse for EnumCapabilities {
     }
 }
 
-impl_into_inner!(EnumCapabilities);
+impl_into_inner!(EnumFeatures);
 
-pub struct NamedFieldCapablities(Vec<Capability>);
+pub struct NamedFieldFeatures(Vec<Feature>);
 
-impl Parse for NamedFieldCapablities {
+impl Parse for NamedFieldFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(NamedFieldCapablities(parse_capability_set!(
+        Ok(NamedFieldFeatures(parse_features!(
             input as Example,
             ValueType,
             Format,
@@ -93,37 +93,37 @@ impl Parse for NamedFieldCapablities {
     }
 }
 
-impl_into_inner!(NamedFieldCapablities);
+impl_into_inner!(NamedFieldFeatures);
 
 pub trait FromAttributes {
-    fn parse_capabilities<T>(&self) -> Option<T>
+    fn parse_features<T>(&self) -> Option<T>
     where
         T: Parse;
 }
 
 impl FromAttributes for &'_ [Attribute] {
-    fn parse_capabilities<T>(&self) -> Option<T>
+    fn parse_features<T>(&self) -> Option<T>
     where
         T: Parse,
     {
-        parse_schema_capabilities::<T>(self)
+        parse_schema_features::<T>(self)
     }
 }
 
 impl FromAttributes for Vec<Attribute> {
-    fn parse_capabilities<T>(&self) -> Option<T>
+    fn parse_features<T>(&self) -> Option<T>
     where
         T: Parse,
     {
-        parse_schema_capabilities::<T>(self)
+        parse_schema_features::<T>(self)
     }
 }
 
-pub fn parse_schema_capabilities<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
-    parse_schema_capabilities_with(attributes, T::parse)
+pub fn parse_schema_features<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
+    parse_schema_features_with(attributes, T::parse)
 }
 
-pub fn parse_schema_capabilities_with<T>(
+pub fn parse_schema_features_with<T>(
     attributes: &[Attribute],
     parser: impl FnOnce(ParseStream) -> syn::Result<T>,
 ) -> Option<T> {
