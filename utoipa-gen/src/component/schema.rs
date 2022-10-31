@@ -19,7 +19,7 @@ use self::features::{
 };
 
 use super::{
-    features::{parse_features, Feature, FeatureRef, FeaturesExt, IsInline, ToTokensExt, XmlAttr},
+    features::{parse_features, Feature, FeaturesExt, IsInline, ToTokensExt},
     serde::{self, RenameRule, SerdeContainer, SerdeValue},
     GenericType, TypeTree, ValueType,
 };
@@ -146,7 +146,7 @@ impl<'a> SchemaVariant<'a> {
                     let FieldsUnnamed { unnamed, .. } = fields;
                     Self::Unnamed(UnnamedStructSchema {
                         attributes,
-                        capablities: attributes
+                        features: attributes
                             .parse_features::<UnnamedFieldStructFeatures>()
                             .into_inner(),
                         fields: unnamed,
@@ -275,8 +275,8 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        if let Some(struct_capabilities) = self.capablities.as_ref() {
-            tokens.extend(struct_capabilities.to_token_stream())
+        if let Some(struct_features) = self.capablities.as_ref() {
+            tokens.extend(struct_features.to_token_stream())
         }
 
         if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
@@ -311,24 +311,16 @@ fn with_field_as_schema_property<R>(
             })
     }
 
-    let value_type = field_capablities.as_mut().and_then(|capablities| {
-        capablities.pop_by(|capability| matches!(capability, Feature::ValueType(_)))
-    });
     let deprecated = super::get_deprecated(&field.attrs);
-    let override_type_tree = value_type.as_ref().and_then(|capability| match capability {
-        Feature::ValueType(value_type) => Some(value_type.as_type_tree()),
-        _ => None,
-    });
-
-    let xml_attributes = field_capablities
+    let value_type = field_capablities
         .as_mut()
-        .and_then(|capablities| {
-            capablities.pop_by(|capability| matches!(capability, Feature::XmlAttr(_)))
-        })
-        .and_then(|xml| match xml {
-            Feature::XmlAttr(mut xml) => Some(xml.split_for_vec(type_tree)),
-            _ => None,
-        });
+        .and_then(|features| features.find_value_type_feature_as_value_type());
+    let override_type_tree = value_type
+        .as_ref()
+        .map(|value_type| value_type.as_type_tree());
+    let xml_feature = field_capablities
+        .as_mut()
+        .and_then(|features| features.find_xml_feature_split_for_vec(type_tree));
     let comments = CommentAttributes::from_attributes(&field.attrs);
 
     yield_(SchemaProperty::new(
@@ -336,7 +328,7 @@ fn with_field_as_schema_property<R>(
         Some(&comments),
         field_capablities.as_ref(),
         deprecated.as_ref(),
-        xml_attributes.as_ref(),
+        xml_feature.as_ref(),
     ))
 }
 
@@ -356,7 +348,7 @@ fn is_default(container_rules: &Option<SerdeContainer>, field_rule: &Option<Serd
 struct UnnamedStructSchema<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
-    capablities: Option<Vec<Feature>>,
+    features: Option<Vec<Feature>>,
 }
 
 impl ToTokens for UnnamedStructSchema<'_> {
@@ -374,35 +366,21 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 first_part == schema_part
             });
 
-        let mut unnamed_struct_capabilities = self
-            .attributes
-            .parse_features::<UnnamedFieldStructFeatures>()
-            .into_inner();
-
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
-            let value_type = unnamed_struct_capabilities
+            let mut unnamed_struct_features = self.features.clone();
+            let value_type = unnamed_struct_features
                 .as_mut()
-                .and_then(|capablities| {
-                    capablities.pop_by(|capability| matches!(capability, Feature::ValueType(_)))
-                });
-            let xml_attributes = unnamed_struct_capabilities
+                .and_then(|features| features.find_value_type_feature_as_value_type());
+            let override_type_tree = value_type
+                .as_ref()
+                .map(|value_type| value_type.as_type_tree());
+            let xml_attributes = unnamed_struct_features
                 .as_mut()
-                .and_then(|capabilities| {
-                    capabilities.pop_by(|capability| matches!(capability, Feature::XmlAttr(_)))
-                })
-                .and_then(|xml| match xml {
-                    Feature::XmlAttr(mut xml) => Some(xml.split_for_vec(first_part)),
-                    _ => None,
-                });
+                .and_then(|features| features.find_xml_feature_split_for_vec(first_part));
 
-            let override_schema = value_type.as_ref().and_then(|capability| match capability {
-                Feature::ValueType(value_type) => Some(value_type.as_type_tree()),
-                _ => None,
-            });
-
-            if override_schema.is_some() {
-                is_object = override_schema
+            if override_type_tree.is_some() {
+                is_object = override_type_tree
                     .as_ref()
                     .map(|override_type| matches!(override_type.value_type, ValueType::Object))
                     .unwrap_or_default();
@@ -410,9 +388,9 @@ impl ToTokens for UnnamedStructSchema<'_> {
 
             tokens.extend(
                 SchemaProperty::new(
-                    override_schema.as_ref().unwrap_or(first_part),
+                    override_type_tree.as_ref().unwrap_or(first_part),
                     None,
-                    unnamed_struct_capabilities.as_ref(),
+                    unnamed_struct_features.as_ref(),
                     deprecated.as_ref(),
                     xml_attributes.as_ref(),
                 )
@@ -431,7 +409,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 tokens.extend(quote! { .deprecated(Some(#deprecated)) });
             }
 
-            if let Some(attrs) = unnamed_struct_capabilities {
+            if let Some(ref attrs) = self.features {
                 tokens.extend(attrs.to_token_stream())
             }
         };
@@ -639,9 +617,9 @@ trait EnumTokens<'e>: ToTokens {
         enum_value_to_tokens(tokens, &container_rules);
 
         let attrs = attributes.parse_features::<EnumFeatures>();
-        // let attrs = capabilities::parse_schema_capabilities_with(
+        // let attrs = features::parse_schema_features_with(
         //     attributes,
-        //     capabilities::parse_enum_capabilities,
+        //     features::parse_enum_features,
         // );
         // let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(attributes);
         if let Some(attributes) = attrs {
@@ -696,14 +674,41 @@ trait EnumTokens<'e>: ToTokens {
     }
 }
 
-trait SplitTitle {
+trait SchemaFeatureExt {
     fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
+
+    fn find_xml_feature_split_for_vec(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Option<(Option<Feature>, Option<Feature>)>;
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
 }
 
-impl SplitTitle for Vec<Feature> {
+impl SchemaFeatureExt for Vec<Feature> {
     fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>) {
         self.into_iter()
-            .partition(|capability| matches!(capability, Feature::Title(_)))
+            .partition(|feature| matches!(feature, Feature::Title(_)))
+    }
+
+    fn find_xml_feature_split_for_vec(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Option<(Option<Feature>, Option<Feature>)> {
+        self.pop_by(|feature| matches!(feature, Feature::XmlAttr(_)))
+            .and_then(|xml| match xml {
+                Feature::XmlAttr(mut xml) => Some(xml.split_for_vec(type_tree)),
+                _ => None,
+            })
+            .map(|xml| (xml.0.map(Feature::XmlAttr), xml.1.map(Feature::XmlAttr)))
+    }
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
+        self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
+            .and_then(|feature| match feature {
+                Feature::ValueType(value_type) => Some(value_type),
+                _ => None,
+            })
     }
 }
 
@@ -718,18 +723,18 @@ impl ComplexEnum<'_> {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_capabilities, named_struct_capabilities) = variant
+                let (title_features, named_struct_features) = variant
                     .attrs
                     .parse_features::<NamedFieldStructFeatures>()
                     .into_inner()
-                    .map(|capabilities| capabilities.split_for_title())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 FieldVariantTokens::to_tokens(
-                    &EnumVariantTokens(&variant_name, title_capabilities),
+                    &EnumVariantTokens(&variant_name, title_features),
                     NamedStructSchema {
                         attributes: &variant.attrs,
-                        capablities: Some(named_struct_capabilities),
+                        capablities: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
                         alias: None,
@@ -737,30 +742,29 @@ impl ComplexEnum<'_> {
                 )
             }
             Fields::Unnamed(unnamed_fields) => {
-                let (title_capabilities, unnamed_struct_capabilities) = variant
+                let (title_features, unnamed_struct_features) = variant
                     .attrs
                     .parse_features::<UnnamedFieldStructFeatures>()
                     .into_inner()
-                    .map(|capabilities| capabilities.split_for_title())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 FieldVariantTokens::to_tokens(
-                    &EnumVariantTokens(&variant_name, title_capabilities),
+                    &EnumVariantTokens(&variant_name, title_features),
                     UnnamedStructSchema {
                         attributes: &variant.attrs,
-                        capablities: Some(unnamed_struct_capabilities),
+                        features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                     },
                 )
             }
             Fields::Unit => {
-                let unit_capabilities =
-                    features::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as super::features::Title))
-                    })
-                    .unwrap_or_default();
+                let unit_features = features::parse_schema_features_with(&variant.attrs, |input| {
+                    Ok(parse_features!(input as super::features::Title))
+                })
+                .unwrap_or_default();
 
-                UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, unit_capabilities))
+                UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, unit_features))
             }
         }
     }
@@ -770,21 +774,21 @@ impl ComplexEnum<'_> {
     fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_capabilities, named_struct_capabilities) = variant
+                let (title_features, named_struct_features) = variant
                     .attrs
                     .parse_features::<NamedFieldStructFeatures>()
                     .into_inner()
-                    .map(|capabilities| capabilities.split_for_title())
+                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
-                    capablities: Some(named_struct_capabilities),
+                    capablities: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
                     alias: None,
                 };
-                let title = title_capabilities.to_token_stream();
+                let title = title_features.to_token_stream();
 
                 let variant_name_tokens =
                     UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, Vec::new()));
@@ -798,20 +802,20 @@ impl ComplexEnum<'_> {
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let (title_capabilities, unnamed_struct_capabilities) = variant
+                    let (title_features, unnamed_struct_features) = variant
                         .attrs
                         .parse_features::<UnnamedFieldStructFeatures>()
                         .into_inner()
-                        .map(|capabilities| capabilities.split_for_title())
+                        .map(|features| features.split_for_title())
                         .unwrap_or_default();
 
                     let unnamed_enum = UnnamedStructSchema {
                         attributes: &variant.attrs,
-                        capablities: Some(unnamed_struct_capabilities),
+                        features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                     };
 
-                    let title = title_capabilities.to_token_stream();
+                    let title = title_features.to_token_stream();
                     let variant_name_tokens =
                         UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, Vec::new()));
 
@@ -855,16 +859,15 @@ impl ComplexEnum<'_> {
                 let variant_tokens =
                     UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, Vec::new()));
 
-                let unit_capabilities =
-                    features::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as super::features::Title))
-                    })
-                    .unwrap_or_default()
-                    .to_token_stream();
+                let unit_features = features::parse_schema_features_with(&variant.attrs, |input| {
+                    Ok(parse_features!(input as super::features::Title))
+                })
+                .unwrap_or_default()
+                .to_token_stream();
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
-                        #unit_capabilities
+                        #unit_features
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 }
@@ -1078,31 +1081,25 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 struct SchemaProperty<'a> {
     schema_part: &'a TypeTree<'a>,
     comments: Option<&'a CommentAttributes>,
-    capabilities: Option<&'a Vec<Feature>>,
-    // attrs: Option<&'a SchemaAttr<T>>,
+    features: Option<&'a Vec<Feature>>,
     deprecated: Option<&'a Deprecated>,
-    xml_attributes: Option<&'a (Option<XmlAttr>, Option<XmlAttr>)>,
-    // xml: Option<&'a Xml>,
+    xml_feature: Option<&'a (Option<Feature>, Option<Feature>)>,
 }
 
 impl<'a> SchemaProperty<'a> {
     fn new(
         schema_part: &'a TypeTree<'a>,
         comments: Option<&'a CommentAttributes>,
-        capabilities: Option<&'a Vec<Feature>>,
-        // attrs: Option<&'a SchemaAttr<T>>,
+        features: Option<&'a Vec<Feature>>,
         deprecated: Option<&'a Deprecated>,
-        xml_attributes: Option<&'a (Option<XmlAttr>, Option<XmlAttr>)>,
-        // xml: Option<&'a Xml>,
+        xml_feature: Option<&'a (Option<Feature>, Option<Feature>)>,
     ) -> Self {
         Self {
             schema_part,
             comments,
-            // attrs,
-            capabilities,
+            features,
             deprecated,
-            xml_attributes,
-            // xml,
+            xml_feature,
         }
     }
 
@@ -1129,9 +1126,9 @@ impl ToTokens for SchemaProperty<'_> {
                         .nth(1)
                         .expect("SchemaProperty Map type should have 2 child"),
                     self.comments,
-                    self.capabilities,
+                    self.features,
                     self.deprecated,
-                    self.xml_attributes,
+                    self.xml_feature,
                 );
 
                 tokens.extend(quote! {
@@ -1146,8 +1143,10 @@ impl ToTokens for SchemaProperty<'_> {
                 }
             }
             Some(GenericType::Vec) => {
-                // TODO if vec field has an example it should be added here to vec schema instead of underlying schema property
-                // we should be able to filter out example from self.capabilities but we are not &mut self.
+                let empty_features = Vec::new();
+                let mut features = self.features.unwrap_or(&empty_features).clone();
+                let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+
                 let schema_property = SchemaProperty::new(
                     self.schema_part
                         .children
@@ -1157,9 +1156,9 @@ impl ToTokens for SchemaProperty<'_> {
                         .next()
                         .expect("SchemaProperty Vec should have 1 child"),
                     self.comments,
-                    self.capabilities,
+                    Some(&features),
                     self.deprecated,
-                    self.xml_attributes,
+                    self.xml_feature,
                 );
 
                 tokens.extend(quote! {
@@ -1167,9 +1166,12 @@ impl ToTokens for SchemaProperty<'_> {
                         .items(#schema_property)
                 });
 
-                if let Some(vec_xml) = self.xml_attributes.and_then(|xml| xml.0.as_ref()) {
-                    let xml_attr_ref = FeatureRef(vec_xml);
-                    tokens.extend(xml_attr_ref.to_token_stream());
+                if let Some(ref example) = example {
+                    tokens.extend(example.to_token_stream());
+                }
+
+                if let Some(vec_xml) = self.xml_feature.and_then(|xml| xml.0.as_ref()) {
+                    tokens.extend(vec_xml.to_token_stream());
                 };
             }
             Some(GenericType::Option)
@@ -1185,9 +1187,9 @@ impl ToTokens for SchemaProperty<'_> {
                         .next()
                         .expect("SchemaProperty generic container type should have 1 child"),
                     self.comments,
-                    self.capabilities,
+                    self.features,
                     self.deprecated,
-                    self.xml_attributes,
+                    self.xml_feature,
                 );
 
                 tokens.extend(schema_property.into_token_stream())
@@ -1223,20 +1225,18 @@ impl ToTokens for SchemaProperty<'_> {
                             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
                         }
 
-                        if let Some(xml_value) = self.xml_attributes.and_then(|xml| xml.1.as_ref())
-                        {
-                            let xml_attr = FeatureRef(xml_value);
-                            tokens.extend(xml_attr.to_token_stream());
+                        if let Some(xml_value) = self.xml_feature.and_then(|xml| xml.1.as_ref()) {
+                            tokens.extend(xml_value.to_token_stream());
                         }
 
-                        if let Some(attributes) = self.capabilities {
+                        if let Some(attributes) = self.features {
                             tokens.extend(attributes.to_token_stream())
                         }
                     }
                     ValueType::Object => {
                         let is_inline = self
-                            .capabilities
-                            .map(|capabilities| capabilities.is_inline())
+                            .features
+                            .map(|features| features.is_inline())
                             .unwrap_or_default();
 
                         if type_tree.is_object() {

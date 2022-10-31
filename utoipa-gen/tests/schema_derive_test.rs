@@ -2339,3 +2339,35 @@ fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
         "example" = r#"1"#, "ReprDefautlMode example"
     };
 }
+
+#[test]
+fn derive_struct_with_vec_field_with_example() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(example = json!(["foobar", "barfoo"]))]
+            value: Vec<String>,
+        }
+    };
+
+    assert_json_eq!(
+        post,
+        json!({
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "value": {
+                    "type": "array",
+                    "example": ["foobar", "barfoo"],
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["id", "value"]
+        })
+    );
+}

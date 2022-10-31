@@ -2,7 +2,7 @@ use std::mem;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::Parse};
 
 use crate::{parse_utils, schema_type::SchemaFormat, AnyValue};
@@ -24,6 +24,7 @@ macro_rules! name {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
 pub enum Feature {
     Example(Example),
     Default(Default),
@@ -80,22 +81,7 @@ impl ToTokens for Feature {
     }
 }
 
-pub struct FeatureRef<'c, T: Name + ToTokens>(pub &'c T);
-
-impl<T> ToTokens for FeatureRef<'_, T>
-where
-    T: Name + ToTokens,
-{
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let feature = self.0;
-        let name_ident = format_ident!("{}", T::get_name());
-
-        tokens.extend(quote! {
-            .#name_ident(Some(#feature))
-        })
-    }
-}
-
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Example(AnyValue);
 
@@ -113,6 +99,7 @@ impl ToTokens for Example {
 
 name!(Example = "example");
 
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Default(AnyValue);
 
@@ -130,6 +117,7 @@ impl ToTokens for Default {
 
 name!(Default = "default");
 
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Inline(bool);
 
@@ -147,7 +135,7 @@ impl ToTokens for Inline {
 
 name!(Inline = "inline");
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct XmlAttr(schema::xml::XmlAttr);
 
@@ -196,6 +184,7 @@ impl ToTokens for XmlAttr {
 
 name!(XmlAttr = "xml");
 
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Format(SchemaFormat<'static>);
 
@@ -213,6 +202,7 @@ impl ToTokens for Format {
 
 name!(Format = "format");
 
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ValueType(syn::Type);
 
@@ -237,6 +227,7 @@ impl Parse for ValueType {
 
 name!(ValueType = "value_type");
 
+#[derive(Clone, Copy)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct WriteOnly(bool);
 
@@ -254,6 +245,7 @@ impl ToTokens for WriteOnly {
 
 name!(WriteOnly = "write_only");
 
+#[derive(Clone, Copy)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ReadOnly(bool);
 
@@ -271,6 +263,7 @@ impl ToTokens for ReadOnly {
 
 name!(ReadOnly = "read_only");
 
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Title(String);
 
@@ -288,6 +281,7 @@ impl ToTokens for Title {
 
 name!(Title = "title");
 
+#[derive(Clone, Copy)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Nullable(bool);
 

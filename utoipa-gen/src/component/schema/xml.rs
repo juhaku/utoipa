@@ -4,7 +4,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, LitStr, Token};
 
 use crate::parse_utils;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct XmlAttr {
     pub name: Option<String>,

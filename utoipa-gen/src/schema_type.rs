@@ -142,6 +142,7 @@ impl ToTokens for SchemaType<'_> {
 }
 
 /// Either Rust type component variant or enum variant schema variant.
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SchemaFormat<'c> {
     /// [`utoipa::openapi::shcema::SchemaFormat`] enum variant schema format.
@@ -181,6 +182,7 @@ impl ToTokens for SchemaFormat<'_> {
 }
 
 /// Tokenizes OpenAPI data type format correctly by given Rust type.
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Type<'a>(&'a syn::Path);
 
@@ -259,6 +261,7 @@ impl ToTokens for Type<'_> {
 }
 
 /// [`Parse`] and [`ToTokens`] implementation for [`utoipa::openapi::schema::SchemaFormat`].
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Variant {
     Int32,
