@@ -674,44 +674,6 @@ trait EnumTokens<'e>: ToTokens {
     }
 }
 
-trait SchemaFeatureExt {
-    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
-
-    fn find_xml_feature_split_for_vec(
-        &mut self,
-        type_tree: &TypeTree,
-    ) -> Option<(Option<Feature>, Option<Feature>)>;
-
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
-}
-
-impl SchemaFeatureExt for Vec<Feature> {
-    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>) {
-        self.into_iter()
-            .partition(|feature| matches!(feature, Feature::Title(_)))
-    }
-
-    fn find_xml_feature_split_for_vec(
-        &mut self,
-        type_tree: &TypeTree,
-    ) -> Option<(Option<Feature>, Option<Feature>)> {
-        self.pop_by(|feature| matches!(feature, Feature::XmlAttr(_)))
-            .and_then(|xml| match xml {
-                Feature::XmlAttr(mut xml) => Some(xml.split_for_vec(type_tree)),
-                _ => None,
-            })
-            .map(|xml| (xml.0.map(Feature::XmlAttr), xml.1.map(Feature::XmlAttr)))
-    }
-
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
-        self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
-            .and_then(|feature| match feature {
-                Feature::ValueType(value_type) => Some(value_type),
-                _ => None,
-            })
-    }
-}
-
 struct ComplexEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
@@ -1260,6 +1222,44 @@ impl ToTokens for SchemaProperty<'_> {
                 }
             }
         }
+    }
+}
+
+trait SchemaFeatureExt {
+    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
+
+    fn find_xml_feature_split_for_vec(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Option<(Option<Feature>, Option<Feature>)>;
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
+}
+
+impl SchemaFeatureExt for Vec<Feature> {
+    fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>) {
+        self.into_iter()
+            .partition(|feature| matches!(feature, Feature::Title(_)))
+    }
+
+    fn find_xml_feature_split_for_vec(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Option<(Option<Feature>, Option<Feature>)> {
+        self.pop_by(|feature| matches!(feature, Feature::XmlAttr(_)))
+            .and_then(|xml| match xml {
+                Feature::XmlAttr(mut xml) => Some(xml.split_for_vec(type_tree)),
+                _ => None,
+            })
+            .map(|xml| (xml.0.map(Feature::XmlAttr), xml.1.map(Feature::XmlAttr)))
+    }
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
+        self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
+            .and_then(|feature| match feature {
+                Feature::ValueType(value_type) => Some(value_type),
+                _ => None,
+            })
     }
 }
 
