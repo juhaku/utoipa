@@ -678,8 +678,6 @@ fn derive_path_params_into_params_with_value_type() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
 
-    println!("{}", serde_json::to_string_pretty(&parameters).unwrap());
-
     assert_json_eq!(
         parameters,
         json!([{

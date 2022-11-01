@@ -154,10 +154,9 @@ impl<'a> SchemaVariant<'a> {
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-
                     Self::Named(NamedStructSchema {
                         attributes,
-                        capablities: attributes
+                        features: attributes
                             .parse_features::<NamedFieldStructFeatures>()
                             .into_inner(),
                         fields: named,
@@ -196,7 +195,7 @@ impl ToTokens for SchemaVariant<'_> {
 struct NamedStructSchema<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
-    capablities: Option<Vec<Feature>>,
+    features: Option<Vec<Feature>>,
     generics: Option<&'a Generics>,
     alias: Option<&'a AliasSchema>,
 }
@@ -275,7 +274,7 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        if let Some(struct_features) = self.capablities.as_ref() {
+        if let Some(struct_features) = self.features.as_ref() {
             tokens.extend(struct_features.to_token_stream())
         }
 
@@ -294,7 +293,7 @@ fn with_field_as_schema_property<R>(
 ) -> R {
     let type_tree = &mut TypeTree::from_type(&field.ty);
 
-    let mut field_capablities = field
+    let mut field_features = field
         .attrs
         .parse_features::<NamedFieldFeatures>()
         .into_inner();
@@ -312,13 +311,13 @@ fn with_field_as_schema_property<R>(
     }
 
     let deprecated = super::get_deprecated(&field.attrs);
-    let value_type = field_capablities
+    let value_type = field_features
         .as_mut()
         .and_then(|features| features.find_value_type_feature_as_value_type());
     let override_type_tree = value_type
         .as_ref()
         .map(|value_type| value_type.as_type_tree());
-    let xml_feature = field_capablities
+    let xml_feature = field_features
         .as_mut()
         .and_then(|features| features.find_xml_feature_split_for_vec(type_tree));
     let comments = CommentAttributes::from_attributes(&field.attrs);
@@ -326,7 +325,7 @@ fn with_field_as_schema_property<R>(
     yield_(SchemaProperty::new(
         override_type_tree.as_ref().unwrap_or(type_tree),
         Some(&comments),
-        field_capablities.as_ref(),
+        field_features.as_ref(),
         deprecated.as_ref(),
         xml_feature.as_ref(),
     ))
@@ -692,7 +691,7 @@ impl ComplexEnum<'_> {
                     &EnumVariantTokens(&variant_name, title_features),
                     NamedStructSchema {
                         attributes: &variant.attrs,
-                        capablities: Some(named_struct_features),
+                        features: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
                         alias: None,
@@ -741,7 +740,7 @@ impl ComplexEnum<'_> {
 
                 let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
-                    capablities: Some(named_struct_features),
+                    features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
                     alias: None,

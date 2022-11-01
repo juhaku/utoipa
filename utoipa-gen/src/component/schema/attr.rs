@@ -1,6 +1,6 @@
 #![deprecated(
     since = "2.2.0",
-    note = "Will be replaced by schema::capablities gradually by a lot simplier and never implementaiton"
+    note = "Will be replaced by components::features / components::schema::features gradually by a lot simplier and never implementaiton"
 )]
 use std::mem;
 
