@@ -72,7 +72,8 @@ impl ToTokens for Feature {
             Feature::ValueType(_) => {
                 abort! {
                     Span::call_site(),
-                    "unexpected feature: {}, expected one of: Default, Example, Inline, XmlAttr, Format, WriteOnly, ReadOnly, Title", "ValueType",
+                    "ValueType feature does not support `ToTokens`";
+                    help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
                 }
             }
         };

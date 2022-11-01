@@ -617,11 +617,7 @@ trait EnumTokens<'e>: ToTokens {
         enum_value_to_tokens(tokens, &container_rules);
 
         let attrs = attributes.parse_features::<EnumFeatures>();
-        // let attrs = features::parse_schema_features_with(
-        //     attributes,
-        //     features::parse_enum_features,
-        // );
-        // let attrs = attr::parse_schema_attr::<SchemaAttr<Enum>>(attributes);
+
         if let Some(attributes) = attrs {
             tokens.extend(attributes.into_inner().to_token_stream());
         }
