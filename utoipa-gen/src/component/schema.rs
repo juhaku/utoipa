@@ -317,9 +317,6 @@ fn with_field_as_schema_property<R>(
     let override_type_tree = value_type
         .as_ref()
         .map(|value_type| value_type.as_type_tree());
-    let xml_feature = field_features
-        .as_mut()
-        .and_then(|features| features.find_xml_feature_split_for_vec(type_tree));
     let comments = CommentAttributes::from_attributes(&field.attrs);
 
     yield_(SchemaProperty::new(
@@ -327,7 +324,6 @@ fn with_field_as_schema_property<R>(
         Some(&comments),
         field_features.as_ref(),
         deprecated.as_ref(),
-        xml_feature.as_ref(),
     ))
 }
 
@@ -374,9 +370,6 @@ impl ToTokens for UnnamedStructSchema<'_> {
             let override_type_tree = value_type
                 .as_ref()
                 .map(|value_type| value_type.as_type_tree());
-            let xml_attributes = unnamed_struct_features
-                .as_mut()
-                .and_then(|features| features.find_xml_feature_split_for_vec(first_part));
 
             if override_type_tree.is_some() {
                 is_object = override_type_tree
@@ -391,7 +384,6 @@ impl ToTokens for UnnamedStructSchema<'_> {
                     None,
                     unnamed_struct_features.as_ref(),
                     deprecated.as_ref(),
-                    xml_attributes.as_ref(),
                 )
                 .to_token_stream(),
             );
@@ -1036,7 +1028,7 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct SchemaProperty<'a> {
-    schema_part: &'a TypeTree<'a>,
+    type_tree: &'a TypeTree<'a>,
     comments: Option<&'a CommentAttributes>,
     features: Option<&'a Vec<Feature>>,
     deprecated: Option<&'a Deprecated>,
@@ -1045,48 +1037,49 @@ struct SchemaProperty<'a> {
 
 impl<'a> SchemaProperty<'a> {
     fn new(
-        schema_part: &'a TypeTree<'a>,
+        type_tree: &'a TypeTree<'a>,
         comments: Option<&'a CommentAttributes>,
         features: Option<&'a Vec<Feature>>,
         deprecated: Option<&'a Deprecated>,
-        xml_feature: Option<&'a (Option<Feature>, Option<Feature>)>,
+        // xml_feature: Option<&'a (Option<Feature>, Option<Feature>)>,
     ) -> Self {
         Self {
-            schema_part,
+            type_tree,
             comments,
             features,
             deprecated,
-            xml_feature,
+            xml_feature: None,
         }
     }
 
     /// Check wheter property is required or not
     fn is_option(&self) -> bool {
-        matches!(self.schema_part.generic_type, Some(GenericType::Option))
+        matches!(self.type_tree.generic_type, Some(GenericType::Option))
     }
 }
 
 impl ToTokens for SchemaProperty<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self.schema_part.generic_type {
+        match self.type_tree.generic_type {
             Some(GenericType::Map) => {
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
-                let schema_property = SchemaProperty::new(
-                    self.schema_part
+                let schema_property = SchemaProperty {
+                    type_tree: self
+                        .type_tree
                         .children
                         .as_ref()
                         .expect("SchemaProperty Map type should have children")
                         .iter()
                         .nth(1)
                         .expect("SchemaProperty Map type should have 2 child"),
-                    self.comments,
-                    self.features,
-                    self.deprecated,
-                    self.xml_feature,
-                );
+                    comments: self.comments,
+                    features: self.features,
+                    deprecated: self.deprecated,
+                    xml_feature: self.xml_feature,
+                };
 
                 tokens.extend(quote! {
                     utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#schema_property))
@@ -1103,20 +1096,22 @@ impl ToTokens for SchemaProperty<'_> {
                 let empty_features = Vec::new();
                 let mut features = self.features.unwrap_or(&empty_features).clone();
                 let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+                let xml = features.find_xml_feature_split_for_vec(self.type_tree);
 
-                let schema_property = SchemaProperty::new(
-                    self.schema_part
+                let schema_property = SchemaProperty {
+                    type_tree: self
+                        .type_tree
                         .children
                         .as_ref()
                         .expect("SchemaProperty Vec should have children")
                         .iter()
                         .next()
                         .expect("SchemaProperty Vec should have 1 child"),
-                    self.comments,
-                    Some(&features),
-                    self.deprecated,
-                    self.xml_feature,
-                );
+                    comments: self.comments,
+                    features: Some(&features),
+                    deprecated: self.deprecated,
+                    xml_feature: xml.as_ref(),
+                };
 
                 tokens.extend(quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
@@ -1127,7 +1122,7 @@ impl ToTokens for SchemaProperty<'_> {
                     tokens.extend(example.to_token_stream());
                 }
 
-                if let Some(vec_xml) = self.xml_feature.and_then(|xml| xml.0.as_ref()) {
+                if let Some(vec_xml) = xml.as_ref().and_then(|xml| xml.0.as_ref()) {
                     tokens.extend(vec_xml.to_token_stream());
                 };
             }
@@ -1135,24 +1130,25 @@ impl ToTokens for SchemaProperty<'_> {
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let schema_property = SchemaProperty::new(
-                    self.schema_part
+                let schema_property = SchemaProperty {
+                    type_tree: self
+                        .type_tree
                         .children
                         .as_ref()
                         .expect("SchemaProperty generic container type should have children")
                         .iter()
                         .next()
                         .expect("SchemaProperty generic container type should have 1 child"),
-                    self.comments,
-                    self.features,
-                    self.deprecated,
-                    self.xml_feature,
-                );
+                    comments: self.comments,
+                    features: self.features,
+                    deprecated: self.deprecated,
+                    xml_feature: self.xml_feature,
+                };
 
                 tokens.extend(schema_property.into_token_stream())
             }
             None => {
-                let type_tree = self.schema_part;
+                let type_tree = self.type_tree;
 
                 match type_tree.value_type {
                     ValueType::Primitive => {

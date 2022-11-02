@@ -1542,6 +1542,53 @@ fn derive_struct_xml() {
     }
 }
 
+#[test]
+fn derive_struc_xml_with_optional_vec() {
+    let user = api_doc! {
+        #[schema(xml(name = "user"))]
+        struct User {
+            #[schema(xml(attribute, prefix = "u"))]
+            id: i64,
+            #[schema(xml(wrapped(name = "linkList"), name = "link"))]
+            links: Option<Vec<String>>,
+        }
+    };
+
+    assert_json_eq!(
+        user,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "xml": {
+                        "attribute": true,
+                        "prefix": "u"
+                    }
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "xml": {
+                            "name": "link"
+                        }
+                    },
+                    "xml": {
+                        "name": "linkList",
+                        "wrapped": true,
+                    }
+                }
+            },
+            "required": ["id"],
+            "type": "object",
+            "xml": {
+                "name": "user"
+            }
+        })
+    );
+}
+
 #[cfg(feature = "chrono")]
 #[test]
 fn derive_component_with_chrono_feature() {
