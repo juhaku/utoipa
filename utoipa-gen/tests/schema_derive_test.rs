@@ -1543,7 +1543,7 @@ fn derive_struct_xml() {
 }
 
 #[test]
-fn derive_struc_xml_with_optional_vec() {
+fn derive_struct_xml_with_optional_vec() {
     let user = api_doc! {
         #[schema(xml(name = "user"))]
         struct User {

@@ -856,8 +856,6 @@ impl ToTokens for ComplexEnum<'_> {
                         let variant_name =
                             rename_variant(container_rules, &mut variant_serde_rules, variant_name)
                                 .unwrap_or_else(|| String::from(variant_name));
-                        // let variant_title =
-                        //     attr::parse_schema_attr::<SchemaAttr<Title>>(&variant.attrs);
 
                         if let Some(tag) = tag {
                             Self::tagged_variant_tokens(tag, variant_name, variant)
@@ -1041,7 +1039,6 @@ impl<'a> SchemaProperty<'a> {
         comments: Option<&'a CommentAttributes>,
         features: Option<&'a Vec<Feature>>,
         deprecated: Option<&'a Deprecated>,
-        // xml_feature: Option<&'a (Option<Feature>, Option<Feature>)>,
     ) -> Self {
         Self {
             type_tree,
@@ -1178,6 +1175,7 @@ impl ToTokens for SchemaProperty<'_> {
                             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
                         }
 
+                        // applies only when xml feature has been split for vec on a vec field.
                         if let Some(xml_value) = self.xml_feature.and_then(|xml| xml.1.as_ref()) {
                             tokens.extend(xml_value.to_token_stream());
                         }

@@ -220,12 +220,6 @@ impl Parse for ValueType {
     }
 }
 
-// impl ToTokens for ValueType {
-//     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-//         tokens.extend(self.0.to_token_stream())
-//     }
-// }
-
 name!(ValueType = "value_type");
 
 #[derive(Clone, Copy)]

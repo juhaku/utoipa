@@ -1,7 +1,7 @@
 #![cfg(feature = "json")]
 #![allow(dead_code)]
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use utoipa::{
     openapi::{
         self,
