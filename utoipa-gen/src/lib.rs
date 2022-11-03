@@ -1676,6 +1676,7 @@ impl ToTokens for ExternalDocs {
 }
 
 /// Represents OpenAPI Any value used in example and default fields.
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub(self) enum AnyValue {
     String(TokenStream2),

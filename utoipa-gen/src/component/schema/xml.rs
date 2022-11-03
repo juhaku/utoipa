@@ -4,19 +4,19 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, LitStr, Token};
 
 use crate::parse_utils;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub(super) struct XmlAttr {
-    pub(super) name: Option<String>,
-    pub(super) namespace: Option<String>,
-    pub(super) prefix: Option<String>,
-    pub(super) is_attribute: bool,
-    pub(super) is_wrapped: Option<Ident>,
-    pub(super) wrap_name: Option<String>,
+pub struct XmlAttr {
+    pub name: Option<String>,
+    pub namespace: Option<String>,
+    pub prefix: Option<String>,
+    pub is_attribute: bool,
+    pub is_wrapped: Option<Ident>,
+    pub wrap_name: Option<String>,
 }
 
 impl XmlAttr {
-    pub(super) fn with_wrapped(is_wrapped: Option<Ident>, wrap_name: Option<String>) -> Self {
+    pub fn with_wrapped(is_wrapped: Option<Ident>, wrap_name: Option<String>) -> Self {
         Self {
             is_wrapped,
             wrap_name,

@@ -984,36 +984,42 @@ impl From<Array> for RefOr<Schema> {
     }
 }
 
-builder! {
-    ArrayBuilder;
+/// Array represents [`Vec`] or [`slice`] type  of items.
+///
+/// See [`Schema::Array`] for more details.
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(rename_all = "camelCase")]
+pub struct Array {
+    /// Type will always be [`SchemaType::Array`]
+    #[serde(rename = "type")]
+    schema_type: SchemaType,
 
-    /// Array represents [`Vec`] or [`slice`] type  of items.
-    ///
-    /// See [`Schema::Array`] for more details.
-    #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    #[serde(rename_all = "camelCase")]
-    pub struct Array {
-        /// Type will always be [`SchemaType::Array`]
-        #[serde(rename = "type")]
-        schema_type: SchemaType,
+    /// Schema representing the array items type.
+    pub items: Box<RefOr<Schema>>,
 
-        /// Schema representing the array items type.
-        pub items: Box<RefOr<Schema>>,
+    /// Example shown in UI of the value for richier documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(feature = "serde_json")]
+    pub example: Option<Value>,
 
-        /// Max length of the array.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub max_items: Option<usize>,
+    /// Example shown in UI of the value for richier documentation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg(not(feature = "serde_json"))]
+    pub example: Option<String>,
 
-        /// Min lenght of the array.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub min_items: Option<usize>,
+    /// Max length of the array.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_items: Option<usize>,
 
-        /// Xml format of the array.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub xml: Option<Xml>,
-    }
+    /// Min lenght of the array.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_items: Option<usize>,
+
+    /// Xml format of the array.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub xml: Option<Xml>,
 }
 
 impl Default for Array {
@@ -1021,6 +1027,7 @@ impl Default for Array {
         Self {
             schema_type: SchemaType::Array,
             items: Default::default(),
+            example: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
@@ -1044,17 +1051,45 @@ impl Array {
             ..Default::default()
         }
     }
+}
 
-    /// Convert this [`Array`] to [`ArrayBuilder`].
-    pub fn to_builder(self) -> ArrayBuilder {
-        self.into()
-    }
+/// Builder for [`Array`] with chainable configuration methods to create a new [`Array`].
+pub struct ArrayBuilder {
+    schema_type: SchemaType,
+
+    pub items: Box<RefOr<Schema>>,
+
+    #[cfg(not(feature = "serde_json"))]
+    pub example: Option<String>,
+
+    #[cfg(feature = "serde_json")]
+    pub example: Option<Value>,
+
+    pub max_items: Option<usize>,
+
+    pub min_items: Option<usize>,
+
+    pub xml: Option<Xml>,
 }
 
 impl ArrayBuilder {
+    new!(pub ArrayBuilder);
+
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(not(feature = "serde_json"))]
+    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
+        set_value!(self example example.map(|example| example.into()))
+    }
+
+    /// Add or change example shown in UI of the value for richier documentation.
+    #[cfg(feature = "serde_json")]
+    pub fn example(mut self, example: Option<Value>) -> Self {
+        set_value!(self example example)
     }
 
     /// Set maximun allowed lenght for [`Array`].
@@ -1073,9 +1108,26 @@ impl ArrayBuilder {
     }
 
     to_array_builder!();
+
+    build_fn!(pub Array schema_type, items, example, max_items, min_items, xml);
 }
 
+from!(Array ArrayBuilder schema_type, items, example, max_items, min_items, xml);
+
 component_from_builder!(ArrayBuilder);
+
+impl Default for ArrayBuilder {
+    fn default() -> Self {
+        Self {
+            schema_type: SchemaType::Array,
+            items: Default::default(),
+            example: Default::default(),
+            max_items: Default::default(),
+            min_items: Default::default(),
+            xml: Default::default(),
+        }
+    }
+}
 
 impl From<Array> for Schema {
     fn from(array: Array) -> Self {

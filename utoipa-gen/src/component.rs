@@ -8,6 +8,7 @@ use crate::{schema_type::SchemaType, Deprecated};
 
 pub mod into_params;
 
+mod features;
 pub mod schema;
 mod serde;
 

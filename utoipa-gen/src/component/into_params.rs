@@ -232,9 +232,9 @@ pub struct FieldParamContainerAttributes<'a> {
     /// See [`IntoParamsAttr::style`].
     pub style: Option<ParameterStyle>,
     /// See [`IntoParamsAttr::names`]. The name that applies to this field.
-    pub name: Option<&'a String>,
+    name: Option<&'a String>,
     /// See [`IntoParamsAttr::parameter_in`].
-    pub parameter_in: Option<ParameterIn>,
+    parameter_in: Option<ParameterIn>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

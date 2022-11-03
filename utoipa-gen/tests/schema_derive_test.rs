@@ -1542,6 +1542,53 @@ fn derive_struct_xml() {
     }
 }
 
+#[test]
+fn derive_struct_xml_with_optional_vec() {
+    let user = api_doc! {
+        #[schema(xml(name = "user"))]
+        struct User {
+            #[schema(xml(attribute, prefix = "u"))]
+            id: i64,
+            #[schema(xml(wrapped(name = "linkList"), name = "link"))]
+            links: Option<Vec<String>>,
+        }
+    };
+
+    assert_json_eq!(
+        user,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "xml": {
+                        "attribute": true,
+                        "prefix": "u"
+                    }
+                },
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "xml": {
+                            "name": "link"
+                        }
+                    },
+                    "xml": {
+                        "name": "linkList",
+                        "wrapped": true,
+                    }
+                }
+            },
+            "required": ["id"],
+            "type": "object",
+            "xml": {
+                "name": "user"
+            }
+        })
+    );
+}
+
 #[cfg(feature = "chrono")]
 #[test]
 fn derive_component_with_chrono_feature() {
@@ -2338,4 +2385,36 @@ fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
         "type" = r#""integer""#, "ReprDefautlMode type"
         "example" = r#"1"#, "ReprDefautlMode example"
     };
+}
+
+#[test]
+fn derive_struct_with_vec_field_with_example() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(example = json!(["foobar", "barfoo"]))]
+            value: Vec<String>,
+        }
+    };
+
+    assert_json_eq!(
+        post,
+        json!({
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "value": {
+                    "type": "array",
+                    "example": ["foobar", "barfoo"],
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": ["id", "value"]
+        })
+    );
 }
