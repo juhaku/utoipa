@@ -1,3 +1,5 @@
+use std::mem;
+
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
 use quote::{quote, quote_spanned, ToTokens};
@@ -1030,7 +1032,6 @@ struct SchemaProperty<'a> {
     comments: Option<&'a CommentAttributes>,
     features: Option<&'a Vec<Feature>>,
     deprecated: Option<&'a Deprecated>,
-    xml_feature: Option<&'a (Option<Feature>, Option<Feature>)>,
 }
 
 impl<'a> SchemaProperty<'a> {
@@ -1045,7 +1046,6 @@ impl<'a> SchemaProperty<'a> {
             comments,
             features,
             deprecated,
-            xml_feature: None,
         }
     }
 
@@ -1075,7 +1075,6 @@ impl ToTokens for SchemaProperty<'_> {
                     comments: self.comments,
                     features: self.features,
                     deprecated: self.deprecated,
-                    xml_feature: self.xml_feature,
                 };
 
                 tokens.extend(quote! {
@@ -1093,7 +1092,7 @@ impl ToTokens for SchemaProperty<'_> {
                 let empty_features = Vec::new();
                 let mut features = self.features.unwrap_or(&empty_features).clone();
                 let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
-                let xml = features.find_xml_feature_split_for_vec(self.type_tree);
+                let xml = features.extract_vec_xml_feature(self.type_tree);
 
                 let schema_property = SchemaProperty {
                     type_tree: self
@@ -1107,7 +1106,6 @@ impl ToTokens for SchemaProperty<'_> {
                     comments: self.comments,
                     features: Some(&features),
                     deprecated: self.deprecated,
-                    xml_feature: xml.as_ref(),
                 };
 
                 tokens.extend(quote! {
@@ -1119,7 +1117,7 @@ impl ToTokens for SchemaProperty<'_> {
                     tokens.extend(example.to_token_stream());
                 }
 
-                if let Some(vec_xml) = xml.as_ref().and_then(|xml| xml.0.as_ref()) {
+                if let Some(vec_xml) = xml.as_ref() {
                     tokens.extend(vec_xml.to_token_stream());
                 };
             }
@@ -1139,7 +1137,6 @@ impl ToTokens for SchemaProperty<'_> {
                     comments: self.comments,
                     features: self.features,
                     deprecated: self.deprecated,
-                    xml_feature: self.xml_feature,
                 };
 
                 tokens.extend(schema_property.into_token_stream())
@@ -1173,11 +1170,6 @@ impl ToTokens for SchemaProperty<'_> {
 
                         if let Some(deprecated) = self.deprecated {
                             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-                        }
-
-                        // applies only when xml feature has been split for vec on a vec field.
-                        if let Some(xml_value) = self.xml_feature.and_then(|xml| xml.1.as_ref()) {
-                            tokens.extend(xml_value.to_token_stream());
                         }
 
                         if let Some(attributes) = self.features {
@@ -1217,12 +1209,9 @@ impl ToTokens for SchemaProperty<'_> {
 trait SchemaFeatureExt {
     fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
 
-    fn find_xml_feature_split_for_vec(
-        &mut self,
-        type_tree: &TypeTree,
-    ) -> Option<(Option<Feature>, Option<Feature>)>;
-
     fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
+
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
 }
 
 impl SchemaFeatureExt for Vec<Feature> {
@@ -1231,16 +1220,20 @@ impl SchemaFeatureExt for Vec<Feature> {
             .partition(|feature| matches!(feature, Feature::Title(_)))
     }
 
-    fn find_xml_feature_split_for_vec(
-        &mut self,
-        type_tree: &TypeTree,
-    ) -> Option<(Option<Feature>, Option<Feature>)> {
-        self.pop_by(|feature| matches!(feature, Feature::XmlAttr(_)))
-            .and_then(|xml| match xml {
-                Feature::XmlAttr(mut xml) => Some(xml.split_for_vec(type_tree)),
-                _ => None,
-            })
-            .map(|xml| (xml.0.map(Feature::XmlAttr), xml.1.map(Feature::XmlAttr)))
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
+        self.iter_mut().find_map(|feature| match feature {
+            Feature::XmlAttr(xml_feature) => {
+                let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
+
+                // replace the original xml attribute with splitted value xml
+                if let Some(mut xml) = value_xml {
+                    mem::swap(xml_feature, &mut xml)
+                }
+
+                vec_xml.map(Feature::XmlAttr)
+            }
+            _ => None,
+        })
     }
 
     fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {

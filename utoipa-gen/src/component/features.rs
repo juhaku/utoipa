@@ -151,7 +151,7 @@ impl XmlAttr {
                 mem::take(&mut value_xml.0.wrap_name),
             );
 
-            (Some(XmlAttr(vec_xml)), Some(XmlAttr(value_xml.0)))
+            (Some(XmlAttr(vec_xml)), Some(value_xml))
         } else {
             self.validate_xml(&self.0);
 
