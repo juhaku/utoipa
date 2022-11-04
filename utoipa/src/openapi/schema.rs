@@ -253,18 +253,6 @@ impl<'de> Deserialize<'de> for Schema {
                                     Ok(o) => Ok(Schema::Array(o)),
                                     Err(msg) => panic!("{}", msg)
                                 }
-                            } else if s == "oneof" {
-                                let ro: Result<OneOf, serde_json::Error> = serde::Deserialize::deserialize(v);
-                                match ro {
-                                    Ok(o) => Ok(Schema::OneOf(o)),
-                                    Err(msg) => panic!("{}", msg)
-                                }
-                            } else if s == "allof" {
-                                let ro: Result<AllOf, serde_json::Error> = serde::Deserialize::deserialize(v);
-                                match ro {
-                                    Ok(o) => Ok(Schema::AllOf(o)),
-                                    Err(msg) => panic!("{}", msg)
-                                }
                             } else {
                                 // per default it is tried to deserialize as an object
                                 let ro: Result<Object, serde_json::Error> = serde::Deserialize::deserialize(v);
@@ -278,8 +266,38 @@ impl<'de> Deserialize<'de> for Schema {
                             panic!("Object `type` attribute needs to of type string!")
                         }
                     }
+                } else if ob.contains_key("oneOf") {
+                    let o: Value = ob.get("oneOf").unwrap().clone();
+                    match o {
+                        Value::Array(items) => {
+                            let mut oneof = OneOfBuilder::new();
+                            for i in items.into_iter() {
+                                let s: RefOr<Schema> = serde::Deserialize::deserialize(i).unwrap();
+                                oneof = oneof.item(s);
+                            }
+                            Ok(Schema::OneOf(oneof.build()))
+                        }
+                        _ => {
+                            panic!("Deserializing OneOf Schema requires that the input is of type Array!")
+                        }
+                    }
+                } else if ob.contains_key("allOf") {
+                    let o: Value = ob.get("allOf").unwrap().clone();
+                    match o {
+                        Value::Array(items) => {
+                            let mut allof = AllOfBuilder::new();
+                            for i in items.into_iter() {
+                                let s: RefOr<Schema> = serde::Deserialize::deserialize(i).unwrap();
+                                allof = allof.item(s);
+                            }
+                            Ok(Schema::AllOf(allof.build()))
+                        }
+                        _ => {
+                            panic!("Deserializing AllOf Schema requires that the input is of type Array!")
+                        }
+                    }
                 } else {
-                    panic!("Deserialized object has no key named `type`, can not derive Schema Type!")
+                    panic!("Deserialized object has no key named `type`,`oneOf` or `allOf` can not derive Schema Type!")
                 }
             }
             _ => {
@@ -294,6 +312,148 @@ impl Default for Schema {
         Schema::Object(Object::default())
     }
 }
+
+#[cfg(test)]
+mod schema_deserialization_tests {
+    use crate::openapi::{Schema, SchemaType, schema::RefOr};
+
+    #[test]
+    fn deserialize_array() {
+        let deser_str =
+r#"
+{
+  "type": "array",
+  "items": {
+      "type": "integer"
+  }
+}
+"#;
+        let array_schema_de: Schema = serde_json::from_str(&deser_str).unwrap();
+        match array_schema_de {
+            Schema::Array(arr) => {
+                match *arr.items {
+                    RefOr::Ref(_) => {
+                        assert!(false);
+                    }
+                    RefOr::T(schema) => {
+                        match schema {
+                            Schema::Object(i) => {
+                                assert!(i.schema_type == SchemaType::Integer);
+                            }
+                            _ => {
+                                assert!(false);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                // if variant is not an array then deserialization has failed
+                assert!(false);
+            }
+        }
+    }
+    #[test]
+    fn deserialize_oneof() {
+        let deser_str =
+r##"
+{
+  "oneOf": [
+    {"$ref": "#/schemas/components/foobar"}
+  ]
+}
+"##;
+        let oneof_schema_de: Schema = serde_json::from_str(&deser_str).unwrap();
+        match oneof_schema_de {
+            Schema::OneOf(oneof) => {
+                assert!(oneof.items.len() == 1);
+                match oneof.items.get(0).unwrap() {
+                    RefOr::Ref(reference) => {
+                        assert!(reference.ref_location == "#/schemas/components/foobar");
+                    }
+                    _ => {
+                        assert!(false);
+                    }
+                }
+            }
+            _ => {
+                // if variant is not an OneOf then deserialization has failed
+                assert!(false);
+            }
+        }
+    }
+    #[test]
+    fn deserialize_allof() {
+        let deser_str =
+r##"
+{
+  "allOf": [
+    {"$ref": "#/schemas/components/foobar"}
+  ]
+}
+"##;
+        let allof_schema_de: Schema = serde_json::from_str(&deser_str).unwrap();
+        match allof_schema_de {
+            Schema::AllOf(allof) => {
+                assert!(allof.items.len() == 1);
+                match allof.items.get(0).unwrap() {
+                    RefOr::Ref(reference) => {
+                        assert!(reference.ref_location == "#/schemas/components/foobar");
+                    }
+                    _ => {
+                        assert!(false);
+                    }
+                }
+            }
+            _ => {
+                // if variant is not an OneOf then deserialization has failed
+                assert!(false);
+            }
+        }
+    }
+
+    #[test]
+    fn deserialize_common_types() {
+        let int_deser_str = r#"{ "type": "integer" }"#;
+        let int_schema_de: Schema = serde_json::from_str(&int_deser_str).unwrap();
+        match int_schema_de {
+            Schema::Object(o) => {
+               assert!(o.schema_type == SchemaType::Integer);
+            }
+            _ => { assert!(false); }
+        }
+
+        let numeric_deser_str = r#"{ "type": "number" }"#;
+        let numeric_schema_de: Schema = serde_json::from_str(&numeric_deser_str).unwrap();
+        match numeric_schema_de {
+            Schema::Object(o) => {
+               assert!(o.schema_type == SchemaType::Number);
+            }
+            _ => { assert!(false); }
+        }
+
+        let string_deser_str = r#"{ "type": "string" }"#;
+        let string_schema_de: Schema = serde_json::from_str(&string_deser_str).unwrap();
+        match string_schema_de {
+            Schema::Object(o) => {
+               assert!(o.schema_type == SchemaType::String);
+            }
+            _ => { assert!(false); }
+        }
+
+        let boolean_deser_str = r#"{ "type": "boolean" }"#;
+        let boolean_schema_de: Schema = serde_json::from_str(&boolean_deser_str).unwrap();
+        match boolean_schema_de {
+            Schema::Object(o) => {
+               assert!(o.schema_type == SchemaType::Boolean);
+            }
+            _ => { assert!(false); }
+        }
+    }
+
+    //TODO add more complex test
+}
+
 
 /// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
 /// [`OneOf`] composite object.
@@ -1155,7 +1315,7 @@ where
 }
 
 /// Represents data type of [`Schema`].
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum SchemaType {
