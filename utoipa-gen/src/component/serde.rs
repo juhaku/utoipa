@@ -23,10 +23,10 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SerdeValue {
-    pub skip: Option<bool>,
-    pub rename: Option<String>,
-    pub default: Option<bool>,
-    pub flatten: Option<bool>,
+    pub skip: bool,
+    pub rename: String,
+    pub default: bool,
+    pub flatten: bool,
 }
 
 impl SerdeValue {
@@ -37,14 +37,14 @@ impl SerdeValue {
             let mut rest = *cursor;
             while let Some((tt, next)) = rest.token_tree() {
                 match tt {
-                    TokenTree::Ident(ident) if ident == "skip" => value.skip = Some(true),
-                    TokenTree::Ident(ident) if ident == "flatten" => value.flatten = Some(true),
+                    TokenTree::Ident(ident) if ident == "skip" => value.skip = true,
+                    TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
                         if let Some((literal, _)) = parse_next_lit_str(next) {
-                            value.rename = Some(literal)
+                            value.rename = literal
                         };
                     }
-                    TokenTree::Ident(ident) if ident == "default" => value.default = Some(true),
+                    TokenTree::Ident(ident) if ident == "default" => value.default = true,
                     _ => (),
                 }
 
@@ -62,8 +62,8 @@ impl SerdeValue {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SerdeContainer {
     pub rename_all: Option<RenameRule>,
-    pub tag: Option<String>,
-    pub default: Option<bool>,
+    pub tag: String,
+    pub default: bool,
 }
 
 impl SerdeContainer {
@@ -82,11 +82,11 @@ impl SerdeContainer {
             }
             "tag" => {
                 if let Some((literal, _span)) = parse_next_lit_str(next) {
-                    self.tag = Some(literal)
+                    self.tag = literal
                 }
             }
             "default" => {
-                self.default = Some(true);
+                self.default = true;
             }
             _ => {}
         }

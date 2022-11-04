@@ -1,4 +1,4 @@
-use std::mem;
+use std::{borrow::Cow, mem};
 
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
@@ -22,8 +22,8 @@ use self::features::{
 
 use super::{
     features::{parse_features, Feature, FeaturesExt, IsInline, ToTokensExt},
-    serde::{self, RenameRule, SerdeContainer, SerdeValue},
-    GenericType, TypeTree, ValueType,
+    serde::{self, SerdeContainer, SerdeValue},
+    FieldRename, GenericType, TypeTree, ValueType, VariantRename,
 };
 
 mod attr;
@@ -231,15 +231,15 @@ impl ToTokens for NamedStructSchema<'_> {
                     None
                 }
             })
-            .for_each(|(field, mut field_rule)| {
+            .for_each(|(field, field_rule)| {
                 let mut field_name = &*field.ident.as_ref().unwrap().to_string();
 
                 if field_name.starts_with("r#") {
                     field_name = &field_name[2..];
                 }
 
-                let name = &rename_field(&container_rules, &mut field_rule, field_name)
-                    .unwrap_or_else(|| String::from(field_name));
+                let name = super::rename::<FieldRename>(field_name, &field_rule, &container_rules)
+                    .unwrap_or(Cow::Borrowed(field_name));
 
                 with_field_as_schema_property(self, field, |schema_property| {
                     object_tokens.extend(quote! {
@@ -331,14 +331,14 @@ fn with_field_as_schema_property<R>(
 
 #[inline]
 fn is_default(container_rules: &Option<SerdeContainer>, field_rule: &Option<SerdeValue>) -> bool {
-    *container_rules
+    container_rules
         .as_ref()
-        .and_then(|rule| rule.default.as_ref())
-        .unwrap_or(&false)
-        || *field_rule
+        .map(|rule| rule.default)
+        .unwrap_or(false)
+        || field_rule
             .as_ref()
-            .and_then(|rule| rule.default.as_ref())
-            .unwrap_or(&false)
+            .map(|rule| rule.default)
+            .unwrap_or(false)
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -547,13 +547,14 @@ impl<'e> EnumTokens<'e> for SimpleEnum<'e> {
         variant: &Variant,
         container_rules: &Option<SerdeContainer>,
     ) -> Option<TokenStream> {
-        let mut variant_rules = serde::parse_value(&variant.attrs);
+        let variant_rules = serde::parse_value(&variant.attrs);
 
         if is_not_skipped(&variant_rules) {
             let name = &*variant.ident.to_string();
-            let renamed = rename_variant(container_rules, &mut variant_rules, name);
+            let variant_name =
+                super::rename::<VariantRename>(name, &variant_rules, container_rules);
 
-            if let Some(renamed_name) = renamed {
+            if let Some(renamed_name) = variant_name {
                 Some(quote! { #renamed_name })
             } else {
                 Some(quote! { #name })
@@ -640,19 +641,12 @@ trait EnumTokens<'e>: ToTokens {
             .collect::<Array<TokenStream>>();
 
         tokens.extend(match container_rules {
-            Some(serde_container) if serde_container.tag.is_some() => {
-                let tag = serde_container
-                    .tag
-                    .as_ref()
-                    .expect("Expected tag to be present");
-
-                EnumRepresentation {
-                    enum_type,
-                    values: enum_values,
-                    title: &None,
-                }
-                .to_tagged_tokens(tag.as_str())
+            Some(serde_container) if !serde_container.tag.is_empty() => EnumRepresentation {
+                enum_type,
+                values: enum_values,
+                title: &None,
             }
+            .to_tagged_tokens(serde_container.tag.as_str()),
             _ => EnumRepresentation {
                 enum_type,
                 values: enum_values,
@@ -670,7 +664,7 @@ struct ComplexEnum<'a> {
 
 impl ComplexEnum<'_> {
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
-    fn variant_tokens(variant_name: String, variant: &Variant) -> TokenStream {
+    fn variant_tokens(variant_name: Cow<'_, str>, variant: &Variant) -> TokenStream {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => {
@@ -722,7 +716,11 @@ impl ComplexEnum<'_> {
 
     /// Produce tokens that represent a variant of a [`ComplexEnum`] where serde enum attribute
     /// `tag = ` applies.
-    fn tagged_variant_tokens(tag: &str, variant_name: String, variant: &Variant) -> TokenStream {
+    fn tagged_variant_tokens(
+        tag: &str,
+        variant_name: Cow<'_, str>,
+        variant: &Variant,
+    ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
                 let (title_features, named_struct_features) = variant
@@ -837,9 +835,13 @@ impl ToTokens for ComplexEnum<'_> {
             tokens,
             |tokens, container_rules| {
                 let capacity = self.variants.len();
-                let tag = container_rules
-                    .as_ref()
-                    .and_then(|rules| rules.tag.as_ref());
+                let tag = container_rules.as_ref().and_then(|rules| {
+                    if !rules.tag.is_empty() {
+                        Some(&rules.tag)
+                    } else {
+                        None
+                    }
+                });
 
                 // serde, externally tagged format supported by now
                 let items: TokenStream = self
@@ -853,16 +855,20 @@ impl ToTokens for ComplexEnum<'_> {
                             None
                         }
                     })
-                    .map(|(variant, mut variant_serde_rules)| {
+                    .map(|(variant, variant_serde_rules)| {
                         let variant_name = &*variant.ident.to_string();
-                        let variant_name =
-                            rename_variant(container_rules, &mut variant_serde_rules, variant_name)
-                                .unwrap_or_else(|| String::from(variant_name));
+
+                        let name = super::rename::<VariantRename>(
+                            variant_name,
+                            &variant_serde_rules,
+                            container_rules,
+                        )
+                        .unwrap_or(Cow::Borrowed(variant_name));
 
                         if let Some(tag) = tag {
-                            Self::tagged_variant_tokens(tag, variant_name, variant)
+                            Self::tagged_variant_tokens(tag, name, variant)
                         } else {
-                            Self::variant_tokens(variant_name, variant)
+                            Self::variant_tokens(name, variant)
                         }
                     })
                     .map(|inline_variant| {
@@ -1262,63 +1268,12 @@ pub(crate) fn format_path_ref(path: &Path) -> String {
 
 #[inline]
 fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
-    rule.as_ref()
-        .map(|value| value.skip.is_none())
-        .unwrap_or(true)
+    rule.as_ref().map(|value| !value.skip).unwrap_or(true)
 }
 
 #[inline]
 fn is_flatten(rule: &Option<SerdeValue>) -> bool {
-    rule.as_ref()
-        .map(|value| value.flatten.is_some())
-        .unwrap_or(false)
-}
-
-/// Resolves the appropriate [`RenameRule`] to apply to the specified `struct` `field` name given a
-/// `container_rule` (`struct` or `enum` level) and `field_rule` (`struct` field or `enum` variant
-/// level). Returns `Some` of the result of the `rename_op` if a rename is required by the supplied
-/// rules.
-#[inline]
-fn rename_field<'a>(
-    container_rule: &'a Option<SerdeContainer>,
-    field_rule: &'a mut Option<SerdeValue>,
-    field: &str,
-) -> Option<String> {
-    rename(container_rule, field_rule, &|rule| rule.rename(field))
-}
-
-/// Resolves the appropriate [`RenameRule`] to apply to the specified `enum` `variant` name given a
-/// `container_rule` (`struct` or `enum` level) and `field_rule` (`struct` field or `enum` variant
-/// level). Returns `Some` of the result of the `rename_op` if a rename is required by the supplied
-/// rules.
-#[inline]
-fn rename_variant<'a>(
-    container_rule: &'a Option<SerdeContainer>,
-    field_rule: &'a mut Option<SerdeValue>,
-    variant: &str,
-) -> Option<String> {
-    rename(container_rule, field_rule, &|rule| {
-        rule.rename_variant(variant)
-    })
-}
-
-/// Resolves the appropriate [`RenameRule`] to apply during a `rename_op` given a `container_rule`
-/// (`struct` or `enum` level) and `field_rule` (`struct` field or `enum` variant level). Returns
-/// `Some` of the result of the `rename_op` if a rename is required by the supplied rules.
-#[inline]
-fn rename<'a>(
-    container_rule: &'a Option<SerdeContainer>,
-    field_rule: &'a mut Option<SerdeValue>,
-    rename_op: &impl Fn(&RenameRule) -> String,
-) -> Option<String> {
-    field_rule
-        .as_mut()
-        .and_then(|value| value.rename.take())
-        .or_else(|| {
-            container_rule
-                .as_ref()
-                .and_then(|container| container.rename_all.as_ref().map(rename_op))
-        })
+    rule.as_ref().map(|value| value.flatten).unwrap_or(false)
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
