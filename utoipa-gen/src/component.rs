@@ -6,6 +6,8 @@ use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, Ty
 
 use crate::{schema_type::SchemaType, Deprecated};
 
+use self::serde::{RenameRule, SerdeContainer, SerdeValue};
+
 pub mod into_params;
 
 mod features;
@@ -280,4 +282,57 @@ pub enum GenericType {
     Cow,
     Box,
     RefCell,
+}
+
+trait Rename {
+    fn rename(rule: &RenameRule, value: &str) -> String;
+}
+
+/// Performs a rename for given `value` based on given rules. If no rules were
+/// provided returns [`None`]
+///
+/// Method accepts 3 arguments.
+/// * `value` to rename.
+/// * `field_rule` which is used for renaming fields with _`rename`_ property.
+/// * `container_rule` which is used to rename containers with _`rename_all`_ property.
+fn rename<'r, R: Rename>(
+    value: &'r str,
+    field_rule: &'r Option<SerdeValue>,
+    container_rule: &'r Option<SerdeContainer>,
+) -> Option<Cow<'r, str>> {
+    let rename = field_rule.as_ref().and_then(|field_rule| {
+        if !field_rule.rename.is_empty() {
+            Some(Cow::Borrowed(&*field_rule.rename))
+        } else {
+            None
+        }
+    });
+
+    rename.or_else(|| {
+        container_rule.as_ref().and_then(|container_rule| {
+            container_rule
+                .rename_all
+                .as_ref()
+                .map(|rule| R::rename(rule, value))
+                .map(Cow::Owned)
+        })
+    })
+}
+
+/// Can be used to perform rename on container level e.g `struct`, `enum` or `enum` `variant` level.
+struct VariantRename;
+
+impl Rename for VariantRename {
+    fn rename(rule: &RenameRule, value: &str) -> String {
+        rule.rename_variant(value)
+    }
+}
+
+/// Can be used to perform rename on field level of a container e.g `struct`.
+struct FieldRename;
+
+impl Rename for FieldRename {
+    fn rename(rule: &RenameRule, value: &str) -> String {
+        rule.rename(value)
+    }
 }
