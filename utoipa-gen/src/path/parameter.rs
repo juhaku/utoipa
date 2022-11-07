@@ -14,10 +14,7 @@ use syn::{
     feature = "axum_extras"
 ))]
 use crate::ext::{ArgumentIn, ValueArgument};
-use crate::{
-    component::into_params::FieldParamContainerAttributes, parse_utils, AnyValue, Deprecated,
-    Required, Type,
-};
+use crate::{parse_utils, AnyValue, Deprecated, Required, Type};
 
 use super::property::Property;
 
@@ -343,15 +340,6 @@ pub struct ParameterExt {
     pub explode: Option<bool>,
     pub allow_reserved: Option<bool>,
     pub(crate) example: Option<AnyValue>,
-}
-
-impl From<&'_ FieldParamContainerAttributes<'_>> for ParameterExt {
-    fn from(attributes: &FieldParamContainerAttributes) -> Self {
-        Self {
-            style: attributes.style,
-            ..ParameterExt::default()
-        }
-    }
 }
 
 impl ParameterExt {

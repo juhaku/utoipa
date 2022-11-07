@@ -16,12 +16,12 @@ use crate::{
 };
 
 use self::features::{
-    EnumFeatures, FromAttributes, IntoInner, NamedFieldFeatures, NamedFieldStructFeatures,
+    EnumFeatures, FromAttributes, NamedFieldFeatures, NamedFieldStructFeatures,
     UnnamedFieldStructFeatures,
 };
 
 use super::{
-    features::{parse_features, Feature, FeaturesExt, IsInline, ToTokensExt},
+    features::{parse_features, Feature, FeaturesExt, IntoInner, IsInline, ToTokensExt},
     serde::{self, SerdeContainer, SerdeValue},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
 };
@@ -238,15 +238,25 @@ impl ToTokens for NamedStructSchema<'_> {
                     field_name = &field_name[2..];
                 }
 
-                let name = super::rename::<FieldRename>(field_name, &field_rule, &container_rules)
-                    .unwrap_or(Cow::Borrowed(field_name));
+                let name = super::rename::<FieldRename>(
+                    field_name,
+                    field_rule
+                        .as_ref()
+                        .map(|field_rule| field_rule.rename.as_str()),
+                    container_rules
+                        .as_ref()
+                        .and_then(|container_rule| container_rule.rename_all.as_ref()),
+                )
+                .unwrap_or(Cow::Borrowed(field_name));
 
                 with_field_as_schema_property(self, field, |schema_property| {
                     object_tokens.extend(quote! {
                         .property(#name, #schema_property)
                     });
 
-                    if !schema_property.is_option() && !is_default(&container_rules, &field_rule) {
+                    if !schema_property.is_option()
+                        && !super::is_default(&container_rules.as_ref(), &field_rule.as_ref())
+                    {
                         object_tokens.extend(quote! {
                             .required(#name)
                         })
@@ -327,18 +337,6 @@ fn with_field_as_schema_property<R>(
         field_features.as_ref(),
         deprecated.as_ref(),
     ))
-}
-
-#[inline]
-fn is_default(container_rules: &Option<SerdeContainer>, field_rule: &Option<SerdeValue>) -> bool {
-    container_rules
-        .as_ref()
-        .map(|rule| rule.default)
-        .unwrap_or(false)
-        || field_rule
-            .as_ref()
-            .map(|rule| rule.default)
-            .unwrap_or(false)
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -551,8 +549,15 @@ impl<'e> EnumTokens<'e> for SimpleEnum<'e> {
 
         if is_not_skipped(&variant_rules) {
             let name = &*variant.ident.to_string();
-            let variant_name =
-                super::rename::<VariantRename>(name, &variant_rules, container_rules);
+            let variant_name = super::rename::<VariantRename>(
+                name,
+                variant_rules
+                    .as_ref()
+                    .map(|field_rule| field_rule.rename.as_str()),
+                container_rules
+                    .as_ref()
+                    .and_then(|container_rule| container_rule.rename_all.as_ref()),
+            );
 
             if let Some(renamed_name) = variant_name {
                 Some(quote! { #renamed_name })
@@ -860,8 +865,12 @@ impl ToTokens for ComplexEnum<'_> {
 
                         let name = super::rename::<VariantRename>(
                             variant_name,
-                            &variant_serde_rules,
-                            container_rules,
+                            variant_serde_rules
+                                .as_ref()
+                                .map(|field_rule| field_rule.rename.as_str()),
+                            container_rules
+                                .as_ref()
+                                .and_then(|container_rule| container_rule.rename_all.as_ref()),
                         )
                         .unwrap_or(Cow::Borrowed(variant_name));
 
@@ -1215,8 +1224,6 @@ impl ToTokens for SchemaProperty<'_> {
 trait SchemaFeatureExt {
     fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
 
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
-
     fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
 }
 
@@ -1240,14 +1247,6 @@ impl SchemaFeatureExt for Vec<Feature> {
             }
             _ => None,
         })
-    }
-
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
-        self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
-            .and_then(|feature| match feature {
-                Feature::ValueType(value_type) => Some(value_type),
-                _ => None,
-            })
     }
 }
 

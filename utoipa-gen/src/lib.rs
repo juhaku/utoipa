@@ -1327,7 +1327,7 @@ where
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Owned(vec) => vec.as_slice(),
-            Self::Borrowed(slice) => *slice,
+            Self::Borrowed(slice) => slice,
         }
     }
 }

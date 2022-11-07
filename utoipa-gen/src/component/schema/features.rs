@@ -5,29 +5,9 @@ use syn::{
 };
 
 use crate::component::features::{
-    parse_features, Default, Example, Feature, Format, Inline, Nullable, ReadOnly, Title,
-    ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, parse_features, Default, Example, Feature, Format, Inline, Nullable, ReadOnly,
+    Title, ValueType, WriteOnly, XmlAttr,
 };
-
-pub trait IntoInner<T> {
-    fn into_inner(self) -> T;
-}
-
-macro_rules! impl_into_inner {
-    ($ident:ident) => {
-        impl IntoInner<Vec<Feature>> for $ident {
-            fn into_inner(self) -> Vec<Feature> {
-                self.0
-            }
-        }
-
-        impl IntoInner<Option<Vec<Feature>>> for Option<$ident> {
-            fn into_inner(self) -> Option<Vec<Feature>> {
-                self.map(IntoInner::into_inner)
-            }
-        }
-    };
-}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedFieldStructFeatures(Vec<Feature>);

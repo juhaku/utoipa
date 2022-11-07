@@ -533,6 +533,7 @@ fn derive_path_params_intoparams() {
 
     let parameters = operation.get("parameters").unwrap();
 
+    dbg!(&parameters);
     assert_json_eq!(
         parameters,
         json!([

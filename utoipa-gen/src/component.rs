@@ -12,7 +12,20 @@ pub mod into_params;
 
 mod features;
 pub mod schema;
-mod serde;
+pub mod serde;
+
+/// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
+#[inline]
+fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&SerdeValue>) -> bool {
+    container_rules
+        .as_ref()
+        .map(|rule| rule.default)
+        .unwrap_or(false)
+        || field_rule
+            .as_ref()
+            .map(|rule| rule.default)
+            .unwrap_or(false)
+}
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
@@ -293,29 +306,25 @@ trait Rename {
 ///
 /// Method accepts 3 arguments.
 /// * `value` to rename.
-/// * `field_rule` which is used for renaming fields with _`rename`_ property.
+/// * `to` Optional rename to value for fields with _`rename`_ property.
 /// * `container_rule` which is used to rename containers with _`rename_all`_ property.
 fn rename<'r, R: Rename>(
     value: &'r str,
-    field_rule: &'r Option<SerdeValue>,
-    container_rule: &'r Option<SerdeContainer>,
+    to: Option<&'r str>,
+    container_rule: Option<&'r RenameRule>,
 ) -> Option<Cow<'r, str>> {
-    let rename = field_rule.as_ref().and_then(|field_rule| {
-        if !field_rule.rename.is_empty() {
-            Some(Cow::Borrowed(&*field_rule.rename))
+    let rename = to.as_ref().and_then(|to| {
+        if !to.is_empty() {
+            Some(Cow::Borrowed(*to))
         } else {
             None
         }
     });
 
     rename.or_else(|| {
-        container_rule.as_ref().and_then(|container_rule| {
-            container_rule
-                .rename_all
-                .as_ref()
-                .map(|rule| R::rename(rule, value))
-                .map(Cow::Owned)
-        })
+        container_rule
+            .as_ref()
+            .map(|container_rule| Cow::Owned(R::rename(container_rule, value)))
     })
 }
 
