@@ -705,6 +705,116 @@ fn derive_path_params_with_serde_and_custom_rename() {
         ])
     )
 }
+
+#[test]
+fn derive_path_params_custom_rename_all() {
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(rename_all = "camelCase", parameter_in = Query)]
+    #[allow(dead_code)]
+    struct MyParams {
+        vec_default: Option<Vec<String>>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/list/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+        )
+    )]
+    #[allow(unused)]
+    fn list(id: i64) -> String {
+        "".to_string()
+    }
+
+    #[derive(utoipa::OpenApi, Default)]
+    #[openapi(paths(list))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/list/{id}"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "in": "query",
+                "name": "vecDefault",
+                "required": false,
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+            },
+        ])
+    )
+}
+
+#[test]
+fn derive_path_params_custom_rename_all_serde_will_override() {
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(rename_all = "camelCase", parameter_in = Query)]
+    #[serde(rename_all = "UPPERCASE")]
+    #[allow(dead_code)]
+    struct MyParams {
+        vec_default: Option<Vec<String>>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/list/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+        )
+    )]
+    #[allow(unused)]
+    fn list(id: i64) -> String {
+        "".to_string()
+    }
+
+    #[derive(utoipa::OpenApi, Default)]
+    #[openapi(paths(list))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/list/{id}"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "in": "query",
+                "name": "VEC_DEFAULT",
+                "required": false,
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+            },
+        ])
+    )
+}
+
 #[test]
 fn derive_path_params_intoparams() {
     #[derive(serde::Deserialize, ToSchema)]
