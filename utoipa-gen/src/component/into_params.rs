@@ -12,6 +12,7 @@ use crate::{
     component::{
         self,
         features::{AllowReserved, Example, Explode, Inline, Rename, Style},
+        FieldRename,
     },
     doc_comment::CommentAttributes,
     parse_utils,
@@ -22,8 +23,8 @@ use crate::{
 
 use super::{
     features::{impl_into_inner, parse_features, Feature, FeaturesExt, IntoInner, ToTokensExt},
-    serde::{self, SerdeContainer, SerdeValue},
-    GenericType, TypeTree, ValueType, VariantRename,
+    serde::{self, SerdeContainer},
+    GenericType, TypeTree, ValueType,
 };
 
 /// Container attribute `#[into_params(...)]`.
@@ -307,14 +308,19 @@ impl ToTokens for Param<'_> {
             .map(|rename| rename.into_value());
         let rename = field_param_serde
             .as_ref()
-            .map(|field_param_serde| Cow::Borrowed(field_param_serde.rename.as_str()))
+            .and_then(|field_param_serde| {
+                if !field_param_serde.rename.is_empty() {
+                    Some(Cow::Borrowed(field_param_serde.rename.as_str()))
+                } else {
+                    None
+                }
+            })
             .or_else(|| rename.map(Cow::Owned));
         let rename_all = self
             .serde_container
             .as_ref()
             .and_then(|serde_container| serde_container.rename_all.as_ref());
-
-        let name = super::rename::<VariantRename>(name, rename.as_deref(), rename_all)
+        let name = super::rename::<FieldRename>(name, rename.as_deref(), rename_all)
             .unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
@@ -348,10 +354,8 @@ impl ToTokens for Param<'_> {
             .unwrap_or(type_tree);
 
         let is_default = super::is_default(&self.serde_container, &field_param_serde.as_ref());
-
         let required: Required =
-            (!matches!(&component.generic_type, Some(GenericType::Option)) || is_default).into();
-
+            (!(matches!(&component.generic_type, Some(GenericType::Option)) || is_default)).into();
         tokens.extend(quote! {
             .required(#required)
         });
