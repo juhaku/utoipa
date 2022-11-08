@@ -25,7 +25,7 @@ fn main() {
             if manifest_dir.contains("/package") {
                 Ok("target".to_string())
             } else {
-                Ok("../target".to_string())
+                Ok(env::var("TARGET_DIR").unwrap_or_else(|_| "../target".to_string()))
             }
         })
         .unwrap();
