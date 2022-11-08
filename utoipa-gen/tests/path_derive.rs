@@ -816,6 +816,70 @@ fn derive_path_params_custom_rename_all_serde_will_override() {
 }
 
 #[test]
+fn derive_path_parameters_container_level_default() {
+    #[derive(serde::Deserialize, IntoParams, Default)]
+    #[into_params(parameter_in = Query)]
+    #[serde(default)]
+    #[allow(dead_code)]
+    struct MyParams {
+        vec_default: Vec<String>,
+        string: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/list/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            MyParams,
+        )
+    )]
+    #[allow(unused)]
+    fn list(id: i64) -> String {
+        "".to_string()
+    }
+
+    #[derive(utoipa::OpenApi, Default)]
+    #[openapi(paths(list))]
+    struct ApiDoc;
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/list/{id}"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "in": "query",
+                "name": "vec_default",
+                "required": false,
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+            },
+            {
+                "in": "query",
+                "name": "string",
+                "required": false,
+                "schema": {
+                    "type": "string"
+                },
+            }
+        ])
+    )
+}
+
+#[test]
 fn derive_path_params_intoparams() {
     #[derive(serde::Deserialize, ToSchema)]
     #[schema(default = "foo1", example = "foo1")]
