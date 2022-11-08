@@ -3,11 +3,16 @@ use std::mem;
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse};
+use syn::{parenthesized, parse::Parse, LitStr};
 
-use crate::{parse_utils, schema_type::SchemaFormat, AnyValue};
+use crate::{
+    parse_utils,
+    path::parameter::{self, ParameterStyle},
+    schema_type::SchemaFormat,
+    AnyValue,
+};
 
-use super::{schema, GenericType, TypeTree};
+use super::{schema, serde::RenameRule, GenericType, TypeTree};
 
 pub trait Name {
     fn get_name() -> &'static str;
@@ -36,6 +41,13 @@ pub enum Feature {
     ReadOnly(ReadOnly),
     Title(Title),
     Nullable(Nullable),
+    Rename(Rename),
+    RenameAll(RenameAll),
+    Style(Style),
+    AllowReserve(AllowReserved),
+    Explode(Explode),
+    ParameterIn(ParameterIn),
+    IntoParamsNames(Names),
 }
 
 impl Feature {
@@ -52,6 +64,13 @@ impl Feature {
             "read_only" => ReadOnly::parse(input).map(Self::ReadOnly),
             "title" => Title::parse(input).map(Self::Title),
             "nullable" => Nullable::parse(input).map(Self::Nullable),
+            "rename" => Rename::parse(input).map(Self::Rename),
+            "rename_all" => RenameAll::parse(input).map(Self::RenameAll),
+            "style" => Style::parse(input).map(Self::Style),
+            "allow_reserved" => AllowReserved::parse(input).map(Self::AllowReserve),
+            "explode" => Explode::parse(input).map(Self::Explode),
+            "parameter_in" => ParameterIn::parse(input).map(Self::ParameterIn),
+            "names" => Names::parse(input).map(Self::IntoParamsNames),
             _unexpected => Err(syn::Error::new(ident.span(), format!("unexpected name: {}, expected one of: default, example, inline, xml, format, value_type, write_only, read_only, title", _unexpected))),
         }
     }
@@ -62,18 +81,43 @@ impl ToTokens for Feature {
         let feature = match &self {
             Feature::Default(default) => quote! { .default(Some(#default)) },
             Feature::Example(example) => quote! { .example(Some(#example)) },
-            Feature::Inline(inline) => quote! { .inline(Some(#inline)) },
             Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
             Feature::Format(format) => quote! { .format(Some(#format)) },
             Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
             Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
             Feature::Title(title) => quote! { .title(Some(#title)) },
             Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+            Feature::Rename(rename) => rename.to_token_stream(),
+            Feature::Style(style) => quote! { .style(Some(#style)) },
+            Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
+            Feature::AllowReserve(allow_reserved) => {
+                quote! { .allow_reserved(Some(#allow_reserved)) }
+            }
+            Feature::Explode(explode) => quote! { .explode(Some(#explode)) },
+            Feature::RenameAll(_) => {
+                abort! {
+                    Span::call_site(),
+                    "RenameAll feature does not support `ToTokens`"
+                }
+            }
             Feature::ValueType(_) => {
                 abort! {
                     Span::call_site(),
                     "ValueType feature does not support `ToTokens`";
                     help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
+                }
+            }
+            Feature::Inline(_) => {
+                abort! {
+                    Span::call_site(),
+                    "Inline feature does not support `ToTokens`"
+                }
+            }
+            Feature::IntoParamsNames(_) => {
+                abort! {
+                    Span::call_site(),
+                    "Names feature does not support `ToTokens`";
+                    help = "Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."
                 }
             }
         };
@@ -125,12 +169,6 @@ pub struct Inline(bool);
 impl Parse for Inline {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for Inline {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
     }
 }
 
@@ -294,6 +332,156 @@ impl ToTokens for Nullable {
 
 name!(Nullable = "nullable");
 
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Rename(String);
+
+impl Rename {
+    pub fn into_value(self) -> String {
+        self.0
+    }
+}
+
+impl Parse for Rename {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for Rename {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+name!(Rename = "rename");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct RenameAll(RenameRule);
+
+impl RenameAll {
+    pub fn as_rename_rule(&self) -> &RenameRule {
+        &self.0
+    }
+}
+
+impl Parse for RenameAll {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
+
+        litstr
+            .value()
+            .parse::<RenameRule>()
+            .map_err(|error| syn::Error::new(litstr.span(), error.to_string()))
+            .map(Self)
+    }
+}
+
+name!(RenameAll = "rename_all");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Style(ParameterStyle);
+
+impl From<ParameterStyle> for Style {
+    fn from(style: ParameterStyle) -> Self {
+        Self(style)
+    }
+}
+
+impl Parse for Style {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || input.parse::<ParameterStyle>().map(Self))
+    }
+}
+
+impl ToTokens for Style {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+name!(Style = "style");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct AllowReserved(bool);
+
+impl Parse for AllowReserved {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for AllowReserved {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+name!(AllowReserved = "allow_reserved");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Explode(bool);
+
+impl Parse for Explode {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for Explode {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+name!(Explode = "explode");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct ParameterIn(parameter::ParameterIn);
+
+impl Parse for ParameterIn {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
+    }
+}
+
+impl ToTokens for ParameterIn {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+name!(ParameterIn = "parameter_in");
+
+/// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Names(Vec<String>);
+
+impl Names {
+    pub fn into_values(self) -> Vec<String> {
+        self.0
+    }
+}
+
+impl Parse for Names {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self(
+            parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
+                .iter()
+                .map(LitStr::value)
+                .collect(),
+        ))
+    }
+}
+
+name!(Names = "names");
+
 macro_rules! parse_features {
     ($ident:ident as $( $feature:path ),*) => {
         {
@@ -369,6 +557,10 @@ impl ToTokensExt for Vec<Feature> {
 
 pub trait FeaturesExt {
     fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature>;
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
+
+    fn find_rename_feature_as_rename(&mut self) -> Option<Rename>;
 }
 
 impl FeaturesExt for Vec<Feature> {
@@ -377,4 +569,66 @@ impl FeaturesExt for Vec<Feature> {
             .position(op)
             .map(|index| self.swap_remove(index))
     }
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
+        self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
+            .and_then(|feature| match feature {
+                Feature::ValueType(value_type) => Some(value_type),
+                _ => None,
+            })
+    }
+
+    fn find_rename_feature_as_rename(&mut self) -> Option<Rename> {
+        self.pop_by(|feature| matches!(feature, Feature::Rename(_)))
+            .and_then(|feature| match feature {
+                Feature::Rename(rename) => Some(rename),
+                _ => None,
+            })
+    }
 }
+
+impl FeaturesExt for Option<Vec<Feature>> {
+    fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature> {
+        self.as_mut().and_then(|features| features.pop_by(op))
+    }
+
+    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
+        self.as_mut()
+            .and_then(|features| features.find_value_type_feature_as_value_type())
+    }
+
+    fn find_rename_feature_as_rename(&mut self) -> Option<Rename> {
+        self.as_mut()
+            .and_then(|features| features.find_rename_feature_as_rename())
+    }
+}
+
+macro_rules! pop_feature {
+    ($features:ident => $value:pat_param) => {{
+        $features.pop_by(|feature| matches!(feature, $value))
+    }};
+}
+
+pub(crate) use pop_feature;
+
+pub trait IntoInner<T> {
+    fn into_inner(self) -> T;
+}
+
+macro_rules! impl_into_inner {
+    ($ident:ident) => {
+        impl crate::component::features::IntoInner<Vec<Feature>> for $ident {
+            fn into_inner(self) -> Vec<Feature> {
+                self.0
+            }
+        }
+
+        impl crate::component::features::IntoInner<Option<Vec<Feature>>> for Option<$ident> {
+            fn into_inner(self) -> Option<Vec<Feature>> {
+                self.map(crate::component::features::IntoInner::into_inner)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_into_inner;

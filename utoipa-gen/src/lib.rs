@@ -1081,12 +1081,14 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// deriving `IntoParams`:
 ///
 /// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
+///    __Only__ supported on __unnamed structs__.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///    values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
 ///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
 ///    supplied, then the value is determined by the `parameter_in_provider` in
 ///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+/// * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 ///
 /// # IntoParams Field Attributes for `#[param(...)]`
 ///
@@ -1104,6 +1106,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///    _`Object`_ will be rendered as generic OpenAPI object.
 /// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
 ///   the schema definition will be inlined.
+/// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -1124,6 +1127,18 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// #[into_params(names("id", "name"))]
 /// struct IdAndName(u64, String);
 /// ```
+///
+/// # Partial `#[serde(...)]` attributes support
+///
+/// IntoParams derive has partial support for [serde attributes]. These supported attributes will reflect to the
+/// generated OpenAPI doc. For example the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
+///
+/// * `rename_all = "..."` Supported in container level.
+/// * `rename = "..."` Supported **only** in field.
+/// * `default` Supported in container level and field level according to [serde attributes].
+///
+/// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
+///
 /// # Examples
 ///
 /// Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
@@ -1273,6 +1288,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [style]: openapi/path/enum.ParameterStyle.html
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+/// [serde attributes]: https://serde.rs/attributes.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
 ///
@@ -1327,7 +1343,7 @@ where
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Owned(vec) => vec.as_slice(),
-            Self::Borrowed(slice) => *slice,
+            Self::Borrowed(slice) => slice,
         }
     }
 }

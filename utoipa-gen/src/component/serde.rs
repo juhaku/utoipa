@@ -135,6 +135,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
         })
 }
 
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum RenameRule {
     Lower,
@@ -215,26 +216,33 @@ impl RenameRule {
     }
 }
 
+const RENAME_RULE_NAME_MAPPING: [(&str, RenameRule); 8] = [
+    ("lowercase", RenameRule::Lower),
+    ("UPPERCASE", RenameRule::Upper),
+    ("PascalCase", RenameRule::Pascal),
+    ("camelCase", RenameRule::Camel),
+    ("snake_case", RenameRule::Snake),
+    ("SCREAMING_SNAKE_CASE", RenameRule::ScreamingSnake),
+    ("kebab-case", RenameRule::Kebab),
+    ("SCREAMING-KEBAB-CASE", RenameRule::ScreamingKebab),
+];
+
 impl FromStr for RenameRule {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        [
-                ("lowercase", RenameRule::Lower),
-                ("UPPERCASE", RenameRule::Upper),
-                ("PascalCase", RenameRule::Pascal),
-                ("camelCase", RenameRule::Camel),
-                ("snake_case", RenameRule::Snake),
-                ("SCREAMING_SNAKE_CASE", RenameRule::ScreamingSnake),
-                ("kebab-case", RenameRule::Kebab),
-                ("SCREAMING-KEBAB-CASE", RenameRule::ScreamingKebab),
-            ]
+        let expected_one_of = RENAME_RULE_NAME_MAPPING
+            .into_iter()
+            .map(|(name, _)| format!(r#""{name}""#))
+            .collect::<Vec<_>>()
+            .join(", ");
+        RENAME_RULE_NAME_MAPPING
             .into_iter()
             .find_map(|(case, rule)| if case == s { Some(rule) } else { None })
             .ok_or_else(|| {
                 Error::new(
                     Span::call_site(),
-                    r#"unexpected rename rule, expected one of: "lowercase", "UPPERCASE", "PascalCase", "camelCase", "snake_case", "SCREAMING_SNAKE_CASE", "kebab-case", "SCREAMING-KEBAB-CASE""#,
+                    format!(r#"unexpected rename rule, expected one of: {expected_one_of}"#),
                 )
             })
     }
@@ -242,7 +250,7 @@ impl FromStr for RenameRule {
 
 #[cfg(test)]
 mod tests {
-    use super::RenameRule;
+    use super::{RenameRule, RENAME_RULE_NAME_MAPPING};
 
     macro_rules! test_rename_rule {
         ( $($case:expr=> $value:literal = $expected:literal)* ) => {
@@ -310,16 +318,7 @@ mod tests {
 
     #[test]
     fn test_serde_rename_rule_from_str() {
-        for s in [
-            "lowercase",
-            "UPPERCASE",
-            "PascalCase",
-            "camelCase",
-            "snake_case",
-            "SCREAMING_SNAKE_CASE",
-            "kebab-case",
-            "SCREAMING-KEBAB-CASE",
-        ] {
+        for (s, _) in RENAME_RULE_NAME_MAPPING {
             s.parse::<RenameRule>().unwrap();
         }
     }
