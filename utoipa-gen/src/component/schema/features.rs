@@ -6,7 +6,7 @@ use syn::{
 
 use crate::component::features::{
     impl_into_inner, parse_features, Default, Example, Feature, Format, Inline, Nullable, ReadOnly,
-    Title, ValueType, WriteOnly, XmlAttr,
+    Rename, RenameAll, Title, ValueType, WriteOnly, XmlAttr,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -17,7 +17,9 @@ impl Parse for NamedFieldStructFeatures {
         Ok(NamedFieldStructFeatures(parse_features!(
             input as Example,
             XmlAttr,
-            Title
+            Title,
+            Rename,
+            RenameAll
         )))
     }
 }
@@ -34,7 +36,9 @@ impl Parse for UnnamedFieldStructFeatures {
             Default,
             Title,
             Format,
-            ValueType
+            ValueType,
+            Rename,
+            RenameAll
         )))
     }
 }
@@ -48,7 +52,9 @@ impl Parse for EnumFeatures {
         Ok(EnumFeatures(parse_features!(
             input as Example,
             Default,
-            Title
+            Title,
+            Rename,
+            RenameAll
         )))
     }
 }
@@ -68,7 +74,8 @@ impl Parse for NamedFieldFeatures {
             ReadOnly,
             XmlAttr,
             Inline,
-            Nullable
+            Nullable,
+            Rename
         )))
     }
 }

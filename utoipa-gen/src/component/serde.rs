@@ -24,7 +24,7 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SerdeValue {
     pub skip: bool,
-    pub rename: String,
+    pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
 }
@@ -41,7 +41,7 @@ impl SerdeValue {
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
                         if let Some((literal, _)) = parse_next_lit_str(next) {
-                            value.rename = literal
+                            value.rename = Some(literal)
                         };
                     }
                     TokenTree::Ident(ident) if ident == "default" => value.default = true,

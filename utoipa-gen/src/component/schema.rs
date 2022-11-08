@@ -10,6 +10,7 @@ use syn::{
 };
 
 use crate::{
+    component::features::Rename,
     doc_comment::CommentAttributes,
     schema_type::{SchemaFormat, SchemaType},
     Array, Deprecated,
@@ -21,7 +22,10 @@ use self::features::{
 };
 
 use super::{
-    features::{parse_features, Feature, FeaturesExt, IntoInner, IsInline, ToTokensExt},
+    features::{
+        parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline, RenameAll,
+        ToTokensExt,
+    },
     serde::{self, SerdeContainer, SerdeValue},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
 };
@@ -145,21 +149,34 @@ impl<'a> SchemaVariant<'a> {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
                     let FieldsUnnamed { unnamed, .. } = fields;
+                    let mut unnamed_features = attributes
+                        .parse_features::<UnnamedFieldStructFeatures>()
+                        .into_inner();
                     Self::Unnamed(UnnamedStructSchema {
                         attributes,
-                        features: attributes
-                            .parse_features::<UnnamedFieldStructFeatures>()
-                            .into_inner(),
+                        rename_all: pop_feature!(unnamed_features => Feature::RenameAll(_))
+                            .and_then(|feature| match feature {
+                                Feature::RenameAll(rename_all) => Some(rename_all),
+                                _ => None,
+                            }),
+                        features: unnamed_features,
                         fields: unnamed,
                     })
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
+                    let mut named_features = attributes
+                        .parse_features::<NamedFieldStructFeatures>()
+                        .into_inner();
                     Self::Named(NamedStructSchema {
                         attributes,
-                        features: attributes
-                            .parse_features::<NamedFieldStructFeatures>()
-                            .into_inner(),
+                        rename_all: pop_feature!(named_features => Feature::RenameAll(_)).and_then(
+                            |feature| match feature {
+                                Feature::RenameAll(rename_all) => Some(rename_all),
+                                _ => None,
+                            },
+                        ),
+                        features: named_features,
                         fields: named,
                         generics: Some(generics),
                         alias,
@@ -197,6 +214,7 @@ struct NamedStructSchema<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
     features: Option<Vec<Feature>>,
+    rename_all: Option<RenameAll>,
     generics: Option<&'a Generics>,
     alias: Option<&'a AliasSchema>,
 }
@@ -237,18 +255,24 @@ impl ToTokens for NamedStructSchema<'_> {
                     field_name = &field_name[2..];
                 }
 
-                let name = super::rename::<FieldRename>(
-                    field_name,
-                    field_rule
-                        .as_ref()
-                        .map(|field_rule| field_rule.rename.as_str()),
-                    container_rules
-                        .as_ref()
-                        .and_then(|container_rule| container_rule.rename_all.as_ref()),
-                )
-                .unwrap_or(Cow::Borrowed(field_name));
+                with_field_as_schema_property(self, field, |schema_property, rename| {
+                    let name = super::rename::<FieldRename>(
+                        field_name,
+                        field_rule
+                            .as_ref()
+                            .and_then(|field_rule| field_rule.rename.as_deref())
+                            .or(rename.as_deref()),
+                        container_rules
+                            .as_ref()
+                            .and_then(|container_rule| container_rule.rename_all.as_ref())
+                            .or_else(|| {
+                                self.rename_all
+                                    .as_ref()
+                                    .map(|rename_all| rename_all.as_rename_rule())
+                            }),
+                    )
+                    .unwrap_or(Cow::Borrowed(field_name));
 
-                with_field_as_schema_property(self, field, |schema_property| {
                     object_tokens.extend(quote! {
                         .property(#name, #schema_property)
                     });
@@ -269,7 +293,7 @@ impl ToTokens for NamedStructSchema<'_> {
             });
 
             for field in flatten_fields {
-                with_field_as_schema_property(self, field, |schema_property| {
+                with_field_as_schema_property(self, field, |schema_property, _| {
                     tokens.extend(quote! { .item(#schema_property) });
                 })
             }
@@ -300,7 +324,7 @@ impl ToTokens for NamedStructSchema<'_> {
 fn with_field_as_schema_property<R>(
     schema: &NamedStructSchema,
     field: &Field,
-    yield_: impl FnOnce(SchemaProperty<'_>) -> R,
+    yield_: impl FnOnce(SchemaProperty<'_>, Option<Cow<'_, str>>) -> R,
 ) -> R {
     let type_tree = &mut TypeTree::from_type(&field.ty);
 
@@ -308,6 +332,12 @@ fn with_field_as_schema_property<R>(
         .attrs
         .parse_features::<NamedFieldFeatures>()
         .into_inner();
+
+    let rename_field =
+        pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
+            Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
+            _ => None,
+        });
 
     if let Some((generic_types, alias)) = schema.generics.zip(schema.alias) {
         generic_types
@@ -330,18 +360,22 @@ fn with_field_as_schema_property<R>(
         .map(|value_type| value_type.as_type_tree());
     let comments = CommentAttributes::from_attributes(&field.attrs);
 
-    yield_(SchemaProperty::new(
-        override_type_tree.as_ref().unwrap_or(type_tree),
-        Some(&comments),
-        field_features.as_ref(),
-        deprecated.as_ref(),
-    ))
+    yield_(
+        SchemaProperty::new(
+            override_type_tree.as_ref().unwrap_or(type_tree),
+            Some(&comments),
+            field_features.as_ref(),
+            deprecated.as_ref(),
+        ),
+        rename_field,
+    )
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct UnnamedStructSchema<'a> {
     fields: &'a Punctuated<Field, Comma>,
     attributes: &'a [Attribute],
+    rename_all: Option<RenameAll>,
     features: Option<Vec<Feature>>,
 }
 
@@ -521,7 +555,7 @@ impl ToTokens for ReprEnum<'_> {
             self,
             (self.variants, self.attributes, Some(&self.enum_type)),
             tokens,
-            |tokens, container_rules| {
+            |tokens, container_rules, _| {
                 self.unit_enum_tokens(
                     container_rules,
                     (self.variants, self.attributes, Some(&self.enum_type)),
@@ -552,7 +586,7 @@ impl<'e> EnumTokens<'e> for SimpleEnum<'e> {
                 name,
                 variant_rules
                     .as_ref()
-                    .map(|field_rule| field_rule.rename.as_str()),
+                    .and_then(|field_rule| field_rule.rename.as_deref()),
                 container_rules
                     .as_ref()
                     .and_then(|container_rule| container_rule.rename_all.as_ref()),
@@ -575,7 +609,7 @@ impl ToTokens for SimpleEnum<'_> {
             self,
             (self.variants, self.attributes, None),
             tokens,
-            |tokens, container_rules| {
+            |tokens, container_rules, _| {
                 self.unit_enum_tokens(
                     container_rules,
                     (self.variants, self.attributes, None),
@@ -605,25 +639,31 @@ trait EnumTokens<'e>: ToTokens {
         &self,
         content: EnumContent,
         tokens: &mut TokenStream,
-        enum_value_to_tokens: impl FnOnce(&mut TokenStream, &Option<SerdeContainer>),
+        enum_value_to_tokens: impl FnOnce(&mut TokenStream, &Option<SerdeContainer>, Option<RenameAll>),
     ) where
         Self: Sized,
     {
         let (_, attributes, _) = content;
 
         let container_rules = serde::parse_container(attributes);
-        enum_value_to_tokens(tokens, &container_rules);
+        let mut enum_features = attributes.parse_features::<EnumFeatures>().into_inner();
 
-        let attrs = attributes.parse_features::<EnumFeatures>();
+        let rename_all =
+            pop_feature!(enum_features => Feature::RenameAll(_)).and_then(
+                |feature| match feature {
+                    Feature::RenameAll(rename_all) => Some(rename_all),
+                    _ => None,
+                },
+            );
 
-        if let Some(attributes) = attrs {
-            tokens.extend(attributes.into_inner().to_token_stream());
+        enum_value_to_tokens(tokens, &container_rules, rename_all);
+
+        if let Some(attributes) = enum_features {
+            tokens.extend(attributes.to_token_stream());
         }
-
         if let Some(deprecated) = super::get_deprecated(attributes) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
-
         if let Some(comment) = CommentAttributes::from_attributes(attributes).first() {
             tokens.extend(quote! {
                 .description(Some(#comment))
@@ -672,7 +712,7 @@ impl ComplexEnum<'_> {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_features, named_struct_features) = variant
+                let (title_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<NamedFieldStructFeatures>()
                     .into_inner()
@@ -683,6 +723,11 @@ impl ComplexEnum<'_> {
                     &EnumVariantTokens(&variant_name, title_features),
                     NamedStructSchema {
                         attributes: &variant.attrs,
+                        rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_))
+                            .and_then(|feature| match feature {
+                                Feature::RenameAll(rename_all) => Some(rename_all),
+                                _ => None,
+                            }),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
@@ -691,7 +736,7 @@ impl ComplexEnum<'_> {
                 )
             }
             Fields::Unnamed(unnamed_fields) => {
-                let (title_features, unnamed_struct_features) = variant
+                let (title_features, mut unnamed_struct_features) = variant
                     .attrs
                     .parse_features::<UnnamedFieldStructFeatures>()
                     .into_inner()
@@ -702,6 +747,11 @@ impl ComplexEnum<'_> {
                     &EnumVariantTokens(&variant_name, title_features),
                     UnnamedStructSchema {
                         attributes: &variant.attrs,
+                        rename_all: pop_feature!(unnamed_struct_features => Feature::RenameAll(_))
+                            .and_then(|feature| match feature {
+                                Feature::RenameAll(rename_all) => Some(rename_all),
+                                _ => None,
+                            }),
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                     },
@@ -709,7 +759,11 @@ impl ComplexEnum<'_> {
             }
             Fields::Unit => {
                 let unit_features = features::parse_schema_features_with(&variant.attrs, |input| {
-                    Ok(parse_features!(input as super::features::Title))
+                    Ok(parse_features!(
+                        input as super::features::Title,
+                        RenameAll,
+                        Rename
+                    ))
                 })
                 .unwrap_or_default();
 
@@ -727,7 +781,7 @@ impl ComplexEnum<'_> {
     ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (title_features, named_struct_features) = variant
+                let (title_features, mut named_struct_features) = variant
                     .attrs
                     .parse_features::<NamedFieldStructFeatures>()
                     .into_inner()
@@ -736,6 +790,11 @@ impl ComplexEnum<'_> {
 
                 let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
+                    rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_))
+                        .and_then(|feature| match feature {
+                            Feature::RenameAll(rename_all) => Some(rename_all),
+                            _ => None,
+                        }),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
@@ -837,7 +896,7 @@ impl ToTokens for ComplexEnum<'_> {
             self,
             (self.variants, self.attributes, None),
             tokens,
-            |tokens, container_rules| {
+            |tokens, container_rules, rename_all| {
                 let capacity = self.variants.len();
                 let tag = container_rules.as_ref().and_then(|rules| {
                     if !rules.tag.is_empty() {
@@ -866,10 +925,15 @@ impl ToTokens for ComplexEnum<'_> {
                             variant_name,
                             variant_serde_rules
                                 .as_ref()
-                                .map(|field_rule| field_rule.rename.as_str()),
+                                .and_then(|field_rule| field_rule.rename.as_deref()),
                             container_rules
                                 .as_ref()
-                                .and_then(|container_rule| container_rule.rename_all.as_ref()),
+                                .and_then(|container_rule| container_rule.rename_all.as_ref())
+                                .or_else(|| {
+                                    rename_all
+                                        .as_ref()
+                                        .map(|rename_all| rename_all.as_rename_rule())
+                                }),
                         )
                         .unwrap_or(Cow::Borrowed(variant_name));
 

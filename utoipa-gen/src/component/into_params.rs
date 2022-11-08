@@ -266,13 +266,7 @@ impl ToTokens for Param<'_> {
             .map(|rename| rename.into_value());
         let rename = field_param_serde
             .as_ref()
-            .and_then(|field_param_serde| {
-                if !field_param_serde.rename.is_empty() {
-                    Some(Cow::Borrowed(field_param_serde.rename.as_str()))
-                } else {
-                    None
-                }
-            })
+            .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
             .or_else(|| rename.map(Cow::Owned));
         let rename_all = self
             .serde_container
