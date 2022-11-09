@@ -1221,7 +1221,7 @@ pub fn serve<'a>(
 
         Ok(Some(SwaggerFile {
             bytes,
-            content_type: mime_guess::from_path(&file_path)
+            content_type: mime_guess::from_path(file_path)
                 .first_or_octet_stream()
                 .to_string(),
         }))

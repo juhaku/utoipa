@@ -18,15 +18,36 @@ pub mod axum;
 pub mod rocket;
 
 /// Represents single argument of handler operation.
+#[cfg_attr(
+    not(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    )),
+    allow(dead_code)
+)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ValueArgument<'a> {
     pub name: Option<Cow<'a, str>>,
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     pub argument_in: ArgumentIn,
     pub type_path: Option<Cow<'a, Path>>,
     pub is_array: bool,
     pub is_option: bool,
 }
 
+#[cfg_attr(
+    not(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    )),
+    allow(dead_code)
+)]
 /// Represents Identifier with `parameter_in` provider function which is used to
 /// update the `parameter_in` to [`Parameter::Struct`].
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -35,6 +56,11 @@ pub struct IntoParamsType<'a> {
     pub type_path: Option<Cow<'a, syn::Path>>,
 }
 
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Eq)]
 pub enum ArgumentIn {
@@ -51,7 +77,10 @@ pub struct MacroPath {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum MacroArg {
-    #[cfg_attr(feature = "axum_extras", allow(dead_code))]
+    #[cfg_attr(
+        not(any(feature = "actix_extras", feature = "rocket_extras")),
+        allow(dead_code)
+    )]
     Path(ArgValue),
     #[cfg(feature = "rocket_extras")]
     Query(ArgValue),
