@@ -132,9 +132,3 @@ impl ToTokens for XmlAttr {
         tokens.extend(quote! { .build() })
     }
 }
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub(super) enum Xml {
-    NonSlice(XmlAttr),
-    Slice { vec: XmlAttr, value: XmlAttr },
-}

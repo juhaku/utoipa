@@ -26,7 +26,6 @@ use super::{
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
 };
 
-mod attr;
 mod features;
 pub mod xml;
 
