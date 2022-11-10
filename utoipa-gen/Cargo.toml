@@ -26,7 +26,7 @@ utoipa = { path = "../utoipa", default-features = false }
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
-axum = "0.5"
+axum = "0.6.0-rc.2"
 paste = "1"
 rocket = "0.5.0-rc.1"
 smallvec = { version = "1.9.0", features = ["serde"] }
