@@ -9,7 +9,7 @@ use axum::{
 
 use crate::{Config, SwaggerUi, Url};
 
-impl<B> From<SwaggerUi> for Router<B>
+impl<B> From<SwaggerUi> for Router<(), B>
 where
     B: HttpBody + Send + 'static,
 {
@@ -17,7 +17,7 @@ where
         let urls_capacity = swagger_ui.urls.len();
 
         let (router, urls) = swagger_ui.urls.into_iter().fold(
-            (Router::<B>::new(), Vec::<Url>::with_capacity(urls_capacity)),
+            (Router::<(), B>::new(), Vec::<Url>::with_capacity(urls_capacity)),
             |(router, mut urls), url| {
                 let (url, openapi) = url;
                 (
