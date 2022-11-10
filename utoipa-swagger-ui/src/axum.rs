@@ -50,7 +50,7 @@ async fn serve_swagger_ui(
     Path(tail): Path<String>,
     Extension(state): Extension<Arc<Config<'static>>>,
 ) -> impl IntoResponse {
-    match super::serve(&tail[1..], state) {
+    match super::serve(&tail, state) {
         Ok(file) => file
             .map(|file| {
                 (
