@@ -173,8 +173,8 @@ mod todo {
         )
     )]
     pub(super) async fn create_todo(
-        Json(todo): Json<Todo>,
         Extension(store): Extension<Arc<Store>>,
+        Json(todo): Json<Todo>,
     ) -> impl IntoResponse {
         let mut todos = store.lock().await;
 
