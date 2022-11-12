@@ -102,7 +102,7 @@
 //!# where
 //!#     B: HttpBody + Send + 'static,
 //!# {
-//! let app = Router::<B>::new()
+//! let app = Router::<(), B>::new()
 //!     .merge(SwaggerUi::new("/swagger-ui/*tail")
 //!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 //!# }
