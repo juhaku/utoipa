@@ -78,7 +78,7 @@ Setup Router to serve Swagger UI with **`axum`** framework. See full implementat
 Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
 ```rust
 let app = Router::new()
-    .merge(SwaggerUi::new("/swagger-ui/*tail")
+    .merge(SwaggerUi::new("/swagger-ui/")
         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 ```
 

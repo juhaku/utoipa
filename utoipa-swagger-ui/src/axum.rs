@@ -1,5 +1,6 @@
 #![cfg(feature = "axum")]
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use axum::{
@@ -38,19 +39,24 @@ where
         } else {
             Config::new(urls)
         };
+        let config = Arc::new(config);
 
         router.route(
-            swagger_ui.path.as_ref(),
-            routing::get(serve_swagger_ui).layer(Extension(Arc::new(config))),
+            &swagger_ui.path,
+            routing::get(serve_swagger_ui).layer(Extension(config.clone())),
+        ).route(
+            &format!("{}*tail", swagger_ui.path),
+            routing::get(serve_swagger_ui).layer(Extension(config.clone())),
         )
     }
 }
 
 async fn serve_swagger_ui(
-    Path(tail): Path<String>,
+    tail: Option<Path<String>>,
     Extension(state): Extension<Arc<Config<'static>>>,
 ) -> impl IntoResponse {
-    match super::serve(&tail, state) {
+    let path: Cow<str> = tail.map(|t| t.0.into()).unwrap_or("index.html".into());
+    match super::serve(&path, state) {
         Ok(file) => file
             .map(|file| {
                 (

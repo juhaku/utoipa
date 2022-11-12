@@ -103,7 +103,7 @@
 //!#     B: HttpBody + Send + 'static,
 //!# {
 //! let app = Router::<(), B>::new()
-//!     .merge(SwaggerUi::new("/swagger-ui/*tail")
+//!     .merge(SwaggerUi::new("/swagger-ui/")
 //!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 //!# }
 //! ```
