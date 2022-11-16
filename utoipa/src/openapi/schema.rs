@@ -886,7 +886,7 @@ impl ObjectBuilder {
 
     to_array_builder!();
 
-    build_fn!(pub Object schema_type, format, title, required, properties, description, 
+    build_fn!(pub Object schema_type, format, title, required, properties, description,
               deprecated, default, enum_values, example, write_only, read_only, xml,
               additional_properties, nullable);
 }

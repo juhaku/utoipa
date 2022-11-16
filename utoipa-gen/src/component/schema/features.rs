@@ -36,9 +36,7 @@ impl Parse for UnnamedFieldStructFeatures {
             Default,
             Title,
             Format,
-            ValueType,
-            Rename,
-            RenameAll
+            ValueType
         )))
     }
 }
@@ -53,7 +51,6 @@ impl Parse for EnumFeatures {
             input as Example,
             Default,
             Title,
-            Rename,
             RenameAll
         )))
     }

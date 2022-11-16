@@ -558,9 +558,13 @@ impl ToTokensExt for Vec<Feature> {
 pub trait FeaturesExt {
     fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature>;
 
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType>;
+    fn pop_value_type_feature(&mut self) -> Option<super::features::ValueType>;
 
-    fn find_rename_feature_as_rename(&mut self) -> Option<Rename>;
+    /// Pop [`Rename`] feature if exists in [`Vec<Feature>`] list.
+    fn pop_rename_feature(&mut self) -> Option<Rename>;
+
+    /// Pop [`RenameAll`] feature if exists in [`Vec<Feature>`] list.
+    fn pop_rename_all_feature(&mut self) -> Option<RenameAll>;
 }
 
 impl FeaturesExt for Vec<Feature> {
@@ -570,7 +574,7 @@ impl FeaturesExt for Vec<Feature> {
             .map(|index| self.swap_remove(index))
     }
 
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
+    fn pop_value_type_feature(&mut self) -> Option<super::features::ValueType> {
         self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
             .and_then(|feature| match feature {
                 Feature::ValueType(value_type) => Some(value_type),
@@ -578,10 +582,18 @@ impl FeaturesExt for Vec<Feature> {
             })
     }
 
-    fn find_rename_feature_as_rename(&mut self) -> Option<Rename> {
+    fn pop_rename_feature(&mut self) -> Option<Rename> {
         self.pop_by(|feature| matches!(feature, Feature::Rename(_)))
             .and_then(|feature| match feature {
                 Feature::Rename(rename) => Some(rename),
+                _ => None,
+            })
+    }
+
+    fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
+        self.pop_by(|feature| matches!(feature, Feature::Rename(_)))
+            .and_then(|feature| match feature {
+                Feature::RenameAll(rename_all) => Some(rename_all),
                 _ => None,
             })
     }
@@ -592,14 +604,19 @@ impl FeaturesExt for Option<Vec<Feature>> {
         self.as_mut().and_then(|features| features.pop_by(op))
     }
 
-    fn find_value_type_feature_as_value_type(&mut self) -> Option<super::features::ValueType> {
+    fn pop_value_type_feature(&mut self) -> Option<super::features::ValueType> {
         self.as_mut()
-            .and_then(|features| features.find_value_type_feature_as_value_type())
+            .and_then(|features| features.pop_value_type_feature())
     }
 
-    fn find_rename_feature_as_rename(&mut self) -> Option<Rename> {
+    fn pop_rename_feature(&mut self) -> Option<Rename> {
         self.as_mut()
-            .and_then(|features| features.find_rename_feature_as_rename())
+            .and_then(|features| features.pop_rename_feature())
+    }
+
+    fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
+        self.as_mut()
+            .and_then(|features| features.pop_rename_all_feature())
     }
 }
 

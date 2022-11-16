@@ -257,12 +257,12 @@ impl ToTokens for Param<'_> {
                 field_features.push(style.clone()); // could try to use cow to avoid cloning
             };
         }
-        let value_type = field_features.find_value_type_feature_as_value_type();
+        let value_type = field_features.pop_value_type_feature();
         let is_inline = field_features
             .pop_by(|feature| matches!(feature, Feature::Inline(_)))
             .is_some();
         let rename = field_features
-            .find_rename_feature_as_rename()
+            .pop_rename_feature()
             .map(|rename| rename.into_value());
         let rename = field_param_serde
             .as_ref()

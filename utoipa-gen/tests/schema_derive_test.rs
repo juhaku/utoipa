@@ -67,7 +67,6 @@ fn derive_map_type() {
 
 #[test]
 fn derive_map_ref() {
-    #[derive(ToSchema)]
     enum Foo {}
 
     let map = api_doc! {
