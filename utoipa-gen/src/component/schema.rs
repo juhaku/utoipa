@@ -479,18 +479,18 @@ impl ToTokens for EnumSchema<'_> {
                             }
                         })
                         .map(|enum_type| {
-                            ReprEnum {
+                            EnumSchemaType::Repr(ReprEnum {
                                 variants: self.variants,
                                 attributes: self.attributes,
                                 enum_type,
-                            }
+                            })
                             .to_token_stream()
                         })
                         .unwrap_or_else(|| {
-                            SimpleEnum {
+                            EnumSchemaType::Simple(SimpleEnum {
                                 attributes: self.attributes,
                                 variants: self.variants,
-                            }
+                            })
                             .to_token_stream()
                         }),
                 )
@@ -499,22 +499,59 @@ impl ToTokens for EnumSchema<'_> {
             #[cfg(not(feature = "repr"))]
             {
                 tokens.extend(
-                    SimpleEnum {
+                    EnumSchemaType::Simple(SimpleEnum {
                         attributes: self.attributes,
                         variants: self.variants,
-                    }
+                    })
                     .to_token_stream(),
                 )
             }
         } else {
             tokens.extend(
-                ComplexEnum {
+                EnumSchemaType::Complex(ComplexEnum {
                     attributes: self.attributes,
                     variants: self.variants,
-                }
+                })
                 .to_token_stream(),
             )
         };
+    }
+}
+
+enum EnumSchemaType<'e> {
+    Simple(SimpleEnum<'e>),
+    #[cfg(feature = "repr")]
+    Repr(ReprEnum<'e>),
+    Complex(ComplexEnum<'e>),
+}
+
+impl ToTokens for EnumSchemaType<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let attributes = match self {
+            Self::Simple(simple) => {
+                simple.to_tokens(tokens);
+                simple.attributes
+            }
+            #[cfg(feature = "repr")]
+            Self::Repr(repr) => {
+                repr.to_tokens(tokens);
+                repr.attributes
+            }
+            Self::Complex(complex) => {
+                complex.to_tokens(tokens);
+                complex.attributes
+            }
+        };
+
+        if let Some(deprecated) = super::get_deprecated(attributes) {
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
+
+        if let Some(comment) = CommentAttributes::from_attributes(attributes).first() {
+            tokens.extend(quote! {
+                .description(Some(#comment))
+            })
+        }
     }
 }
 
@@ -535,52 +572,25 @@ impl ToTokens for ReprEnum<'_> {
         })
         .unwrap_or_default();
 
-        let enum_values = self
-            .variants
-            .iter()
-            .filter_map(|variant| {
-                let variant_type = &variant.ident;
-                let variant_rules = serde::parse_value(&variant.attrs);
+        regular_enum_to_tokens(tokens, &container_rules, repr_enum_features, || {
+            self.variants
+                .iter()
+                .filter_map(|variant| {
+                    let variant_type = &variant.ident;
+                    let variant_rules = serde::parse_value(&variant.attrs);
 
-                if is_not_skipped(&variant_rules) {
-                    let repr_type = &self.enum_type;
-                    Some(ReprVariant {
-                        value: quote! { Self::#variant_type as #repr_type },
-                        type_path: repr_type,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<ReprVariant<TokenStream>>>();
-
-        tokens.extend(match container_rules {
-            Some(serde_container) if !serde_container.tag.is_empty() => {
-                let tag = serde_container.tag;
-                TaggedEnum {
-                    items: enum_values.as_slice(),
-                    tag: Cow::Owned(tag),
-                }
-                .to_token_stream()
-            }
-            _ => Enum {
-                items: enum_values.as_slice(),
-                title: None,
-            }
-            .to_token_stream(),
+                    if is_not_skipped(&variant_rules) {
+                        let repr_type = &self.enum_type;
+                        Some(ReprVariant {
+                            value: quote! { Self::#variant_type as #repr_type },
+                            type_path: repr_type,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<ReprVariant<TokenStream>>>()
         });
-
-        tokens.extend(repr_enum_features.to_token_stream());
-
-        if let Some(deprecated) = super::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
-
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
-        }
     }
 }
 
@@ -598,91 +608,85 @@ impl ToTokens for SimpleEnum<'_> {
             .parse_features::<EnumFeatures>()
             .into_inner()
             .unwrap_or_default();
+        let rename_all = simple_enum_features.pop_rename_all_feature();
 
-        let rename_all =
-            pop_feature!(simple_enum_features => Feature::RenameAll(_)).and_then(|rename_all| {
-                match rename_all {
-                    Feature::RenameAll(rename_all) => Some(rename_all),
-                    _ => None,
-                }
-            });
-
-        let enum_values = self
-            .variants
-            .iter()
-            .filter_map(|variant| {
-                let name = &*variant.ident.to_string();
-                let variant_rules = serde::parse_value(&variant.attrs);
-                let mut variant_features =
-                    features::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as Rename))
-                    })
-                    .unwrap_or_default();
-                let rename = variant_features
-                    .pop_rename_feature()
-                    .map(|rename| rename.into_value());
-                let rename_to = variant_rules
-                    .as_ref()
-                    .as_ref()
-                    .and_then(|variant_rules| variant_rules.rename.as_deref().map(Cow::Borrowed))
-                    .or_else(|| rename.map(Cow::Owned));
-
-                let variant_name = super::rename::<VariantRename>(
-                    name,
-                    rename_to.as_deref(),
-                    container_rules.as_ref().and_then(|container_rule| {
-                        container_rule.rename_all.as_ref().or_else(|| {
-                            rename_all
-                                .as_ref()
-                                .map(|rename_all| rename_all.as_rename_rule())
+        regular_enum_to_tokens(tokens, &container_rules, simple_enum_features, || {
+            self.variants
+                .iter()
+                .filter_map(|variant| {
+                    let name = &*variant.ident.to_string();
+                    let variant_rules = serde::parse_value(&variant.attrs);
+                    let mut variant_features =
+                        features::parse_schema_features_with(&variant.attrs, |input| {
+                            Ok(parse_features!(input as Rename))
                         })
-                    }),
-                );
-
-                if is_not_skipped(&variant_rules) {
-                    variant_name
-                        .map(|name| SimpleEnumVariant {
-                            value: quote! { #name },
+                        .unwrap_or_default();
+                    let rename = variant_features
+                        .pop_rename_feature()
+                        .map(|rename| rename.into_value());
+                    let rename_to = variant_rules
+                        .as_ref()
+                        .and_then(|variant_rules| {
+                            variant_rules.rename.as_deref().map(Cow::Borrowed)
                         })
-                        .or_else(|| {
-                            Some(SimpleEnumVariant {
+                        .or_else(|| rename.map(Cow::Owned));
+
+                    let variant_name = super::rename::<VariantRename>(
+                        name,
+                        rename_to.as_deref(),
+                        container_rules.as_ref().and_then(|container_rule| {
+                            container_rule.rename_all.as_ref().or_else(|| {
+                                rename_all
+                                    .as_ref()
+                                    .map(|rename_all| rename_all.as_rename_rule())
+                            })
+                        }),
+                    );
+
+                    if is_not_skipped(&variant_rules) {
+                        variant_name
+                            .map(|name| SimpleEnumVariant {
                                 value: quote! { #name },
                             })
-                        })
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<SimpleEnumVariant<TokenStream>>>();
-
-        tokens.extend(match container_rules {
-            Some(serde_container) if !serde_container.tag.is_empty() => {
-                let tag = serde_container.tag;
-                TaggedEnum {
-                    items: enum_values.as_slice(),
-                    tag: Cow::Owned(tag),
-                }
-                .to_token_stream()
-            }
-            _ => Enum {
-                items: enum_values.as_slice(),
-                title: None,
-            }
-            .to_token_stream(),
+                            .or_else(|| {
+                                Some(SimpleEnumVariant {
+                                    value: quote! { #name },
+                                })
+                            })
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<SimpleEnumVariant<TokenStream>>>()
         });
-
-        tokens.extend(simple_enum_features.to_token_stream());
-
-        if let Some(deprecated) = super::get_deprecated(self.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
-
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
-        }
     }
+}
+
+fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
+    tokens: &mut TokenStream,
+    container_rules: &Option<SerdeContainer>,
+    enum_variant_features: Vec<Feature>,
+    get_variants_tokens_vec: impl FnOnce() -> Vec<T>,
+) {
+    let enum_values = get_variants_tokens_vec();
+
+    tokens.extend(match container_rules {
+        Some(serde_container) if !serde_container.tag.is_empty() => {
+            let tag = &serde_container.tag;
+            TaggedEnum {
+                items: enum_values.as_slice(),
+                tag: Cow::Borrowed(tag),
+            }
+            .to_token_stream()
+        }
+        _ => Enum {
+            items: enum_values.as_slice(),
+            title: None,
+        }
+        .to_token_stream(),
+    });
+
+    tokens.extend(enum_variant_features.to_token_stream());
 }
 
 struct ComplexEnum<'a> {
@@ -907,17 +911,13 @@ impl ComplexEnum<'_> {
 impl ToTokens for ComplexEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let attributes = &self.attributes;
-
         let container_rules = serde::parse_container(attributes);
-        let mut enum_features = attributes.parse_features::<EnumFeatures>().into_inner();
+        let mut enum_features = attributes
+            .parse_features::<EnumFeatures>()
+            .into_inner()
+            .unwrap_or_default();
+        let rename_all = enum_features.pop_rename_all_feature();
 
-        let rename_all =
-            pop_feature!(enum_features => Feature::RenameAll(_)).and_then(
-                |feature| match feature {
-                    Feature::RenameAll(rename_all) => Some(rename_all),
-                    _ => None,
-                },
-            );
         let capacity = self.variants.len();
         let tag = container_rules.as_ref().and_then(|rules| {
             if !rules.tag.is_empty() {
@@ -985,17 +985,7 @@ impl ToTokens for ComplexEnum<'_> {
             }
         );
 
-        if let Some(attributes) = enum_features {
-            tokens.extend(attributes.to_token_stream());
-        }
-        if let Some(deprecated) = super::get_deprecated(attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
-        if let Some(comment) = CommentAttributes::from_attributes(attributes).first() {
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
-        }
+        tokens.extend(enum_features.to_token_stream());
     }
 }
 

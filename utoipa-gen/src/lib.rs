@@ -1320,6 +1320,7 @@ where
     T: Sized + ToTokens,
 {
     Owned(Vec<T>),
+    #[allow(dead_code)]
     Borrowed(&'a [T]),
 }
 
