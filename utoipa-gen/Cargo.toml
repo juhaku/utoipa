@@ -36,7 +36,7 @@ assert-json-diff = "2"
 time = { version = "0.3.11", features = ["serde-human-readable"] }
 
 [features]
-debug = []
+debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
 chrono = []
 json = []
