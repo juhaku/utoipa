@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::marker::PhantomData;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -77,9 +78,26 @@ where
     }
 }
 
-pub struct Enum<'e, T: Variant> {
-    pub items: &'e [T],
-    pub title: Option<TokenStream>,
+pub struct Enum<'e, V: Variant> {
+    // pub items: &'e [T],
+    title: Option<TokenStream>,
+    len: usize,
+    items: Array<'e, TokenStream>,
+    schema_type: TokenStream,
+    enum_type: TokenStream,
+    _p: PhantomData<V>,
+}
+
+impl<V: Variant> Enum<'_, V> {
+    pub fn new<I: IntoIterator<Item = V>>(items: I) -> Self {
+        items.into_iter().collect()
+    }
+
+    pub fn with_title<I: Into<TokenStream>>(mut self, title: Option<I>) -> Self {
+        self.title = title.map(|title| title.into());
+
+        self
+    }
 }
 
 impl<T> ToTokens for Enum<'_, T>
@@ -87,20 +105,11 @@ where
     T: Variant,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let len = self.items.len();
+        let len = &self.len;
         let title = &self.title;
-        let (schema_type, enum_type) = self
-            .items
-            .iter()
-            .next()
-            .expect("should have at least one enum variant within `Enum` but None was found")
-            .get_type();
-
-        let items = self
-            .items
-            .iter()
-            .map(|variant| variant.to_tokens())
-            .collect::<Array<TokenStream>>();
+        let items = &self.items;
+        let schema_type = &self.schema_type;
+        let enum_type = &self.enum_type;
 
         tokens.extend(quote! {
             utoipa::openapi::ObjectBuilder::new()
@@ -111,25 +120,72 @@ where
     }
 }
 
-pub struct TaggedEnum<'t, T: Variant> {
-    pub items: &'t [T],
-    // pub title: Option<Cow<'t, str>>,
-    pub tag: Cow<'t, str>,
+impl<V: Variant> FromIterator<V> for Enum<'_, V> {
+    fn from_iter<T: IntoIterator<Item = V>>(iter: T) -> Self {
+        let mut len = 0;
+        let mut schema_type: TokenStream = quote! {};
+        let mut enum_type: TokenStream = quote! {};
+
+        let items = iter
+            .into_iter()
+            .enumerate()
+            .map(|(index, variant)| {
+                if index == 0 {
+                    (schema_type, enum_type) = variant.get_type();
+                }
+                len = index + 1;
+                variant.to_tokens()
+            })
+            .collect::<Array<TokenStream>>();
+
+        Self {
+            title: None,
+            len,
+            items,
+            schema_type,
+            enum_type,
+            _p: PhantomData,
+        }
+    }
 }
 
-impl<'t, T> ToTokens for TaggedEnum<'t, T>
+pub struct TaggedEnum<T: Variant> {
+    items: TokenStream,
+    len: usize,
+    _p: PhantomData<T>,
+}
+
+impl<V: Variant> TaggedEnum<V> {
+    pub fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, V)>>(items: I) -> Self {
+        items.into_iter().collect()
+    }
+}
+
+impl<T> ToTokens for TaggedEnum<T>
 where
     T: Variant,
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let len = self.items.len();
-        // let title = &self.title;
-        let tag = &self.tag;
+        let len = &self.len;
+        let items = &self.items;
 
-        let items = self
-            .items
-            .iter()
-            .map(|variant| {
+        tokens.extend(quote! {
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                #items
+        })
+    }
+}
+
+impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
+    fn from_iter<T: IntoIterator<Item = (Cow<'t, str>, V)>>(iter: T) -> Self {
+        let mut len = 0;
+
+        let items = iter
+            .into_iter()
+            .enumerate()
+            .map(|(index, (tag, variant))| {
+                len = index + 1;
+
                 let (schema_type, enum_type) = variant.get_type();
                 let item = variant.to_tokens();
                 quote! {
@@ -147,9 +203,79 @@ where
             })
             .collect::<TokenStream>();
 
+        Self {
+            items,
+            len,
+            _p: PhantomData,
+        }
+    }
+}
+
+/// Used to create complex enums with varying Object types.
+///
+/// Will create `oneOf` object with discriminator field for referenced schemas.
+pub struct CustomEnum<'c, T: ToTokens> {
+    // pub items: Cow<'c, >,
+    items: T,
+    tag: Option<Cow<'c, str>>,
+}
+
+impl<'c, T: ToTokens> CustomEnum<'c, T> {
+    pub fn with_discriminator(mut self, discriminator: Option<Cow<'c, str>>) -> Self {
+        self.tag = discriminator;
+
+        self
+    }
+}
+
+impl<'c, T> ToTokens for CustomEnum<'c, T>
+where
+    T: ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.items.to_tokens(tokens);
+
+        // currently uses serde `tag` attribute as a discriminator. This discriminator
+        // feature needs some refinment.
+        let discriminator = self.tag.as_ref().map(|tag| {
+            quote! {
+                .discriminator(Some(utoipa::openapi::schema::Discriminator::new(#tag)))
+            }
+        });
+
+        tokens.extend(quote! {
+            #discriminator
+        });
+    }
+}
+
+impl FromIterator<TokenStream> for CustomEnum<'_, TokenStream> {
+    fn from_iter<T: IntoIterator<Item = TokenStream>>(iter: T) -> Self {
+        let mut len = 0;
+
+        let items = iter
+            .into_iter()
+            .enumerate()
+            .map(|(index, variant)| {
+                len = index + 1;
+                quote! {
+                    .item(
+                        #variant
+                    )
+                }
+            })
+            .collect::<TokenStream>();
+
+        let mut tokens = TokenStream::new();
+
         tokens.extend(quote! {
             Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
                 #items
-        })
+        });
+
+        CustomEnum {
+            items: tokens,
+            tag: None,
+        }
     }
 }

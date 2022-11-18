@@ -264,7 +264,7 @@ impl ToTokens for Param<'_> {
         let rename = field_features
             .pop_rename_feature()
             .map(|rename| rename.into_value());
-        let rename = field_param_serde
+        let rename_to = field_param_serde
             .as_ref()
             .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
             .or_else(|| rename.map(Cow::Owned));
@@ -277,8 +277,8 @@ impl ToTokens for Param<'_> {
                     .rename_all
                     .map(|rename_all| rename_all.as_rename_rule())
             });
-        let name = super::rename::<FieldRename>(name, rename.as_deref(), rename_all)
-            .unwrap_or(Cow::Borrowed(name));
+        let name =
+            super::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()

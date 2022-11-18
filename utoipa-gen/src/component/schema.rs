@@ -17,7 +17,7 @@ use crate::{
 };
 
 use self::{
-    enum_variant::{Enum, ObjectVariant, ReprVariant, SimpleEnumVariant, TaggedEnum},
+    enum_variant::{CustomEnum, Enum, ObjectVariant, ReprVariant, SimpleEnumVariant, TaggedEnum},
     features::{
         EnumFeatures, FromAttributes, NamedFieldFeatures, NamedFieldStructFeatures,
         UnnamedFieldStructFeatures,
@@ -256,22 +256,21 @@ impl ToTokens for NamedStructSchema<'_> {
                 }
 
                 with_field_as_schema_property(self, field, |schema_property, rename| {
-                    let name = super::rename::<FieldRename>(
-                        field_name,
-                        field_rule
-                            .as_ref()
-                            .and_then(|field_rule| field_rule.rename.as_deref())
-                            .or(rename.as_deref()),
-                        container_rules
-                            .as_ref()
-                            .and_then(|container_rule| container_rule.rename_all.as_ref())
-                            .or_else(|| {
-                                self.rename_all
-                                    .as_ref()
-                                    .map(|rename_all| rename_all.as_rename_rule())
-                            }),
-                    )
-                    .unwrap_or(Cow::Borrowed(field_name));
+                    let rename_to = field_rule
+                        .as_ref()
+                        .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
+                        .or(rename);
+                    let rename_all = container_rules
+                        .as_ref()
+                        .and_then(|container_rule| container_rule.rename_all.as_ref())
+                        .or_else(|| {
+                            self.rename_all
+                                .as_ref()
+                                .map(|rename_all| rename_all.as_rename_rule())
+                        });
+
+                    let name = super::rename::<FieldRename>(field_name, rename_to, rename_all)
+                        .unwrap_or(Cow::Borrowed(field_name));
 
                     object_tokens.extend(quote! {
                         .property(#name, #schema_property)
@@ -594,6 +593,32 @@ impl ToTokens for ReprEnum<'_> {
     }
 }
 
+fn rename_enum_variant<'a>(
+    name: &'a str,
+    features: &mut Vec<Feature>,
+    variant_rules: &'a Option<SerdeValue>,
+    container_rules: &'a Option<SerdeContainer>,
+    rename_all: &'a Option<RenameAll>,
+) -> Option<Cow<'a, str>> {
+    let rename = features
+        .pop_rename_feature()
+        .map(|rename| rename.into_value());
+    let rename_to = variant_rules
+        .as_ref()
+        .and_then(|variant_rules| variant_rules.rename.as_deref().map(Cow::Borrowed))
+        .or_else(|| rename.map(Cow::Owned));
+
+    let rename_all = container_rules.as_ref().and_then(|container_rule| {
+        container_rule.rename_all.as_ref().or_else(|| {
+            rename_all
+                .as_ref()
+                .map(|rename_all| rename_all.as_rename_rule())
+        })
+    });
+
+    super::rename::<VariantRename>(name, rename_to, rename_all)
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct SimpleEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
@@ -614,48 +639,38 @@ impl ToTokens for SimpleEnum<'_> {
             self.variants
                 .iter()
                 .filter_map(|variant| {
-                    let name = &*variant.ident.to_string();
                     let variant_rules = serde::parse_value(&variant.attrs);
+
+                    if is_not_skipped(&variant_rules) {
+                        Some((variant, variant_rules))
+                    } else {
+                        None
+                    }
+                })
+                .flat_map(|(variant, variant_rules)| {
+                    let name = &*variant.ident.to_string();
                     let mut variant_features =
                         features::parse_schema_features_with(&variant.attrs, |input| {
                             Ok(parse_features!(input as Rename))
                         })
                         .unwrap_or_default();
-                    let rename = variant_features
-                        .pop_rename_feature()
-                        .map(|rename| rename.into_value());
-                    let rename_to = variant_rules
-                        .as_ref()
-                        .and_then(|variant_rules| {
-                            variant_rules.rename.as_deref().map(Cow::Borrowed)
-                        })
-                        .or_else(|| rename.map(Cow::Owned));
-
-                    let variant_name = super::rename::<VariantRename>(
+                    let variant_name = rename_enum_variant(
                         name,
-                        rename_to.as_deref(),
-                        container_rules.as_ref().and_then(|container_rule| {
-                            container_rule.rename_all.as_ref().or_else(|| {
-                                rename_all
-                                    .as_ref()
-                                    .map(|rename_all| rename_all.as_rename_rule())
-                            })
-                        }),
+                        &mut variant_features,
+                        &variant_rules,
+                        &container_rules,
+                        &rename_all,
                     );
 
-                    if is_not_skipped(&variant_rules) {
-                        variant_name
-                            .map(|name| SimpleEnumVariant {
-                                value: quote! { #name },
+                    variant_name
+                        .map(|name| SimpleEnumVariant {
+                            value: name.to_token_stream(),
+                        })
+                        .or_else(|| {
+                            Some(SimpleEnumVariant {
+                                value: name.to_token_stream(),
                             })
-                            .or_else(|| {
-                                Some(SimpleEnumVariant {
-                                    value: quote! { #name },
-                                })
-                            })
-                    } else {
-                        None
-                    }
+                        })
                 })
                 .collect::<Vec<SimpleEnumVariant<TokenStream>>>()
         });
@@ -673,17 +688,14 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
     tokens.extend(match container_rules {
         Some(serde_container) if !serde_container.tag.is_empty() => {
             let tag = &serde_container.tag;
-            TaggedEnum {
-                items: enum_values.as_slice(),
-                tag: Cow::Borrowed(tag),
-            }
+            TaggedEnum::new(
+                enum_values
+                    .into_iter()
+                    .map(|variant| (Cow::Borrowed(&**tag), variant)),
+            )
             .to_token_stream()
         }
-        _ => Enum {
-            items: enum_values.as_slice(),
-            title: None,
-        }
-        .to_token_stream(),
+        _ => Enum::new(enum_values).to_token_stream(),
     });
 
     tokens.extend(enum_variant_features.to_token_stream());
@@ -696,7 +708,13 @@ struct ComplexEnum<'a> {
 
 impl ComplexEnum<'_> {
     /// Produce tokens that represent a variant of a [`ComplexEnum`].
-    fn variant_tokens(variant_name: Cow<'_, str>, variant: &Variant) -> TokenStream {
+    fn variant_tokens(
+        name: Cow<'_, str>,
+        variant: &Variant,
+        variant_rules: &Option<SerdeValue>,
+        container_rules: &Option<SerdeContainer>,
+        rename_all: &Option<RenameAll>,
+    ) -> TokenStream {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
         match &variant.fields {
             Fields::Named(named_fields) => {
@@ -706,10 +724,20 @@ impl ComplexEnum<'_> {
                     .into_inner()
                     .map(|features| features.split_for_title())
                     .unwrap_or_default();
-                // TODO rename variant?????
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut named_struct_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
 
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
-                    name: variant_name,
+                    name: if let Some(variant_name) = variant_name {
+                        variant_name
+                    } else {
+                        name
+                    },
                     title: title_features.first().map(ToTokens::to_token_stream),
                     item: NamedStructSchema {
                         attributes: &variant.attrs,
@@ -726,16 +754,26 @@ impl ComplexEnum<'_> {
                 })
             }
             Fields::Unnamed(unnamed_fields) => {
-                let (title_features, unnamed_struct_features) = variant
+                let (title_features, mut unnamed_struct_features) = variant
                     .attrs
                     .parse_features::<UnnamedFieldStructFeatures>()
                     .into_inner()
                     .map(|features| features.split_for_title())
                     .unwrap_or_default();
-                // TODO rename variant?????
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut unnamed_struct_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
 
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
-                    name: variant_name,
+                    name: if let Some(variant_name) = variant_name {
+                        variant_name
+                    } else {
+                        name
+                    },
                     title: title_features.first().map(ToTokens::to_token_stream),
                     item: UnnamedStructSchema {
                         attributes: &variant.attrs,
@@ -754,17 +792,25 @@ impl ComplexEnum<'_> {
                         ))
                     })
                     .unwrap_or_default();
-                // TODO rename variant?????
-
                 let title = pop_feature!(unit_features => Feature::Title(_));
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut unit_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
 
                 // Unit variant is just simple enum with single variant.
-                Enum {
-                    items: &[SimpleEnumVariant {
-                        value: quote! {#variant_name},
-                    }],
-                    title: title.as_ref().map(ToTokens::to_token_stream),
-                }
+                Enum::new([SimpleEnumVariant {
+                    value: if let Some(variant_name) = variant_name {
+                        variant_name
+                    } else {
+                        name
+                    }
+                    .to_token_stream(),
+                }])
+                .with_title(title.as_ref().map(ToTokens::to_token_stream))
                 .to_token_stream()
             }
         }
@@ -774,8 +820,11 @@ impl ComplexEnum<'_> {
     /// `tag = ` applies.
     fn tagged_variant_tokens(
         tag: &str,
-        variant_name: Cow<'_, str>,
+        name: Cow<'_, str>,
         variant: &Variant,
+        variant_rules: &Option<SerdeValue>,
+        container_rules: &Option<SerdeContainer>,
+        rename_all: &Option<RenameAll>,
     ) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
@@ -785,7 +834,13 @@ impl ComplexEnum<'_> {
                     .into_inner()
                     .map(|features| features.split_for_title())
                     .unwrap_or_default();
-                // TODO rename variant????
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut named_struct_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
 
                 let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
@@ -801,15 +856,14 @@ impl ComplexEnum<'_> {
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);
 
-                // let variant_name_tokens =
-                //     UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, Vec::new()));
-
-                let variant_name_tokens = Enum {
-                    title: None,
-                    items: &[SimpleEnumVariant {
-                        value: quote! { #variant_name },
-                    }],
-                };
+                let variant_name_tokens = Enum::new([SimpleEnumVariant {
+                    value: if let Some(variant_name) = variant_name {
+                        variant_name
+                    } else {
+                        name
+                    }
+                    .to_token_stream(),
+                }]);
                 quote! {
                     #named_enum
                         #title
@@ -819,13 +873,19 @@ impl ComplexEnum<'_> {
             }
             Fields::Unnamed(unnamed_fields) => {
                 if unnamed_fields.unnamed.len() == 1 {
-                    let (title_features, unnamed_struct_features) = variant
+                    let (title_features, mut unnamed_struct_features) = variant
                         .attrs
                         .parse_features::<UnnamedFieldStructFeatures>()
                         .into_inner()
                         .map(|features| features.split_for_title())
                         .unwrap_or_default();
-                    // TODO rename variant????
+                    let variant_name = rename_enum_variant(
+                        name.as_ref(),
+                        &mut unnamed_struct_features,
+                        variant_rules,
+                        container_rules,
+                        rename_all,
+                    );
 
                     let unnamed_enum = UnnamedStructSchema {
                         attributes: &variant.attrs,
@@ -834,14 +894,14 @@ impl ComplexEnum<'_> {
                     };
 
                     let title = title_features.first().map(ToTokens::to_token_stream);
-                    // let variant_name_tokens =
-                    //     UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, Vec::new()));
-                    let variant_name_tokens = Enum {
-                        title: None,
-                        items: &[SimpleEnumVariant {
-                            value: quote! { #variant_name },
-                        }],
-                    };
+                    let variant_name_tokens = Enum::new([SimpleEnumVariant {
+                        value: if let Some(variant_name) = variant_name {
+                            variant_name
+                        } else {
+                            name
+                        }
+                        .to_token_stream(),
+                    }]);
 
                     let is_reference = unnamed_fields.unnamed.iter().any(|field| {
                         let ty = TypeTree::from_type(&field.ty);
@@ -880,26 +940,34 @@ impl ComplexEnum<'_> {
                 }
             }
             Fields::Unit => {
-                // let variant_tokens =
-                //     UnitVariantTokens::to_tokens(&EnumVariantTokens(&variant_name, Vec::new()));
-                // TODO rename variant????
-                // Unit variant is just simple enum with single variant.
-                let variant_tokens = Enum {
-                    title: None,
-                    items: &[SimpleEnumVariant {
-                        value: quote! { #variant_name },
-                    }],
-                };
+                let mut unit_features =
+                    features::parse_schema_features_with(&variant.attrs, |input| {
+                        Ok(parse_features!(input as super::features::Title, Rename))
+                    })
+                    .unwrap_or_default();
+                let title = pop_feature!(unit_features => Feature::Title(_));
 
-                let unit_features = features::parse_schema_features_with(&variant.attrs, |input| {
-                    Ok(parse_features!(input as super::features::Title))
-                })
-                .unwrap_or_default()
-                .to_token_stream();
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut unit_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
+
+                // Unit variant is just simple enum with single variant.
+                let variant_tokens = Enum::new([SimpleEnumVariant {
+                    value: if let Some(variant_name) = variant_name {
+                        variant_name
+                    } else {
+                        name
+                    }
+                    .to_token_stream(),
+                }]);
 
                 quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
-                        #unit_features
+                        #title
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 }
@@ -918,7 +986,6 @@ impl ToTokens for ComplexEnum<'_> {
             .unwrap_or_default();
         let rename_all = enum_features.pop_rename_all_feature();
 
-        let capacity = self.variants.len();
         let tag = container_rules.as_ref().and_then(|rules| {
             if !rules.tag.is_empty() {
                 Some(&rules.tag)
@@ -928,8 +995,7 @@ impl ToTokens for ComplexEnum<'_> {
         });
 
         // serde, externally tagged format supported by now
-        let items: TokenStream = self
-            .variants
+        self.variants
             .iter()
             .filter_map(|variant: &Variant| {
                 let variant_serde_rules = serde::parse_value(&variant.attrs);
@@ -942,48 +1008,28 @@ impl ToTokens for ComplexEnum<'_> {
             .map(|(variant, variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
 
-                let name = super::rename::<VariantRename>(
-                    variant_name,
-                    variant_serde_rules
-                        .as_ref()
-                        .and_then(|field_rule| field_rule.rename.as_deref()),
-                    container_rules
-                        .as_ref()
-                        .and_then(|container_rule| container_rule.rename_all.as_ref())
-                        .or_else(|| {
-                            rename_all
-                                .as_ref()
-                                .map(|rename_all| rename_all.as_rename_rule())
-                        }),
-                )
-                .unwrap_or(Cow::Borrowed(variant_name));
-
                 if let Some(tag) = tag {
-                    Self::tagged_variant_tokens(tag, name, variant)
+                    Self::tagged_variant_tokens(
+                        tag,
+                        Cow::Borrowed(variant_name),
+                        variant,
+                        &variant_serde_rules,
+                        &container_rules,
+                        &rename_all,
+                    )
                 } else {
-                    Self::variant_tokens(name, variant)
+                    Self::variant_tokens(
+                        Cow::Borrowed(variant_name),
+                        variant,
+                        &variant_serde_rules,
+                        &container_rules,
+                        &rename_all,
+                    )
                 }
             })
-            .map(|inline_variant| {
-                quote! {
-                    .item(#inline_variant)
-                }
-            })
-            .collect();
-        // for now just use tag as a discriminator
-        let discriminator = tag.map(|tag| {
-            quote! {
-                .discriminator(Some(utoipa::openapi::schema::Discriminator::new(#tag)))
-            }
-        });
-
-        tokens.extend(
-            quote! {
-                Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#capacity))
-                    #items
-                    #discriminator
-            }
-        );
+            .collect::<CustomEnum<'_, TokenStream>>()
+            .with_discriminator(tag.map(|tag| Cow::Borrowed(tag.as_str())))
+            .to_tokens(tokens);
 
         tokens.extend(enum_features.to_token_stream());
     }
