@@ -1214,6 +1214,272 @@ fn derive_complex_enum_serde_rename_variant() {
     );
 }
 
+#[test]
+fn derive_struct_custom_rename() {
+    let value: Value = api_doc! {
+        #[schema(rename_all = "SCREAMING-KEBAB-CASE")]
+        struct Post {
+            post_id: i64,
+            created_at: i64,
+            #[schema(rename = "post_comment")]
+            comment: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "POST-ID": {
+                    "type": "integer",
+                    "format": "int64",
+                },
+                "CREATED-AT": {
+                    "type": "integer",
+                    "format": "int64",
+                },
+                "post_comment": {
+                    "type": "string",
+                },
+            },
+            "type": "object",
+            "required": [
+                "POST-ID",
+                "CREATED-AT",
+                "post_comment"
+            ]
+        })
+    )
+}
+
+#[test]
+fn derive_complex_enum_custom_rename() {
+    let value: Value = api_doc! {
+        #[schema(rename_all = "UPPERCASE")]
+        enum PostType {
+            NewPost(String),
+
+            #[schema(rename = "update_post", rename_all = "PascalCase")]
+            Update {
+                post_id: i64,
+                created_at: i64,
+                #[schema(rename = "post_comment")]
+                comment: String,
+            },
+
+            RandomValue {
+                id: i64,
+            },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "NEWPOST": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object",
+                },
+                {
+                    "properties": {
+                        "update_post": {
+                            "properties": {
+                                "PostId": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                },
+                                "CreatedAt": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                },
+                                "post_comment": {
+                                    "type": "string",
+                                },
+                            },
+                            "type": "object",
+                            "required": [
+                                "PostId",
+                                "CreatedAt",
+                                "post_comment"
+                            ]
+                        }
+                    },
+                    "type": "object",
+                },
+                {
+                    "properties": {
+                        "RANDOMVALUE": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "format": "int64",
+                                },
+                            },
+                            "type": "object",
+                            "required": [
+                                "id",
+                            ]
+                        }
+                    },
+                    "type": "object",
+                }
+            ]
+        })
+    )
+}
+
+#[test]
+fn derive_complex_enum_use_serde_rename_over_custom_rename() {
+    let value: Value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "lowercase")]
+        #[schema(rename_all = "UPPERCASE")]
+        enum Random {
+            #[serde(rename = "string_value")]
+            #[schema(rename = "custom_value")]
+            String(String),
+
+            Number {
+                id: i32,
+            }
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "string_value": {
+                            "type": "string",
+                        },
+                    },
+                    "type": "object",
+                },
+                {
+                    "properties": {
+                        "number": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "format": "int32",
+                                }
+                            },
+                            "type": "object",
+                            "required": ["id"]
+                        }
+                    },
+                    "type": "object",
+                }
+            ]
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_title() {
+    let value: Value = api_doc! {
+        #[schema(title = "Post")]
+        struct Post {
+            id: i64,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64",
+                }
+            },
+            "title": "Post",
+            "required": ["id"],
+            "type": "object",
+        })
+    )
+}
+
+#[test]
+fn derive_enum_with_title() {
+    let value: Value = api_doc! {
+        #[schema(title = "UserType")]
+        enum UserType {
+            Admin,
+            Moderator,
+            User,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "enum": ["Admin", "Moderator", "User"],
+            "title": "UserType",
+            "type": "string",
+        })
+    )
+}
+
+#[test]
+fn derive_complex_enum_with_title() {
+    let value: Value = api_doc! {
+        enum UserType {
+            #[schema(title = "admin")]
+            Admin(String),
+            #[schema(title = "moderator")]
+            Moderator{id: i32},
+            #[schema(title = "user")]
+            User,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "Admin": {
+                            "type": "string"
+                        }
+                    },
+                    "title": "admin",
+                    "type": "object",
+                },
+                {
+                    "properties": {
+                        "Moderator": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "format": "int32",
+                                }
+                            },
+                            "required": ["id"],
+                            "type": "object",
+                        }
+                    },
+                    "title": "moderator",
+                    "type": "object",
+                },
+                {
+                    "enum": ["User"],
+                    "title": "user",
+                    "type": "string"
+                }
+            ]
+        })
+    )
+}
+
 /// Derive a complex enum with the serde `tag` container attribute applied for internal tagging.
 /// Note that tuple fields are not supported.
 #[test]

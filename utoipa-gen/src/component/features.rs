@@ -591,7 +591,7 @@ impl FeaturesExt for Vec<Feature> {
     }
 
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
-        self.pop_by(|feature| matches!(feature, Feature::Rename(_)))
+        self.pop_by(|feature| matches!(feature, Feature::RenameAll(_)))
             .and_then(|feature| match feature {
                 Feature::RenameAll(rename_all) => Some(rename_all),
                 _ => None,

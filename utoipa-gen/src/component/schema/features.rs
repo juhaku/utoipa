@@ -18,7 +18,6 @@ impl Parse for NamedFieldStructFeatures {
             input as Example,
             XmlAttr,
             Title,
-            Rename,
             RenameAll
         )))
     }
@@ -58,6 +57,20 @@ impl Parse for EnumFeatures {
 
 impl_into_inner!(EnumFeatures);
 
+pub struct ComplexEnumFeatures(Vec<Feature>);
+
+impl Parse for ComplexEnumFeatures {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(ComplexEnumFeatures(parse_features!(
+            input as Example,
+            Default,
+            RenameAll
+        )))
+    }
+}
+
+impl_into_inner!(ComplexEnumFeatures);
+
 pub struct NamedFieldFeatures(Vec<Feature>);
 
 impl Parse for NamedFieldFeatures {
@@ -78,6 +91,39 @@ impl Parse for NamedFieldFeatures {
 }
 
 impl_into_inner!(NamedFieldFeatures);
+
+pub struct EnumNamedFieldVariantFeatures(Vec<Feature>);
+
+impl Parse for EnumNamedFieldVariantFeatures {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(EnumNamedFieldVariantFeatures(parse_features!(
+            input as Example,
+            XmlAttr,
+            Title,
+            Rename,
+            RenameAll
+        )))
+    }
+}
+
+impl_into_inner!(EnumNamedFieldVariantFeatures);
+
+pub struct EnumUnnamedFieldVariantFeatures(Vec<Feature>);
+
+impl Parse for EnumUnnamedFieldVariantFeatures {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(EnumUnnamedFieldVariantFeatures(parse_features!(
+            input as Example,
+            Default,
+            Title,
+            Format,
+            ValueType,
+            Rename
+        )))
+    }
+}
+
+impl_into_inner!(EnumUnnamedFieldVariantFeatures);
 
 pub trait FromAttributes {
     fn parse_features<T>(&self) -> Option<T>

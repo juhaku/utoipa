@@ -79,7 +79,6 @@ where
 }
 
 pub struct Enum<'e, V: Variant> {
-    // pub items: &'e [T],
     title: Option<TokenStream>,
     len: usize,
     items: Array<'e, TokenStream>,

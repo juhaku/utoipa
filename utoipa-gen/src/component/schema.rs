@@ -19,8 +19,9 @@ use crate::{
 use self::{
     enum_variant::{CustomEnum, Enum, ObjectVariant, ReprVariant, SimpleEnumVariant, TaggedEnum},
     features::{
-        EnumFeatures, FromAttributes, NamedFieldFeatures, NamedFieldStructFeatures,
-        UnnamedFieldStructFeatures,
+        ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
+        EnumUnnamedFieldVariantFeatures, FromAttributes, NamedFieldFeatures,
+        NamedFieldStructFeatures, UnnamedFieldStructFeatures,
     },
 };
 
@@ -608,13 +609,14 @@ fn rename_enum_variant<'a>(
         .and_then(|variant_rules| variant_rules.rename.as_deref().map(Cow::Borrowed))
         .or_else(|| rename.map(Cow::Owned));
 
-    let rename_all = container_rules.as_ref().and_then(|container_rule| {
-        container_rule.rename_all.as_ref().or_else(|| {
+    let rename_all = container_rules
+        .as_ref()
+        .and_then(|container_rules| container_rules.rename_all.as_ref())
+        .or_else(|| {
             rename_all
                 .as_ref()
                 .map(|rename_all| rename_all.as_rename_rule())
-        })
-    });
+        });
 
     super::rename::<VariantRename>(name, rename_to, rename_all)
 }
@@ -720,7 +722,7 @@ impl ComplexEnum<'_> {
             Fields::Named(named_fields) => {
                 let (title_features, mut named_struct_features) = variant
                     .attrs
-                    .parse_features::<NamedFieldStructFeatures>()
+                    .parse_features::<EnumNamedFieldVariantFeatures>()
                     .into_inner()
                     .map(|features| features.split_for_title())
                     .unwrap_or_default();
@@ -733,11 +735,7 @@ impl ComplexEnum<'_> {
                 );
 
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
-                    name: if let Some(variant_name) = variant_name {
-                        variant_name
-                    } else {
-                        name
-                    },
+                    name: variant_name.unwrap_or(Cow::Borrowed(&name)),
                     title: title_features.first().map(ToTokens::to_token_stream),
                     item: NamedStructSchema {
                         attributes: &variant.attrs,
@@ -756,7 +754,7 @@ impl ComplexEnum<'_> {
             Fields::Unnamed(unnamed_fields) => {
                 let (title_features, mut unnamed_struct_features) = variant
                     .attrs
-                    .parse_features::<UnnamedFieldStructFeatures>()
+                    .parse_features::<EnumUnnamedFieldVariantFeatures>()
                     .into_inner()
                     .map(|features| features.split_for_title())
                     .unwrap_or_default();
@@ -769,11 +767,7 @@ impl ComplexEnum<'_> {
                 );
 
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
-                    name: if let Some(variant_name) = variant_name {
-                        variant_name
-                    } else {
-                        name
-                    },
+                    name: variant_name.unwrap_or(Cow::Borrowed(&name)),
                     title: title_features.first().map(ToTokens::to_token_stream),
                     item: UnnamedStructSchema {
                         attributes: &variant.attrs,
@@ -830,7 +824,7 @@ impl ComplexEnum<'_> {
             Fields::Named(named_fields) => {
                 let (title_features, mut named_struct_features) = variant
                     .attrs
-                    .parse_features::<NamedFieldStructFeatures>()
+                    .parse_features::<EnumNamedFieldVariantFeatures>()
                     .into_inner()
                     .map(|features| features.split_for_title())
                     .unwrap_or_default();
@@ -875,7 +869,7 @@ impl ComplexEnum<'_> {
                 if unnamed_fields.unnamed.len() == 1 {
                     let (title_features, mut unnamed_struct_features) = variant
                         .attrs
-                        .parse_features::<UnnamedFieldStructFeatures>()
+                        .parse_features::<EnumUnnamedFieldVariantFeatures>()
                         .into_inner()
                         .map(|features| features.split_for_title())
                         .unwrap_or_default();
@@ -981,9 +975,10 @@ impl ToTokens for ComplexEnum<'_> {
         let attributes = &self.attributes;
         let container_rules = serde::parse_container(attributes);
         let mut enum_features = attributes
-            .parse_features::<EnumFeatures>()
+            .parse_features::<ComplexEnumFeatures>()
             .into_inner()
             .unwrap_or_default();
+
         let rename_all = enum_features.pop_rename_all_feature();
 
         let tag = container_rules.as_ref().and_then(|rules| {
