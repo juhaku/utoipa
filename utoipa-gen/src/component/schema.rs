@@ -171,12 +171,7 @@ impl<'a> SchemaVariant<'a> {
                         .into_inner();
                     Self::Named(NamedStructSchema {
                         attributes,
-                        rename_all: pop_feature!(named_features => Feature::RenameAll(_)).and_then(
-                            |feature| match feature {
-                                Feature::RenameAll(rename_all) => Some(rename_all),
-                                _ => None,
-                            },
-                        ),
+                        rename_all: named_features.pop_rename_all_feature(),
                         features: named_features,
                         fields: named,
                         generics: Some(generics),
@@ -739,11 +734,7 @@ impl ComplexEnum<'_> {
                     title: title_features.first().map(ToTokens::to_token_stream),
                     item: NamedStructSchema {
                         attributes: &variant.attrs,
-                        rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_))
-                            .and_then(|feature| match feature {
-                                Feature::RenameAll(rename_all) => Some(rename_all),
-                                _ => None,
-                            }),
+                        rename_all: named_struct_features.pop_rename_all_feature(),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
@@ -797,12 +788,9 @@ impl ComplexEnum<'_> {
 
                 // Unit variant is just simple enum with single variant.
                 Enum::new([SimpleEnumVariant {
-                    value: if let Some(variant_name) = variant_name {
-                        variant_name
-                    } else {
-                        name
-                    }
-                    .to_token_stream(),
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(&name))
+                        .to_token_stream(),
                 }])
                 .with_title(title.as_ref().map(ToTokens::to_token_stream))
                 .to_token_stream()
@@ -838,11 +826,7 @@ impl ComplexEnum<'_> {
 
                 let named_enum = NamedStructSchema {
                     attributes: &variant.attrs,
-                    rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_))
-                        .and_then(|feature| match feature {
-                            Feature::RenameAll(rename_all) => Some(rename_all),
-                            _ => None,
-                        }),
+                    rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
@@ -851,12 +835,9 @@ impl ComplexEnum<'_> {
                 let title = title_features.first().map(ToTokens::to_token_stream);
 
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
-                    value: if let Some(variant_name) = variant_name {
-                        variant_name
-                    } else {
-                        name
-                    }
-                    .to_token_stream(),
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(&name))
+                        .to_token_stream(),
                 }]);
                 quote! {
                     #named_enum
@@ -889,12 +870,9 @@ impl ComplexEnum<'_> {
 
                     let title = title_features.first().map(ToTokens::to_token_stream);
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
-                        value: if let Some(variant_name) = variant_name {
-                            variant_name
-                        } else {
-                            name
-                        }
-                        .to_token_stream(),
+                        value: variant_name
+                            .unwrap_or(Cow::Borrowed(&name))
+                            .to_token_stream(),
                     }]);
 
                     let is_reference = unnamed_fields.unnamed.iter().any(|field| {
@@ -951,12 +929,9 @@ impl ComplexEnum<'_> {
 
                 // Unit variant is just simple enum with single variant.
                 let variant_tokens = Enum::new([SimpleEnumVariant {
-                    value: if let Some(variant_name) = variant_name {
-                        variant_name
-                    } else {
-                        name
-                    }
-                    .to_token_stream(),
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(&name))
+                        .to_token_stream(),
                 }]);
 
                 quote! {
