@@ -553,7 +553,7 @@ fn derive_path_with_multiple_instances_same_path_params() {
 
     for operation in ["get", "delete"] {
         let parameters = doc
-            .pointer(&*format!("/paths/~1foo~1{{id}}/{operation}/parameters"))
+            .pointer(&format!("/paths/~1foo~1{{id}}/{operation}/parameters"))
             .unwrap();
 
         common::assert_json_array_len(parameters, 1);

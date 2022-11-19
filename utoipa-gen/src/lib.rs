@@ -66,12 +66,32 @@ use ext::ArgumentResolver;
 /// * `example = ...` Can be either _`json!(...)`_ or literal string that can be parsed to json. _`json!`_
 ///   should be something that _`serde_json::json!`_ can parse as a _`serde_json::Value`_. [^json]
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
+/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
+///   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
+///   __serde__ will take precedence.
 ///  
 /// [^json]: **json** feature need to be enabled for _`json!(...)`_ type to work.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
 /// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+///
+/// # Enum Variant Optional Configuration Options for `#[schema(...)]`
+/// Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
+/// unnamed struct type configuration options are supported.
+///
+/// In addition to the variant type specific configuration options enum variants support custom
+/// _`rename`_ attribute. It behaves similarly to the serdes _`rename`_ attribute. If both _serde_
+/// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take prededence.
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
@@ -83,6 +103,9 @@ use ext::ArgumentResolver;
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
 ///
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
@@ -100,6 +123,9 @@ use ext::ArgumentResolver;
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
 /// * `nullable` Defines property is nullable (note this is different to non-required).
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename field
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -419,6 +445,33 @@ use ext::ArgumentResolver;
 ///     #[schema(value_type = Object)]
 ///     field: Bar,
 /// };
+/// ```
+///
+/// Serde `rename` / `rename_all` will take precedence over schema `rename` / `rename_all`.
+/// ```rust
+/// #[derive(utoipa::ToSchema, serde::Deserialize)]
+/// #[serde(rename_all = "lowercase")]
+/// #[schema(rename_all = "UPPERCASE")]
+/// enum Random {
+///     #[serde(rename = "string_value")]
+///     #[schema(rename = "custom_value")]
+///     String(String),
+///
+///     Number {
+///         id: i32,
+///     }
+/// }
+/// ```
+///
+/// Add `title` to the enum.
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// #[schema(title = "UserType")]
+/// enum UserType {
+///     Admin,
+///     Moderator,
+///     User,
+/// }
 /// ```
 ///
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
@@ -1320,6 +1373,7 @@ where
     T: Sized + ToTokens,
 {
     Owned(Vec<T>),
+    #[allow(dead_code)]
     Borrowed(&'a [T]),
 }
 

@@ -310,16 +310,10 @@ trait Rename {
 /// * `container_rule` which is used to rename containers with _`rename_all`_ property.
 fn rename<'r, R: Rename>(
     value: &'r str,
-    to: Option<&'r str>,
+    to: Option<Cow<'r, str>>,
     container_rule: Option<&'r RenameRule>,
 ) -> Option<Cow<'r, str>> {
-    let rename = to.as_ref().and_then(|to| {
-        if !to.is_empty() {
-            Some(Cow::Borrowed(*to))
-        } else {
-            None
-        }
-    });
+    let rename = to.and_then(|to| if !to.is_empty() { Some(to) } else { None });
 
     rename.or_else(|| {
         container_rule

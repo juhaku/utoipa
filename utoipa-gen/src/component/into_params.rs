@@ -257,22 +257,16 @@ impl ToTokens for Param<'_> {
                 field_features.push(style.clone()); // could try to use cow to avoid cloning
             };
         }
-        let value_type = field_features.find_value_type_feature_as_value_type();
+        let value_type = field_features.pop_value_type_feature();
         let is_inline = field_features
             .pop_by(|feature| matches!(feature, Feature::Inline(_)))
             .is_some();
         let rename = field_features
-            .find_rename_feature_as_rename()
+            .pop_rename_feature()
             .map(|rename| rename.into_value());
-        let rename = field_param_serde
+        let rename_to = field_param_serde
             .as_ref()
-            .and_then(|field_param_serde| {
-                if !field_param_serde.rename.is_empty() {
-                    Some(Cow::Borrowed(field_param_serde.rename.as_str()))
-                } else {
-                    None
-                }
-            })
+            .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
             .or_else(|| rename.map(Cow::Owned));
         let rename_all = self
             .serde_container
@@ -283,8 +277,8 @@ impl ToTokens for Param<'_> {
                     .rename_all
                     .map(|rename_all| rename_all.as_rename_rule())
             });
-        let name = super::rename::<FieldRename>(name, rename.as_deref(), rename_all)
-            .unwrap_or(Cow::Borrowed(name));
+        let name =
+            super::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
