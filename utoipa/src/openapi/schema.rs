@@ -217,12 +217,12 @@ impl ComponentsBuilder {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
-    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s
-    /// or can be a field within the [`Object`].
-    Object(Object),
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
+    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s
+    /// or can be a field within the [`Object`].
+    Object(Object),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
@@ -1503,5 +1503,85 @@ mod tests {
             serialized_components,
             serde_json::to_string(&deserialized_components).unwrap()
         )
+    }
+
+    #[test]
+    fn serialize_deserialize_array_within_ref_or_t_object_builder() {
+        let ref_or_schema = RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "test",
+                    RefOr::T(Schema::Array(
+                        ArrayBuilder::new()
+                            .items(RefOr::T(Schema::Object(
+                                ObjectBuilder::new()
+                                    .property("element", RefOr::Ref(Ref::new("#/test")))
+                                    .build(),
+                            )))
+                            .build(),
+                    )),
+                )
+                .build(),
+        ));
+
+        let json_str = serde_json::to_string(&ref_or_schema).expect("");
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+        let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_deserialize_schema_array_ref_or_t() {
+        let ref_or_schema = RefOr::T(Schema::Array(
+            ArrayBuilder::new()
+                .items(RefOr::T(Schema::Object(
+                    ObjectBuilder::new()
+                        .property("element", RefOr::Ref(Ref::new("#/test")))
+                        .build(),
+                )))
+                .build(),
+        ));
+
+        let json_str = serde_json::to_string(&ref_or_schema).expect("");
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+        let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_deserialize_schema_array_builder() {
+        let ref_or_schema = ArrayBuilder::new()
+            .items(RefOr::T(Schema::Object(
+                ObjectBuilder::new()
+                    .property("element", RefOr::Ref(Ref::new("#/test")))
+                    .build(),
+            )))
+            .build();
+
+        let json_str = serde_json::to_string(&ref_or_schema).expect("");
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+        let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
     }
 }
