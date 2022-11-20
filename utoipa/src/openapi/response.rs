@@ -10,7 +10,7 @@ use crate::openapi::schema::RefOr;
 use crate::openapi::Ref;
 use crate::IntoResponses;
 
-use super::{build_fn, builder, from, header::Header, new, set_value, Content};
+use super::{builder, header::Header, set_value, Content};
 
 builder! {
     ResponsesBuilder;

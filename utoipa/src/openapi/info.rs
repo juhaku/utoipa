@@ -8,7 +8,7 @@
 //! [derive]: ../../derive.OpenApi.html
 use serde::{Deserialize, Serialize};
 
-use super::{build_fn, builder, from, new, set_value};
+use super::{builder, set_value};
 
 builder! {
     /// # Examples

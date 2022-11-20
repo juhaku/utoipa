@@ -412,11 +412,11 @@ macro_rules! builder {
         }
 
         impl $builder_name {
-            new!($vis $builder_name);
-            build_fn!($vis $name $( $field ),* );
+            crate::openapi::new!($vis $builder_name);
+            crate::openapi::build_fn!($vis $name $( $field ),* );
         }
 
-        from!($name $builder_name $( $field ),* );
+        crate::openapi::from!($name $builder_name $( $field ),* );
     };
 }
 pub(crate) use builder;

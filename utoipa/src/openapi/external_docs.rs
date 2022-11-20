@@ -3,7 +3,7 @@
 //! [external_docs]: https://spec.openapis.org/oas/latest.html#xml-object
 use serde::{Deserialize, Serialize};
 
-use super::{build_fn, builder, from, new, set_value};
+use super::{builder, set_value};
 
 builder! {
     ExternalDocsBuilder;

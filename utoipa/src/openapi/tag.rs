@@ -3,7 +3,7 @@
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
 use serde::{Deserialize, Serialize};
 
-use super::{build_fn, builder, external_docs::ExternalDocs, from, new, set_value};
+use super::{builder, external_docs::ExternalDocs, set_value};
 
 builder! {
     TagBuilder;

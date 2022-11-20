@@ -7,7 +7,7 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-use super::{build_fn, builder, from, new};
+use super::builder;
 
 /// OpenAPI [security requirment][security] object.
 ///
