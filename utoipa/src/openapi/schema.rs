@@ -1538,6 +1538,92 @@ mod tests {
     }
 
     #[test]
+    fn serialize_deserialize_one_of_within_ref_or_t_object_builder() {
+        let ref_or_schema = RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "test",
+                    RefOr::T(Schema::OneOf(
+                        OneOfBuilder::new()
+                            .item(Schema::Array(
+                                ArrayBuilder::new()
+                                    .items(RefOr::T(Schema::Object(
+                                        ObjectBuilder::new()
+                                            .property("element", RefOr::Ref(Ref::new("#/test")))
+                                            .build(),
+                                    )))
+                                    .build(),
+                            ))
+                            .item(Schema::Array(
+                                ArrayBuilder::new()
+                                    .items(RefOr::T(Schema::Object(
+                                        ObjectBuilder::new()
+                                            .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
+                                            .build(),
+                                    )))
+                                    .build(),
+                            ))
+                            .build(),
+                    )),
+                )
+                .build(),
+        ));
+
+        let json_str = serde_json::to_string(&ref_or_schema).expect("");
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+        let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_deserialize_all_of_of_within_ref_or_t_object_builder() {
+        let ref_or_schema = RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "test",
+                    RefOr::T(Schema::AllOf(
+                        AllOfBuilder::new()
+                            .item(Schema::Array(
+                                ArrayBuilder::new()
+                                    .items(RefOr::T(Schema::Object(
+                                        ObjectBuilder::new()
+                                            .property("element", RefOr::Ref(Ref::new("#/test")))
+                                            .build(),
+                                    )))
+                                    .build(),
+                            ))
+                            .item(RefOr::T(Schema::Object(
+                                ObjectBuilder::new()
+                                    .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
+                                    .build(),
+                            )))
+                            .build(),
+                    )),
+                )
+                .build(),
+        ));
+
+        let json_str = serde_json::to_string(&ref_or_schema).expect("");
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+        let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
     fn serialize_deserialize_schema_array_ref_or_t() {
         let ref_or_schema = RefOr::T(Schema::Array(
             ArrayBuilder::new()
