@@ -308,7 +308,9 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(struct_features.to_token_stream())
         }
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
+        let attributes = CommentAttributes::from_attributes(self.attributes);
+        if !attributes.is_empty() {
+            let comment = attributes.join("\n");
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -432,7 +434,9 @@ impl ToTokens for UnnamedStructSchema<'_> {
             }
         };
 
-        if let Some(comment) = CommentAttributes::from_attributes(self.attributes).first() {
+        let attributes = CommentAttributes::from_attributes(self.attributes);
+        if !attributes.is_empty() {
+            let comment = attributes.join("\n");
             if !is_object {
                 tokens.extend(quote! {
                     .description(Some(#comment))
@@ -542,7 +546,9 @@ impl ToTokens for EnumSchemaType<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        if let Some(comment) = CommentAttributes::from_attributes(attributes).first() {
+        let attributes = CommentAttributes::from_attributes(attributes);
+        if !attributes.is_empty() {
+            let comment = attributes.join("\n");
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
@@ -1064,8 +1070,13 @@ impl ToTokens for SchemaProperty<'_> {
                     utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#schema_property))
                 });
 
-                if let Some(description) = self.comments.and_then(|attributes| attributes.0.first())
-                {
+                if let Some(description) = self.comments.and_then(|attributes| {
+                    if attributes.is_empty() {
+                        None
+                    } else {
+                        Some(attributes.join("\n"))
+                    }
+                }) {
                     tokens.extend(quote! {
                         .description(Some(#description))
                     })
@@ -1143,9 +1154,13 @@ impl ToTokens for SchemaProperty<'_> {
                             })
                         }
 
-                        if let Some(description) =
-                            self.comments.and_then(|attributes| attributes.0.first())
-                        {
+                        if let Some(description) = self.comments.and_then(|attributes| {
+                            if attributes.is_empty() {
+                                None
+                            } else {
+                                Some(attributes.join("\n"))
+                            }
+                        }) {
                             tokens.extend(quote! {
                                 .description(Some(#description))
                             })
