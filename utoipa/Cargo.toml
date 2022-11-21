@@ -1,7 +1,7 @@
 [package]
 name = "utoipa"
 description = "Compile time generated OpenAPI documentation for Rust"
-version = "2.4.0"
+version = "2.4.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
