@@ -5,19 +5,18 @@ use proc_macro_error::{abort, ResultExt};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Token, TypePath, Variant,
-    Visibility,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Token, Variant, Visibility,
 };
 
 use crate::{
-    component::features::{Example, Rename},
+    component::features::Rename,
     doc_comment::CommentAttributes,
     schema_type::{SchemaFormat, SchemaType},
     Array, Deprecated,
 };
 
 use self::{
-    enum_variant::{CustomEnum, Enum, ObjectVariant, ReprVariant, SimpleEnumVariant, TaggedEnum},
+    enum_variant::{CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum},
     features::{
         ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
         EnumUnnamedFieldVariantFeatures, FromAttributes, NamedFieldFeatures,
@@ -472,7 +471,7 @@ impl ToTokens for EnumSchema<'_> {
                         .iter()
                         .find_map(|attribute| {
                             if attribute.path.is_ident("repr") {
-                                attribute.parse_args::<TypePath>().ok()
+                                attribute.parse_args::<syn::TypePath>().ok()
                             } else {
                                 None
                             }
@@ -561,7 +560,7 @@ impl ToTokens for EnumSchemaType<'_> {
 struct ReprEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
-    enum_type: TypePath,
+    enum_type: syn::TypePath,
 }
 
 #[cfg(feature = "repr")]
@@ -569,7 +568,10 @@ impl ToTokens for ReprEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
         let repr_enum_features = features::parse_schema_features_with(self.attributes, |input| {
-            Ok(parse_features!(input as Example, super::features::Default))
+            Ok(parse_features!(
+                input as super::features::Example,
+                super::features::Default
+            ))
         })
         .unwrap_or_default();
 
@@ -582,7 +584,7 @@ impl ToTokens for ReprEnum<'_> {
 
                     if is_not_skipped(&variant_rules) {
                         let repr_type = &self.enum_type;
-                        Some(ReprVariant {
+                        Some(enum_variant::ReprVariant {
                             value: quote! { Self::#variant_type as #repr_type },
                             type_path: repr_type,
                         })
@@ -590,7 +592,7 @@ impl ToTokens for ReprEnum<'_> {
                         None
                     }
                 })
-                .collect::<Vec<ReprVariant<TokenStream>>>()
+                .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>()
         });
     }
 }
