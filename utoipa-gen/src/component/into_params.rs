@@ -277,8 +277,8 @@ impl ToTokens for Param<'_> {
                     .rename_all
                     .map(|rename_all| rename_all.as_rename_rule())
             });
-        let name =
-            super::rename::<FieldRename>(name, rename_to, rename_all).unwrap_or(Cow::Borrowed(name));
+        let name = super::rename::<FieldRename>(name, rename_to, rename_all)
+            .unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty);
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
@@ -297,7 +297,9 @@ impl ToTokens for Param<'_> {
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
-        if let Some(comment) = CommentAttributes::from_attributes(&field.attrs).first() {
+        let attributes = CommentAttributes::from_attributes(&field.attrs);
+        if !attributes.is_empty() {
+            let comment = attributes.join("\n");
             tokens.extend(quote! {
                 .description(Some(#comment))
             })
