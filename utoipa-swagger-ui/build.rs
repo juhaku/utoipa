@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    env::{self, VarError},
+    env,
     fs::{self, File},
     io,
     path::PathBuf,
@@ -18,17 +18,7 @@ fn main() {
         SWAGGER_UI_DIST_ZIP
     );
 
-    let target_dir = env::var("CARGO_TARGET_DIR")
-        .or_else(|_| env::var("CARGO_BUILD_TARGET_DIR"))
-        .or_else(|_| -> Result<String, VarError> {
-            let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
-            if manifest_dir.contains("/package") {
-                Ok("target".to_string())
-            } else {
-                Ok("../target".to_string())
-            }
-        })
-        .unwrap();
+    let target_dir = env::var("OUT_DIR").unwrap();
     println!("cargo:rustc-env=UTOIPA_SWAGGER_DIR={}", &target_dir);
 
     let swagger_ui_zip = File::open(
