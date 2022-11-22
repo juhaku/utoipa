@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-swagger-ui"
 description = "Swagger UI for utoipa"
-version = "2.0.1"
+version = "2.0.2-pre1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
