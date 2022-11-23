@@ -1050,6 +1050,10 @@ impl ToTokens for SchemaProperty<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self.type_tree.generic_type {
             Some(GenericType::Map) => {
+                let empty_features = Vec::new();
+                let mut features = self.features.unwrap_or(&empty_features).clone();
+                let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
@@ -1064,13 +1068,17 @@ impl ToTokens for SchemaProperty<'_> {
                         .nth(1)
                         .expect("SchemaProperty Map type should have 2 child"),
                     comments: self.comments,
-                    features: self.features,
+                    features: Some(&features),
                     deprecated: self.deprecated,
                 };
 
                 tokens.extend(quote! {
                     utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#schema_property))
                 });
+
+                if let Some(ref example) = example {
+                    tokens.extend(example.to_token_stream());
+                }
 
                 if let Some(description) = self.comments.and_then(|attributes| {
                     if attributes.is_empty() {
