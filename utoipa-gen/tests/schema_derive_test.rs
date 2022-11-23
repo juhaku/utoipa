@@ -2683,3 +2683,67 @@ fn derive_struct_with_vec_field_with_example() {
         })
     );
 }
+
+#[test]
+fn derive_struct_field_with_example() {
+    struct MyStruct;
+    let doc = api_doc! {
+        struct MyValue {
+            #[schema(example = "test")]
+            field1: String,
+            #[schema(example = json!("test"))]
+            field2: String,
+            #[schema(example = json!({
+                "key1": "value1"
+            }))]
+            field3: HashMap<String, String>,
+            #[schema(example = json!({
+                "key1": "value1"
+            }))]
+            field4: HashMap<String, MyStruct>
+        }
+    };
+
+    dbg!(&doc);
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "properties": {
+                "field1": {
+                    "type": "string",
+                    "example": "test"
+                },
+                "field2": {
+                    "type": "string",
+                    "example": "test"
+                },
+                "field3": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string",
+                    },
+                    "example": {
+                        "key1": "value1"
+                    }
+                },
+                "field4": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/components/schemas/MyStruct",
+                    },
+                    "example": {
+                        "key1": "value1"
+                    }
+                }
+            },
+            "required": [ 
+                "field1",
+                "field2",
+                "field3",
+                "field4"
+            ],
+            "type": "object"
+        })
+    )
+}
