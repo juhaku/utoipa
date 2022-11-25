@@ -104,7 +104,7 @@
 //!#     S: Clone + Send + Sync + 'static,
 //!# {
 //! let app = Router::<S, B>::new()
-//!     .merge(SwaggerUi::new("/swagger-ui/*tail")
+//!     .merge(SwaggerUi::new("/swagger-ui")
 //!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 //!# }
 //! ```
