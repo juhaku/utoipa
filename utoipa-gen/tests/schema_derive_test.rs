@@ -2737,7 +2737,7 @@ fn derive_struct_field_with_example() {
                     }
                 }
             },
-            "required": [ 
+            "required": [
                 "field1",
                 "field2",
                 "field3",

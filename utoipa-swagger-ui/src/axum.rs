@@ -18,7 +18,10 @@ where
         let urls_capacity = swagger_ui.urls.len();
 
         let (router, urls) = swagger_ui.urls.into_iter().fold(
-            (Router::<S, B>::new(), Vec::<Url>::with_capacity(urls_capacity)),
+            (
+                Router::<S, B>::new(),
+                Vec::<Url>::with_capacity(urls_capacity),
+            ),
             |(router, mut urls), url| {
                 let (url, openapi) = url;
                 (
@@ -45,7 +48,10 @@ where
         let slash_path = format!("{}/", path);
 
         router
-            .route(path, routing::get(|| async move { axum::response::Redirect::to(&slash_path) }))
+            .route(
+                path,
+                routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
+            )
             .route(&format!("{}/", path), handler.clone())
             .route(&format!("{}/*rest", path), handler)
     }
