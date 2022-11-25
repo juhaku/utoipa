@@ -98,11 +98,12 @@
 //!# #[openapi()]
 //!# struct ApiDoc;
 //!#
-//!# fn inner<B>()
+//!# fn inner<S, B>()
 //!# where
 //!#     B: HttpBody + Send + 'static,
+//!#     S: Clone + Send + Sync + 'static,
 //!# {
-//! let app = Router::<B>::new()
+//! let app = Router::<S, B>::new()
 //!     .merge(SwaggerUi::new("/swagger-ui/*tail")
 //!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 //!# }
