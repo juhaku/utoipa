@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use axum::{routing, Extension, Router, Server};
+use axum::{routing, Router, Server};
 use hyper::Error;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Error> {
             "/todo/:id",
             routing::put(todo::mark_done).delete(todo::delete_todo),
         )
-        .layer(Extension(store));
+        .with_state(store);
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
     Server::bind(&address).serve(app.into_make_service()).await
@@ -69,9 +69,9 @@ mod todo {
     use std::sync::Arc;
 
     use axum::{
-        extract::{Path, Query},
+        extract::{Path, Query, State},
         response::IntoResponse,
-        Extension, Json,
+        Json,
     };
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
@@ -114,7 +114,7 @@ mod todo {
             (status = 200, description = "List all todos successfully", body = [Todo])
         )
     )]
-    pub(super) async fn list_todos(Extension(store): Extension<Arc<Store>>) -> Json<Vec<Todo>> {
+    pub(super) async fn list_todos(State(store): State<Arc<Store>>) -> Json<Vec<Todo>> {
         let todos = store.lock().await.clone();
 
         Json(todos)
@@ -143,7 +143,7 @@ mod todo {
         )
     )]
     pub(super) async fn search_todos(
-        Extension(store): Extension<Arc<Store>>,
+        State(store): State<Arc<Store>>,
         query: Query<TodoSearchQuery>,
     ) -> Json<Vec<Todo>> {
         Json(
@@ -173,8 +173,8 @@ mod todo {
         )
     )]
     pub(super) async fn create_todo(
+        State(store): State<Arc<Store>>,
         Json(todo): Json<Todo>,
-        Extension(store): Extension<Arc<Store>>,
     ) -> impl IntoResponse {
         let mut todos = store.lock().await;
 
@@ -218,7 +218,7 @@ mod todo {
     )]
     pub(super) async fn mark_done(
         Path(id): Path<i32>,
-        Extension(store): Extension<Arc<Store>>,
+        State(store): State<Arc<Store>>,
         headers: HeaderMap,
     ) -> StatusCode {
         match check_api_key(false, headers) {
@@ -258,7 +258,7 @@ mod todo {
     )]
     pub(super) async fn delete_todo(
         Path(id): Path<i32>,
-        Extension(store): Extension<Arc<Store>>,
+        State(store): State<Arc<Store>>,
         headers: HeaderMap,
     ) -> impl IntoResponse {
         match check_api_key(true, headers) {
