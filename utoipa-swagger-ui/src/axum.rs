@@ -40,18 +40,27 @@ where
             Config::new(urls)
         };
 
-        router.route(
-            swagger_ui.path.as_ref(),
-            routing::get(serve_swagger_ui).layer(Extension(Arc::new(config))),
-        )
+        let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config)));
+        let path: &str = swagger_ui.path.as_ref();
+        let slash_path = format!("{}/", path);
+
+        router
+            .route(path, routing::get(|| async move { axum::response::Redirect::to(&slash_path) }))
+            .route(&format!("{}/", path), handler.clone())
+            .route(&format!("{}/*rest", path), handler)
     }
 }
 
 async fn serve_swagger_ui(
-    Path(tail): Path<String>,
+    path: Option<Path<String>>,
     Extension(state): Extension<Arc<Config<'static>>>,
 ) -> impl IntoResponse {
-    match super::serve(&tail[1..], state) {
+    let tail = match path.as_ref() {
+        Some(tail) => tail,
+        None => "",
+    };
+
+    match super::serve(tail, state) {
         Ok(file) => file
             .map(|file| {
                 (
