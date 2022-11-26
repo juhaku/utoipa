@@ -8,7 +8,7 @@
 //!
 //! * **actix-web** `version >= 4`
 //! * **rocket** `version >=0.5.0-rc.1`
-//! * **axum** `version >=0.5`
+//! * **axum** `version >=0.6`
 //!
 //! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
