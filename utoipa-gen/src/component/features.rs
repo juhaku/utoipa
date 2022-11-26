@@ -565,6 +565,9 @@ pub trait FeaturesExt {
 
     /// Pop [`RenameAll`] feature if exists in [`Vec<Feature>`] list.
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll>;
+
+    /// Extract [`XmlAttr`] feature for given `type_tree` if it has generic type [`GenericType::Vec`]
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
 }
 
 impl FeaturesExt for Vec<Feature> {
@@ -597,6 +600,22 @@ impl FeaturesExt for Vec<Feature> {
                 _ => None,
             })
     }
+
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
+        self.iter_mut().find_map(|feature| match feature {
+            Feature::XmlAttr(xml_feature) => {
+                let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
+
+                // replace the original xml attribute with splitted value xml
+                if let Some(mut xml) = value_xml {
+                    mem::swap(xml_feature, &mut xml)
+                }
+
+                vec_xml.map(Feature::XmlAttr)
+            }
+            _ => None,
+        })
+    }
 }
 
 impl FeaturesExt for Option<Vec<Feature>> {
@@ -617,6 +636,11 @@ impl FeaturesExt for Option<Vec<Feature>> {
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
         self.as_mut()
             .and_then(|features| features.pop_rename_all_feature())
+    }
+
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
+        self.as_mut()
+            .and_then(|features| features.extract_vec_xml_feature(type_tree))
     }
 }
 

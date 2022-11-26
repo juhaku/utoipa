@@ -12,7 +12,8 @@ use crate::{
     component::{
         self,
         features::{
-            self, AllowReserved, Example, Explode, Inline, Names, Rename, RenameAll, Style,
+            self, AllowReserved, Example, Explode, Format, Inline, Names, Nullable, ReadOnly,
+            Rename, RenameAll, Style, WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -23,7 +24,8 @@ use crate::{
 
 use super::{
     features::{
-        impl_into_inner, parse_features, pop_feature, Feature, FeaturesExt, IntoInner, ToTokensExt,
+        impl_into_inner, parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline,
+        ToTokensExt,
     },
     serde::{self, SerdeContainer},
     GenericType, TypeTree, ValueType,
@@ -208,6 +210,32 @@ pub struct FieldParamContainerAttributes<'a> {
     rename_all: Option<&'a RenameAll>,
 }
 
+struct FieldFeatures(Vec<Feature>);
+
+impl_into_inner!(FieldFeatures);
+
+impl Parse for FieldFeatures {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self(parse_features!(
+            // param features
+            input as component::features::ValueType,
+            Rename,
+            Style,
+            AllowReserved,
+            Example,
+            Explode,
+            // param schema features
+            Inline,
+            Format,
+            component::features::Default,
+            WriteOnly,
+            ReadOnly,
+            Nullable,
+            XmlAttr
+        )))
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Param<'a> {
     /// Field in the container used to create a single parameter.
@@ -216,6 +244,58 @@ struct Param<'a> {
     container_attributes: FieldParamContainerAttributes<'a>,
     /// Either serde rename all rule or into_params rename all rule if provided.
     serde_container: Option<&'a SerdeContainer>,
+}
+
+impl Param<'_> {
+    /// Resolve [`Param`] features and split features into two [`Vec`]s. Features are split by
+    /// whether they should be renderd in [`Param`] itself or in [`Param`]s schema.
+    ///
+    /// Method returns a tuple containing two [`Vec`]s of [`Feature`].
+    fn resolve_field_features(&self) -> (Vec<Feature>, Vec<Feature>) {
+        let mut field_features = self
+            .field
+            .attrs
+            .iter()
+            .find(|attribute| attribute.path.is_ident("param"))
+            .map(|attribute| {
+                attribute
+                    .parse_args::<FieldFeatures>()
+                    .unwrap_or_abort()
+                    .into_inner()
+            })
+            .unwrap_or_default();
+
+        if let Some(ref style) = self.container_attributes.style {
+            if !field_features
+                .iter()
+                .any(|feature| matches!(&feature, Feature::Style(_)))
+            {
+                field_features.push(style.clone()); // could try to use cow to avoid cloning
+            };
+        }
+
+        field_features.into_iter().fold(
+            (Vec::<Feature>::new(), Vec::<Feature>::new()),
+            |(mut schema_features, mut param_features), feature| {
+                match feature {
+                    Feature::Inline(_)
+                    | Feature::Format(_)
+                    | Feature::Default(_)
+                    | Feature::WriteOnly(_)
+                    | Feature::ReadOnly(_)
+                    | Feature::Nullable(_)
+                    | Feature::XmlAttr(_) => {
+                        schema_features.push(feature);
+                    }
+                    _ => {
+                        param_features.push(feature);
+                    }
+                };
+
+                (schema_features, param_features)
+            },
+        )
+    }
 }
 
 impl ToTokens for Param<'_> {
@@ -237,31 +317,9 @@ impl ToTokens for Param<'_> {
 
         let field_param_serde = serde::parse_value(&field.attrs);
 
-        let mut field_features = field
-            .attrs
-            .iter()
-            .find(|attribute| attribute.path.is_ident("param"))
-            .map(|attribute| {
-                attribute
-                    .parse_args::<FieldFeatures>()
-                    .unwrap_or_abort()
-                    .into_inner()
-            })
-            .unwrap_or_default();
+        let (schema_features, mut param_features) = self.resolve_field_features();
 
-        if let Some(ref style) = self.container_attributes.style {
-            if !field_features
-                .iter()
-                .any(|feature| matches!(&feature, Feature::Style(_)))
-            {
-                field_features.push(style.clone()); // could try to use cow to avoid cloning
-            };
-        }
-        let value_type = field_features.pop_value_type_feature();
-        let is_inline = field_features
-            .pop_by(|feature| matches!(feature, Feature::Inline(_)))
-            .is_some();
-        let rename = field_features
+        let rename = param_features
             .pop_rename_feature()
             .map(|rename| rename.into_value());
         let rename_to = field_param_serde
@@ -303,6 +361,7 @@ impl ToTokens for Param<'_> {
             tokens.extend(quote! { .description(Some(#description))})
         }
 
+        let value_type = param_features.pop_value_type_feature();
         let component = value_type
             .as_ref()
             .map(|value_type| value_type.as_type_tree())
@@ -311,42 +370,23 @@ impl ToTokens for Param<'_> {
         let is_default = super::is_default(&self.serde_container, &field_param_serde.as_ref());
         let required: Required =
             (!(matches!(&component.generic_type, Some(GenericType::Option)) || is_default)).into();
+
         tokens.extend(quote! {
             .required(#required)
         });
-        tokens.extend(field_features.to_token_stream());
+        tokens.extend(param_features.to_token_stream());
 
         let schema = ParamType {
             component: &component,
-            field_features: &field_features,
-            is_inline,
+            schema_features: &schema_features,
         };
         tokens.extend(quote! { .schema(Some(#schema)).build() });
     }
 }
 
-struct FieldFeatures(Vec<Feature>);
-
-impl_into_inner!(FieldFeatures);
-
-impl Parse for FieldFeatures {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        Ok(Self(parse_features!(
-            input as component::features::ValueType,
-            Inline,
-            Rename,
-            Style,
-            AllowReserved,
-            Example,
-            Explode
-        )))
-    }
-}
-
 struct ParamType<'a> {
     component: &'a TypeTree<'a>,
-    field_features: &'a Vec<Feature>,
-    is_inline: bool,
+    schema_features: &'a Vec<Feature>,
 }
 
 impl ToTokens for ParamType<'_> {
@@ -355,6 +395,9 @@ impl ToTokens for ParamType<'_> {
 
         match &component.generic_type {
             Some(GenericType::Vec) => {
+                let mut features = self.schema_features.clone();
+                let xml = features.extract_vec_xml_feature(self.component);
+
                 let param_type = ParamType {
                     component: component
                         .children
@@ -363,8 +406,7 @@ impl ToTokens for ParamType<'_> {
                         .iter()
                         .next()
                         .expect("Vec ParamType should have 1 child"),
-                    field_features: self.field_features,
-                    is_inline: self.is_inline,
+                    schema_features: &features,
                 };
 
                 tokens.extend(quote! {
@@ -372,6 +414,10 @@ impl ToTokens for ParamType<'_> {
                         utoipa::openapi::ArrayBuilder::new().items(#param_type).build()
                     )
                 });
+
+                if let Some(vec_xml) = xml.as_ref() {
+                    tokens.extend(vec_xml.to_token_stream());
+                }
             }
             Some(GenericType::Option)
             | Some(GenericType::Cow)
@@ -385,8 +431,7 @@ impl ToTokens for ParamType<'_> {
                         .iter()
                         .next()
                         .expect("Generic container ParamType should have 1 child"),
-                    field_features: self.field_features,
-                    is_inline: self.is_inline,
+                    schema_features: self.schema_features,
                 };
 
                 tokens.extend(param_type.into_token_stream())
@@ -403,8 +448,7 @@ impl ToTokens for ParamType<'_> {
                         .iter()
                         .nth(1)
                         .expect("Map Param type should have 2 child"),
-                    field_features: self.field_features,
-                    is_inline: self.is_inline,
+                    schema_features: self.schema_features,
                 };
 
                 tokens.extend(quote! {
@@ -427,13 +471,15 @@ impl ToTokens for ParamType<'_> {
                                 .format(Some(#format))
                             })
                         }
+
+                        tokens.extend(self.schema_features.to_token_stream())
                     }
                     ValueType::Object => {
                         let component_path = &**component
                             .path
                             .as_ref()
                             .expect("component should have a path");
-                        if self.is_inline {
+                        if self.schema_features.is_inline() {
                             tokens.extend(quote_spanned! {component_path.span()=>
                                 <#component_path as utoipa::ToSchema>::schema()
                             })
