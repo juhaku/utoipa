@@ -1159,6 +1159,14 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///    _`Object`_ will be rendered as generic OpenAPI object.
 /// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
 ///   the schema definition will be inlined.
+/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json]
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+/// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+/// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
+/// * `nullable` Defines property is nullable (note this is different to non-required).
 /// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
@@ -1335,6 +1343,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// [to_schema]: trait.ToSchema.html
+/// [known_format]: openapi/schema/enum.KnownFormat.html
+/// [xml]: openapi/xml/struct.Xml.html
 /// [into_params]: trait.IntoParams.html
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html

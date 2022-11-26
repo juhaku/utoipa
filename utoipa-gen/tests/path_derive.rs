@@ -538,6 +538,77 @@ fn derive_path_params_with_examples() {
 }
 
 #[test]
+fn derive_path_query_params_with_schema_features() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        #[into_params(parameter_in = Query)]
+        struct MyParams {
+            #[serde(default)]
+            #[param(write_only, read_only, default = "value", nullable, xml(name = "xml_value"))]
+            value: String,
+            #[param(value_type = String, format = Binary)]
+            int: i64,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "query",
+            "name": "value",
+            "required": false,
+            "schema": {
+                "default": "value",
+                "type": "string",
+                "readOnly": true,
+                "writeOnly": true,
+                "nullable": true,
+                "xml": {
+                    "name": "xml_value"
+                }
+            }
+          },
+          {
+            "in": "query",
+            "name": "int",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
+fn derive_path_params_always_required() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        #[into_params(parameter_in = Path)]
+        struct MyParams {
+            #[serde(default)]
+            value: String,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+                "type": "string",
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
 fn derive_required_path_params() {
     let operation = api_fn_doc_with_params! {get: "/list/{id}" =>
         #[into_params(parameter_in = Query)]

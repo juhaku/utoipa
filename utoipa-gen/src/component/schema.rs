@@ -1,4 +1,4 @@
-use std::{borrow::Cow, mem};
+use std::borrow::Cow;
 
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::{abort, ResultExt};
@@ -1166,8 +1166,8 @@ impl ToTokens for SchemaProperty<'_> {
                             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
                         }
 
-                        if let Some(attributes) = self.features {
-                            tokens.extend(attributes.to_token_stream())
+                        if let Some(features) = self.features {
+                            tokens.extend(features.to_token_stream())
                         }
                     }
                     ValueType::Object => {
@@ -1202,30 +1202,12 @@ impl ToTokens for SchemaProperty<'_> {
 
 trait SchemaFeatureExt {
     fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>);
-
-    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
 }
 
 impl SchemaFeatureExt for Vec<Feature> {
     fn split_for_title(self) -> (Vec<Feature>, Vec<Feature>) {
         self.into_iter()
             .partition(|feature| matches!(feature, Feature::Title(_)))
-    }
-
-    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
-        self.iter_mut().find_map(|feature| match feature {
-            Feature::XmlAttr(xml_feature) => {
-                let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
-
-                // replace the original xml attribute with splitted value xml
-                if let Some(mut xml) = value_xml {
-                    mem::swap(xml_feature, &mut xml)
-                }
-
-                vec_xml.map(Feature::XmlAttr)
-            }
-            _ => None,
-        })
     }
 }
 
