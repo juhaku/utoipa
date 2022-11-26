@@ -277,7 +277,6 @@ fn derive_response_body_inline_schema_component() {
         doc,
         json!({
             "deprecated": false,
-            "description": "",
             "operationId": "get_foo",
             "responses": {
                 "200": {

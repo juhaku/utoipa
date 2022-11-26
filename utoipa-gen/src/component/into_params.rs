@@ -297,12 +297,10 @@ impl ToTokens for Param<'_> {
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
-        let attributes = CommentAttributes::from_attributes(&field.attrs);
-        if !attributes.is_empty() {
-            let comment = attributes.join("\n");
-            tokens.extend(quote! {
-                .description(Some(#comment))
-            })
+
+        let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+        if !description.is_empty() {
+            tokens.extend(quote! { .description(Some(#description))})
         }
 
         let component = value_type
