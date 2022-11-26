@@ -524,7 +524,7 @@ builder! {
         /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
         /// `string` types.
         #[serde(rename = "type")]
-        schema_type: SchemaType,
+        pub schema_type: SchemaType,
 
         /// Changes the [`Object`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
