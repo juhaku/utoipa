@@ -307,11 +307,10 @@ impl ToTokens for NamedStructSchema<'_> {
             tokens.extend(struct_features.to_token_stream())
         }
 
-        let attributes = CommentAttributes::from_attributes(self.attributes);
-        if !attributes.is_empty() {
-            let comment = attributes.join("\n");
+        let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
+        if !description.is_empty() {
             tokens.extend(quote! {
-                .description(Some(#comment))
+                .description(Some(#description))
             })
         }
     }
@@ -433,14 +432,11 @@ impl ToTokens for UnnamedStructSchema<'_> {
             }
         };
 
-        let attributes = CommentAttributes::from_attributes(self.attributes);
-        if !attributes.is_empty() {
-            let comment = attributes.join("\n");
-            if !is_object {
-                tokens.extend(quote! {
-                    .description(Some(#comment))
-                })
-            }
+        let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
+        if !description.is_empty() && !is_object {
+            tokens.extend(quote! {
+                .description(Some(#description))
+            })
         }
 
         if fields_len > 1 {
@@ -545,11 +541,10 @@ impl ToTokens for EnumSchemaType<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        let attributes = CommentAttributes::from_attributes(attributes);
-        if !attributes.is_empty() {
-            let comment = attributes.join("\n");
+        let description = CommentAttributes::from_attributes(attributes).as_formatted_string();
+        if !description.is_empty() {
             tokens.extend(quote! {
-                .description(Some(#comment))
+                .description(Some(#description))
             })
         }
     }
@@ -1080,16 +1075,11 @@ impl ToTokens for SchemaProperty<'_> {
                     tokens.extend(example.to_token_stream());
                 }
 
-                if let Some(description) = self.comments.and_then(|attributes| {
-                    if attributes.is_empty() {
-                        None
-                    } else {
-                        Some(attributes.join("\n"))
+                if let Some(description) = self.comments.map(CommentAttributes::as_formatted_string)
+                {
+                    if !description.is_empty() {
+                        tokens.extend(quote! { .description(Some(#description))})
                     }
-                }) {
-                    tokens.extend(quote! {
-                        .description(Some(#description))
-                    })
                 }
             }
             Some(GenericType::Vec) => {
@@ -1164,17 +1154,13 @@ impl ToTokens for SchemaProperty<'_> {
                             })
                         }
 
-                        if let Some(description) = self.comments.and_then(|attributes| {
-                            if attributes.is_empty() {
-                                None
-                            } else {
-                                Some(attributes.join("\n"))
+                        if let Some(description) =
+                            self.comments.map(CommentAttributes::as_formatted_string)
+                        {
+                            if !description.is_empty() {
+                                tokens.extend(quote! {.description(Some(#description))})
                             }
-                        }) {
-                            tokens.extend(quote! {
-                                .description(Some(#description))
-                            })
-                        }
+                        };
 
                         if let Some(deprecated) = self.deprecated {
                             tokens.extend(quote! { .deprecated(Some(#deprecated)) });

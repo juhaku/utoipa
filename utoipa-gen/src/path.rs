@@ -555,15 +555,13 @@ impl ToTokens for Operation<'_> {
         }
 
         if let Some(description) = self.description {
-            let description = description
-                .iter()
-                .map(|comment| format!("{}\n", comment))
-                .collect::<Vec<String>>()
-                .join("");
+            let description = description.join("\n");
 
-            tokens.extend(quote! {
-                .description(Some(#description))
-            })
+            if !description.is_empty() {
+                tokens.extend(quote! {
+                    .description(Some(#description))
+                })
+            }
         }
 
         self.parameters

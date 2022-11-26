@@ -55,6 +55,11 @@ impl CommentAttributes {
             _ => abort_call_site!("Exected only Meta::NameValue type"),
         }
     }
+
+    /// Returns found `doc comments` as formatted `String` joining them all with `\n` _(new line)_.
+    pub(crate) fn as_formatted_string(&self) -> String {
+        self.join("\n")
+    }
 }
 
 impl Deref for CommentAttributes {
