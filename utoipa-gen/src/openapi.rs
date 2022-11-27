@@ -242,7 +242,7 @@ impl ToTokens for OpenApi {
 
         let components_builder_stream = attributes.components.to_token_stream();
 
-        let components = if !components_builder_stream.to_token_stream().is_empty() {
+        let components = if !components_builder_stream.is_empty() {
             Some(quote! { .components(Some(#components_builder_stream)) })
         } else {
             None

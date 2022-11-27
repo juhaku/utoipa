@@ -299,7 +299,7 @@ pub trait OpenApi {
 /// # }
 /// #
 /// impl utoipa::ToSchema for Pet {
-///     fn schema() -> utoipa::openapi::schema::Schema {
+///     fn schema() -> utoipa::openapi::schema::RefOr<utoipa::openapi::schema::Schema> {
 ///         use utoipa::openapi::ToArray;
 ///         utoipa::openapi::ObjectBuilder::new()
 ///             .property(
@@ -328,7 +328,7 @@ pub trait OpenApi {
 /// }
 /// ```
 pub trait ToSchema {
-    fn schema() -> openapi::schema::Schema;
+    fn schema() -> openapi::schema::RefOr<openapi::schema::Schema>;
 
     fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
         Vec::new()

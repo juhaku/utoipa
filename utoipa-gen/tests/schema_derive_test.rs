@@ -2747,3 +2747,85 @@ fn derive_struct_field_with_example() {
         })
     )
 }
+
+#[test]
+fn derive_struct_with_self_reference() {
+    let value = api_doc! {
+        struct Item {
+            id: String,
+            previous: Box<Self>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "string",
+                },
+                "previous": {
+                    "$ref": "#/components/schemas/Item",
+                },
+            },
+            "type": "object",
+            "required": ["id", "previous"]
+        })
+    )
+}
+
+#[test]
+fn derive_unnamed_struct_with_self_reference() {
+    let value = api_doc! {
+        struct Item(Box<Item>);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "$ref": "#/components/schemas/Item"
+        })
+    )
+}
+
+#[test]
+fn derive_enum_with_self_reference() {
+    let value = api_doc! {
+        enum EnumValue {
+            Item(Box<Self>),
+            Item2 {
+                value: Box<Self>
+            }
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "Item": {
+                            "$ref": "#/components/schemas/EnumValue"
+                        }
+                    },
+                    "type": "object",
+                },
+                {
+                    "properties": {
+                        "Item2": {
+                            "properties": {
+                                "value": {
+                                    "$ref": "#/components/schemas/EnumValue"
+                                }
+                            },
+                            "required": ["value"],
+                            "type": "object",
+                        }
+                    },
+                    "type": "object",
+                }
+            ]
+        })
+    )
+}
