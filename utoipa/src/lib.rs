@@ -132,7 +132,7 @@
 //!         path = "/pets/{id}",
 //!         responses(
 //!             (status = 200, description = "Pet found successfully", body = Pet),
-//!             (status = 404, description = "Pet was not found")
+//!             (status = NOT_FOUND, description = "Pet was not found")
 //!         ),
 //!         params(
 //!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
@@ -147,6 +147,7 @@
 //!     }
 //! }
 //! ```
+//! Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 //!
 //! Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
 //! ```rust

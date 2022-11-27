@@ -128,7 +128,7 @@ mod pet_api {
         path = "/pets/{id}",
         responses(
             (status = 200, description = "Pet found succesfully", body = Pet),
-            (status = 404, description = "Pet was not found")
+            (status = NOT_FOUND, description = "Pet was not found")
         ),
         params(
             ("id" = u64, Path, description = "Pet database id to get Pet for"),
@@ -143,6 +143,7 @@ mod pet_api {
     }
 }
 ```
+Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 
 This attribute macro substantially will create another struct named with `__path_` prefix + handler function name.
 So when you implement `some_handler` function in different file and want to export this, make sure `__path_some_handler` in the module can also be accessible from the root.
