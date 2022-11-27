@@ -559,7 +559,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # Responses Attributes
 ///
-/// * `status = ...` Is either a valid http status code integer. E.g. _`200`_ or a string value representing a range such as `"4XX"` or `"default"`.
+/// * `status = ...` Is either a valid http status code integer. E.g. _`200`_ or a string value representing
+///   a range such as _`"4XX"`_ or `"default"` or a valid _`http::status::StatusCode`_.
+///   _`StatusCode`_ can either be use path to the status code or _status code_ constant directly.
 /// * `description = "..."` Define description for the response as str.
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
 ///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`ToSchema`][to_schema],
@@ -584,6 +586,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///     (status = 200, description = "success response"),
 ///     (status = 404, description = "resource missing"),
 ///     (status = "5XX", description = "server error"),
+///     (status = StatusCode::INTERNAL_SERVER_ERROR, description = "internal server error"),
+///     (status = IM_A_TEAPOT, description = "happy easter")
 /// )
 /// ```
 ///
