@@ -47,7 +47,7 @@ fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web
 }
 
 async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) -> HttpResponse {
-    match super::serve(&*path.into_inner(), data.into_inner()) {
+    match super::serve(&path.into_inner(), data.into_inner()) {
         Ok(swagger_file) => swagger_file
             .map(|file| {
                 HttpResponse::Ok()
