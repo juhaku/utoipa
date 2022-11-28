@@ -557,7 +557,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 2. Second is the quick format which only defines the content object type.
 /// 3. Last one is same quick format but only with optional request body.
 ///
-/// # Responses Attributes
+/// # Response Attributes
 ///
 /// * `status = ...` Is either a valid http status code integer. E.g. _`200`_ or a string value representing
 ///   a range such as _`"4XX"`_ or `"default"` or a valid _`http::status::StatusCode`_.
@@ -579,6 +579,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
 ///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
+/// * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
+///   _content_ is `(content_type = response_body, example = "...")`. _`example`_ is
+///   optional argument.
 ///
 /// **Minimal response format:**
 /// ```text
@@ -591,7 +594,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
-/// **Response with all possible values:**
+/// **More complete Response:**
 /// ```text
 /// responses(
 ///     (status = 200, description = "Success response", body = Pet, content_type = "application/json",
@@ -615,6 +618,19 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ```text
 /// responses(
 ///     (status = 200, response = ReusableResponse)
+/// )
+/// ```
+///
+/// **Multiple response return types with _`content(...)`_ attribute**
+///
+/// Define multiple response return types for single response status with their own example.
+/// ```text
+/// responses(
+///    (status = 200, content(
+///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
+///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+///        )
+///    )
 /// )
 /// ```
 ///
@@ -827,7 +843,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// Example with all possible arguments.
+/// _**More complete example.**_
 /// ```rust
 /// # struct Pet {
 /// #    id: u64,
@@ -865,7 +881,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// More minimal example with the defaults.
+/// _**More minimal example with the defaults.**_
 /// ```rust
 /// # struct Pet {
 /// #    id: u64,
@@ -895,7 +911,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Use of Rust's own `#[deprecated]` attribute will reflect to the generated OpenAPI spec and mark this operation as deprecated.
+/// _**Use of Rust's own `#[deprecated]` attribute will reflect to the generated OpenAPI spec and mark this operation as deprecated.**_
 /// ```rust
 /// # use actix_web::{get, web, HttpResponse, Responder};
 /// # use serde_json::json;
@@ -914,7 +930,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Define context path for endpoint. The resolved **path** shown in OpenAPI doc will be `/api/pet/{id}`.
+/// _**Define context path for endpoint. The resolved **path** shown in OpenAPI doc will be `/api/pet/{id}`.**_
 /// ```rust
 /// # use actix_web::{get, web, HttpResponse, Responder};
 /// # use serde_json::json;
@@ -929,6 +945,29 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
 /// ```
+///
+/// _**Example with multiple return types**_
+/// ```rust
+/// # trait User {}
+/// # struct User1 {
+/// #   id: String
+/// # }
+/// # impl User for User1 {}
+/// #[utoipa::path(
+///     get,
+///     path = "/user",
+///     responses(
+///         (status = 200, content(
+///                 ("application/vnd.user.v1+json" = User1, example = json!({"id": "id".to_string()})),
+///                 ("application/vnd.user.v2+json" = User2, example = json!({"id": 2}))
+///             )
+///         )
+///     )
+/// )]
+/// fn get_user() -> Box<dyn User> {
+///   Box::new(User1 {id: "id".to_string()})
+/// }
+/// ````
 ///
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html

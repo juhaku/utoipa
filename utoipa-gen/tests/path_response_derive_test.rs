@@ -3,7 +3,7 @@
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::openapi::Response;
-use utoipa::ToResponse;
+use utoipa::{ToResponse, OpenApi};
 
 mod common;
 
@@ -329,4 +329,65 @@ fn derive_response_body_inline_schema_component() {
             ]
         })
     );
+}
+
+#[test]
+fn derive_path_with_multiple_responses_via_content_attribute() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        id: String,
+    }
+
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User2 {
+        id: i32,
+    }
+
+    #[utoipa::path(
+        get, 
+        path = "/foo", 
+        responses(
+            (status = 200, content(
+                    ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
+                    ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+                )
+            )
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User, User2)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+    
+    assert_json_eq!(resopnses, json!({
+        "200": {
+            "content": {
+                "application/vnd.user.v1+json": {
+                    "example": {
+                        "id": "id",
+                    },
+                    "schema": {
+                        "$ref": 
+                            "#/components/schemas/User",
+                    },
+                },
+                "application/vnd.user.v2+json": {
+                    "example": {
+                        "id": 2,
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/User2",
+                    },
+                },
+            },
+            "description": "",
+        },
+    }))
 }

@@ -11,7 +11,7 @@ use syn::{
     Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, AnyValue, Type};
+use crate::{parse_utils, schema_type::SchemaType, AnyValue, Type};
 
 use super::{property::Property, status::STATUS_CODES, ContentTypeResolver};
 
@@ -86,6 +86,7 @@ pub struct ResponseValue<'r> {
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
     example: Option<AnyValue>,
+    content: Punctuated<Content<'r>, Comma>,
 }
 
 impl Parse for ResponseTuple<'_> {
@@ -148,6 +149,10 @@ impl Parse for ResponseTuple<'_> {
                             AnyValue::parse_lit_str_or_json(input)
                         })?);
                 }
+                "content" => {
+                    response.as_value(input.span())?.content =
+                        parse_utils::parse_punctuated_within_parenthesis(input)?;
+                }
                 "response" => {
                     response.set_ref_type(
                         input.span(),
@@ -167,6 +172,76 @@ impl Parse for ResponseTuple<'_> {
         }
 
         Ok(response)
+    }
+}
+
+impl ToTokens for ResponseTuple<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self.inner.as_ref().unwrap() {
+            ResponseTupleInner::Ref(res) => {
+                let path = &res.ty;
+                tokens.extend(quote! {
+                    utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
+                });
+            }
+            ResponseTupleInner::Value(val) => {
+                let description = &val.description;
+                tokens.extend(quote! {
+                    utoipa::openapi::ResponseBuilder::new().description(#description)
+                });
+
+                let create_content = |body: &Type, example: &Option<AnyValue>| -> TokenStream2 {
+                    let property = Property::new(body);
+                    let mut content =
+                        quote! { utoipa::openapi::ContentBuilder::new().schema(#property) };
+
+                    if let Some(ref example) = example {
+                        content.extend(quote! {
+                            .example(Some(#example))
+                        })
+                    }
+
+                    content
+                };
+
+                if let Some(response_type) = &val.response_type {
+                    let content = create_content(response_type, &val.example);
+
+                    if let Some(content_types) = val.content_type.as_ref() {
+                        content_types.iter().for_each(|content_type| {
+                            tokens.extend(quote! {
+                                .content(#content_type, #content.build())
+                            })
+                        })
+                    } else {
+                        let schema_type = SchemaType(response_type.ty.as_ref());
+                        let default_type = self.resolve_content_type(None, &schema_type);
+                        tokens.extend(quote! {
+                            .content(#default_type, #content.build())
+                        });
+                    }
+                }
+
+                val.content
+                    .iter()
+                    .map(|Content(content_type, body, example)| {
+                        let content = create_content(body, example);
+                        (Cow::Borrowed(&**content_type), content)
+                    })
+                    .for_each(|(content_type, content)| {
+                        tokens.extend(quote! { .content(#content_type, #content.build()) })
+                    });
+
+                val.headers.iter().for_each(|header| {
+                    let name = &header.name;
+                    tokens.extend(quote! {
+                        .header(#name, #header)
+                    })
+                });
+
+                tokens.extend(quote! { .build() });
+            }
+        }
     }
 }
 
@@ -249,58 +324,40 @@ impl ToTokens for ResponseStatus {
     }
 }
 
-impl ToTokens for ResponseTuple<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        match self.inner.as_ref().unwrap() {
-            ResponseTupleInner::Ref(res) => {
-                let path = &res.ty;
-                tokens.extend(quote! {
-                    utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
-                });
+// content(
+//   ("application/json" = Response, example = "...", examples(..., ...)),
+//   ("application/json2" = Response2, example = "...", examples("...", "..."))
+// )
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Content<'a>(String, Type<'a>, Option<AnyValue>);
+
+impl Parse for Content<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+        parenthesized!(content in input);
+
+        let content_type = content.parse::<LitStr>()?;
+        content.parse::<Token![=]>()?;
+        let body = content.parse::<Type>()?;
+
+        let example = if content.peek(Token![,]) && content.peek2(syn::Ident) {
+            content.parse::<Token![,]>()?;
+            let ident = content.parse::<Ident>()?;
+            if ident == "example" {
+                Some(parse_utils::parse_next(&content, || {
+                    AnyValue::parse_lit_str_or_json(&content)
+                })?)
+            } else {
+                return Err(Error::new(
+                    ident.span(),
+                    format!("Invalid attribute: {ident}, expected: `example`"),
+                ));
             }
-            ResponseTupleInner::Value(val) => {
-                let description = &val.description;
-                tokens.extend(quote! {
-                    utoipa::openapi::ResponseBuilder::new().description(#description)
-                });
+        } else {
+            None
+        };
 
-                if let Some(response_type) = &val.response_type {
-                    let property = Property::new(response_type);
-
-                    let mut content = quote! {
-                        utoipa::openapi::ContentBuilder::new().schema(#property)
-                    };
-
-                    if let Some(ref example) = val.example {
-                        content.extend(quote! {
-                            .example(Some(#example))
-                        })
-                    }
-
-                    if let Some(content_types) = val.content_type.as_ref() {
-                        content_types.iter().for_each(|content_type| {
-                            tokens.extend(quote! {
-                                .content(#content_type, #content.build())
-                            })
-                        })
-                    } else {
-                        let default_type = self.resolve_content_type(None, &property.schema_type());
-                        tokens.extend(quote! {
-                            .content(#default_type, #content.build())
-                        });
-                    }
-                }
-
-                val.headers.iter().for_each(|header| {
-                    let name = &header.name;
-                    tokens.extend(quote! {
-                        .header(#name, #header)
-                    })
-                });
-
-                tokens.extend(quote! { .build() });
-            }
-        }
+        Ok(Content(content_type.value(), body, example))
     }
 }
 
