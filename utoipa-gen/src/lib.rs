@@ -1804,8 +1804,6 @@ impl ToTokens for ExternalDocs {
 pub(self) enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),
-    #[cfg(not(feature = "json"))]
-    Literal(TokenStream2),
 }
 
 impl AnyValue {
@@ -1814,25 +1812,11 @@ impl AnyValue {
             if input.peek(LitStr) {
                 let lit_str = input.parse::<LitStr>().unwrap().to_token_stream();
 
-                #[cfg(feature = "json")]
-                {
-                    Ok(AnyValue::Json(lit_str))
-                }
-                #[cfg(not(feature = "json"))]
-                {
-                    Ok(AnyValue::String(lit_str))
-                }
+                Ok(AnyValue::Json(lit_str))
             } else {
                 let lit = input.parse::<Lit>().unwrap().to_token_stream();
 
-                #[cfg(feature = "json")]
-                {
-                    Ok(AnyValue::Json(lit))
-                }
-                #[cfg(not(feature = "json"))]
-                {
-                    Ok(AnyValue::Literal(lit))
-                }
+                Ok(AnyValue::Json(lit))
             }
         } else {
             let fork = input.fork();
@@ -1846,14 +1830,7 @@ impl AnyValue {
             if is_json {
                 let json = parse_utils::parse_json_token_stream(input)?;
 
-                #[cfg(feature = "json")]
-                {
-                    Ok(AnyValue::Json(json))
-                }
-                #[cfg(not(feature = "json"))]
-                {
-                    Ok(AnyValue::Literal(json))
-                }
+                Ok(AnyValue::Json(json))
             } else {
                 let method = input.parse::<ExprPath>().map_err(|error| {
                     syn::Error::new(
@@ -1862,14 +1839,7 @@ impl AnyValue {
                     )
                 })?;
 
-                #[cfg(feature = "json")]
-                {
-                    Ok(AnyValue::Json(quote! { #method() }))
-                }
-                #[cfg(not(feature = "json"))]
-                {
-                    Ok(AnyValue::Literal(quote! { #method() }))
-                }
+                Ok(AnyValue::Json(quote! { #method() }))
             }
         }
     }
@@ -1891,9 +1861,7 @@ impl ToTokens for AnyValue {
             Self::Json(json) => tokens.extend(quote! {
                 serde_json::json!(#json)
             }),
-            Self::String(string) => tokens.extend(string.to_owned()),
-            #[cfg(not(feature = "json"))]
-            Self::Literal(literal) => tokens.extend(quote! { format!("{}", #literal) }),
+            Self::String(string) => string.to_tokens(tokens),
         }
     }
 }

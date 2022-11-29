@@ -1,4 +1,3 @@
-#![cfg(feature = "json")]
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::OpenApi;

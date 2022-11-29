@@ -1,5 +1,3 @@
-#![cfg(feature = "json")]
-
 use utoipa::{
     openapi::{
         self,

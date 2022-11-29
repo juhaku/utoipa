@@ -1,5 +1,4 @@
 #![cfg(feature = "axum_extras")]
-#![cfg(feature = "json")]
 
 use std::sync::{Arc, Mutex};
 

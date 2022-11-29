@@ -1,4 +1,3 @@
-#![cfg(feature = "json")]
 use serde_json::Value;
 
 pub fn value_as_string(value: Option<&'_ Value>) -> String {

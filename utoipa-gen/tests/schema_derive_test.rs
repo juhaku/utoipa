@@ -1,4 +1,3 @@
-#![cfg(feature = "json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::assert_json_eq;
