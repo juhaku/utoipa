@@ -41,9 +41,6 @@
 //!
 //! # Features
 //!
-//! * **default** Default enabled features are **json**.
-//! * **json** Enables **serde_json** serialization of OpenAPI objects which also allows usage of JSON within
-//!   OpenAPI values e.g. within `example` value. This is enabled by default.
 //! * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 //! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
 //!   parse `path` and `path and query parameters` from actix web path attribute macros. See [actix extras support][actix_path] or

@@ -192,7 +192,6 @@ impl ServerVariableBuilder {
     }
 }
 
-#[cfg(feature = "json")]
 #[cfg(test)]
 mod tests {
     use super::*;

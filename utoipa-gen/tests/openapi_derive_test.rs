@@ -1,4 +1,4 @@
-#![cfg(all(feature = "yaml", feature = "json"))]
+#![cfg(feature = "yaml")]
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};

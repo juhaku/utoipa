@@ -1,4 +1,4 @@
-#![cfg(all(feature = "actix_extras", feature = "json"))]
+#![cfg(feature = "actix_extras")]
 
 use actix_web::web::{Path, Query};
 use serde::{Deserialize, Serialize};

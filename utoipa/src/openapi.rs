@@ -138,7 +138,6 @@ impl OpenApi {
     /// Converts this [`OpenApi`] to JSON String. This method essentially calls [`serde_json::to_string`] method. [^json]
     ///
     /// [^json]: **json** feature is needed.
-    #[cfg(feature = "json")]
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
@@ -146,7 +145,6 @@ impl OpenApi {
     /// Converts this [`OpenApi`] to pretty JSON String. This method essentially calls [`serde_json::to_string_pretty`] method. [^json]
     ///
     /// [^json]: **json** feature is needed.
-    #[cfg(feature = "json")]
     pub fn to_pretty_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
@@ -422,7 +420,6 @@ macro_rules! builder {
 pub(crate) use builder;
 
 #[cfg(test)]
-#[cfg(feature = "serde_json")]
 mod tests {
     use crate::openapi::{
         info::InfoBuilder,

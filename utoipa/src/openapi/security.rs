@@ -899,7 +899,6 @@ where
 }
 
 #[cfg(test)]
-#[cfg(feature = "json")]
 mod tests {
     use super::*;
 

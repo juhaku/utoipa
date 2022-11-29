@@ -1,9 +1,7 @@
-#![cfg(feature = "json")]
-
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::openapi::Response;
-use utoipa::{ToResponse, OpenApi};
+use utoipa::{OpenApi, ToResponse};
 
 mod common;
 
@@ -346,7 +344,7 @@ fn derive_path_with_multiple_responses_via_content_attribute() {
     }
 
     #[utoipa::path(
-        get, 
+        get,
         path = "/foo", 
         responses(
             (status = 200, content(
@@ -365,29 +363,32 @@ fn derive_path_with_multiple_responses_via_content_attribute() {
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
     let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
-    
-    assert_json_eq!(resopnses, json!({
-        "200": {
-            "content": {
-                "application/vnd.user.v1+json": {
-                    "example": {
-                        "id": "id",
+
+    assert_json_eq!(
+        resopnses,
+        json!({
+            "200": {
+                "content": {
+                    "application/vnd.user.v1+json": {
+                        "example": {
+                            "id": "id",
+                        },
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
+                        },
                     },
-                    "schema": {
-                        "$ref": 
-                            "#/components/schemas/User",
+                    "application/vnd.user.v2+json": {
+                        "example": {
+                            "id": 2,
+                        },
+                        "schema": {
+                            "$ref": "#/components/schemas/User2",
+                        },
                     },
                 },
-                "application/vnd.user.v2+json": {
-                    "example": {
-                        "id": 2,
-                    },
-                    "schema": {
-                        "$ref": "#/components/schemas/User2",
-                    },
-                },
+                "description": "",
             },
-            "description": "",
-        },
-    }))
+        })
+    )
 }

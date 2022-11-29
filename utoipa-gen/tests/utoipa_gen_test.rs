@@ -1,4 +1,3 @@
-#![cfg(feature = "json")]
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
