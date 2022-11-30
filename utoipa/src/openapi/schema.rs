@@ -301,6 +301,10 @@ builder! {
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
+
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
     }
 }
 
@@ -362,6 +366,11 @@ impl OneOfBuilder {
         set_value!(self discriminator discriminator)
     }
 
+    /// Add or change nullable flag for [`Object`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
+    }
+
     to_array_builder!();
 }
 
@@ -411,6 +420,10 @@ builder! {
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
+
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
     }
 }
 
@@ -472,6 +485,11 @@ impl AllOfBuilder {
         set_value!(self discriminator discriminator)
     }
 
+    /// Add or change nullable flag for [`Object`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
+    }
+
     to_array_builder!();
 }
 
@@ -510,7 +528,7 @@ builder! {
 
         /// Changes the [`Object`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
-        title: Option<String>,
+        pub title: Option<String>,
 
         /// Additional format for detailing the schema type.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -560,8 +578,59 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
 
+        /// Set `true` to allow `"null"` to be used as value for given type.
         #[serde(default, skip_serializing_if = "is_false")]
         pub nullable: bool,
+
+        /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
+        /// diveded by the _`multiple_of`_ value results an integer.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub multiple_of: Option<usize>,
+
+        /// Specify inclusive upper limit for the [`Object`]'s value. Number is considered valid if
+        /// it is equal or less than the _`maximum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub maximum: Option<usize>,
+
+        /// Specify inclusive lower limit for the [`Object`]'s value. Number value is considered
+        /// valid if it is equal or greater than the _`minimum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub minimum: Option<usize>,
+
+        /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
+        /// valid if it is strictly less than _`esclusive_maximum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub exclusive_maximum: Option<usize>,
+
+        /// Specify esclusive lower limit for the [`Object`]'s value. Number value is considered
+        /// valid if it is strictly above the _`exclusive_minimum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub exclusive_minimum: Option<usize>,
+
+        /// Specify maximum lenght for `string` values. _`max_length`_ cannot be a negative integer
+        /// value. Value is considered valid if content lenght is equal or less than the _`max_lenght`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub max_length: Option<usize>,
+
+        /// Specify minimum lenght for `string` values. _`min_length`_ cannot be a negative integer
+        /// value. Setting this to _`0`_ has the same effect as omitting this field. Value is
+        /// considered valid if content lenght is equal or more than the _`min_lenght`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub min_length: Option<usize>,
+
+        /// Define a valid `ECMA-262` dialect regular expression. The `string` content is
+        /// considered valid if the _`pattern`_ matches the value successfully.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub pattern: Option<String>,
+
+        /// Specify inclusive maximum amount of properties an [`Object`] can hold.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub max_properties: Option<usize>,
+
+        /// Specify inclusive minimum amount of properties an [`Object`] can hold. Setting this to
+        /// `0` will have same effect as omitting the attribute.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub min_properties: Option<usize>,
     }
 }
 
@@ -571,7 +640,7 @@ fn is_false(value: &bool) -> bool {
 
 impl Object {
     /// Initialize a new [`Object`] with default [`SchemaType`]. This effectifly same as calling
-    /// [`Object::with_type(SchemaType::Object)`].
+    /// `Object::with_type(SchemaType::Object)`.
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -692,6 +761,56 @@ impl ObjectBuilder {
     /// Add or change nullable flag for [`Object`].
     pub fn nullable(mut self, nullable: bool) -> Self {
         set_value!(self nullable nullable)
+    }
+
+    /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
+    pub fn multiple_of(mut self, multiple_of: Option<usize>) -> Self {
+        set_value!(self multiple_of multiple_of)
+    }
+
+    /// Set or change inclusive maximum value for `number` and `integer` values.
+    pub fn maximum(mut self, maximum: Option<usize>) -> Self {
+        set_value!(self maximum maximum)
+    }
+
+    /// Set or change inclusive minimum value for `number` and `integer` values.
+    pub fn minimum(mut self, minimum: Option<usize>) -> Self {
+        set_value!(self minimum minimum)
+    }
+
+    /// Set or change exclusive maximum value for `number` and `integer` values.
+    pub fn exclusive_maximum(mut self, exclusive_maximum: Option<usize>) -> Self {
+        set_value!(self exclusive_maximum exclusive_maximum)
+    }
+
+    /// Set or change exclusive minimum value for `number` and `integer` values.
+    pub fn exclusive_minimum(mut self, exclusive_minimum: Option<usize>) -> Self {
+        set_value!(self exclusive_minimum exclusive_minimum)
+    }
+
+    /// Set or change maximum lenght for `string` values.
+    pub fn max_length(mut self, max_lenght: Option<usize>) -> Self {
+        set_value!(self max_length max_lenght)
+    }
+
+    /// Set or change minimum lenght for `string` values.
+    pub fn min_length(mut self, min_lenght: Option<usize>) -> Self {
+        set_value!(self min_length min_lenght)
+    }
+
+    /// Set or change a valid regular expression for `string` value to match.
+    pub fn pattern<I: Into<String>>(mut self, pattern: Option<I>) -> Self {
+        set_value!(self pattern pattern.map(|pattern| pattern.into()))
+    }
+
+    /// Set or change maximun number of properties the [`Object`] can hold.
+    pub fn max_properties(mut self, max_properties: Option<usize>) -> Self {
+        set_value!(self max_properties max_properties)
+    }
+
+    /// Set or change minimum number of properties the [`Object`] can hold.
+    pub fn min_properties(mut self, min_properties: Option<usize>) -> Self {
+        set_value!(self min_properties min_properties)
     }
 
     to_array_builder!();
@@ -816,6 +935,11 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub min_items: Option<usize>,
 
+        /// Setting this to `true` will validate successfully if all elements of this [`Array`] are
+        /// unique.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub unique_items: bool,
+
         /// Xml format of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
@@ -826,6 +950,7 @@ impl Default for Array {
     fn default() -> Self {
         Self {
             schema_type: SchemaType::Array,
+            unique_items: bool::default(),
             items: Default::default(),
             example: Default::default(),
             max_items: Default::default(),
@@ -872,6 +997,11 @@ impl ArrayBuilder {
     /// Set minimum allowed lenght for [`Array`].
     pub fn min_items(mut self, min_items: Option<usize>) -> Self {
         set_value!(self min_items min_items)
+    }
+
+    /// Set or change whether [`Array`] should enforce all items to be unique.
+    pub fn unique_items(mut self, unique_items: bool) -> Self {
+        set_value!(self unique_items unique_items)
     }
 
     /// Set [`Xml`] formatting for [`Array`].
