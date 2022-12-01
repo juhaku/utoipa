@@ -7,6 +7,15 @@ use syn::{parse::Parse, Error, Ident, LitStr, Path};
 pub struct SchemaType<'a>(pub &'a syn::Path);
 
 impl SchemaType<'_> {
+    fn last_segment_to_string(&self) -> String {
+        self.0
+            .segments
+            .last()
+            .expect("Expected at least one segment is_integer")
+            .ident
+            .to_string()
+    }
+
     /// Check whether type is known to be primitive in wich case returns true.
     pub fn is_primitive(&self) -> bool {
         let SchemaType(path) = self;
@@ -67,6 +76,35 @@ impl SchemaType<'_> {
 
             primitive
         }
+    }
+
+    pub fn is_integer(&self) -> bool {
+        matches!(
+            &*self.last_segment_to_string(),
+            "i8" | "i16"
+                | "i32"
+                | "i64"
+                | "i128"
+                | "isize"
+                | "u8"
+                | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "usize"
+        )
+    }
+
+    pub fn is_number(&self) -> bool {
+        match &*self.last_segment_to_string() {
+            "f32" | "f64" => true,
+            _ if self.is_integer() => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(&*self.last_segment_to_string(), "str" | "String")
     }
 }
 
