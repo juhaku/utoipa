@@ -2,7 +2,7 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -55,8 +55,8 @@ builder! {
         ///
         /// [response]: https://spec.openapis.org/oas/latest.html#response-object
         /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
-        #[serde(skip_serializing_if = "HashMap::is_empty", default)]
-        pub responses: HashMap<String, RefOr<Response>>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub responses: BTreeMap<String, RefOr<Response>>,
 
         /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
         ///
