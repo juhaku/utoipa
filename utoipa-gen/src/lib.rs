@@ -103,6 +103,7 @@ use ext::ArgumentResolver;
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+///    _`Object`_ will be rendered as generic OpenAPI object.
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   struct.
@@ -120,12 +121,24 @@ use ext::ArgumentResolver;
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
+///    _`Object`_ will be rendered as generic OpenAPI object.
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 /// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename field
 ///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
 ///   precedence.
+/// * `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
+///   division will result an `integer`. Value must be strictly above _`0`_.
+/// * `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
+/// * `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+/// * `max_length = ...` Can be used to define maximum length for `string` types.
+/// * `min_length = ...` Can be used to define minimum length for `string` types.
+/// * `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
+/// * `max_items = ...` Can be used to define maximum items allowed for `array` fields. Value must
+///   be non-negative integer.
+/// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
+///   be non-negative integer.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -473,6 +486,19 @@ use ext::ArgumentResolver;
 ///     User,
 /// }
 /// ```
+///
+/// Example with validation attributes.
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// struct Item {
+///     #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
+///     id: i32,
+///     #[schema(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+///     value: String,
+///     #[schema(max_items = 5, min_items = 1)]
+///     items: Vec<String>,
+/// }
+/// ````
 ///
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
