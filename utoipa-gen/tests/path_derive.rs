@@ -1228,6 +1228,84 @@ fn derive_path_params_into_params_with_raw_identifier() {
 }
 
 #[test]
+fn derive_path_with_validation_attributes() {
+    #[derive(IntoParams)]
+    #[allow(dead_code)]
+    struct Query {
+        #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
+        id: i32,
+
+        #[param(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+        value: String,
+
+        #[param(max_items = 5, min_items = 1)]
+        items: Vec<String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Query
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Query) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "schema": {
+                    "format": "int32",
+                    "type": "integer",
+                    "maximum": 10.0,
+                    "minimum": 5.0,
+                    "multipleOf": 2.5,
+                },
+                "required": true,
+                "name": "id",
+                "in": "path"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 5,
+                    "pattern": "[a-z]*"
+                },
+                "required": true,
+                "name": "value",
+                "in": "path"
+            },
+            {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                    },
+                    "maxItems": 5,
+                    "minItems": 1,
+                },
+                "required": true,
+                "name": "items",
+                "in": "path"
+            }
+        ])
+    );
+}
+
+#[test]
 fn derive_path_with_into_responses() {
     #[allow(unused)]
     enum MyResponse {

@@ -1128,6 +1128,12 @@ impl ToTokens for SchemaProperty<'_> {
                     object_name: self.object_name,
                 };
 
+                let validate = |feature: &Feature| {
+                    let type_path = &**self.type_tree.path.as_ref().unwrap();
+                    let schema_type = SchemaType(type_path);
+                    feature.validate(&schema_type, self.type_tree);
+                };
+
                 tokens.extend(quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
                         .items(#schema_property)
@@ -1142,10 +1148,12 @@ impl ToTokens for SchemaProperty<'_> {
                 };
 
                 if let Some(max_items) = max_items {
+                    validate(&max_items);
                     tokens.extend(max_items.to_token_stream())
                 }
 
                 if let Some(min_items) = min_items {
+                    validate(&min_items);
                     tokens.extend(min_items.to_token_stream())
                 }
             }
