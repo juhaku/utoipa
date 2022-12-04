@@ -585,27 +585,27 @@ builder! {
         /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
         /// diveded by the _`multiple_of`_ value results an integer.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub multiple_of: Option<usize>,
+        pub multiple_of: Option<f64>,
 
         /// Specify inclusive upper limit for the [`Object`]'s value. Number is considered valid if
         /// it is equal or less than the _`maximum`_.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub maximum: Option<usize>,
+        pub maximum: Option<f64>,
 
         /// Specify inclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is equal or greater than the _`minimum`_.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub minimum: Option<usize>,
+        pub minimum: Option<f64>,
 
         /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly less than _`esclusive_maximum`_.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub exclusive_maximum: Option<usize>,
+        pub exclusive_maximum: Option<f64>,
 
         /// Specify esclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly above the _`exclusive_minimum`_.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub exclusive_minimum: Option<usize>,
+        pub exclusive_minimum: Option<f64>,
 
         /// Specify maximum lenght for `string` values. _`max_length`_ cannot be a negative integer
         /// value. Value is considered valid if content lenght is equal or less than the _`max_lenght`_.
@@ -764,27 +764,27 @@ impl ObjectBuilder {
     }
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
-    pub fn multiple_of(mut self, multiple_of: Option<usize>) -> Self {
+    pub fn multiple_of(mut self, multiple_of: Option<f64>) -> Self {
         set_value!(self multiple_of multiple_of)
     }
 
     /// Set or change inclusive maximum value for `number` and `integer` values.
-    pub fn maximum(mut self, maximum: Option<usize>) -> Self {
+    pub fn maximum(mut self, maximum: Option<f64>) -> Self {
         set_value!(self maximum maximum)
     }
 
     /// Set or change inclusive minimum value for `number` and `integer` values.
-    pub fn minimum(mut self, minimum: Option<usize>) -> Self {
+    pub fn minimum(mut self, minimum: Option<f64>) -> Self {
         set_value!(self minimum minimum)
     }
 
     /// Set or change exclusive maximum value for `number` and `integer` values.
-    pub fn exclusive_maximum(mut self, exclusive_maximum: Option<usize>) -> Self {
+    pub fn exclusive_maximum(mut self, exclusive_maximum: Option<f64>) -> Self {
         set_value!(self exclusive_maximum exclusive_maximum)
     }
 
     /// Set or change exclusive minimum value for `number` and `integer` values.
-    pub fn exclusive_minimum(mut self, exclusive_minimum: Option<usize>) -> Self {
+    pub fn exclusive_minimum(mut self, exclusive_minimum: Option<f64>) -> Self {
         set_value!(self exclusive_minimum exclusive_minimum)
     }
 

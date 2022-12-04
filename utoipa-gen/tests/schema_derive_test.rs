@@ -2828,3 +2828,54 @@ fn derive_enum_with_self_reference() {
         })
     )
 }
+
+#[test]
+fn derive_struct_with_validation_fields() {
+    let value = api_doc! {
+        struct Item {
+            #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
+            id: i32,
+
+            #[schema(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+            value: String,
+
+            #[schema(max_items = 5, min_items = 1)]
+            items: Vec<String>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "format": "int32",
+                    "type": "integer",
+                    "maximum": 10.0,
+                    "minimum": 5.0,
+                    "multipleOf": 2.5,
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 5,
+                    "pattern": "[a-z]*"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                    },
+                    "maxItems": 5,
+                    "minItems": 1,
+                }
+            },
+            "type": "object",
+            "required": [
+                "id",
+                "value",
+                "items"
+            ]
+        })
+    );
+}

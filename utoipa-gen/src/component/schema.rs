@@ -27,7 +27,7 @@ use self::{
 use super::{
     features::{
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline, RenameAll,
-        ToTokensExt,
+        ToTokensExt, Validatable,
     },
     serde::{self, SerdeContainer, SerdeValue},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
@@ -1108,8 +1108,10 @@ impl ToTokens for SchemaProperty<'_> {
             Some(GenericType::Vec) => {
                 let empty_features = Vec::new();
                 let mut features = self.features.unwrap_or(&empty_features).clone();
-                let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+                let example = pop_feature!(features => Feature::Example(_));
                 let xml = features.extract_vec_xml_feature(self.type_tree);
+                let max_items = pop_feature!(features => Feature::MaxItems(_));
+                let min_items = pop_feature!(features => Feature::MinItems(_));
 
                 let schema_property = SchemaProperty {
                     type_tree: self
@@ -1138,6 +1140,14 @@ impl ToTokens for SchemaProperty<'_> {
                 if let Some(vec_xml) = xml.as_ref() {
                     tokens.extend(vec_xml.to_token_stream());
                 };
+
+                if let Some(max_items) = max_items {
+                    tokens.extend(max_items.to_token_stream())
+                }
+
+                if let Some(min_items) = min_items {
+                    tokens.extend(min_items.to_token_stream())
+                }
             }
             Some(GenericType::Option)
             | Some(GenericType::Cow)
@@ -1192,6 +1202,11 @@ impl ToTokens for SchemaProperty<'_> {
                         }
 
                         if let Some(features) = self.features {
+                            for feature in
+                                features.iter().filter(|feature| feature.is_validatable())
+                            {
+                                feature.validate(&schema_type, type_tree);
+                            }
                             tokens.extend(features.to_token_stream())
                         }
                     }
