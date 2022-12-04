@@ -12,8 +12,9 @@ use crate::{
     component::{
         self,
         features::{
-            self, AllowReserved, Example, Explode, Format, Inline, Names, Nullable, ReadOnly,
-            Rename, RenameAll, Style, WriteOnly, XmlAttr,
+            self, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
+            Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names,
+            Nullable, Pattern, ReadOnly, Rename, RenameAll, Style, WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -25,7 +26,7 @@ use crate::{
 use super::{
     features::{
         impl_into_inner, parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline,
-        ToTokensExt,
+        ToTokensExt, Validatable,
     },
     serde::{self, SerdeContainer},
     GenericType, TypeTree, ValueType,
@@ -231,7 +232,17 @@ impl Parse for FieldFeatures {
             WriteOnly,
             ReadOnly,
             Nullable,
-            XmlAttr
+            XmlAttr,
+            MultipleOf,
+            Maximum,
+            Minimum,
+            ExclusiveMaximum,
+            ExclusiveMinimum,
+            MaxLength,
+            MinLength,
+            Pattern,
+            MaxItems,
+            MinItems
         )))
     }
 }
@@ -284,7 +295,17 @@ impl Param<'_> {
                     | Feature::WriteOnly(_)
                     | Feature::ReadOnly(_)
                     | Feature::Nullable(_)
-                    | Feature::XmlAttr(_) => {
+                    | Feature::XmlAttr(_)
+                    | Feature::MultipleOf(_)
+                    | Feature::Maximum(_)
+                    | Feature::Minimum(_)
+                    | Feature::ExclusiveMaximum(_)
+                    | Feature::ExclusiveMinimum(_)
+                    | Feature::MaxLength(_)
+                    | Feature::MinLength(_)
+                    | Feature::Pattern(_)
+                    | Feature::MaxItems(_)
+                    | Feature::MinItems(_) => {
                         schema_features.push(feature);
                     }
                     _ => {
@@ -397,6 +418,8 @@ impl ToTokens for ParamType<'_> {
             Some(GenericType::Vec) => {
                 let mut features = self.schema_features.clone();
                 let xml = features.extract_vec_xml_feature(self.component);
+                let max_items = pop_feature!(features => Feature::MaxItems(_));
+                let min_items = pop_feature!(features => Feature::MinItems(_));
 
                 let param_type = ParamType {
                     component: component
@@ -410,13 +433,27 @@ impl ToTokens for ParamType<'_> {
                 };
 
                 tokens.extend(quote! {
-                    utoipa::openapi::Schema::Array(
-                        utoipa::openapi::ArrayBuilder::new().items(#param_type).build()
-                    )
+                    utoipa::openapi::ArrayBuilder::new().items(#param_type)
                 });
+
+                let validate = |feature: &Feature| {
+                    let type_path = &**self.component.path.as_ref().unwrap();
+                    let schema_type = SchemaType(type_path);
+                    feature.validate(&schema_type, self.component);
+                };
 
                 if let Some(vec_xml) = xml.as_ref() {
                     tokens.extend(vec_xml.to_token_stream());
+                }
+
+                if let Some(max_items) = max_items {
+                    validate(&max_items);
+                    tokens.extend(max_items.to_token_stream())
+                }
+
+                if let Some(min_items) = min_items {
+                    validate(&min_items);
+                    tokens.extend(min_items.to_token_stream())
                 }
             }
             Some(GenericType::Option)
@@ -470,6 +507,14 @@ impl ToTokens for ParamType<'_> {
                             tokens.extend(quote! {
                                 .format(Some(#format))
                             })
+                        }
+
+                        for feature in self
+                            .schema_features
+                            .iter()
+                            .filter(|feature| feature.is_validatable())
+                        {
+                            feature.validate(&schema_type, self.component);
                         }
 
                         tokens.extend(self.schema_features.to_token_stream())

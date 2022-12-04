@@ -132,6 +132,8 @@ use ext::ArgumentResolver;
 ///   division will result an `integer`. Value must be strictly above _`0`_.
 /// * `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
 /// * `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+/// * `exclusive_maximum = ...` Can be used to define exclusive upper bound to a `number` value.
+/// * `exclusive_minimum = ...` Can be used to define exclusive lower bound to a `number` value.
 /// * `max_length = ...` Can be used to define maximum length for `string` types.
 /// * `min_length = ...` Can be used to define minimum length for `string` types.
 /// * `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
@@ -1237,6 +1239,19 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 /// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
+/// * `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
+///   division will result an `integer`. Value must be strictly above _`0`_.
+/// * `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
+/// * `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+/// * `exclusive_maximum = ...` Can be used to define exclusive upper bound to a `number` value.
+/// * `exclusive_minimum = ...` Can be used to define exclusive lower bound to a `number` value.
+/// * `max_length = ...` Can be used to define maximum length for `string` types.
+/// * `min_length = ...` Can be used to define minimum length for `string` types.
+/// * `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
+/// * `max_items = ...` Can be used to define maximum items allowed for `array` fields. Value must
+///   be non-negative integer.
+/// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
+///   be non-negative integer.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -1410,6 +1425,19 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     id: String
 /// }
 /// ```
+///
+/// Example with validation attributes.
+/// ```rust
+/// #[derive(utoipa::IntoParams)]
+/// struct Item {
+///     #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
+///     id: i32,
+///     #[param(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+///     value: String,
+///     #[param(max_items = 5, min_items = 1)]
+///     items: Vec<String>,
+/// }
+/// ````
 ///
 /// [to_schema]: trait.ToSchema.html
 /// [known_format]: openapi/schema/enum.KnownFormat.html
