@@ -43,6 +43,9 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 enum TypeTreeValue<'t> {
     TypePath(&'t TypePath),
     Path(&'t Path),
+    /// Slice and array types need to be manually defined, since they cannot be recognized from
+    /// generic arguments.
+    Array(Vec<TypeTreeValue<'t>>),
 }
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
@@ -68,7 +71,8 @@ impl<'t> TypeTree<'t> {
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
             Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
-            Type::Array(array) => Self::get_type_paths(&array.elem),
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem))],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem))],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -82,7 +86,7 @@ impl<'t> TypeTree<'t> {
                     .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
             }
             _ => abort_call_site!(
-                "unexpected type in component part get type path, expected one of: Path, Reference, Group"
+                "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject"
             ),
         }
     }
@@ -108,7 +112,16 @@ impl<'t> TypeTree<'t> {
             let path = match value {
                 TypeTreeValue::TypePath(type_path) => &type_path.path,
                 TypeTreeValue::Path(path) => path,
+                TypeTreeValue::Array(value) => {
+                    return TypeTree {
+                        path: None,
+                        value_type: ValueType::Object,
+                        generic_type: Some(GenericType::Vec),
+                        children: Some(vec![Self::from_type_paths(value)]),
+                    };
+                }
             };
+
             // there will always be one segment at least
             let last_segment = path
                 .segments
