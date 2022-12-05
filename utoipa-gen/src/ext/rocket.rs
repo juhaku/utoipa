@@ -67,7 +67,7 @@ fn to_value_arg((arg, argument_in): (FnArg, ArgumentIn)) -> ValueArgument {
     ValueArgument {
         type_path: get_value_type(arg.ty),
         argument_in,
-        name: Some(Cow::Owned(arg.name.to_string())),
+        name: Some(Cow::Owned(arg.arg_type.get_name().to_string())),
         is_array: is_vec,
         is_option,
     }
@@ -94,14 +94,14 @@ fn with_parameter_in(
     move |arg: FnArg| {
         let parameter_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
-                if arg.name == &*path.name {
+                if arg.arg_type.get_name() == &*path.name {
                     Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Path) })
                 } else {
                     None
                 }
             }
             MacroArg::Query(query) => {
-                if arg.name == &*query.name {
+                if arg.arg_type.get_name() == &*query.name {
                     Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Query) })
                 } else {
                     None
@@ -117,14 +117,14 @@ fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg,
     move |arg: FnArg| {
         let argument_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
-                if arg.name == &*path.name {
+                if arg.arg_type.get_name() == &*path.name {
                     Some(ArgumentIn::Path)
                 } else {
                     None
                 }
             }
             MacroArg::Query(query) => {
-                if arg.name == &*query.name {
+                if arg.arg_type.get_name() == &*query.name {
                     Some(ArgumentIn::Query)
                 } else {
                     None
