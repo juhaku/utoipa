@@ -837,8 +837,36 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # axum_extras suppport for axum
 ///
-/// **axum_extras** feature enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-/// _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+/// **axum_extras** feature enhances parameter support for path operation in following ways.
+///
+/// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
+///    parameter names and types from it.
+/// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
+///   _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///
+/// _**Resole path argument types from tuple style handler arguments.**_
+/// ```rust
+/// # use axum::extract::Path;
+/// /// Get todo by id and name.
+/// #[utoipa::path(
+///     get,
+///     path = "/todo/{id}",
+///     params(
+///         ("id", description = "Todo id"),
+///         ("name", description = "Todo name")
+///     ),
+///     responses(
+///         (status = 200, description = "Get todo success", body = String)
+///     )
+/// )]
+/// async fn get_todo(
+///     Path((id, name)): Path<(i32, String)>
+/// ) -> String {
+///     String::new()
+/// }
+/// ```
+///
+/// _**Use `IntoParams` to resovle query parmaeters.**_
 /// ```rust
 /// # use serde::Deserialize;
 /// # use utoipa::IntoParams;

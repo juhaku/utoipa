@@ -179,30 +179,52 @@ pub mod fn_arg {
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct FnArg<'a> {
         pub(super) ty: TypeTree<'a>,
-        pub(super) name: &'a Ident,
+        pub(super) arg_type: FnArgType<'a>,
     }
 
-    impl<'a> From<(TypeTree<'a>, &'a Ident)> for FnArg<'a> {
-        fn from((ty, name): (TypeTree<'a>, &'a Ident)) -> Self {
-            Self { ty, name }
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(PartialEq, Eq, PartialOrd, Ord)]
+    pub enum FnArgType<'t> {
+        Single(&'t Ident),
+        Tuple(Vec<&'t Ident>),
+    }
+
+    impl FnArgType<'_> {
+        /// Get best effor name `Ident` for the type. For `FnArgType::Tuple` types it will take the first one
+        /// from `Vec`.
+        #[cfg(feature = "rocket_extras")]
+        pub(super) fn get_name(&self) -> &Ident {
+            match self {
+                Self::Single(ident) => ident,
+                // perform best effort name, by just taking the first one from the list
+                Self::Tuple(tuple) => tuple
+                    .first()
+                    .expect("Expected at least one argument in FnArgType::Tuple"),
+            }
+        }
+    }
+
+    impl<'a> From<(TypeTree<'a>, FnArgType<'a>)> for FnArg<'a> {
+        fn from((ty, arg_type): (TypeTree<'a>, FnArgType<'a>)) -> Self {
+            Self { ty, arg_type }
         }
     }
 
     impl<'a> Ord for FnArg<'a> {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            self.name.cmp(other.name)
+            self.arg_type.cmp(&other.arg_type)
         }
     }
 
     impl<'a> PartialOrd for FnArg<'a> {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            self.name.partial_cmp(other.name)
+            self.arg_type.partial_cmp(&other.arg_type)
         }
     }
 
     impl<'a> PartialEq for FnArg<'a> {
         fn eq(&self, other: &Self) -> bool {
-            self.ty == other.ty && self.name == other.name
+            self.ty == other.ty && self.arg_type == other.arg_type
         }
     }
 
@@ -214,18 +236,26 @@ pub mod fn_arg {
             .map(|arg| {
                 let pat_type = get_fn_arg_pat_type(arg);
 
-                let arg_name = get_pat_ident(pat_type.pat.as_ref());
+                let arg_name = get_pat_fn_arg_type(pat_type.pat.as_ref());
                 (TypeTree::from_type(&pat_type.ty), arg_name)
             })
             .map(FnArg::from)
     }
 
     #[inline]
-    fn get_pat_ident(pat: &Pat) -> &Ident {
+    fn get_pat_fn_arg_type(pat: &Pat) -> FnArgType {
         let arg_name = match pat {
-            syn::Pat::Ident(ident) => &ident.ident,
+            syn::Pat::Ident(ident) => FnArgType::Single(&ident.ident),
+            syn::Pat::Tuple(tuple) => {
+                FnArgType::Tuple(tuple.elems.iter().map(|item| {
+                    match item {
+                        syn::Pat::Ident(ident) => &ident.ident,
+                        _ => abort!(item, "expected syn::Ident in get_pat_fn_arg_type Pat::Tuple")
+                    }
+                }).collect::<Vec<_>>())
+            },
             syn::Pat::TupleStruct(tuple_struct) => {
-                get_pat_ident(tuple_struct.pat.elems.first().as_ref().expect(
+                get_pat_fn_arg_type(tuple_struct.pat.elems.first().as_ref().expect(
                     "PatTuple expected to have at least one element, cannot get fn argument",
                 ))
             }
