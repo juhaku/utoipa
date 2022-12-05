@@ -2879,3 +2879,38 @@ fn derive_struct_with_validation_fields() {
         })
     );
 }
+
+#[test]
+fn derive_schema_with_slice_and_array() {
+    let value = api_doc! {
+        struct Item<'a> {
+            array: [&'a str; 10],
+            slice: &'a [&'a str],
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "slice": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "array",
+                "slice"
+            ],
+            "type": "object"
+        })
+    )
+}
