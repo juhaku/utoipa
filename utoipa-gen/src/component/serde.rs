@@ -116,22 +116,55 @@ impl SerdeContainer {
 pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.is_ident("serde"))
+        .filter(|attribute| attribute.path.is_ident("serde"))
         .map(|serde_attribute| {
             serde_attribute
                 .parse_args_with(SerdeValue::parse)
                 .unwrap_or_abort()
+        })
+        .fold(Some(SerdeValue::default()), |acc, value| {
+            acc.map(|mut acc| {
+                if value.skip {
+                    acc.skip = value.skip;
+                }
+                if value.rename.is_some() {
+                    acc.rename = value.rename;
+                }
+                if value.flatten {
+                    acc.flatten = value.flatten;
+                }
+                if value.default {
+                    acc.default = value.default;
+                }
+
+                acc
+            })
         })
 }
 
 pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.is_ident("serde"))
+        .filter(|attribute| attribute.path.is_ident("serde"))
         .map(|serde_attribute| {
             serde_attribute
                 .parse_args_with(SerdeContainer::parse)
                 .unwrap_or_abort()
+        })
+        .fold(Some(SerdeContainer::default()), |acc, value| {
+            acc.map(|mut acc| {
+                if value.default {
+                    acc.default = value.default;
+                }
+                if !value.tag.is_empty() {
+                    acc.tag = value.tag;
+                }
+                if value.rename_all.is_some() {
+                    acc.rename_all = value.rename_all;
+                }
+
+                acc
+            })
         })
 }
 

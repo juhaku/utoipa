@@ -2914,3 +2914,27 @@ fn derive_schema_with_slice_and_array() {
         })
     )
 }
+
+#[test]
+fn derive_schema_multiple_serde_definitions() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        struct Value {
+            #[serde(default)]
+            #[serde(rename = "ID")]
+            id: String
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "ID": {
+                    "type": "string",
+                }
+            },
+            "type": "object",
+        })
+    );
+}
