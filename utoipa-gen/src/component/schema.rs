@@ -1041,6 +1041,7 @@ impl ToTokens for ComplexEnum<'_> {
 #[derive(PartialEq)]
 struct TypeTuple<'a, T>(T, &'a Ident);
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum Property<'a> {
     Schema(SchemaProperty<'a>),
     WithSchema(Feature),
