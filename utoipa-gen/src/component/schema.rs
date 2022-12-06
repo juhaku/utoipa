@@ -222,7 +222,7 @@ impl NamedStructSchema<'_> {
     fn field_as_schema_property<R>(
         &self,
         field: &Field,
-        yield_: impl FnOnce(SchemaProperty<'_>, Option<Cow<'_, str>>) -> R,
+        yield_: impl FnOnce(Property<'_>, Option<Cow<'_, str>>) -> R,
     ) -> R {
         let type_tree = &mut TypeTree::from_type(&field.ty);
 
@@ -257,15 +257,20 @@ impl NamedStructSchema<'_> {
             .as_ref()
             .map(|value_type| value_type.as_type_tree());
         let comments = CommentAttributes::from_attributes(&field.attrs);
+        let with_schema = pop_feature!(field_features => Feature::SchemaWith(_));
 
         yield_(
-            SchemaProperty::new(
-                override_type_tree.as_ref().unwrap_or(type_tree),
-                Some(&comments),
-                field_features.as_ref(),
-                deprecated.as_ref(),
-                self.struct_name.as_ref(),
-            ),
+            if let Some(with_schema) = with_schema {
+                Property::WithSchema(with_schema)
+            } else {
+                Property::Schema(SchemaProperty::new(
+                    override_type_tree.as_ref().unwrap_or(type_tree),
+                    Some(&comments),
+                    field_features.as_ref(),
+                    deprecated.as_ref(),
+                    self.struct_name.as_ref(),
+                ))
+            },
             rename_field,
         )
     }
@@ -296,7 +301,7 @@ impl ToTokens for NamedStructSchema<'_> {
                         field_name = &field_name[2..];
                     }
 
-                    self.field_as_schema_property(field, |schema_property, rename| {
+                    self.field_as_schema_property(field, |property, rename| {
                         let rename_to = field_rule
                             .as_ref()
                             .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
@@ -314,15 +319,20 @@ impl ToTokens for NamedStructSchema<'_> {
                             .unwrap_or(Cow::Borrowed(field_name));
 
                         object_tokens.extend(quote! {
-                            .property(#name, #schema_property)
+                            .property(#name, #property)
                         });
 
-                        if !schema_property.is_option()
-                            && !super::is_default(&container_rules.as_ref(), &field_rule.as_ref())
-                        {
-                            object_tokens.extend(quote! {
-                                .required(#name)
-                            })
+                        if let Property::Schema(schema_property) = property {
+                            if !schema_property.is_option()
+                                && !super::is_default(
+                                    &container_rules.as_ref(),
+                                    &field_rule.as_ref(),
+                                )
+                            {
+                                object_tokens.extend(quote! {
+                                    .required(#name)
+                                })
+                            }
                         }
 
                         object_tokens
@@ -1030,6 +1040,21 @@ impl ToTokens for ComplexEnum<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq)]
 struct TypeTuple<'a, T>(T, &'a Ident);
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum Property<'a> {
+    Schema(SchemaProperty<'a>),
+    WithSchema(Feature),
+}
+
+impl ToTokens for Property<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Schema(schema) => schema.to_tokens(tokens),
+            Self::WithSchema(with_schema) => with_schema.to_tokens(tokens),
+        }
+    }
+}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct SchemaProperty<'a> {

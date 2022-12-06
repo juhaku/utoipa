@@ -14,7 +14,7 @@ use crate::{
         features::{
             self, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
             Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names,
-            Nullable, Pattern, ReadOnly, Rename, RenameAll, Style, WriteOnly, XmlAttr,
+            Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -225,6 +225,7 @@ impl Parse for FieldFeatures {
             AllowReserved,
             Example,
             Explode,
+            SchemaWith,
             // param schema features
             Inline,
             Format,
@@ -377,40 +378,47 @@ impl ToTokens for Param<'_> {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
-        let description = CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
-        if !description.is_empty() {
-            tokens.extend(quote! { .description(Some(#description))})
+        let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
+        if let Some(schema_with) = schema_with {
+            tokens.extend(quote! { .schema(Some(#schema_with)).build() });
+        } else {
+            let description =
+                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+            if !description.is_empty() {
+                tokens.extend(quote! { .description(Some(#description))})
+            }
+
+            let value_type = param_features.pop_value_type_feature();
+            let component = value_type
+                .as_ref()
+                .map(|value_type| value_type.as_type_tree())
+                .unwrap_or(type_tree);
+
+            let is_default = super::is_default(&self.serde_container, &field_param_serde.as_ref());
+            let required: Required =
+                (!(matches!(&component.generic_type, Some(GenericType::Option)) || is_default))
+                    .into();
+
+            tokens.extend(quote! {
+                .required(#required)
+            });
+            tokens.extend(param_features.to_token_stream());
+
+            let schema = ParamSchema {
+                component: &component,
+                schema_features: &schema_features,
+            };
+            tokens.extend(quote! { .schema(Some(#schema)).build() });
         }
-
-        let value_type = param_features.pop_value_type_feature();
-        let component = value_type
-            .as_ref()
-            .map(|value_type| value_type.as_type_tree())
-            .unwrap_or(type_tree);
-
-        let is_default = super::is_default(&self.serde_container, &field_param_serde.as_ref());
-        let required: Required =
-            (!(matches!(&component.generic_type, Some(GenericType::Option)) || is_default)).into();
-
-        tokens.extend(quote! {
-            .required(#required)
-        });
-        tokens.extend(param_features.to_token_stream());
-
-        let schema = ParamType {
-            component: &component,
-            schema_features: &schema_features,
-        };
-        tokens.extend(quote! { .schema(Some(#schema)).build() });
     }
 }
 
-struct ParamType<'a> {
+struct ParamSchema<'a> {
     component: &'a TypeTree<'a>,
     schema_features: &'a Vec<Feature>,
 }
 
-impl ToTokens for ParamType<'_> {
+impl ToTokens for ParamSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let component = self.component;
 
@@ -421,7 +429,7 @@ impl ToTokens for ParamType<'_> {
                 let max_items = pop_feature!(features => Feature::MaxItems(_));
                 let min_items = pop_feature!(features => Feature::MinItems(_));
 
-                let param_type = ParamType {
+                let param_type = ParamSchema {
                     component: component
                         .children
                         .as_ref()
@@ -460,7 +468,7 @@ impl ToTokens for ParamType<'_> {
             | Some(GenericType::Cow)
             | Some(GenericType::Box)
             | Some(GenericType::RefCell) => {
-                let param_type = ParamType {
+                let param_type = ParamSchema {
                     component: component
                         .children
                         .as_ref()
@@ -477,7 +485,7 @@ impl ToTokens for ParamType<'_> {
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
 
-                let component_property = ParamType {
+                let component_property = ParamSchema {
                     component: component
                         .children
                         .as_ref()

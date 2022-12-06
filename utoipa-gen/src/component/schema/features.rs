@@ -8,7 +8,7 @@ use crate::component::features::{
     impl_into_inner, parse_features, Default, Example, ExclusiveMaximum, ExclusiveMinimum, Feature,
     Format, Inline, MaxItems, MaxLength, MaxProperties, Maximum, MinItems, MinLength,
     MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Title,
-    ValueType, WriteOnly, XmlAttr,
+    ValueType, SchemaWith, WriteOnly, XmlAttr,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -99,7 +99,8 @@ impl Parse for NamedFieldFeatures {
             MinLength,
             Pattern,
             MaxItems,
-            MinItems
+            MinItems,
+            SchemaWith
         )))
     }
 }

@@ -5,6 +5,7 @@ use paste::paste;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use utoipa::openapi::schema::RefOr;
+use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
     IntoParams, IntoResponses, OpenApi, ToSchema,
@@ -1380,4 +1381,63 @@ fn derive_path_with_uuid() {
         "parameters.[0].name" = r#""id""#, "Parameter id id"
         "parameters.[0].in" = r#""path""#, "Parameter in"
     }
+}
+
+#[test]
+fn derive_path_with_into_params_custom_schema() {
+    fn custom_type() -> Object {
+        ObjectBuilder::new()
+            .schema_type(utoipa::openapi::SchemaType::String)
+            .format(Some(utoipa::openapi::SchemaFormat::Custom(
+                "email".to_string(),
+            )))
+            .description(Some("this is the description"))
+            .build()
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Query {
+        #[param(schema_with = custom_type)]
+        email: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Query
+        )
+    )]
+    #[allow(unused)]
+    fn get_items(query: Query) -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+            {
+                "in": "query",
+                "name": "email",
+                "required": false,
+                "schema": {
+                    "description": "this is the description",
+                    "type": "string",
+                    "format": "email"
+                }
+            }
+        ])
+    )
 }
