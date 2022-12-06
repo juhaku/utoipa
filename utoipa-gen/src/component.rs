@@ -256,8 +256,26 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    fn update_path(&mut self, ident: &'_ Ident) {
-        self.path = Some(Cow::Owned(Path::from(ident.clone())))
+    /// Update current [`TypeTree`] from given `ident`.
+    /// 
+    /// It will update everything else except `children` for the `TypeTree`. This means that the
+    /// `TypeTree` will not be changed and will be travelsed as before update.
+    fn update(&mut self, ident: Ident) {
+        let new_path = Path::from(ident);
+
+        let segments = &new_path.segments;
+        let last_segment = segments.last().expect("TypeTree::update path should have at least one segment");
+
+        let generic_type = Self::get_generic_type(last_segment);
+        let value_type = if SchemaType(&new_path).is_primitive() {
+            ValueType::Primitive
+        } else {
+            ValueType::Object
+        };
+
+        self.value_type = value_type;
+        self.generic_type = generic_type;
+        self.path = Some(Cow::Owned(new_path));
     }
 
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used

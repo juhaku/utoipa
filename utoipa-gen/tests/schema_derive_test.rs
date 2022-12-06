@@ -2271,6 +2271,50 @@ fn derive_component_with_aliases() {
 }
 
 #[test]
+fn derive_component_with_primitive_aliases() {
+    #[derive(Debug, OpenApi)]
+    #[openapi(components(schemas(BarString, BarInt)))]
+    struct ApiDoc;
+
+    #[derive(ToSchema)]
+    #[aliases(BarString = Bar<String>, BarInt = Bar<i32>)]
+    struct Bar<R> {
+        #[allow(dead_code)]
+        bar: R,
+    }
+
+    let doc = ApiDoc::openapi();
+    let doc_value = &serde_json::to_value(doc).unwrap();
+
+    let value = doc_value.pointer("/components/schemas").unwrap();
+
+    assert_json_eq!(
+        value,
+        json!({
+            "BarString": {
+                "properties": {
+                    "bar": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "required": ["bar"]
+            },
+            "BarInt": {
+                "properties": {
+                    "bar": {
+                        "type": "integer",
+                        "format": "int32",
+                    }
+               },
+                "type": "object",
+                "required": ["bar"]
+            }
+        })
+    )
+}
+
+#[test]
 fn derive_component_with_into_params_value_type() {
     #[derive(ToSchema)]
     struct Foo {
@@ -2703,8 +2747,6 @@ fn derive_struct_field_with_example() {
             field4: HashMap<String, MyStruct>
         }
     };
-
-    dbg!(&doc);
 
     assert_json_eq!(
         doc,
