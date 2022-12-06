@@ -6,7 +6,7 @@ use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    LitFloat, LitInt, LitStr,
+    LitFloat, LitInt, LitStr, TypePath,
 };
 
 use crate::{
@@ -115,13 +115,14 @@ pub enum Feature {
     MinItems(MinItems),
     MaxProperties(MaxProperties),
     MinProperties(MinProperties),
+    SchemaWith(SchemaWith),
 }
 
 impl Feature {
     pub fn parse_named<T: Name>(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
         let name = T::get_name();
 
-        const ALLOWED_NAMES: [&str; 29] = [
+        const ALLOWED_NAMES: [&str; 30] = [
             "default",
             "example",
             "inline",
@@ -151,6 +152,7 @@ impl Feature {
             "min_items",
             "max_properties",
             "min_properties",
+            "schema_with",
         ];
 
         match name {
@@ -191,6 +193,7 @@ impl Feature {
             "min_properties" => {
                 MinProperties::parse_with_ident(input, ident).map(Self::MinProperties)
             }
+            "schema_with" => SchemaWith::parse(input).map(Self::SchemaWith),
             _unexpected => Err(syn::Error::new(
                 ident.span(),
                 format!(
@@ -289,6 +292,7 @@ impl ToTokens for Feature {
             Feature::MinProperties(min_properties) => {
                 quote! { .max_properties(Some(#min_properties)) }
             }
+            Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
             Feature::RenameAll(_) => {
                 abort! {
                     Span::call_site(),
@@ -353,6 +357,7 @@ impl Display for Feature {
             Feature::MinItems(min_items) => min_items.fmt(f),
             Feature::MaxProperties(max_properties) => max_properties.fmt(f),
             Feature::MinProperties(min_properties) => min_properties.fmt(f),
+            Feature::SchemaWith(with_schema) => with_schema.fmt(f),
         }
     }
 }
@@ -389,6 +394,7 @@ impl Validatable for Feature {
             Feature::MinItems(min_items) => min_items.is_validatable(),
             Feature::MaxProperties(max_properties) => max_properties.is_validatable(),
             Feature::MinProperties(min_properties) => min_properties.is_validatable(),
+            Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
         }
     }
 }
@@ -434,7 +440,8 @@ is_validatable! {
     MaxItems => true,
     MinItems => true,
     MaxProperties => false,
-    MinProperties => false
+    MinProperties => false,
+    SchemaWith => false
 }
 
 #[derive(Clone)]
@@ -1142,6 +1149,26 @@ impl ToTokens for MinProperties {
 }
 
 name!(MinProperties = "min_properties");
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct SchemaWith(TypePath);
+
+impl Parse for SchemaWith {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || input.parse::<TypePath>().map(Self))
+    }
+}
+
+impl ToTokens for SchemaWith {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let path = &self.0;
+        tokens.extend(quote! {
+            #path()
+        })
+    }
+}
+
+name!(SchemaWith = "schema_with");
 
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;

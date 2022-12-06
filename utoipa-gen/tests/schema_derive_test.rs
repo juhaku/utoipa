@@ -6,6 +6,7 @@ use chrono::{Date, DateTime, Duration, Utc};
 
 use serde::Serialize;
 use serde_json::{json, Value};
+use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
 
 mod common;
@@ -2937,4 +2938,37 @@ fn derive_schema_multiple_serde_definitions() {
             "type": "object",
         })
     );
+}
+
+#[test]
+fn derive_schema_with_custom_field_with_schema() {
+    fn custom_type() -> Object {
+        ObjectBuilder::new()
+            .schema_type(utoipa::openapi::SchemaType::String)
+            .format(Some(utoipa::openapi::SchemaFormat::Custom(
+                "email".to_string(),
+            )))
+            .description(Some("this is the description"))
+            .build()
+    }
+    let value = api_doc! {
+        struct Value {
+            #[schema(schema_with = custom_type)]
+            id: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "description": "this is the description",
+                    "type": "string",
+                    "format": "email"
+                }
+            },
+            "type": "object"
+        })
+    )
 }
