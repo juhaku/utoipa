@@ -114,11 +114,7 @@ impl ToTokens for Schema<'_> {
                         #vis type #name = #ty #alias_type_generics;
                     }
                 })
-                .fold(quote! {}, |mut tokens, alias| {
-                    tokens.extend(alias);
-
-                    tokens
-                })
+                .collect::<TokenStream>()
         });
 
         tokens.extend(quote! {
@@ -255,8 +251,15 @@ impl NamedStructSchema<'_> {
                 .enumerate()
                 .for_each(|(index, generic)| {
                     if let Some(generic_type) = type_tree.find_mut_by_ident(&generic.ident) {
-                        generic_type
-                            .update_path(&alias.generics.type_params().nth(index).unwrap().ident);
+                        generic_type.update(
+                            alias
+                                .generics
+                                .type_params()
+                                .nth(index)
+                                .unwrap()
+                                .ident
+                                .clone(),
+                        );
                     };
                 })
         }
