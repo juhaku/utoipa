@@ -139,6 +139,7 @@ enum SchemaVariant<'a> {
     Named(NamedStructSchema<'a>),
     Unnamed(UnnamedStructSchema<'a>),
     Enum(EnumSchema<'a>),
+    Unit(UnitStructVariant),
 }
 
 impl<'a> SchemaVariant<'a> {
@@ -179,10 +180,7 @@ impl<'a> SchemaVariant<'a> {
                         alias,
                     })
                 }
-                Fields::Unit => abort!(
-                    ident.span(),
-                    "unexpected Field::Unit expected struct with Field::Named or Field::Unnamed"
-                ),
+                Fields::Unit => Self::Unit(UnitStructVariant),
             },
             Data::Enum(content) => Self::Enum(EnumSchema {
                 enum_name: Cow::Owned(ident.to_string()),
@@ -203,7 +201,21 @@ impl ToTokens for SchemaVariant<'_> {
             Self::Enum(schema) => schema.to_tokens(tokens),
             Self::Named(schema) => schema.to_tokens(tokens),
             Self::Unnamed(schema) => schema.to_tokens(tokens),
+            Self::Unit(unit) => unit.to_tokens(tokens),
         }
+    }
+}
+
+struct UnitStructVariant;
+
+impl ToTokens for UnitStructVariant {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(quote! {
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .nullable(true)
+                .default(Some(serde_json::Value::Null))
+                .example(Some(serde_json::Value::Null))
+        });
     }
 }
 

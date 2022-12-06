@@ -2972,3 +2972,20 @@ fn derive_schema_with_custom_field_with_schema() {
         })
     )
 }
+
+#[test]
+fn derive_unit_struct_schema() {
+    let value = api_doc! {
+        struct UnitValue;
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "nullable": true,
+            "default": null,
+            "example": null
+        })
+    )
+}
