@@ -141,6 +141,9 @@ use ext::ArgumentResolver;
 ///   be non-negative integer.
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
+/// * `with_schema = ...` Use _`schema`_ created by provided function reference insted of the
+///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
+///   not accept arguments and must return anything that can be convered into `RefOr<Schema>`.
 ///
 /// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
@@ -501,6 +504,26 @@ use ext::ArgumentResolver;
 ///     items: Vec<String>,
 /// }
 /// ````
+///
+/// _**Use `schema_with` to manually implement schema for a field**_
+/// ```rust
+/// # use utoipa::openapi::schema::{Object, ObjectBuilder};
+/// fn custom_type() -> Object {
+///     ObjectBuilder::new()
+///         .schema_type(utoipa::openapi::SchemaType::String)
+///         .format(Some(utoipa::openapi::SchemaFormat::Custom(
+///             "email".to_string(),
+///         )))
+///         .description(Some("this is the description"))
+///         .build()
+/// }
+///
+/// #[derive(utoipa::ToSchema)]
+/// struct Value {
+///     #[schema(schema_with = custom_type)]
+///     id: String,
+/// }
+/// ```
 ///
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
@@ -1280,6 +1303,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   be non-negative integer.
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
+/// * `with_schema = ...` Use _`schema`_ created by provided function reference insted of the
+///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
+///   not accept arguments and must return anything that can be convered into `RefOr<Schema>`.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -1466,6 +1492,27 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///     items: Vec<String>,
 /// }
 /// ````
+///
+/// _**Use `schema_with` to manually implement schema for a field**_
+/// ```rust
+/// # use utoipa::openapi::schema::{Object, ObjectBuilder};
+/// fn custom_type() -> Object {
+///     ObjectBuilder::new()
+///         .schema_type(utoipa::openapi::SchemaType::String)
+///         .format(Some(utoipa::openapi::SchemaFormat::Custom(
+///             "email".to_string(),
+///         )))
+///         .description(Some("this is the description"))
+///         .build()
+/// }
+///
+/// #[derive(utoipa::IntoParams)]
+/// #[into_params(parameter_in = Query)]
+/// struct Query {
+///     #[param(schema_with = custom_type)]
+///     email: String,
+/// }
+/// ```
 ///
 /// [to_schema]: trait.ToSchema.html
 /// [known_format]: openapi/schema/enum.KnownFormat.html
