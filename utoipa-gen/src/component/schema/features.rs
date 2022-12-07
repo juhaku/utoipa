@@ -7,8 +7,8 @@ use syn::{
 use crate::component::features::{
     impl_into_inner, parse_features, Default, Example, ExclusiveMaximum, ExclusiveMinimum, Feature,
     Format, Inline, MaxItems, MaxLength, MaxProperties, Maximum, MinItems, MinLength,
-    MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Title,
-    ValueType, SchemaWith, WriteOnly, XmlAttr,
+    MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith,
+    Title, ValueType, WriteOnly, XmlAttr,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]

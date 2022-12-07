@@ -138,3 +138,52 @@ fn derive_openapi_with_responses() {
         })
     )
 }
+
+#[test]
+fn derive_openapi_with_servers() {
+    #[derive(OpenApi)]
+    #[openapi(
+        servers(
+            (url = "http://localhost:8989", description = "this is description"),
+            (url = "http://api.{username}:{port}", description = "remote api", 
+                variables(
+                    (username = (default = "demo", description = "Default username for API")),
+                    (port = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for the API"))
+                )
+            )
+        )
+    )]
+    struct ApiDoc;
+
+    let value = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let servers = value.pointer("/servers");
+
+    assert_json_eq!(
+        servers,
+        json!([
+            {
+                "description": "this is description",
+                "url": "http://localhost:8989"
+            },
+            {
+                "description": "remote api",
+                "url": "http://api.{username}:{port}",
+                "variables": {
+                    "port": {
+                        "default": "8080",
+                        "enum": [
+                            "8080",
+                            "5000",
+                            "3030"
+                        ],
+                        "description": "Supported ports for the API"
+                    },
+                    "username": {
+                        "default": "demo",
+                        "description": "Default username for API"
+                    }
+                }
+            }
+        ])
+    )
+}

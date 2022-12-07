@@ -1151,6 +1151,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   Tag can be used to define extra information for the api to produce richer documentation.
 /// * `external_docs(...)` Can be used to reference external resource to the OpenAPI doc for extended documentation.
 ///   External docs can be in [`OpenApi`][openapi_struct] or in [`Tag`][tags] level.
+/// * `servers(...)` Define [`servers`][servers] as derive argumenst to the _`OpenApi`_.
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -1163,7 +1164,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// Define OpenApi schema with some paths and components.
+/// _**Define OpenApi schema with some paths and components.**_
 /// ```rust
 /// # use utoipa::{OpenApi, ToSchema};
 /// #
@@ -1209,6 +1210,24 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// struct ApiDoc;
 /// ```
 ///
+/// _**Define servers to OpenApi.**_
+///```rust
+/// # use utoipa::OpenApi;
+/// #[derive(OpenApi)]
+/// #[openapi(
+///     servers(
+///         (url = "http://localhost:8989", description = "Local server"),
+///         (url = "http://api.{username}:{port}", description = "Remote API",
+///             variables(
+///                 (username = (default = "demo", description = "Default username for API")),
+///                 (port = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for API"))
+///             )
+///         )
+///     )
+/// )]
+/// struct ApiDoc;
+///```
+///
 /// [openapi]: trait.OpenApi.html
 /// [openapi_struct]: openapi/struct.OpenApi.html
 /// [to_schema]: derive.ToSchema.html
@@ -1219,6 +1238,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [path_security]: attr.path.html#security-requirement-attributes
 /// [tags]: openapi/tag/struct.Tag.html
 /// [to_response_trait]: trait.ToResponse.html
+/// [servers]: openapi/server/index.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
