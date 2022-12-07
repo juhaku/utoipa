@@ -35,7 +35,7 @@ builder! {
     ///
     /// [info]: <https://spec.openapis.org/oas/latest.html#info-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Info {
@@ -133,7 +133,7 @@ builder! {
     ///
     /// [contact]: <https://spec.openapis.org/oas/latest.html#contact-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Contact {
@@ -182,7 +182,7 @@ builder! {
     ///
     /// [license]: <https://spec.openapis.org/oas/latest.html#license-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct License {

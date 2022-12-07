@@ -24,7 +24,7 @@ builder! {
     ///
     /// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Paths {
         /// Map of relative paths with [`PathItem`]s holding [`Operation`]s matching
@@ -39,16 +39,34 @@ impl Paths {
         Default::default()
     }
 
-    /// Return [`Option<&PathItem>`] by given relative path if one exists
+    /// Return _`Option`_ of reference to [`PathItem`] by given relative path _`P`_ if one exists
     /// in [`Paths::paths`] map. Otherwise will return `None`.
+    /// 
+    /// # Examples
+    ///
+    /// _**Get user path item.**_
+    /// ```rust
+    /// # use utoipa::openapi::path::{Paths, PathItemType};
+    /// # let paths = Paths::new();
+    /// let path_item = paths.get_path_item("/api/v1/user");
+    /// ```
     pub fn get_path_item<P: AsRef<str>>(&self, path: P) -> Option<&PathItem> {
         self.paths.get(path.as_ref())
     }
 
-    /// Return [`Option<&Operation>`] from map of paths or `None` if not found.
+    /// Return _`Option`_ of reference to [`Operation`] from map of paths or `None` if not found.
     ///
-    /// * First will try to find [`PathItem`] by given relative path.
+    /// * First will try to find [`PathItem`] by given relative path _`P`_ e.g. `"/api/v1/user"`.
     /// * Then tries to find [`Operation`] from [`PathItem`]'s operations by given [`PathItemType`].
+    ///
+    /// # Examples
+    ///
+    /// _**Get user operation from paths.**_
+    /// ```rust
+    /// # use utoipa::openapi::path::{Paths, PathItemType};
+    /// # let paths = Paths::new();
+    /// let operation = paths.get_path_operation("/api/v1/user", PathItemType::Get);
+    /// ```
     pub fn get_path_operation<P: AsRef<str>>(
         &self,
         path: P,
@@ -83,7 +101,7 @@ builder! {
     ///
     /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct PathItem {
@@ -194,7 +212,7 @@ builder! {
     ///
     /// [operation]: https://spec.openapis.org/oas/latest.html#operation-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Operation {
@@ -421,7 +439,7 @@ builder! {
     ///
     /// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Parameter {
@@ -577,7 +595,7 @@ impl Default for ParameterIn {
 }
 
 /// Defines how [`Parameter`] should be serialized.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub enum ParameterStyle {

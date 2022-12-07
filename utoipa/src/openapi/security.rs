@@ -24,7 +24,7 @@ use super::builder;
 /// [path]: ../../attr.path.html
 /// [openapi]: ../../derive.OpenApi.html
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct SecurityRequirement {
     #[serde(flatten)]
     value: BTreeMap<String, Vec<String>>,
@@ -97,7 +97,7 @@ impl SecurityRequirement {
 ///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
 /// );
 /// ```
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SecurityScheme {
@@ -121,7 +121,7 @@ pub enum SecurityScheme {
 }
 
 /// Api key authentication [`SecurityScheme`].
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "in", rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ApiKey {
@@ -135,7 +135,7 @@ pub enum ApiKey {
 
 /// Value object for [`ApiKey`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ApiKeyValue {
     /// Name of the [`ApiKey`] parameter.
@@ -187,7 +187,7 @@ builder! {
     ///
     /// Methods can be chained to configure _bearer_format_ or to add _description_.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone, Default)]
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Http {
@@ -296,7 +296,7 @@ impl Default for HttpAuthScheme {
 
 /// Open id connect [`SecurityScheme`]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenIdConnect {
@@ -343,7 +343,7 @@ impl OpenIdConnect {
 
 /// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
@@ -442,7 +442,7 @@ impl OAuth2 {
 ///
 ///
 /// See more details at <https://spec.openapis.org/oas/latest.html#oauth-flows-object>.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Flow {
@@ -471,7 +471,7 @@ impl Flow {
 
 /// Implicit [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Implicit {
@@ -554,7 +554,7 @@ impl Implicit {
 
 /// Authorization code [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AuthorizationCode {
@@ -649,7 +649,7 @@ impl AuthorizationCode {
 
 /// Password [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Password {
@@ -731,7 +731,7 @@ impl Password {
 
 /// Client credentials [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ClientCredentials {
@@ -842,7 +842,7 @@ impl ClientCredentials {
 ///     ("read:items", "read my items")
 /// ]);
 /// ```
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Scopes {
     scopes: BTreeMap<String, String>,

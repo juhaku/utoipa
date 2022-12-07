@@ -13,7 +13,7 @@ builder! {
     ///
     /// [header]: https://spec.openapis.org/oas/latest.html#header-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Header {
         /// Schema of header type.

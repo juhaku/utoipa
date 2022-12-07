@@ -58,7 +58,7 @@ builder! {
     ///
     /// [openapi]: ../struct.OpenApi.html
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Server {
@@ -153,7 +153,7 @@ builder! {
     ///
     /// [server_variable]: https://spec.openapis.org/oas/latest.html#server-variable-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct ServerVariable {
         /// Default value used to substitute parameter if no other value is being provided.

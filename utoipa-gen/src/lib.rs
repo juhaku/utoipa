@@ -63,8 +63,8 @@ use ext::ArgumentResolver;
 /// `#[deprecated  = "There is better way to do this"]` the reason would not render in OpenAPI spec.
 ///
 /// # Struct Optional Configuration Options for `#[schema(...)]`
-/// * `example = ...` Can be either _`json!(...)`_ or literal string that can be parsed to json. _`json!`_
-///   should be something that _`serde_json::json!`_ can parse as a _`serde_json::Value`_. [^json]
+/// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
+///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -72,12 +72,10 @@ use ext::ArgumentResolver;
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
 ///   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
 ///   __serde__ will take precedence.
-///  
-/// [^json]: **json** feature need to be enabled for _`json!(...)`_ type to work.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
-/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `example = ...` Can be method reference or _`json!(...)`_.
+/// * `default = ...` Can be method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
@@ -94,8 +92,8 @@ use ext::ArgumentResolver;
 /// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take prededence.
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
-/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `example = ...` Can be method reference or _`json!(...)`_.
+/// * `default = ...` Can be method reference or _`json!(...)`_.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -109,8 +107,8 @@ use ext::ArgumentResolver;
 ///   struct.
 ///
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
-/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
-/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json2]
+/// * `example = ...` Can be method reference or _`json!(...)`_.
+/// * `default = ...` Can be method reference or _`json!(...)`_.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -144,8 +142,6 @@ use ext::ArgumentResolver;
 /// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be convered into `RefOr<Schema>`.
-///
-/// [^json2]: Values are converted to string if **json** feature is not enabled.
 ///
 /// # Xml attribute Configuration Options
 ///
@@ -626,8 +622,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
 ///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
-/// * `example = ...` Can be either `json!(...)` or literal str that can be parsed to json. `json!`
-///   should be something that `serde_json::json!` can parse as a `serde_json::Value`. [^json]
+/// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
+///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
 ///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 /// * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
@@ -732,7 +728,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
 /// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
-/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json]. Given example
+/// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
 /// **For example:**
@@ -1061,8 +1057,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [into_params_derive]: derive.IntoParams.html
 /// [to_response_trait]: trait.ToResponse.html
 ///
-/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
-///
 /// [^actix_extras]: **actix_extras** feature need to be enabled and **actix-web** framework must be declared in your `Cargo.toml`.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
@@ -1292,7 +1286,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 /// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
-/// * `example = ...` Can be literal value, method reference or _`json!(...)`_. [^json] Given example
+/// * `example = ...` Can be method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
@@ -1301,7 +1295,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///    _`Object`_ will be rendered as generic OpenAPI object.
 /// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
 ///   the schema definition will be inlined.
-/// * `default = ...` Can be literal value, method reference or _`json!(...)`_. [^json]
+/// * `default = ...` Can be method reference or _`json!(...)`_.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -1546,8 +1540,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [serde attributes]: https://serde.rs/attributes.html
 ///
 /// [^actix]: Feature **actix_extras** need to be enabled
-///
-/// [^json]: **json** feature need to be enabled for `json!(...)` type to work.
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

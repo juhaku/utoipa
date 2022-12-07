@@ -14,7 +14,7 @@ builder! {
     ///
     /// [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct RequestBody {
