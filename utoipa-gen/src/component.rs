@@ -257,14 +257,16 @@ impl<'t> TypeTree<'t> {
     }
 
     /// Update current [`TypeTree`] from given `ident`.
-    /// 
+    ///
     /// It will update everything else except `children` for the `TypeTree`. This means that the
     /// `TypeTree` will not be changed and will be travelsed as before update.
     fn update(&mut self, ident: Ident) {
         let new_path = Path::from(ident);
 
         let segments = &new_path.segments;
-        let last_segment = segments.last().expect("TypeTree::update path should have at least one segment");
+        let last_segment = segments
+            .last()
+            .expect("TypeTree::update path should have at least one segment");
 
         let generic_type = Self::get_generic_type(last_segment);
         let value_type = if SchemaType(&new_path).is_primitive() {
