@@ -11,7 +11,7 @@ builder! {
 
     /// A single encoding definition applied to a single schema [`Object
     /// property`](crate::openapi::schema::Object::properties).
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     #[non_exhaustive]

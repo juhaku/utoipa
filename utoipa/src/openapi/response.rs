@@ -21,7 +21,7 @@ builder! {
     ///
     /// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Responses {
@@ -100,7 +100,7 @@ builder! {
     ///
     /// [response]: https://spec.openapis.org/oas/latest.html#response-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Response {

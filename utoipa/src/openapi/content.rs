@@ -13,7 +13,7 @@ builder! {
 
 
     /// Content holds request body content or response content.
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[non_exhaustive]
     pub struct Content {

@@ -40,7 +40,7 @@ builder! {
     ///
     /// [components]: https://spec.openapis.org/oas/latest.html#components-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Components {
@@ -209,7 +209,7 @@ impl ComponentsBuilder {
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
@@ -242,7 +242,7 @@ impl Default for Schema {
 /// [`OneOf`] composite object.
 ///
 /// [discriminator]: https://spec.openapis.org/oas/latest.html#discriminator-object
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Discriminator {
@@ -277,7 +277,7 @@ builder! {
     /// See [`Schema::OneOf`] for more details.
     ///
     /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default)]
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct OneOf {
         /// Components of _OneOf_ component.
@@ -397,7 +397,7 @@ builder! {
     /// See [`Schema::AllOf`] for more details.
     ///
     /// [allof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default)]
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct AllOf {
         /// Components of _AllOf_ component.
@@ -517,7 +517,7 @@ builder! {
     ///
     /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Object {
@@ -829,7 +829,7 @@ impl From<ObjectBuilder> for RefOr<Schema> {
 ///
 /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Ref {
     /// Reference location of the actual component.
@@ -871,7 +871,7 @@ impl From<Ref> for RefOr<Schema> {
 ///
 /// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
 /// other given type such as [`Schema`] or [`Response`].
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum RefOr<T> {
@@ -912,7 +912,7 @@ builder! {
     ///
     /// See [`Schema::Array`] for more details.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
@@ -1039,7 +1039,7 @@ where
 }
 
 /// Represents data type of [`Schema`].
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum SchemaType {
@@ -1072,7 +1072,7 @@ impl Default for SchemaType {
 /// supported by the UI it may default back to [`SchemaType`] alone.
 /// Format is an open value, so you can use any formats, even not those defined by the
 /// OpenAPI Specification.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase", untagged)]
 pub enum SchemaFormat {
@@ -1080,7 +1080,7 @@ pub enum SchemaFormat {
     Custom(String),
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum KnownFormat {
