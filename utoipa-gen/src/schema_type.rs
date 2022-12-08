@@ -285,7 +285,7 @@ impl ToTokens for Type<'_> {
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Float) }),
             #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
-            #[cfg(any(feature = "chrono", feature = "Time"))]
+            #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uuid) }),
