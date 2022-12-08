@@ -219,8 +219,8 @@ impl OpenApi {
 
 impl OpenApiBuilder {
     /// Add [`Info`] metadata of the API.
-    pub fn info(mut self, info: Info) -> Self {
-        set_value!(self info info)
+    pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
+        set_value!(self info info.into())
     }
 
     /// Add iterator of [`Server`]s to configure target servers.
