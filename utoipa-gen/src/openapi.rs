@@ -17,11 +17,14 @@ use crate::{
     security_requirement::SecurityRequirementAttr, Array, ExternalDocs,
 };
 
+use self::info::Info;
+
 mod info;
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct OpenApiAttr {
+pub struct OpenApiAttr<'o> {
+    info: Option<Info<'o>>,
     paths: Punctuated<ExprPath, Comma>,
     components: Components,
     modifiers: Punctuated<Modifier, Comma>,
@@ -38,7 +41,7 @@ pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
         .map(|attribute| attribute.parse_args::<OpenApiAttr>().unwrap_or_abort())
 }
 
-impl Parse for OpenApiAttr {
+impl Parse for OpenApiAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
             "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers";
@@ -51,6 +54,11 @@ impl Parse for OpenApiAttr {
             let attribute = &*ident.to_string();
 
             match attribute {
+                "info" => {
+                    let info_stream;
+                    parenthesized!(info_stream in input);
+                    openapi.info = Some(info_stream.parse()?)
+                }
                 "paths" => {
                     openapi.paths = parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
@@ -378,13 +386,13 @@ impl Parse for ServerVariable {
     }
 }
 
-pub(crate) struct OpenApi(pub OpenApiAttr, pub Ident);
+pub(crate) struct OpenApi<'o>(pub OpenApiAttr<'o>, pub Ident);
 
-impl ToTokens for OpenApi {
+impl ToTokens for OpenApi<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let OpenApi(attributes, ident) = self;
 
-        let info = info::impl_info();
+        let info = info::impl_info(attributes.info.clone());
 
         let components_builder_stream = attributes.components.to_token_stream();
 

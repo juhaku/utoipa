@@ -41,7 +41,7 @@ impl Paths {
 
     /// Return _`Option`_ of reference to [`PathItem`] by given relative path _`P`_ if one exists
     /// in [`Paths::paths`] map. Otherwise will return `None`.
-    /// 
+    ///
     /// # Examples
     ///
     /// _**Get user path item.**_

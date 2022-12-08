@@ -1145,7 +1145,13 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   Tag can be used to define extra information for the api to produce richer documentation.
 /// * `external_docs(...)` Can be used to reference external resource to the OpenAPI doc for extended documentation.
 ///   External docs can be in [`OpenApi`][openapi_struct] or in [`Tag`][tags] level.
-/// * `servers(...)` Define [`servers`][servers] as derive argumenst to the _`OpenApi`_.
+/// * `servers(...)` Define [`servers`][servers] as derive argumenst to the _`OpenApi`_. Servers
+///   are completely optional and thus can be omitted from the declaration.
+/// * `info(...)` Declare [`Info`][info] attribute values used to override the default values
+///   generated from Cargo environment variables. **Note!** Defined attributes will override the
+///   whole attribute from generated values of Cargo environment variables. E.g. defining
+///   `contact(name = ...)` will ultimately override whole contact of info and not just partially
+///   the name.
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -1155,6 +1161,37 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * env `CARGO_PKG_DESCRIPTION` map info `description`
 /// * env `CARGO_PKG_AUTHORS` map to contact `name` and `email` **only first author will be used**
 /// * env `CARGO_PKG_LICENSE` map to info `license`
+///
+/// # `info(...)` attribute syntax
+/// * `title = ...` Define title of the API. It can be literal string.
+/// * `description = ...` Define description of the API. Markdown can be used for rich text
+///   representation. It can be literal string or [`include_str!`] statement.
+/// * `contanct(...)` Used to override the whole contanct generated from environment variables.
+///     * `name = ...` Define identifying name of contact person / organization. It Can be a literal string.
+///     * `email = ...` Define email address of the contact person / organization. It can be a literal string.
+///     * `url = ...` Define URL pointing to the contact information. It must be in URL formatted string.
+/// * `license(...)` Used to override the whole license generated from environment variables.
+///     * `name = ...` License name of the API. It can be a literal string.
+///     * `url = ...` Define optional URL of the license. It must be URL formatted string.
+///
+/// # `servers(...)` attribute syntax
+/// * `url = ...` Define the url for server. It can be literal string.
+/// * `description = ...` Define description for the server. It can be literal string.
+/// * `variables(...)` Can be used to define variables for the url.
+///     * `name = ...` Is the first argument withing parentheses. It should be ident, an unquoted
+///       string
+///     * `default = ...` Defines a default value for the variable if nothing else will be
+///       provided. If _`enum_values`_ is defined the _`default`_ must be found within the enum
+///       options. It can be a literal string.
+///     * `description = ...` Define the description for the variable. It can be a literal string.
+///     * `enum_values(...)` Define list of possible values for the variable. Values must be
+///       literal strings.
+///
+///  _**Example server variable definition.**_
+///  ```text
+/// (username = (default = "demo", description = "Default username for API")),
+/// (port = (enum_values("8080", "5000", "4545")))
+/// ```
 ///
 /// # Examples
 ///
@@ -1221,6 +1258,19 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// )]
 /// struct ApiDoc;
 ///```
+///
+/// _**Define info attribute values used to override auto generated ones from Cargo environment
+/// variables.**_
+/// ```compile_fail
+/// # use utoipa::OpenApi;
+/// #[derive(OpenApi)]
+/// #[openapi(info(
+///     title = "title override",
+///     description = include_str!("./path/to/content"), // fail compile cause no such file
+///     contact(name = "Test")
+/// ))]
+/// struct ApiDoc;
+/// ```
 ///
 /// [openapi]: trait.OpenApi.html
 /// [openapi_struct]: openapi/struct.OpenApi.html
