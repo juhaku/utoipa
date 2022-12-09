@@ -30,7 +30,7 @@ builder! {
         /// [`Content::example`] are mutually exclusive. If both are defined `examples` will
         /// override value in `example`.
         #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-        pub examples: BTreeMap<String, Example>,
+        pub examples: BTreeMap<String, RefOr<Example>>,
 
         /// A map between a property name and its encoding information.
         ///
@@ -72,7 +72,11 @@ impl ContentBuilder {
     /// `examples` will override value in `example`.
     ///
     /// [example]: ../example/Example.html
-    pub fn examples_from_iter<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<Example>>(
+    pub fn examples_from_iter<
+        E: IntoIterator<Item = (N, V)>,
+        N: Into<String>,
+        V: Into<RefOr<Example>>,
+    >(
         mut self,
         examples: E,
     ) -> Self {

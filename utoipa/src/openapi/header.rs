@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, RefOr, set_value, Object, Schema, SchemaType};
+use super::{builder, set_value, Object, RefOr, Schema, SchemaType};
 
 builder! {
     HeaderBuilder;
