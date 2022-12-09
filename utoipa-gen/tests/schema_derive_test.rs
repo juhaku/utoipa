@@ -1,9 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::assert_json_eq;
-#[cfg(feature = "chrono")]
-use chrono::{Date, DateTime, Duration, Utc};
-
 use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::openapi::{Object, ObjectBuilder};
@@ -1857,12 +1854,16 @@ fn derive_struct_xml_with_optional_vec() {
 #[cfg(feature = "chrono")]
 #[test]
 fn derive_component_with_chrono_feature() {
+    #![allow(deprecated)] // allow deprecated Date in tests as long as it is available from chrono
+    use chrono::{Date, DateTime, Duration, NaiveDate, Utc};
+
     let post = api_doc! {
         struct Post {
             id: i32,
             value: String,
             datetime: DateTime<Utc>,
             date: Date<Utc>,
+            naive_date: NaiveDate,
             duration: Duration,
         }
     };
@@ -1872,6 +1873,8 @@ fn derive_component_with_chrono_feature() {
         "properties.datetime.format" = r#""date-time""#, "Post datetime format"
         "properties.date.type" = r#""string""#, "Post date type"
         "properties.date.format" = r#""date""#, "Post date format"
+        "properties.naive_date.type" = r#""string""#, "Post date type"
+        "properties.naive_date.format" = r#""date""#, "Post date format"
         "properties.duration.type" = r#""string""#, "Post duration type"
         "properties.duration.format" = r#"null"#, "Post duration format"
         "properties.id.type" = r#""integer""#, "Post id type"
