@@ -4,7 +4,7 @@ use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use utoipa::openapi::schema::RefOr;
+use utoipa::openapi::RefOr;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},

@@ -119,7 +119,7 @@ impl ToTokens for Schema<'_> {
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::ToSchema for #ident #ty_generics #where_clause {
-                fn schema() -> utoipa::openapi::schema::RefOr<utoipa::openapi::schema::Schema> {
+                fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
                     #variant.into()
                 }
 
