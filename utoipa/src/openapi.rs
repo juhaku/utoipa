@@ -20,8 +20,8 @@ pub use self::{
 };
 
 pub mod content;
-pub mod example;
 pub mod encoding;
+pub mod example;
 pub mod external_docs;
 pub mod header;
 pub mod info;

@@ -11,7 +11,7 @@ use syn::{
     Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, schema_type::SchemaType, AnyValue, Type};
+use crate::{parse_utils, schema_type::SchemaType, AnyValue, Array, Type};
 
 use super::{property::Property, status::STATUS_CODES, ContentTypeResolver};
 
@@ -86,6 +86,7 @@ pub struct ResponseValue<'r> {
     content_type: Option<Vec<String>>,
     headers: Vec<Header<'r>>,
     example: Option<AnyValue>,
+    examples: Option<Punctuated<Example, Comma>>,
     content: Punctuated<Content<'r>, Comma>,
 }
 
@@ -149,6 +150,10 @@ impl Parse for ResponseTuple<'_> {
                             AnyValue::parse_lit_str_or_json(input)
                         })?);
                 }
+                "examples" => {
+                    response.as_value(input.span())?.examples =
+                        Some(parse_utils::parse_punctuated_within_parenthesis(input)?);
+                }
                 "content" => {
                     response.as_value(input.span())?.content =
                         parse_utils::parse_punctuated_within_parenthesis(input)?;
@@ -190,7 +195,10 @@ impl ToTokens for ResponseTuple<'_> {
                     utoipa::openapi::ResponseBuilder::new().description(#description)
                 });
 
-                let create_content = |body: &Type, example: &Option<AnyValue>| -> TokenStream2 {
+                let create_content = |body: &Type,
+                                      example: &Option<AnyValue>,
+                                      examples: &Option<Punctuated<Example, Comma>>|
+                 -> TokenStream2 {
                     let property = Property::new(body);
                     let mut content =
                         quote! { utoipa::openapi::ContentBuilder::new().schema(#property) };
@@ -200,12 +208,24 @@ impl ToTokens for ResponseTuple<'_> {
                             .example(Some(#example))
                         })
                     }
+                    if let Some(ref examples) = examples {
+                        let examples = examples
+                            .iter()
+                            .map(|example| {
+                                let name = &example.name;
+                                quote!((#name, #example))
+                            })
+                            .collect::<Array<TokenStream2>>();
+                        content.extend(quote!(
+                            .examples_from_iter(#examples)
+                        ))
+                    }
 
                     content
                 };
 
                 if let Some(response_type) = &val.response_type {
-                    let content = create_content(response_type, &val.example);
+                    let content = create_content(response_type, &val.example, &val.examples);
 
                     if let Some(content_types) = val.content_type.as_ref() {
                         content_types.iter().for_each(|content_type| {
@@ -224,8 +244,8 @@ impl ToTokens for ResponseTuple<'_> {
 
                 val.content
                     .iter()
-                    .map(|Content(content_type, body, example)| {
-                        let content = create_content(body, example);
+                    .map(|Content(content_type, body, example, examples)| {
+                        let content = create_content(body, example, examples);
                         (Cow::Borrowed(&**content_type), content)
                     })
                     .for_each(|(content_type, content)| {
@@ -329,7 +349,12 @@ impl ToTokens for ResponseStatus {
 //   ("application/json2" = Response2, example = "...", examples("...", "..."))
 // )
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Content<'a>(String, Type<'a>, Option<AnyValue>);
+struct Content<'a>(
+    String,
+    Type<'a>,
+    Option<AnyValue>,
+    Option<Punctuated<Example, Comma>>,
+);
 
 impl Parse for Content<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -339,29 +364,141 @@ impl Parse for Content<'_> {
         let content_type = content.parse::<LitStr>()?;
         content.parse::<Token![=]>()?;
         let body = content.parse::<Type>()?;
+        content.parse::<Option<Comma>>()?;
+        let mut example = None::<AnyValue>;
+        let mut examples = None::<Punctuated<Example, Comma>>;
 
-        let example = if content.peek(Token![,]) && content.peek2(syn::Ident) {
-            content.parse::<Token![,]>()?;
+        while !content.is_empty() {
             let ident = content.parse::<Ident>()?;
-            if ident == "example" {
-                Some(parse_utils::parse_next(&content, || {
-                    AnyValue::parse_lit_str_or_json(&content)
-                })?)
-            } else {
-                return Err(Error::new(
-                    ident.span(),
-                    format!("Invalid attribute: {ident}, expected: `example`"),
-                ));
+            let attribute_name = &*ident.to_string();
+            match attribute_name {
+                "example" => {
+                    example = Some(parse_utils::parse_next(&content, || {
+                        AnyValue::parse_json(&content)
+                    })?)
+                }
+                "examples" => {
+                    examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        &format!(
+                            "unexpected attribute: {ident}, expected one of: example, examples"
+                        ),
+                    ));
+                }
             }
-        } else {
-            None
-        };
 
-        Ok(Content(content_type.value(), body, example))
+            if !content.is_empty() {
+                content.parse::<Comma>()?;
+            }
+        }
+
+        Ok(Content(content_type.value(), body, example, examples))
     }
 }
 
 impl ContentTypeResolver for ResponseTuple<'_> {}
+
+// (name = (summary = "...", description = "...", value = "..", external_value = "..."))
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Example {
+    name: String,
+    summary: Option<String>,
+    description: Option<String>,
+    value: Option<AnyValue>,
+    external_value: Option<String>,
+}
+
+impl Parse for Example {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let example_stream;
+        parenthesized!(example_stream in input);
+        let mut example = Example {
+            name: example_stream.parse::<LitStr>()?.value(),
+            ..Default::default()
+        };
+        example_stream.parse::<Token![=]>()?;
+
+        let content;
+        parenthesized!(content in example_stream);
+
+        while !content.is_empty() {
+            let ident = content.parse::<Ident>()?;
+            let attribute_name = &*ident.to_string();
+            match attribute_name {
+                "summary" => {
+                    example.summary = Some(
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
+                            .value(),
+                    )
+                }
+                "description" => {
+                    example.description = Some(
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
+                            .value(),
+                    )
+                }
+                "value" => {
+                    example.value = Some(parse_utils::parse_next(&content, || {
+                        AnyValue::parse_json(&content)
+                    })?)
+                }
+                "external_value" => {
+                    example.external_value = Some(
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
+                            .value(),
+                    )
+                }
+                _ => {
+                    return Err(
+                        Error::new(
+                            ident.span(),
+                            &format!("unexpected attribute: {attribute_name}, expected one of: summary, description, value, external_value")
+                        )
+                    )
+                }
+            }
+
+            if !content.is_empty() {
+                content.parse::<Comma>()?;
+            }
+        }
+
+        Ok(example)
+    }
+}
+
+impl ToTokens for Example {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let summary = self
+            .summary
+            .as_ref()
+            .map(|summary| quote!(.summary(#summary)));
+        let description = self
+            .description
+            .as_ref()
+            .map(|description| quote!(.description(#description)));
+        let value = self
+            .value
+            .as_ref()
+            .map(|value| quote!(.value(Some(#value))));
+        let external_value = self
+            .external_value
+            .as_ref()
+            .map(|external_value| quote!(.external_value(#external_value)));
+
+        tokens.extend(quote! {
+            utoipa::openapi::example::ExampleBuilder::new()
+                #summary
+                #description
+                #value
+                #external_value
+        })
+    }
+}
 
 pub struct Responses<'a>(pub &'a [Response<'a>]);
 

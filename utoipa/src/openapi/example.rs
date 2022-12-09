@@ -6,7 +6,7 @@
 //! [request_body]: request_body/struct.RequestBody.html
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value};
+use super::{builder, set_value, RefOr};
 
 builder! {
     /// # Examples
@@ -91,5 +91,11 @@ impl ExampleBuilder {
     /// document.
     pub fn external_value<E: Into<String>>(mut self, external_value: E) -> Self {
         set_value!(self external_value external_value.into())
+    }
+}
+
+impl From<ExampleBuilder> for RefOr<Example> {
+    fn from(example_builder: ExampleBuilder) -> Self {
+        Self::T(example_builder.build())
     }
 }

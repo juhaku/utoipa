@@ -392,3 +392,159 @@ fn derive_path_with_multiple_responses_via_content_attribute() {
         })
     )
 }
+
+#[test]
+fn derive_path_with_mutiple_examples() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        name: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, body = User,
+                examples(
+                    ("Demo" = (summary = "This is summary", description = "Long description", 
+                                value = json!(User{name: "Demo".to_string()}))),
+                    ("John" = (summary = "Another user", value = json!({"name": "John"})))
+                 )
+            )
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "Demo": {
+                                "summary": "This is summary",
+                                "description": "Long description",
+                                "value": {
+                                    "name": "Demo"
+                                }
+                            },
+                            "John": {
+                                "summary": "Another user",
+                                "value": {
+                                    "name": "John"
+                                }
+                            }
+                        },
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}
+
+#[test]
+fn derive_path_with_mutliple_resposnes_with_multiple_examples() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        id: String,
+    }
+
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User2 {
+        id: i32,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, content(
+                    ("application/vnd.user.v1+json" = User, 
+                        examples(
+                            ("StringUser" = (value = json!({"id": "1"}))),
+                            ("StringUser2" = (value = json!({"id": "2"})))
+                        ),
+                    ),
+                    ("application/vnd.user.v2+json" = User2, 
+                        examples(
+                            ("IntUser" = (value = json!({"id": 1}))),
+                            ("IntUser2" = (value = json!({"id": 2})))
+                        ),
+                    )
+                )
+            )
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User, User2)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        resopnses,
+        json!({
+            "200": {
+                "content": {
+                    "application/vnd.user.v1+json": {
+                        "examples": {
+                            "StringUser": {
+                                "value": {
+                                    "id": "1"
+                                }
+                            },
+                            "StringUser2": {
+                                "value": {
+                                    "id": "2"
+                                }
+                            }
+                        },
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
+                        },
+                    },
+                    "application/vnd.user.v2+json": {
+                        "examples": {
+                            "IntUser": {
+                                "value": {
+                                    "id": 1
+                                }
+                            },
+                            "IntUser2": {
+                                "value": {
+                                    "id": 2
+                                }
+                            }
+                        },
+                        "schema": {
+                            "$ref": "#/components/schemas/User2",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}

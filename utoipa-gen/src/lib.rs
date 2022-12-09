@@ -564,19 +564,27 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `operation` _**Must be first parameter!**_ Accepted values are known http operations such as
 ///   _`get, post, put, delete, head, options, connect, patch, trace`_.
+///
 /// * `path = "..."` Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
+///
 /// * `operation_id = "..."` Unique operation id for the endpoint. By default this is mapped to function name.
+///
 /// * `context_path = "..."` Can add optional scope for **path**. The **context_path** will be prepended to beginning of **path**.
 ///   This is particularly useful when **path** does not contain the full path to the endpoint. For example if web framework
 ///   allows operation to be defined under some context path or scope which does not reflect to the resolved path then this
 ///   **context_path** can become handy to alter the path.
+///
 /// * `tag = "..."` Can be used to group operations. Operations with same tag are grouped together. By default
 ///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
 ///   then default value _`crate`_ is used instead.
+///
 /// * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
 ///   the performed request.
+///
 /// * `responses(...)` Slice of responses the endpoint is going to possibly return to the caller.
+///
 /// * `params(...)` Slice of params that the endpoint accepts.
+///
 /// * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 ///
 ///
@@ -586,7 +594,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`ToSchema`][to_schema],
 ///   it can also be  wrapped in `inline(...)` in order to inline the schema definition.
 ///   E.g. _`inline(Pet)`_.
+///
 /// * `description = "..."` Define the description for the request body object as str.
+///
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
@@ -609,10 +619,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `status = ...` Is either a valid http status code integer. E.g. _`200`_ or a string value representing
 ///   a range such as _`"4XX"`_ or `"default"` or a valid _`http::status::StatusCode`_.
 ///   _`StatusCode`_ can either be use path to the status code or _status code_ constant directly.
+///
 /// * `description = "..."` Define description for the response as str.
+///
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
 ///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`ToSchema`][to_schema],
 ///   it can also be wrapped in `inline(...)` in order to inline the schema definition. E.g. _`inline(Pet)`_.
+///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
@@ -621,14 +634,35 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
 ///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
+///
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+///
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
 ///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
+///
 /// * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
-///   _content_ is `(content_type = response_body, example = "...")`. _`example`_ is
-///   optional argument.
+///   _content_ is `(content_type = response_body, example = "...", examples(...))`. _`example`_
+///   and _`examples`_ are optional arguments. Examples attribute behaves exactly same way as in
+///   the response and is mutually exclusive with the example attribute.
+///
+/// * `examples(...)` Define mulitple examples for single response. This attribute is mutually
+///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
+///     * `name = ...` This is first attribute and value must be literal string.
+///     * `summary = ...` Short description of example. Value must be literal string.
+///     * `description = ...` Long description of example. Attribute supports markdown for rich text
+///       representation. Value must be literal string.
+///     * `value = ...` Example value. It must be _`json!(...)`_. _`json!(...)`_ should be something that
+///       _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+///     * `external_value = ...` Define URI to literal example value. This is mutually exclusive to
+///       the _`value`_ attribute. Value must be literal string.
+///
+///      _**Example of example definition.**_
+///     ```text
+///      ("John" = (summary = "This is John", value = json!({"name": "John"})))
+///     ```
 ///
 /// **Minimal response format:**
 /// ```text
@@ -715,19 +749,27 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// tuples seperated by commas:
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
+///
 /// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
 ///   option `Option<Type>`. Where the type implments [`ToSchema`][to_schema], it can also be wrapped in `inline(MySchema)`
 ///   in order to inline the schema definition.
 ///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
+///
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
 ///   This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
 ///   E.g. _`Path, Query, Header, Cookie`_
+///
 /// * `deprecated` Define whether the parameter is deprecated or not.
+///
 /// * `description = "..."` Define possible description for the parameter as str.
+///
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
+///
 /// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+///
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+///
 /// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
@@ -1043,6 +1085,30 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   Box::new(User1 {id: "id".to_string()})
 /// }
 /// ````
+///
+/// _**Example with multiple examples on single response.**_
+///```rust
+/// # #[derive(serde::Serialize, serde::Deserialize)]
+/// # struct User {
+/// #   name: String
+/// # }
+/// #[utoipa::path(
+///     get,
+///     path = "/user",
+///     responses(
+///         (status = 200, body = User,
+///             examples(
+///                 ("Demo" = (summary = "This is summary", description = "Long description",
+///                             value = json!(User{name: "Demo".to_string()}))),
+///                 ("John" = (summary = "Another user", value = json!({"name": "John"})))
+///              )
+///         )
+///     )
+/// )]
+/// fn get_user() -> User {
+///   User {name: "John".to_string()}
+/// }
+///```
 ///
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
@@ -1998,6 +2064,11 @@ pub(self) enum AnyValue {
 }
 
 impl AnyValue {
+    /// Parse `json!(...)` as [`AnyValue::Json`]
+    fn parse_json(input: ParseStream) -> syn::Result<Self> {
+        parse_utils::parse_json_token_stream(input).map(AnyValue::Json)
+    }
+
     fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
             if input.peek(LitStr) {
@@ -2115,11 +2186,15 @@ mod parse_utils {
         }
     }
 
+    /// Parse `json!(...)` as a [`TokenStream`].
     pub fn parse_json_token_stream(input: ParseStream) -> syn::Result<TokenStream> {
         if input.peek(syn::Ident) && input.peek2(Token![!]) {
             input.parse::<Ident>().and_then(|ident| {
                 if ident != "json" {
-                    return Err(Error::new(ident.span(), "unexpected token, expected: json"));
+                    return Err(Error::new(
+                        ident.span(),
+                        &format!("unexpected token {ident}, expected: json!(...)"),
+                    ));
                 }
 
                 Ok(ident)

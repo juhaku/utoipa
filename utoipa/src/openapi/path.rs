@@ -10,8 +10,7 @@ use super::{
     builder,
     request_body::RequestBody,
     response::{Response, Responses},
-    RefOr,
-    set_value, Deprecated, ExternalDocs, Required, Schema, SecurityRequirement, Server,
+    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
 };
 
 builder! {
