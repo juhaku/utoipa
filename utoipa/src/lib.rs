@@ -215,7 +215,6 @@ pub mod openapi;
 
 use std::collections::BTreeMap;
 
-use crate::openapi::schema::RefOr;
 use openapi::Response;
 pub use utoipa_gen::*;
 
@@ -297,7 +296,7 @@ pub trait OpenApi {
 /// # }
 /// #
 /// impl utoipa::ToSchema for Pet {
-///     fn schema() -> utoipa::openapi::schema::RefOr<utoipa::openapi::schema::Schema> {
+///     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
 ///         use utoipa::openapi::ToArray;
 ///         utoipa::openapi::ObjectBuilder::new()
 ///             .property(
@@ -326,7 +325,7 @@ pub trait OpenApi {
 /// }
 /// ```
 pub trait ToSchema {
-    fn schema() -> openapi::schema::RefOr<openapi::schema::Schema>;
+    fn schema() -> openapi::RefOr<openapi::schema::Schema>;
 
     fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
         Vec::new()
@@ -564,7 +563,7 @@ pub trait IntoParams {
 /// ```
 /// use std::collections::BTreeMap;
 /// use utoipa::{
-///     openapi::{Response, ResponseBuilder, ResponsesBuilder, schema::RefOr},
+///     openapi::{Response, ResponseBuilder, ResponsesBuilder, RefOr},
 ///     IntoResponses,
 /// };
 ///
@@ -585,7 +584,7 @@ pub trait IntoParams {
 /// ```
 pub trait IntoResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> BTreeMap<String, RefOr<Response>>;
+    fn responses() -> BTreeMap<String, openapi::RefOr<Response>>;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be

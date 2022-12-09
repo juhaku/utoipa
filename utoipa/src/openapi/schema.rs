@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::RefOr;
 use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
 use crate::ToResponse;
 
@@ -865,18 +866,6 @@ impl From<Ref> for RefOr<Schema> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
     }
-}
-
-/// A [`Ref`] or some other type `T`.
-///
-/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
-/// other given type such as [`Schema`] or [`Response`].
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(untagged)]
-pub enum RefOr<T> {
-    Ref(Ref),
-    T(T),
 }
 
 impl<T> From<T> for RefOr<T> {

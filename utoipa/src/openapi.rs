@@ -20,6 +20,7 @@ pub use self::{
 };
 
 pub mod content;
+pub mod example;
 pub mod encoding;
 pub mod external_docs;
 pub mod header;
@@ -376,6 +377,18 @@ impl Default for Required {
     fn default() -> Self {
         Required::False
     }
+}
+
+/// A [`Ref`] or some other type `T`.
+///
+/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
+/// other given type such as [`Schema`] or [`Response`].
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(untagged)]
+pub enum RefOr<T> {
+    Ref(Ref),
+    T(T),
 }
 
 macro_rules! build_fn {
