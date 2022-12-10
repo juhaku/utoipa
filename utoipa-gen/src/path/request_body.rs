@@ -4,11 +4,11 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
-use crate::{parse_utils, AnyValue, Array, Required, Type};
+use crate::{parse_utils, AnyValue, Array, Required};
 
 use super::example::Example;
-use super::property::Property;
-use super::TypeExt;
+use super::property::MediaTypeSchema;
+use super::{InlineableType, PathTypeTree};
 
 /// Parsed information related to requst body of path.
 ///
@@ -49,15 +49,15 @@ use super::TypeExt;
 /// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct RequestBodyAttr<'r> {
-    content: Option<Type<'r>>,
+pub struct RequestBodyAttr {
+    content: Option<InlineableType>,
     content_type: Option<String>,
     description: Option<String>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
 }
 
-impl Parse for RequestBodyAttr<'_> {
+impl Parse for RequestBodyAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: content, content_type, description, examples";
@@ -132,16 +132,19 @@ impl Parse for RequestBodyAttr<'_> {
     }
 }
 
-impl ToTokens for RequestBodyAttr<'_> {
+impl ToTokens for RequestBodyAttr {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(body_type) = &self.content {
-            let property = Property::new(body_type);
+            let type_tree = body_type.as_type_tree();
+            let media_type_schema = MediaTypeSchema {
+                type_tree: &type_tree,
+                is_inline: body_type.is_inline,
+            };
             let content_type = self
                 .content_type
                 .as_deref()
-                .unwrap_or_else(|| body_type.get_default_content_type());
-            let mut content =
-                quote! { utoipa::openapi::content::ContentBuilder::new().schema(#property) };
+                .unwrap_or_else(|| type_tree.get_default_content_type());
+            let mut content = quote! { utoipa::openapi::content::ContentBuilder::new().schema(#media_type_schema) };
 
             if let Some(ref example) = self.example {
                 content.extend(quote! {
@@ -161,7 +164,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                 ))
             }
 
-            let required: Required = (!body_type.is_option).into();
+            let required: Required = (!type_tree.is_option()).into();
             tokens.extend(quote! {
                 utoipa::openapi::request_body::RequestBodyBuilder::new()
                     .content(#content_type, #content.build())

@@ -11,19 +11,21 @@ use syn::{
     Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, AnyValue, Array, Type};
+use crate::{component::TypeTree, parse_utils, AnyValue, Array};
 
-use super::{example::Example, property::Property, status::STATUS_CODES, TypeExt};
+use super::{
+    example::Example, property::MediaTypeSchema, status::STATUS_CODES, InlineableType, PathTypeTree,
+};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum Response<'r> {
+pub enum Response {
     /// A type that implements `utoipa::IntoResponses`.
     IntoResponses(ExprPath),
     /// The tuple definition of a response.
-    Tuple(ResponseTuple<'r>),
+    Tuple(ResponseTuple),
 }
 
-impl Parse for Response<'_> {
+impl Parse for Response {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
             Ok(Self::IntoResponses(input.parse()?))
@@ -38,17 +40,17 @@ impl Parse for Response<'_> {
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResponseTuple<'r> {
+pub struct ResponseTuple {
     status_code: ResponseStatus,
-    inner: Option<ResponseTupleInner<'r>>,
+    inner: Option<ResponseTupleInner>,
 }
 
 const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
     "The `response` attribute may only be used in conjunction with the `status` attribute";
 
-impl<'r> ResponseTuple<'r> {
+impl ResponseTuple {
     // This will error if the `response` attribute has already been set
-    fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue<'r>> {
+    fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue> {
         if self.inner.is_none() {
             self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
         }
@@ -60,7 +62,7 @@ impl<'r> ResponseTuple<'r> {
     }
 
     // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
-    fn set_ref_type(&mut self, span: Span, ty: Type<'r>) -> syn::Result<()> {
+    fn set_ref_type(&mut self, span: Span, ty: InlineableType) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
@@ -73,24 +75,24 @@ impl<'r> ResponseTuple<'r> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum ResponseTupleInner<'r> {
-    Value(ResponseValue<'r>),
-    Ref(Type<'r>),
+enum ResponseTupleInner {
+    Value(ResponseValue),
+    Ref(InlineableType),
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResponseValue<'r> {
+pub struct ResponseValue {
     description: String,
-    response_type: Option<Type<'r>>,
+    response_type: Option<InlineableType>,
     content_type: Option<Vec<String>>,
-    headers: Vec<Header<'r>>,
+    headers: Vec<Header>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
-    content: Punctuated<Content<'r>, Comma>,
+    content: Punctuated<Content, Comma>,
 }
 
-impl Parse for ResponseTuple<'_> {
+impl Parse for ResponseTuple {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, response";
 
@@ -116,7 +118,7 @@ impl Parse for ResponseTuple<'_> {
                 }
                 "body" => {
                     response.as_value(input.span())?.response_type =
-                        Some(parse_utils::parse_next(input, || input.parse::<Type>())?);
+                        Some(parse_utils::parse_next(input, || input.parse())?);
                 }
                 "content_type" => {
                     response.as_value(input.span())?.content_type =
@@ -161,7 +163,7 @@ impl Parse for ResponseTuple<'_> {
                 "response" => {
                     response.set_ref_type(
                         input.span(),
-                        parse_utils::parse_next(input, || input.parse::<Type>())?,
+                        parse_utils::parse_next(input, || input.parse())?,
                     )?;
                 }
                 _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
@@ -180,7 +182,7 @@ impl Parse for ResponseTuple<'_> {
     }
 }
 
-impl ToTokens for ResponseTuple<'_> {
+impl ToTokens for ResponseTuple {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
@@ -195,13 +197,16 @@ impl ToTokens for ResponseTuple<'_> {
                     utoipa::openapi::ResponseBuilder::new().description(#description)
                 });
 
-                let create_content = |body: &Type,
+                let create_content = |type_tree: &TypeTree,
+                                      is_inline: bool,
                                       example: &Option<AnyValue>,
                                       examples: &Option<Punctuated<Example, Comma>>|
                  -> TokenStream2 {
-                    let property = Property::new(body);
-                    let mut content =
-                        quote! { utoipa::openapi::ContentBuilder::new().schema(#property) };
+                    let media_schema_type = MediaTypeSchema {
+                        type_tree,
+                        is_inline,
+                    };
+                    let mut content = quote! { utoipa::openapi::ContentBuilder::new().schema(#media_schema_type) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -225,7 +230,13 @@ impl ToTokens for ResponseTuple<'_> {
                 };
 
                 if let Some(response_type) = &val.response_type {
-                    let content = create_content(response_type, &val.example, &val.examples);
+                    let type_tree = response_type.as_type_tree();
+                    let content = create_content(
+                        &type_tree,
+                        response_type.is_inline,
+                        &val.example,
+                        &val.examples,
+                    );
 
                     if let Some(content_types) = val.content_type.as_ref() {
                         content_types.iter().for_each(|content_type| {
@@ -234,7 +245,7 @@ impl ToTokens for ResponseTuple<'_> {
                             })
                         })
                     } else {
-                        let default_type = response_type.get_default_content_type();
+                        let default_type = type_tree.get_default_content_type();
                         tokens.extend(quote! {
                             .content(#default_type, #content.build())
                         });
@@ -244,7 +255,8 @@ impl ToTokens for ResponseTuple<'_> {
                 val.content
                     .iter()
                     .map(|Content(content_type, body, example, examples)| {
-                        let content = create_content(body, example, examples);
+                        let type_tree = body.as_type_tree();
+                        let content = create_content(&type_tree, body.is_inline, example, examples);
                         (Cow::Borrowed(&**content_type), content)
                     })
                     .for_each(|(content_type, content)| {
@@ -348,21 +360,21 @@ impl ToTokens for ResponseStatus {
 //   ("application/json2" = Response2, example = "...", examples("...", "..."))
 // )
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Content<'a>(
+struct Content(
     String,
-    Type<'a>,
+    InlineableType,
     Option<AnyValue>,
     Option<Punctuated<Example, Comma>>,
 );
 
-impl Parse for Content<'_> {
+impl Parse for Content {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
         parenthesized!(content in input);
 
         let content_type = content.parse::<LitStr>()?;
         content.parse::<Token![=]>()?;
-        let body = content.parse::<Type>()?;
+        let body = content.parse()?;
         content.parse::<Option<Comma>>()?;
         let mut example = None::<AnyValue>;
         let mut examples = None::<Punctuated<Example, Comma>>;
@@ -398,7 +410,7 @@ impl Parse for Content<'_> {
     }
 }
 
-pub struct Responses<'a>(pub &'a [Response<'a>]);
+pub struct Responses<'a>(pub &'a [Response]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -482,13 +494,13 @@ impl ToTokens for Responses<'_> {
 /// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Header<'h> {
+struct Header {
     name: String,
-    value_type: Option<Type<'h>>,
+    value_type: Option<InlineableType>,
     description: Option<String>,
 }
 
-impl Parse for Header<'_> {
+impl Parse for Header {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut header = Header {
             name: input.parse::<LitStr>()?.value(),
@@ -498,7 +510,7 @@ impl Parse for Header<'_> {
         if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
 
-            header.value_type = Some(input.parse::<Type>().map_err(|error| {
+            header.value_type = Some(input.parse().map_err(|error| {
                 Error::new(
                     error.span(),
                     format!("unexpected token, expected type such as String, {}", error),
@@ -536,14 +548,18 @@ impl Parse for Header<'_> {
     }
 }
 
-impl ToTokens for Header<'_> {
+impl ToTokens for Header {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(header_type) = &self.value_type {
             // header property with custom type
-            let header_type_property = Property::new(header_type);
+            let type_tree = header_type.as_type_tree();
+            let media_type_schema = MediaTypeSchema {
+                type_tree: &type_tree,
+                is_inline: header_type.is_inline,
+            };
 
             tokens.extend(quote! {
-                utoipa::openapi::HeaderBuilder::new().schema(#header_type_property)
+                utoipa::openapi::HeaderBuilder::new().schema(#media_type_schema)
             })
         } else {
             // default header (string type)

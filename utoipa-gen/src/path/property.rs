@@ -1,81 +1,137 @@
+use std::ops::Deref;
+
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 use crate::{
-    component::schema,
+    component::{schema, GenericType, TypeTree, ValueType},
     schema_type::{SchemaFormat, SchemaType},
-    Type,
 };
 
-use super::TypeExt;
-
-/// Tokenizable object property. It is used as a object property for components or as property
-/// of request or response body or response header.
-pub(crate) struct Property<'a>(&'a Type<'a>);
-
-impl<'a> Property<'a> {
-    pub fn new(type_definition: &'a Type<'a>) -> Self {
-        Self(type_definition)
-    }
-
-    pub fn schema_type(&'a self) -> SchemaType<'a> {
-        SchemaType(&self.0.ty)
-    }
+pub(super) struct MediaTypeSchema<'t> {
+    pub(super) type_tree: &'t TypeTree<'t>,
+    pub(super) is_inline: bool,
 }
 
-impl ToTokens for Property<'_> {
+impl ToTokens for MediaTypeSchema<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let schema_type = self.schema_type();
+        let MediaTypeSchema {
+            type_tree,
+            is_inline,
+        } = &self;
+        match type_tree.generic_type {
+            Some(GenericType::Vec) => {
+                let child = type_tree
+                    .children
+                    .as_ref()
+                    .expect("Vec must have children")
+                    .first()
+                    .expect("Vec must have one child type");
 
-        if schema_type.is_primitive() {
-            if self.0.get_default_content_type() == "application/octet-stream" {
-                tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new()
-                    .schema_type(utoipa::openapi::schema::SchemaType::String)
-                    .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Binary)))
-                })
-            } else {
-                let mut schema = quote! {
-                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
-                };
-
-                let format: SchemaFormat = schema_type.0.into();
-                if format.is_known_format() {
-                    schema.extend(quote! {
-                        .format(Some(#format))
+                if child
+                    .path
+                    .as_ref()
+                    .map(|path| SchemaType(path).is_byte())
+                    .unwrap_or(false)
+                {
+                    tokens.extend(quote! {
+                        utoipa::openapi::ObjectBuilder::new()
+                            .schema_type(utoipa::openapi::schema::SchemaType::String)
+                            .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Binary)))
+                    })
+                } else {
+                    let media_type_schema = MediaTypeSchema {
+                        type_tree: type_tree
+                            .children
+                            .as_ref()
+                            .expect("Vec must have children")
+                            .first()
+                            .expect("Vec must have one child type"),
+                        is_inline: *is_inline,
+                    };
+                    tokens.extend(quote! {
+                        utoipa::openapi::schema::ArrayBuilder::new()
+                            .items(#media_type_schema)
                     })
                 }
+            }
+            Some(GenericType::Map) => {
+                let media_type_schema = MediaTypeSchema {
+                    type_tree: type_tree
+                        .children
+                        .as_ref()
+                        .expect("Map should have children")
+                        .iter()
+                        .nth(1)
+                        .expect("Map should have 2 child types"),
+                    is_inline: *is_inline,
+                };
 
-                tokens.extend(if self.0.is_array {
-                    quote! {
-                        utoipa::openapi::schema::ArrayBuilder::new()
-                            .items(#schema)
-                    }
-                } else {
-                    schema
+                tokens.extend(quote! {
+                    utoipa::openapi::ObjectBuilder::new()
+                        .additional_properties(Some(#media_type_schema))
                 });
             }
-        } else {
-            let schema_name_path = schema_type.0;
+            Some(GenericType::Option)
+            | Some(GenericType::Box)
+            | Some(GenericType::RefCell)
+            | Some(GenericType::Cow) => {
+                let media_type_schema = MediaTypeSchema {
+                    type_tree: type_tree
+                        .children
+                        .as_ref()
+                        .expect("Box, RefCell, Cow, Option must have children")
+                        .first()
+                        .expect("Box, RefCell, Cow, Option, must have one child type"),
+                    is_inline: *is_inline,
+                };
 
-            let schema = if self.0.is_inline {
-                quote_spanned! { schema_name_path.span()=>
-                    <#schema_name_path as utoipa::ToSchema>::schema()
-                }
-            } else {
-                let name = schema::format_path_ref(schema_name_path);
-                quote! {
-                    utoipa::openapi::Ref::from_schema_name(#name)
-                }
-            };
+                tokens.extend(media_type_schema.to_token_stream())
+            }
+            None => {
+                let path = type_tree
+                    .path
+                    .as_ref()
+                    .expect("ValueType::Primitive must have path")
+                    .deref();
+                match type_tree.value_type {
+                    ValueType::Primitive => {
+                        let schema_type = SchemaType(path);
+                        tokens.extend(quote! {
+                            utoipa::openapi::ObjectBuilder::new()
+                                .schema_type(#schema_type)
+                        });
+                        let format: SchemaFormat = path.into();
+                        if format.is_known_format() {
+                            tokens.extend(quote! {
+                                .format(Some(#format))
+                            })
+                        }
+                    }
+                    ValueType::Object => {
+                        if type_tree.is_object() {
+                            tokens.extend(quote! {
+                                utoipa::openapi::ObjectBuilder::new()
+                            })
+                        } else if *is_inline {
+                            tokens.extend(quote_spanned! {path.span()=>
+                                <#path as utoipa::ToSchema>::schema()
+                            })
+                        } else {
+                            let name = type_tree
+                                .path
+                                .as_ref()
+                                .expect("ValueType::Object must have path");
 
-            tokens.extend(if self.0.is_array {
-                quote! {
-                    utoipa::openapi::schema::ArrayBuilder::new()
-                        .items(#schema)
+                            let name = schema::format_path_ref(name);
+                            tokens.extend(quote! {
+                                utoipa::openapi::Ref::from_schema_name(#name)
+                            });
+                        }
+                    }
+                    ValueType::Tuple => (), // TODO support tuple types
                 }
-            } else {
-                schema
-            });
-        }
+            }
+        };
     }
 }

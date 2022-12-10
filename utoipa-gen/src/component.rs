@@ -51,6 +51,7 @@ enum TypeTreeValue<'t> {
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
+#[derive(Clone)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
     pub value_type: ValueType,
@@ -282,7 +283,7 @@ impl<'t> TypeTree<'t> {
 
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
-    fn is_object(&self) -> bool {
+    pub fn is_object(&self) -> bool {
         self.is("Object")
     }
 }

@@ -1,11 +1,15 @@
+use std::ops::Deref;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
+use syn::token::Paren;
+use syn::Type;
 use syn::{parenthesized, parse::Parse, Token};
 
+use crate::component::{GenericType, TypeTree};
 use crate::{parse_utils, Deprecated};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
 
@@ -69,8 +73,8 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
-    request_body: Option<RequestBodyAttr<'p>>,
-    responses: Vec<Response<'p>>,
+    request_body: Option<RequestBodyAttr>,
+    responses: Vec<Response>,
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
@@ -136,11 +140,7 @@ impl<'p> PathAttr<'p> {
                 .iter()
                 .find(|argument| argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)))
             {
-                parameter.update_parameter_type(
-                    argument.type_path.clone(),
-                    argument.is_array,
-                    argument.is_option,
-                )
+                parameter.update_parameter_type(argument.type_tree.clone())
             }
         }
     }
@@ -513,8 +513,8 @@ struct Operation<'a> {
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
     parameters: &'a Vec<Parameter<'a>>,
-    request_body: Option<&'a RequestBodyAttr<'a>>,
-    responses: &'a Vec<Response<'a>>,
+    request_body: Option<&'a RequestBodyAttr>,
+    responses: &'a Vec<Response>,
     security: Option<&'a Array<'a, SecurityRequirementAttr>>,
 }
 
@@ -572,20 +572,99 @@ impl ToTokens for Operation<'_> {
     }
 }
 
-trait TypeExt {
-    /// Resolve default content type based on curren [`Type`].
-    fn get_default_content_type(&self) -> &str;
+// inline(syn::Type) | syn::Type
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct InlineableType {
+    ty: Type,
+    is_inline: bool,
 }
 
-impl TypeExt for crate::Type<'_> {
-    fn get_default_content_type(&self) -> &'static str {
-        let schema_type = SchemaType(&self.ty);
-        if self.is_array && schema_type.is_byte() {
+impl InlineableType {
+    /// Get's the underlying [`syn::Type`] as [`TypeTree`].
+    fn as_type_tree(&self) -> TypeTree {
+        TypeTree::from_type(&self.ty)
+    }
+}
+
+impl Parse for InlineableType {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let fork = input.fork();
+        let is_inline = if let Some(ident) = fork.parse::<Option<Ident>>()? {
+            ident == "inline" && fork.peek(Paren)
+        } else {
+            false
+        };
+
+        let ty = if is_inline {
+            input.parse::<Ident>()?;
+            let inlined;
+            parenthesized!(inlined in input);
+
+            inlined.parse::<Type>()?
+        } else {
+            input.parse::<Type>()?
+        };
+
+        Ok(InlineableType { ty, is_inline })
+    }
+}
+
+pub trait PathTypeTree {
+    /// Resolve default content type based on curren [`Type`].
+    fn get_default_content_type(&self) -> &str;
+
+    /// Check whether [`TypeTree`] an option
+    fn is_option(&self) -> bool;
+
+    /// Check wheter [`TypeTree`] is a Vec, slice, array or other supported array type
+    fn is_array(&self) -> bool;
+}
+
+impl PathTypeTree for TypeTree<'_> {
+    /// Resolve default content type based on curren [`Type`].
+    fn get_default_content_type(&self) -> &str {
+        if self.is_array()
+            && self
+                .children
+                .as_ref()
+                .map(|children| {
+                    children
+                        .iter()
+                        .flat_map(|child| &child.path)
+                        .any(|path| SchemaType(path).is_byte())
+                })
+                .unwrap_or(false)
+        {
             "application/octet-stream"
-        } else if schema_type.is_primitive() {
+        } else if self
+            .path
+            .as_ref()
+            .map(|path| SchemaType(path.deref()))
+            .map(|schema_type| schema_type.is_primitive())
+            .unwrap_or(false)
+        {
             "text/plain"
         } else {
             "application/json"
+        }
+    }
+
+    /// Check whether [`TypeTree`] an option
+    fn is_option(&self) -> bool {
+        matches!(self.generic_type, Some(GenericType::Option))
+    }
+
+    /// Check wheter [`TypeTree`] is a Vec, slice, array or other supported array type
+    fn is_array(&self) -> bool {
+        match self.generic_type {
+            Some(GenericType::Vec) => true,
+            Some(_) => self
+                .children
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|child| child.is_array()),
+            None => false,
         }
     }
 }

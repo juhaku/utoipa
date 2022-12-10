@@ -130,15 +130,26 @@ fn derive_request_body_primitive_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let content = doc
+        .pointer("/paths/~1foo/post/requestBody/content")
+        .unwrap();
 
-    assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""array""###, "Request body content object item type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###""integer""###, "Request body content items object type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.format" = r###""int64""###, "Request body content items object format"
-        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
-    }
+    assert_json_eq!(
+        content,
+        json!(
+        {
+            "application/json": {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            }
+        }
+        )
+    );
 }
 
 test_fn! {
@@ -365,15 +376,25 @@ fn derive_request_body_complex_primitive_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-
-    assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""array""###, "Request body content object item type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###""integer""###, "Request body content items object type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.format" = r###""int32""###, "Request body content items object format"
-        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths.~1foo.post.requestBody.description" = r###""Create new foo references""###, "Request body description"
-    }
+    let content = doc
+        .pointer("/paths/~1foo/post/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+        {
+            "application/json": {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        }
+        )
+    );
 }
 
 test_fn! {
@@ -449,7 +470,7 @@ fn request_body_with_examples() {
     #[utoipa::path(
         get,
         path = "/item",
-        request_body(content = Value, 
+        request_body(content = Value,
             examples(
                 ("Value1" = (value = json!({"value": "this is value"}) ) ),
                 ("Value2" = (value = json!({"value": "this is value2"}) ) )

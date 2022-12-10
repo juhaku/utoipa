@@ -14,9 +14,9 @@ use syn::{
     feature = "axum_extras"
 ))]
 use crate::ext::{ArgumentIn, ValueArgument};
-use crate::{parse_utils, AnyValue, Deprecated, Required, Type};
+use crate::{component::TypeTree, parse_utils, AnyValue, Deprecated, Required};
 
-use super::property::Property;
+use super::{property::MediaTypeSchema, InlineableType, PathTypeTree};
 
 /// Parameter of request suchs as in path, header, query or cookie
 ///
@@ -87,9 +87,7 @@ impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
             } else {
                 ParameterIn::Query
             },
-            parameter_type: argument
-                .type_path
-                .map(|ty| Type::new(ty, argument.is_array, argument.is_option)),
+            parameter_type: argument.type_tree,
             ..Default::default()
         })
     }
@@ -102,8 +100,11 @@ pub struct ValueParameter<'a> {
     parameter_in: ParameterIn,
     deprecated: bool,
     description: Option<String>,
-    parameter_type: Option<Type<'a>>,
+    parameter_type: Option<TypeTree<'a>>,
     parameter_ext: Option<ParameterExt>,
+
+    /// Type only when value parameter is parsed
+    parsed_type: Option<InlineableType>,
 }
 
 impl<'p> ValueParameter<'p> {
@@ -112,13 +113,8 @@ impl<'p> ValueParameter<'p> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn update_parameter_type(
-        &mut self,
-        type_path: Option<Cow<'p, syn::Path>>,
-        is_array: bool,
-        is_option: bool,
-    ) {
-        self.parameter_type = type_path.map(|ty| Type::new(ty, is_array, is_option));
+    pub fn update_parameter_type(&mut self, type_path: Option<TypeTree<'p>>) {
+        self.parameter_type = type_path;
     }
 }
 
@@ -135,7 +131,7 @@ impl Parse for ValueParameter<'_> {
             parameter.name = Cow::Owned(name);
 
             if input.peek(Token![=]) {
-                parameter.parameter_type = Some(parse_utils::parse_next(&input, || {
+                parameter.parsed_type = Some(parse_utils::parse_next(&input, || {
                     input.parse().map_err(|error| {
                         Error::new(
                             error.span(),
@@ -241,10 +237,23 @@ impl ToTokens for ValueParameter<'_> {
         }
 
         if let Some(parameter_type) = &self.parameter_type {
-            let property = Property::new(parameter_type);
-            let required: Required = (!parameter_type.is_option).into();
+            let media_type_schema = MediaTypeSchema {
+                type_tree: parameter_type,
+                is_inline: false,
+            };
+            let required: Required = (!parameter_type.is_option()).into();
 
-            tokens.extend(quote! { .schema(Some(#property)).required(#required) });
+            tokens.extend(quote! { .schema(Some(#media_type_schema)).required(#required) });
+        } else if let Some(parsed_type) = &self.parsed_type {
+            let type_tree = parsed_type.as_type_tree();
+
+            let media_type_schema = MediaTypeSchema {
+                type_tree: &type_tree,
+                is_inline: parsed_type.is_inline,
+            };
+
+            let required: Required = (!type_tree.is_option()).into();
+            tokens.extend(quote! { .schema(Some(#media_type_schema)).required(#required) });
         }
     }
 }

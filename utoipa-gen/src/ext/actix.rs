@@ -90,9 +90,7 @@ fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> Valu
         name: match macro_arg {
             MacroArg::Path(path) => Some(Cow::Owned(path.name)),
         },
-        type_path: primitive_arg.path,
-        is_array: false,
-        is_option: false,
+        type_tree: Some(primitive_arg),
         argument_in: ArgumentIn::Path,
     }
 }

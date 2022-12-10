@@ -70,9 +70,7 @@ fn get_value_arguments(value_args: Vec<FnArg>) -> impl Iterator<Item = super::Va
 fn to_value_argument<'a>(name: Option<Cow<'a, str>>, ty: TypeTree<'a>) -> ValueArgument<'a> {
     ValueArgument {
         name,
-        is_array: false,
-        is_option: false,
-        type_path: ty.path,
+        type_tree: Some(ty),
         argument_in: super::ArgumentIn::Path,
     }
 }
