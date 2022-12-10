@@ -26,6 +26,7 @@ use self::parameter::ValueParameter;
 ))]
 use crate::ext::{IntoParamsType, ValueArgument};
 
+pub mod example;
 pub mod parameter;
 mod property;
 mod request_body;
