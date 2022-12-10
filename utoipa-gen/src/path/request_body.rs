@@ -1,9 +1,12 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
-use crate::{parse_utils, Required, Type};
+use crate::{parse_utils, AnyValue, Array, Required, Type};
 
+use super::example::Example;
 use super::property::Property;
 use super::TypeExt;
 
@@ -50,12 +53,14 @@ pub struct RequestBodyAttr<'r> {
     content: Option<Type<'r>>,
     content_type: Option<String>,
     description: Option<String>,
+    example: Option<AnyValue>,
+    examples: Option<Punctuated<Example, Comma>>,
 }
 
 impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: content, content_type, description";
+            "unexpected attribute, expected any of: content, content_type, description, examples";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
@@ -91,6 +96,15 @@ impl Parse for RequestBodyAttr<'_> {
                         request_body_attr.description =
                             Some(parse_utils::parse_next_literal_str(&group)?)
                     }
+                    "example" => {
+                        request_body_attr.example = Some(parse_utils::parse_next(&group, || {
+                            AnyValue::parse_json(&group)
+                        })?)
+                    }
+                    "examples" => {
+                        request_body_attr.examples =
+                            Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
+                    }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
 
@@ -110,8 +124,7 @@ impl Parse for RequestBodyAttr<'_> {
                         format!("unexpected token, expected type such as String, {}", error),
                     )
                 })?),
-                content_type: None,
-                description: None,
+                ..Default::default()
             })
         } else {
             Err(lookahead.error())
@@ -127,11 +140,31 @@ impl ToTokens for RequestBodyAttr<'_> {
                 .content_type
                 .as_deref()
                 .unwrap_or_else(|| body_type.get_default_content_type());
-            let required: Required = (!body_type.is_option).into();
+            let mut content =
+                quote! { utoipa::openapi::content::ContentBuilder::new().schema(#property) };
 
+            if let Some(ref example) = self.example {
+                content.extend(quote! {
+                    .example(Some(#example))
+                })
+            }
+            if let Some(ref examples) = self.examples {
+                let examples = examples
+                    .iter()
+                    .map(|example| {
+                        let name = &example.name;
+                        quote!((#name, #example))
+                    })
+                    .collect::<Array<TokenStream2>>();
+                content.extend(quote!(
+                    .examples_from_iter(#examples)
+                ))
+            }
+
+            let required: Required = (!body_type.is_option).into();
             tokens.extend(quote! {
                 utoipa::openapi::request_body::RequestBodyBuilder::new()
-                    .content(#content_type, utoipa::openapi::Content::new(#property))
+                    .content(#content_type, #content.build())
                     .required(Some(#required))
             });
         }

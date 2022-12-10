@@ -1,6 +1,7 @@
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::OpenApi;
+use utoipa_gen::ToSchema;
 
 mod common;
 
@@ -399,4 +400,122 @@ fn derive_request_body_primitive_ref_path_success() {
         .as_str()
         .unwrap();
     assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
+}
+
+#[test]
+fn request_body_with_exmaple() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Value<'v> {
+        value: &'v str,
+    }
+
+    #[utoipa::path(get, path = "/item", request_body(content = Value, example = json!({"value": "this is value"})))]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Value)), paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/json": {
+                "example": {
+                    "value": "this is value"
+                },
+                "schema": {
+                    "$ref": "#/components/schemas/Value"
+                }
+            }
+        })
+    )
+}
+
+#[test]
+fn request_body_with_examples() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Value<'v> {
+        value: &'v str,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/item",
+        request_body(content = Value, 
+            examples(
+                ("Value1" = (value = json!({"value": "this is value"}) ) ),
+                ("Value2" = (value = json!({"value": "this is value2"}) ) )
+            )
+        )
+    )]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Value)), paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/json": {
+                "examples": {
+                    "Value1": {
+                        "value": {
+                            "value": "this is value"
+                        }
+                    },
+                    "Value2": {
+                        "value": {
+                            "value": "this is value2"
+                        }
+                    }
+                },
+                "schema": {
+                    "$ref": "#/components/schemas/Value"
+                }
+            }
+        })
+    )
+}
+
+#[test]
+fn request_body_with_binary() {
+    #[utoipa::path(get, path = "/item", request_body(content = [u8]))]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/octet-stream": {
+                "schema": {
+                    "type": "string",
+                    "format": "binary"
+                }
+            }
+        })
+    )
 }

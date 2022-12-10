@@ -603,6 +603,14 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///
+/// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
+///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+///
+/// * `examples(...)` Define mulitple examples for single request body. This attribute is mutually
+///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
+///   This has same syntax as _`examples(...)`_ in [Response Attributes](#response-attributes)
+///   _examples(...)_
+///
 /// **Request body supports following formats:**
 ///
 /// ```text
