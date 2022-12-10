@@ -571,14 +571,16 @@ impl ToTokens for Operation<'_> {
     }
 }
 
-trait ContentTypeResolver {
-    fn resolve_content_type<'a>(
-        &self,
-        content_type: Option<&'a String>,
-        schema_type: &SchemaType<'a>,
-    ) -> &'a str {
-        if let Some(content_type) = content_type {
-            content_type
+trait TypeExt {
+    /// Resolve default content type based on curren [`Type`].
+    fn get_default_content_type(&self) -> &str;
+}
+
+impl TypeExt for crate::Type<'_> {
+    fn get_default_content_type(&self) -> &'static str {
+        let schema_type = SchemaType(&self.ty);
+        if self.is_array && schema_type.is_byte() {
+            "application/octet-stream"
         } else if schema_type.is_primitive() {
             "text/plain"
         } else {

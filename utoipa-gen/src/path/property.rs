@@ -7,6 +7,8 @@ use crate::{
     Type,
 };
 
+use super::TypeExt;
+
 /// Tokenizable object property. It is used as a object property for components or as property
 /// of request or response body or response header.
 pub(crate) struct Property<'a>(&'a Type<'a>);
@@ -26,25 +28,32 @@ impl ToTokens for Property<'_> {
         let schema_type = self.schema_type();
 
         if schema_type.is_primitive() {
-            let mut schema = quote! {
-                utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
-            };
-
-            let format: SchemaFormat = schema_type.0.into();
-            if format.is_known_format() {
-                schema.extend(quote! {
-                    .format(Some(#format))
+            if self.0.get_default_content_type() == "application/octet-stream" {
+                tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new()
+                    .schema_type(utoipa::openapi::schema::SchemaType::String)
+                    .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Binary)))
                 })
-            }
-
-            tokens.extend(if self.0.is_array {
-                quote! {
-                    utoipa::openapi::schema::ArrayBuilder::new()
-                        .items(#schema)
-                }
             } else {
-                schema
-            });
+                let mut schema = quote! {
+                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
+                };
+
+                let format: SchemaFormat = schema_type.0.into();
+                if format.is_known_format() {
+                    schema.extend(quote! {
+                        .format(Some(#format))
+                    })
+                }
+
+                tokens.extend(if self.0.is_array {
+                    quote! {
+                        utoipa::openapi::schema::ArrayBuilder::new()
+                            .items(#schema)
+                    }
+                } else {
+                    schema
+                });
+            }
         } else {
             let schema_name_path = schema_type.0;
 
