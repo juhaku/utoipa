@@ -600,7 +600,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
 ///   from the `content` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
+///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
+///   _`application/json`_ for struct and complex enum types.
 ///
 /// **Request body supports following formats:**
 ///
@@ -629,7 +630,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive] and _`application/json`_ for struct and complex enum types.
+///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
+///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
