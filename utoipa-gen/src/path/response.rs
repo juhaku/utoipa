@@ -11,9 +11,9 @@ use syn::{
     Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{parse_utils, schema_type::SchemaType, AnyValue, Array, Type};
+use crate::{parse_utils, AnyValue, Array, Type};
 
-use super::{property::Property, status::STATUS_CODES, ContentTypeResolver};
+use super::{property::Property, status::STATUS_CODES, TypeExt};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response<'r> {
@@ -234,8 +234,7 @@ impl ToTokens for ResponseTuple<'_> {
                             })
                         })
                     } else {
-                        let schema_type = SchemaType(response_type.ty.as_ref());
-                        let default_type = self.resolve_content_type(None, &schema_type);
+                        let default_type = response_type.get_default_content_type();
                         tokens.extend(quote! {
                             .content(#default_type, #content.build())
                         });
@@ -398,8 +397,6 @@ impl Parse for Content<'_> {
         Ok(Content(content_type.value(), body, example, examples))
     }
 }
-
-impl ContentTypeResolver for ResponseTuple<'_> {}
 
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
 #[derive(Default)]

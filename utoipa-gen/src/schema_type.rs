@@ -106,6 +106,10 @@ impl SchemaType<'_> {
     pub fn is_string(&self) -> bool {
         matches!(&*self.last_segment_to_string(), "str" | "String")
     }
+
+    pub fn is_byte(&self) -> bool {
+        matches!(&*self.last_segment_to_string(), "u8")
+    }
 }
 
 #[inline]
@@ -163,7 +167,7 @@ impl ToTokens for SchemaType<'_> {
             #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "chrono")]
-            "NaiveDate" => tokens.extend(quote!( utoipa::openapi::SchemaType::String)),
+            "NaiveDate" => tokens.extend(quote!(utoipa::openapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "decimal")]

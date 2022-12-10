@@ -4,7 +4,8 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::{parse_utils, Required, Type};
 
-use super::{property::Property, ContentTypeResolver};
+use super::property::Property;
+use super::TypeExt;
 
 /// Parsed information related to requst body of path.
 ///
@@ -118,15 +119,14 @@ impl Parse for RequestBodyAttr<'_> {
     }
 }
 
-impl ContentTypeResolver for RequestBodyAttr<'_> {}
-
 impl ToTokens for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(body_type) = &self.content {
             let property = Property::new(body_type);
-
-            let content_type =
-                self.resolve_content_type(self.content_type.as_ref(), &property.schema_type());
+            let content_type = self
+                .content_type
+                .as_deref()
+                .unwrap_or_else(|| body_type.get_default_content_type());
             let required: Required = (!body_type.is_option).into();
 
             tokens.extend(quote! {
