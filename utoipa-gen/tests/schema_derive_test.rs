@@ -726,6 +726,7 @@ fn derive_complex_unnamed_field_reference_with_comment() {
                             "$ref": "#/components/schemas/CommentedReference",
                         },
                     },
+                    "required": ["UnnamedFieldWithCommentReference"],
                 },
             ],
         })
@@ -808,6 +809,7 @@ fn derive_complex_enum_with_schema_properties() {
                             "type": "object"
                         }
                     },
+                    "required": ["Variant"],
                     "type": "object"
                 },
                 {
@@ -822,6 +824,7 @@ fn derive_complex_enum_with_schema_properties() {
                             "type": "object"
                         }
                     },
+                    "required": ["Variant2"],
                     "type": "object"
                 }
             ]
@@ -1006,6 +1009,7 @@ fn derive_complex_enum() {
                             ],
                         },
                     },
+                    "required": ["NamedFields"],
                 },
                 {
                     "type": "object",
@@ -1014,6 +1018,7 @@ fn derive_complex_enum() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["UnnamedFields"],
                 },
             ],
         })
@@ -1066,6 +1071,7 @@ fn derive_complex_enum_title() {
                             ],
                         },
                     },
+                    "required": ["NamedFields"],
                 },
                 {
                     "type": "object",
@@ -1075,6 +1081,7 @@ fn derive_complex_enum_title() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["UnnamedFields"]
                 },
             ],
         })
@@ -1130,6 +1137,7 @@ fn derive_complex_enum_serde_rename_all() {
                             ],
                         },
                     },
+                    "required": ["named_fields"]
                 },
                 {
                     "type": "object",
@@ -1138,6 +1146,7 @@ fn derive_complex_enum_serde_rename_all() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["unnamed_fields"]
                 },
             ],
         })
@@ -1197,6 +1206,7 @@ fn derive_complex_enum_serde_rename_variant() {
                             ],
                         },
                     },
+                    "required": ["renamed_named_fields"]
                 },
                 {
                     "type": "object",
@@ -1205,6 +1215,7 @@ fn derive_complex_enum_serde_rename_variant() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["renamed_unnamed_fields"]
                 },
             ],
         })
@@ -1280,6 +1291,7 @@ fn derive_complex_enum_custom_rename() {
                             "type": "string"
                         }
                     },
+                    "required": ["NEWPOST"],
                     "type": "object",
                 },
                 {
@@ -1306,6 +1318,7 @@ fn derive_complex_enum_custom_rename() {
                             ]
                         }
                     },
+                    "required": ["update_post"],
                     "type": "object",
                 },
                 {
@@ -1323,6 +1336,7 @@ fn derive_complex_enum_custom_rename() {
                             ]
                         }
                     },
+                    "required": ["RANDOMVALUE"],
                     "type": "object",
                 }
             ]
@@ -1358,6 +1372,7 @@ fn derive_complex_enum_use_serde_rename_over_custom_rename() {
                         },
                     },
                     "type": "object",
+                    "required": ["string_value"]
                 },
                 {
                     "properties": {
@@ -1373,6 +1388,7 @@ fn derive_complex_enum_use_serde_rename_over_custom_rename() {
                         }
                     },
                     "type": "object",
+                    "required": ["number"]
                 }
             ]
         })
@@ -1450,6 +1466,7 @@ fn derive_complex_enum_with_title() {
                     },
                     "title": "admin",
                     "type": "object",
+                    "required": ["Admin"]
                 },
                 {
                     "properties": {
@@ -1464,6 +1481,7 @@ fn derive_complex_enum_with_title() {
                             "type": "object",
                         }
                     },
+                    "required": ["Moderator"],
                     "title": "moderator",
                     "type": "object",
                 },
@@ -2437,6 +2455,7 @@ fn derive_component_with_complex_enum_lifetimes() {
                             "type": "object"
                         },
                     },
+                    "required": ["A"],
                     "type": "object"
                 },
                 {
@@ -2855,6 +2874,7 @@ fn derive_enum_with_self_reference() {
                         }
                     },
                     "type": "object",
+                    "required": ["Item"],
                 },
                 {
                     "properties": {
@@ -2868,6 +2888,7 @@ fn derive_enum_with_self_reference() {
                             "type": "object",
                         }
                     },
+                    "required": ["Item2"],
                     "type": "object",
                 }
             ]

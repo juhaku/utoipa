@@ -74,6 +74,7 @@ where
             utoipa::openapi::schema::ObjectBuilder::new()
                 #title
                 .property(#name, #variant)
+                .required(#name)
         }
     }
 }
