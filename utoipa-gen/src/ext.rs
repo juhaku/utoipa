@@ -4,8 +4,9 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use proc_macro2::TokenStream;
-use syn::{punctuated::Punctuated, token::Comma, ItemFn, Path};
+use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
+use crate::component::TypeTree;
 use crate::path::PathOperation;
 
 #[cfg(feature = "actix_extras")]
@@ -35,9 +36,7 @@ pub struct ValueArgument<'a> {
         feature = "axum_extras"
     ))]
     pub argument_in: ArgumentIn,
-    pub type_path: Option<Cow<'a, Path>>,
-    pub is_array: bool,
-    pub is_option: bool,
+    pub type_tree: Option<TypeTree<'a>>,
 }
 
 #[cfg_attr(

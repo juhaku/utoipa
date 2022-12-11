@@ -7,7 +7,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::{borrow::Cow, mem, ops::Deref};
+use std::{mem, ops::Deref};
 
 use component::schema::Schema;
 use doc_comment::CommentAttributes;
@@ -23,9 +23,7 @@ use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    spanned::Spanned,
-    AngleBracketedGenericArguments, DeriveInput, ExprPath, GenericArgument, ItemFn, Lit, LitStr,
-    PathArguments, PathSegment, Token, TypePath,
+    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
 };
 
 mod component;
@@ -587,13 +585,19 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 ///
-///
 /// # Request Body Attributes
 ///
-/// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`ToSchema`][to_schema],
-///   it can also be  wrapped in `inline(...)` in order to inline the schema definition.
-///   E.g. _`inline(Pet)`_.
+/// **Simple format definition by `request_body = ...`**
+/// * `request_body = Type` or `request_body = inline(Type)`. The given _`Type`_ can be any
+///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
+///   the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types.
+///
+/// **Advanced format definition by `request_body(...)`**
+/// * `content = ...` Can be `content = Type` or `content = inline(Type)`. The given _`Type`_ can be any
+///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
+///   the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types.
 ///
 /// * `description = "..."` Define the description for the request body object as str.
 ///
@@ -611,17 +615,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   This has same syntax as _`examples(...)`_ in [Response Attributes](#response-attributes)
 ///   _examples(...)_
 ///
-/// **Request body supports following formats:**
-///
+/// _**Example request body defintions.**_
 /// ```text
-/// request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
-/// request_body = Pet,
-/// request_body = Option<[Pet]>,
+///  request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
+///  request_body = Pet,
+///  request_body = Option<[Pet]>,
 /// ```
-///
-/// 1. First is the long representation of the request body definition.
-/// 2. Second is the quick format which only defines the content object type.
-/// 3. Last one is same quick format but only with optional request body.
 ///
 /// # Response Attributes
 ///
@@ -632,8 +631,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str.
 ///
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`ToSchema`][to_schema],
-///   it can also be wrapped in `inline(...)` in order to inline the schema definition. E.g. _`inline(Pet)`_.
+///   response body. Can be `body = Type` or `body = inline(Type)`. The given _`Type`_ can be any
+///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
+///   the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types.
 ///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
@@ -737,8 +738,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # Response Header Attributes
 ///
 /// * `name` Name of the header. E.g. _`x-csrf-token`_
-/// * `type` Additional type of the header value. Type is defined after `name` with equals sign before the type.
-///   Type should be identifier or slice of identifiers. E.g. _`String`_ or _`[String]`_
+///
+/// * `type` Additional type of the header value. Can be `Type` or `inline(Type)`.
+///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
+///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
+///   response header.
+///
 /// * `description = "..."` Can be used to define optional description for the response header as str.
 ///
 /// **Header supported formats:**
@@ -760,10 +766,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
 ///
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
-///   option `Option<Type>`. Where the type implments [`ToSchema`][to_schema], it can also be wrapped in `inline(MySchema)`
-///   in order to inline the schema definition.
-///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
+/// * `parameter_type` Define possible type for the parameter. Can be `Type` or `inline(Type)`.
+///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
+///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 ///
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
@@ -1793,219 +1799,6 @@ impl ToTokens for Required {
             Self::False => quote! { utoipa::openapi::Required::False },
             Self::True => quote! { utoipa::openapi::Required::True },
         })
-    }
-}
-
-/// Parses a type information in utoipa macro parameters.
-///
-/// Supports formats:
-///   * `type` type is just a simple type identifier
-///   * `[type]` type is an array of types
-///   * `Option<type>` type is option of type
-///   * `Option<[type]>` type is an option of array of types
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-struct Type<'a> {
-    ty: Cow<'a, syn::Path>,
-    is_array: bool,
-    is_option: bool,
-    is_inline: bool,
-}
-
-impl<'a> Type<'a> {
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    pub fn new(path: Cow<'a, syn::Path>, is_array: bool, is_option: bool) -> Self {
-        Self {
-            ty: path,
-            is_array,
-            is_option,
-            is_inline: false,
-        }
-    }
-}
-
-/// A parser for [`Type`] to parse as as `inline(Type)` where `Type` is anything parsed by
-/// [`ArrayOrOptionType`].
-struct InlineType<'a>(Type<'a>);
-
-impl Parse for InlineType<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_TYPE_DEFINITION: &str = "unexpected attribute, expected any of inline(Type)";
-        let ident: Ident = input.parse().map_err(|error| {
-            syn::Error::new(
-                error.span(),
-                format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-            )
-        })?;
-
-        match &*ident.to_string() {
-            "inline" => {
-                let content;
-                syn::parenthesized!(content in input);
-
-                let mut t: Type = content
-                    .parse::<ArrayOrOptionType>()
-                    .map_err(|error| {
-                        syn::Error::new(
-                            error.span(),
-                            format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-                        )
-                    })?
-                    .0;
-
-                t.is_inline = true;
-
-                Ok(Self(t))
-            }
-            _ => Err(syn::Error::new(ident.span(), EXPECTED_TYPE_DEFINITION)),
-        }
-    }
-}
-
-/// A parser for [`Type`] to parse as
-///  * `Type`
-///  * `[Type]`
-///  * `Option<Type>`
-///  * `Option<[Type]>`
-struct ArrayOrOptionType<'a>(Type<'a>);
-
-impl Parse for ArrayOrOptionType<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_TYPE_MESSAGE: &str =
-            "Expected a type/path such as path::to::Foo, or Foo. May also be Option<Foo> or [Foo].";
-
-        fn parse_type<'a>(t: syn::Type) -> syn::Result<Type<'a>> {
-            let mut is_option: bool = false;
-            let mut is_array: bool = false;
-            let path: TypePath = match t {
-                syn::Type::Path(mut path) => {
-                    let type_segment: &PathSegment =
-                        path.path.segments.last().ok_or_else(|| {
-                            syn::Error::new(path.path.span(), "No last path segment")
-                        })?;
-                    let ident = &type_segment.ident;
-
-                    // is option of type or [type]
-                    if ident == "Option" {
-                        is_option = true;
-
-                        let angle_bracketed: &AngleBracketedGenericArguments = match &type_segment
-                            .arguments
-                        {
-                            PathArguments::AngleBracketed(angle_bracketed) => angle_bracketed,
-                            _ => {
-                                return Err(syn::Error::new(type_segment.span(), "Option must have its generic type parameter specified. e.g. Option<String>"));
-                            }
-                        };
-
-                        if angle_bracketed.args.len() != 1 {
-                            return Err(syn::Error::new(type_segment.span(), "Option must have only a single generic parameter specified. e.g. Option<String>"));
-                        }
-
-                        let argument: &GenericArgument = angle_bracketed.args.first().expect(
-                            "Expected there to be 1 angle bracketed argument for Option<...>",
-                        );
-
-                        let argument_path: &TypePath = match argument {
-                            GenericArgument::Type(syn::Type::Path(path)) => path,
-                            GenericArgument::Type(syn::Type::Slice(slice)) => {
-                                is_array = true;
-                                match &*slice.elem {
-                                    syn::Type::Path(path) => path,
-                                    unsupported_type => {
-                                        return Err(syn::Error::new(
-                                            unsupported_type.span(),
-                                            format!(
-                                                "Unsupported slice type. {}",
-                                                EXPECTED_TYPE_MESSAGE
-                                            ),
-                                        ))
-                                    }
-                                }
-                            }
-                            unsupported_type => {
-                                return Err(syn::Error::new(
-                                    unsupported_type.span(),
-                                    format!("Unsupported argument type. {}", EXPECTED_TYPE_MESSAGE),
-                                ))
-                            }
-                        };
-
-                        path = argument_path.clone();
-                    }
-
-                    path
-                }
-                syn::Type::Slice(type_slice) => {
-                    is_array = true;
-                    match &*type_slice.elem {
-                        syn::Type::Path(path) => path.clone(),
-                        unsupported_type => {
-                            return Err(syn::Error::new(
-                                unsupported_type.span(),
-                                format!("Unsupported slice type. {}", EXPECTED_TYPE_MESSAGE),
-                            ))
-                        }
-                    }
-                }
-                syn::Type::Group(group) => {
-                    return parse_type(*group.elem);
-                }
-                unsupported_type => {
-                    return Err(syn::Error::new(
-                        unsupported_type.span(),
-                        format!(
-                            "Unsupported type {}. {}",
-                            unsupported_type.to_token_stream(),
-                            EXPECTED_TYPE_MESSAGE
-                        ),
-                    ))
-                }
-            };
-
-            Ok(Type {
-                ty: Cow::Owned(path.path),
-                is_array,
-                is_option,
-                is_inline: false,
-            })
-        }
-
-        let t: syn::Type = input
-            .parse::<syn::Type>()
-            .map_err(|error| syn::Error::new(error.span(), EXPECTED_TYPE_MESSAGE))?;
-
-        parse_type(t).map(ArrayOrOptionType)
-    }
-}
-
-impl Parse for Type<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_TYPE_DEFINITION: &str =
-            "unexpected attribute, expected `inline(Type)` or `Type`, where `Type` can be `Type`, `[Type]` or `Option<Type>`";
-
-        // Try parsing as `inline(Type)`
-        if input.fork().parse::<InlineType>().is_ok() {
-            let t: Self = input.parse::<InlineType>()?.0;
-            return Ok(t);
-        }
-
-        // Try parsing as `Type`, `[Type]` or `Option<Type>`)
-        let t: Type = input
-            .parse::<ArrayOrOptionType>()
-            .map_err(|error| {
-                syn::Error::new(
-                    error.span(),
-                    format!("{}: {}", EXPECTED_TYPE_DEFINITION, error),
-                )
-            })?
-            .0;
-
-        Ok(t)
     }
 }
 
