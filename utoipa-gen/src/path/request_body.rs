@@ -8,7 +8,7 @@ use crate::{parse_utils, AnyValue, Array, Required};
 
 use super::example::Example;
 use super::media_type::MediaTypeSchema;
-use super::{InlineableType, PathTypeTree};
+use super::{PathType, PathTypeTree};
 
 /// Parsed information related to requst body of path.
 ///
@@ -50,7 +50,7 @@ use super::{InlineableType, PathTypeTree};
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr {
-    content: Option<InlineableType>,
+    content: Option<PathType>,
     content_type: Option<String>,
     description: Option<String>,
     example: Option<AnyValue>,
@@ -135,16 +135,23 @@ impl Parse for RequestBodyAttr {
 impl ToTokens for RequestBodyAttr {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(body_type) = &self.content {
-            let type_tree = body_type.as_type_tree();
-            let media_type_schema = MediaTypeSchema {
-                type_tree: &type_tree,
-                is_inline: body_type.is_inline,
+            let media_type_schema = match body_type {
+                PathType::Ref(ref_type) => quote! {
+                    utoipa::openapi::schema::Ref::new(#ref_type)
+                },
+                PathType::Type(body_type) => {
+                    let type_tree = body_type.as_type_tree();
+                    MediaTypeSchema {
+                        type_tree: &type_tree,
+                        is_inline: body_type.is_inline,
+                    }
+                    .to_token_stream()
+                }
             };
-            let content_type = self
-                .content_type
-                .as_deref()
-                .unwrap_or_else(|| type_tree.get_default_content_type());
-            let mut content = quote! { utoipa::openapi::content::ContentBuilder::new().schema(#media_type_schema) };
+            let mut content = quote! {
+                utoipa::openapi::content::ContentBuilder::new()
+                    .schema(#media_type_schema)
+            };
 
             if let Some(ref example) = self.example {
                 content.extend(quote! {
@@ -164,12 +171,27 @@ impl ToTokens for RequestBodyAttr {
                 ))
             }
 
-            let required: Required = (!type_tree.is_option()).into();
-            tokens.extend(quote! {
-                utoipa::openapi::request_body::RequestBodyBuilder::new()
-                    .content(#content_type, #content.build())
-                    .required(Some(#required))
-            });
+            match body_type {
+                PathType::Ref(_) => {
+                    tokens.extend(quote! {
+                        utoipa::openapi::request_body::RequestBodyBuilder::new()
+                            .content("application/json", #content.build())
+                    });
+                }
+                PathType::Type(body_type) => {
+                    let type_tree = body_type.as_type_tree();
+                    let content_type = self
+                        .content_type
+                        .as_deref()
+                        .unwrap_or_else(|| type_tree.get_default_content_type());
+                    let required: Required = (!type_tree.is_option()).into();
+                    tokens.extend(quote! {
+                        utoipa::openapi::request_body::RequestBodyBuilder::new()
+                            .content(#content_type, #content.build())
+                            .required(Some(#required))
+                    });
+                }
+            }
         }
 
         if let Some(ref description) = self.description {

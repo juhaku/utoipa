@@ -552,3 +552,40 @@ fn derive_path_with_mutliple_resposnes_with_multiple_examples() {
         })
     )
 }
+
+#[test]
+fn path_response_with_external_ref() {
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, body = ref("./MyUser.json"))
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        resopnses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref":
+                                "./MyUser.json",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}

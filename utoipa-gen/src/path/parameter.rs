@@ -16,7 +16,7 @@ use syn::{
 use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{component::TypeTree, parse_utils, AnyValue, Deprecated, Required};
 
-use super::{media_type::MediaTypeSchema, InlineableType, PathTypeTree};
+use super::{media_type::MediaTypeSchema, InlineType, PathTypeTree};
 
 /// Parameter of request suchs as in path, header, query or cookie
 ///
@@ -104,7 +104,7 @@ pub struct ValueParameter<'a> {
     parameter_ext: Option<ParameterExt>,
 
     /// Type only when value parameter is parsed
-    parsed_type: Option<InlineableType>,
+    parsed_type: Option<InlineType>,
 }
 
 impl<'p> ValueParameter<'p> {
