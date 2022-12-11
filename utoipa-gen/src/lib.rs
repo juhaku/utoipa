@@ -588,16 +588,21 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # Request Body Attributes
 ///
 /// **Simple format definition by `request_body = ...`**
-/// * `request_body = Type` or `request_body = inline(Type)`. The given _`Type`_ can be any
-///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
-///   the schema will be inlined instead of a referenced which is the default for
-///   [`ToSchema`][to_schema] types.
+/// * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
+///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
+///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
+///   json file for body schema. **Note!** Utoipa does **not** guarantee that free form _`ref`_ is accessbile via
+///   OpenAPI doc or Swagger UI, users are eligible to make these guarantees.
 ///
 /// **Advanced format definition by `request_body(...)`**
-/// * `content = ...` Can be `content = Type` or `content = inline(Type)`. The given _`Type`_ can be any
-///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
-///   the schema will be inlined instead of a referenced which is the default for
-///   [`ToSchema`][to_schema] types.
+/// * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
+///   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
+///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
+///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
+///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
+///   that free form _`ref`_ is accessbile via OpenAPI doc or Swagger UI, users are eligible
+///   to make these guarantees.
 ///
 /// * `description = "..."` Define the description for the request body object as str.
 ///
@@ -631,10 +636,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str.
 ///
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Can be `body = Type` or `body = inline(Type)`. The given _`Type`_ can be any
-///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
-///   the schema will be inlined instead of a referenced which is the default for
-///   [`ToSchema`][to_schema] types.
+///   response body. Can be _`body = Type`_, _`body = inline(Type)`_, or _`body = ref("...")`_.
+///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
+///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types. _`ref("./external.json")`_
+///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
+///   that free form _`ref`_ is accessbile via OpenAPI doc or Swagger UI, users are eligible
+///   to make these guarantees.
 ///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as

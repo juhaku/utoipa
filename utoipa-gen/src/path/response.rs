@@ -11,10 +11,11 @@ use syn::{
     Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{component::TypeTree, parse_utils, AnyValue, Array};
+use crate::{parse_utils, AnyValue, Array};
 
 use super::{
-    example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineableType, PathTypeTree,
+    example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineType, PathType,
+    PathTypeTree,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -62,7 +63,7 @@ impl ResponseTuple {
     }
 
     // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
-    fn set_ref_type(&mut self, span: Span, ty: InlineableType) -> syn::Result<()> {
+    fn set_ref_type(&mut self, span: Span, ty: InlineType) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
@@ -77,14 +78,14 @@ impl ResponseTuple {
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum ResponseTupleInner {
     Value(ResponseValue),
-    Ref(InlineableType),
+    Ref(InlineType),
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue {
     description: String,
-    response_type: Option<InlineableType>,
+    response_type: Option<PathType>,
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     example: Option<AnyValue>,
@@ -197,16 +198,27 @@ impl ToTokens for ResponseTuple {
                     utoipa::openapi::ResponseBuilder::new().description(#description)
                 });
 
-                let create_content = |type_tree: &TypeTree,
-                                      is_inline: bool,
+                let create_content = |path_type: &PathType,
                                       example: &Option<AnyValue>,
                                       examples: &Option<Punctuated<Example, Comma>>|
                  -> TokenStream2 {
-                    let media_schema_type = MediaTypeSchema {
-                        type_tree,
-                        is_inline,
+                    let content_schema = match path_type {
+                        PathType::Ref(ref_type) => quote! {
+                            utoipa::openapi::schema::Ref::new(#ref_type)
+                        }
+                        .to_token_stream(),
+                        PathType::Type(ref path_type) => {
+                            let type_tree = path_type.as_type_tree();
+                            MediaTypeSchema {
+                                type_tree: &type_tree,
+                                is_inline: path_type.is_inline,
+                            }
+                            .to_token_stream()
+                        }
                     };
-                    let mut content = quote! { utoipa::openapi::ContentBuilder::new().schema(#media_schema_type) };
+
+                    let mut content =
+                        quote! { utoipa::openapi::ContentBuilder::new().schema(#content_schema) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -226,41 +238,46 @@ impl ToTokens for ResponseTuple {
                         ))
                     }
 
-                    content
+                    quote! {
+                        #content.build()
+                    }
                 };
 
                 if let Some(response_type) = &val.response_type {
-                    let type_tree = response_type.as_type_tree();
-                    let content = create_content(
-                        &type_tree,
-                        response_type.is_inline,
-                        &val.example,
-                        &val.examples,
-                    );
+                    let content = create_content(response_type, &val.example, &val.examples);
 
                     if let Some(content_types) = val.content_type.as_ref() {
                         content_types.iter().for_each(|content_type| {
                             tokens.extend(quote! {
-                                .content(#content_type, #content.build())
+                                .content(#content_type, #content)
                             })
                         })
                     } else {
-                        let default_type = type_tree.get_default_content_type();
-                        tokens.extend(quote! {
-                            .content(#default_type, #content.build())
-                        });
+                        match response_type {
+                            PathType::Ref(_) => {
+                                tokens.extend(quote! {
+                                    .content("application/json", #content)
+                                });
+                            }
+                            PathType::Type(path_type) => {
+                                let type_tree = path_type.as_type_tree();
+                                let default_type = type_tree.get_default_content_type();
+                                tokens.extend(quote! {
+                                    .content(#default_type, #content)
+                                })
+                            }
+                        }
                     }
                 }
 
                 val.content
                     .iter()
                     .map(|Content(content_type, body, example, examples)| {
-                        let type_tree = body.as_type_tree();
-                        let content = create_content(&type_tree, body.is_inline, example, examples);
+                        let content = create_content(body, example, examples);
                         (Cow::Borrowed(&**content_type), content)
                     })
                     .for_each(|(content_type, content)| {
-                        tokens.extend(quote! { .content(#content_type, #content.build()) })
+                        tokens.extend(quote! { .content(#content_type, #content) })
                     });
 
                 val.headers.iter().for_each(|header| {
@@ -362,7 +379,7 @@ impl ToTokens for ResponseStatus {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Content(
     String,
-    InlineableType,
+    PathType,
     Option<AnyValue>,
     Option<Punctuated<Example, Comma>>,
 );
@@ -496,7 +513,7 @@ impl ToTokens for Responses<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Header {
     name: String,
-    value_type: Option<InlineableType>,
+    value_type: Option<InlineType>,
     description: Option<String>,
 }
 

@@ -6,8 +6,8 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Paren;
-use syn::Type;
 use syn::{parenthesized, parse::Parse, Token};
+use syn::{LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::{parse_utils, Deprecated};
@@ -532,21 +532,48 @@ impl ToTokens for Operation<'_> {
     }
 }
 
+/// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum PathType {
+    Ref(String),
+    Type(InlineType),
+}
+
+impl Parse for PathType {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let fork = input.fork();
+        let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
+            fork.peek(Paren)
+        } else {
+            false
+        };
+
+        if is_ref {
+            input.parse::<Token![ref]>()?;
+            let ref_stream;
+            parenthesized!(ref_stream in input);
+            Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
+        } else {
+            Ok(Self::Type(input.parse()?))
+        }
+    }
+}
+
 // inline(syn::Type) | syn::Type
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct InlineableType {
+struct InlineType {
     ty: Type,
     is_inline: bool,
 }
 
-impl InlineableType {
+impl InlineType {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
     fn as_type_tree(&self) -> TypeTree {
         TypeTree::from_type(&self.ty)
     }
 }
 
-impl Parse for InlineableType {
+impl Parse for InlineType {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let fork = input.fork();
         let is_inline = if let Some(ident) = fork.parse::<Option<Ident>>()? {
@@ -565,7 +592,7 @@ impl Parse for InlineableType {
             input.parse::<Type>()?
         };
 
-        Ok(InlineableType { ty, is_inline })
+        Ok(InlineType { ty, is_inline })
     }
 }
 
@@ -582,7 +609,7 @@ pub trait PathTypeTree {
 
 impl PathTypeTree for TypeTree<'_> {
     /// Resolve default content type based on curren [`Type`].
-    fn get_default_content_type(&self) -> &str {
+    fn get_default_content_type(&self) -> &'static str {
         if self.is_array()
             && self
                 .children
