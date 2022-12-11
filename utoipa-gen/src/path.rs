@@ -93,7 +93,7 @@ impl<'p> PathAttr<'p> {
     where
         'a: 'p,
     {
-        if let Some(mut arguments) = arguments {
+        if let Some(arguments) = arguments {
             if !self.params.is_empty() {
                 let mut value_parameters: Vec<&mut ValueParameter> = self
                     .params
@@ -103,14 +103,23 @@ impl<'p> PathAttr<'p> {
                         Parameter::Struct(_) => None,
                     })
                     .collect::<Vec<_>>();
-                PathAttr::update_existing_value_parameters_types(
-                    &mut value_parameters,
-                    &mut arguments,
-                );
+                let (existing_arguments, new_arguments): (Vec<ValueArgument>, Vec<ValueArgument>) =
+                    arguments.into_iter().partition(|argument| {
+                        value_parameters.iter().any(|parameter| {
+                            Some(parameter.name.as_ref()) == argument.name.as_deref()
+                        })
+                    });
 
-                let new_params =
-                    &mut PathAttr::get_new_value_parameters(&value_parameters, arguments);
-                self.params.append(new_params);
+                for argument in existing_arguments {
+                    if let Some(parameter) = value_parameters
+                        .iter_mut()
+                        .find(|parameter| Some(parameter.name.as_ref()) == argument.name.as_deref())
+                    {
+                        parameter.update_parameter_type(argument.type_tree);
+                    }
+                }
+                self.params
+                    .extend(new_arguments.into_iter().map(Parameter::from));
             } else {
                 // no parameters at all, add arguments to the parameters
                 let mut parameters = Vec::with_capacity(arguments.len());
@@ -120,27 +129,6 @@ impl<'p> PathAttr<'p> {
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
                 self.params = parameters;
-            }
-        }
-    }
-
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    fn update_existing_value_parameters_types<'a>(
-        parameters: &mut [&mut ValueParameter<'a>],
-        arguments: &'_ mut [ValueArgument<'a>],
-    ) {
-        use std::borrow::Cow;
-
-        for parameter in parameters {
-            if let Some(argument) = arguments
-                .iter()
-                .find(|argument| argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)))
-            {
-                parameter.update_parameter_type(argument.type_tree.clone())
             }
         }
     }
@@ -175,34 +163,6 @@ impl<'p> PathAttr<'p> {
                     })
             }
         }
-    }
-
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    fn get_new_value_parameters<'a>(
-        parameters: &[&mut ValueParameter<'p>],
-        arguments: Vec<ValueArgument<'a>>,
-    ) -> Vec<Parameter<'p>>
-    where
-        'a: 'p,
-    {
-        use std::borrow::Cow;
-
-        arguments
-            .into_iter()
-            .filter_map(|argument| {
-                if !parameters.iter().any(|parameter| {
-                    argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name))
-                }) {
-                    Some(Parameter::from(argument))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>()
     }
 }
 

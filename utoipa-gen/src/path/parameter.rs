@@ -251,8 +251,8 @@ impl ToTokens for ValueParameter<'_> {
                 type_tree: &type_tree,
                 is_inline: parsed_type.is_inline,
             };
-
             let required: Required = (!type_tree.is_option()).into();
+
             tokens.extend(quote! { .schema(Some(#media_type_schema)).required(#required) });
         }
     }
