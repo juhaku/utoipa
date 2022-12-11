@@ -3055,3 +3055,29 @@ fn derive_unit_struct_schema() {
         })
     )
 }
+
+#[test]
+fn derive_schema_with_multiple_schema_attributes() {
+    let value = api_doc! {
+        struct UserName {
+            #[schema(min_length = 5)]
+            #[schema(max_length = 10)]
+            name: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 10,
+                }
+            },
+            "required": ["name"]
+        })
+    )
+}

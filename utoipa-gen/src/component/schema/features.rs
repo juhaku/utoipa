@@ -1,12 +1,12 @@
 use proc_macro_error::ResultExt;
 use syn::{
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseBuffer, ParseStream},
     Attribute,
 };
 
 use crate::component::features::{
     impl_into_inner, parse_features, Default, Example, ExclusiveMaximum, ExclusiveMinimum, Feature,
-    Format, Inline, MaxItems, MaxLength, MaxProperties, Maximum, MinItems, MinLength,
+    Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, MinItems, MinLength,
     MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith,
     Title, ValueType, WriteOnly, XmlAttr,
 };
@@ -143,13 +143,13 @@ impl_into_inner!(EnumUnnamedFieldVariantFeatures);
 pub trait FromAttributes {
     fn parse_features<T>(&self) -> Option<T>
     where
-        T: Parse;
+        T: Parse + Merge<T>;
 }
 
 impl FromAttributes for &'_ [Attribute] {
     fn parse_features<T>(&self) -> Option<T>
     where
-        T: Parse,
+        T: Parse + Merge<T>,
     {
         parse_schema_features::<T>(self)
     }
@@ -158,22 +158,80 @@ impl FromAttributes for &'_ [Attribute] {
 impl FromAttributes for Vec<Attribute> {
     fn parse_features<T>(&self) -> Option<T>
     where
-        T: Parse,
+        T: Parse + Merge<T>,
     {
         parse_schema_features::<T>(self)
     }
 }
 
-pub fn parse_schema_features<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
-    parse_schema_features_with(attributes, T::parse)
+pub trait Merge<T>: IntoInner<Vec<Feature>> {
+    fn merge(self, from: T) -> Self;
 }
 
-pub fn parse_schema_features_with<T>(
+macro_rules! impl_merge {
+    ( $($ident:ident),* ) => {
+        $(
+            impl AsMut<Vec<Feature>> for $ident {
+                fn as_mut(&mut self) -> &mut Vec<Feature> {
+                    &mut self.0
+                }
+            }
+
+            impl Merge<$ident> for $ident {
+                fn merge(mut self, from: $ident) -> Self {
+                    let a = self.as_mut();
+                    let mut b = from.into_inner();
+
+                    a.append(&mut b);
+
+                    self
+                }
+            }
+        )*
+    };
+}
+
+impl_merge!(
+    NamedFieldStructFeatures,
+    UnnamedFieldStructFeatures,
+    EnumFeatures,
+    ComplexEnumFeatures,
+    NamedFieldFeatures,
+    EnumNamedFieldVariantFeatures,
+    EnumUnnamedFieldVariantFeatures
+);
+
+pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> Option<T> {
+    attributes
+        .iter()
+        .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
+        .reduce(|acc, item| acc.merge(item))
+}
+
+impl IntoInner<Vec<Feature>> for Vec<Feature> {
+    fn into_inner(self) -> Vec<Feature> {
+        self
+    }
+}
+
+impl Merge<Vec<Feature>> for Vec<Feature> {
+    fn merge(mut self, mut from: Vec<Feature>) -> Self {
+        self.append(&mut from);
+        self
+    }
+}
+
+pub fn parse_schema_features_with<
+    T: Merge<T>,
+    P: for<'r> FnOnce(&'r ParseBuffer<'r>) -> syn::Result<T> + Copy,
+>(
     attributes: &[Attribute],
-    parser: impl FnOnce(ParseStream) -> syn::Result<T>,
+    parser: P,
 ) -> Option<T> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.get_ident().unwrap() == "schema")
-        .map(|attribute| attribute.parse_args_with(parser).unwrap_or_abort())
+        .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .map(|attributes| attributes.parse_args_with(parser).unwrap_or_abort())
+        .reduce(|acc, item| acc.merge(item))
 }
