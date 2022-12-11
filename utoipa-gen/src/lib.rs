@@ -1260,8 +1260,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `url = ...` Define the url for server. It can be literal string.
 /// * `description = ...` Define description for the server. It can be literal string.
 /// * `variables(...)` Can be used to define variables for the url.
-///     * `name = ...` Is the first argument withing parentheses. It should be ident, an unquoted
-///       string
+///     * `name = ...` Is the first argument withing parentheses. It must be literal string.
 ///     * `default = ...` Defines a default value for the variable if nothing else will be
 ///       provided. If _`enum_values`_ is defined the _`default`_ must be found within the enum
 ///       options. It can be a literal string.
@@ -1271,8 +1270,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 ///  _**Example server variable definition.**_
 ///  ```text
-/// (username = (default = "demo", description = "Default username for API")),
-/// (port = (enum_values("8080", "5000", "4545")))
+/// ("username" = (default = "demo", description = "Default username for API")),
+/// ("port" = (enum_values("8080", "5000", "4545")))
 /// ```
 ///
 /// # Examples
@@ -1332,8 +1331,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///         (url = "http://localhost:8989", description = "Local server"),
 ///         (url = "http://api.{username}:{port}", description = "Remote API",
 ///             variables(
-///                 (username = (default = "demo", description = "Default username for API")),
-///                 (port = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for API"))
+///                 ("username" = (default = "demo", description = "Default username for API")),
+///                 ("port" = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for API"))
 ///             )
 ///         )
 ///     )

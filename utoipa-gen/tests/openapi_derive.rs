@@ -147,8 +147,8 @@ fn derive_openapi_with_servers() {
             (url = "http://localhost:8989", description = "this is description"),
             (url = "http://api.{username}:{port}", description = "remote api", 
                 variables(
-                    (username = (default = "demo", description = "Default username for API")),
-                    (port = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for the API"))
+                    ("username" = (default = "demo", description = "Default username for API")),
+                    ("port" = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for the API"))
                 )
             )
         )

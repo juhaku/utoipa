@@ -331,8 +331,8 @@ impl ToTokens for Server {
     }
 }
 
-// (username = (default = "demo", description = "This is default username for the API")),
-// (port = (enum_values = (8080, 5000, 4545)))
+// ("username" = (default = "demo", description = "This is default username for the API")),
+// ("port" = (enum_values = (8080, 5000, 4545)))
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ServerVariable {
@@ -347,7 +347,7 @@ impl Parse for ServerVariable {
         let variable_stream;
         parenthesized!(variable_stream in input);
         let mut server_variable = ServerVariable {
-            name: variable_stream.parse::<Ident>()?.to_string(),
+            name: variable_stream.parse::<LitStr>()?.value(),
             ..ServerVariable::default()
         };
 
