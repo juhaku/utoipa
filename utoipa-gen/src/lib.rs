@@ -585,13 +585,19 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 ///
-///
 /// # Request Body Attributes
 ///
-/// * `content = ...` Can be used to define the content object. Should be an identifier, slice or option
-///   E.g. _`Pet`_ or _`[Pet]`_ or _`Option<Pet>`_. Where the type implments [`ToSchema`][to_schema],
-///   it can also be  wrapped in `inline(...)` in order to inline the schema definition.
-///   E.g. _`inline(Pet)`_.
+/// **Simple format definition by `request_body = ...`**
+/// * `request_body = Type` or `request_body = inline(Type)`. The given _`Type`_ can be any
+///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
+///   the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types.
+///
+/// **Advanced format definition by `request_body(...)`**
+/// * `content = ...` Can be `content = Type` or `content = inline(Type)`. The given _`Type`_ can be any
+///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
+///   the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types.
 ///
 /// * `description = "..."` Define the description for the request body object as str.
 ///
@@ -609,17 +615,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   This has same syntax as _`examples(...)`_ in [Response Attributes](#response-attributes)
 ///   _examples(...)_
 ///
-/// **Request body supports following formats:**
-///
+/// _**Example request body defintions.**_
 /// ```text
-/// request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
-/// request_body = Pet,
-/// request_body = Option<[Pet]>,
+///  request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
+///  request_body = Pet,
+///  request_body = Option<[Pet]>,
 /// ```
-///
-/// 1. First is the long representation of the request body definition.
-/// 2. Second is the quick format which only defines the content object type.
-/// 3. Last one is same quick format but only with optional request body.
 ///
 /// # Response Attributes
 ///
@@ -630,8 +631,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str.
 ///
 /// * `body = ...` Optional response body object type. When left empty response does not expect to send any
-///   response body. Should be an identifier or slice. E.g _`Pet`_ or _`[Pet]`_. Where the type implments [`ToSchema`][to_schema],
-///   it can also be wrapped in `inline(...)` in order to inline the schema definition. E.g. _`inline(Pet)`_.
+///   response body. Can be `body = Type` or `body = inline(Type)`. The given _`Type`_ can be any
+///   Rust type that is JSON parseable. It can be Option, Vec or Map etc. With _`inline(...)`_
+///   the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types.
 ///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
@@ -735,8 +738,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # Response Header Attributes
 ///
 /// * `name` Name of the header. E.g. _`x-csrf-token`_
-/// * `type` Additional type of the header value. Type is defined after `name` with equals sign before the type.
-///   Type should be identifier or slice of identifiers. E.g. _`String`_ or _`[String]`_
+///
+/// * `type` Additional type of the header value. Can be `Type` or `inline(Type)`.
+///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
+///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types. **Reminder!** It's up to the user to use valid type for the
+///   response header.
+///
 /// * `description = "..."` Can be used to define optional description for the response header as str.
 ///
 /// **Header supported formats:**
@@ -758,10 +766,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
 ///
-/// * `parameter_type` Define possible type for the parameter. Type should be an identifier, slice `[Type]`,
-///   option `Option<Type>`. Where the type implments [`ToSchema`][to_schema], it can also be wrapped in `inline(MySchema)`
-///   in order to inline the schema definition.
-///   E.g. _`String`_ or _`[String]`_ or _`Option<String>`_. Parameter type is placed after `name` with
+/// * `parameter_type` Define possible type for the parameter. Can be `Type` or `inline(Type)`.
+///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
+///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
+///   [`ToSchema`][to_schema] types. Parameter type is placed after `name` with
 ///   equals sign E.g. _`"id" = String`_
 ///
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
