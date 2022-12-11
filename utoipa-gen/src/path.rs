@@ -31,8 +31,8 @@ use self::parameter::ValueParameter;
 use crate::ext::{IntoParamsType, ValueArgument};
 
 pub mod example;
+mod media_type;
 pub mod parameter;
-mod property;
 mod request_body;
 mod response;
 mod status;

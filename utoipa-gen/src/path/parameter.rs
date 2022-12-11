@@ -16,7 +16,7 @@ use syn::{
 use crate::ext::{ArgumentIn, ValueArgument};
 use crate::{component::TypeTree, parse_utils, AnyValue, Deprecated, Required};
 
-use super::{property::MediaTypeSchema, InlineableType, PathTypeTree};
+use super::{media_type::MediaTypeSchema, InlineableType, PathTypeTree};
 
 /// Parameter of request suchs as in path, header, query or cookie
 ///

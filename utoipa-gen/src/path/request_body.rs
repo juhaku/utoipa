@@ -7,7 +7,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 use crate::{parse_utils, AnyValue, Array, Required};
 
 use super::example::Example;
-use super::property::MediaTypeSchema;
+use super::media_type::MediaTypeSchema;
 use super::{InlineableType, PathTypeTree};
 
 /// Parsed information related to requst body of path.

@@ -14,7 +14,7 @@ use syn::{
 use crate::{component::TypeTree, parse_utils, AnyValue, Array};
 
 use super::{
-    example::Example, property::MediaTypeSchema, status::STATUS_CODES, InlineableType, PathTypeTree,
+    example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineableType, PathTypeTree,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
