@@ -567,3 +567,31 @@ fn request_body_with_external_ref() {
         })
     )
 }
+
+#[test]
+fn request_body_with_format_ref() {
+    let variable = "MyJson.json";
+    #[utoipa::path(get, path = "/item", request_body(content = ref(format!("{}/#User", variable))))]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/json": {
+                "schema": {
+                    "$ref": "./MyUser.json"
+                }
+            }
+        })
+    )
+}

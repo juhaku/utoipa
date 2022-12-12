@@ -535,8 +535,50 @@ impl ToTokens for Operation<'_> {
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum PathType {
-    Ref(String),
+    Ref(Ref),
     Type(InlineType),
+}
+
+/// Either literal `string` or Rust's `format!(...)` macro call.
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum Ref {
+    String(String),
+    Format(TokenStream2),
+}
+
+impl Parse for Ref {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        if input.peek(LitStr) {
+            Ok(Self::String(input.parse::<LitStr>()?.value()))
+        } else {
+            let is_format = if let Some(ident) = input.parse::<Option<Ident>>()? {
+                ident == "format" && input.peek(Token![!])
+            } else {
+                false
+            };
+
+            if is_format {
+                input.parse::<Token![!]>()?;
+                Ok(Self::Format(input.parse::<proc_macro2::Group>()?.stream()))
+            } else {
+                Err(syn::Error::new(
+                    input.span(),
+                    "unexpected token, expected either literal string or format!(...)",
+                ))
+            }
+        }
+    }
+}
+
+impl ToTokens for Ref {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self {
+            Self::String(str) => str.to_tokens(tokens),
+            Self::Format(format_stream) => tokens.extend(quote! {
+                format!(#format_stream)
+            }),
+        }
+    }
 }
 
 impl Parse for PathType {
@@ -552,7 +594,7 @@ impl Parse for PathType {
             input.parse::<Token![ref]>()?;
             let ref_stream;
             parenthesized!(ref_stream in input);
-            Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
+            Ok(Self::Ref(ref_stream.parse()?))
         } else {
             Ok(Self::Type(input.parse()?))
         }
