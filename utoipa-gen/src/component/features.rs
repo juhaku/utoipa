@@ -1470,3 +1470,45 @@ macro_rules! impl_into_inner {
 }
 
 pub(crate) use impl_into_inner;
+
+pub trait Merge<T>: IntoInner<Vec<Feature>> {
+    fn merge(self, from: T) -> Self;
+}
+
+macro_rules! impl_merge {
+    ( $($ident:ident),* ) => {
+        $(
+            impl AsMut<Vec<Feature>> for $ident {
+                fn as_mut(&mut self) -> &mut Vec<Feature> {
+                    &mut self.0
+                }
+            }
+
+            impl crate::component::features::Merge<$ident> for $ident {
+                fn merge(mut self, from: $ident) -> Self {
+                    let a = self.as_mut();
+                    let mut b = from.into_inner();
+
+                    a.append(&mut b);
+
+                    self
+                }
+            }
+        )*
+    };
+}
+
+pub(crate) use impl_merge;
+
+impl IntoInner<Vec<Feature>> for Vec<Feature> {
+    fn into_inner(self) -> Vec<Feature> {
+        self
+    }
+}
+
+impl Merge<Vec<Feature>> for Vec<Feature> {
+    fn merge(mut self, mut from: Vec<Feature>) -> Self {
+        self.append(&mut from);
+        self
+    }
+}

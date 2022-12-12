@@ -5,10 +5,10 @@ use syn::{
 };
 
 use crate::component::features::{
-    impl_into_inner, parse_features, Default, Example, ExclusiveMaximum, ExclusiveMinimum, Feature,
-    Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, MinItems, MinLength,
-    MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith,
-    Title, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, Default, Example, ExclusiveMaximum,
+    ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
+    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern,
+    ReadOnly, Rename, RenameAll, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -164,33 +164,6 @@ impl FromAttributes for Vec<Attribute> {
     }
 }
 
-pub trait Merge<T>: IntoInner<Vec<Feature>> {
-    fn merge(self, from: T) -> Self;
-}
-
-macro_rules! impl_merge {
-    ( $($ident:ident),* ) => {
-        $(
-            impl AsMut<Vec<Feature>> for $ident {
-                fn as_mut(&mut self) -> &mut Vec<Feature> {
-                    &mut self.0
-                }
-            }
-
-            impl Merge<$ident> for $ident {
-                fn merge(mut self, from: $ident) -> Self {
-                    let a = self.as_mut();
-                    let mut b = from.into_inner();
-
-                    a.append(&mut b);
-
-                    self
-                }
-            }
-        )*
-    };
-}
-
 impl_merge!(
     NamedFieldStructFeatures,
     UnnamedFieldStructFeatures,
@@ -207,19 +180,6 @@ pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribut
         .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
         .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
-}
-
-impl IntoInner<Vec<Feature>> for Vec<Feature> {
-    fn into_inner(self) -> Vec<Feature> {
-        self
-    }
-}
-
-impl Merge<Vec<Feature>> for Vec<Feature> {
-    fn merge(mut self, mut from: Vec<Feature>) -> Self {
-        self.append(&mut from);
-        self
-    }
 }
 
 pub fn parse_schema_features_with<
