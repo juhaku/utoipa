@@ -89,6 +89,7 @@ impl RequestBodyBuilder {
 /// ```
 ///
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 pub trait RequestBodyExt {
     /// Add [`Content`] to [`RequestBody`] referring to a schema
     /// with Content-Type `application/json`.
@@ -96,6 +97,7 @@ pub trait RequestBodyExt {
 }
 
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 impl RequestBodyExt for RequestBody {
     fn json_component_ref(mut self, ref_name: &str) -> RequestBody {
         self.content.insert(
@@ -107,6 +109,7 @@ impl RequestBodyExt for RequestBody {
 }
 
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 impl RequestBodyExt for RequestBodyBuilder {
     fn json_component_ref(self, ref_name: &str) -> RequestBodyBuilder {
         self.content(
@@ -160,10 +163,18 @@ mod tests {
         );
         Ok(())
     }
-    #[cfg(feature = "openapi_extensions")]
+}
+
+#[cfg(all(test, feature = "openapi_extensions"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
+mod openapi_extensions_tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use crate::openapi::request_body::RequestBodyBuilder;
+
     use super::RequestBodyExt;
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn request_body_ext() {
         let request_body = RequestBodyBuilder::new()
@@ -184,7 +195,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn request_body_builder_ext() {
         let request_body = RequestBodyBuilder::new()

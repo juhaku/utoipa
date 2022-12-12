@@ -201,6 +201,7 @@ impl From<Ref> for RefOr<Response> {
 /// ```
 ///
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 pub trait ResponseExt {
     /// Add [`Content`] to [`Response`] referring to a schema
     /// with Content-Type `application/json`.
@@ -212,6 +213,7 @@ pub trait ResponseExt {
 }
 
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 impl ResponseExt for Response {
     fn json_component_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
@@ -231,6 +233,7 @@ impl ResponseExt for Response {
 }
 
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 impl ResponseExt for ResponseBuilder {
     fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
@@ -286,10 +289,18 @@ mod tests {
         );
         Ok(())
     }
-    #[cfg(feature = "openapi_extensions")]
+}
+
+#[cfg(all(test, feature = "openapi_extensions"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
+mod openapi_extensions_tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use crate::openapi::ResponseBuilder;
+
     use super::ResponseExt;
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn response_ext() {
         let request_body = ResponseBuilder::new()
@@ -312,7 +323,6 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn response_builder_ext() {
         let request_body = ResponseBuilder::new()

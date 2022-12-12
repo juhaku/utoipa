@@ -1,3 +1,4 @@
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 //! Want to have your API documented with OpenAPI? But you don't want to see the
 //! trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
 //! be like utopic? Don't worry utoipa is just there to fill this gap. It aims to do if not all then

@@ -1096,6 +1096,7 @@ pub enum KnownFormat {
     ///
     /// **uuid** feature need to be enabled.
     #[cfg(feature = "uuid")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "uuid")))]
     Uuid,
 }
 

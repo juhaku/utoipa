@@ -87,7 +87,7 @@ use ext::ArgumentResolver;
 ///
 /// In addition to the variant type specific configuration options enum variants support custom
 /// _`rename`_ attribute. It behaves similarly to the serdes _`rename`_ attribute. If both _serde_
-/// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take prededence.
+/// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
@@ -193,7 +193,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Add custom `tag` to change JSON representation to be internally tagged.
+/// _**Add custom `tag` to change JSON representation to be internally tagged.**_
 /// ```rust
 /// # use serde::Serialize;
 /// # use utoipa::ToSchema;
@@ -211,9 +211,9 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Add serde `default` attribute for MyValue struct. Similarly `default` could be added to
+/// _**Add serde `default` attribute for MyValue struct. Similarly `default` could be added to
 /// individual fields as well. If `default` is given the field's affected will be treated
-/// as optional.
+/// as optional.**_
 /// ```rust
 ///  #[derive(utoipa::ToSchema, serde::Deserialize, Default)]
 ///  #[serde(default)]
@@ -223,6 +223,7 @@ use ext::ArgumentResolver;
 /// ```
 ///
 /// # `#[repr(...)]` attribute support
+///
 /// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
 /// This allows you to create enums from thier discriminant values.
 /// **repr** feature need to be enabled.
@@ -238,7 +239,7 @@ use ext::ArgumentResolver;
 ///     Three,
 /// }
 /// ```
-/// You can use `skip` and `tag` attributes from serde.
+/// _**You can use `skip` and `tag` attributes from serde.**_
 /// ```rust
 /// # use serde::{Deserialize, Serialize};
 /// # use utoipa::ToSchema;
@@ -252,7 +253,7 @@ use ext::ArgumentResolver;
 ///     Ok = 1,
 ///  }
 /// ```
-/// As well as [`schema attributes`][enum_schema] for enums.
+/// _**As well as [`schema attributes`][enum_schema] for enums.**_
 /// ```rust
 /// # use serde::{Deserialize, Serialize};
 /// # use utoipa::ToSchema;
@@ -300,7 +301,7 @@ use ext::ArgumentResolver;
 ///
 /// # Examples
 ///
-/// Example struct with struct level example.
+/// _**Example struct with struct level example.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -312,7 +313,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// The `schema` attribute can also be placed at field level as follows.
+/// _**The `schema` attribute can also be placed at field level as follows.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -324,7 +325,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// You can also use method reference for attribute values.
+/// _**You can also use method reference for attribute values.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -341,7 +342,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// For enums and unnamed field structs you can define `schema` at type level.
+/// _**For enums and unnamed field structs you can define `schema` at type level.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -351,7 +352,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Also you write complex enum combining all above types.
+/// _**Also you write complex enum combining all above types.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -366,7 +367,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// It is possible to specify the title of each variant to help generators create named structures.
+/// _**It is possible to specify the title of each variant to help generators create named structures.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -378,7 +379,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Use `xml` attribute to manipulate xml output.
+/// _**Use `xml` attribute to manipulate xml output.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -395,7 +396,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Use of Rust's own `#[deprecated]` attribute will reflect to generated OpenAPI spec.
+/// _**Use of Rust's own `#[deprecated]` attribute will reflect to generated OpenAPI spec.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -409,8 +410,8 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
-/// with [`SchemaFormat::KnownFormat(KnownFormat::Binary)`][binary].
+/// _**Enforce type being used in OpenAPI spec to [`String`] with `value_type` and set format to octet stream
+/// with [`SchemaFormat::KnownFormat(KnownFormat::Binary)`][binary].**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -421,7 +422,7 @@ use ext::ArgumentResolver;
 /// }
 /// ```
 ///
-/// Enforce type being used in OpenAPI spec to [`String`] with `value_type` option.
+/// _**Enforce type being used in OpenAPI spec to [`String`] with `value_type` option.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -429,7 +430,7 @@ use ext::ArgumentResolver;
 /// struct Value(i64);
 /// ```
 ///
-/// Override the `Bar` reference with a `custom::NewBar` reference.
+/// _**Override the `Bar` reference with a `custom::NewBar` reference.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #  mod custom {
@@ -444,7 +445,7 @@ use ext::ArgumentResolver;
 /// };
 /// ```
 ///
-/// Use a virtual `Object` type to render generic `object` in OpenAPI spec.
+/// _**Use a virtual `Object` type to render generic `object` in OpenAPI spec.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// # mod custom {
@@ -459,7 +460,7 @@ use ext::ArgumentResolver;
 /// };
 /// ```
 ///
-/// Serde `rename` / `rename_all` will take precedence over schema `rename` / `rename_all`.
+/// _**Serde `rename` / `rename_all` will take precedence over schema `rename` / `rename_all`.**_
 /// ```rust
 /// #[derive(utoipa::ToSchema, serde::Deserialize)]
 /// #[serde(rename_all = "lowercase")]
@@ -858,7 +859,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// Leaving empty _`()`_ creates an empty [`SecurityRequirement`][security] this is useful when
 /// security requirement is optional for operation.
 ///
-/// # actix_extras support for actix-web
+/// # actix_extras feature support for actix-web
 ///
 /// **actix_extras** feature gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
 ///
@@ -870,7 +871,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ///
 /// With **actix_extras** feature enabled the you can leave out definitions for **path**, **operation**
-/// and **parameter types** [^actix_extras].
+/// and **parameter types**.
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -891,7 +892,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// With **actix_extras** you may also not to list any _**params**_ if you do not want to specify any description for them. Params are
-/// resolved from path and the argument types of handler. [^actix_extras]
+/// resolved from path and the argument types of handler
 /// ```rust
 /// use actix_web::{get, web, HttpResponse, Responder};
 /// use serde_json::json;
@@ -908,7 +909,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// # rocket_extras support for rocket
+/// # rocket_extras feature support for rocket
 ///
 /// **rocket_extras** feature enahances path operation parameter support. It gives **utoipa** ability to parse `path`, `path parameters`
 /// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.  
@@ -920,7 +921,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ///
 ///
-/// # axum_extras suppport for axum
+/// # axum_extras feature suppport for axum
 ///
 /// **axum_extras** feature enhances parameter support for path operation in following ways.
 ///
@@ -1146,8 +1147,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [into_responses_trait]: trait.IntoResponses.html
 /// [into_params_derive]: derive.IntoParams.html
 /// [to_response_trait]: trait.ToResponse.html
-///
-/// [^actix_extras]: **actix_extras** feature need to be enabled and **actix-web** framework must be declared in your `Cargo.toml`.
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
@@ -1493,8 +1492,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
-/// for `get_pet` endpoint. [^actix]
+/// _**Demonstrate [`IntoParams`][into_params] usage with resolving `Path` and `Query` parameters
+/// with _`actix-web`_**_.
 /// ```rust
 /// use actix_web::{get, HttpResponse, Responder};
 /// use actix_web::web::{Path, Query};
@@ -1530,8 +1529,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
-/// be used as a path query, and inlining a schema query field:
+/// _**Demonstrate [`IntoParams`][into_params] usage with the `#[into_params(...)]` container attribute to
+/// be used as a path query, and inlining a schema query field:**_
 /// ```rust
 /// use serde::Deserialize;
 /// use utoipa::{IntoParams, ToSchema};
@@ -1568,7 +1567,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Override `String` with `i64` using `value_type` attribute.
+/// _**Override `String` with `i64` using `value_type` attribute.**_
 /// ```rust
 /// # use utoipa::IntoParams;
 /// #
@@ -1580,7 +1579,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Override `String` with `Object` using `value_type` attribute. _`Object`_ will render as `type: object` in OpenAPI spec.
+/// _**Override `String` with `Object` using `value_type` attribute. _`Object`_ will render as `type: object` in OpenAPI spec.**_
 /// ```rust
 /// # use utoipa::IntoParams;
 /// #
@@ -1592,7 +1591,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// You can use a generic type to override the default type of the field.
+/// _**You can use a generic type to override the default type of the field.**_
 /// ```rust
 /// # use utoipa::IntoParams;
 /// #
@@ -1604,7 +1603,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// You can even overide a [`Vec`] with another one.
+/// _**You can even overide a [`Vec`] with another one.**_
 /// ```rust
 /// # use utoipa::IntoParams;
 /// #
@@ -1616,7 +1615,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// We can override value with another [`ToSchema`][to_schema].
+/// _**We can override value with another [`ToSchema`][to_schema].**_
 /// ```rust
 /// # use utoipa::{IntoParams, ToSchema};
 /// #
@@ -1633,7 +1632,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Example with validation attributes.
+/// _**Example with validation attributes.**_
 /// ```rust
 /// #[derive(utoipa::IntoParams)]
 /// struct Item {
@@ -1677,8 +1676,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
-///
-/// [^actix]: Feature **actix_extras** need to be enabled
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

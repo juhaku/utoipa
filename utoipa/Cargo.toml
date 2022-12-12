@@ -45,3 +45,4 @@ assert-json-diff = "2"
 
 [package.metadata.docs.rs]
 features = ["actix_extras", "openapi_extensions", "yaml"]
+rustdoc-args = ["--cfg", "doc_cfg"]
