@@ -34,11 +34,43 @@ pub struct OpenApiAttr<'o> {
     servers: Punctuated<Server, Comma>,
 }
 
+impl<'o> OpenApiAttr<'o> {
+    fn merge(mut self, other: OpenApiAttr<'o>) -> Self {
+        if other.info.is_some() {
+            self.info = other.info;
+        }
+        if !other.paths.is_empty() {
+            self.paths = other.paths;
+        }
+        if !other.components.schemas.is_empty() {
+            self.components.schemas = other.components.schemas;
+        }
+        if !other.components.responses.is_empty() {
+            self.components.responses = other.components.responses;
+        }
+        if other.security.is_some() {
+            self.security = other.security;
+        }
+        if other.tags.is_some() {
+            self.tags = other.tags;
+        }
+        if other.external_docs.is_some() {
+            self.external_docs = other.external_docs;
+        }
+        if !other.servers.is_empty() {
+            self.servers = other.servers;
+        }
+
+        self
+    }
+}
+
 pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
     attrs
         .iter()
-        .find(|attribute| attribute.path.is_ident("openapi"))
+        .filter(|attribute| attribute.path.is_ident("openapi"))
         .map(|attribute| attribute.parse_args::<OpenApiAttr>().unwrap_or_abort())
+        .reduce(|acc, item| acc.merge(item))
 }
 
 impl Parse for OpenApiAttr<'_> {

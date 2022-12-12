@@ -25,12 +25,14 @@ use crate::{
 
 use super::{
     features::{
-        impl_into_inner, parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline,
-        ToTokensExt, Validatable,
+        impl_into_inner, impl_merge, parse_features, pop_feature, Feature, FeaturesExt, IntoInner,
+        IsInline, Merge, ToTokensExt, Validatable,
     },
     serde::{self, SerdeContainer},
     GenericType, TypeTree, ValueType,
 };
+
+impl_merge!(IntoParamsFeatures, FieldFeatures);
 
 /// Container attribute `#[into_params(...)]`.
 pub struct IntoParamsFeatures(Vec<Feature>);
@@ -68,13 +70,14 @@ impl ToTokens for IntoParams {
         let mut into_params_features = self
             .attrs
             .iter()
-            .find(|attr| attr.path.is_ident("into_params"))
+            .filter(|attr| attr.path.is_ident("into_params"))
             .map(|attribute| {
                 attribute
                     .parse_args::<IntoParamsFeatures>()
                     .unwrap_or_abort()
                     .into_inner()
-            });
+            })
+            .reduce(|acc, item| acc.merge(item));
         let serde_container = serde::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
@@ -268,13 +271,14 @@ impl Param<'_> {
             .field
             .attrs
             .iter()
-            .find(|attribute| attribute.path.is_ident("param"))
+            .filter(|attribute| attribute.path.is_ident("param"))
             .map(|attribute| {
                 attribute
                     .parse_args::<FieldFeatures>()
                     .unwrap_or_abort()
                     .into_inner()
             })
+            .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
 
         if let Some(ref style) = self.container_attributes.style {
