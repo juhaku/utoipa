@@ -16,7 +16,7 @@ use crate::{
 };
 
 use self::{
-    enum_variant::{CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum},
+    enum_variant::{CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum, UntaggedEnum},
     features::{
         ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
         EnumUnnamedFieldVariantFeatures, FromAttributes, NamedFieldFeatures,
@@ -29,7 +29,7 @@ use super::{
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline, RenameAll,
         ToTokensExt, Validatable,
     },
-    serde::{self, SerdeContainer, SerdeValue},
+    serde::{self, SerdeContainer, SerdeValue, SerdeEnumRepr},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
 };
 
@@ -723,15 +723,22 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
     let enum_values = get_variants_tokens_vec();
 
     tokens.extend(match container_rules {
-        Some(serde_container) if !serde_container.tag.is_empty() => {
-            let tag = &serde_container.tag;
-            TaggedEnum::new(
+        Some(serde_container) => match &serde_container.enum_repr {
+            SerdeEnumRepr::ExternallyTagged => Enum::new(enum_values).to_token_stream(),
+            SerdeEnumRepr::InternallyTagged { tag } => TaggedEnum::new(
                 enum_values
                     .into_iter()
-                    .map(|variant| (Cow::Borrowed(&**tag), variant)),
+                    .map(|variant| (Cow::Borrowed(tag.as_str()), variant)),
             )
-            .to_token_stream()
-        }
+            .to_token_stream(),
+            // FIXME: Correctly support Untagged repr
+            //SerdeEnumRepr::Untagged => Enum::new(enum_values).to_token_stream(),
+            SerdeEnumRepr::Untagged => UntaggedEnum.to_token_stream(),
+            // FIXME: Correctly support AdjacentlyTagged repr
+            SerdeEnumRepr::AdjacentlyTagged { .. } => Enum::new(enum_values).to_token_stream(),
+            // This should not be possible as serde should not let that happen
+            SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => panic!("Invalid serde enum repr"),
+        },
         _ => Enum::new(enum_values).to_token_stream(),
     });
 
@@ -837,6 +844,64 @@ impl ComplexEnum<'_> {
                         .to_token_stream(),
                 }])
                 .with_title(title.as_ref().map(ToTokens::to_token_stream))
+                .to_token_stream()
+            }
+        }
+    }
+
+    /// Produce tokens that represent a variant of a [`ComplexEnum`] where serde enum attribute
+    /// `untagged` applies.
+    fn untagged_variant_tokens(&self, variant: &Variant) -> TokenStream {
+        match &variant.fields {
+            Fields::Named(named_fields) => {
+                let (_title_features, mut named_struct_features) = variant
+                    .attrs
+                    .parse_features::<EnumNamedFieldVariantFeatures>()
+                    .into_inner()
+                    .map(|features| features.split_for_title())
+                    .unwrap_or_default();
+
+                NamedStructSchema {
+                    struct_name: Cow::Borrowed(self.enum_name),
+                    attributes: &variant.attrs,
+                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    features: Some(named_struct_features),
+                    fields: &named_fields.named,
+                    generics: None,
+                    alias: None,
+                }
+                .to_token_stream()
+            }
+            Fields::Unnamed(unnamed_fields) => {
+                let (_title_features, unnamed_struct_features) = variant
+                    .attrs
+                    .parse_features::<EnumUnnamedFieldVariantFeatures>()
+                    .into_inner()
+                    .map(|features| features.split_for_title())
+                    .unwrap_or_default();
+
+                UnnamedStructSchema {
+                    struct_name: Cow::Borrowed(self.enum_name),
+                    attributes: &variant.attrs,
+                    features: Some(unnamed_struct_features),
+                    fields: &unnamed_fields.unnamed,
+                }
+                .to_token_stream()
+            }
+            Fields::Unit => {
+                let (_title_features, unnamed_struct_features) = variant
+                    .attrs
+                    .parse_features::<EnumUnnamedFieldVariantFeatures>()
+                    .into_inner()
+                    .map(|features| features.split_for_title())
+                    .unwrap_or_default();
+
+                UnnamedStructSchema {
+                    struct_name: Cow::Borrowed(self.enum_name),
+                    attributes: &variant.attrs,
+                    features: Some(unnamed_struct_features),
+                    fields: &Punctuated::default(),
+                }
                 .to_token_stream()
             }
         }
@@ -1003,13 +1068,17 @@ impl ToTokens for ComplexEnum<'_> {
 
         let rename_all = enum_features.pop_rename_all_feature();
 
-        let tag = container_rules.as_ref().and_then(|rules| {
-            if !rules.tag.is_empty() {
-                Some(&rules.tag)
-            } else {
-                None
-            }
-        });
+        let enum_repr = container_rules
+            .as_ref()
+            .map(|rules| rules.enum_repr.clone())
+            .unwrap_or_default();
+        let tag = match &enum_repr {
+            SerdeEnumRepr::AdjacentlyTagged { tag, .. }
+            | SerdeEnumRepr::InternallyTagged { tag } => Some(tag.clone()),
+            SerdeEnumRepr::ExternallyTagged
+            | SerdeEnumRepr::Untagged
+            | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => None,
+        };
 
         // serde, externally tagged format supported by now
         self.variants
@@ -1025,27 +1094,31 @@ impl ToTokens for ComplexEnum<'_> {
             .map(|(variant, variant_serde_rules)| {
                 let variant_name = &*variant.ident.to_string();
 
-                if let Some(tag) = tag {
-                    self.tagged_variant_tokens(
-                        tag,
+                match &enum_repr {
+                    SerdeEnumRepr::ExternallyTagged => self.variant_tokens(
                         Cow::Borrowed(variant_name),
                         variant,
                         &variant_serde_rules,
                         &container_rules,
                         &rename_all,
-                    )
-                } else {
-                    self.variant_tokens(
+                    ),
+                    SerdeEnumRepr::InternallyTagged { tag } => self.tagged_variant_tokens(
+                        &tag,
                         Cow::Borrowed(variant_name),
                         variant,
                         &variant_serde_rules,
                         &container_rules,
                         &rename_all,
-                    )
+                    ),
+                    SerdeEnumRepr::Untagged => self.untagged_variant_tokens(variant),
+                    SerdeEnumRepr::AdjacentlyTagged { .. } => panic!("Unimplemented"),
+                    SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                        panic!("Serde should not have parsed an UnfinishedAdjacentlyTagged")
+                    }
                 }
             })
             .collect::<CustomEnum<'_, TokenStream>>()
-            .with_discriminator(tag.map(|tag| Cow::Borrowed(tag.as_str())))
+            .with_discriminator(tag.map(|tag| Cow::Owned(tag)))
             .to_tokens(tokens);
 
         tokens.extend(enum_features.to_token_stream());

@@ -211,6 +211,14 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
     }
 }
 
+pub struct UntaggedEnum;
+
+impl ToTokens for UntaggedEnum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(quote!(utoipa::openapi::ObjectBuilder::new().nullable(true)));
+    }
+}
+
 /// Used to create complex enums with varying Object types.
 ///
 /// Will create `oneOf` object with discriminator field for referenced schemas.
