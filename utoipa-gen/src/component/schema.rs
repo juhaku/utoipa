@@ -734,10 +734,7 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
                     .map(|variant| (Cow::Borrowed(tag.as_str()), variant)),
             )
             .to_token_stream(),
-            // FIXME: Correctly support Untagged repr
-            //SerdeEnumRepr::Untagged => Enum::new(enum_values).to_token_stream(),
             SerdeEnumRepr::Untagged => UntaggedEnum.to_token_stream(),
-            // FIXME: Correctly support AdjacentlyTagged repr
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 AdjacentlyTaggedEnum::new(enum_values.into_iter().map(|variant| {
                     (
@@ -1162,10 +1159,10 @@ impl ComplexEnum<'_> {
                 } else {
                     abort!(
                         variant,
-                        "Unnamed (tuple) enum variants are unsupported for internally tagged enums using the `tag = ` serde attribute";
+                        "Unnamed (tuple) enum variants are unsupported for adjacently tagged enums using the `tag = <tag>, content = <content>` serde attribute";
 
                         help = "Try using a different serde enum representation";
-                        note = "See more about enum limitations here: `https://serde.rs/enum-representations.html#internally-tagged`"
+                        note = "See more about enum limitations here: `https://serde.rs/enum-representations.html#adjacently-tagged`"
                     );
                 }
             }
