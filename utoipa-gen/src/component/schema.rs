@@ -16,7 +16,10 @@ use crate::{
 };
 
 use self::{
-    enum_variant::{CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum, UntaggedEnum},
+    enum_variant::{
+        AdjacentlyTaggedEnum, CustomEnum, Enum, ObjectVariant, SimpleEnumVariant, TaggedEnum,
+        UntaggedEnum,
+    },
     features::{
         ComplexEnumFeatures, EnumFeatures, EnumNamedFieldVariantFeatures,
         EnumUnnamedFieldVariantFeatures, FromAttributes, NamedFieldFeatures,
@@ -29,7 +32,7 @@ use super::{
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, IsInline, RenameAll,
         ToTokensExt, Validatable,
     },
-    serde::{self, SerdeContainer, SerdeValue, SerdeEnumRepr},
+    serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
 };
 
@@ -735,7 +738,16 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
             //SerdeEnumRepr::Untagged => Enum::new(enum_values).to_token_stream(),
             SerdeEnumRepr::Untagged => UntaggedEnum.to_token_stream(),
             // FIXME: Correctly support AdjacentlyTagged repr
-            SerdeEnumRepr::AdjacentlyTagged { .. } => Enum::new(enum_values).to_token_stream(),
+            SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
+                AdjacentlyTaggedEnum::new(enum_values.into_iter().map(|variant| {
+                    (
+                        Cow::Borrowed(tag.as_str()),
+                        Cow::Borrowed(content.as_str()),
+                        variant,
+                    )
+                }))
+                .to_token_stream()
+            }
             // This should not be possible as serde should not let that happen
             SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => panic!("Invalid serde enum repr"),
         },
@@ -1055,6 +1067,142 @@ impl ComplexEnum<'_> {
             }
         }
     }
+
+    fn adjacently_tagged_variant_tokens(
+        &self,
+        tag: &str,
+        content: &str,
+        name: Cow<'_, str>,
+        variant: &Variant,
+        variant_rules: &Option<SerdeValue>,
+        container_rules: &Option<SerdeContainer>,
+        rename_all: &Option<RenameAll>,
+    ) -> TokenStream {
+        match &variant.fields {
+            Fields::Named(named_fields) => {
+                let (title_features, mut named_struct_features) = variant
+                    .attrs
+                    .parse_features::<EnumNamedFieldVariantFeatures>()
+                    .into_inner()
+                    .map(|features| features.split_for_title())
+                    .unwrap_or_default();
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut named_struct_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
+
+                let named_enum = NamedStructSchema {
+                    struct_name: Cow::Borrowed(self.enum_name),
+                    attributes: &variant.attrs,
+                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    features: Some(named_struct_features),
+                    fields: &named_fields.named,
+                    generics: None,
+                    alias: None,
+                };
+                let title = title_features.first().map(ToTokens::to_token_stream);
+
+                let variant_name_tokens = Enum::new([SimpleEnumVariant {
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(&name))
+                        .to_token_stream(),
+                }]);
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        #title
+                        .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                        .property(#tag, #variant_name_tokens)
+                        .required(#tag)
+                        .property(#content, #named_enum)
+                        .required(#content)
+                }
+            }
+            Fields::Unnamed(unnamed_fields) => {
+                if unnamed_fields.unnamed.len() == 1 {
+                    let (title_features, mut unnamed_struct_features) = variant
+                        .attrs
+                        .parse_features::<EnumUnnamedFieldVariantFeatures>()
+                        .into_inner()
+                        .map(|features| features.split_for_title())
+                        .unwrap_or_default();
+                    let variant_name = rename_enum_variant(
+                        name.as_ref(),
+                        &mut unnamed_struct_features,
+                        variant_rules,
+                        container_rules,
+                        rename_all,
+                    );
+
+                    let unnamed_enum = UnnamedStructSchema {
+                        struct_name: Cow::Borrowed(self.enum_name),
+                        attributes: &variant.attrs,
+                        features: Some(unnamed_struct_features),
+                        fields: &unnamed_fields.unnamed,
+                    };
+
+                    let title = title_features.first().map(ToTokens::to_token_stream);
+                    let variant_name_tokens = Enum::new([SimpleEnumVariant {
+                        value: variant_name
+                            .unwrap_or(Cow::Borrowed(&name))
+                            .to_token_stream(),
+                    }]);
+
+                    quote! {
+                        utoipa::openapi::schema::ObjectBuilder::new()
+                            #title
+                            .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                            .property(#tag, #variant_name_tokens)
+                            .required(#tag)
+                            .property(#content, #unnamed_enum)
+                            .required(#content)
+                    }
+                } else {
+                    abort!(
+                        variant,
+                        "Unnamed (tuple) enum variants are unsupported for internally tagged enums using the `tag = ` serde attribute";
+
+                        help = "Try using a different serde enum representation";
+                        note = "See more about enum limitations here: `https://serde.rs/enum-representations.html#internally-tagged`"
+                    );
+                }
+            }
+            Fields::Unit => {
+                // In this case `content` is simply ignored - there is nothing to put in it.
+
+                let mut unit_features =
+                    features::parse_schema_features_with(&variant.attrs, |input| {
+                        Ok(parse_features!(input as super::features::Title, Rename))
+                    })
+                    .unwrap_or_default();
+                let title = pop_feature!(unit_features => Feature::Title(_));
+
+                let variant_name = rename_enum_variant(
+                    name.as_ref(),
+                    &mut unit_features,
+                    variant_rules,
+                    container_rules,
+                    rename_all,
+                );
+
+                // Unit variant is just simple enum with single variant.
+                let variant_tokens = Enum::new([SimpleEnumVariant {
+                    value: variant_name
+                        .unwrap_or(Cow::Borrowed(&name))
+                        .to_token_stream(),
+                }]);
+
+                quote! {
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        #title
+                        .property(#tag, #variant_tokens)
+                        .required(#tag)
+                }
+            }
+        }
+    }
 }
 
 impl ToTokens for ComplexEnum<'_> {
@@ -1080,7 +1228,6 @@ impl ToTokens for ComplexEnum<'_> {
             | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => None,
         };
 
-        // serde, externally tagged format supported by now
         self.variants
             .iter()
             .filter_map(|variant: &Variant| {
@@ -1103,7 +1250,7 @@ impl ToTokens for ComplexEnum<'_> {
                         &rename_all,
                     ),
                     SerdeEnumRepr::InternallyTagged { tag } => self.tagged_variant_tokens(
-                        &tag,
+                        tag,
                         Cow::Borrowed(variant_name),
                         variant,
                         &variant_serde_rules,
@@ -1111,14 +1258,23 @@ impl ToTokens for ComplexEnum<'_> {
                         &rename_all,
                     ),
                     SerdeEnumRepr::Untagged => self.untagged_variant_tokens(variant),
-                    SerdeEnumRepr::AdjacentlyTagged { .. } => panic!("Unimplemented"),
+                    SerdeEnumRepr::AdjacentlyTagged { tag, content } => self
+                        .adjacently_tagged_variant_tokens(
+                            tag,
+                            content,
+                            Cow::Borrowed(variant_name),
+                            variant,
+                            &variant_serde_rules,
+                            &container_rules,
+                            &rename_all,
+                        ),
                     SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
                         panic!("Serde should not have parsed an UnfinishedAdjacentlyTagged")
                     }
                 }
             })
             .collect::<CustomEnum<'_, TokenStream>>()
-            .with_discriminator(tag.map(|tag| Cow::Owned(tag)))
+            .with_discriminator(tag.map(Cow::Owned))
             .to_tokens(tokens);
 
         tokens.extend(enum_features.to_token_stream());

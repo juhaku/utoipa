@@ -1795,6 +1795,214 @@ fn derive_complex_enum_with_ref_serde_untagged_named_fields() {
 }
 
 #[test]
+fn derive_complex_enum_serde_adjacently_tagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Foo {
+            Bar(i32),
+            Baz(String),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Bar",
+                            ],
+                        },
+                        "content": {
+                            "format": "int32",
+                            "type": "integer",
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Baz",
+                            ]
+                        },
+                        "content": {
+                            "type": "string",
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_adjacently_tagged() {
+    #[derive(Serialize)]
+    struct Foo {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Bar {
+            Baz(i32),
+            FooBar(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Baz",
+                            ],
+                        },
+                        "content": {
+                            "type": "integer",
+                            "format": "int32",
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "FooBar",
+                            ],
+                        },
+                        "content": {
+                            "$ref": "#/components/schemas/Foo"
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Foo {
+            One { n: i32 },
+            Two { bar: Bar },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "One",
+                            ],
+                        },
+                        "content": {
+                            "type": "object",
+                            "properties": {
+                                "n": {
+                                    "format": "int32",
+                                    "type": "integer",
+                                },
+                            },
+                            "required": [
+                                "n",
+                            ],
+                        },
+                    },
+                    "required": [
+                      "tag",
+                      "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Two",
+                            ],
+                        },
+                        "content": {
+                            "type": "object",
+                            "properties": {
+                                "bar": {
+                                    "$ref": "#/components/schemas/Bar",
+                                },
+                            },
+                            "required": [
+                                "bar",
+                            ],
+                        },
+                    },
+                    "required": [
+                      "tag",
+                      "content",
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_serde_tag_title() {
     #[derive(Serialize)]
     struct Foo(String);

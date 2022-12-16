@@ -226,13 +226,13 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
                     acc.default = value.default;
                 }
                 match value.enum_repr {
-                    SerdeEnumRepr::ExternallyTagged => {},
+                    SerdeEnumRepr::ExternallyTagged => {}
                     SerdeEnumRepr::Untagged
                     | SerdeEnumRepr::InternallyTagged { .. }
                     | SerdeEnumRepr::AdjacentlyTagged { .. }
                     | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
                         acc.enum_repr = value.enum_repr;
-                    },
+                    }
                 }
                 if value.rename_all.is_some() {
                     acc.rename_all = value.rename_all;
