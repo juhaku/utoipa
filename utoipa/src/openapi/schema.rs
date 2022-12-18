@@ -850,13 +850,13 @@ impl Ref {
     /// Construct a new [`Ref`] from provided schema name. This will create a [`Ref`] that
     /// references the the reusable schemas.
     pub fn from_schema_name<I: Into<String>>(schema_name: I) -> Self {
-        Self::new(&format!("#/components/schemas/{}", schema_name.into()))
+        Self::new(format!("#/components/schemas/{}", schema_name.into()))
     }
 
     /// Construct a new [`Ref`] from provided response name. This will create a [`Ref`] that
     /// references the reusable response.
     pub fn from_response_name<I: Into<String>>(response_name: I) -> Self {
-        Self::new(&format!("#/components/responses/{}", response_name.into()))
+        Self::new(format!("#/components/responses/{}", response_name.into()))
     }
 
     to_array_builder!();

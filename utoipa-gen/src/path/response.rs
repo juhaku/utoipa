@@ -345,7 +345,7 @@ impl Parse for ResponseStatus {
                 .ok_or_else(|| {
                     Error::new(
                         last_segment.span(),
-                        &format!(
+                        format!(
                             "No associate item `{}` found for struct `http::StatusCode`",
                             last_segment.ident
                         ),
@@ -411,7 +411,7 @@ impl Parse for Content {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        &format!(
+                        format!(
                             "unexpected attribute: {ident}, expected one of: example, examples"
                         ),
                     ));

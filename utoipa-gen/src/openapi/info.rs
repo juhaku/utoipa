@@ -111,7 +111,7 @@ impl Parse for Info<'_> {
                     info.contact = Some(contact_stream.parse()?)
                 }
                 _ => {
-                    return Err(Error::new(ident.span(), &format!("unexpected attribute: {attribute_name}, expected one of: title, version, description, licence, contact")));
+                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: title, version, description, licence, contact")));
                 }
             }
             if !input.is_empty() {
@@ -183,7 +183,7 @@ impl Parse for License<'_> {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        &format!(
+                        format!(
                             "unexpected attribute: {attribute_name}, expected one of: name, url"
                         ),
                     ));
@@ -256,7 +256,7 @@ impl Parse for Contact<'_> {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        &format!("unexpected attribute: {attribute_name}, expected one of: name, email, url"),
+                        format!("unexpected attribute: {attribute_name}, expected one of: name, email, url"),
                     ));
                 }
             }

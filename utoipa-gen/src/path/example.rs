@@ -61,7 +61,7 @@ impl Parse for Example {
                     return Err(
                         Error::new(
                             ident.span(),
-                            &format!("unexpected attribute: {attribute_name}, expected one of: summary, description, value, external_value")
+                            format!("unexpected attribute: {attribute_name}, expected one of: summary, description, value, external_value")
                         )
                     )
                 }

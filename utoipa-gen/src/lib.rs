@@ -1821,7 +1821,7 @@ impl Parse for ExternalDocs {
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
-                syn::Error::new(error.span(), &format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+                syn::Error::new(error.span(), format!("{}, {}", EXPECTED_ATTRIBUTE, error))
             })?;
             let attribute_name = &*ident.to_string();
 
@@ -2000,7 +2000,7 @@ mod parse_utils {
                 if ident != "json" {
                     return Err(Error::new(
                         ident.span(),
-                        &format!("unexpected token {ident}, expected: json!(...)"),
+                        format!("unexpected token {ident}, expected: json!(...)"),
                     ));
                 }
 
