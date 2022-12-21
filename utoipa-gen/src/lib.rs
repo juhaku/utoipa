@@ -1761,7 +1761,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///
 /// 2. By decorating unnamed field `struct` with [`ToResponse`] derive macro. Unnamed field struct
 ///    allows users to use new type pattern to define one inner field which is used as a schema for
-///    the generated response. This allos users to define `Vec` and `Option` response types.
+///    the generated response. This allows users to define `Vec` and `Option` response types.
 ///
 ///    ```rust
 ///     # #[derive(utoipa::ToSchema)]
