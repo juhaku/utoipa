@@ -594,14 +594,14 @@ pub trait IntoResponses {
 ///
 /// ```
 /// use utoipa::{
-///     openapi::{Response, ResponseBuilder},
+///     openapi::{RefOr, Response, ResponseBuilder},
 ///     ToResponse,
 /// };
 ///
 /// struct MyResponse;
 ///
 /// impl ToResponse for MyResponse {
-///     fn response() -> (String, utoipa::openapi::RefOr<Response>) {
+///     fn response() -> (String, RefOr<Response>) {
 ///         (
 ///             "MyResponse".to_string(),
 ///             ResponseBuilder::new().description("My Response").build().into(),

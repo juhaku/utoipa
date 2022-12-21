@@ -83,7 +83,23 @@ impl DeriveResponse {
         content: I,
     ) -> ResponseTuple {
         let content: Punctuated<Content, Comma> = Punctuated::from_iter(content);
-        if let Some(response_value) = self.parse_derive_response_value(&self.attributes) {
+        let response_value = self.parse_derive_response_value(self.attributes.as_slice());
+        if let Some(response_value) = response_value {
+            if (!content.is_empty() && response_value.example.is_some())
+                || (!content.is_empty() && response_value.examples.is_some())
+            {
+                let ident = response_value
+                    .example
+                    .as_ref()
+                    .map(|(_, ident)| ident)
+                    .or_else(|| response_value.examples.as_ref().map(|(_, ident)| ident))
+                    .expect("Expected `example` or `examples` to be present");
+                abort! {
+                    ident,
+                    "Enum with `#[content]` attribute in variant cannot have enum level `example` or `examples` defined";
+                    help = "Try defining `{}` on the enum variant", ident.to_string(),
+                }
+            }
             let value = ResponseValue {
                 description: if response_value.description.is_empty() && !description.is_empty() {
                     description
@@ -91,10 +107,9 @@ impl DeriveResponse {
                     response_value.description
                 },
                 headers: response_value.headers,
-                example: response_value.example,
-                examples: response_value.examples,
+                example: response_value.example.map(|(example, _)| example),
+                examples: response_value.examples.map(|(examples, _)| examples),
                 content_type: response_value.content_type,
-
                 response_type: if content.is_empty() {
                     Some(PathType::Type(InlineType {
                         ty,
@@ -195,8 +210,8 @@ impl ToTokens for DeriveResponse {
                                     ty,
                                     is_inline: false,
                                 }),
-                                example,
-                                examples,
+                                example.map(|(example, _)| example),
+                                examples.map(|(examples, _)| examples),
                             )
                         })
                     });
@@ -482,8 +497,8 @@ struct DeriveResponseValue {
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     description: String,
-    example: Option<AnyValue>,
-    examples: Option<Punctuated<Example, Comma>>,
+    example: Option<(AnyValue, Ident)>,
+    examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
 
 impl DeriveResponseValue {
@@ -525,10 +540,10 @@ impl Parse for DeriveResponseValue {
                     response.headers = parse::headers(input)?;
                 }
                 "example" => {
-                    response.example = Some(parse::example(input)?);
+                    response.example = Some((parse::example(input)?, ident));
                 }
                 "examples" => {
-                    response.examples = Some(parse::examples(input)?);
+                    response.examples = Some((parse::examples(input)?, ident));
                 }
                 _ => {
                     return Err(Error::new(
