@@ -1698,7 +1698,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response))]
+#[proc_macro_derive(ToResponse, attributes(response, content))]
 /// Derive response macro attribute
 pub fn to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {

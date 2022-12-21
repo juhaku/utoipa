@@ -243,3 +243,63 @@ fn derive_response_multiple_examples() {
         })
     )
 }
+
+#[test]
+fn derive_response_with_enum_contents() {
+    #[allow(unused)]
+    struct Admin {
+        name: String,
+    }
+    #[allow(unused)]
+    struct Moderator {
+        name: String,
+    }
+    #[derive(ToSchema, ToResponse)]
+    #[allow(unused)]
+    enum Person {
+        #[response(examples(
+                ("Person1" = (value = json!({"name": "name1"}))),
+                ("Person2" = (value = json!({"name": "name2"})))
+        ))]
+        Admin(#[content("application/json/1")] Admin),
+        #[response(example = json!({"name": "name3"}))]
+        Moderator(#[content("application/json/2")] Moderator),
+    }
+    let (name, v) = <Person as utoipa::ToResponse>::response();
+    let value = serde_json::to_value(v).unwrap();
+
+    assert_eq!("Person", name);
+    assert_json_eq!(
+        value,
+        json!({
+            "content": {
+                "application/json/1": {
+                    "examples": {
+                        "Person1": {
+                            "value": {
+                                "name": "name1"
+                            }
+                        },
+                        "Person2": {
+                            "value": {
+                                "name": "name2"
+                            }
+                        }
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/Admin"
+                    }
+                },
+                "application/json/2": {
+                    "example": {
+                        "name": "name3"
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/Moderator"
+                    }
+                }
+            },
+            "description": ""
+        })
+    )
+}

@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, iter, mem};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::{abort, ResultExt};
@@ -10,6 +10,7 @@ use syn::{
     spanned::Spanned,
     token::Comma,
     Attribute, Data, Error, ExprPath, Generics, LitInt, LitStr, Path, Token, Type, TypePath,
+    Variant,
 };
 
 use crate::{doc_comment::CommentAttributes, parse_utils, AnyValue, Array};
@@ -27,7 +28,7 @@ pub struct DeriveResponse {
 }
 
 impl DeriveResponse {
-    fn get_type(&self) -> Type {
+    fn get_type(&self) -> DeriveResponseType {
         let get_type = || {
             let path = Path::from(self.ident.clone());
             let type_path = TypePath { path, qself: None };
@@ -36,14 +37,16 @@ impl DeriveResponse {
         match &self.data {
             Data::Struct(value) => {
                 match &value.fields {
-                    syn::Fields::Named(_) | syn::Fields::Unit => get_type(),
+                    syn::Fields::Named(_) | syn::Fields::Unit => {
+                        DeriveResponseType::Struct(get_type())
+                    }
                     syn::Fields::Unnamed(unnamed) => {
                         if unnamed.unnamed.len() <= 1 {
                             unnamed
                             .unnamed
                             .iter()
                             .next()
-                            .map(|field| field.ty.clone()).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
+                            .map(|field| DeriveResponseType::Struct(field.ty.clone())).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
                         } else {
                             abort!(
                                 unnamed.span(),
@@ -53,17 +56,13 @@ impl DeriveResponse {
                     }
                 }
             }
-            Data::Enum(_) => get_type(),
+            Data::Enum(variants) => DeriveResponseType::Enum(get_type(), &variants.variants),
             _ => abort!(self.ident, "Union type is not supported with `ToResponse`"),
         }
     }
-}
 
-impl ToTokens for DeriveResponse {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        // construct default type for the response
-        let response_value = self
-            .attributes
+    fn parse_derive_response_value(&self, attributes: &[Attribute]) -> Option<DeriveResponseValue> {
+        attributes
             .iter()
             .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
             .map(|attribute| {
@@ -74,12 +73,17 @@ impl ToTokens for DeriveResponse {
             .reduce(|mut acc, item| {
                 acc.merge_from(item);
                 acc
-            });
+            })
+    }
 
-        let description =
-            CommentAttributes::from_attributes(&self.attributes).as_formatted_string();
-
-        let response = if let Some(response_value) = response_value {
+    fn create_response<I: Iterator<Item = Content>>(
+        &self,
+        description: String,
+        ty: Type,
+        content: I,
+    ) -> ResponseTuple {
+        let content: Punctuated<Content, Comma> = Punctuated::from_iter(content);
+        if let Some(response_value) = self.parse_derive_response_value(&self.attributes) {
             let value = ResponseValue {
                 description: if response_value.description.is_empty() && !description.is_empty() {
                     description
@@ -90,13 +94,17 @@ impl ToTokens for DeriveResponse {
                 example: response_value.example,
                 examples: response_value.examples,
                 content_type: response_value.content_type,
-                response_type: Some(PathType::Type(InlineType {
-                    ty: self.get_type(),
-                    // TODO schema from `ToSchema` with inline????
-                    is_inline: false,
-                })),
-                // TODO add `content` for enums
-                ..Default::default()
+
+                response_type: if content.is_empty() {
+                    Some(PathType::Type(InlineType {
+                        ty,
+                        // TODO schema from `ToSchema` with inline????
+                        is_inline: false,
+                    }))
+                } else {
+                    None
+                },
+                content,
             };
 
             ResponseTuple {
@@ -105,18 +113,95 @@ impl ToTokens for DeriveResponse {
             }
         } else {
             let path_type = PathType::Type(InlineType {
-                ty: self.get_type(),
+                ty,
                 is_inline: false,
             });
 
             let value = ResponseValue {
-                response_type: Some(path_type),
+                response_type: if content.is_empty() {
+                    Some(path_type)
+                } else {
+                    None
+                },
+                content,
                 description,
                 ..Default::default()
             };
             ResponseTuple {
                 inner: Some(ResponseTupleInner::Value(value)),
                 ..Default::default()
+            }
+        }
+    }
+}
+
+enum DeriveResponseType<'r> {
+    Struct(Type),
+    Enum(Type, &'r Punctuated<Variant, Comma>),
+}
+
+impl ToTokens for DeriveResponse {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        // construct default type for the response
+        let derive_response_type = self.get_type();
+        let description =
+            CommentAttributes::from_attributes(&self.attributes).as_formatted_string();
+
+        let response = match derive_response_type {
+            DeriveResponseType::Struct(ty) => self.create_response(description, ty, iter::empty()),
+            DeriveResponseType::Enum(ty, variants) => {
+                let variants_content = variants
+                    .iter()
+                    .map(|variant| {
+                        let variant_derive_response_value =
+                            self.parse_derive_response_value(variant.attrs.as_slice());
+                        let field = variant.fields.iter().next();
+
+                        let content_type = field.and_then(|field| {
+                            field
+                                .attrs
+                                .iter()
+                                .find(|attribute| attribute.path.get_ident().unwrap() == "content")
+                                .map(|attribute| {
+                                    attribute
+                                        .parse_args_with(|input: ParseStream| {
+                                            input.parse::<LitStr>()
+                                        })
+                                        .unwrap_or_abort()
+                                })
+                                .map(|content| content.value())
+                        });
+
+                        (
+                            field.map(|field| field.ty.clone()).zip(content_type),
+                            variant_derive_response_value,
+                        )
+                    })
+                    .filter_map(|(field, mut variant_derive)| {
+                        let (example, examples) = if let Some(variant_derive) = &mut variant_derive
+                        {
+                            (
+                                mem::take(&mut variant_derive.example),
+                                mem::take(&mut variant_derive.examples),
+                            )
+                        } else {
+                            (None, None)
+                        };
+
+                        field.map(|(ty, content_type)| {
+                            Content(
+                                content_type,
+                                PathType::Type(InlineType {
+                                    ty,
+                                    is_inline: false,
+                                }),
+                                example,
+                                examples,
+                            )
+                        })
+                    });
+
+                self.create_response(description, ty, variants_content)
             }
         };
 
