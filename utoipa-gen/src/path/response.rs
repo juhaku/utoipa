@@ -1,22 +1,138 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
+use proc_macro_error::{abort, ResultExt};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    bracketed, parenthesized,
+    parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
-    token::{Bracket, Comma},
-    Error, ExprPath, LitInt, LitStr, Token,
+    token::Comma,
+    Attribute, Data, Error, ExprPath, Generics, LitInt, LitStr, Path, Token, Type, TypePath,
 };
 
-use crate::{parse_utils, AnyValue, Array};
+use crate::{doc_comment::CommentAttributes, parse_utils, AnyValue, Array};
 
 use super::{
     example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineType, PathType,
     PathTypeTree,
 };
+
+pub struct DeriveResponse {
+    pub attributes: Vec<Attribute>,
+    pub data: Data,
+    pub generics: Generics,
+    pub ident: Ident,
+}
+
+impl DeriveResponse {
+    fn get_type(&self) -> Type {
+        let get_type = || {
+            let path = Path::from(self.ident.clone());
+            let type_path = TypePath { path, qself: None };
+            Type::Path(type_path)
+        };
+        match &self.data {
+            Data::Struct(value) => {
+                match &value.fields {
+                    syn::Fields::Named(_) | syn::Fields::Unit => get_type(),
+                    syn::Fields::Unnamed(unnamed) => {
+                        if unnamed.unnamed.len() <= 1 {
+                            unnamed
+                            .unnamed
+                            .iter()
+                            .next()
+                            .map(|field| field.ty.clone()).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
+                        } else {
+                            abort!(
+                                unnamed.span(),
+                                "Unnamed struct with tuple value is unsupported in `ToResponse`"
+                            );
+                        }
+                    }
+                }
+            }
+            Data::Enum(_) => get_type(),
+            _ => abort!(self.ident, "Union type is not supported with `ToResponse`"),
+        }
+    }
+}
+
+impl ToTokens for DeriveResponse {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        // construct default type for the response
+        let response_value = self
+            .attributes
+            .iter()
+            .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
+            .map(|attribute| {
+                attribute
+                    .parse_args::<DeriveResponseValue>()
+                    .unwrap_or_abort()
+            })
+            .reduce(|mut acc, item| {
+                acc.merge_from(item);
+                acc
+            });
+
+        let description =
+            CommentAttributes::from_attributes(&self.attributes).as_formatted_string();
+
+        let response = if let Some(response_value) = response_value {
+            let value = ResponseValue {
+                description: if response_value.description.is_empty() && !description.is_empty() {
+                    description
+                } else {
+                    response_value.description
+                },
+                headers: response_value.headers,
+                example: response_value.example,
+                examples: response_value.examples,
+                content_type: response_value.content_type,
+                response_type: Some(PathType::Type(InlineType {
+                    ty: self.get_type(),
+                    // TODO schema from `ToSchema` with inline????
+                    is_inline: false,
+                })),
+                // TODO add `content` for enums
+                ..Default::default()
+            };
+
+            ResponseTuple {
+                inner: Some(ResponseTupleInner::Value(value)),
+                ..Default::default()
+            }
+        } else {
+            let path_type = PathType::Type(InlineType {
+                ty: self.get_type(),
+                is_inline: false,
+            });
+
+            let value = ResponseValue {
+                response_type: Some(path_type),
+                description,
+                ..Default::default()
+            };
+            ResponseTuple {
+                inner: Some(ResponseTupleInner::Value(value)),
+                ..Default::default()
+            }
+        };
+
+        let ident = &self.ident;
+        let name = &*self.ident.to_string();
+
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        tokens.extend(quote! {
+            impl #impl_generics utoipa::ToResponse for #ident #ty_generics #where_clause {
+                fn response() -> (String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>) {
+                    (#name.to_string(), #response.into())
+                }
+            }
+        });
+    }
+}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response {
@@ -81,21 +197,9 @@ enum ResponseTupleInner {
     Ref(InlineType),
 }
 
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResponseValue {
-    description: String,
-    response_type: Option<PathType>,
-    content_type: Option<Vec<String>>,
-    headers: Vec<Header>,
-    example: Option<AnyValue>,
-    examples: Option<Punctuated<Example, Comma>>,
-    content: Punctuated<Content, Comma>,
-}
-
 impl Parse for ResponseTuple {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, response";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, example, examples, response";
 
         let mut response = ResponseTuple::default();
 
@@ -114,8 +218,7 @@ impl Parse for ResponseTuple {
                         parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
                 }
                 "description" => {
-                    response.as_value(input.span())?.description =
-                        parse_utils::parse_next_literal_str(input)?;
+                    response.as_value(input.span())?.description = parse::description(input)?;
                 }
                 "body" => {
                     response.as_value(input.span())?.response_type =
@@ -123,39 +226,16 @@ impl Parse for ResponseTuple {
                 }
                 "content_type" => {
                     response.as_value(input.span())?.content_type =
-                        Some(parse_utils::parse_next(input, || {
-                            let look_content_type = input.lookahead1();
-                            if look_content_type.peek(LitStr) {
-                                Ok(vec![input.parse::<LitStr>()?.value()])
-                            } else if look_content_type.peek(Bracket) {
-                                let content_types;
-                                bracketed!(content_types in input);
-                                Ok(
-                                    Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
-                                        .into_iter()
-                                        .map(|lit| lit.value())
-                                        .collect(),
-                                )
-                            } else {
-                                Err(look_content_type.error())
-                            }
-                        })?);
+                        Some(parse::content_type(input)?);
                 }
                 "headers" => {
-                    let headers;
-                    parenthesized!(headers in input);
-
-                    response.as_value(input.span())?.headers = parse_utils::parse_groups(&headers)?;
+                    response.as_value(input.span())?.headers = parse::headers(input)?;
                 }
                 "example" => {
-                    response.as_value(input.span())?.example =
-                        Some(parse_utils::parse_next(input, || {
-                            AnyValue::parse_lit_str_or_json(input)
-                        })?);
+                    response.as_value(input.span())?.example = Some(parse::example(input)?);
                 }
                 "examples" => {
-                    response.as_value(input.span())?.examples =
-                        Some(parse_utils::parse_punctuated_within_parenthesis(input)?);
+                    response.as_value(input.span())?.examples = Some(parse::examples(input)?);
                 }
                 "content" => {
                     response.as_value(input.span())?.content =
@@ -183,14 +263,32 @@ impl Parse for ResponseTuple {
     }
 }
 
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ResponseValue {
+    description: String,
+    response_type: Option<PathType>,
+    content_type: Option<Vec<String>>,
+    headers: Vec<Header>,
+    example: Option<AnyValue>,
+    examples: Option<Punctuated<Example, Comma>>,
+    content: Punctuated<Content, Comma>,
+}
+
 impl ToTokens for ResponseTuple {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
-                tokens.extend(quote! {
-                    utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
-                });
+                if res.is_inline {
+                    tokens.extend(quote_spanned! {path.span()=>
+                        <#path as utoipa::ToResponse>::response().1
+                    });
+                } else {
+                    tokens.extend(quote! {
+                        utoipa::openapi::Ref::from_response_name(<#path as utoipa::ToResponse>::response().0)
+                    });
+                }
             }
             ResponseTupleInner::Value(val) => {
                 let description = &val.description;
@@ -290,6 +388,77 @@ impl ToTokens for ResponseTuple {
                 tokens.extend(quote! { .build() });
             }
         }
+    }
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct DeriveResponseValue {
+    content_type: Option<Vec<String>>,
+    headers: Vec<Header>,
+    description: String,
+    example: Option<AnyValue>,
+    examples: Option<Punctuated<Example, Comma>>,
+}
+
+impl DeriveResponseValue {
+    fn merge_from(&mut self, value: DeriveResponseValue) {
+        if value.content_type.is_some() {
+            self.content_type = value.content_type;
+        }
+        if !value.headers.is_empty() {
+            self.headers = value.headers;
+        }
+        if !value.description.is_empty() {
+            self.description = value.description;
+        }
+        if value.example.is_some() {
+            self.example = value.example;
+        }
+        if value.examples.is_some() {
+            self.examples = value.examples;
+        }
+    }
+}
+
+impl Parse for DeriveResponseValue {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut response = DeriveResponseValue::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>()?;
+            let attribute_name = &*ident.to_string();
+
+            match attribute_name {
+                "description" => {
+                    response.description = parse::description(input)?;
+                }
+                "content_type" => {
+                    response.content_type = Some(parse::content_type(input)?);
+                }
+                "headers" => {
+                    response.headers = parse::headers(input)?;
+                }
+                "example" => {
+                    response.example = Some(parse::example(input)?);
+                }
+                "examples" => {
+                    response.examples = Some(parse::examples(input)?);
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unexected attribute: {attribute_name}, expected any of: inline, description, content_type, headers, example"),
+                    ));
+                }
+            }
+
+            if !input.is_empty() {
+                input.parse::<Comma>()?;
+            }
+        }
+
+        Ok(response)
     }
 }
 
@@ -592,5 +761,61 @@ impl ToTokens for Header {
         }
 
         tokens.extend(quote! { .build() })
+    }
+}
+
+mod parse {
+    use syn::parse::ParseStream;
+    use syn::punctuated::Punctuated;
+    use syn::token::{Bracket, Comma};
+    use syn::{bracketed, parenthesized, LitStr, Result};
+
+    use crate::path::example::Example;
+    use crate::{parse_utils, AnyValue};
+
+    use super::Header;
+
+    #[inline]
+    pub(super) fn description(input: ParseStream) -> Result<String> {
+        parse_utils::parse_next_literal_str(input)
+    }
+
+    #[inline]
+    pub(super) fn content_type(input: ParseStream) -> Result<Vec<String>> {
+        parse_utils::parse_next(input, || {
+            let look_content_type = input.lookahead1();
+            if look_content_type.peek(LitStr) {
+                Ok(vec![input.parse::<LitStr>()?.value()])
+            } else if look_content_type.peek(Bracket) {
+                let content_types;
+                bracketed!(content_types in input);
+                Ok(
+                    Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                        .into_iter()
+                        .map(|lit| lit.value())
+                        .collect(),
+                )
+            } else {
+                Err(look_content_type.error())
+            }
+        })
+    }
+
+    #[inline]
+    pub(super) fn headers(input: ParseStream) -> Result<Vec<Header>> {
+        let headers;
+        parenthesized!(headers in input);
+
+        parse_utils::parse_groups(&headers)
+    }
+
+    #[inline]
+    pub(super) fn example(input: ParseStream) -> Result<AnyValue> {
+        parse_utils::parse_next(input, || AnyValue::parse_lit_str_or_json(input))
+    }
+
+    #[inline]
+    pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Comma>> {
+        parse_utils::parse_punctuated_within_parenthesis(input)
     }
 }

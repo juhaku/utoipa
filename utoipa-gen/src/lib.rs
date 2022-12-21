@@ -43,6 +43,8 @@ use crate::path::{Path, PathAttr};
 ))]
 use ext::ArgumentResolver;
 
+use self::path::response::DeriveResponse;
+
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
 /// ToSchema derive macro.
@@ -1693,6 +1695,28 @@ pub fn into_params(input: TokenStream) -> TokenStream {
     };
 
     into_params.to_token_stream().into()
+}
+
+#[proc_macro_error]
+#[proc_macro_derive(ToResponse, attributes(response))]
+/// Derive response macro attribute
+pub fn to_response(input: TokenStream) -> TokenStream {
+    let DeriveInput {
+        attrs,
+        ident,
+        generics,
+        data,
+        ..
+    } = syn::parse_macro_input!(input);
+
+    let response = DeriveResponse {
+        attributes: attrs,
+        ident,
+        generics,
+        data,
+    };
+
+    response.to_token_stream().into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)

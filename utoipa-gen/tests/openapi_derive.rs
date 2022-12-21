@@ -1,7 +1,7 @@
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::{
-    openapi::{Response, ResponseBuilder},
+    openapi::{RefOr, Response, ResponseBuilder},
     OpenApi, ToResponse,
 };
 
@@ -114,10 +114,10 @@ fn derive_openapi_with_responses() {
     struct MyResponse;
 
     impl ToResponse for MyResponse {
-        fn response() -> (String, Response) {
+        fn response() -> (String, RefOr<Response>) {
             (
                 "MyResponse".to_string(),
-                ResponseBuilder::new().description("Ok").build(),
+                ResponseBuilder::new().description("Ok").build().into(),
             )
         }
     }

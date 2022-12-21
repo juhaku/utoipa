@@ -1,6 +1,6 @@
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
-use utoipa::openapi::Response;
+use utoipa::openapi::{RefOr, Response};
 use utoipa::{OpenApi, ToResponse};
 
 mod common;
@@ -120,10 +120,10 @@ fn derive_http_status_code_responses() {
 struct ReusableResponse;
 
 impl ToResponse for ReusableResponse {
-    fn response() -> (String, Response) {
+    fn response() -> (String, RefOr<Response>) {
         (
             String::from("ReusableResponseName"),
-            Response::new("reusable response"),
+            Response::new("reusable response").into(),
         )
     }
 }
@@ -581,6 +581,49 @@ fn path_response_with_external_ref() {
                         "schema": {
                             "$ref":
                                 "./MyUser.json",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}
+
+#[test]
+fn path_response_with_inline_ref_type() {
+    #[derive(serde::Serialize, utoipa::ToSchema, utoipa::ToResponse)]
+    #[allow(unused)]
+    struct User {
+        name: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, response = inline(User))
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
                         },
                     },
                 },
