@@ -714,13 +714,20 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
-/// **Reference a reusable response type:**
+/// **Use `ToReponse` trait to define response attributes instead of tuple:**
 ///
-/// `ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait]
+/// `ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].
 ///
 /// ```text
 /// responses(
 ///     (status = 200, response = ReusableResponse)
+/// )
+/// ```
+///
+/// [`ToResponse`][to_response_trait] can also be inlined to the responses map.
+/// ```text
+/// responses(
+///     (status = 200, response = inline(ReusableResponse))
 /// )
 /// ```
 ///
@@ -1218,7 +1225,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// This is `#[derive]` implementation for [`OpenApi`][openapi] trait. The macro accepts one `openapi` argument.
 ///
-/// **Accepted argument attributes:**
+/// # OpenApi `#[openapi(...)]` attributes
 ///
 /// * `paths(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
 /// * `components(schemas(...), responses(...))` Takes available _`component`_ configurations. Currently only
@@ -1359,6 +1366,38 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     description = include_str!("./path/to/content"), // fail compile cause no such file
 ///     contact(name = "Test")
 /// ))]
+/// struct ApiDoc;
+/// ```
+///
+/// _**Create OpenAPI with resuable response.**_
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// struct Person {
+///     name: String,
+/// }
+///
+/// /// Person list response
+/// #[derive(utoipa::ToResponse)]
+/// struct PersonList(Vec<Person>);
+///
+/// #[utoipa::path(
+///     get,
+///     path = "/person-list",
+///     responses(
+///         (status = 200, response = PersonList)
+///     )
+/// )]
+/// fn get_persons() -> Vec<Person> {
+///     vec![]
+/// }
+///
+/// #[derive(utoipa::OpenApi)]
+/// #[openapi(
+///     components(
+///         schemas(Person),
+///         responses(PersonList)
+///     )
+/// )]
 /// struct ApiDoc;
 /// ```
 ///
@@ -1699,7 +1738,131 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(response, content))]
-/// Derive response macro attribute
+/// Derive response macro.
+///
+/// This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
+///
+/// _`ToResponse`_ can be used in three different ways to generate OpenAPI response component.
+///
+/// 1. By decorating `struct` or `enum` with [`ToResponse`] derive macro. This is the simpliest
+///    form of response and is typically useful used in tandem with [`ToSchema`] derive macro. This
+///    will create a response with name of the decorated _`struct`_ or _`enum`_ and will expect
+///    that existing schema is created with same name as well.
+///
+///    ```rust
+///     # use utoipa::{ToResponse, ToSchema};
+///     /// Person entity
+///     #[derive(ToResponse, ToSchema)]
+///     #[response(description = "Person response returns single Person entity")]
+///     struct Person {
+///         name: String,
+///     }
+///    ```
+///
+/// 2. By decorating unnamed field `struct` with [`ToResponse`] derive macro. Unnamed field struct
+///    allows users to use new type pattern to define one inner field which is used as a schema for
+///    the generated response. This allos users to define `Vec` and `Option` response types.
+///
+///    ```rust
+///     # #[derive(utoipa::ToSchema)]
+///     # struct Person {
+///     #     name: String,
+///     # }
+///     /// Person list response
+///     #[derive(utoipa::ToResponse)]
+///     struct PersonList(Vec<Person>);
+///    ```
+///
+/// 3. By deocrating `enum` with variants having `#[content(...)]` attribute. This allows users to
+///    define multiple response content schemas to single response according to OpenAPI spec.
+///    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
+///    _`examples`_ defined. Instead examples need to be defined per variant basis.
+///
+///    ```rust
+///     #[derive(utoipa::ToSchema)]
+///     struct Admin {
+///         name: String,
+///     }
+///     #[derive(utoipa::ToSchema)]
+///     struct Admin2 {
+///         name: String,
+///         id: i32,
+///     }
+///
+///     #[derive(utoipa::ToResponse)]
+///     enum Person {
+///         #[response(examples(
+///             ("Person1" = (value = json!({"name": "name1"}))),
+///             ("Person2" = (value = json!({"name": "name2"})))
+///         ))]
+///         Admin(#[content("application/vnd-custom-v1+json")] Admin),
+///
+///         #[response(example = json!({"name": "name3", "id": 1}))]
+///         Admin2(#[content("application/vnd-custom-v2+json")] Admin2),
+///     }
+///    ```
+///
+/// # ToResponse `#[response(...)]` attributes
+///
+/// * `description = "..."` Define description for the response as str.
+///
+/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
+///   from the `body` attribute. If defined the value should be valid content type such as
+///   _`application/json`_. By default the content type is _`text/plain`_ for
+///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
+///   _`application/json`_ for struct and complex enum types.
+///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
+///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+///
+/// * `headers(...)` Slice of response headers that are returned back to a caller.
+///
+/// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
+///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+///
+/// * `examples(...)` Define mulitple examples for single response. This attribute is mutually
+///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
+///     * `name = ...` This is first attribute and value must be literal string.
+///     * `summary = ...` Short description of example. Value must be literal string.
+///     * `description = ...` Long description of example. Attribute supports markdown for rich text
+///       representation. Value must be literal string.
+///     * `value = ...` Example value. It must be _`json!(...)`_. _`json!(...)`_ should be something that
+///       _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+///     * `external_value = ...` Define URI to literal example value. This is mutually exclusive to
+///       the _`value`_ attribute. Value must be literal string.
+///
+///      _**Example of example definition.**_
+///     ```text
+///      ("John" = (summary = "This is John", value = json!({"name": "John"})))
+///     ```
+///
+/// # Examples
+///
+/// _**Create a response from named struct.**_
+/// ```rust
+///  /// This is description
+///  ///
+///  /// It will also be used in `ToSchema` if present
+///  #[derive(utoipa::ToSchema, utoipa::ToResponse)]
+///  #[response(
+///      description = "Override description for response",
+///      content_type = "text/xml"
+///  )]
+///  #[response(
+///      example = json!({"name": "the name"}),
+///      headers(
+///          ("csrf-token", description = "response csrf token"),
+///          ("random-id" = i32)
+///      )
+///  )]
+///  struct Person {
+///      name: String,
+///  }
+/// ```
+///
+/// [to_response]: trait.ToResponse.html
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 pub fn to_response(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

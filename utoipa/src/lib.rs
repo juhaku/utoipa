@@ -590,6 +590,8 @@ pub trait IntoResponses {
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
+/// _`ToResponse`_ trait can also be derived with [`#[derive(ToResponse)]`][derive].
+///
 /// # Examples
 ///
 /// ```
@@ -609,6 +611,8 @@ pub trait IntoResponses {
 ///     }
 /// }
 /// ```
+///
+/// [derive]: derive.ToResponse.html
 pub trait ToResponse {
     /// Returns a map of response component name (to be referenced) to a response.
     fn response() -> (String, openapi::RefOr<openapi::response::Response>);
