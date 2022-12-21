@@ -216,7 +216,6 @@ pub mod openapi;
 
 use std::collections::BTreeMap;
 
-use openapi::Response;
 pub use utoipa_gen::*;
 
 /// Trait for implementing OpenAPI specification in Rust.
@@ -585,32 +584,36 @@ pub trait IntoParams {
 /// ```
 pub trait IntoResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> BTreeMap<String, openapi::RefOr<Response>>;
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>>;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
+/// _`ToResponse`_ trait can also be derived with [`#[derive(ToResponse)]`][derive].
+///
 /// # Examples
 ///
 /// ```
 /// use utoipa::{
-///     openapi::{Response, ResponseBuilder},
+///     openapi::{RefOr, Response, ResponseBuilder},
 ///     ToResponse,
 /// };
 ///
 /// struct MyResponse;
 ///
 /// impl ToResponse for MyResponse {
-///     fn response() -> (String, Response) {
+///     fn response() -> (String, RefOr<Response>) {
 ///         (
 ///             "MyResponse".to_string(),
-///             ResponseBuilder::new().description("My Response").build(),
+///             ResponseBuilder::new().description("My Response").build().into(),
 ///         )
 ///     }
 /// }
 /// ```
+///
+/// [derive]: derive.ToResponse.html
 pub trait ToResponse {
     /// Returns a map of response component name (to be referenced) to a response.
-    fn response() -> (String, Response);
+    fn response() -> (String, openapi::RefOr<openapi::response::Response>);
 }

@@ -34,7 +34,7 @@ pub mod example;
 mod media_type;
 pub mod parameter;
 mod request_body;
-mod response;
+pub mod response;
 mod status;
 
 pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
