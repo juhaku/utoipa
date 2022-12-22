@@ -24,7 +24,11 @@ impl HttpServiceFactory for SwaggerUi {
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
             .app_data(Data::new(if let Some(config) = self.config {
-                config.configure_defaults(urls)
+                if config.url.is_some() || !config.urls.is_empty() {
+                    config
+                } else {
+                    config.configure_defaults(urls)
+                }
             } else {
                 Config::new(urls)
             }))
