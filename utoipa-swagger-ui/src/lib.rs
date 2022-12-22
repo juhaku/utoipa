@@ -440,7 +440,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// );
 /// ```
 #[non_exhaustive]
-#[derive(Default, Serialize, Clone)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Config<'a> {
     /// Url to fetch external configuration from.
@@ -569,9 +569,6 @@ impl<'a> Config<'a> {
 
         Self {
             oauth: oauth_config,
-            deep_linking: Some(true),
-            dom_id: Some("#swagger-ui".to_string()),
-            layout: SWAGGER_STANDALONE_LAYOUT,
             ..if urls_len == 1 {
                 Self::new_config_with_single_url(urls)
             } else {
@@ -629,6 +626,10 @@ impl<'a> Config<'a> {
     }
 
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
+    ///
+    /// [`Url`]s provided to the [`Config`] will only change the urls Swagger UI is going to use to
+    /// fetch the API document. This does not change the URL that is defined with [`SwaggerUi::url`]
+    /// or [`SwaggerUi::urls`] which defines the URL the API document is exposed from.
     ///
     /// # Examples
     /// Create new config with 2 api doc urls.
@@ -1133,6 +1134,40 @@ impl<'a> Config<'a> {
         self.persist_authorization = Some(persist_authorization);
 
         self
+    }
+}
+
+impl Default for Config<'_> {
+    fn default() -> Self {
+        Self {
+            config_url: Default::default(),
+            dom_id: Some("#swagger-ui".to_string()),
+            url: Default::default(),
+            urls_primary_name: Default::default(),
+            urls: Default::default(),
+            query_config_enabled: Default::default(),
+            deep_linking: Some(true),
+            display_operation_id: Default::default(),
+            default_models_expand_depth: Default::default(),
+            default_model_expand_depth: Default::default(),
+            default_model_rendering: Default::default(),
+            display_request_duration: Default::default(),
+            doc_expansion: Default::default(),
+            filter: Default::default(),
+            max_displayed_tags: Default::default(),
+            show_extensions: Default::default(),
+            show_common_extensions: Default::default(),
+            try_it_out_enabled: Default::default(),
+            request_snippets_enabled: Default::default(),
+            oauth2_redirect_url: Default::default(),
+            show_mutated_request: Default::default(),
+            supported_submit_methods: Default::default(),
+            validator_url: Default::default(),
+            with_credentials: Default::default(),
+            persist_authorization: Default::default(),
+            oauth: Default::default(),
+            layout: SWAGGER_STANDALONE_LAYOUT,
+        }
     }
 }
 

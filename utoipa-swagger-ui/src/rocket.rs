@@ -35,7 +35,11 @@ impl From<SwaggerUi> for Vec<Route> {
             ServeSwagger(
                 swagger_ui.path.clone(),
                 Arc::new(if let Some(config) = swagger_ui.config {
-                    config.configure_defaults(urls)
+                    if config.url.is_some() || !config.urls.is_empty() {
+                        config
+                    } else {
+                        config.configure_defaults(urls)
+                    }
                 } else {
                     Config::new(urls)
                 }),
