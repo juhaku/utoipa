@@ -1,4 +1,4 @@
-use std::{borrow::Cow, iter, mem};
+use std::{borrow::Cow, mem};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::{abort, ResultExt};
@@ -9,16 +9,30 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Data, Error, ExprPath, Generics, LitInt, LitStr, Path, Token, Type, TypePath,
-    Variant,
+    Attribute, Data, Error, ExprPath, Field, Fields, Generics, LitInt, LitStr, Path, Token, Type,
+    TypePath, Variant,
 };
 
-use crate::{doc_comment::CommentAttributes, parse_utils, AnyValue, Array};
+use crate::{
+    component::{
+        schema::{EnumSchema, NamedStructSchema},
+        TypeTree,
+    },
+    doc_comment::CommentAttributes,
+    parse_utils, AnyValue, Array,
+};
 
 use super::{
     example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineType, PathType,
     PathTypeTree,
 };
+
+enum DeriveResponseType<'r> {
+    Unnamed(Type, &'r [Attribute]),
+    Named(Type, &'r Punctuated<Field, Comma>),
+    Unit,
+    Enum(Type, &'r Punctuated<Variant, Comma>),
+}
 
 pub struct DeriveResponse {
     pub attributes: Vec<Attribute>,
@@ -37,16 +51,15 @@ impl DeriveResponse {
         match &self.data {
             Data::Struct(value) => {
                 match &value.fields {
-                    syn::Fields::Named(_) | syn::Fields::Unit => {
-                        DeriveResponseType::Struct(get_type())
-                    }
-                    syn::Fields::Unnamed(unnamed) => {
+                    Fields::Named(named) => DeriveResponseType::Named(get_type(), &named.named),
+                    Fields::Unit => DeriveResponseType::Unit,
+                    Fields::Unnamed(unnamed) => {
                         if unnamed.unnamed.len() <= 1 {
                             unnamed
                             .unnamed
                             .iter()
                             .next()
-                            .map(|field| DeriveResponseType::Struct(field.ty.clone())).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
+                            .map(|field| DeriveResponseType::Unnamed(field.ty.clone(), field.attrs.as_slice())).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
                         } else {
                             abort!(
                                 unnamed.span(),
@@ -76,13 +89,12 @@ impl DeriveResponse {
             })
     }
 
-    fn create_response<I: Iterator<Item = Content>>(
+    fn create_response(
         &self,
         description: String,
-        ty: Type,
-        content: I,
+        ty: Option<PathType>,
+        content: Punctuated<Content, Comma>,
     ) -> ResponseTuple {
-        let content: Punctuated<Content, Comma> = Punctuated::from_iter(content);
         let response_value = self.parse_derive_response_value(self.attributes.as_slice());
         if let Some(response_value) = response_value {
             if (!content.is_empty() && response_value.example.is_some())
@@ -110,15 +122,7 @@ impl DeriveResponse {
                 example: response_value.example.map(|(example, _)| example),
                 examples: response_value.examples.map(|(examples, _)| examples),
                 content_type: response_value.content_type,
-                response_type: if content.is_empty() {
-                    Some(PathType::Type(InlineType {
-                        ty,
-                        // TODO schema from `ToSchema` with inline????
-                        is_inline: false,
-                    }))
-                } else {
-                    None
-                },
+                response_type: if content.is_empty() { ty } else { None },
                 content,
             };
 
@@ -127,17 +131,8 @@ impl DeriveResponse {
                 ..Default::default()
             }
         } else {
-            let path_type = PathType::Type(InlineType {
-                ty,
-                is_inline: false,
-            });
-
             let value = ResponseValue {
-                response_type: if content.is_empty() {
-                    Some(path_type)
-                } else {
-                    None
-                },
+                response_type: if content.is_empty() { ty } else { None },
                 content,
                 description,
                 ..Default::default()
@@ -150,11 +145,6 @@ impl DeriveResponse {
     }
 }
 
-enum DeriveResponseType<'r> {
-    Struct(Type),
-    Enum(Type, &'r Punctuated<Variant, Comma>),
-}
-
 impl ToTokens for DeriveResponse {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         // construct default type for the response
@@ -163,7 +153,33 @@ impl ToTokens for DeriveResponse {
             CommentAttributes::from_attributes(&self.attributes).as_formatted_string();
 
         let response = match derive_response_type {
-            DeriveResponseType::Struct(ty) => self.create_response(description, ty, iter::empty()),
+            DeriveResponseType::Unnamed(ty, attributes) => {
+                let is_inline = attributes
+                    .iter()
+                    .any(|attribute| attribute.path.get_ident().unwrap() == "to_schema");
+                self.create_response(
+                    description,
+                    Some(PathType::Type(InlineType { ty, is_inline })),
+                    Punctuated::new(),
+                )
+            }
+            DeriveResponseType::Named(ty, fields) => {
+                let inline_schema = NamedStructSchema {
+                    alias: None,
+                    fields,
+                    features: None,
+                    generics: None,
+                    attributes: self.attributes.as_slice(),
+                    struct_name: Cow::Owned(self.ident.to_string()),
+                    rename_all: None,
+                };
+                self.create_response(
+                    description,
+                    Some(PathType::InlineSchema(inline_schema.to_token_stream(), ty)),
+                    Punctuated::new(),
+                )
+            }
+            DeriveResponseType::Unit => self.create_response(description, None, Punctuated::new()),
             DeriveResponseType::Enum(ty, variants) => {
                 let variants_content = variants
                     .iter()
@@ -186,13 +202,21 @@ impl ToTokens for DeriveResponse {
                                 })
                                 .map(|content| content.value())
                         });
+                        let is_inline = field
+                            .map(|field| {
+                                field.attrs.iter().any(|attribute| {
+                                    attribute.path.get_ident().unwrap() == "to_schema"
+                                })
+                            })
+                            .unwrap_or(false);
 
                         (
                             field.map(|field| field.ty.clone()).zip(content_type),
                             variant_derive_response_value,
+                            is_inline,
                         )
                     })
-                    .filter_map(|(field, mut variant_derive)| {
+                    .filter_map(|(field, mut variant_derive, is_inline)| {
                         let (example, examples) = if let Some(variant_derive) = &mut variant_derive
                         {
                             (
@@ -206,17 +230,34 @@ impl ToTokens for DeriveResponse {
                         field.map(|(ty, content_type)| {
                             Content(
                                 content_type,
-                                PathType::Type(InlineType {
-                                    ty,
-                                    is_inline: false,
-                                }),
+                                PathType::Type(InlineType { ty, is_inline }),
                                 example.map(|(example, _)| example),
                                 examples.map(|(examples, _)| examples),
                             )
                         })
                     });
 
-                self.create_response(description, ty, variants_content)
+                let content: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
+
+                self.create_response(
+                    description,
+                    // enums with #[content] attribute uses schema reference
+                    if content.len() > 1 {
+                        None
+                    } else {
+                        let inline_schema = EnumSchema {
+                            variants,
+                            attributes: self.attributes.as_slice(),
+                            enum_name: Cow::Owned(self.ident.to_string()),
+                        };
+
+                        Some(PathType::InlineSchema(
+                            inline_schema.into_token_stream(),
+                            ty,
+                        ))
+                    },
+                    content,
+                )
             }
         };
 
@@ -413,6 +454,7 @@ impl ToTokens for ResponseTuple {
                             }
                             .to_token_stream()
                         }
+                        PathType::InlineSchema(schema, _) => schema.to_token_stream(),
                     };
 
                     let mut content =
@@ -459,6 +501,13 @@ impl ToTokens for ResponseTuple {
                             }
                             PathType::Type(path_type) => {
                                 let type_tree = path_type.as_type_tree();
+                                let default_type = type_tree.get_default_content_type();
+                                tokens.extend(quote! {
+                                    .content(#default_type, #content)
+                                })
+                            }
+                            PathType::InlineSchema(_, ty) => {
+                                let type_tree = TypeTree::from_type(ty);
                                 let default_type = type_tree.get_default_content_type();
                                 tokens.extend(quote! {
                                     .content(#default_type, #content)

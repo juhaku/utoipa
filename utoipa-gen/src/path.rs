@@ -537,6 +537,7 @@ impl ToTokens for Operation<'_> {
 enum PathType {
     Ref(String),
     Type(InlineType),
+    InlineSchema(TokenStream2, Type),
 }
 
 impl Parse for PathType {

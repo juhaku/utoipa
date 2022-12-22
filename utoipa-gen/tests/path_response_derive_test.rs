@@ -622,8 +622,13 @@ fn path_response_with_inline_ref_type() {
                 "content": {
                     "application/json": {
                         "schema": {
-                            "$ref":
-                                "#/components/schemas/User",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object",
                         },
                     },
                 },

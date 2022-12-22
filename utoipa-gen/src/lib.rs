@@ -1737,7 +1737,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response, content))]
+#[proc_macro_derive(ToResponse, attributes(response, content, to_schema))]
 /// Derive response macro.
 ///
 /// This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
