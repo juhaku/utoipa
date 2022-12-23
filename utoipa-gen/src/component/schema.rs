@@ -216,14 +216,14 @@ impl ToTokens for UnitStructVariant {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct NamedStructSchema<'a> {
-    struct_name: Cow<'a, str>,
-    fields: &'a Punctuated<Field, Comma>,
-    attributes: &'a [Attribute],
-    features: Option<Vec<Feature>>,
-    rename_all: Option<RenameAll>,
-    generics: Option<&'a Generics>,
-    alias: Option<&'a AliasSchema>,
+pub struct NamedStructSchema<'a> {
+    pub struct_name: Cow<'a, str>,
+    pub fields: &'a Punctuated<Field, Comma>,
+    pub attributes: &'a [Attribute],
+    pub features: Option<Vec<Feature>>,
+    pub rename_all: Option<RenameAll>,
+    pub generics: Option<&'a Generics>,
+    pub alias: Option<&'a AliasSchema>,
 }
 
 impl NamedStructSchema<'_> {
@@ -483,10 +483,10 @@ impl ToTokens for UnnamedStructSchema<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct EnumSchema<'a> {
-    enum_name: Cow<'a, str>,
-    variants: &'a Punctuated<Variant, Comma>,
-    attributes: &'a [Attribute],
+pub struct EnumSchema<'a> {
+   pub enum_name: Cow<'a, str>,
+   pub variants: &'a Punctuated<Variant, Comma>,
+   pub attributes: &'a [Attribute],
 }
 
 impl ToTokens for EnumSchema<'_> {

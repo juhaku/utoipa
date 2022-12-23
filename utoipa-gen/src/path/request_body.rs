@@ -4,6 +4,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
+use crate::component::TypeTree;
 use crate::{parse_utils, AnyValue, Array, Required};
 
 use super::example::Example;
@@ -147,6 +148,7 @@ impl ToTokens for RequestBodyAttr {
                     }
                     .to_token_stream()
                 }
+                PathType::InlineSchema(schema, _) => schema.to_token_stream(),
             };
             let mut content = quote! {
                 utoipa::openapi::content::ContentBuilder::new()
@@ -188,6 +190,16 @@ impl ToTokens for RequestBodyAttr {
                     tokens.extend(quote! {
                         utoipa::openapi::request_body::RequestBodyBuilder::new()
                             .content(#content_type, #content.build())
+                            .required(Some(#required))
+                    });
+                }
+                PathType::InlineSchema(_, ty) => {
+                    let type_tree = TypeTree::from_type(ty);
+                    let default_type = type_tree.get_default_content_type();
+                    let required: Required = (!type_tree.is_option()).into();
+                    tokens.extend(quote! {
+                        utoipa::openapi::request_body::RequestBodyBuilder::new()
+                            .content(#default_type, #content.build())
                             .required(Some(#required))
                     });
                 }

@@ -1737,22 +1737,33 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_error]
-#[proc_macro_derive(ToResponse, attributes(response, content))]
+#[proc_macro_derive(ToResponse, attributes(response, content, to_schema))]
 /// Derive response macro.
 ///
 /// This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
 ///
-/// _`ToResponse`_ can be used in three different ways to generate OpenAPI response component.
 ///
-/// 1. By decorating `struct` or `enum` with [`ToResponse`] derive macro. This is the simpliest
-///    form of response and is typically useful used in tandem with [`ToSchema`] derive macro. This
-///    will create a response with name of the decorated _`struct`_ or _`enum`_ and will expect
-///    that existing schema is created with same name as well.
+/// _`#[response]`_ attribute can be used to alter and add [response attributes](#toresponse-response-attributes).
+///
+/// _`#[content]`_ attributes is used to make enum variant a content of a specific type for the
+/// response.
+///
+/// _`#[to_schema]`_ attribute is used to inline a schema for a response in unnamed structs or
+/// enum variants with `#[content]` attribute. **Note!** [`ToSchema`] need to be implemented for
+/// the field or variant type.
+///
+/// Type derived with _`ToResponse`_ uses doc comment provided as a description for the reponse. It
+/// can alternatively be overridden with _`description = ...`_ attribute.
+///
+/// _`ToResponse`_ can be used in four different ways to generate OpenAPI response component.
+///
+/// 1. By decorating `struct` or `enum` with [`ToResponse`] derive macro. This will create a
+///    response with inlined schema resolved from the fields of the `struct` or `variants` of the
+///    enum.
 ///
 ///    ```rust
-///     # use utoipa::{ToResponse, ToSchema};
-///     /// Person entity
-///     #[derive(ToResponse, ToSchema)]
+///     # use utoipa::ToResponse;
+///     #[derive(ToResponse)]
 ///     #[response(description = "Person response returns single Person entity")]
 ///     struct Person {
 ///         name: String,
@@ -1762,6 +1773,8 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 /// 2. By decorating unnamed field `struct` with [`ToResponse`] derive macro. Unnamed field struct
 ///    allows users to use new type pattern to define one inner field which is used as a schema for
 ///    the generated response. This allows users to define `Vec` and `Option` response types.
+///    Additionally these types can also be used with `#[to_schema]` attribute to inline the
+///    field's type schema if it implements [`ToSchema`] derive macro.
 ///
 ///    ```rust
 ///     # #[derive(utoipa::ToSchema)]
@@ -1773,10 +1786,21 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///     struct PersonList(Vec<Person>);
 ///    ```
 ///
-/// 3. By deocrating `enum` with variants having `#[content(...)]` attribute. This allows users to
+/// 3. By decorating unit struct with [`ToResponse`] derive macro. Unit structs will produce a
+///    response without body.
+///
+///    ```rust
+///     //// Success response which does not have body.
+///     #[derive(utoipa::ToResponse)]
+///     struct SuccessResponse;
+///    ```
+///
+/// 4. By deocrating `enum` with variants having `#[content(...)]` attribute. This allows users to
 ///    define multiple response content schemas to single response according to OpenAPI spec.
 ///    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
-///    _`examples`_ defined. Instead examples need to be defined per variant basis.
+///    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
+///    these variants can also be used with `#[to_schema]` attribute to inline the variant's type schema
+///    if it implements [`ToSchema`] derive macro.
 ///
 ///    ```rust
 ///     #[derive(utoipa::ToSchema)]
@@ -1798,13 +1822,14 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///         Admin(#[content("application/vnd-custom-v1+json")] Admin),
 ///
 ///         #[response(example = json!({"name": "name3", "id": 1}))]
-///         Admin2(#[content("application/vnd-custom-v2+json")] Admin2),
+///         Admin2(#[content("application/vnd-custom-v2+json")] #[to_schema] Admin2),
 ///     }
 ///    ```
 ///
 /// # ToResponse `#[response(...)]` attributes
 ///
-/// * `description = "..."` Define description for the response as str.
+/// * `description = "..."` Define description for the response as str. This can be used to
+///   override the default description resolved from doc comments if present.
 ///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
@@ -1858,6 +1883,26 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///  )]
 ///  struct Person {
 ///      name: String,
+///  }
+/// ```
+///
+/// _**Create inlined person list response.**_
+/// ```rust
+///  # #[derive(utoipa::ToSchema)]
+///  # struct Person {
+///  #     name: String,
+///  # }
+///  /// Person list response
+///  #[derive(utoipa::ToResponse)]
+///  struct PersonList(#[to_schema] Vec<Person>);
+/// ```
+///
+/// _**Create enum response from variants.**_
+/// ```rust
+///  #[derive(utoipa::ToResponse)]
+///  enum PersonType {
+///      Value(String),
+///      Foobar,
 ///  }
 /// ```
 ///

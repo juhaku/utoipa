@@ -20,7 +20,13 @@ fn derive_name_struct_response() {
             "content": {
                 "application/json": {
                     "schema": {
-                        "$ref": "#/components/schemas/Person"
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "required": ["name"]
                     }
                 }
             },
@@ -75,7 +81,21 @@ fn derive_enum_response() {
             "content": {
                 "application/json": {
                     "schema": {
-                        "$ref": "#/components/schemas/PersonType"
+                        "oneOf": [
+                        {
+                            "properties": {
+                                "Value": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["Value"],
+                            "type": "object",
+                        },
+                        {
+                            "enum": ["Foobar"],
+                            "type": "string"
+                        }
+                        ]
                     }
                 }
             },
@@ -104,7 +124,14 @@ fn derive_struct_response_with_description() {
             "content": {
                 "application/json": {
                     "schema": {
-                        "$ref": "#/components/schemas/Person"
+                        "description": "This is description\n\nIt will also be used in `ToSchema` if present",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "required": ["name"]
                     }
                 }
             },
@@ -147,7 +174,14 @@ fn derive_response_with_attributes() {
                         "name": "the name"
                     },
                     "schema": {
-                        "$ref": "#/components/schemas/Person"
+                        "description": "This is description\n\nIt will also be used in `ToSchema` if present",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "required": ["name"]
                     }
                 }
             },
@@ -188,12 +222,24 @@ fn derive_response_with_mutliple_content_types() {
             "content": {
                 "application/json": {
                     "schema": {
-                        "$ref": "#/components/schemas/Person"
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "required": ["name"]
                     }
                 },
                 "text/xml": {
                     "schema": {
-                        "$ref": "#/components/schemas/Person"
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "required": ["name"]
                     }
                 }
             },
@@ -235,7 +281,13 @@ fn derive_response_multiple_examples() {
                         }
                     },
                     "schema": {
-                        "$ref": "#/components/schemas/Person"
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object",
+                        "required": ["name"]
                     }
                 },
             },
@@ -298,6 +350,146 @@ fn derive_response_with_enum_contents() {
                         "$ref": "#/components/schemas/Moderator"
                     }
                 }
+            },
+            "description": ""
+        })
+    )
+}
+
+#[test]
+fn derive_response_with_enum_contents_inlined() {
+    #[allow(unused)]
+    #[derive(ToSchema)]
+    struct Admin {
+        name: String,
+    }
+
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Moderator {
+        name: String,
+    }
+    #[derive(ToSchema, ToResponse)]
+    #[allow(unused)]
+    enum Person {
+        #[response(examples(
+                ("Person1" = (value = json!({"name": "name1"}))),
+                ("Person2" = (value = json!({"name": "name2"})))
+        ))]
+        Admin(
+            #[content("application/json/1")]
+            #[to_schema]
+            Admin,
+        ),
+        #[response(example = json!({"name": "name3"}))]
+        Moderator(
+            #[content("application/json/2")]
+            #[to_schema]
+            Moderator,
+        ),
+    }
+    let (name, v) = <Person as utoipa::ToResponse>::response();
+    let value = serde_json::to_value(v).unwrap();
+
+    assert_eq!("Person", name);
+    assert_json_eq!(
+        value,
+        json!({
+            "content": {
+                "application/json/1": {
+                    "examples": {
+                        "Person1": {
+                            "value": {
+                                "name": "name1"
+                            }
+                        },
+                        "Person2": {
+                            "value": {
+                                "name": "name2"
+                            }
+                        }
+                    },
+                    "schema": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    }
+                },
+                "application/json/2": {
+                    "example": {
+                        "name": "name3"
+                    },
+                    "schema": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    }
+                }
+            },
+            "description": ""
+        })
+    )
+}
+
+#[test]
+fn derive_response_with_unit_type() {
+    #[derive(ToSchema, ToResponse)]
+    #[allow(unused)]
+    struct PersonSuccessResponse;
+
+    let (name, v) = <PersonSuccessResponse as utoipa::ToResponse>::response();
+    let value = serde_json::to_value(v).unwrap();
+
+    assert_eq!("PersonSuccessResponse", name);
+    assert_json_eq!(
+        value,
+        json!({
+            "description": ""
+        })
+    )
+}
+
+#[test]
+fn derive_response_with_inline_unnamed_schema() {
+    #[allow(unused)]
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+    }
+    #[derive(ToResponse)]
+    #[allow(unused)]
+    struct PersonSuccessResponse(#[to_schema] Vec<Person>);
+
+    let (name, v) = <PersonSuccessResponse as utoipa::ToResponse>::response();
+    let value = serde_json::to_value(v).unwrap();
+
+    assert_eq!("PersonSuccessResponse", name);
+    assert_json_eq!(
+        value,
+        json!({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object",
+                        },
+                        "type": "array"
+                    }
+                },
             },
             "description": ""
         })
