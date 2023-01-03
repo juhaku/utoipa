@@ -41,12 +41,12 @@ fn get_value_arguments(value_args: Vec<FnArg>) -> impl Iterator<Item = super::Va
         .into_iter()
         .filter(|arg| arg.ty.is("Path"))
         .flat_map(|path_arg| match path_arg.arg_type {
-            FnArgType::Single(_) => path_arg
+            FnArgType::Single(name) => path_arg
                 .ty
                 .children
                 .expect("Path argument must have children")
                 .into_iter()
-                .map(|ty| to_value_argument(None, ty))
+                .map(|ty| to_value_argument(Some(Cow::Owned(name.to_string())), ty))
                 .collect::<Vec<_>>(),
             FnArgType::Tuple(tuple) => tuple
                 .iter()
