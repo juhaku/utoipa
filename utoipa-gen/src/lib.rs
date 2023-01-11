@@ -160,12 +160,17 @@ use self::path::response::DeriveResponse;
 /// generated OpenAPI doc. For example if _`#[serde(skip)]`_ is defined the attribute will not show up in the OpenAPI spec at all since it will not never
 /// be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
 ///
-/// * `rename_all = "..."` Supported in container level.
-/// * `rename = "..."` Supported **only** in field or variant level.
-/// * `skip = "..."` Supported  **only** in field or variant level.
-/// * `tag = "..."` Supported in container level. `tag` attribute also works as a [discriminator field][discriminator] for an enum.
-/// * `default` Supported in container level and field level according to [serde attributes].
-/// * `flatten` Supported in field level.
+/// * `rename_all = "..."` Supported at the container level.
+/// * `rename = "..."` Supported **only** at the field or variant level.
+/// * `skip = "..."` Supported  **only** at the field or variant level.
+/// * `tag = "..."` Supported at the container level. `tag` attribute works as a [discriminator field][discriminator] for an enum.
+/// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
+///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
+///   failure.
+/// * `untagged` Supported at the container level. Allows [untagged
+/// enum representation](https://serde.rs/enum-representations.html#untagged).
+/// * `default` Supported at the container level and field level according to [serde attributes].
+/// * `flatten` Supported at the field level.
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
 ///
@@ -921,7 +926,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # rocket_extras feature support for rocket
 ///
 /// **rocket_extras** feature enahances path operation parameter support. It gives **utoipa** ability to parse `path`, `path parameters`
-/// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.  
+/// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.
 ///
 /// 1. It is able to parse parameter types for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`]
 ///    type.
@@ -1523,13 +1528,13 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// # Partial `#[serde(...)]` attributes support
 ///
 /// IntoParams derive has partial support for [serde attributes]. These supported attributes will reflect to the
-/// generated OpenAPI doc. For example the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
+/// generated OpenAPI doc. The following attributes are currently supported :
 ///
-/// * `rename_all = "..."` Supported in container level.
-/// * `rename = "..."` Supported **only** in field.
-/// * `default` Supported in container level and field level according to [serde attributes].
+/// * `rename_all = "..."` Supported at the container level.
+/// * `rename = "..."` Supported **only** at the field level.
+/// * `default` Supported at the container level and field level according to [serde attributes].
 ///
-/// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
+/// Other _`serde`_ attributes will impact the serialization but will not be reflected on the generated OpenAPI doc.
 ///
 /// # Examples
 ///
