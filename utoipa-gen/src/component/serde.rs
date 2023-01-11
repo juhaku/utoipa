@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenTree};
-use proc_macro_error::ResultExt;
+use proc_macro_error::{abort, ResultExt};
 use syn::{buffer::Cursor, Attribute, Error};
 
 #[inline]
@@ -112,7 +112,7 @@ impl SerdeContainer {
                 }
             }
             "tag" => {
-                if let Some((literal, _span)) = parse_next_lit_str(next) {
+                if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.enum_repr = match &self.enum_repr {
                         SerdeEnumRepr::ExternallyTagged => {
                             SerdeEnumRepr::InternallyTagged { tag: literal }
@@ -125,14 +125,14 @@ impl SerdeContainer {
                         }
                         SerdeEnumRepr::InternallyTagged { .. }
                         | SerdeEnumRepr::AdjacentlyTagged { .. } => {
-                            panic!("Duplicate serde tag argument")
+                            abort!(span, "Duplicate serde tag argument")
                         }
-                        SerdeEnumRepr::Untagged => panic!("Untagged enum cannot have tag"),
+                        SerdeEnumRepr::Untagged => abort!(span, "Untagged enum cannot have tag"),
                     };
                 }
             }
             "content" => {
-                if let Some((literal, _span)) = parse_next_lit_str(next) {
+                if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.enum_repr = match &self.enum_repr {
                         SerdeEnumRepr::InternallyTagged { tag } => {
                             SerdeEnumRepr::AdjacentlyTagged {
@@ -145,9 +145,11 @@ impl SerdeContainer {
                         }
                         SerdeEnumRepr::AdjacentlyTagged { .. }
                         | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                            panic!("Duplicate serde content argument")
+                            abort!(span, "Duplicate serde content argument")
                         }
-                        SerdeEnumRepr::Untagged => panic!("Untagged enum cannot have content"),
+                        SerdeEnumRepr::Untagged => {
+                            abort!(span, "Untagged enum cannot have content")
+                        }
                     };
                 }
             }
