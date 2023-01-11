@@ -487,9 +487,9 @@ impl ToTokens for UnnamedStructSchema<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct EnumSchema<'a> {
-   pub enum_name: Cow<'a, str>,
-   pub variants: &'a Punctuated<Variant, Comma>,
-   pub attributes: &'a [Attribute],
+    pub enum_name: Cow<'a, str>,
+    pub variants: &'a Punctuated<Variant, Comma>,
+    pub attributes: &'a [Attribute],
 }
 
 impl ToTokens for EnumSchema<'_> {
@@ -863,11 +863,10 @@ impl ComplexEnum<'_> {
     fn untagged_variant_tokens(&self, variant: &Variant) -> TokenStream {
         match &variant.fields {
             Fields::Named(named_fields) => {
-                let (_title_features, mut named_struct_features) = variant
+                let mut named_struct_features = variant
                     .attrs
                     .parse_features::<EnumNamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 NamedStructSchema {
@@ -882,11 +881,10 @@ impl ComplexEnum<'_> {
                 .to_token_stream()
             }
             Fields::Unnamed(unnamed_fields) => {
-                let (_title_features, unnamed_struct_features) = variant
+                let unnamed_struct_features = variant
                     .attrs
                     .parse_features::<EnumUnnamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 UnnamedStructSchema {
@@ -898,11 +896,10 @@ impl ComplexEnum<'_> {
                 .to_token_stream()
             }
             Fields::Unit => {
-                let (_title_features, unnamed_struct_features) = variant
+                let unnamed_struct_features = variant
                     .attrs
                     .parse_features::<EnumUnnamedFieldVariantFeatures>()
                     .into_inner()
-                    .map(|features| features.split_for_title())
                     .unwrap_or_default();
 
                 UnnamedStructSchema {
@@ -1219,7 +1216,7 @@ impl ToTokens for ComplexEnum<'_> {
             .unwrap_or_default();
         let tag = match &enum_repr {
             SerdeEnumRepr::AdjacentlyTagged { tag, .. }
-            | SerdeEnumRepr::InternallyTagged { tag } => Some(tag.clone()),
+            | SerdeEnumRepr::InternallyTagged { tag } => Some(tag),
             SerdeEnumRepr::ExternallyTagged
             | SerdeEnumRepr::Untagged
             | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => None,
@@ -1266,12 +1263,12 @@ impl ToTokens for ComplexEnum<'_> {
                             &rename_all,
                         ),
                     SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                        panic!("Serde should not have parsed an UnfinishedAdjacentlyTagged")
+                        unreachable!("Serde should not have parsed an UnfinishedAdjacentlyTagged")
                     }
                 }
             })
             .collect::<CustomEnum<'_, TokenStream>>()
-            .with_discriminator(tag.map(Cow::Owned))
+            .with_discriminator(tag.map(|t| Cow::Borrowed(t.as_str())))
             .to_tokens(tokens);
 
         tokens.extend(enum_features.to_token_stream());
