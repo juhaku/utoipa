@@ -104,7 +104,7 @@ pub struct ValueParameter<'a> {
     parameter_ext: Option<ParameterExt>,
 
     /// Type only when value parameter is parsed
-    parsed_type: Option<InlineType>,
+    parsed_type: Option<InlineType<'a>>,
 }
 
 impl<'p> ValueParameter<'p> {

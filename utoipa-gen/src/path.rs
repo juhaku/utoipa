@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::{io::Error, str::FromStr};
 
@@ -73,8 +74,8 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
-    request_body: Option<RequestBodyAttr>,
-    responses: Vec<Response>,
+    request_body: Option<RequestBodyAttr<'p>>,
+    responses: Vec<Response<'p>>,
     pub(super) path: Option<String>,
     operation_id: Option<String>,
     tag: Option<String>,
@@ -473,8 +474,8 @@ struct Operation<'a> {
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
     parameters: &'a Vec<Parameter<'a>>,
-    request_body: Option<&'a RequestBodyAttr>,
-    responses: &'a Vec<Response>,
+    request_body: Option<&'a RequestBodyAttr<'a>>,
+    responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementAttr>>,
 }
 
@@ -534,13 +535,13 @@ impl ToTokens for Operation<'_> {
 
 /// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum PathType {
+enum PathType<'p> {
     Ref(String),
-    Type(InlineType),
+    MediaType(InlineType<'p>),
     InlineSchema(TokenStream2, Type),
 }
 
-impl Parse for PathType {
+impl Parse for PathType<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let fork = input.fork();
         let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
@@ -555,26 +556,26 @@ impl Parse for PathType {
             parenthesized!(ref_stream in input);
             Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
         } else {
-            Ok(Self::Type(input.parse()?))
+            Ok(Self::MediaType(input.parse()?))
         }
     }
 }
 
 // inline(syn::Type) | syn::Type
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct InlineType {
-    ty: Type,
+struct InlineType<'i> {
+    ty: Cow<'i, Type>,
     is_inline: bool,
 }
 
-impl InlineType {
+impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
     fn as_type_tree(&self) -> TypeTree {
         TypeTree::from_type(&self.ty)
     }
 }
 
-impl Parse for InlineType {
+impl Parse for InlineType<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let fork = input.fork();
         let is_inline = if let Some(ident) = fork.parse::<Option<Ident>>()? {
@@ -593,7 +594,10 @@ impl Parse for InlineType {
             input.parse::<Type>()?
         };
 
-        Ok(InlineType { ty, is_inline })
+        Ok(InlineType {
+            ty: Cow::Owned(ty),
+            is_inline,
+        })
     }
 }
 

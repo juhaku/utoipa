@@ -27,6 +27,8 @@ use super::{
     PathTypeTree,
 };
 
+pub mod derive;
+
 enum DeriveResponseType<'r> {
     Unnamed(Type, &'r [Attribute]),
     Named(Type, &'r Punctuated<Field, Comma>),
@@ -56,10 +58,10 @@ impl DeriveResponse {
                     Fields::Unnamed(unnamed) => {
                         if unnamed.unnamed.len() <= 1 {
                             unnamed
-                            .unnamed
-                            .iter()
-                            .next()
-                            .map(|field| DeriveResponseType::Unnamed(field.ty.clone(), field.attrs.as_slice())).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
+                                .unnamed
+                                .iter()
+                                .next()
+                                .map(|field| DeriveResponseType::Unnamed(field.ty.clone(), field.attrs.as_slice())).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
                         } else {
                             abort!(
                                 unnamed.span(),
@@ -74,26 +76,26 @@ impl DeriveResponse {
         }
     }
 
-    fn parse_derive_response_value(&self, attributes: &[Attribute]) -> Option<DeriveResponseValue> {
+    fn parse_derive_response_value(
+        &self,
+        attributes: &[Attribute],
+    ) -> Option<DeriveToResponseValue> {
         attributes
             .iter()
             .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
             .map(|attribute| {
                 attribute
-                    .parse_args::<DeriveResponseValue>()
+                    .parse_args::<DeriveToResponseValue>()
                     .unwrap_or_abort()
             })
-            .reduce(|mut acc, item| {
-                acc.merge_from(item);
-                acc
-            })
+            .reduce(|acc, item| acc.merge_from(item))
     }
 
-    fn create_response(
-        &self,
+    fn create_response<'r>(
+        &'r self,
         description: String,
-        ty: Option<PathType>,
-        content: Punctuated<Content, Comma>,
+        ty: Option<PathType<'r>>,
+        content: Punctuated<Content<'r>, Comma>,
     ) -> ResponseTuple {
         let response_value = self.parse_derive_response_value(self.attributes.as_slice());
         if let Some(response_value) = response_value {
@@ -159,7 +161,10 @@ impl ToTokens for DeriveResponse {
                     .any(|attribute| attribute.path.get_ident().unwrap() == "to_schema");
                 self.create_response(
                     description,
-                    Some(PathType::Type(InlineType { ty, is_inline })),
+                    Some(PathType::MediaType(InlineType {
+                        ty: Cow::Owned(ty),
+                        is_inline,
+                    })),
                     Punctuated::new(),
                 )
             }
@@ -230,7 +235,10 @@ impl ToTokens for DeriveResponse {
                         field.map(|(ty, content_type)| {
                             Content(
                                 content_type,
-                                PathType::Type(InlineType { ty, is_inline }),
+                                PathType::MediaType(InlineType {
+                                    ty: Cow::Owned(ty),
+                                    is_inline,
+                                }),
                                 example.map(|(example, _)| example),
                                 examples.map(|(examples, _)| examples),
                             )
@@ -276,14 +284,14 @@ impl ToTokens for DeriveResponse {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum Response {
+pub enum Response<'r> {
     /// A type that implements `utoipa::IntoResponses`.
     IntoResponses(ExprPath),
     /// The tuple definition of a response.
-    Tuple(ResponseTuple),
+    Tuple(ResponseTuple<'r>),
 }
 
-impl Parse for Response {
+impl Parse for Response<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
             Ok(Self::IntoResponses(input.parse()?))
@@ -298,17 +306,17 @@ impl Parse for Response {
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResponseTuple {
+pub struct ResponseTuple<'r> {
     status_code: ResponseStatus,
-    inner: Option<ResponseTupleInner>,
+    inner: Option<ResponseTupleInner<'r>>,
 }
 
 const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
     "The `response` attribute may only be used in conjunction with the `status` attribute";
 
-impl ResponseTuple {
+impl<'r> ResponseTuple<'r> {
     // This will error if the `response` attribute has already been set
-    fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue> {
+    fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue<'r>> {
         if self.inner.is_none() {
             self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
         }
@@ -320,7 +328,7 @@ impl ResponseTuple {
     }
 
     // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
-    fn set_ref_type(&mut self, span: Span, ty: InlineType) -> syn::Result<()> {
+    fn set_ref_type(&mut self, span: Span, ty: InlineType<'r>) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
@@ -333,12 +341,12 @@ impl ResponseTuple {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-enum ResponseTupleInner {
-    Value(ResponseValue),
-    Ref(InlineType),
+enum ResponseTupleInner<'r> {
+    Value(ResponseValue<'r>),
+    Ref(InlineType<'r>),
 }
 
-impl Parse for ResponseTuple {
+impl Parse for ResponseTuple<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, example, examples, response";
 
@@ -406,17 +414,17 @@ impl Parse for ResponseTuple {
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResponseValue {
+pub struct ResponseValue<'r> {
     description: String,
-    response_type: Option<PathType>,
+    response_type: Option<PathType<'r>>,
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
-    content: Punctuated<Content, Comma>,
+    content: Punctuated<Content<'r>, Comma>,
 }
 
-impl ToTokens for ResponseTuple {
+impl ToTokens for ResponseTuple<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
@@ -446,7 +454,7 @@ impl ToTokens for ResponseTuple {
                             utoipa::openapi::schema::Ref::new(#ref_type)
                         }
                         .to_token_stream(),
-                        PathType::Type(ref path_type) => {
+                        PathType::MediaType(ref path_type) => {
                             let type_tree = path_type.as_type_tree();
                             MediaTypeSchema {
                                 type_tree: &type_tree,
@@ -499,7 +507,7 @@ impl ToTokens for ResponseTuple {
                                     .content("application/json", #content)
                                 });
                             }
-                            PathType::Type(path_type) => {
+                            PathType::MediaType(path_type) => {
                                 let type_tree = path_type.as_type_tree();
                                 let default_type = type_tree.get_default_content_type();
                                 tokens.extend(quote! {
@@ -540,9 +548,21 @@ impl ToTokens for ResponseTuple {
     }
 }
 
+trait DeriveResponseValue: Parse {
+    fn merge_from(self, other: Self) -> Self;
+
+    fn from_attributes(attributes: &[Attribute]) -> Option<Self> {
+        attributes
+            .iter()
+            .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
+            .map(|attribute| attribute.parse_args::<Self>().unwrap_or_abort())
+            .reduce(|acc, item| acc.merge_from(item))
+    }
+}
+
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct DeriveResponseValue {
+struct DeriveToResponseValue {
     content_type: Option<Vec<String>>,
     headers: Vec<Header>,
     description: String,
@@ -550,29 +570,49 @@ struct DeriveResponseValue {
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
 
-impl DeriveResponseValue {
-    fn merge_from(&mut self, value: DeriveResponseValue) {
-        if value.content_type.is_some() {
-            self.content_type = value.content_type;
+impl DeriveResponseValue for DeriveToResponseValue {
+    fn merge_from(mut self, other: Self) -> Self {
+        if other.content_type.is_some() {
+            self.content_type = other.content_type;
         }
-        if !value.headers.is_empty() {
-            self.headers = value.headers;
+        if !other.headers.is_empty() {
+            self.headers = other.headers;
         }
-        if !value.description.is_empty() {
-            self.description = value.description;
+        if !other.description.is_empty() {
+            self.description = other.description;
         }
-        if value.example.is_some() {
-            self.example = value.example;
+        if other.example.is_some() {
+            self.example = other.example;
         }
-        if value.examples.is_some() {
-            self.examples = value.examples;
+        if other.examples.is_some() {
+            self.examples = other.examples;
         }
+
+        self
     }
 }
 
-impl Parse for DeriveResponseValue {
+trait OptionFrom<T>: Sized {
+    fn from(value: T) -> Option<Self>;
+}
+
+impl OptionFrom<&[Attribute]> for DeriveToResponseValue {
+    fn from(value: &[Attribute]) -> Option<Self> {
+        value
+            .iter()
+            .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
+            .map(|attribute| {
+                attribute
+                    .parse_args::<DeriveToResponseValue>()
+                    .unwrap_or_abort()
+            })
+            .reduce(|acc, item| acc.merge_from(item))
+    }
+}
+
+impl Parse for DeriveToResponseValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut response = DeriveResponseValue::default();
+        let mut response = DeriveToResponseValue::default();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
@@ -598,6 +638,97 @@ impl Parse for DeriveResponseValue {
                     return Err(Error::new(
                         ident.span(),
                         format!("unexected attribute: {attribute_name}, expected any of: inline, description, content_type, headers, example"),
+                    ));
+                }
+            }
+
+            if !input.is_empty() {
+                input.parse::<Comma>()?;
+            }
+        }
+
+        Ok(response)
+    }
+}
+
+#[derive(Default)]
+struct DeriveIntoResponsesValue {
+    status: ResponseStatus,
+    content_type: Option<Vec<String>>,
+    headers: Vec<Header>,
+    description: String,
+    example: Option<(AnyValue, Ident)>,
+    examples: Option<(Punctuated<Example, Comma>, Ident)>,
+}
+
+impl DeriveResponseValue for DeriveIntoResponsesValue {
+    fn merge_from(mut self, other: Self) -> Self {
+        self.status = other.status;
+
+        if other.content_type.is_some() {
+            self.content_type = other.content_type;
+        }
+        if !other.headers.is_empty() {
+            self.headers = other.headers;
+        }
+        if !other.description.is_empty() {
+            self.description = other.description;
+        }
+        if other.example.is_some() {
+            self.example = other.example;
+        }
+        if other.examples.is_some() {
+            self.examples = other.examples;
+        }
+
+        self
+    }
+}
+
+impl Parse for DeriveIntoResponsesValue {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut response = DeriveIntoResponsesValue::default();
+        const MISSING_STATUS_ERROR: &str = "missing expected `status` attribute";
+        let first_span = input.span();
+
+        let status_ident = input
+            .parse::<Ident>()
+            .map_err(|error| Error::new(error.span(), MISSING_STATUS_ERROR))?;
+
+        if status_ident == "status" {
+            response.status = parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
+        } else {
+            return Err(Error::new(status_ident.span(), MISSING_STATUS_ERROR));
+        }
+
+        if response.status.to_token_stream().is_empty() {
+            return Err(Error::new(first_span, MISSING_STATUS_ERROR));
+        }
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>()?;
+            let attribute_name = &*ident.to_string();
+
+            match attribute_name {
+                "description" => {
+                    response.description = parse::description(input)?;
+                }
+                "content_type" => {
+                    response.content_type = Some(parse::content_type(input)?);
+                }
+                "headers" => {
+                    response.headers = parse::headers(input)?;
+                }
+                "example" => {
+                    response.example = Some((parse::example(input)?, ident));
+                }
+                "examples" => {
+                    response.examples = Some((parse::examples(input)?, ident));
+                }
+                _ => {
+                    return Err(Error::new(
+                        ident.span(),
+                        format!("unexected attribute: {attribute_name}, expected any of: description, content_type, headers, example, examples"),
                     ));
                 }
             }
@@ -695,14 +826,14 @@ impl ToTokens for ResponseStatus {
 //   ("application/json2" = Response2, example = "...", examples("...", "..."))
 // )
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Content(
+struct Content<'c>(
     String,
-    PathType,
+    PathType<'c>,
     Option<AnyValue>,
     Option<Punctuated<Example, Comma>>,
 );
 
-impl Parse for Content {
+impl Parse for Content<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
         parenthesized!(content in input);
@@ -745,7 +876,7 @@ impl Parse for Content {
     }
 }
 
-pub struct Responses<'a>(pub &'a [Response]);
+pub struct Responses<'a>(pub &'a [Response<'a>]);
 
 impl ToTokens for Responses<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -831,7 +962,7 @@ impl ToTokens for Responses<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Header {
     name: String,
-    value_type: Option<InlineType>,
+    value_type: Option<InlineType<'static>>,
     description: Option<String>,
 }
 

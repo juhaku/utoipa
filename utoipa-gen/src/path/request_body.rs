@@ -50,15 +50,15 @@ use super::{PathType, PathTypeTree};
 /// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct RequestBodyAttr {
-    content: Option<PathType>,
+pub struct RequestBodyAttr<'r> {
+    content: Option<PathType<'r>>,
     content_type: Option<String>,
     description: Option<String>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
 }
 
-impl Parse for RequestBodyAttr {
+impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
             "unexpected attribute, expected any of: content, content_type, description, examples";
@@ -133,14 +133,14 @@ impl Parse for RequestBodyAttr {
     }
 }
 
-impl ToTokens for RequestBodyAttr {
+impl ToTokens for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
                 PathType::Ref(ref_type) => quote! {
                     utoipa::openapi::schema::Ref::new(#ref_type)
                 },
-                PathType::Type(body_type) => {
+                PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
                     MediaTypeSchema {
                         type_tree: &type_tree,
@@ -180,7 +180,7 @@ impl ToTokens for RequestBodyAttr {
                             .content("application/json", #content.build())
                     });
                 }
-                PathType::Type(body_type) => {
+                PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
                     let content_type = self
                         .content_type
