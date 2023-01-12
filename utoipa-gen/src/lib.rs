@@ -2078,6 +2078,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// #[response(status = 201)]
 /// struct CreatedResponse(#[to_schema] Foo);
 /// ```
+///
 /// _**Enum with multiple responses.**_
 /// ```rust
 /// # #[derive(utoipa::ToResponse)]

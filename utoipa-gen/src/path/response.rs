@@ -592,24 +592,6 @@ impl DeriveResponseValue for DeriveToResponseValue {
     }
 }
 
-trait OptionFrom<T>: Sized {
-    fn from(value: T) -> Option<Self>;
-}
-
-impl OptionFrom<&[Attribute]> for DeriveToResponseValue {
-    fn from(value: &[Attribute]) -> Option<Self> {
-        value
-            .iter()
-            .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
-            .map(|attribute| {
-                attribute
-                    .parse_args::<DeriveToResponseValue>()
-                    .unwrap_or_abort()
-            })
-            .reduce(|acc, item| acc.merge_from(item))
-    }
-}
-
 impl Parse for DeriveToResponseValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut response = DeriveToResponseValue::default();
