@@ -50,15 +50,17 @@ impl ResponsesBuilder {
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
     pub fn responses_from_iter<
-        I: Iterator<Item = (C, R)>,
+        I: IntoIterator<Item = (C, R)>,
         C: Into<String>,
         R: Into<RefOr<Response>>,
     >(
         mut self,
         iter: I,
     ) -> Self {
-        self.responses
-            .extend(iter.map(|(code, response)| (code.into(), response.into())));
+        self.responses.extend(
+            iter.into_iter()
+                .map(|(code, response)| (code.into(), response.into())),
+        );
         self
     }
 

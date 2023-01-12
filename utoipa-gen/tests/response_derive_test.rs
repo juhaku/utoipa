@@ -495,3 +495,308 @@ fn derive_response_with_inline_unnamed_schema() {
         })
     )
 }
+
+macro_rules! into_responses {
+    ( $(#[$meta:meta])* $key:ident $ident:ident $($tt:tt)* ) => {
+        {
+            #[derive(utoipa::IntoResponses)]
+            $(#[$meta])*
+            #[allow(unused)]
+            $key $ident $( $tt )*
+
+            let responses = <$ident as utoipa::IntoResponses>::responses();
+            serde_json::to_value(responses).unwrap()
+        }
+    };
+}
+
+#[test]
+fn derive_into_reponses_inline_named_struct_repsonse() {
+    let responses = into_responses! {
+        /// This is success response
+        #[response(status = 200)]
+        struct SuccessResponse {
+            value: String,
+        }
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "description": "This is success response",
+                            "properties": {
+                                "value": {
+                                    "type": "string"
+                                },
+                            },
+                            "required": ["value"],
+                            "type": "object"
+                        }
+                    }
+                },
+                "description": "This is success response"
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_reponses_unit_struct() {
+    let responses = into_responses! {
+        /// Not found response
+        #[response(status = NOT_FOUND)]
+        struct NotFound;
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "404": {
+                "description": "Not found response"
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_responses_unnamed_struct_inline_schema() {
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct Foo {
+        bar: String,
+    }
+
+    let responses = into_responses! {
+        #[response(status = 201)]
+        struct CreatedResponse(#[to_schema] Foo);
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "201": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "bar": {
+                                    "type": "string"
+                                },
+                            },
+                            "required": ["bar"],
+                            "type": "object"
+                        }
+                    }
+                },
+                "description": ""
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_responses_unnamed_struct_with_primitive_schema() {
+    let responses = into_responses! {
+        #[response(status = 201)]
+        struct CreatedResponse(String);
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "201": {
+                "content": {
+                    "text/plain": {
+                        "schema": {
+                            "type": "string",
+                        }
+                    }
+                },
+                "description": ""
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_responses_unnamed_struct_ref_schema() {
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct Foo {
+        bar: String,
+    }
+
+    let responses = into_responses! {
+        #[response(status = 201)]
+        struct CreatedResponse(Foo);
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "201": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/Foo",
+                        }
+                    }
+                },
+                "description": ""
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_responses_unnamed_struct_ref_response() {
+    #[derive(utoipa::ToResponse)]
+    #[allow(unused)]
+    struct Foo {
+        bar: String,
+    }
+
+    let responses = into_responses! {
+        #[response(status = 201)]
+        struct CreatedResponse(#[ref_response] Foo);
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "201": {
+                "$ref": "#/components/responses/Foo"
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_responses_unnamed_struct_to_response() {
+    #[derive(utoipa::ToResponse)]
+    #[allow(unused)]
+    struct Foo {
+        bar: String,
+    }
+
+    let responses = into_responses! {
+        #[response(status = 201)]
+        struct CreatedResponse(#[to_response] Foo);
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "201": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "bar": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["bar"],
+                            "type": "object",
+                        }
+                    }
+                },
+                "description": ""
+            }
+        })
+    )
+}
+
+#[test]
+fn derive_into_responses_enum_with_multiple_responses() {
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct BadRequest {
+        value: String,
+    }
+
+    #[derive(utoipa::ToResponse)]
+    #[allow(unused)]
+    struct Response {
+        message: String,
+    }
+
+    let responses = into_responses! {
+        enum UserResponses {
+            /// Success response
+            #[response(status = 200)]
+            Success { value: String },
+
+            #[response(status = 404)]
+            NotFound,
+
+            #[response(status = 400)]
+            BadRequest(BadRequest),
+
+            #[response(status = 500)]
+            ServerError(#[ref_response] Response),
+
+            #[response(status = 418)]
+            TeaPot(#[to_response] Response),
+        }
+    };
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "description": "Success response",
+                            "required": ["value"],
+                            "type": "object",
+                        }
+                    }
+                },
+                "description": "Success response"
+            },
+            "400": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/BadRequest"
+                        }
+                    }
+                },
+                "description": "",
+            },
+            "404": {
+                "description": ""
+            },
+            "418": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["message"],
+                            "type": "object",
+                        }
+                    }
+                },
+                "description": "",
+            },
+            "500": {
+                "$ref": "#/components/responses/Response"
+            }
+        })
+    )
+}
