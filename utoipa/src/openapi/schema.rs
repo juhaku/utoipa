@@ -508,6 +508,11 @@ impl From<AllOfBuilder> for RefOr<Schema> {
 
 component_from_builder!(AllOfBuilder);
 
+#[cfg(not(feature = "preserve_order"))]
+type ObjectPropertiesMap<K, V> = BTreeMap<K, V>;
+#[cfg(feature = "preserve_order")]
+type ObjectPropertiesMap<K, V> = indexmap::IndexMap<K, V>;
+
 builder! {
     ObjectBuilder;
 
@@ -552,8 +557,8 @@ builder! {
         pub required: Vec<String>,
 
         /// Map of fields with their [`Schema`] types.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default = "BTreeMap::new")]
-        pub properties: BTreeMap<String, RefOr<Schema>>,
+        #[serde(skip_serializing_if = "ObjectPropertiesMap::is_empty", default = "ObjectPropertiesMap::new")]
+        pub properties: ObjectPropertiesMap<String, RefOr<Schema>>,
 
         /// Additional [`Schema`] for non specified fields (Useful for typed maps).
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1220,6 +1225,52 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
+    #[test]
+    fn test_property_order() {
+        let json_value = ObjectBuilder::new()
+            .property(
+                "id",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Integer)
+                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                    .description(Some("Id of credential"))
+                    .default(Some(json!(1i32))),
+            )
+            .property(
+                "name",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::String)
+                    .description(Some("Name of credential")),
+            )
+            .property(
+                "status",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::String)
+                    .default(Some(json!("Active")))
+                    .description(Some("Credential status"))
+                    .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
+            )
+            .property(
+                "history",
+                Array::new(Ref::from_schema_name("UpdateHistory")),
+            )
+            .property("tags", Object::with_type(SchemaType::String).to_array())
+            .build();
+
+        #[cfg(not(feature = "preserve_order"))]
+        assert_eq!(
+            json_value.properties.keys().collect::<Vec<_>>(),
+            vec!["history", "id", "name", "status", "tags"]
+        );
+
+        #[cfg(feature = "preserve_order")]
+        assert_eq!(
+            json_value.properties.keys().collect::<Vec<_>>(),
+            vec!["id", "name", "status", "history", "tags"]
+        );
     }
 
     // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
