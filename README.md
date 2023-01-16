@@ -75,6 +75,9 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.
 - **repr** Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
   C-like enum representation. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
+- **preserve_order** Preserve order of properties when serializing the schema for a component.
+  When enabled, the properties are listed in order of fields in the corresponding struct definition.
+  When disabled, the properties are listed in alphabetical order.
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 
