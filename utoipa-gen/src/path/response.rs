@@ -1,7 +1,7 @@
-use std::{borrow::Cow, mem};
+use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use proc_macro_error::{abort, ResultExt};
+use proc_macro_error::ResultExt;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
@@ -9,18 +9,10 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Data, Error, ExprPath, Field, Fields, Generics, LitInt, LitStr, Path, Token, Type,
-    TypePath, Variant,
+    Attribute, Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{
-    component::{
-        schema::{EnumSchema, NamedStructSchema},
-        TypeTree,
-    },
-    doc_comment::CommentAttributes,
-    parse_utils, AnyValue, Array,
-};
+use crate::{component::TypeTree, parse_utils, AnyValue, Array};
 
 use super::{
     example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineType, PathType,
@@ -28,260 +20,6 @@ use super::{
 };
 
 pub mod derive;
-
-enum DeriveResponseType<'r> {
-    Unnamed(Type, &'r [Attribute]),
-    Named(Type, &'r Punctuated<Field, Comma>),
-    Unit,
-    Enum(Type, &'r Punctuated<Variant, Comma>),
-}
-
-pub struct DeriveResponse {
-    pub attributes: Vec<Attribute>,
-    pub data: Data,
-    pub generics: Generics,
-    pub ident: Ident,
-}
-
-impl DeriveResponse {
-    fn get_type(&self) -> DeriveResponseType {
-        let get_type = || {
-            let path = Path::from(self.ident.clone());
-            let type_path = TypePath { path, qself: None };
-            Type::Path(type_path)
-        };
-        match &self.data {
-            Data::Struct(value) => {
-                match &value.fields {
-                    Fields::Named(named) => DeriveResponseType::Named(get_type(), &named.named),
-                    Fields::Unit => DeriveResponseType::Unit,
-                    Fields::Unnamed(unnamed) => {
-                        if unnamed.unnamed.len() <= 1 {
-                            unnamed
-                                .unnamed
-                                .iter()
-                                .next()
-                                .map(|field| DeriveResponseType::Unnamed(field.ty.clone(), field.attrs.as_slice())).unwrap_or_else(|| abort!(unnamed.span(), "Unnamed struct used for `ToResponse` must have one argument"))
-                        } else {
-                            abort!(
-                                unnamed.span(),
-                                "Unnamed struct with tuple value is unsupported in `ToResponse`"
-                            );
-                        }
-                    }
-                }
-            }
-            Data::Enum(variants) => DeriveResponseType::Enum(get_type(), &variants.variants),
-            _ => abort!(self.ident, "Union type is not supported with `ToResponse`"),
-        }
-    }
-
-    fn parse_derive_response_value(
-        &self,
-        attributes: &[Attribute],
-    ) -> Option<DeriveToResponseValue> {
-        attributes
-            .iter()
-            .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
-            .map(|attribute| {
-                attribute
-                    .parse_args::<DeriveToResponseValue>()
-                    .unwrap_or_abort()
-            })
-            .reduce(|acc, item| acc.merge_from(item))
-    }
-
-    fn create_response<'r>(
-        &'r self,
-        description: String,
-        ty: Option<PathType<'r>>,
-        content: Punctuated<Content<'r>, Comma>,
-    ) -> ResponseTuple {
-        let response_value = self.parse_derive_response_value(self.attributes.as_slice());
-        if let Some(response_value) = response_value {
-            if (!content.is_empty() && response_value.example.is_some())
-                || (!content.is_empty() && response_value.examples.is_some())
-            {
-                let ident = response_value
-                    .example
-                    .as_ref()
-                    .map(|(_, ident)| ident)
-                    .or_else(|| response_value.examples.as_ref().map(|(_, ident)| ident))
-                    .expect("Expected `example` or `examples` to be present");
-                abort! {
-                    ident,
-                    "Enum with `#[content]` attribute in variant cannot have enum level `example` or `examples` defined";
-                    help = "Try defining `{}` on the enum variant", ident.to_string(),
-                }
-            }
-            let value = ResponseValue {
-                description: if response_value.description.is_empty() && !description.is_empty() {
-                    description
-                } else {
-                    response_value.description
-                },
-                headers: response_value.headers,
-                example: response_value.example.map(|(example, _)| example),
-                examples: response_value.examples.map(|(examples, _)| examples),
-                content_type: response_value.content_type,
-                response_type: if content.is_empty() { ty } else { None },
-                content,
-            };
-
-            ResponseTuple {
-                inner: Some(ResponseTupleInner::Value(value)),
-                ..Default::default()
-            }
-        } else {
-            let value = ResponseValue {
-                response_type: if content.is_empty() { ty } else { None },
-                content,
-                description,
-                ..Default::default()
-            };
-            ResponseTuple {
-                inner: Some(ResponseTupleInner::Value(value)),
-                ..Default::default()
-            }
-        }
-    }
-}
-
-impl ToTokens for DeriveResponse {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        // construct default type for the response
-        let derive_response_type = self.get_type();
-        let description =
-            CommentAttributes::from_attributes(&self.attributes).as_formatted_string();
-
-        let response = match derive_response_type {
-            DeriveResponseType::Unnamed(ty, attributes) => {
-                let is_inline = attributes
-                    .iter()
-                    .any(|attribute| attribute.path.get_ident().unwrap() == "to_schema");
-                self.create_response(
-                    description,
-                    Some(PathType::MediaType(InlineType {
-                        ty: Cow::Owned(ty),
-                        is_inline,
-                    })),
-                    Punctuated::new(),
-                )
-            }
-            DeriveResponseType::Named(ty, fields) => {
-                let inline_schema = NamedStructSchema {
-                    alias: None,
-                    fields,
-                    features: None,
-                    generics: None,
-                    attributes: self.attributes.as_slice(),
-                    struct_name: Cow::Owned(self.ident.to_string()),
-                    rename_all: None,
-                };
-                self.create_response(
-                    description,
-                    Some(PathType::InlineSchema(inline_schema.to_token_stream(), ty)),
-                    Punctuated::new(),
-                )
-            }
-            DeriveResponseType::Unit => self.create_response(description, None, Punctuated::new()),
-            DeriveResponseType::Enum(ty, variants) => {
-                let variants_content = variants
-                    .iter()
-                    .map(|variant| {
-                        let variant_derive_response_value =
-                            self.parse_derive_response_value(variant.attrs.as_slice());
-                        let field = variant.fields.iter().next();
-
-                        let content_type = field.and_then(|field| {
-                            field
-                                .attrs
-                                .iter()
-                                .find(|attribute| attribute.path.get_ident().unwrap() == "content")
-                                .map(|attribute| {
-                                    attribute
-                                        .parse_args_with(|input: ParseStream| {
-                                            input.parse::<LitStr>()
-                                        })
-                                        .unwrap_or_abort()
-                                })
-                                .map(|content| content.value())
-                        });
-                        let is_inline = field
-                            .map(|field| {
-                                field.attrs.iter().any(|attribute| {
-                                    attribute.path.get_ident().unwrap() == "to_schema"
-                                })
-                            })
-                            .unwrap_or(false);
-
-                        (
-                            field.map(|field| field.ty.clone()).zip(content_type),
-                            variant_derive_response_value,
-                            is_inline,
-                        )
-                    })
-                    .filter_map(|(field, mut variant_derive, is_inline)| {
-                        let (example, examples) = if let Some(variant_derive) = &mut variant_derive
-                        {
-                            (
-                                mem::take(&mut variant_derive.example),
-                                mem::take(&mut variant_derive.examples),
-                            )
-                        } else {
-                            (None, None)
-                        };
-
-                        field.map(|(ty, content_type)| {
-                            Content(
-                                content_type,
-                                PathType::MediaType(InlineType {
-                                    ty: Cow::Owned(ty),
-                                    is_inline,
-                                }),
-                                example.map(|(example, _)| example),
-                                examples.map(|(examples, _)| examples),
-                            )
-                        })
-                    });
-
-                let content: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
-
-                self.create_response(
-                    description,
-                    // enums with #[content] attribute uses schema reference
-                    if content.len() > 1 {
-                        None
-                    } else {
-                        let inline_schema = EnumSchema {
-                            variants,
-                            attributes: self.attributes.as_slice(),
-                            enum_name: Cow::Owned(self.ident.to_string()),
-                        };
-
-                        Some(PathType::InlineSchema(
-                            inline_schema.into_token_stream(),
-                            ty,
-                        ))
-                    },
-                    content,
-                )
-            }
-        };
-
-        let ident = &self.ident;
-        let name = &*self.ident.to_string();
-
-        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
-        tokens.extend(quote! {
-            impl #impl_generics utoipa::ToResponse for #ident #ty_generics #where_clause {
-                fn response() -> (String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>) {
-                    (#name.to_string(), #response.into())
-                }
-            }
-        });
-    }
-}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response<'r> {
@@ -412,6 +150,53 @@ impl Parse for ResponseTuple<'_> {
     }
 }
 
+impl<'r> From<ResponseValue<'r>> for ResponseTuple<'r> {
+    fn from(value: ResponseValue<'r>) -> Self {
+        ResponseTuple {
+            inner: Some(ResponseTupleInner::Value(value)),
+            ..Default::default()
+        }
+    }
+}
+
+impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
+    fn from((status_code, response_value): (ResponseStatus, ResponseValue<'r>)) -> Self {
+        ResponseTuple {
+            inner: Some(ResponseTupleInner::Value(response_value)),
+            status_code,
+        }
+    }
+}
+
+pub struct DeriveResponsesAttributes<T> {
+    derive_value: T,
+    description: String,
+}
+
+impl<'r> From<DeriveResponsesAttributes<DeriveIntoResponsesValue>> for ResponseValue<'r> {
+    fn from(value: DeriveResponsesAttributes<DeriveIntoResponsesValue>) -> Self {
+        Self::from_derive_into_responses_value(value.derive_value, value.description)
+    }
+}
+
+impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for ResponseValue<'r> {
+    fn from(
+        DeriveResponsesAttributes::<Option<DeriveToResponseValue>> {
+            derive_value,
+            description,
+        }: DeriveResponsesAttributes<Option<DeriveToResponseValue>>,
+    ) -> Self {
+        if let Some(derive_value) = derive_value {
+            ResponseValue::from_derive_to_response_value(derive_value, description)
+        } else {
+            ResponseValue {
+                description,
+                ..Default::default()
+            }
+        }
+    }
+}
+
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
@@ -422,6 +207,50 @@ pub struct ResponseValue<'r> {
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
     content: Punctuated<Content<'r>, Comma>,
+}
+
+impl<'r> ResponseValue<'r> {
+    fn from_derive_to_response_value(
+        derive_value: DeriveToResponseValue,
+        description: String,
+    ) -> Self {
+        Self {
+            description: if derive_value.description.is_empty() && !description.is_empty() {
+                description
+            } else {
+                derive_value.description
+            },
+            headers: derive_value.headers,
+            example: derive_value.example.map(|(example, _)| example),
+            examples: derive_value.examples.map(|(examples, _)| examples),
+            content_type: derive_value.content_type,
+            ..Default::default()
+        }
+    }
+
+    fn from_derive_into_responses_value(
+        response_value: DeriveIntoResponsesValue,
+        description: String,
+    ) -> Self {
+        ResponseValue {
+            description: if response_value.description.is_empty() && !description.is_empty() {
+                description
+            } else {
+                response_value.description
+            },
+            headers: response_value.headers,
+            example: response_value.example.map(|(example, _)| example),
+            examples: response_value.examples.map(|(examples, _)| examples),
+            content_type: response_value.content_type,
+            ..Default::default()
+        }
+    }
+
+    fn response_type(mut self, response_type: Option<PathType<'r>>) -> Self {
+        self.response_type = response_type;
+
+        self
+    }
 }
 
 impl ToTokens for ResponseTuple<'_> {

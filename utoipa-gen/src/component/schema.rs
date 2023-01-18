@@ -1062,6 +1062,8 @@ impl ComplexEnum<'_> {
         }
     }
 
+    // FIXME perhaps design this better to lessen the amount of args.
+    #[allow(clippy::too_many_arguments)]
     fn adjacently_tagged_variant_tokens(
         &self,
         tag: &str,

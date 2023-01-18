@@ -36,7 +36,7 @@ mod security_requirement;
 
 use crate::path::{Path, PathAttr};
 
-use self::path::response::{derive, DeriveResponse};
+use self::path::response::derive::{IntoResponses, ToResponse};
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
@@ -1959,7 +1959,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let response = DeriveResponse {
+    let response = ToResponse {
         attributes: attrs,
         ident,
         generics,
@@ -2121,7 +2121,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let into_responses = derive::IntoResponses {
+    let into_responses = IntoResponses {
         attributes: attrs,
         ident,
         generics,
