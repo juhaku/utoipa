@@ -2083,7 +2083,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///     message: String,
 /// }
 ///
-/// #[derive(utoipa::IntoRespones)]
+/// #[derive(utoipa::IntoResponses)]
 /// enum UserResponses {
 ///     /// Success response
 ///     #[response(status = 200)]
@@ -2103,8 +2103,8 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///         UserResponses
 ///     )
 /// )]
-/// fn get_user() -> UserResponse {
-///    UserResponse::NotFound
+/// fn get_user() -> UserResponses {
+///    UserResponses::NotFound
 /// }
 /// ```
 /// _**Named struct response with inlined schema.**_
