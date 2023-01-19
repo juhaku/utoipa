@@ -741,17 +741,18 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
+/// ### Using `ToResponse` for reusable responses
+///
 /// **Use `ToResponse` trait to define response attributes instead of tuple:**
 ///
-/// `ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].
-///
+/// _**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
 /// ```text
 /// responses(
 ///     (status = 200, response = ReusableResponse)
 /// )
 /// ```
 ///
-/// [`ToResponse`][to_response_trait] can also be inlined to the responses map.
+/// _**[`ToResponse`][to_response_trait] can also be inlined to the responses map.**_
 /// ```text
 /// responses(
 ///     (status = 200, response = inline(ReusableResponse))
@@ -760,7 +761,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// **Multiple response return types with _`content(...)`_ attribute**
 ///
-/// Define multiple response return types for single response status with their own example.
+/// _**Define multiple response return types for single response status with their own example.**_
 /// ```text
 /// responses(
 ///    (status = 200, content(
@@ -773,9 +774,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// ## Responses from `IntoResponses`
 ///
-/// Responses for a path can be specified with one or more types that implement
-/// [`IntoResponses`][into_responses_trait]:
-///
+/// _**Responses for a path can be specified with one or more types that implement
+/// [`IntoResponses`][into_responses_trait].**_
 /// ```text
 /// responses(MyResponse)
 /// ```
@@ -1797,7 +1797,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///
 /// _`ToResponse`_ can be used in four different ways to generate OpenAPI response component.
 ///
-/// 1. By decorating `struct` or `enum` with [`ToResponse`] derive macro. This will create a
+/// 1. By decorating `struct` or `enum` with [`derive@ToResponse`] derive macro. This will create a
 ///    response with inlined schema resolved from the fields of the `struct` or `variants` of the
 ///    enum.
 ///
@@ -1810,7 +1810,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///     }
 ///    ```
 ///
-/// 2. By decorating unnamed field `struct` with [`ToResponse`] derive macro. Unnamed field struct
+/// 2. By decorating unnamed field `struct` with [`derive@ToResponse`] derive macro. Unnamed field struct
 ///    allows users to use new type pattern to define one inner field which is used as a schema for
 ///    the generated response. This allows users to define `Vec` and `Option` response types.
 ///    Additionally these types can also be used with `#[to_schema]` attribute to inline the
@@ -1826,7 +1826,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///     struct PersonList(Vec<Person>);
 ///    ```
 ///
-/// 3. By decorating unit struct with [`ToResponse`] derive macro. Unit structs will produce a
+/// 3. By decorating unit struct with [`derive@ToResponse`] derive macro. Unit structs will produce a
 ///    response without body.
 ///
 ///    ```rust
@@ -1904,6 +1904,29 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
+/// _**Use reusable response in operation handler.**_
+/// ```rust
+/// #[derive(utoipa::ToResponse)]
+/// struct PersonResponse {
+///    value: String
+/// }
+///
+/// #[derive(utoipa::OpenApi)]
+/// #[openapi(components(responses(PersonResponse)))]
+/// struct Doc;
+///
+/// #[utoipa::path(
+///     get,
+///     path = "/api/person",
+///     responses(
+///         (status = 200, response = PersonResponse)
+///     )
+/// )]
+/// fn get_person() -> PersonResponse {
+///     PersonResponse { value: "person".to_string() }
+/// }
+/// ```
+///
 /// _**Create a response from named struct.**_
 /// ```rust
 ///  /// This is description
@@ -1977,20 +2000,20 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// Generate responses with status codes what
 /// can be attached to the [`utoipa::path`][path_into_responses].
 ///
-/// This is `#[derive]` implementation of [`IntoResponses`][into_responses] trait. [`IntoResponses`]
+/// This is `#[derive]` implementation of [`IntoResponses`][into_responses] trait. [`derive@IntoResponses`]
 /// can be used to decorate _`structs`_ and _`enums`_ to generate response maps that can be used in
-/// [`utoipa::path`][path_into_responses]. If _`struct`_ is decorated with [`IntoResponses`] it will be
+/// [`utoipa::path`][path_into_responses]. If _`struct`_ is decorated with [`derive@IntoResponses`] it will be
 /// used to create a map of responses containing single response. Decorating _`enum`_ with
-/// [`IntoResponses`] will create a map of responses with a response for each variant of the _`enum`_.
+/// [`derive@IntoResponses`] will create a map of responses with a response for each variant of the _`enum`_.
 ///
-/// Named field _`struct`_ decorated with [`IntoResponses`] will create a response with inlined schema
+/// Named field _`struct`_ decorated with [`derive@IntoResponses`] will create a response with inlined schema
 /// generated from the body of the struct. This is a conveniency which allows users to directly
 /// create responses with schemas without first creating a separate [response][to_response] type.
 ///
 /// Unit _`struct`_ behaves similarly to then named field struct. Only difference is that it will create
 /// a response without content since there is no inner fields.
 ///
-/// Unnamed field _`struct`_ decorated with [`IntoResponses`] will by default create a response with
+/// Unnamed field _`struct`_ decorated with [`derive@IntoResponses`] will by default create a response with
 /// referenced [schema][to_schema] if field is object or schema if type is [primitive
 /// type][primitive]. _`#[to_schema]`_ attribute at field of unnamed _`struct`_ can be used to inline
 /// the schema if type of the field implements [`ToSchema`][to_schema] trait. Alternatively
@@ -1999,7 +2022,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// type is expected to implement [`ToResponse`][to_response] trait.
 ///
 ///
-/// Enum decorated with [`IntoResponses`] will create a response for each variant of the _`enum`_.
+/// Enum decorated with [`derive@IntoResponses`] will create a response for each variant of the _`enum`_.
 /// Each variant must have it's own _`#[response(...)]`_ definition. Unit variant will behave same
 /// as unit _`struct`_ by creating a response without content. Similarly named field variant and
 /// unnamed field variant behaves the same as it was named field _`struct`_ and unnamed field
@@ -2053,6 +2076,37 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
+/// _**Use `IntoResponses` to define [`utoipa::path`][path] responses.**_
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// struct BadRequest {
+///     message: String,
+/// }
+///
+/// #[derive(utoipa::IntoResponses)]
+/// enum UserResponses {
+///     /// Success response
+///     #[response(status = 200)]
+///     Success { value: String },
+///
+///     #[response(status = 404)]
+///     NotFound,
+///
+///     #[response(status = 400)]
+///     BadRequest(BadRequest),
+/// }
+///
+/// #[utoipa::path(
+///     get,
+///     path = "/api/user",
+///     responses(
+///         UserResponses
+///     )
+/// )]
+/// fn get_user() -> UserResponses {
+///    UserResponses::NotFound
+/// }
+/// ```
 /// _**Named struct response with inlined schema.**_
 /// ```rust
 /// /// This is success response
@@ -2112,6 +2166,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// [to_response]: trait.ToResponse.html
 /// [path_into_responses]: attr.path.html#responses-from-intoresponses
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+/// [path]: macro@crate::path
 pub fn into_responses(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
