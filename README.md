@@ -258,7 +258,7 @@ This would produce api doc something similar to:
  doc.info.title = String::from("My Api");
  ```
 
- _**You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [openapi::OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html).**_
+ _**You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html).**_
  ```rust
  #[derive(OpenApi)]
  #[openapi(
