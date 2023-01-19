@@ -7,7 +7,7 @@ crate="$1"
 echo "Testing crate: $crate..."
 
 if [[ "$crate" == "utoipa" ]]; then
-    cargo test -p utoipa --features openapi_extensions
+    cargo test -p utoipa --features openapi_extensions,preserve_order
 elif [[ "$crate" == "utoipa-gen" ]]; then
     cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,utoipa/uuid,utoipa/time,time,utoipa/repr
 

@@ -47,13 +47,14 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
 
 - **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 - **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
-  parse `path` and `path and query parameters` from actix web path attribute macros. See
+  parse `path`, `path` and `query` parameters from actix web path attribute macros. See
   [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-support-for-actix-web) or [examples](./examples) for more details.
 - **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
-  able to parse `path`, `path and query parameters` from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
+  able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
   or [examples](./examples) for more details.
-- **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without defining the `parameter_in` attribute. See
-  [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-suppport-for-axum) or [examples](./examples) for more details.
+- **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without 
+  defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-suppport-for-axum) 
+  or [examples](./examples) for more details.
 - **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 - **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
   types. By default these types are parsed to `string` types with additional `format` information.
