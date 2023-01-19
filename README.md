@@ -43,7 +43,7 @@ web framework which supports decorating functions with macros similarly to **war
 The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
 and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :beer:.
 
-## Features
+## Crate Features
 
 - **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 - **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
@@ -240,7 +240,7 @@ This would produce api doc something similar to:
 }
 ```
 
- # Modify OpenAPI at runtime
+ ## Modify OpenAPI at runtime
 
  You can modify generated OpenAPI at runtime either via generated types directly or using
  [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait.

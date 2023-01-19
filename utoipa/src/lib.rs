@@ -40,7 +40,7 @@
 //! The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
 //! and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer.
 //!
-//! # Features
+//! # Crate Features
 //!
 //! * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 //! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
