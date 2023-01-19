@@ -199,11 +199,47 @@
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 //! ```
+//!
+//! # Modify OpenAPI at runtime
+//!
+//! You can modify generated OpenAPI at runtime either via generated types directly or using
+//! [`Modify`] trait.
+//!
+//! _**Modify generated OpenAPI via types directly.**_
+//! ```rust
+//! # use utoipa::OpenApi;
+//! #[derive(OpenApi)]
+//! #[openapi(
+//!     info(description = "My Api description"),
+//!     paths()
+//! )]
+//! struct ApiDoc;
+//!
+//! let mut doc = ApiDoc::openapi();
+//! doc.info.title = String::from("My Api");
+//! ```
+//!
+//! _**You can even convert the generated [`OpenApi`] to [`openapi::OpenApiBuilder`].**_
+//! ```rust
+//! # use utoipa::openapi::OpenApiBuilder;
+//! # use utoipa::OpenApi;
+//! #[derive(OpenApi)]
+//! #[openapi(
+//!     info(description = "My Api description"),
+//!     paths()
+//! )]
+//! struct ApiDoc;
+//!
+//! let builder: OpenApiBuilder = ApiDoc::openapi().into();
+//! ```
+//!
+//! See [`Modify`] trait for examples on how to modify generated OpenAPI via it.
+//!
 //! # Go beyond the surface
 //!
 //! * See how to serve OpenAPI doc via Swagger UI check [`utoipa-swagger-ui`][utoipa_swagger] crate for more details.
 //! * Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
-//! * Modify generated OpenAPI at runtime check [`Modify`] trait for more details.
+//! * Check [`derive@IntoResponses`] and [`derive@ToResponse`] for examples on deriving responses.
 //! * More about OpenAPI security in [security documentation][security].
 //!
 //! [path]: attr.path.html

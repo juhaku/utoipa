@@ -240,11 +240,43 @@ This would produce api doc something similar to:
 }
 ```
 
+ # Modify OpenAPI at runtime
+
+ You can modify generated OpenAPI at runtime either via generated types directly or using
+ [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait.
+
+ _**Modify generated OpenAPI via types directly.**_
+ ```rust
+ #[derive(OpenApi)]
+ #[openapi(
+     info(description = "My Api description"),
+     paths()
+ )]
+ struct ApiDoc;
+
+ let mut doc = ApiDoc::openapi();
+ doc.info.title = String::from("My Api");
+ ```
+
+ _**You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [openapi::OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html).**_
+ ```rust
+ #[derive(OpenApi)]
+ #[openapi(
+     info(description = "My Api description"),
+     paths()
+ )]
+ struct ApiDoc;
+
+ let builder: OpenApiBuilder = ApiDoc::openapi().into();
+ ```
+
+ See [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for examples on how to modify generated OpenAPI via it.
+
 ## Go beyond the surface
 
 - See how to serve OpenAPI doc via Swagger UI check [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate for more details.
 - Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
-- Modify generated OpenAPI at runtime check [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for more details.
+- Check [IntoResponses](https://docs.rs/utoipa/latest/utoipa/derive.IntoResponses.html) and [ToResponse](https://docs.rs/utoipa/latest/utoipa/derive.ToResponse.html) for examples on deriving responses.
 - More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
 
 # License

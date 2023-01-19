@@ -557,6 +557,12 @@ builder! {
         pub required: Vec<String>,
 
         /// Map of fields with their [`Schema`] types.
+        ///
+        /// With **preserve_order** feature flag [`indexmap::IndexMap`] will be used as
+        /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
+        /// By default [`BTreeMap`] will be used.
+        ///
+        /// [to_schema]: crate::ToSchema
         #[serde(skip_serializing_if = "ObjectPropertiesMap::is_empty", default = "ObjectPropertiesMap::new")]
         pub properties: ObjectPropertiesMap<String, RefOr<Schema>>,
 
