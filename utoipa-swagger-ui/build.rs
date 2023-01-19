@@ -9,7 +9,7 @@ use std::{
 use regex::Regex;
 use zip::{result::ZipError, ZipArchive};
 
-const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.14.0";
+const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.15.5";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{}.zip", SWAGGER_UI_DIST_ZIP);

@@ -85,14 +85,14 @@
 //! Add minimal dependency declaration to Cargo.toml.
 //! ```toml
 //! [dependencies]
-//! utoipa = "2"
+//! utoipa = "3"
 //! ```
 //!
 //! To enable more features such as use actix framework extras you could define the
 //! dependency as follows.
 //! ```toml
 //! [dependencies]
-//! utoipa = { version = "2", features = ["actix_extras"] }
+//! utoipa = { version = "3", features = ["actix_extras"] }
 //! ```
 //!
 //! **Note!** To use `utoipa` together with Swagger UI you can use the [`utoipa-swagger-ui`][utoipa_swagger] crate.

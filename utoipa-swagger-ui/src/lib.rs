@@ -8,7 +8,7 @@
 //! **Currently implemented boiler plate for:**
 //!
 //! * **actix-web** `version >= 4`
-//! * **rocket** `version >=0.5.0-rc.1`
+//! * **rocket** `version >=0.5.0-rc.2`
 //! * **axum** `version >=0.6`
 //!
 //! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
@@ -17,7 +17,7 @@
 //!
 //! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
 //!
-//! # Features
+//! # Crate Features
 //!
 //! * **actix-web** Enables `actix-web` integration with pre-configured SwaggerUI service factory allowing
 //!   users to use the Swagger UI without a hassle.

@@ -12,7 +12,7 @@ works as a bridge for serving the OpenAPI documetation created with
 **Currently implemented boiler plate for:**
 
 * **actix-web** `version >= 4`
-* **rocket** `version >=0.5.0-rc.1`
+* **rocket** `version >=0.5.0-rc.2`
 * **axum** `version >=0.6`
 
 Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
@@ -20,7 +20,7 @@ other frameworks as well. With other frameworks there is bit more manual impleme
 more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/fn.serve.html) or 
 [examples](https://github.com/juhaku/utoipa/tree/master/examples).
 
-# Features
+# Crate Features
 
 * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
   users to use the Swagger UI without a hazzle.
@@ -30,6 +30,7 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
   hazzle free.
 * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
   builds as well.
+
 # Install
 
 Use only the raw types without any boiler plate implementation.

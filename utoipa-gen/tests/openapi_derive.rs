@@ -1,4 +1,4 @@
-use assert_json_diff::assert_json_eq;
+use assert_json_diff::{assert_json_eq, assert_json_include};
 use serde_json::{json, Value};
 use utoipa::{
     openapi::{RefOr, Response, ResponseBuilder},
@@ -201,21 +201,21 @@ fn derive_openapi_with_custom_info() {
     let value = serde_json::to_value(&ApiDoc::openapi()).unwrap();
     let info = value.pointer("/info");
 
-    assert_json_eq!(
-        info,
-        json!(
-        {
-            "title": "title override",
-            "description": "description override",
-            "license": {
-                "name": "MIT OR Apache-2.0",
-            },
-            "version": "2.4.2",
-            "contact": {
-                "name": "Test"
-            }
-        }
-        )
+    assert_json_include!(
+        actual: info,
+        expected:
+            json!(
+                {
+                    "title": "title override",
+                    "description": "description override",
+                    "license": {
+                        "name": "MIT OR Apache-2.0",
+                    },
+                    "contact": {
+                        "name": "Test"
+                    }
+                }
+            )
     )
 }
 
@@ -232,20 +232,20 @@ fn derive_openapi_with_include_str_description() {
     let value = serde_json::to_value(&ApiDoc::openapi()).unwrap();
     let info = value.pointer("/info");
 
-    assert_json_eq!(
-        info,
-        json!(
-        {
-            "title": "title override",
-            "description": "this is include description\n",
-            "license": {
-                "name": "MIT OR Apache-2.0",
-            },
-            "version": "2.4.2",
-            "contact": {
-                "name": "Test"
+    assert_json_include!(
+        actual: info,
+        expected:
+            json!(
+            {
+                "title": "title override",
+                "description": "this is include description\n",
+                "license": {
+                    "name": "MIT OR Apache-2.0",
+                },
+                "contact": {
+                    "name": "Test"
+                }
             }
-        }
-        )
+            )
     )
 }
