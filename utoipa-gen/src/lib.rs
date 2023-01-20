@@ -169,6 +169,7 @@ use self::path::response::{derive, DeriveResponse};
 /// * `rename_all = "..."` Supported at the container level.
 /// * `rename = "..."` Supported **only** at the field or variant level.
 /// * `skip = "..."` Supported  **only** at the field or variant level.
+/// * `skip_serializing = "..."` Supported  **only** at the field or variant level.
 /// * `tag = "..."` Supported at the container level. `tag` attribute works as a [discriminator field][discriminator] for an enum.
 /// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
