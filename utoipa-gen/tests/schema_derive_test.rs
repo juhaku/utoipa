@@ -2658,12 +2658,6 @@ fn derive_parse_serde_field_attributes() {
         }
     };
 
-    assert_value! {post=>
-        "properties.uuid.type" = r#""string""#, "Post id type"
-        "properties.longFieldNum.type" = r#""integer""#, "Post long_field_num type"
-        "properties.longFieldNum.format" = r#""int64""#, "Post logn_field_num format"
-    }
-
     assert_json_eq!(
         post,
         json!({
