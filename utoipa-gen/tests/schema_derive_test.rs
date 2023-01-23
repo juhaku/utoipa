@@ -2652,15 +2652,31 @@ fn derive_parse_serde_field_attributes() {
             id: String,
             #[serde(skip)]
             _p: PhantomData<S>,
+            #[serde(skip_serializing)]
+            _p2: PhantomData<S>,
             long_field_num: i64,
         }
     };
 
-    assert_value! {post=>
-        "properties.uuid.type" = r#""string""#, "Post id type"
-        "properties.longFieldNum.type" = r#""integer""#, "Post long_field_num type"
-        "properties.longFieldNum.format" = r#""int64""#, "Post logn_field_num format"
-    }
+    assert_json_eq!(
+        post,
+        json!({
+            "properties": {
+                "longFieldNum": {
+                    "format": "int64",
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "uuid",
+                "longFieldNum"
+            ],
+            "type": "object"
+        })
+    )
 }
 
 #[test]
