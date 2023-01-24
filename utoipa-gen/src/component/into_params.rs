@@ -263,7 +263,7 @@ struct Param<'a> {
 
 impl Param<'_> {
     /// Resolve [`Param`] features and split features into two [`Vec`]s. Features are split by
-    /// whether they should be renderd in [`Param`] itself or in [`Param`]s schema.
+    /// whether they should be rendered in [`Param`] itself or in [`Param`]s schema.
     ///
     /// Method returns a tuple containing two [`Vec`]s of [`Feature`].
     fn resolve_field_features(&self) -> (Vec<Feature>, Vec<Feature>) {

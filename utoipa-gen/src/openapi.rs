@@ -306,7 +306,7 @@ impl Parse for Server {
                     server.variables = parse_utils::parse_punctuated_within_parenthesis(&server_stream)?
                 }
                 _ => {
-                    return Err(Error::new(ident.span(), format!("unepxected attribute: {attribute_name}, expected one of: url, description, variables")))
+                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables")))
                 }
             }
 

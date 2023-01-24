@@ -16,7 +16,7 @@ impl SchemaType<'_> {
             .to_string()
     }
 
-    /// Check whether type is known to be primitive in wich case returns true.
+    /// Check whether type is known to be primitive in which case returns true.
     pub fn is_primitive(&self) -> bool {
         let SchemaType(path) = self;
         let last_segment = match path.segments.last() {
@@ -189,7 +189,7 @@ impl ToTokens for SchemaType<'_> {
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SchemaFormat<'c> {
-    /// [`utoipa::openapi::shcema::SchemaFormat`] enum variant schema format.
+    /// [`utoipa::openapi::schema::SchemaFormat`] enum variant schema format.
     Variant(Variant),
     /// Rust type schema format.
     Type(Type<'c>),

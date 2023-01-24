@@ -78,7 +78,7 @@ async fn main() -> Result<(), impl Error> {
     .await
 }
 
-/// Require api key middlware will actually require valid api key
+/// Require api key middleware will actually require valid api key
 struct RequireApiKey;
 
 impl<S> Transform<S, ServiceRequest> for RequireApiKey
@@ -104,7 +104,7 @@ where
     }
 }
 
-/// Log api key midleware only logs about missing or invalid api keys
+/// Log api key middleware only logs about missing or invalid api keys
 struct LogApiKey;
 
 impl<S> Transform<S, ServiceRequest> for LogApiKey

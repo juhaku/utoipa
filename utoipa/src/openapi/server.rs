@@ -9,7 +9,7 @@
 //! Relative path will append to the **sever address** so the connection url for _**path operations**_
 //! will become `server address + relative path`.
 //!
-//! Optionally it also supports parmater substitution with `{variable}` syntax.
+//! Optionally it also supports parameter substitution with `{variable}` syntax.
 //!
 //! See [`Modify`][modify] trait for details how add servers to [`OpenApi`][openapi].
 //!
@@ -121,7 +121,7 @@ impl ServerBuilder {
 
     /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`].
     ///
-    /// * `name` Defines name of the parmaeter which is being substituted within the url. If url has
+    /// * `name` Defines name of the parameter which is being substituted within the url. If url has
     ///   `{username}` substitution then the name should be `username`.
     /// * `parameter` Use [`ServerVariableBuilder`] to define how the parameter is being substituted
     ///   within the url.
@@ -149,7 +149,7 @@ impl ServerBuilder {
 builder! {
     ServerVariableBuilder;
 
-    /// Implements [OpenAPI Server Variable][server_variable] used to substitute varibles in [`Server::url`].
+    /// Implements [OpenAPI Server Variable][server_variable] used to substitute variables in [`Server::url`].
     ///
     /// [server_variable]: https://spec.openapis.org/oas/latest.html#server-variable-object
     #[non_exhaustive]
@@ -160,7 +160,7 @@ builder! {
         #[serde(rename = "default")]
         default_value: String,
 
-        /// Optional description descringing the variable of substitution. Markdown syntax is supported.
+        /// Optional description describing the variable of substitution. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
 

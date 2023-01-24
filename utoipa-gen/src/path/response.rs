@@ -448,7 +448,7 @@ impl Parse for DeriveToResponseValue {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexected attribute: {attribute_name}, expected any of: inline, description, content_type, headers, example"),
+                        format!("unexpected attribute: {attribute_name}, expected any of: inline, description, content_type, headers, example"),
                     ));
                 }
             }
@@ -539,7 +539,7 @@ impl Parse for DeriveIntoResponsesValue {
                 _ => {
                     return Err(Error::new(
                         ident.span(),
-                        format!("unexected attribute: {attribute_name}, expected any of: description, content_type, headers, example, examples"),
+                        format!("unexpected attribute: {attribute_name}, expected any of: description, content_type, headers, example, examples"),
                     ));
                 }
             }
@@ -718,7 +718,7 @@ impl ToTokens for Responses<'_> {
 /// Parsed representation of response header defined in `#[utoipa::path(..)]` attribute.
 ///
 /// Supported configuration format is `("x-my-header-name" = type, description = "optional description of header")`.
-/// The `= type` and the `descripiton = ".."` are optional configurations thus so the same configuration
+/// The `= type` and the `description = ".."` are optional configurations thus so the same configuration
 /// could be written as follows: `("x-my-header-name")`.
 ///
 /// The `type` can be any typical type supported as a header argument such as `String, i32, u64, bool` etc.
@@ -755,7 +755,7 @@ impl ToTokens for Responses<'_> {
 /// )]
 /// ```
 ///
-/// Example with multiplea headers with default values.
+/// Example with multiple headers with default values.
 /// ```text
 /// #[utoipa::path(
 ///     ...

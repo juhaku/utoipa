@@ -49,17 +49,17 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 /// #[utoipa::path(delete,
 ///    operation_id = "custom_operation_id",
 ///    path = "/custom/path/{id}/{digest}",
-///    tag = "groupping_tag"
+///    tag = "grouping_tag"
 ///    request_body = [Foo]
 ///    responses = [
 ///         (status = 200, description = "success update Foos", body = [Foo], content_type = "application/json",
 ///             headers = [
-///                 ("fooo-bar" = String, description = "custom header value")
+///                 ("foo-bar" = String, description = "custom header value")
 ///             ]
 ///         ),
 ///         (status = 500, description = "internal server error", body = String, content_type = "text/plain",
 ///             headers = [
-///                 ("fooo-bar" = String, description = "custom header value")
+///                 ("foo-bar" = String, description = "custom header value")
 ///             ]
 ///         ),
 ///    ],
@@ -346,8 +346,8 @@ impl<'p> Path<'p> {
         self
     }
 
-    pub fn doc_comments(mut self, doc_commens: Vec<String>) -> Self {
-        self.doc_comments = Some(doc_commens);
+    pub fn doc_comments(mut self, doc_comments: Vec<String>) -> Self {
+        self.doc_comments = Some(doc_comments);
 
         self
     }
@@ -602,18 +602,18 @@ impl Parse for InlineType<'_> {
 }
 
 pub trait PathTypeTree {
-    /// Resolve default content type based on curren [`Type`].
+    /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> &str;
 
     /// Check whether [`TypeTree`] an option
     fn is_option(&self) -> bool;
 
-    /// Check wheter [`TypeTree`] is a Vec, slice, array or other supported array type
+    /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool;
 }
 
 impl PathTypeTree for TypeTree<'_> {
-    /// Resolve default content type based on curren [`Type`].
+    /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> &'static str {
         if self.is_array()
             && self
@@ -646,7 +646,7 @@ impl PathTypeTree for TypeTree<'_> {
         matches!(self.generic_type, Some(GenericType::Option))
     }
 
-    /// Check wheter [`TypeTree`] is a Vec, slice, array or other supported array type
+    /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool {
         match self.generic_type {
             Some(GenericType::Vec) => true,

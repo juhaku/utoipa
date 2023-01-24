@@ -245,7 +245,7 @@
 //! [path]: attr.path.html
 //! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
 //! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
-//! [axum_path]: attr.path.html#axum_extras-suppport-for-axum
+//! [axum_path]: attr.path.html#axum_extras-support-for-axum
 //! [serde]: derive.ToSchema.html#partial-serde-attributes-support
 //!
 //! [security]: openapi/security/index.html

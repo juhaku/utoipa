@@ -212,8 +212,8 @@ impl Feature {
             ),
             Feature::Maximum(maximum) => maximum.validate(IsNumber(schema_type)),
             Feature::Minimum(minimum) => minimum.validate(IsNumber(schema_type)),
-            Feature::ExclusiveMaximum(exlusive_maximum) => {
-                exlusive_maximum.validate(IsNumber(schema_type))
+            Feature::ExclusiveMaximum(exclusive_maximum) => {
+                exclusive_maximum.validate(IsNumber(schema_type))
             }
             Feature::ExclusiveMinimum(exclusive_minimum) => {
                 exclusive_minimum.validate(IsNumber(schema_type))

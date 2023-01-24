@@ -1,4 +1,4 @@
-# hello rocket 0.4.x versio ~ utoipa with utoipa-swagger-ui example
+# hello rocket 0.4.x version ~ utoipa with utoipa-swagger-ui example
 
 This is hello world `rocket 0.4.x` version example with `utoipa` and `utoipa-swagger-ui`.
 

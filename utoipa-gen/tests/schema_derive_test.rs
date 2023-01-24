@@ -245,7 +245,7 @@ fn derive_enum_with_comments_success() {
         /// More than the first line is added to the description as well.
         enum AccountStatus {
             /// When user is valid to login, these enum variant level docs are omitted!!!!!
-            /// Since the OpenAPI spec does not have a place to put such infomation.
+            /// Since the OpenAPI spec does not have a place to put such information.
             Enabled,
             /// Login failed too many times
             Locked,
@@ -3149,7 +3149,7 @@ fn derive_schema_for_skipped_repr_enum() {
             Error  = -1,
             Ok     = 0,
             #[serde(skip)]
-            Unknow = 1,
+            Unknown = 1,
         }
     };
 
@@ -3165,19 +3165,19 @@ fn derive_repr_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
         #[schema(default = repr_mode_default_fn)]
         #[repr(u16)]
-        enum ReprDefautlMode {
+        enum ReprDefaultMode {
             Mode1 = 0,
             Mode2
         }
     };
 
     assert_value! {mode=>
-        "default" = r#"1"#, "ReprDefautlMode default"
-        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
-        "type" = r#""integer""#, "ReprDefautlMode type"
+        "default" = r#"1"#, "ReprDefaultMode default"
+        "enum" = r#"[0,1]"#, "ReprDefaultMode enum variants"
+        "type" = r#""integer""#, "ReprDefaultMode type"
     };
     assert_value! {mode=>
-        "example" = Value::Null, "ReprDefautlMode example"
+        "example" = Value::Null, "ReprDefaultMode example"
     }
 }
 
@@ -3188,21 +3188,21 @@ fn repr_mode_default_fn() -> u16 {
 
 #[test]
 #[cfg(feature = "repr")]
-fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
+fn derive_repr_enum_with_with_custom_default_fn_and_example() {
     let mode = api_doc! {
         #[schema(default = repr_mode_default_fn, example = 1)]
         #[repr(u16)]
-        enum ReprDefautlMode {
+        enum ReprDefaultMode {
             Mode1 = 0,
             Mode2
         }
     };
 
     assert_value! {mode=>
-        "default" = r#"1"#, "ReprDefautlMode default"
-        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
-        "type" = r#""integer""#, "ReprDefautlMode type"
-        "example" = r#"1"#, "ReprDefautlMode example"
+        "default" = r#"1"#, "ReprDefaultMode default"
+        "enum" = r#"[0,1]"#, "ReprDefaultMode enum variants"
+        "type" = r#""integer""#, "ReprDefaultMode type"
+        "example" = r#"1"#, "ReprDefaultMode example"
     };
 }
 

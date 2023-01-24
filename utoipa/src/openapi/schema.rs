@@ -114,7 +114,7 @@ impl Components {
 impl ComponentsBuilder {
     /// Add [`Schema`] to [`Components`].
     ///
-    /// Accpets two arguments where first is name of the schema and second is the schema itself.
+    /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
 
@@ -217,7 +217,7 @@ pub enum Schema {
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
-    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s
+    /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
     /// or can be a field within the [`Object`].
     Object(Object),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
@@ -227,7 +227,7 @@ pub enum Schema {
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
 
-    /// Creates a _AnyOf_ type [composite Object][composite] shcema.
+    /// Creates a _AnyOf_ type [composite Object][composite] schema.
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf),
@@ -294,7 +294,7 @@ builder! {
         pub default: Option<Value>,
 
 
-        /// Example shown in UI of the value for richier documentation.
+        /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
 
@@ -357,7 +357,7 @@ impl OneOfBuilder {
         set_value!(self default default)
     }
 
-    /// Add or change example shown in UI of the value for richier documentation.
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -413,7 +413,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub default: Option<Value>,
 
-        /// Example shown in UI of the value for richier documentation.
+        /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
 
@@ -476,7 +476,7 @@ impl AllOfBuilder {
         set_value!(self default default)
     }
 
-    /// Add or change example shown in UI of the value for richier documentation.
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -574,7 +574,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub deprecated: Option<Deprecated>,
 
-        /// Example shown in UI of the value for richier documentation.
+        /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
 
@@ -595,7 +595,7 @@ builder! {
         pub nullable: bool,
 
         /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
-        /// diveded by the _`multiple_of`_ value results an integer.
+        /// divided by the _`multiple_of`_ value results an integer.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub multiple_of: Option<f64>,
 
@@ -610,23 +610,23 @@ builder! {
         pub minimum: Option<f64>,
 
         /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
-        /// valid if it is strictly less than _`esclusive_maximum`_.
+        /// valid if it is strictly less than _`exclusive_maximum`_.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub exclusive_maximum: Option<f64>,
 
-        /// Specify esclusive lower limit for the [`Object`]'s value. Number value is considered
+        /// Specify exclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly above the _`exclusive_minimum`_.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub exclusive_minimum: Option<f64>,
 
-        /// Specify maximum lenght for `string` values. _`max_length`_ cannot be a negative integer
-        /// value. Value is considered valid if content lenght is equal or less than the _`max_lenght`_.
+        /// Specify maximum length for `string` values. _`max_length`_ cannot be a negative integer
+        /// value. Value is considered valid if content length is equal or less than the _`max_length`_.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub max_length: Option<usize>,
 
-        /// Specify minimum lenght for `string` values. _`min_length`_ cannot be a negative integer
+        /// Specify minimum length for `string` values. _`min_length`_ cannot be a negative integer
         /// value. Setting this to _`0`_ has the same effect as omitting this field. Value is
-        /// considered valid if content lenght is equal or more than the _`min_lenght`_.
+        /// considered valid if content length is equal or more than the _`min_length`_.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub min_length: Option<usize>,
 
@@ -651,7 +651,7 @@ fn is_false(value: &bool) -> bool {
 }
 
 impl Object {
-    /// Initialize a new [`Object`] with default [`SchemaType`]. This effectifly same as calling
+    /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
     /// `Object::with_type(SchemaType::Object)`.
     pub fn new() -> Self {
         Self {
@@ -750,7 +750,7 @@ impl ObjectBuilder {
             enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
     }
 
-    /// Add or change example shown in UI of the value for richier documentation.
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -800,14 +800,14 @@ impl ObjectBuilder {
         set_value!(self exclusive_minimum exclusive_minimum)
     }
 
-    /// Set or change maximum lenght for `string` values.
-    pub fn max_length(mut self, max_lenght: Option<usize>) -> Self {
-        set_value!(self max_length max_lenght)
+    /// Set or change maximum length for `string` values.
+    pub fn max_length(mut self, max_length: Option<usize>) -> Self {
+        set_value!(self max_length max_length)
     }
 
-    /// Set or change minimum lenght for `string` values.
-    pub fn min_length(mut self, min_lenght: Option<usize>) -> Self {
-        set_value!(self min_length min_lenght)
+    /// Set or change minimum length for `string` values.
+    pub fn min_length(mut self, min_length: Option<usize>) -> Self {
+        set_value!(self min_length min_length)
     }
 
     /// Set or change a valid regular expression for `string` value to match.
@@ -815,7 +815,7 @@ impl ObjectBuilder {
         set_value!(self pattern pattern.map(|pattern| pattern.into()))
     }
 
-    /// Set or change maximun number of properties the [`Object`] can hold.
+    /// Set or change maximum number of properties the [`Object`] can hold.
     pub fn max_properties(mut self, max_properties: Option<usize>) -> Self {
         set_value!(self max_properties max_properties)
     }
@@ -923,7 +923,7 @@ builder! {
         /// Schema representing the array items type.
         pub items: Box<RefOr<Schema>>,
 
-        /// Example shown in UI of the value for richier documentation.
+        /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
 
@@ -931,7 +931,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub max_items: Option<usize>,
 
-        /// Min lenght of the array.
+        /// Min length of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub min_items: Option<usize>,
 
@@ -984,17 +984,17 @@ impl ArrayBuilder {
         set_value!(self items Box::new(component.into()))
     }
 
-    /// Add or change example shown in UI of the value for richier documentation.
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
 
-    /// Set maximun allowed lenght for [`Array`].
+    /// Set maximum allowed length for [`Array`].
     pub fn max_items(mut self, max_items: Option<usize>) -> Self {
         set_value!(self max_items max_items)
     }
 
-    /// Set minimum allowed lenght for [`Array`].
+    /// Set minimum allowed length for [`Array`].
     pub fn min_items(mut self, min_items: Option<usize>) -> Self {
         set_value!(self min_items min_items)
     }
@@ -1094,7 +1094,7 @@ pub enum KnownFormat {
     Double,
     /// base64 encoded chars.
     Byte,
-    /// binary data (octec).
+    /// binary data (octet).
     Binary,
     /// ISO-8601 full date [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     Date,

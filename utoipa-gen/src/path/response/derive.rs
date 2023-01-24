@@ -127,7 +127,7 @@ impl ToTokens for IntoResponses {
                     quote!((#status, utoipa::openapi::RefOr::from(#response)))
                 })
                 .collect::<Array<TokenStream>>(),
-            Data::Union(_) => abort!(self.ident, "`IntoReponses` does not support `Union` type"),
+            Data::Union(_) => abort!(self.ident, "`IntoResponses` does not support `Union` type"),
         };
 
         let ident = &self.ident;

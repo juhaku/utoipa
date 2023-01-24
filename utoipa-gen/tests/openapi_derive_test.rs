@@ -29,7 +29,7 @@ mod pet_api {
         get,
         path = "/pets/{id}",
         responses(
-            (status = 200, description = "Pet found succesfully", body = Pet),
+            (status = 200, description = "Pet found successfully", body = Pet),
             (status = 404, description = "Pet was not found")
         ),
         params(

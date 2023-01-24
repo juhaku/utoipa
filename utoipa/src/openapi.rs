@@ -153,7 +153,7 @@ impl OpenApi {
         serde_yaml::to_string(self)
     }
 
-    /// Merge `other` [`OpenApi`] consuming it and resuing it's content.
+    /// Merge `other` [`OpenApi`] consuming it and resuming it's content.
     ///
     /// Merge function will take all `self` nonexistent _`servers`, `paths`, `schemas`, `responses`,
     /// `security_schemes`, `security_requirements` and `tags`_ from _`other`_ [`OpenApi`].
@@ -582,7 +582,7 @@ mod tests {
                     "/api/v1/user",
                     PathItem::new(
                         PathItemType::Get,
-                        OperationBuilder::new().response("200", Response::new("Get user succses")),
+                        OperationBuilder::new().response("200", Response::new("Get user success")),
                     ),
                 )
                 .build(),
@@ -605,7 +605,7 @@ mod tests {
                         PathItem::new(
                             PathItemType::Get,
                             OperationBuilder::new()
-                                .response("200", Response::new("Get user succses 2")),
+                                .response("200", Response::new("Get user success 2")),
                         ),
                     )
                     .path(
@@ -613,7 +613,7 @@ mod tests {
                         PathItem::new(
                             PathItemType::Post,
                             OperationBuilder::new()
-                                .response("200", Response::new("Get user succses")),
+                                .response("200", Response::new("Get user success")),
                         ),
                     )
                     .build(),
@@ -650,7 +650,7 @@ mod tests {
                       "get": {
                         "responses": {
                           "200": {
-                            "description": "Get user succses 2"
+                            "description": "Get user success 2"
                           }
                         }
                       }
@@ -659,7 +659,7 @@ mod tests {
                       "get": {
                         "responses": {
                           "200": {
-                            "description": "Get user succses"
+                            "description": "Get user success"
                           }
                         }
                       }
@@ -668,7 +668,7 @@ mod tests {
                       "post": {
                         "responses": {
                           "200": {
-                            "description": "Get user succses"
+                            "description": "Get user success"
                           }
                         }
                       }

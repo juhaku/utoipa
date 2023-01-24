@@ -12,7 +12,7 @@ pub trait Variant {
     /// Implement `ToTokens` conversion for the [`Variant`]
     fn to_tokens(&self) -> TokenStream;
 
-    /// Get enum varinat type. By default enum variant is `string`
+    /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
             SchemaType(&parse_quote!(str)).to_token_stream(),
@@ -313,7 +313,7 @@ where
         self.items.to_tokens(tokens);
 
         // currently uses serde `tag` attribute as a discriminator. This discriminator
-        // feature needs some refinment.
+        // feature needs some refinement.
         let discriminator = self.tag.as_ref().map(|tag| {
             quote! {
                 .discriminator(Some(utoipa::openapi::schema::Discriminator::new(#tag)))

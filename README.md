@@ -5,15 +5,15 @@
 [![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa/latest/utoipa/)
 ![MSRV](https://img.shields.io/static/v1?label=MSRV&message=1.60%2B&color=orange&logo=rust)
 
-Want to have your API documented with OpenAPI? But you dont want to see the
-trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
+Want to have your API documented with OpenAPI? But you don't want to see the
+trouble with manual YAML or JSON tweaking? Would like it to be so easy that it would almost
 be like utopic? Don't worry utoipa is just there to fill this gap. It aims to do if not all then
 the most of heavy lifting for you enabling you to focus writing the actual API logic instead of
 documentation. It aims to be _minimal_, _simple_ and _fast_. It uses simple proc macros which
 you can use to annotate your code to have items documented.
 
 Utoipa crate provides auto generated OpenAPI documentation for Rust REST APIs. It treats
-code first appoach as a first class citizen and simplifies API documentation by providing
+code first approach as a first class citizen and simplifies API documentation by providing
 simple macros for generating the documentation from your code.
 
 It also contains Rust types of OpenAPI spec allowing you to write the OpenAPI spec only using
@@ -23,7 +23,7 @@ Long term goal of the library is to be the place to go when OpenAPI documentatio
 codebase.
 
 Utoipa is framework agnostic and could be used together with any web framework or even without one. While
-being portable and standalone one of it's key aspects is simple integration with web frameworks.
+being portable and standalone one of its key aspects is simple integration with web frameworks.
 
 ## Choose your flavor and document your API with ice cold IPA
 
@@ -103,8 +103,8 @@ utoipa = { version = "3", features = ["actix_extras"] }
 
 ## Examples
 
-Create a struct or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
-as an an OpenAPI schema.
+Create a struct, or it could be an enum also. Add `ToSchema` derive macro to it, so it can be registered
+as an OpenAPI schema.
 
 ```rust
 use utoipa::ToSchema;

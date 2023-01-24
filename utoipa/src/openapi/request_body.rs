@@ -25,7 +25,7 @@ builder! {
         /// Map of request body contents mapped by content type e.g. `application/json`.
         pub content: BTreeMap<String, Content>,
 
-        /// Determines whether request body is reuqired in the request or not.
+        /// Determines whether request body is required in the request or not.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub required: Option<Required>,
     }

@@ -18,7 +18,7 @@ use crate::{component::TypeTree, parse_utils, AnyValue, Deprecated, Required};
 
 use super::{media_type::MediaTypeSchema, InlineType, PathTypeTree};
 
-/// Parameter of request suchs as in path, header, query or cookie
+/// Parameter of request such as in path, header, query or cookie
 ///
 /// For example path `/users/{id}` the path parameter is used to define
 /// type, format and other details of the `{id}` parameter within the path
@@ -28,7 +28,7 @@ use super::{media_type::MediaTypeSchema, InlineType, PathTypeTree};
 /// * ("id" = String, path, deprecated, description = "Users database id"),
 /// * ("id", path, deprecated, description = "Users database id"),
 ///
-/// The `= String` type statement is optional if automatic resolvation is supported.
+/// The `= String` type statement is optional if automatic resolution is supported.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Parameter<'a> {
     Value(ValueParameter<'a>),

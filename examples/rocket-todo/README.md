@@ -1,7 +1,7 @@
 # todo-rocket ~ utoipa with utoipa-swagger-ui example
 
 This is demo `rocket` application with in-memory storage to manage Todo items. The API
-demostrates `utoipa` with `utoipa-swagger-ui` functionalities.
+demonstrates `utoipa` with `utoipa-swagger-ui` functionalities.
 
 For security restricted endpoints the super secret api key is: `utoipa-rocks`.
 

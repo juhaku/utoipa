@@ -24,7 +24,7 @@
 //! * **rocket** Enables `rocket` integration with with pre-configured routes for serving the Swagger UI
 //!   and api doc without a hassle.
 //! * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
-//!   hazzle free.
+//!   hassle free.
 //! * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
 //!   builds as well.
 //!
@@ -47,7 +47,7 @@
 //! # Examples
 //!
 //! Serve Swagger UI with api doc via **`actix-web`**. See full example from
-//! [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
+//! [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 //! ```no_run
 //! # use actix_web::{App, HttpServer};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -694,7 +694,7 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// Set extneral config url.
+    /// Set external config url.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
     /// let config = Config::new(["/api-doc/openapi.json"])
@@ -835,7 +835,7 @@ impl<'a> Config<'a> {
 
     /// Add `default_model_rendering` to set how models is show when API is first rendered.
     ///
-    /// The user can always switch the rendering for given model by cliking the `Model` and `Example Value` links.
+    /// The user can always switch the rendering for given model by clicking the `Model` and `Example Value` links.
     ///
     /// * `example` Makes example rendered first by default.
     /// * `model` Makes model rendered first by default.
@@ -1046,7 +1046,7 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// Set allowed http methods explisitly.
+    /// Set allowed http methods explicitly.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
     /// let config = Config::new(["/api-doc/openapi.json"])

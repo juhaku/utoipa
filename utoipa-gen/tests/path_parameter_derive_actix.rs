@@ -86,7 +86,7 @@ mod derive_parameters_multiple_no_matching_names_actix {
 }
 
 #[test]
-fn derive_path_parameter_multiple_no_matching_names_acitx_success() {
+fn derive_path_parameter_multiple_no_matching_names_actix_success() {
     #[derive(OpenApi, Default)]
     #[openapi(paths(derive_parameters_multiple_no_matching_names_actix::get_foo_by_id))]
     struct ApiDoc;

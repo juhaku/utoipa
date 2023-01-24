@@ -182,7 +182,7 @@ test_response_types! {
 primitive_string_body => body: String, assert:
     "responses.200.content.text~1plain.schema.type" = r#""string""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
-primitive_string_sclice_body => body: [String], assert:
+primitive_string_slice_body => body: [String], assert:
     "responses.200.content.application~1json.schema.items.type" = r#""string""#, "Response content items type"
     "responses.200.content.application~1json.schema.type" = r#""array""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
@@ -270,7 +270,7 @@ fn derive_response_with_json_example_success() {
 }
 
 #[test]
-fn derive_reponse_multiple_content_types() {
+fn derive_response_multiple_content_types() {
     test_fn! {
         module: response_multiple_content_types,
         responses: (
@@ -366,10 +366,10 @@ fn derive_path_with_multiple_responses_via_content_attribute() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
-        resopnses,
+        responses,
         json!({
             "200": {
                 "content": {
@@ -398,7 +398,7 @@ fn derive_path_with_multiple_responses_via_content_attribute() {
 }
 
 #[test]
-fn derive_path_with_mutiple_examples() {
+fn derive_path_with_multiple_examples() {
     #[derive(serde::Serialize, utoipa::ToSchema)]
     #[allow(unused)]
     struct User {
@@ -462,7 +462,7 @@ fn derive_path_with_mutiple_examples() {
 }
 
 #[test]
-fn derive_path_with_mutliple_resposnes_with_multiple_examples() {
+fn derive_path_with_multiple_responses_with_multiple_examples() {
     #[derive(serde::Serialize, utoipa::ToSchema)]
     #[allow(unused)]
     struct User {
@@ -504,10 +504,10 @@ fn derive_path_with_mutliple_resposnes_with_multiple_examples() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
-        resopnses,
+        responses,
         json!({
             "200": {
                 "content": {
@@ -570,10 +570,10 @@ fn path_response_with_external_ref() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let resopnses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
-        resopnses,
+        responses,
         json!({
             "200": {
                 "content": {
