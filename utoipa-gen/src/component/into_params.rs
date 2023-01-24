@@ -417,9 +417,9 @@ impl ToTokens for Param<'_> {
     }
 }
 
-struct ParamSchema<'a> {
-    component: &'a TypeTree<'a>,
-    schema_features: &'a Vec<Feature>,
+pub struct ParamSchema<'a> {
+    pub component: &'a TypeTree<'a>,
+    pub schema_features: &'a Vec<Feature>,
 }
 
 impl ToTokens for ParamSchema<'_> {
@@ -449,7 +449,11 @@ impl ToTokens for ParamSchema<'_> {
                 });
 
                 let validate = |feature: &Feature| {
-                    let type_path = &**self.component.path.as_ref().unwrap();
+                    let type_path = &**self
+                        .component
+                        .path
+                        .as_ref()
+                        .expect("Vec ParamType must have path");
                     let schema_type = SchemaType(type_path);
                     feature.validate(&schema_type, self.component);
                 };

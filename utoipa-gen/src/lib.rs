@@ -121,6 +121,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
+///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -550,6 +551,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// [discriminator]: openapi/schema/struct.Discriminator.html
 /// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 /// [openapi_derive]: derive.OpenApi.html
+/// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -742,9 +744,20 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
-/// ### Using `ToResponse` for reusable responses
+/// **Multiple response return types with _`content(...)`_ attribute:**
 ///
-/// **Use `ToResponse` trait to define response attributes instead of tuple:**
+/// _**Define multiple response return types for single response status with their own example.**_
+/// ```text
+/// responses(
+///    (status = 200, content(
+///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
+///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+///        )
+///    )
+/// )
+/// ```
+///
+/// ### Using `ToResponse` for reusable responses
 ///
 /// _**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
 /// ```text
@@ -757,19 +770,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ```text
 /// responses(
 ///     (status = 200, response = inline(ReusableResponse))
-/// )
-/// ```
-///
-/// **Multiple response return types with _`content(...)`_ attribute**
-///
-/// _**Define multiple response return types for single response status with their own example.**_
-/// ```text
-/// responses(
-///    (status = 200, content(
-///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
-///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
-///        )
-///    )
 /// )
 /// ```
 ///
@@ -822,7 +822,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
 ///   E.g. _`Path, Query, Header, Cookie`_
 ///
-/// * `deprecated` Define whether the parameter is deprecated or not.
+/// * `deprecated` Define whether the parameter is deprecated or not. Can optionally be defined
+///    with explicit `bool` value as _`deprecated = bool`_.
 ///
 /// * `description = "..."` Define possible description for the parameter as str.
 ///
@@ -834,6 +835,48 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
+///
+/// ##### Parameter type attributes
+///
+/// These attributes supported when _`parameter_type`_ is present. Either by manually providing one
+/// or otherwise resolved e.g from path macro argument when _`actix_extras`_ crate feature is
+/// enabled.
+///
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+///
+/// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+///
+/// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+///
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties for the parameter type.
+///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+///
+/// * `nullable` Defines property is nullable (note this is different to non-required).
+///
+/// * `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
+///   division will result an `integer`. Value must be strictly above _`0`_.
+///
+/// * `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
+///
+/// * `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+///
+/// * `exclusive_maximum = ...` Can be used to define exclusive upper bound to a `number` value.
+///
+/// * `exclusive_minimum = ...` Can be used to define exclusive lower bound to a `number` value.
+///
+/// * `max_length = ...` Can be used to define maximum length for `string` types.
+///
+/// * `min_length = ...` Can be used to define minimum length for `string` types.
+///
+/// * `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
+///
+/// * `max_items = ...` Can be used to define maximum items allowed for `array` fields. Value must
+///   be non-negative integer.
+///
+/// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
+///   be non-negative integer.
 ///
 /// **For example:**
 ///
@@ -849,7 +892,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///         allow_reserved,
 ///         deprecated,
 ///         explode,
-///         example = json!(["Value"]))
+///         example = json!(["Value"])),
+///         max_length = 10,
+///         min_items = 1
 ///     )
 /// )
 /// ```
@@ -860,16 +905,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// that implements [`IntoParams`][into_params]. See [`IntoParams`][into_params] for an
 /// example.
 ///
-/// [into_params]: ./trait.IntoParams.html
-/// **For example:**
-///
 /// ```text
 /// params(MyParameters)
 /// ```
 ///
-/// Note that `MyParameters` can also be used in combination with the [tuples
-/// representation](#tuples) or other structs. **For example:**
-///
+/// **Note!** that `MyParameters` can also be used in combination with the [tuples
+/// representation](#tuples) or other structs.
 /// ```text
 /// params(
 ///     MyParameters1,
@@ -1184,6 +1225,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [into_responses_trait]: trait.IntoResponses.html
 /// [into_params_derive]: derive.IntoParams.html
 /// [to_response_trait]: trait.ToResponse.html
+/// [known_format]: openapi/schema/enum.KnownFormat.html
+/// [xml]: openapi/xml/struct.Xml.html
+/// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
@@ -1503,39 +1547,63 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// The following attributes are available for use in the `#[param(...)]` on struct fields:
 ///
 /// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
+///
 /// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
+///
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
+///
 /// * `example = ...` Can be method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
+///
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
 ///    _`Object`_ will be rendered as generic OpenAPI object.
+///
 /// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
 ///   the schema definition will be inlined.
+///
 /// * `default = ...` Can be method reference or _`json!(...)`_.
+///
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
+///
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+///
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+///
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
+///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+///
 /// * `nullable` Defines property is nullable (note this is different to non-required).
+///
 /// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
+///
 /// * `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
 ///   division will result an `integer`. Value must be strictly above _`0`_.
+///
 /// * `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
+///
 /// * `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+///
 /// * `exclusive_maximum = ...` Can be used to define exclusive upper bound to a `number` value.
+///
 /// * `exclusive_minimum = ...` Can be used to define exclusive lower bound to a `number` value.
+///
 /// * `max_length = ...` Can be used to define maximum length for `string` types.
+///
 /// * `min_length = ...` Can be used to define minimum length for `string` types.
+///
 /// * `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
+///
 /// * `max_items = ...` Can be used to define maximum items allowed for `array` fields. Value must
 ///   be non-negative integer.
+///
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
+///
 /// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
@@ -1757,6 +1825,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
+/// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,

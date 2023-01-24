@@ -1,6 +1,7 @@
 use std::{borrow::Cow, fmt::Display};
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro_error::abort;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
@@ -8,15 +9,20 @@ use syn::{
     Error, ExprPath, LitStr, Token,
 };
 
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "rocket_extras",
-    feature = "axum_extras"
-))]
-use crate::ext::{ArgumentIn, ValueArgument};
-use crate::{component::TypeTree, parse_utils, AnyValue, Deprecated, Required};
+use crate::{
+    component::{
+        features::{
+            impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum,
+            ExclusiveMinimum, Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems,
+            MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Style, ToTokensExt,
+            WriteOnly, XmlAttr,
+        },
+        into_params::ParamSchema,
+    },
+    parse_utils, Required,
+};
 
-use super::{media_type::MediaTypeSchema, InlineType, PathTypeTree};
+use super::{InlineType, PathTypeTree};
 
 /// Parameter of request such as in path, header, query or cookie
 ///
@@ -78,19 +84,81 @@ impl ToTokens for Parameter<'_> {
     feature = "rocket_extras",
     feature = "axum_extras"
 ))]
-impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
-    fn from(argument: ValueArgument<'a>) -> Self {
+impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
+    fn from(argument: crate::ext::ValueArgument<'a>) -> Self {
         Self::Value(ValueParameter {
             name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
-            parameter_in: if argument.argument_in == ArgumentIn::Path {
+            parameter_in: if argument.argument_in == crate::ext::ArgumentIn::Path {
                 ParameterIn::Path
             } else {
                 ParameterIn::Query
             },
-            parameter_type: argument.type_tree,
+            parameter_schema: argument.type_tree.map(|type_tree| ParameterSchema {
+                parameter_type: ParameterType::External(type_tree),
+                features: Vec::new(),
+            }),
             ..Default::default()
         })
     }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ParameterSchema<'p> {
+    parameter_type: ParameterType<'p>,
+    features: Vec<Feature>,
+}
+
+impl ToTokens for ParameterSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let mut to_tokens = |param_schema, required| {
+            tokens.extend(quote! { .schema(Some(#param_schema)).required(#required) });
+        };
+
+        match &self.parameter_type {
+            #[cfg(any(
+                feature = "actix_extras",
+                feature = "rocket_extras",
+                feature = "axum_extras"
+            ))]
+            ParameterType::External(type_tree) => {
+                let required: Required = (!type_tree.is_option()).into();
+
+                to_tokens(
+                    ParamSchema {
+                        component: type_tree,
+                        schema_features: &self.features,
+                    },
+                    required,
+                )
+            }
+            ParameterType::Parsed(inline_type) => {
+                let type_tree = inline_type.as_type_tree();
+                let required: Required = (!type_tree.is_option()).into();
+                let mut schema_features = Vec::<Feature>::new();
+                schema_features.clone_from(&self.features);
+                schema_features.push(Feature::Inline(inline_type.is_inline.into()));
+
+                to_tokens(
+                    ParamSchema {
+                        component: &type_tree,
+                        schema_features: &schema_features,
+                    },
+                    required,
+                )
+            }
+        }
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum ParameterType<'p> {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    External(crate::component::TypeTree<'p>),
+    Parsed(InlineType<'p>),
 }
 
 #[derive(Default)]
@@ -98,13 +166,8 @@ impl<'a> From<ValueArgument<'a>> for Parameter<'a> {
 pub struct ValueParameter<'a> {
     pub name: Cow<'a, str>,
     parameter_in: ParameterIn,
-    deprecated: bool,
-    description: Option<String>,
-    parameter_type: Option<TypeTree<'a>>,
-    parameter_ext: Option<ParameterExt>,
-
-    /// Type only when value parameter is parsed
-    parsed_type: Option<InlineType<'a>>,
+    parameter_schema: Option<ParameterSchema<'a>>,
+    features: (Vec<Feature>, Vec<Feature>),
 }
 
 impl<'p> ValueParameter<'p> {
@@ -113,8 +176,11 @@ impl<'p> ValueParameter<'p> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn update_parameter_type(&mut self, type_path: Option<TypeTree<'p>>) {
-        self.parameter_type = type_path;
+    pub fn update_parameter_type(&mut self, type_path: Option<crate::component::TypeTree<'p>>) {
+        self.parameter_schema = type_path.map(|type_tree| ParameterSchema {
+            parameter_type: ParameterType::External(type_tree),
+            features: self.features.0.clone(), // clone possible features for the parameter schema
+        })
     }
 }
 
@@ -131,14 +197,20 @@ impl Parse for ValueParameter<'_> {
             parameter.name = Cow::Owned(name);
 
             if input.peek(Token![=]) {
-                parameter.parsed_type = Some(parse_utils::parse_next(&input, || {
-                    input.parse().map_err(|error| {
-                        Error::new(
-                            error.span(),
-                            format!("unexpected token, expected type such as String, {}", error),
-                        )
-                    })
-                })?);
+                parameter.parameter_schema = Some(ParameterSchema {
+                    parameter_type: ParameterType::Parsed(parse_utils::parse_next(&input, || {
+                        input.parse().map_err(|error| {
+                            Error::new(
+                                error.span(),
+                                format!(
+                                    "unexpected token, expected type such as String, {}",
+                                    error
+                                ),
+                            )
+                        })
+                    })?),
+                    features: Vec::new(),
+                });
             }
         } else {
             return Err(input.error("unparseable parameter name, expected literal string"));
@@ -146,62 +218,97 @@ impl Parse for ValueParameter<'_> {
 
         input.parse::<Token![,]>()?;
 
-        fn expected_attribute_message() -> String {
-            let parameter_in_variants = ParameterIn::VARIANTS
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            format!(
-                "unexpected attribute, expected any of: {}, deprecated, description, style, explode, allow_reserved, example",
-                parameter_in_variants
-            )
+        if input.fork().parse::<ParameterIn>().is_ok() {
+            parameter.parameter_in = input.parse()?;
+            input.parse::<Token![,]>()?;
         }
 
-        while !input.is_empty() {
-            if ParameterExt::is_parameter_ext(&input) {
-                let ext = parameter
-                    .parameter_ext
-                    .get_or_insert(ParameterExt::default());
-                let parameter_ext = input.call(ParameterExt::parse_once)?;
+        let (schema_features, parameter_features) = input
+            .parse::<ParameterFeatures>()?
+            .split_for_parameter_type();
 
-                ext.merge(parameter_ext);
-            } else {
-                if input.fork().parse::<ParameterIn>().is_ok() {
-                    parameter.parameter_in = input.parse()?;
-                } else {
-                    let ident = input.parse::<Ident>().map_err(|error| {
-                        Error::new(
-                            error.span(),
-                            format!("{}, {}", expected_attribute_message(), error),
-                        )
-                    })?;
-                    let name = &*ident.to_string();
-
-                    match name {
-                        "deprecated" => {
-                            parameter.deprecated = parse_utils::parse_bool_or_true(&input)?
-                        }
-                        "description" => {
-                            parameter.description = Some(
-                                parse_utils::parse_next(&input, || input.parse::<LitStr>())?
-                                    .value(),
-                            )
-                        }
-                        _ => return Err(Error::new(ident.span(), expected_attribute_message())),
-                    }
-                }
-
-                if !input.is_empty() {
-                    input.parse::<Token![,]>()?;
-                }
-            }
+        parameter.features = (schema_features.clone(), parameter_features);
+        if let Some(parameter_schema) = &mut parameter.parameter_schema {
+            parameter_schema.features = schema_features;
         }
 
         Ok(parameter)
     }
 }
+
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ParameterFeatures(Vec<Feature>);
+
+impl Parse for ParameterFeatures {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Self(parse_features!(
+            // param features
+            input as Style,
+            Explode,
+            AllowReserved,
+            Example,
+            crate::component::features::Deprecated,
+            Description,
+            // param schema features
+            Format,
+            WriteOnly,
+            ReadOnly,
+            Nullable,
+            XmlAttr,
+            MultipleOf,
+            Maximum,
+            Minimum,
+            ExclusiveMaximum,
+            ExclusiveMinimum,
+            MaxLength,
+            MinLength,
+            Pattern,
+            MaxItems,
+            MinItems
+        )))
+    }
+}
+
+impl ParameterFeatures {
+    /// Split parsed features to two `Vec`s of [`Feature`]s.
+    ///
+    /// * First vec contains parameter type schema features.
+    /// * Second vec contains generic parameter features.
+    fn split_for_parameter_type(self) -> (Vec<Feature>, Vec<Feature>) {
+        self.0.into_iter().fold(
+            (Vec::new(), Vec::new()),
+            |(mut schema_features, mut param_features), feature| {
+                match feature {
+                    Feature::Format(_)
+                    | Feature::WriteOnly(_)
+                    | Feature::ReadOnly(_)
+                    | Feature::Nullable(_)
+                    | Feature::XmlAttr(_)
+                    | Feature::MultipleOf(_)
+                    | Feature::Maximum(_)
+                    | Feature::Minimum(_)
+                    | Feature::ExclusiveMaximum(_)
+                    | Feature::ExclusiveMinimum(_)
+                    | Feature::MaxLength(_)
+                    | Feature::MinLength(_)
+                    | Feature::Pattern(_)
+                    | Feature::MaxItems(_)
+                    | Feature::MinItems(_) => {
+                        schema_features.push(feature);
+                    }
+                    _ => {
+                        param_features.push(feature);
+                    }
+                };
+
+                (schema_features, param_features)
+            },
+        )
+    }
+}
+
+impl_into_inner!(ParameterFeatures);
 
 impl ToTokens for ValueParameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -212,48 +319,21 @@ impl ToTokens for ValueParameter<'_> {
         let parameter_in = &self.parameter_in;
         tokens.extend(quote! { .parameter_in(#parameter_in) });
 
-        let deprecated: Deprecated = self.deprecated.into();
-        tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        let (schema_features, param_features) = &self.features;
 
-        if let Some(ref description) = self.description {
-            tokens.extend(quote! { .description(Some(#description)) });
+        tokens.extend(param_features.to_token_stream());
+
+        if !schema_features.is_empty() && self.parameter_schema.is_none() {
+            abort!(
+                Span::call_site(),
+                "Missing `parameter_type` attribute, cannot define schema features without it.";
+                help = "See docs for more details <https://docs.rs/utoipa/latest/utoipa/attr.path.html#parameter-type-attributes>"
+
+            );
         }
 
-        if let Some(ref ext) = self.parameter_ext {
-            if let Some(ref style) = ext.style {
-                tokens.extend(quote! { .style(Some(#style)) });
-            }
-            if let Some(ref explode) = ext.explode {
-                tokens.extend(quote! { .explode(Some(#explode)) });
-            }
-
-            if let Some(ref allow_reserved) = ext.allow_reserved {
-                tokens.extend(quote! { .allow_reserved(Some(#allow_reserved)) });
-            }
-
-            if let Some(ref example) = ext.example {
-                tokens.extend(quote! { .example(Some(#example)) });
-            }
-        }
-
-        if let Some(parameter_type) = &self.parameter_type {
-            let media_type_schema = MediaTypeSchema {
-                type_tree: parameter_type,
-                is_inline: false,
-            };
-            let required: Required = (!parameter_type.is_option()).into();
-
-            tokens.extend(quote! { .schema(Some(#media_type_schema)).required(#required) });
-        } else if let Some(parsed_type) = &self.parsed_type {
-            let type_tree = parsed_type.as_type_tree();
-
-            let media_type_schema = MediaTypeSchema {
-                type_tree: &type_tree,
-                is_inline: parsed_type.is_inline,
-            };
-            let required: Required = (!type_tree.is_option()).into();
-
-            tokens.extend(quote! { .schema(Some(#media_type_schema)).required(#required) });
+        if let Some(parameter_schema) = &self.parameter_schema {
+            parameter_schema.to_tokens(tokens);
         }
     }
 }
@@ -337,102 +417,6 @@ impl ToTokens for ParameterIn {
             Self::Header => quote! { utoipa::openapi::path::ParameterIn::Header },
             Self::Cookie => quote! { utoipa::openapi::path::ParameterIn::Cookie },
         })
-    }
-}
-
-/// Provides extended parsed attributes for [`Parameter`]. This type is also used
-/// via into params derive.
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ParameterExt {
-    pub style: Option<ParameterStyle>,
-    pub explode: Option<bool>,
-    pub allow_reserved: Option<bool>,
-    pub(crate) example: Option<AnyValue>,
-}
-
-impl ParameterExt {
-    pub fn merge(&mut self, from: ParameterExt) {
-        if from.style.is_some() {
-            self.style = from.style
-        }
-        if from.explode.is_some() {
-            self.explode = from.explode
-        }
-        if from.allow_reserved.is_some() {
-            self.allow_reserved = from.allow_reserved
-        }
-        if from.example.is_some() {
-            self.example = from.example
-        }
-    }
-
-    pub fn parse_once(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: style, explode, allow_reserved, example";
-
-        let ident = input.parse::<Ident>().map_err(|error| {
-            Error::new(
-                error.span(),
-                format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
-            )
-        })?;
-        let name = &*ident.to_string();
-
-        let ext = match name {
-            "style" => ParameterExt {
-                style: Some(parse_utils::parse_next(input, || {
-                    input.parse::<ParameterStyle>()
-                })?),
-                ..Default::default()
-            },
-            "explode" => ParameterExt {
-                explode: Some(parse_utils::parse_bool_or_true(input)?),
-                ..Default::default()
-            },
-            "allow_reserved" => ParameterExt {
-                allow_reserved: Some(parse_utils::parse_bool_or_true(input)?),
-                ..Default::default()
-            },
-            "example" => ParameterExt {
-                example: Some(parse_utils::parse_next(input, || {
-                    AnyValue::parse_any(input)
-                })?),
-                ..Default::default()
-            },
-            _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
-        };
-
-        if !input.is_empty() {
-            input.parse::<Token![,]>()?;
-        }
-
-        Ok(ext)
-    }
-
-    pub fn is_parameter_ext(input: ParseStream) -> bool {
-        let fork = input.fork();
-        if fork.peek(syn::Ident) {
-            let ident = fork.parse::<Ident>().unwrap();
-            let name = &*ident.to_string();
-
-            matches!(name, "style" | "explode" | "allow_reserved" | "example")
-        } else {
-            false
-        }
-    }
-}
-
-impl Parse for ParameterExt {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut parameter_ext = ParameterExt::default();
-
-        while !input.is_empty() {
-            let ext = input.call(Self::parse_once)?;
-            parameter_ext.merge(ext);
-        }
-
-        Ok(parameter_ext)
     }
 }
 

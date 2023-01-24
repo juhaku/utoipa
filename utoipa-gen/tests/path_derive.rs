@@ -162,7 +162,7 @@ fn derive_path_with_all_info_success() {
        "operationId" = r#""foo_bar_id""#, "Api fn operation_id"
        "tags.[0]" = r#""custom_tag""#, "Api fn tag"
 
-       "parameters.[0].deprecated" = r#"false"#, "Path parameter deprecated"
+       "parameters.[0].deprecated" = r#"null"#, "Path parameter deprecated"
        "parameters.[0].description" = r#""Foo bar id""#, "Path parameter description"
        "parameters.[0].in" = r#""path""#, "Path parameter in"
        "parameters.[0].name" = r#""id""#, "Path parameter name"
@@ -192,27 +192,28 @@ fn derive_path_with_defaults_success() {
     }
 }
 
-/// This is test operation
-///
-/// This is long description for test operation
-#[utoipa::path(
-    get,
-    path = "/foo/{id}",
-    responses(
-        (status = 200, description = "success response")
-    ),
-    params(
-        ("id" = u64, description = "Foo database id"),
-        ("since" = Option<String>, Query, description = "Datetime since foo is updated")
-    )
-)]
-#[allow(unused)]
-async fn get_foos_by_id_since() -> String {
-    "".to_string()
-}
-
 #[test]
 fn derive_path_with_extra_attributes_without_nested_module() {
+    /// This is test operation
+    ///
+    /// This is long description for test operation
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (
+                status = 200, description = "success response")
+            ),
+            params(
+                ("id" = u64, deprecated = false, description = "Foo database id"),
+                ("since" = Option<String>, Query, deprecated = false, description = "Datetime since foo is updated")
+            )
+    )]
+    #[allow(unused)]
+    async fn get_foos_by_id_since() -> String {
+        "".to_string()
+    }
+
     let operation = test_api_fn_doc! {
         get_foos_by_id_since,
         operation: get,
@@ -320,7 +321,6 @@ fn derive_path_with_parameter_schema() {
         parameters,
         json!([
             {
-                "deprecated": false,
                 "description": "Foo database id",
                 "in": "path",
                 "name": "id",
@@ -331,7 +331,6 @@ fn derive_path_with_parameter_schema() {
                 }
             },
             {
-                "deprecated": false,
                 "description": "Datetime since foo is updated",
                 "in": "query",
                 "name": "since",
@@ -387,7 +386,6 @@ fn derive_path_with_parameter_inline_schema() {
         parameters,
         json!([
             {
-                "deprecated": false,
                 "description": "Foo database id",
                 "in": "path",
                 "name": "id",
@@ -398,7 +396,6 @@ fn derive_path_with_parameter_inline_schema() {
                 }
             },
             {
-                "deprecated": false,
                 "description": "Datetime since foo is updated",
                 "in": "query",
                 "name": "since",
@@ -1034,7 +1031,6 @@ fn derive_path_params_intoparams() {
                 "style": "form",
             },
             {
-                "deprecated": false,
                 "description": "Id of some items to list",
                 "in": "path",
                 "name": "id",
