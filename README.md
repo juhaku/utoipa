@@ -38,6 +38,10 @@ Existing [examples](./examples) for following frameworks:
 Even if there is no example for your favourite framework `utoipa` can be used with any
 web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
 
+### Community examples
+
+- **[salvo](https://github.com/salvo-rs/salvo/tree/main/examples/todos-openapi)**
+
 ## What's up with the word play?
 
 The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
@@ -146,8 +150,9 @@ mod pet_api {
 ```
 Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 
-This attribute macro substantially will create another struct named with `__path_` prefix + handler function name.
-So when you implement `some_handler` function in different file and want to export this, make sure `__path_some_handler` in the module can also be accessible from the root.
+_This attribute macro substantially will create another struct named with `__path_` prefix + handler function name.
+So when you implement `some_handler` function in different file and want to export this, make sure `__path_some_handler`
+in the module can also be accessible from the root._
 
 Tie the `Schema` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
 
@@ -246,28 +251,19 @@ This would produce api doc something similar to:
  You can modify generated OpenAPI at runtime either via generated types directly or using
  [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait.
 
- _**Modify generated OpenAPI via types directly.**_
+ _Modify generated OpenAPI via types directly._
  ```rust
  #[derive(OpenApi)]
  #[openapi(
      info(description = "My Api description"),
-     paths()
  )]
  struct ApiDoc;
-
- let mut doc = ApiDoc::openapi();
+let mut doc = ApiDoc::openapi();
  doc.info.title = String::from("My Api");
  ```
 
- _**You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html).**_
+ _You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html)._
  ```rust
- #[derive(OpenApi)]
- #[openapi(
-     info(description = "My Api description"),
-     paths()
- )]
- struct ApiDoc;
-
  let builder: OpenApiBuilder = ApiDoc::openapi().into();
  ```
 
