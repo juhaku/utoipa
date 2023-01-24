@@ -46,7 +46,7 @@ fn derive_path_parameter_multiple_with_matching_names_and_types_actix_success() 
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#""Foo id""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int32""#, "Parameter schema format"
 
@@ -54,7 +54,7 @@ fn derive_path_parameter_multiple_with_matching_names_and_types_actix_success() 
         "[1].name" = r#""digest""#, "Parameter name"
         "[1].description" = r#""Digest of foo""#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
-        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
     };
@@ -102,7 +102,7 @@ fn derive_path_parameter_multiple_no_matching_names_actix_success() {
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#""Foo id""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int32""#, "Parameter schema format"
 
@@ -110,7 +110,7 @@ fn derive_path_parameter_multiple_no_matching_names_actix_success() {
         "[1].name" = r#""digest""#, "Parameter name"
         "[1].description" = r#""Digest of foo""#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
-        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
     };
@@ -151,7 +151,7 @@ fn derive_params_from_method_args_actix_success() {
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#"null"#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int32""#, "Parameter schema format"
 
@@ -159,7 +159,7 @@ fn derive_params_from_method_args_actix_success() {
         "[1].name" = r#""digest""#, "Parameter name"
         "[1].description" = r#"null"#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
-        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
     };

@@ -70,21 +70,21 @@ fn resolve_get_with_multiple_args() {
         "[0].schema.items.format" = r#"null"#, "Query items parameter format"
         "[0].name" = r#""colors""#, "Query parameter name"
         "[0].required" = r#"true"#, "Query parameter required"
-        "[0].deprecated" = r#"false"#, "Query parameter required"
+        "[0].deprecated" = r#"null"#, "Query parameter required"
         "[0].in" = r#""query""#, "Query parameter in"
 
         "[1].schema.type" = r#""integer""#, "Id parameter type"
         "[1].schema.format" = r#""int32""#, "Id parameter format"
         "[1].name" = r#""id""#, "Id parameter name"
         "[1].required" = r#"true"#, "Id parameter required"
-        "[1].deprecated" = r#"false"#, "Id parameter required"
+        "[1].deprecated" = r#"null"#, "Id parameter required"
         "[1].in" = r#""path""#, "Id parameter in"
 
         "[2].schema.type" = r#""string""#, "Name parameter type"
         "[2].schema.format" = r#"null"#, "Name parameter format"
         "[2].name" = r#""name""#, "Name parameter name"
         "[2].required" = r#"true"#, "Name parameter required"
-        "[2].deprecated" = r#"false"#, "Name parameter required"
+        "[2].deprecated" = r#"null"#, "Name parameter required"
         "[2].in" = r#""path""#, "Name parameter in"
     }
 }
@@ -123,7 +123,6 @@ fn resolve_get_with_optional_query_args() {
         parameters,
         json!([
             {
-                "deprecated": false,
                 "in": "query",
                 "name": "colors",
                 "required": false,
@@ -175,14 +174,14 @@ fn resolve_path_arguments_not_same_order() {
         "[0].schema.format" = r#""int64""#, "Id parameter format"
         "[0].name" = r#""id""#, "Id parameter name"
         "[0].required" = r#"true"#, "Id parameter required"
-        "[0].deprecated" = r#"false"#, "Id parameter required"
+        "[0].deprecated" = r#"null"#, "Id parameter required"
         "[0].in" = r#""path""#, "Id parameter in"
 
         "[1].schema.type" = r#""string""#, "Name parameter type"
         "[1].schema.format" = r#"null"#, "Name parameter format"
         "[1].name" = r#""name""#, "Name parameter name"
         "[1].required" = r#"true"#, "Name parameter required"
-        "[1].deprecated" = r#"false"#, "Name parameter required"
+        "[1].deprecated" = r#"null"#, "Name parameter required"
         "[1].in" = r#""path""#, "Name parameter in"
     }
 }
@@ -224,21 +223,21 @@ fn resolve_get_path_with_anonymous_parts() {
         "[0].schema.format" = r#""int64""#, "Id parameter format"
         "[0].name" = r#""id""#, "Id parameter name"
         "[0].required" = r#"true"#, "Id parameter required"
-        "[0].deprecated" = r#"false"#, "Id parameter required"
+        "[0].deprecated" = r#"null"#, "Id parameter required"
         "[0].in" = r#""path""#, "Id parameter in"
 
         "[1].schema.type" = r#"null"#, "Arg0 parameter type"
         "[1].schema.format" = r#"null"#, "Arg0 parameter format"
         "[1].name" = r#""arg0""#, "Arg0 parameter name"
         "[1].required" = r#"true"#, "Arg0 parameter required"
-        "[1].deprecated" = r#"false"#, "Arg0 parameter required"
+        "[1].deprecated" = r#"null"#, "Arg0 parameter required"
         "[1].in" = r#""path""#, "Arg0 parameter in"
 
         "[2].schema.type" = r#"null"#, "Arg1 parameter type"
         "[2].schema.format" = r#"null"#, "Arg1 parameter format"
         "[2].name" = r#""arg1""#, "Arg1 parameter name"
         "[2].required" = r#"true"#, "Arg1 parameter required"
-        "[2].deprecated" = r#"false"#, "Arg1 parameter required"
+        "[2].deprecated" = r#"null"#, "Arg1 parameter required"
         "[2].in" = r#""path""#, "Arg1 parameter in"
     }
 }
@@ -282,7 +281,7 @@ fn resolve_get_path_with_tail() {
         "[0].schema.format" = r#"null"#, "Tail parameter format"
         "[0].name" = r#""tail""#, "Tail parameter name"
         "[0].required" = r#"true"#, "Tail parameter required"
-        "[0].deprecated" = r#"false"#, "Tail parameter required"
+        "[0].deprecated" = r#"null"#, "Tail parameter required"
         "[0].in" = r#""path""#, "Tail parameter in"
     }
 }
@@ -330,7 +329,7 @@ fn resolve_get_path_and_update_params() {
         "[0].description" = r#""Hello id""#, "Id parameter format"
         "[0].name" = r#""id""#, "Id parameter name"
         "[0].required" = r#"true"#, "Id parameter required"
-        "[0].deprecated" = r#"false"#, "Id parameter required"
+        "[0].deprecated" = r#"null"#, "Id parameter required"
         "[0].in" = r#""path""#, "Id parameter in"
 
         "[1].schema.type" = r#""string""#, "Name parameter type"
@@ -338,7 +337,7 @@ fn resolve_get_path_and_update_params() {
         "[1].description" = r#"null"#, "Name parameter format"
         "[1].name" = r#""name""#, "Name parameter name"
         "[1].required" = r#"true"#, "Name parameter required"
-        "[1].deprecated" = r#"false"#, "Name parameter required"
+        "[1].deprecated" = r#"null"#, "Name parameter required"
         "[1].in" = r#""path""#, "Name parameter in"
     }
 }
@@ -386,7 +385,6 @@ fn resolve_path_query_params_from_form() {
         parameters,
         json!([
             {
-                "deprecated": false,
                 "description": "Hello id",
                 "in": "path",
                 "name": "id",

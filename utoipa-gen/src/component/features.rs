@@ -3,11 +3,7 @@ use std::{fmt::Display, mem, str::FromStr};
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{
-    parenthesized,
-    parse::{Parse, ParseStream},
-    LitFloat, LitInt, LitStr, TypePath,
-};
+use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
 
 use crate::{
     parse_utils,
@@ -45,7 +41,9 @@ where
 }
 
 pub trait Name {
-    fn get_name() -> &'static str;
+    fn get_name() -> &'static str
+    where
+        Self: Sized;
 }
 
 macro_rules! name {
@@ -65,12 +63,6 @@ macro_rules! name {
     };
 }
 
-trait ParseWithIdent {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized;
-}
-
 /// Define whether [`Feature`] variant is validatable or not
 pub trait Validatable {
     fn is_validatable(&self) -> bool {
@@ -81,6 +73,12 @@ pub trait Validatable {
 pub trait Validate: Validatable {
     /// Perform validation check against schema type.
     fn validate(&self, validator: impl Validator);
+}
+
+pub trait Parse {
+    fn parse(input: ParseStream, attribute: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized;
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -116,95 +114,11 @@ pub enum Feature {
     MaxProperties(MaxProperties),
     MinProperties(MinProperties),
     SchemaWith(SchemaWith),
+    Description(Description),
+    Deprecated(Deprecated),
 }
 
 impl Feature {
-    pub fn parse_named<T: Name>(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
-        let name = T::get_name();
-
-        const ALLOWED_NAMES: [&str; 30] = [
-            "default",
-            "example",
-            "inline",
-            "xml",
-            "format",
-            "value_type",
-            "write_only",
-            "read_only",
-            "title",
-            "nullable",
-            "rename",
-            "rename_all",
-            "style",
-            "allow_reserved",
-            "explode",
-            "parameter_in",
-            "names",
-            "multiple_of",
-            "maximum",
-            "minimum",
-            "exclusive_maximum",
-            "exclusive_minimum",
-            "max_length",
-            "min_length",
-            "pattern",
-            "max_items",
-            "min_items",
-            "max_properties",
-            "min_properties",
-            "schema_with",
-        ];
-
-        match name {
-            "default" => Default::parse(input).map(Self::Default),
-            "example" => Example::parse(input).map(Self::Example),
-            "inline" => Inline::parse(input).map(Self::Inline),
-            "xml" => XmlAttr::parse(input).map(Self::XmlAttr),
-            "format" => Format::parse(input).map(Self::Format),
-            "value_type" => ValueType::parse(input).map(Self::ValueType),
-            "write_only" => WriteOnly::parse(input).map(Self::WriteOnly),
-            "read_only" => ReadOnly::parse(input).map(Self::ReadOnly),
-            "title" => Title::parse(input).map(Self::Title),
-            "nullable" => Nullable::parse(input).map(Self::Nullable),
-            "rename" => Rename::parse(input).map(Self::Rename),
-            "rename_all" => RenameAll::parse(input).map(Self::RenameAll),
-            "style" => Style::parse(input).map(Self::Style),
-            "allow_reserved" => AllowReserved::parse(input).map(Self::AllowReserved),
-            "explode" => Explode::parse(input).map(Self::Explode),
-            "parameter_in" => ParameterIn::parse(input).map(Self::ParameterIn),
-            "names" => Names::parse(input).map(Self::IntoParamsNames),
-            "multiple_of" => MultipleOf::parse_with_ident(input, ident).map(Self::MultipleOf),
-            "maximum" => Maximum::parse_with_ident(input, ident).map(Self::Maximum),
-            "minimum" => Minimum::parse_with_ident(input, ident).map(Self::Minimum),
-            "exclusive_maximum" => {
-                ExclusiveMaximum::parse_with_ident(input, ident).map(Self::ExclusiveMaximum)
-            }
-            "exclusive_minimum" => {
-                ExclusiveMinimum::parse_with_ident(input, ident).map(Self::ExclusiveMinimum)
-            }
-            "max_length" => MaxLength::parse_with_ident(input, ident).map(Self::MaxLength),
-            "min_length" => MinLength::parse_with_ident(input, ident).map(Self::MinLength),
-            "max_items" => MaxItems::parse_with_ident(input, ident).map(Self::MaxItems),
-            "min_items" => MinItems::parse_with_ident(input, ident).map(Self::MinItems),
-            "pattern" => Pattern::parse_with_ident(input, ident).map(Self::Pattern),
-            "max_properties" => {
-                MaxProperties::parse_with_ident(input, ident).map(Self::MaxProperties)
-            }
-            "min_properties" => {
-                MinProperties::parse_with_ident(input, ident).map(Self::MinProperties)
-            }
-            "schema_with" => SchemaWith::parse(input).map(Self::SchemaWith),
-            _unexpected => Err(syn::Error::new(
-                ident.span(),
-                format!(
-                    "unexpected name: `{}`, cannot parse named, expected one of: {}",
-                    _unexpected,
-                    ALLOWED_NAMES.join(", ")
-                ),
-            )),
-        }
-    }
-
     pub fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
         match self {
             Feature::MultipleOf(multiple_of) => multiple_of.validate(
@@ -293,6 +207,8 @@ impl ToTokens for Feature {
                 quote! { .max_properties(Some(#min_properties)) }
             }
             Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
+            Feature::Description(description) => quote! { .description(Some(#description)) },
+            Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
             Feature::RenameAll(_) => {
                 abort! {
                     Span::call_site(),
@@ -307,10 +223,8 @@ impl ToTokens for Feature {
                 }
             }
             Feature::Inline(_) => {
-                abort! {
-                    Span::call_site(),
-                    "Inline feature does not support `ToTokens`"
-                }
+                // inline feature is ignored by `ToTokens`
+                TokenStream::new()
             }
             Feature::IntoParamsNames(_) => {
                 abort! {
@@ -358,6 +272,8 @@ impl Display for Feature {
             Feature::MaxProperties(max_properties) => max_properties.fmt(f),
             Feature::MinProperties(min_properties) => min_properties.fmt(f),
             Feature::SchemaWith(with_schema) => with_schema.fmt(f),
+            Feature::Description(description) => description.fmt(f),
+            Feature::Deprecated(deprecated) => deprecated.fmt(f),
         }
     }
 }
@@ -395,6 +311,8 @@ impl Validatable for Feature {
             Feature::MaxProperties(max_properties) => max_properties.is_validatable(),
             Feature::MinProperties(min_properties) => min_properties.is_validatable(),
             Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
+            Feature::Description(description) => description.is_validatable(),
+            Feature::Deprecated(deprecated) => deprecated.is_validatable(),
         }
     }
 }
@@ -441,7 +359,9 @@ is_validatable! {
     MinItems => true,
     MaxProperties => false,
     MinProperties => false,
-    SchemaWith => false
+    SchemaWith => false,
+    Description => false,
+    Deprecated => false
 }
 
 #[derive(Clone)]
@@ -449,7 +369,7 @@ is_validatable! {
 pub struct Example(AnyValue);
 
 impl Parse for Example {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)
     }
 }
@@ -460,6 +380,12 @@ impl ToTokens for Example {
     }
 }
 
+impl From<Example> for Feature {
+    fn from(value: Example) -> Self {
+        Feature::Example(value)
+    }
+}
+
 name!(Example = "example");
 
 #[derive(Clone)]
@@ -467,7 +393,7 @@ name!(Example = "example");
 pub struct Default(AnyValue);
 
 impl Parse for Default {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)
     }
 }
@@ -478,6 +404,12 @@ impl ToTokens for Default {
     }
 }
 
+impl From<self::Default> for Feature {
+    fn from(value: self::Default) -> Self {
+        Feature::Default(value)
+    }
+}
+
 name!(Default = "default");
 
 #[derive(Clone)]
@@ -485,8 +417,20 @@ name!(Default = "default");
 pub struct Inline(bool);
 
 impl Parse for Inline {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl From<bool> for Inline {
+    fn from(value: bool) -> Self {
+        Inline(value)
+    }
+}
+
+impl From<Inline> for Feature {
+    fn from(value: Inline) -> Self {
+        Feature::Inline(value)
     }
 }
 
@@ -526,7 +470,7 @@ impl XmlAttr {
 }
 
 impl Parse for XmlAttr {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         let xml;
         parenthesized!(xml in input);
         xml.parse::<schema::xml::XmlAttr>().map(Self)
@@ -539,6 +483,12 @@ impl ToTokens for XmlAttr {
     }
 }
 
+impl From<XmlAttr> for Feature {
+    fn from(value: XmlAttr) -> Self {
+        Feature::XmlAttr(value)
+    }
+}
+
 name!(XmlAttr = "xml");
 
 #[derive(Clone)]
@@ -546,7 +496,7 @@ name!(XmlAttr = "xml");
 pub struct Format(SchemaFormat<'static>);
 
 impl Parse for Format {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
     }
 }
@@ -554,6 +504,12 @@ impl Parse for Format {
 impl ToTokens for Format {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Format> for Feature {
+    fn from(value: Format) -> Self {
+        Feature::Format(value)
     }
 }
 
@@ -571,8 +527,14 @@ impl ValueType {
 }
 
 impl Parse for ValueType {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<syn::Type>()).map(Self)
+    }
+}
+
+impl From<ValueType> for Feature {
+    fn from(value: ValueType) -> Self {
+        Feature::ValueType(value)
     }
 }
 
@@ -583,7 +545,7 @@ name!(ValueType = "value_type");
 pub struct WriteOnly(bool);
 
 impl Parse for WriteOnly {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -594,6 +556,12 @@ impl ToTokens for WriteOnly {
     }
 }
 
+impl From<WriteOnly> for Feature {
+    fn from(value: WriteOnly) -> Self {
+        Feature::WriteOnly(value)
+    }
+}
+
 name!(WriteOnly = "write_only");
 
 #[derive(Clone, Copy)]
@@ -601,7 +569,7 @@ name!(WriteOnly = "write_only");
 pub struct ReadOnly(bool);
 
 impl Parse for ReadOnly {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -612,6 +580,12 @@ impl ToTokens for ReadOnly {
     }
 }
 
+impl From<ReadOnly> for Feature {
+    fn from(value: ReadOnly) -> Self {
+        Feature::ReadOnly(value)
+    }
+}
+
 name!(ReadOnly = "read_only");
 
 #[derive(Clone)]
@@ -619,7 +593,7 @@ name!(ReadOnly = "read_only");
 pub struct Title(String);
 
 impl Parse for Title {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
@@ -630,6 +604,12 @@ impl ToTokens for Title {
     }
 }
 
+impl From<Title> for Feature {
+    fn from(value: Title) -> Self {
+        Feature::Title(value)
+    }
+}
+
 name!(Title = "title");
 
 #[derive(Clone, Copy)]
@@ -637,7 +617,7 @@ name!(Title = "title");
 pub struct Nullable(bool);
 
 impl Parse for Nullable {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -645,6 +625,12 @@ impl Parse for Nullable {
 impl ToTokens for Nullable {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Nullable> for Feature {
+    fn from(value: Nullable) -> Self {
+        Feature::Nullable(value)
     }
 }
 
@@ -661,7 +647,7 @@ impl Rename {
 }
 
 impl Parse for Rename {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
@@ -669,6 +655,12 @@ impl Parse for Rename {
 impl ToTokens for Rename {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Rename> for Feature {
+    fn from(value: Rename) -> Self {
+        Feature::Rename(value)
     }
 }
 
@@ -685,7 +677,7 @@ impl RenameAll {
 }
 
 impl Parse for RenameAll {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
 
         litstr
@@ -693,6 +685,12 @@ impl Parse for RenameAll {
             .parse::<RenameRule>()
             .map_err(|error| syn::Error::new(litstr.span(), error.to_string()))
             .map(Self)
+    }
+}
+
+impl From<RenameAll> for Feature {
+    fn from(value: RenameAll) -> Self {
+        Feature::RenameAll(value)
     }
 }
 
@@ -709,7 +707,7 @@ impl From<ParameterStyle> for Style {
 }
 
 impl Parse for Style {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<ParameterStyle>().map(Self))
     }
 }
@@ -720,6 +718,12 @@ impl ToTokens for Style {
     }
 }
 
+impl From<Style> for Feature {
+    fn from(value: Style) -> Self {
+        Feature::Style(value)
+    }
+}
+
 name!(Style = "style");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -727,7 +731,7 @@ name!(Style = "style");
 pub struct AllowReserved(bool);
 
 impl Parse for AllowReserved {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -738,6 +742,12 @@ impl ToTokens for AllowReserved {
     }
 }
 
+impl From<AllowReserved> for Feature {
+    fn from(value: AllowReserved) -> Self {
+        Feature::AllowReserved(value)
+    }
+}
+
 name!(AllowReserved = "allow_reserved");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -745,7 +755,7 @@ name!(AllowReserved = "allow_reserved");
 pub struct Explode(bool);
 
 impl Parse for Explode {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -756,6 +766,12 @@ impl ToTokens for Explode {
     }
 }
 
+impl From<Explode> for Feature {
+    fn from(value: Explode) -> Self {
+        Feature::Explode(value)
+    }
+}
+
 name!(Explode = "explode");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -763,7 +779,7 @@ name!(Explode = "explode");
 pub struct ParameterIn(parameter::ParameterIn);
 
 impl Parse for ParameterIn {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
     }
 }
@@ -771,6 +787,12 @@ impl Parse for ParameterIn {
 impl ToTokens for ParameterIn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ParameterIn> for Feature {
+    fn from(value: ParameterIn) -> Self {
+        Feature::ParameterIn(value)
     }
 }
 
@@ -788,13 +810,19 @@ impl Names {
 }
 
 impl Parse for Names {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
             parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
                 .iter()
                 .map(LitStr::value)
                 .collect(),
         ))
+    }
+}
+
+impl From<Names> for Feature {
+    fn from(value: Names) -> Self {
+        Feature::IntoParamsNames(value)
     }
 }
 
@@ -814,8 +842,8 @@ impl Validate for MultipleOf {
     }
 }
 
-impl ParseWithIdent for MultipleOf {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self> {
+impl Parse for MultipleOf {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self> {
         parse_number(input).map(|multiple_of| Self(multiple_of, ident))
     }
 }
@@ -823,6 +851,12 @@ impl ParseWithIdent for MultipleOf {
 impl ToTokens for MultipleOf {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MultipleOf> for Feature {
+    fn from(value: MultipleOf) -> Self {
+        Feature::MultipleOf(value)
     }
 }
 
@@ -842,8 +876,8 @@ impl Validate for Maximum {
     }
 }
 
-impl ParseWithIdent for Maximum {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for Maximum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -854,6 +888,12 @@ impl ParseWithIdent for Maximum {
 impl ToTokens for Maximum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Maximum> for Feature {
+    fn from(value: Maximum) -> Self {
+        Feature::Maximum(value)
     }
 }
 
@@ -873,8 +913,8 @@ impl Validate for Minimum {
     }
 }
 
-impl ParseWithIdent for Minimum {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for Minimum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -885,6 +925,12 @@ impl ParseWithIdent for Minimum {
 impl ToTokens for Minimum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Minimum> for Feature {
+    fn from(value: Minimum) -> Self {
+        Feature::Minimum(value)
     }
 }
 
@@ -904,8 +950,8 @@ impl Validate for ExclusiveMaximum {
     }
 }
 
-impl ParseWithIdent for ExclusiveMaximum {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for ExclusiveMaximum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -916,6 +962,12 @@ impl ParseWithIdent for ExclusiveMaximum {
 impl ToTokens for ExclusiveMaximum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ExclusiveMaximum> for Feature {
+    fn from(value: ExclusiveMaximum) -> Self {
+        Feature::ExclusiveMaximum(value)
     }
 }
 
@@ -935,8 +987,8 @@ impl Validate for ExclusiveMinimum {
     }
 }
 
-impl ParseWithIdent for ExclusiveMinimum {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for ExclusiveMinimum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -947,6 +999,12 @@ impl ParseWithIdent for ExclusiveMinimum {
 impl ToTokens for ExclusiveMinimum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ExclusiveMinimum> for Feature {
+    fn from(value: ExclusiveMinimum) -> Self {
+        Feature::ExclusiveMinimum(value)
     }
 }
 
@@ -966,8 +1024,8 @@ impl Validate for MaxLength {
     }
 }
 
-impl ParseWithIdent for MaxLength {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for MaxLength {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -978,6 +1036,12 @@ impl ParseWithIdent for MaxLength {
 impl ToTokens for MaxLength {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MaxLength> for Feature {
+    fn from(value: MaxLength) -> Self {
+        Feature::MaxLength(value)
     }
 }
 
@@ -997,8 +1061,8 @@ impl Validate for MinLength {
     }
 }
 
-impl ParseWithIdent for MinLength {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for MinLength {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -1009,6 +1073,12 @@ impl ParseWithIdent for MinLength {
 impl ToTokens for MinLength {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MinLength> for Feature {
+    fn from(value: MinLength) -> Self {
+        Feature::MinLength(value)
     }
 }
 
@@ -1028,8 +1098,8 @@ impl Validate for Pattern {
     }
 }
 
-impl ParseWithIdent for Pattern {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for Pattern {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -1041,6 +1111,12 @@ impl ParseWithIdent for Pattern {
 impl ToTokens for Pattern {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Pattern> for Feature {
+    fn from(value: Pattern) -> Self {
+        Feature::Pattern(value)
     }
 }
 
@@ -1060,8 +1136,8 @@ impl Validate for MaxItems {
     }
 }
 
-impl ParseWithIdent for MaxItems {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for MaxItems {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -1072,6 +1148,12 @@ impl ParseWithIdent for MaxItems {
 impl ToTokens for MaxItems {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MaxItems> for Feature {
+    fn from(value: MaxItems) -> Self {
+        Feature::MaxItems(value)
     }
 }
 
@@ -1091,8 +1173,8 @@ impl Validate for MinItems {
     }
 }
 
-impl ParseWithIdent for MinItems {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for MinItems {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -1106,14 +1188,20 @@ impl ToTokens for MinItems {
     }
 }
 
+impl From<MinItems> for Feature {
+    fn from(value: MinItems) -> Self {
+        Feature::MinItems(value)
+    }
+}
+
 name!(MinItems = "min_items");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 pub struct MaxProperties(usize, Ident);
 
-impl ParseWithIdent for MaxProperties {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for MaxProperties {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -1127,14 +1215,20 @@ impl ToTokens for MaxProperties {
     }
 }
 
+impl From<MaxProperties> for Feature {
+    fn from(value: MaxProperties) -> Self {
+        Feature::MaxProperties(value)
+    }
+}
+
 name!(MaxProperties = "max_properties");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 pub struct MinProperties(usize, Ident);
 
-impl ParseWithIdent for MinProperties {
-    fn parse_with_ident(input: ParseStream, ident: Ident) -> syn::Result<Self>
+impl Parse for MinProperties {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
@@ -1148,13 +1242,20 @@ impl ToTokens for MinProperties {
     }
 }
 
+impl From<MinProperties> for Feature {
+    fn from(value: MinProperties) -> Self {
+        Feature::MinProperties(value)
+    }
+}
+
 name!(MinProperties = "min_properties");
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 pub struct SchemaWith(TypePath);
 
 impl Parse for SchemaWith {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<TypePath>().map(Self))
     }
 }
@@ -1168,7 +1269,72 @@ impl ToTokens for SchemaWith {
     }
 }
 
+impl From<SchemaWith> for Feature {
+    fn from(value: SchemaWith) -> Self {
+        Feature::SchemaWith(value)
+    }
+}
+
 name!(SchemaWith = "schema_with");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Description(String);
+
+impl Parse for Description {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for Description {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Description> for Feature {
+    fn from(value: Description) -> Self {
+        Self::Description(value)
+    }
+}
+
+name!(Description = "description");
+
+/// Deprecated feature parsed from macro attributes.
+///
+/// This feature supports only syntax parsed from utoipa specific macro attributes, it does not
+/// support Rust `#[deprecated]` attribute.
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Deprecated(bool);
+
+impl Parse for Deprecated {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for Deprecated {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let deprecated: crate::Deprecated = self.0.into();
+        deprecated.to_tokens(tokens);
+    }
+}
+
+impl From<Deprecated> for Feature {
+    fn from(value: Deprecated) -> Self {
+        Self::Deprecated(value)
+    }
+}
+
+name!(Deprecated = "deprecated");
 
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
@@ -1298,7 +1464,7 @@ macro_rules! parse_features {
 
                     $(
                         if name == <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::Name>::get_name() {
-                            features.push(crate::component::features::Feature::parse_named::<$feature>(input, ident)?);
+                            features.push(<$feature as crate::component::features::Parse>::parse(input, ident)?.into());
                             if !input.is_empty() {
                                 input.parse::<syn::Token![,]>()?;
                             }
@@ -1332,7 +1498,7 @@ impl IsInline for Vec<Feature> {
     fn is_inline(&self) -> bool {
         self.iter()
             .find_map(|feature| match feature {
-                Feature::Inline(inline) => Some(inline),
+                Feature::Inline(inline) if inline.0 => Some(inline),
                 _ => None,
             })
             .is_some()

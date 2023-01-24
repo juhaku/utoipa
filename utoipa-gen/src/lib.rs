@@ -742,9 +742,20 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
-/// ### Using `ToResponse` for reusable responses
+/// **Multiple response return types with _`content(...)`_ attribute:**
 ///
-/// **Use `ToResponse` trait to define response attributes instead of tuple:**
+/// _**Define multiple response return types for single response status with their own example.**_
+/// ```text
+/// responses(
+///    (status = 200, content(
+///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
+///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+///        )
+///    )
+/// )
+/// ```
+///
+/// ### Using `ToResponse` for reusable responses
 ///
 /// _**`ReusableResponse` must be a type that implements [`ToResponse`][to_response_trait].**_
 /// ```text
@@ -757,19 +768,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ```text
 /// responses(
 ///     (status = 200, response = inline(ReusableResponse))
-/// )
-/// ```
-///
-/// **Multiple response return types with _`content(...)`_ attribute**
-///
-/// _**Define multiple response return types for single response status with their own example.**_
-/// ```text
-/// responses(
-///    (status = 200, content(
-///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
-///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
-///        )
-///    )
 /// )
 /// ```
 ///
@@ -835,6 +833,47 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
+/// ##### Parameter type attributes
+///
+/// These attributes supported when _`parameter_type`_ is present. Either by manually providing one
+/// or otherwise resolved e.g from path macro argument when _`actix_extras`_ crate feature is
+/// enabled.
+///
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+///
+/// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+///
+/// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+///
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
+///
+/// * `nullable` Defines property is nullable (note this is different to non-required).
+///
+/// * `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
+///   division will result an `integer`. Value must be strictly above _`0`_.
+///
+/// * `maximum = ...` Can be used to define inclusive upper bound to a `number` value.
+///
+/// * `minimum = ...` Can be used to define inclusive lower bound to a `number` value.
+///
+/// * `exclusive_maximum = ...` Can be used to define exclusive upper bound to a `number` value.
+///
+/// * `exclusive_minimum = ...` Can be used to define exclusive lower bound to a `number` value.
+///
+/// * `max_length = ...` Can be used to define maximum length for `string` types.
+///
+/// * `min_length = ...` Can be used to define minimum length for `string` types.
+///
+/// * `pattern = ...` Can be used to define valid regular expression in _ECMA-262_ dialect the field value must match.
+///
+/// * `max_items = ...` Can be used to define maximum items allowed for `array` fields. Value must
+///   be non-negative integer.
+///
+/// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
+///   be non-negative integer.
+///
 /// **For example:**
 ///
 /// ```text
@@ -861,6 +900,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// example.
 ///
 /// [into_params]: ./trait.IntoParams.html
+///
 /// **For example:**
 ///
 /// ```text
@@ -1184,6 +1224,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [into_responses_trait]: trait.IntoResponses.html
 /// [into_params_derive]: derive.IntoParams.html
 /// [to_response_trait]: trait.ToResponse.html
+/// [known_format]: openapi/schema/enum.KnownFormat.html
+/// [xml]: openapi/xml/struct.Xml.html
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 

@@ -3394,7 +3394,7 @@ fn derive_struct_with_validation_fields() {
             #[schema(max_length = 10, min_length = 5, pattern = "[a-z]*")]
             value: String,
 
-            #[schema(max_items = 5, min_items = 1)]
+            #[schema(max_items = 5, min_items = 1, min_length = 1)]
             items: Vec<String>,
         }
     };
@@ -3420,6 +3420,7 @@ fn derive_struct_with_validation_fields() {
                     "type": "array",
                     "items": {
                         "type": "string",
+                        "minLength": 1,
                     },
                     "maxItems": 5,
                     "minItems": 1,

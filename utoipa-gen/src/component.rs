@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Span};
 use proc_macro_error::{abort, abort_call_site};
 use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
@@ -10,7 +10,7 @@ use self::serde::{RenameRule, SerdeContainer, SerdeValue};
 
 pub mod into_params;
 
-mod features;
+pub mod features;
 pub mod schema;
 pub mod serde;
 
@@ -39,13 +39,23 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     })
 }
 
-#[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum TypeTreeValue<'t> {
     TypePath(&'t TypePath),
     Path(&'t Path),
     /// Slice and array types need to be manually defined, since they cannot be recognized from
     /// generic arguments.
-    Array(Vec<TypeTreeValue<'t>>),
+    Array(Vec<TypeTreeValue<'t>>, &'t Span),
+}
+
+impl PartialEq for TypeTreeValue<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Path(_) => self == other,
+            Self::TypePath(_) => self == other,
+            Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
+        }
+    }
 }
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
@@ -72,8 +82,8 @@ impl<'t> TypeTree<'t> {
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
             Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem))],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem))],
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), &slice.bracket_token.span)],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), &array.bracket_token.span)],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -113,9 +123,10 @@ impl<'t> TypeTree<'t> {
             let path = match value {
                 TypeTreeValue::TypePath(type_path) => &type_path.path,
                 TypeTreeValue::Path(path) => path,
-                TypeTreeValue::Array(value) => {
+                TypeTreeValue::Array(value, span) => {
+                    let array: Path = Ident::new("Array", *span).into();
                     return TypeTree {
-                        path: None,
+                        path: Some(Cow::Owned(array)),
                         value_type: ValueType::Object,
                         generic_type: Some(GenericType::Vec),
                         children: Some(vec![Self::from_type_paths(value)]),

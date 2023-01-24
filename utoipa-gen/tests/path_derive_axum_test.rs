@@ -125,7 +125,6 @@ fn get_todo_with_path_tuple() {
                 "description": "Person id",
                 "in": "path",
                 "name": "id",
-                "deprecated": false,
                 "required": true,
                 "schema": {
                     "type": "string"
@@ -135,7 +134,6 @@ fn get_todo_with_path_tuple() {
                 "description": "Person name",
                 "in": "path",
                 "name": "name",
-                "deprecated": false,
                 "required": true,
                 "schema": {
                     "type": "string",
