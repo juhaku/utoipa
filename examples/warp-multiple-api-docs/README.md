@@ -1,6 +1,6 @@
 # warp-mutliple-api-docs ~ utoipa with utoipa-swagger-ui example
 
-This is demo `warp` application with multiple api docs to demonstrate splitting apis with `utoipa` and `utoipa-swagger-ui`.
+This is demo `warp` application with multiple API docs to demonstrate splitting APIs with `utoipa` and `utoipa-swagger-ui`.
 
 Just run command below to run the demo application and browse to `http://localhost:8080/swagger-ui/`.
 ```bash

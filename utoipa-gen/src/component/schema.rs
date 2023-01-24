@@ -1322,7 +1322,7 @@ impl<'a> SchemaProperty<'a> {
         }
     }
 
-    /// Check wheter property is required or not
+    /// Check whether property is required or not
     fn is_option(&self) -> bool {
         matches!(self.type_tree.generic_type, Some(GenericType::Option))
     }

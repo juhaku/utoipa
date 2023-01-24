@@ -189,7 +189,7 @@ pub mod fn_arg {
     }
 
     impl FnArgType<'_> {
-        /// Get best effor name `Ident` for the type. For `FnArgType::Tuple` types it will take the first one
+        /// Get best effort name `Ident` for the type. For `FnArgType::Tuple` types it will take the first one
         /// from `Vec`.
         #[cfg(feature = "rocket_extras")]
         pub(super) fn get_name(&self) -> &Ident {

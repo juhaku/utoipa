@@ -94,7 +94,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// unnamed struct type configuration options are supported.
 ///
 /// In addition to the variant type specific configuration options enum variants support custom
-/// _`rename`_ attribute. It behaves similarly to the serdes _`rename`_ attribute. If both _serde_
+/// _`rename`_ attribute. It behaves similarly to serde's _`rename`_ attribute. If both _serde_
 /// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
@@ -147,7 +147,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 ///   be non-negative integer.
 /// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
-///   not accept arguments and must return anything that can be convered into `RefOr<Schema>`.
+///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 ///
 /// # Xml attribute Configuration Options
 ///
@@ -238,8 +238,8 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 ///
 /// # `#[repr(...)]` attribute support
 ///
-/// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for fieldless enums.
-/// This allows you to create enums from thier discriminant values.
+/// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for field-less enums.
+/// This allows you to create enums from their discriminant values.
 /// **repr** feature need to be enabled.
 /// Otherwise, string representations of the fields will be used as values.
 /// ```rust
@@ -287,7 +287,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// # Generic schemas with aliases
 ///
 /// Schemas can also be generic which allows reusing types. This enables certain behaviour patters
-/// where super type delcares common code for type aliases.
+/// where super type declares common code for type aliases.
 ///
 /// In this example we have common `Status` type which accepts one generic type. It is then defined
 /// with `#[aliases(...)]` that it is going to be used with [`std::string::String`] and [`i32`] values.
@@ -307,7 +307,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// struct ApiDoc;
 /// ```
 ///
-/// The `#[aliases(...)]` is just syntatic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)
+/// The `#[aliases(...)]` is just syntactic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)
 /// behind the scenes which then can be later referenced anywhere in code.
 ///
 /// **Note!** You should never register generic type itself in `components(...)` so according above example `Status<...>` should not be registered
@@ -632,7 +632,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
 ///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
 ///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
-///   that free form _`ref`_ is accessbile via OpenAPI doc or Swagger UI, users are eligible
+///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
 ///   to make these guarantees.
 ///
 /// * `description = "..."` Define the description for the request body object as str.
@@ -646,12 +646,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 ///
-/// * `examples(...)` Define mulitple examples for single request body. This attribute is mutually
+/// * `examples(...)` Define multiple examples for single request body. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
 ///   This has same syntax as _`examples(...)`_ in [Response Attributes](#response-attributes)
 ///   _examples(...)_
 ///
-/// _**Example request body defintions.**_
+/// _**Example request body definitions.**_
 /// ```text
 ///  request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
 ///  request_body = Pet,
@@ -672,7 +672,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
 ///   [`ToSchema`][to_schema] types. _`ref("./external.json")`_
 ///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
-///   that free form _`ref`_ is accessbile via OpenAPI doc or Swagger UI, users are eligible
+///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
 ///   to make these guarantees.
 ///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
@@ -698,7 +698,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   and _`examples`_ are optional arguments. Examples attribute behaves exactly same way as in
 ///   the response and is mutually exclusive with the example attribute.
 ///
-/// * `examples(...)` Define mulitple examples for single response. This attribute is mutually
+/// * `examples(...)` Define multiple examples for single response. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
 ///     * `name = ...` This is first attribute and value must be literal string.
 ///     * `summary = ...` Short description of example. Value must be literal string.
@@ -808,7 +808,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ## Tuples
 ///
 /// In the tuples format, parameters are specified using the following attributes inside a list of
-/// tuples seperated by commas:
+/// tuples separated by commas:
 ///
 /// * `name` _**Must be the first argument**_. Define the name for parameter.
 ///
@@ -948,7 +948,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # rocket_extras feature support for rocket
 ///
-/// **rocket_extras** feature enahances path operation parameter support. It gives **utoipa** ability to parse `path`, `path parameters`
+/// **rocket_extras** feature enhances path operation parameter support. It gives **utoipa** ability to parse `path`, `path parameters`
 /// and `query parameters` based on arguments given to **rocket**  proc macros such as _**`#[get(...)]`**_.
 ///
 /// 1. It is able to parse parameter types for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`]
@@ -958,7 +958,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ///
 ///
-/// # axum_extras feature suppport for axum
+/// # axum_extras feature support for axum
 ///
 /// **axum_extras** feature enhances parameter support for path operation in following ways.
 ///
@@ -989,7 +989,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// _**Use `IntoParams` to resovle query parmaeters.**_
+/// _**Use `IntoParams` to resolve query parameters.**_
 /// ```rust
 /// # use serde::Deserialize;
 /// # use utoipa::IntoParams;
@@ -1273,7 +1273,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   Tag can be used to define extra information for the api to produce richer documentation.
 /// * `external_docs(...)` Can be used to reference external resource to the OpenAPI doc for extended documentation.
 ///   External docs can be in [`OpenApi`][openapi_struct] or in [`Tag`][tags] level.
-/// * `servers(...)` Define [`servers`][servers] as derive argumenst to the _`OpenApi`_. Servers
+/// * `servers(...)` Define [`servers`][servers] as derive argument to the _`OpenApi`_. Servers
 ///   are completely optional and thus can be omitted from the declaration.
 /// * `info(...)` Declare [`Info`][info] attribute values used to override the default values
 ///   generated from Cargo environment variables. **Note!** Defined attributes will override the
@@ -1294,7 +1294,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `title = ...` Define title of the API. It can be literal string.
 /// * `description = ...` Define description of the API. Markdown can be used for rich text
 ///   representation. It can be literal string or [`include_str!`] statement.
-/// * `contanct(...)` Used to override the whole contanct generated from environment variables.
+/// * `contact(...)` Used to override the whole contact generated from environment variables.
 ///     * `name = ...` Define identifying name of contact person / organization. It Can be a literal string.
 ///     * `email = ...` Define email address of the contact person / organization. It can be a literal string.
 ///     * `url = ...` Define URL pointing to the contact information. It must be in URL formatted string.
@@ -1399,7 +1399,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// struct ApiDoc;
 /// ```
 ///
-/// _**Create OpenAPI with resuable response.**_
+/// _**Create OpenAPI with reusable response.**_
 /// ```rust
 /// #[derive(utoipa::ToSchema)]
 /// struct Person {
@@ -1488,7 +1488,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// The following attributes are available for use in on the container attribute `#[into_params(...)]` for the struct
 /// deriving `IntoParams`:
 ///
-/// * `names(...)` Define comma seprated list of names for unnamed fields of struct used as a path parameter.
+/// * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
 ///    __Only__ supported on __unnamed structs__.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///    values are based on _`parameter_in`_ attribute.
@@ -1538,7 +1538,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   be non-negative integer.
 /// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
-///   not accept arguments and must return anything that can be convered into `RefOr<Schema>`.
+///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
@@ -1684,7 +1684,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// _**You can even overide a [`Vec`] with another one.**_
+/// _**You can even override a [`Vec`] with another one.**_
 /// ```rust
 /// # use utoipa::IntoParams;
 /// #
@@ -1778,7 +1778,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(response, content, to_schema))]
-/// Generate resuable OpenAPI response what can be used
+/// Generate reusable OpenAPI response what can be used
 /// in [`utoipa::path`][path] or in [`OpenApi`][openapi].
 ///
 /// This is `#[derive]` implementation for [`ToResponse`][to_response] trait.
@@ -1793,7 +1793,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 /// enum variants with `#[content]` attribute. **Note!** [`ToSchema`] need to be implemented for
 /// the field or variant type.
 ///
-/// Type derived with _`ToResponse`_ uses provided doc comment as a description for the reponse. It
+/// Type derived with _`ToResponse`_ uses provided doc comment as a description for the response. It
 /// can alternatively be overridden with _`description = ...`_ attribute.
 ///
 /// _`ToResponse`_ can be used in four different ways to generate OpenAPI response component.
@@ -1836,7 +1836,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///     struct SuccessResponse;
 ///    ```
 ///
-/// 4. By deocrating `enum` with variants having `#[content(...)]` attribute. This allows users to
+/// 4. By decorating `enum` with variants having `#[content(...)]` attribute. This allows users to
 ///    define multiple response content schemas to single response according to OpenAPI spec.
 ///    **Note!** Enum with _`content`_ attribute in variants cannot have enum level _`example`_ or
 ///    _`examples`_ defined. Instead examples need to be defined per variant basis. Additionally
@@ -1887,7 +1887,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 ///
-/// * `examples(...)` Define mulitple examples for single response. This attribute is mutually
+/// * `examples(...)` Define multiple examples for single response. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
 ///     * `name = ...` This is first attribute and value must be literal string.
 ///     * `summary = ...` Short description of example. Value must be literal string.
@@ -2059,7 +2059,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 ///
-/// * `examples(...)` Define mulitple examples for single response. This attribute is mutually
+/// * `examples(...)` Define multiple examples for single response. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
 ///     * `name = ...` This is first attribute and value must be literal string.
 ///     * `summary = ...` Short description of example. Value must be literal string.

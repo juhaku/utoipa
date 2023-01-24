@@ -34,7 +34,7 @@ pub(super) struct Todo {
     /// Unique id for the todo item.
     #[schema(example = 1)]
     id: i32,
-    /// Description of the taks to do.
+    /// Description of the tasks to do.
     #[schema(example = "Remember to buy groceries")]
     value: String,
     /// Mark is the task done or not
@@ -58,7 +58,7 @@ pub(super) enum ErrorResponse {
     NotFound(String),
     /// When there is a conflict storing a new todo.
     Conflict(String),
-    /// When todo enpoint was called without correct credentials
+    /// When todo endpoint was called without correct credentials
     Unauthorized(String),
 }
 
@@ -66,7 +66,7 @@ pub(super) enum ErrorResponse {
 ///
 /// List todos from in-memory todo store.
 ///
-/// One could call the api endpoit with following curl.
+/// One could call the api endpoint with following curl.
 /// ```text
 /// curl localhost:8080/todo
 /// ```
@@ -118,7 +118,7 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
 
 /// Delete Todo by given path variable id.
 ///
-/// This ednpoint needs `api_key` authentication in order to call. Api key can be found from README.md.
+/// This endpoint needs `api_key` authentication in order to call. Api key can be found from README.md.
 ///
 /// Api will delete todo from shared in-memory storage by the provided id and return success 200.
 /// If storage does not contain `Todo` with given id 404 not found will be returned.
@@ -239,7 +239,7 @@ pub(super) struct SearchTodos {
 /// Search Todos with by value
 ///
 /// Perform search from `Todo`s present in in-memory storage by matching Todo's value to
-/// value provided as query paramter. Returns 200 and matching `Todo` items.
+/// value provided as query parameter. Returns 200 and matching `Todo` items.
 #[utoipa::path(
     params(
         SearchTodos

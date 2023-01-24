@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::builder;
 
-/// OpenAPI [security requirment][security] object.
+/// OpenAPI [security requirement][security] object.
 ///
 /// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes* required
 /// to execute the operation. They can be defined in [`#[utoipa::path(...)]`][path] or in `#[openapi(...)]`
@@ -90,7 +90,7 @@ impl SecurityRequirement {
 /// );
 /// ```
 ///
-/// Create JWT header authetication.
+/// Create JWT header authentication.
 /// ```rust
 /// # use utoipa::openapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
 /// SecurityScheme::Http(
@@ -108,9 +108,9 @@ pub enum SecurityScheme {
     ApiKey(ApiKey),
     /// Http authentication such as *`bearer`* or *`basic`*.
     Http(Http),
-    /// Open id connect url to discover OAuth2 configuraiton values.
+    /// Open id connect url to discover OAuth2 configuration values.
     OpenIdConnect(OpenIdConnect),
-    /// Authentication is done via client side cerfiticate.
+    /// Authentication is done via client side certificate.
     ///
     /// OpenApi 3.1 type
     #[serde(rename = "mutualTLS")]
@@ -269,7 +269,7 @@ impl HttpBuilder {
 
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1).
 ///
-/// Types are maintainted at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
+/// Types are maintained at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
@@ -575,7 +575,7 @@ pub struct AuthorizationCode {
 impl AuthorizationCode {
     /// Construct a new authorization code oauth flow.
     ///
-    /// Accpets three arguments: one which is authorization url, two a token url and
+    /// Accepts three arguments: one which is authorization url, two a token url and
     /// three a map of scopes for oauth flow.
     ///
     /// # Examples
@@ -668,7 +668,7 @@ pub struct Password {
 impl Password {
     /// Construct a new password oauth flow.
     ///
-    /// Accpets two arguments: one which is a token url and
+    /// Accepts two arguments: one which is a token url and
     /// two a map of scopes for oauth flow.
     ///
     /// # Examples
@@ -703,7 +703,7 @@ impl Password {
 
     /// Construct a new password oauth flow with additional refresh url.
     ///
-    /// This is essentially same as [`Password::new`] but allows defining thrird parameter for `refresh_url`
+    /// This is essentially same as [`Password::new`] but allows defining third parameter for `refresh_url`
     /// for fetching refresh tokens.
     ///
     /// # Examples
@@ -748,9 +748,9 @@ pub struct ClientCredentials {
 }
 
 impl ClientCredentials {
-    /// Construct a new client crendentials oauth flow.
+    /// Construct a new client credentials oauth flow.
     ///
-    /// Accpets two arguments: one which is a token url and
+    /// Accepts two arguments: one which is a token url and
     /// two a map of scopes for oauth flow.
     ///
     /// # Examples
@@ -783,9 +783,9 @@ impl ClientCredentials {
         }
     }
 
-    /// Construct a new client crendentials oauth flow with additional refresh url.
+    /// Construct a new client credentials oauth flow with additional refresh url.
     ///
-    /// This is essentially same as [`ClientCredentials::new`] but allows defining third paramter for
+    /// This is essentially same as [`ClientCredentials::new`] but allows defining third parameter for
     /// `refresh_url`.
     ///
     /// # Examples
@@ -811,14 +811,14 @@ impl ClientCredentials {
     }
 }
 
-/// [`OAuth2`] flow scopes object defines required permissions for oauh flow.
+/// [`OAuth2`] flow scopes object defines required permissions for oauth flow.
 ///
 /// Scopes must be given to oauth2 flow but depending on need one of few initialization methods
 /// could be used.
 ///
 /// * Create empty map of scopes you can use [`Scopes::new`].
 /// * Create map with only one scope you can use [`Scopes::one`].
-/// * Create mutliple scopes from iterator with [`Scopes::from_iter`].
+/// * Create multiple scopes from iterator with [`Scopes::from_iter`].
 ///
 /// # Examples
 ///
@@ -865,7 +865,7 @@ impl Scopes {
         }
     }
 
-    /// Construct new [`Scopes`] with hodling one scope.
+    /// Construct new [`Scopes`] with holding one scope.
     ///
     /// * `scope` Is be the permission required.
     /// * `description` Short description about the permission.
@@ -1192,11 +1192,11 @@ mod tests {
     test_fn! {
         security_schema_correct_mutual_tls:
         SecurityScheme::MutualTls {
-            description: Some(String::from("authorizaion is performed with client side certificate"))
+            description: Some(String::from("authorization is performed with client side certificate"))
         };
         r###"{
   "type": "mutualTLS",
-  "description": "authorizaion is performed with client side certificate"
+  "description": "authorization is performed with client side certificate"
 }"###
     }
 }

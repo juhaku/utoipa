@@ -205,7 +205,7 @@ fn derive_response_with_attributes() {
 }
 
 #[test]
-fn derive_response_with_mutliple_content_types() {
+fn derive_response_with_multiple_content_types() {
     #[derive(ToSchema, ToResponse)]
     #[response(content_type = ["application/json", "text/xml"] )]
     #[allow(unused)]
@@ -511,7 +511,7 @@ macro_rules! into_responses {
 }
 
 #[test]
-fn derive_into_reponses_inline_named_struct_repsonse() {
+fn derive_into_responses_inline_named_struct_response() {
     let responses = into_responses! {
         /// This is success response
         #[response(status = 200)]
@@ -545,7 +545,7 @@ fn derive_into_reponses_inline_named_struct_repsonse() {
 }
 
 #[test]
-fn derive_into_reponses_unit_struct() {
+fn derive_into_responses_unit_struct() {
     let responses = into_responses! {
         /// Not found response
         #[response(status = NOT_FOUND)]

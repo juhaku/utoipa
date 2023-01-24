@@ -342,14 +342,14 @@ fn derive_request_body_simple_inline_success() {
 }
 
 test_fn! {
-    module: derive_request_body_complex_required_explisit,
+    module: derive_request_body_complex_required_explicit,
     body: (content = Option<Foo>, description = "Create new Foo", content_type = "text/xml")
 }
 
 #[test]
-fn derive_request_body_complex_required_explisit_false_success() {
+fn derive_request_body_complex_required_explicit_false_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(paths(derive_request_body_complex_required_explisit::post_foo))]
+    #[openapi(paths(derive_request_body_complex_required_explicit::post_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -424,7 +424,7 @@ fn derive_request_body_primitive_ref_path_success() {
 }
 
 #[test]
-fn request_body_with_exmaple() {
+fn request_body_with_example() {
     #[derive(ToSchema)]
     #[allow(unused)]
     struct Value<'v> {

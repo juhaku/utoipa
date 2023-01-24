@@ -151,7 +151,7 @@ fn get_todo_with_extension() {
         #[allow(unused)]
         id: i32,
     }
-    /// In-memonry todo store
+    /// In-memory todo store
     type Store = Mutex<Vec<Todo>>;
     /// List all Todo items
 

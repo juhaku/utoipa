@@ -19,7 +19,7 @@ builder! {
         /// Schema of header type.
         pub schema: RefOr<Schema>,
 
-        /// Additional descripiton of the header value.
+        /// Additional description of the header value.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
     }

@@ -52,7 +52,7 @@ impl CommentAttributes {
                     None
                 }
             }
-            _ => abort_call_site!("Exected only Meta::NameValue type"),
+            _ => abort_call_site!("Expected only Meta::NameValue type"),
         }
     }
 

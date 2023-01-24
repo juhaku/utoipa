@@ -109,7 +109,7 @@ mod todo {
     /// Error that might occur when managing `Todo` items
     #[derive(Serialize, Deserialize, ToSchema)]
     pub(super) enum TodoError {
-        /// Happens when Todo item alredy exists
+        /// Happens when Todo item already exists
         Config(String),
         /// Todo not found from storage
         NotFound(String),
@@ -117,7 +117,7 @@ mod todo {
 
     pub(super) type Store = Arc<Mutex<Vec<Todo>>>;
 
-    /// List todos from in-memory stoarge.
+    /// List todos from in-memory storage.
     ///
     /// List all todos from in memory storage.
     #[utoipa::path(

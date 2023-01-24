@@ -78,7 +78,7 @@ mod todo {
     use tokio::sync::Mutex;
     use utoipa::{IntoParams, ToSchema};
 
-    /// In-memonry todo store
+    /// In-memory todo store
     pub(super) type Store = Mutex<Vec<Todo>>;
 
     /// Item to do.
@@ -131,7 +131,7 @@ mod todo {
 
     /// Search Todos by query params.
     ///
-    /// Search `Todo`s by query parmas and return matching `Todo`s.
+    /// Search `Todo`s by query params and return matching `Todo`s.
     #[utoipa::path(
         get,
         path = "/todo/search",
@@ -283,7 +283,7 @@ mod todo {
         }
     }
 
-    // normally you should create a midleware for this but this is sufficient for sake of example.
+    // normally you should create a middleware for this but this is sufficient for sake of example.
     fn check_api_key(require_api_key: bool, headers: HeaderMap) -> Result<(), impl IntoResponse> {
         match headers.get("todo_apikey") {
             Some(header) if header != "utoipa-rocks" => Err((

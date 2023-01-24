@@ -100,10 +100,10 @@ impl Parse for Info<'_> {
                     info.description =
                         Some(parse_utils::parse_next(input, || input.parse::<Str>())?)
                 }
-                "licence" => {
-                    let licence_stream;
-                    parenthesized!(licence_stream in input);
-                    info.license = Some(licence_stream.parse()?)
+                "license" => {
+                    let license_stream;
+                    parenthesized!(license_stream in input);
+                    info.license = Some(license_stream.parse()?)
                 }
                 "contact" => {
                     let contact_stream;
@@ -111,7 +111,7 @@ impl Parse for Info<'_> {
                     info.contact = Some(contact_stream.parse()?)
                 }
                 _ => {
-                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: title, version, description, licence, contact")));
+                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: title, version, description, license, contact")));
                 }
             }
             if !input.is_empty() {

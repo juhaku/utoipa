@@ -171,7 +171,7 @@ impl From<Ref> for RefOr<Response> {
 /// With a single method call we can add [`Content`] to our [`ResponseBuilder`] and [`Response`]
 /// that references a [schema][schema] using content-type `"application/json"`.
 ///
-/// _**Add json reponse from schema ref.**_
+/// _**Add json response from schema ref.**_
 /// ```rust
 /// use utoipa::openapi::response::{ResponseBuilder, ResponseExt};
 ///

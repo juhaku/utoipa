@@ -182,7 +182,7 @@ impl Parse for Path {
             // expect format (GET, uri = "url...")
             let ident = input.parse::<Ident>()?;
             input.parse::<Token![,]>()?;
-            input.parse::<Ident>()?; // explisitly 'uri'
+            input.parse::<Ident>()?; // explicitly 'uri'
             input.parse::<Token![=]>()?;
 
             (

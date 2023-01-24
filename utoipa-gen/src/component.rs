@@ -202,7 +202,7 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    // TODO should we recognize unknown generic types with `GenericType::Unkonwn` instead of `None`?
+    // TODO should we recognize unknown generic types with `GenericType::Unknown` instead of `None`?
     fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
         match &*segment.ident.to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
@@ -260,7 +260,7 @@ impl<'t> TypeTree<'t> {
     /// Update current [`TypeTree`] from given `ident`.
     ///
     /// It will update everything else except `children` for the `TypeTree`. This means that the
-    /// `TypeTree` will not be changed and will be travelsed as before update.
+    /// `TypeTree` will not be changed and will be traveled as before update.
     fn update(&mut self, ident: Ident) {
         let new_path = Path::from(ident);
 

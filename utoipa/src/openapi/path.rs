@@ -95,7 +95,7 @@ impl PathsBuilder {
 builder! {
     PathItemBuilder;
 
-    /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s availabe on
+    /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s available on
     /// a single path.
     ///
     /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
@@ -104,11 +104,11 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct PathItem {
-        /// Optional summary intented to apply all operations in this [`PathItem`].
+        /// Optional summary intended to apply all operations in this [`PathItem`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub summary: Option<String>,
 
-        /// Optional description intented to apply all operations in this [`PathItem`].
+        /// Optional description intended to apply all operations in this [`PathItem`].
         /// Description supports markdown syntax.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
@@ -156,12 +156,12 @@ impl PathItemBuilder {
         self
     }
 
-    /// Add or change summary intented to apply all operations in this [`PathItem`].
+    /// Add or change summary intended to apply all operations in this [`PathItem`].
     pub fn summary<S: Into<String>>(mut self, summary: Option<S>) -> Self {
         set_value!(self summary summary.map(|summary| summary.into()))
     }
 
-    /// Add or change optional description intented to apply all operations in this [`PathItem`].
+    /// Add or change optional description intended to apply all operations in this [`PathItem`].
     /// Description supports markdown syntax.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         set_value!(self description description.map(|description| description.into()))
@@ -215,7 +215,7 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Operation {
-        /// List of tags used for groupping operations.
+        /// List of tags used for grouping operations.
         ///
         /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the default
         /// value used will be resolved from handler path provided in `#[openapi(paths(...))]` with
@@ -277,10 +277,10 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub deprecated: Option<Deprecated>,
 
-        /// Declaration which security mechanishms can be used for for the operation. Only one
+        /// Declaration which security mechanisms can be used for for the operation. Only one
         /// [`SecurityRequirement`] must be met.
         ///
-        /// Security for the [`Operation`] can be set to optional by adding emty security with
+        /// Security for the [`Operation`] can be set to optional by adding empty security with
         /// [`SecurityRequirement::default`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub security: Option<Vec<SecurityRequirement>>,
@@ -461,7 +461,7 @@ builder! {
         /// * For [`ParameterIn::Path`] this must and will be [`Required::True`].
         pub required: Required,
 
-        /// Delcares the parameter deprecated status.
+        /// Declares the parameter deprecated status.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub deprecated: Option<Deprecated>,
         // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
@@ -489,7 +489,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub explode: Option<bool>,
 
-        /// Defines wheter parameter should allow reserved characters defined by
+        /// Defines whether parameter should allow reserved characters defined by
         /// [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.2) _`:/?#[]@!$&'()*+,;=`_.
         /// This is only applicable with [`ParameterIn::Query`]. Default value is _`false`_.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -577,13 +577,13 @@ impl ParameterBuilder {
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {
-    /// Delcares that parameter is used as query parameter.
+    /// Declares that parameter is used as query parameter.
     Query,
-    /// Delcares that parameter is used as path parameter.
+    /// Declares that parameter is used as path parameter.
     Path,
-    /// Delcares that parameter is used as header value.
+    /// Declares that parameter is used as header value.
     Header,
-    /// Delcares that parameter is used as cookie value.
+    /// Declares that parameter is used as cookie value.
     Cookie,
 }
 
@@ -602,7 +602,7 @@ pub enum ParameterStyle {
     /// e.g _`;color=blue`_.
     /// Allowed with [`ParameterIn::Path`].
     Matrix,
-    /// Lable style parameters defined by [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570#section-3.2.5)
+    /// Label style parameters defined by [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570#section-3.2.5)
     /// e.g _`.color=blue`_.
     /// Allowed with [`ParameterIn::Path`].
     Label,

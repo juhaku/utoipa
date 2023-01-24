@@ -11,7 +11,7 @@ use super::example::Example;
 use super::media_type::MediaTypeSchema;
 use super::{PathType, PathTypeTree};
 
-/// Parsed information related to requst body of path.
+/// Parsed information related to request body of path.
 ///
 /// Supported configuration options:
 ///   * **content** Request body content object type. Can also be array e.g. `content = [String]`.
