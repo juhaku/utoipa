@@ -915,6 +915,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// /// Get Pet by id
 /// #[utoipa::path(
+///     get,
+///     path = "/pet/{id}",
 ///     responses(
 ///         (status = 200, description = "Pet found from database")
 ///     ),
@@ -922,7 +924,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///         ("id", description = "Pet id"),
 ///     )
 /// )]
-/// #[get("/pet/{id}")]
 /// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
@@ -936,11 +937,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// /// Get Pet by id
 /// #[utoipa::path(
+///     get,
+///     path = "/pet/{id}",
 ///     responses(
 ///         (status = 200, description = "Pet found from database")
 ///     )
 /// )]
-/// #[get("/pet/{id}")]
 /// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
@@ -1095,6 +1097,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # use actix_web::{get, web, HttpResponse, Responder};
 /// # use serde_json::json;
 /// #[utoipa::path(
+///     get,
+///     path = "/pet/{id}",
 ///     responses(
 ///         (status = 200, description = "Pet found from database")
 ///     ),
@@ -1102,7 +1106,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///         ("id", description = "Pet id"),
 ///     )
 /// )]
-/// #[get("/pet/{id}")]
 /// #[deprecated]
 /// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
@@ -1114,12 +1117,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # use actix_web::{get, web, HttpResponse, Responder};
 /// # use serde_json::json;
 /// #[utoipa::path(
+///     get,
+///     path = "/pet/{id}",
 ///     context_path = "/api",
 ///     responses(
 ///         (status = 200, description = "Pet found from database")
 ///     )
 /// )]
-/// #[get("/pet/{id}")]
 /// async fn get_pet_by_id(id: web::Path<i32>) -> impl Responder {
 ///     HttpResponse::Ok().json(json!({ "pet": format!("{:?}", &id.into_inner()) }))
 /// }
@@ -1599,12 +1603,13 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[utoipa::path(
+///     get,
+///     path = "/pet/{id}/{name}",
 ///     params(PetPathArgs, Filter),
 ///     responses(
 ///         (status = 200, description = "success response")
 ///     )
 /// )]
-/// #[get("/pet/{id}/{name}")]
 /// async fn get_pet(pet: Path<PetPathArgs>, query: Query<Filter>) -> impl Responder {
 ///     HttpResponse::Ok().json(json!({ "id": pet.id }))
 /// }
