@@ -1,5 +1,3 @@
-// #![cfg(not(feature = "actix_extras"))]
-
 use assert_json_diff::assert_json_eq;
 use serde_json::json;
 use utoipa::OpenApi;

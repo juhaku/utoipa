@@ -211,7 +211,6 @@
 //! #[derive(OpenApi)]
 //! #[openapi(
 //!     info(description = "My Api description"),
-//!     paths()
 //! )]
 //! struct ApiDoc;
 //!
@@ -226,7 +225,6 @@
 //! #[derive(OpenApi)]
 //! #[openapi(
 //!     info(description = "My Api description"),
-//!     paths()
 //! )]
 //! struct ApiDoc;
 //!
