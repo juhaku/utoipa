@@ -2,7 +2,7 @@
 members = [
   "utoipa",
   "utoipa-gen",
-  "utoipa-swagger-ui"
+  "utoipa-swagger-ui",
 ]
 
 [workspace.metadata.publish]
