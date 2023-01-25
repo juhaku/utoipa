@@ -99,7 +99,7 @@ mod todo {
 
     use serde::{Deserialize, Serialize};
     use utoipa::{IntoParams, ToSchema};
-    use warp::{hyper::StatusCode, Filter, Reply};
+    use warp::{hyper::StatusCode, Filter, Rejection, Reply};
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 
@@ -132,7 +132,7 @@ mod todo {
         order: Option<Order>,
     }
 
-    pub fn handlers() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    pub fn handlers() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
         let store = Store::default();
 
         let list = warp::path("todo")
