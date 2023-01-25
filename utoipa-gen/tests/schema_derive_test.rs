@@ -9,44 +9,43 @@ use utoipa::{OpenApi, ToSchema};
 mod common;
 
 macro_rules! api_doc {
-    ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt ) => {{
-        #[allow(dead_code)]
-        #[derive(ToSchema)]
-        $(#[$attr])*
-        $key $name $body
+    ( $(#[$meta:meta])* $key:ident $ident:ident $($tt:tt)* ) => {
+        {
+            #[derive(ToSchema)]
+            $(#[$meta])*
+            #[allow(unused)]
+            $key $ident $( $tt )*
 
-        api_doc!(@doc $name)
-    }};
+            let schema = api_doc!( @schema $ident $($tt)* );
+            serde_json::to_value(schema).unwrap()
+        }
+    };
+    ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
+         <$ident<$generic> as utoipa::ToSchema>::schema()
+    };
+    ( @schema $ident:ident $($tt:tt)* ) => {
+         <$ident as utoipa::ToSchema>::schema()
+    };
+}
 
-    ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt; ) => {{
-        #[allow(dead_code)]
-        #[derive(ToSchema)]
-        $(#[$attr])*
-        $key $name $body;
+macro_rules! api_doc_aliases {
+    ( $(#[$meta:meta])* $key:ident $ident:ident $($tt:tt)* ) => {
+        {
+            #[derive(ToSchema)]
+            $(#[$meta])*
+            #[allow(unused)]
+            $key $ident $( $tt )*
 
-        api_doc!(@doc $name)
-    }};
-
-    ( $( #[$attr:meta] )* $key:ident $name:ident< $($life:lifetime)? $($generic:ident)? > $body:tt ) => {{
-        #[allow(dead_code)]
-        #[derive(ToSchema)]
-        $(#[$attr])*
-        $key $name<$($life)? $($generic)?> $body
-
-        api_doc!(@doc $name < $($life)? $($generic)?> )
-    }};
-
-    ( @doc $name:ident $( $generic:tt )* ) => {{
-        #[derive(OpenApi)]
-        #[openapi(components(schemas($name$($generic)*)))]
-        struct ApiDoc;
-
-        let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
-
-        let component = json.pointer(&format!("/components/schemas/{}", stringify!($name))).unwrap_or(&serde_json::Value::Null);
-
-        component.clone()
-    }};
+            let schema = api_doc_aliases!( @schema $ident $($tt)* );
+            serde_json::to_value(schema).unwrap()
+        }
+    };
+    ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
+         <$ident<$generic> as utoipa::ToSchema>::aliases()
+    };
+    ( @schema $ident:ident $($tt:tt)* ) => {
+         <$ident as utoipa::ToSchema>::aliases()
+    };
 }
 
 #[test]
@@ -3568,5 +3567,80 @@ fn derive_schema_with_multiple_schema_attributes() {
             },
             "required": ["name"]
         })
+    )
+}
+
+#[test]
+fn derive_schema_with_generics_and_lifetimes() {
+    struct TResult;
+
+    let value = api_doc_aliases! {
+        #[aliases(Paginated1<'b> = Paginated<'b, String>, Paginated2 = Paginated<'b, Value>)]
+        struct Paginated<'r, TResult> {
+            pub total: usize,
+            pub data: Vec<TResult>,
+            pub next: Option<&'r str>,
+            pub prev: Option<&'r str>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!([
+            [
+                "Paginated1",
+                {
+                    "properties": {
+                        "data": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                    },
+                    "next": {
+                        "type": "string"
+                    },
+                    "prev": {
+                        "type": "string"
+                    },
+                    "total": {
+                        "type": "integer"
+                     }
+                    },
+                    "required": [
+                        "total",
+                        "data"
+                    ],
+                    "type": "object"
+                }
+            ],
+            [
+                "Paginated2",
+                {
+                    "properties": {
+                        "data": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/Value",
+                            }
+                        },
+                        "next": {
+                            "type": "string"
+                        },
+                        "prev": {
+                            "type": "string"
+                        },
+                        "total": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "total",
+                        "data"
+                    ],
+                    "type": "object"
+                }
+            ]
+        ])
     )
 }
