@@ -459,23 +459,23 @@ fn derive_enum_with_deprecated() {
     };
 }
 
-// #[test]
-// fn derive_struct_with_generics() {
-//     #[allow(unused)]
-//     enum Type {
-//         Foo,
-//         Bar,
-//     }
-//     // let status = api_doc! {
-//     //     struct Status<Type> {
-//     //         t: Type
-//     //     }
-//     // };
+#[test]
+fn derive_struct_with_generics() {
+    #[allow(unused)]
+    enum Type {
+        Foo,
+        Bar,
+    }
+    let status = api_doc! {
+        struct Status<Type> {
+            t: Type
+        }
+    };
 
-//     assert_value! {status=>
-//         "properties.t.$ref" = r###""#/components/schemas/Type""###, "Status t field"
-//     };
-// }
+    assert_value! {status=>
+        "properties.t.$ref" = r###""#/components/schemas/Type""###, "Status t field"
+    };
+}
 
 #[test]
 fn derive_struct_with_lifetime_generics() {
