@@ -319,7 +319,7 @@ fn derive_path_params_with_parameter_type_args() {
     let parameters = doc.pointer("/paths/~1foo/get/parameters").unwrap();
 
     common::assert_json_array_len(parameters, 1);
-    dbg!(&parameters);
+
     assert_json_eq!(
         parameters,
         json!([

@@ -5,7 +5,8 @@ use proc_macro_error::{abort, ResultExt};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Token, Variant, Visibility,
+    Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Path, PathArguments,
+    Token, Variant, Visibility,
 };
 
 use crate::{
@@ -112,9 +113,10 @@ impl ToTokens for Schema<'_> {
                     let ty = &alias.ty;
                     let (_, alias_type_generics, _) = &alias.generics.split_for_impl();
                     let vis = self.vis;
+                    let name_generics = &alias.get_name_lifetime_generics();
 
                     quote! {
-                        #vis type #name = #ty #alias_type_generics;
+                        #vis type #name #name_generics = #ty #alias_type_generics;
                     }
                 })
                 .collect::<TokenStream>()
@@ -1558,9 +1560,32 @@ pub struct AliasSchema {
     pub generics: Generics,
 }
 
+impl AliasSchema {
+    fn get_name_lifetime_generics(&self) -> Option<Generics> {
+        let lifetimes = self
+            .generics
+            .lifetimes()
+            .filter(|lifetime| lifetime.lifetime.ident != "'static")
+            .map(|lifetime| GenericParam::Lifetime(lifetime.clone()))
+            .collect::<Punctuated<GenericParam, Comma>>();
+
+        if !lifetimes.is_empty() {
+            Some(Generics {
+                params: lifetimes,
+                ..Default::default()
+            })
+        } else {
+            None
+        }
+    }
+}
+
 impl Parse for AliasSchema {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = input.parse::<Ident>()?;
+        if input.peek(Token![<]) {
+            input.parse::<Generics>()?;
+        }
         input.parse::<Token![=]>()?;
 
         Ok(Self {
