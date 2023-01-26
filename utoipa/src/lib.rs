@@ -305,6 +305,8 @@ pub trait OpenApi {
 
 /// Trait for implementing OpenAPI Schema object.
 ///
+/// Generated schemas can be referenced or reused in path operations.
+///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
 /// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
@@ -369,8 +371,14 @@ pub trait OpenApi {
 /// }
 /// ```
 pub trait ToSchema<'__s> {
+    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
+    /// name or inlined directly to responses, request bodies or parameters.
     fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
 
+    /// Optional set of alias schemas for the [`ToSchema::schema`].
+    ///
+    /// Typically there is no need to manually implement this method but it is instead implemented
+    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
     fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
         Vec::new()
     }
