@@ -7,6 +7,7 @@ use utoipa::{
     openapi::{RefOr, Response, ResponseBuilder},
     OpenApi, ToResponse,
 };
+use utoipa_gen::ToSchema;
 
 mod common;
 
