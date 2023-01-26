@@ -522,7 +522,7 @@ impl ToTokens for Components {
                     let Response(path) = responses;
 
                     builder_tokens.extend(quote_spanned! {path.span() =>
-                        .response_from_into::<#path>()
+                        .response_from::<#path>()
                     });
                     builder_tokens
                 });

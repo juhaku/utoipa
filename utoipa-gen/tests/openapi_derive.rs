@@ -117,10 +117,10 @@ fn derive_openapi_with_responses() {
     #[allow(unused)]
     struct MyResponse;
 
-    impl ToResponse for MyResponse {
-        fn response() -> (String, RefOr<Response>) {
+    impl<'r> ToResponse<'r> for MyResponse {
+        fn response() -> (&'r str, RefOr<Response>) {
             (
-                "MyResponse".to_string(),
+                "MyResponse",
                 ResponseBuilder::new().description("Ok").build().into(),
             )
         }

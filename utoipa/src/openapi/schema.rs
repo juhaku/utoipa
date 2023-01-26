@@ -180,7 +180,7 @@ impl ComponentsBuilder {
         self
     }
 
-    pub fn response_from_into<I: ToResponse>(self) -> Self {
+    pub fn response_from<'r, I: ToResponse<'r>>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }

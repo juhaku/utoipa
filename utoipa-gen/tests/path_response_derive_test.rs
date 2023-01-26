@@ -119,10 +119,10 @@ fn derive_http_status_code_responses() {
 
 struct ReusableResponse;
 
-impl ToResponse for ReusableResponse {
-    fn response() -> (String, RefOr<Response>) {
+impl<'r> ToResponse<'r> for ReusableResponse {
+    fn response() -> (&'r str, RefOr<Response>) {
         (
-            String::from("ReusableResponseName"),
+            "ReusableResponseName",
             Response::new("reusable response").into(),
         )
     }

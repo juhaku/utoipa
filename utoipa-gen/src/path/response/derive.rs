@@ -1,14 +1,17 @@
 use std::borrow::Cow;
 use std::{iter, mem};
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::{abort, emit_error, ResultExt};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
-use syn::{Attribute, Data, Field, Fields, Generics, LitStr, Path, Type, TypePath, Variant};
+use syn::{
+    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeDef, LitStr, Path, Type, TypePath,
+    Variant,
+};
 
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
@@ -20,20 +23,26 @@ use super::{
     DeriveToResponseValue, ResponseTuple, ResponseTupleInner, ResponseValue,
 };
 
-pub struct ToResponse {
-    pub attributes: Vec<Attribute>,
-    pub data: Data,
-    pub generics: Generics,
-    pub ident: Ident,
+pub struct ToResponse<'r> {
+    ident: Ident,
+    lifetime: Lifetime,
+    generics: Generics,
+    response: ResponseTuple<'r>,
 }
 
-impl ToTokens for ToResponse {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let response = match &self.data {
+impl<'r> ToResponse<'r> {
+    const LIFETIME: &str = "'__r";
+
+    pub fn new(
+        attributes: Vec<Attribute>,
+        data: &'r Data,
+        generics: Generics,
+        ident: Ident,
+    ) -> ToResponse<'r> {
+        let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
-                    ToResponseNamedStructResponse::new(&self.attributes, &self.ident, &fields.named)
-                        .0
+                    ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0
                 }
                 Fields::Unnamed(fields) => {
                     let field = fields
@@ -42,25 +51,48 @@ impl ToTokens for ToResponse {
                         .next()
                         .expect("Unnamed struct must have 1 field");
 
-                    ToResponseUnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)
-                        .0
+                    ToResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs).0
                 }
-                Fields::Unit => ToResponseUnitStructResponse::new(&self.attributes).0,
+                Fields::Unit => ToResponseUnitStructResponse::new(&attributes).0,
             },
             Data::Enum(enum_value) => {
-                EnumResponse::new(&self.ident, &enum_value.variants, &self.attributes).0
+                EnumResponse::new(&ident, &enum_value.variants, &attributes).0
             }
-            Data::Union(_) => abort!(self.ident, "`ToResponse` does not support `Union` type"),
+            Data::Union(_) => abort!(ident, "`ToResponse` does not support `Union` type"),
         };
 
-        let ident = &self.ident;
-        let name = &*self.ident.to_string();
+        let lifetime = Lifetime::new(ToResponse::LIFETIME, Span::call_site());
 
-        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        Self {
+            ident,
+            lifetime,
+            generics,
+            response,
+        }
+    }
+}
+
+impl ToTokens for ToResponse<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let (_, ty_generics, where_clause) = self.generics.split_for_impl();
+
+        let lifetime = &self.lifetime;
+        let ident = &self.ident;
+        let name = ident.to_string();
+        let response = &self.response;
+
+        let mut to_reponse_generics = self.generics.clone();
+        to_reponse_generics
+            .params
+            .push(syn::GenericParam::Lifetime(LifetimeDef::new(
+                lifetime.clone(),
+            )));
+        let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
+
         tokens.extend(quote! {
-            impl #impl_generics utoipa::ToResponse for #ident #ty_generics #where_clause {
-                fn response() -> (String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>) {
-                    (#name.to_string(), #response.into())
+            impl #to_response_impl_generics utoipa::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
+                fn response() -> (& #lifetime str, utoipa::openapi::RefOr<utoipa::openapi::response::Response>) {
+                    (#name, #response.into())
                 }
             }
         });
