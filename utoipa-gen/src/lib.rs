@@ -2072,12 +2072,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let response = ToResponse {
-        attributes: attrs,
-        ident,
-        generics,
-        data,
-    };
+    let response = ToResponse::new(attrs, &data, generics, ident);
 
     response.to_token_stream().into()
 }

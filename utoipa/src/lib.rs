@@ -654,10 +654,10 @@ pub trait IntoResponses {
 ///
 /// struct MyResponse;
 ///
-/// impl ToResponse for MyResponse {
-///     fn response() -> (String, RefOr<Response>) {
+/// impl<'__r> ToResponse<'__r> for MyResponse {
+///     fn response() -> (&'__r str, RefOr<Response>) {
 ///         (
-///             "MyResponse".to_string(),
+///             "MyResponse",
 ///             ResponseBuilder::new().description("My Response").build().into(),
 ///         )
 ///     }
@@ -665,7 +665,7 @@ pub trait IntoResponses {
 /// ```
 ///
 /// [derive]: derive.ToResponse.html
-pub trait ToResponse {
-    /// Returns a map of response component name (to be referenced) to a response.
-    fn response() -> (String, openapi::RefOr<openapi::response::Response>);
+pub trait ToResponse<'__r> {
+    /// Returns a tuple of response component name (to be referenced) to a response.
+    fn response() -> (&'__r str, openapi::RefOr<openapi::response::Response>);
 }
