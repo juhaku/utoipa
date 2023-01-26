@@ -10,7 +10,7 @@ use syn::{
 };
 
 use crate::{
-    component::features::{Rename, Title},
+    component::features::Rename,
     doc_comment::CommentAttributes,
     schema_type::{SchemaFormat, SchemaType},
     Array, Deprecated,
@@ -555,7 +555,7 @@ impl<'e> EnumSchema<'e> {
                                 Ok(parse_features!(
                                     input as super::features::Example,
                                     super::features::Default,
-                                    Title,
+                                    super::features::Title,
                                     As
                                 ))
                             })
