@@ -21,10 +21,10 @@ macro_rules! api_doc {
         }
     };
     ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
-         <$ident<$generic> as utoipa::ToSchema>::schema()
+         <$ident<$generic> as utoipa::ToSchema>::schema().1
     };
     ( @schema $ident:ident $($tt:tt)* ) => {
-         <$ident as utoipa::ToSchema>::schema()
+         <$ident as utoipa::ToSchema>::schema().1
     };
 }
 
@@ -3060,6 +3060,7 @@ fn derive_schema_for_repr_enum() {
     let value = api_doc! {
         #[derive(serde::Deserialize)]
         #[repr(i32)]
+        #[schema(example = 1, default = 0)]
         enum ExitCode {
             Error  = -1,
             Ok     = 0,
@@ -3067,10 +3068,15 @@ fn derive_schema_for_repr_enum() {
         }
     };
 
-    assert_value! {value=>
-        "enum" = r#"[-1,0,1]"#, "ExitCode enum variants"
-        "type" = r#""integer""#, "ExitCode enum type"
-    };
+    assert_json_eq!(
+        value,
+        json!({
+            "enum": [-1, 0, 1],
+            "type": "integer",
+            "default": 0,
+            "example": 1,
+        })
+    );
 }
 
 #[test]
@@ -3539,7 +3545,6 @@ fn derive_unit_struct_schema() {
             "type": "object",
             "nullable": true,
             "default": null,
-            "example": null
         })
     )
 }

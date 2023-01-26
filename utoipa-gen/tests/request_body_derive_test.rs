@@ -398,16 +398,25 @@ fn derive_request_body_complex_primitive_array_success() {
 }
 
 test_fn! {
-    module: derive_request_body_primitive_ref_path,
+    module: derive_request_body_ref_path,
     body: = path::to::Foo
 }
 
 #[test]
-fn derive_request_body_primitive_ref_path_success() {
+fn derive_request_body_ref_path_success() {
+    /// Some struct
+    #[derive(ToSchema)]
+    #[schema(as = path::to::Foo)]
+    #[allow(unused)]
+    pub struct Foo {
+        /// Some name
+        name: String,
+    }
+
     #[derive(OpenApi, Default)]
     #[openapi(
-        paths(derive_request_body_primitive_ref_path::post_foo),
-        components(schemas(derive_request_body_primitive_ref_path::Foo as path::to::Foo))
+        paths(derive_request_body_ref_path::post_foo),
+        components(schemas(Foo))
     )]
     struct ApiDoc;
 

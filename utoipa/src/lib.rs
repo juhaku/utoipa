@@ -361,10 +361,10 @@ pub trait OpenApi {
 ///     }
 /// }
 /// ```
-pub trait ToSchema {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema>;
+pub trait ToSchema<'__s> {
+    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
 
-    fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
+    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
         Vec::new()
     }
 }

@@ -115,7 +115,7 @@ impl ToTokens for MediaTypeSchema<'_> {
                             })
                         } else if *is_inline {
                             tokens.extend(quote_spanned! {path.span()=>
-                                <#path as utoipa::ToSchema>::schema()
+                                <#path as utoipa::ToSchema>::schema().1
                             })
                         } else {
                             let name = type_tree
