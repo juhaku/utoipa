@@ -284,7 +284,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// _**You can use `skip` and `tag` attributes from serde.**_
 /// ```rust
 /// # use utoipa::ToSchema;
-/// #[derive(ToSchema)]
+/// #[derive(ToSchema, serde::Serialize)]
 /// #[repr(i8)]
 /// #[serde(tag = "code")]
 /// enum ExitCode {
