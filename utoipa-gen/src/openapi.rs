@@ -6,15 +6,15 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::{And, Comma},
-    Attribute, Error, ExprPath, GenericParam, Generics, LitStr, Token, TypePath,
+    Attribute, Error, ExprPath, LitStr, Token, TypePath,
 };
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    component::schema, parse_utils, path::PATH_STRUCT_PREFIX,
-    security_requirement::SecurityRequirementAttr, Array, ExternalDocs,
+    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementAttr, Array,
+    ExternalDocs,
 };
 
 use self::info::Info;
@@ -133,55 +133,20 @@ impl Parse for OpenApiAttr<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Schema {
-    path: ExprPath,
-    generics: Generics,
-    alias: Option<syn::TypePath>,
-}
-
-impl Schema {
-    fn has_lifetime_generics(&self) -> bool {
-        self.generics
-            .params
-            .iter()
-            .any(|generic| matches!(generic, GenericParam::Lifetime(_)))
-    }
-
-    fn get_ident(&self) -> Option<&Ident> {
-        self.path.path.segments.last().map(|segment| &segment.ident)
-    }
-}
+struct Schema(TypePath);
 
 impl Parse for Schema {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let path: ExprPath = input.parse()?;
-        let generics: Generics = input.parse()?;
-
-        let alias: Option<syn::TypePath> = if input.peek(Token![as]) {
-            input.parse::<Token![as]>()?;
-            Some(input.parse()?)
-        } else {
-            None
-        };
-
-        Ok(Schema {
-            path,
-            generics,
-            alias,
-        })
+        input.parse().map(Self)
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Responses {
-    path: TypePath,
-}
+struct Response(TypePath);
 
-impl Parse for Responses {
+impl Parse for Response {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            path: input.parse()?,
-        })
+        input.parse().map(Self)
     }
 }
 
@@ -489,7 +454,7 @@ impl ToTokens for OpenApi<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Components {
     schemas: Vec<Schema>,
-    responses: Vec<Responses>,
+    responses: Vec<Response>,
 }
 
 impl Parse for Components {
@@ -500,7 +465,7 @@ impl Parse for Components {
             "unexpected attribute. expected one of: schemas, responses";
 
         let mut schemas: Vec<Schema> = Vec::new();
-        let mut responses: Vec<Responses> = Vec::new();
+        let mut responses: Vec<Response> = Vec::new();
 
         while !content.is_empty() {
             let ident = content.parse::<Ident>().map_err(|error| {
@@ -509,18 +474,16 @@ impl Parse for Components {
             let attribute = &*ident.to_string();
 
             match attribute {
-                "schemas" => {
-                    let punctuated: Punctuated<Schema, Comma> =
-                        parse_utils::parse_punctuated_within_parenthesis(&content)?;
-                    let mut v: Vec<Schema> = punctuated.into_iter().collect();
-                    schemas.append(&mut v)
-                }
-                "responses" => {
-                    let punctuated: Punctuated<Responses, Comma> =
-                        parse_utils::parse_punctuated_within_parenthesis(&content)?;
-                    let mut v: Vec<Responses> = punctuated.into_iter().collect();
-                    responses.append(&mut v)
-                }
+                "schemas" => schemas.append(
+                    &mut parse_utils::parse_punctuated_within_parenthesis(&content)?
+                        .into_iter()
+                        .collect(),
+                ),
+                "responses" => responses.append(
+                    &mut parse_utils::parse_punctuated_within_parenthesis(&content)?
+                        .into_iter()
+                        .collect(),
+                ),
                 _ => return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE)),
             }
 
@@ -541,31 +504,14 @@ impl ToTokens for Components {
 
         let builder_tokens = self.schemas.iter().fold(
             quote! { utoipa::openapi::ComponentsBuilder::new() },
-            |mut builder_tokens, component| {
-                let path = &component.path;
-                let ident = component.get_ident().unwrap();
+            |mut tokens, schema| {
+                let Schema(path) = schema;
 
-                let component_name: String = component
-                    .alias
-                    .as_ref()
-                    .map(|path| &path.path)
-                    .map(schema::format_path_ref)
-                    .unwrap_or_else(|| ident.to_token_stream().to_string());
+                tokens.extend(quote_spanned!(path.span()=>
+                     .schema_from::<#path>()
+                ));
 
-                let (_, ty_generics, _) = component.generics.split_for_impl();
-
-                let ty_generics = if component.has_lifetime_generics() {
-                    None
-                } else {
-                    Some(ty_generics)
-                };
-
-                builder_tokens.extend(quote_spanned! { ident.span() =>
-                    .schema(#component_name, <#path #ty_generics as utoipa::ToSchema>::schema())
-                    .schemas_from_iter(<#path #ty_generics as utoipa::ToSchema>::aliases())
-                });
-
-                builder_tokens
+                tokens
             },
         );
 
@@ -573,9 +519,9 @@ impl ToTokens for Components {
             self.responses
                 .iter()
                 .fold(builder_tokens, |mut builder_tokens, responses| {
-                    let path = &responses.path;
-                    let span = path.span();
-                    builder_tokens.extend(quote_spanned! {span =>
+                    let Response(path) = responses;
+
+                    builder_tokens.extend(quote_spanned! {path.span() =>
                         .response_from_into::<#path>()
                     });
                     builder_tokens

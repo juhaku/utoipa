@@ -78,6 +78,9 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
 ///   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
 ///   __serde__ will take precedence.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
@@ -88,6 +91,9 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
 ///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
 ///   are defined __serde__ will take precedence.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_.
 ///
 /// # Enum Variant Optional Configuration Options for `#[schema(...)]`
 /// Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
@@ -111,6 +117,9 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   struct.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_.
 ///
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
@@ -239,40 +248,27 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 ///
 /// # `#[repr(...)]` attribute support
 ///
-/// ToSchema derive has support for `repr(u*)` and `repr(i*)` attributes for field-less enums.
-/// This allows you to create enums from their discriminant values.
-/// **repr** feature need to be enabled.
-/// Otherwise, string representations of the fields will be used as values.
+/// [Serde repr](https://github.com/dtolnay/serde-repr) allows field-less enums be represented by
+/// their numeric value.
+///
+/// * `repr(u*)` for unsigned integer.
+/// * `repr(i*)` for signed integer.
+///
+/// **Supported schema attributes**
+///
+/// * `example = ...` Can be method reference or _`json!(...)`_.
+/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_.
+///
+/// _**Create enum with numeric values.**_
 /// ```rust
-/// # use serde::{Deserialize, Serialize};
 /// # use utoipa::ToSchema;
-/// #[derive(ToSchema, Deserialize, Serialize)]
-/// #[repr(u8)]
-/// enum ApiVersion {
-///     One = 1,
-///     Two,
-///     Three,
-/// }
-/// ```
-/// _**You can use `skip` and `tag` attributes from serde.**_
-/// ```rust
-/// # use serde::{Deserialize, Serialize};
-/// # use utoipa::ToSchema;
-/// #[derive(ToSchema, Deserialize, Serialize)]
-/// #[repr(i8)]
-/// #[serde(tag = "code")]
-/// enum ExitCode {
-///     Error = -1,
-///     #[serde(skip)]
-///     Unknown = 0,
-///     Ok = 1,
-///  }
-/// ```
-/// _**As well as [`schema attributes`][enum_schema] for enums.**_
-/// ```rust
-/// # use serde::{Deserialize, Serialize};
-/// # use utoipa::ToSchema;
-/// #[derive(ToSchema, Deserialize, Serialize)]
+/// #[derive(ToSchema)]
 /// #[repr(u8)]
 /// #[schema(default = default_value, example = 2)]
 /// enum Mode {
@@ -283,6 +279,20 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// fn default_value() -> u8 {
 ///     1
 /// }
+/// ```
+///
+/// _**You can use `skip` and `tag` attributes from serde.**_
+/// ```rust
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, serde::Serialize)]
+/// #[repr(i8)]
+/// #[serde(tag = "code")]
+/// enum ExitCode {
+///     Error = -1,
+///     #[serde(skip)]
+///     Unknown = 0,
+///     Ok = 1,
+///  }
 /// ```
 ///
 /// # Generic schemas with aliases
@@ -537,6 +547,16 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 ///     #[schema(schema_with = custom_type)]
 ///     id: String,
 /// }
+/// ```
+///
+/// _**Use `as` attribute to change the name and the path of the schema in the generated OpenAPI
+/// spec.**_
+/// ```rust
+///  #[derive(utoipa::ToSchema)]
+///  #[schema(as = api::models::person::Person)]
+///  struct Person {
+///      name: String,
+///  }
 /// ```
 ///
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].

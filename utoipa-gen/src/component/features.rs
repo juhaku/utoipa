@@ -116,6 +116,7 @@ pub enum Feature {
     SchemaWith(SchemaWith),
     Description(Description),
     Deprecated(Deprecated),
+    As(As),
 }
 
 impl Feature {
@@ -233,6 +234,9 @@ impl ToTokens for Feature {
                     help = "Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."
                 }
             }
+            Feature::As(_) => {
+                abort!(Span::call_site(), "As does not support `ToTokens`")
+            }
         };
 
         tokens.extend(feature)
@@ -274,6 +278,7 @@ impl Display for Feature {
             Feature::SchemaWith(with_schema) => with_schema.fmt(f),
             Feature::Description(description) => description.fmt(f),
             Feature::Deprecated(deprecated) => deprecated.fmt(f),
+            Feature::As(as_feature) => as_feature.fmt(f),
         }
     }
 }
@@ -313,6 +318,7 @@ impl Validatable for Feature {
             Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
             Feature::Description(description) => description.is_validatable(),
             Feature::Deprecated(deprecated) => deprecated.is_validatable(),
+            Feature::As(as_feature) => as_feature.is_validatable(),
         }
     }
 }
@@ -361,7 +367,8 @@ is_validatable! {
     MinProperties => false,
     SchemaWith => false,
     Description => false,
-    Deprecated => false
+    Deprecated => false,
+    As => false
 }
 
 #[derive(Clone)]
@@ -1336,6 +1343,27 @@ impl From<Deprecated> for Feature {
 
 name!(Deprecated = "deprecated");
 
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct As(pub TypePath);
+
+impl Parse for As {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next(input, || input.parse()).map(Self)
+    }
+}
+
+impl From<As> for Feature {
+    fn from(value: As) -> Self {
+        Self::As(value)
+    }
+}
+
+name!(As = "as");
+
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
 }
@@ -1454,7 +1482,9 @@ macro_rules! parse_features {
                 let attributes = names.join(", ");
 
                 while !input.is_empty() {
-                    let ident = input.parse::<syn::Ident>().map_err(|error| {
+                    let ident = input.parse::<syn::Ident>().or_else(|_| {
+                        input.parse::<syn::Token![as]>().map(|as_| syn::Ident::new("as", as_.span))
+                    }).map_err(|error| {
                         syn::Error::new(
                             error.span(),
                             format!("unexpected attribute, expected any of: {attributes}, {error}"),
@@ -1614,6 +1644,23 @@ macro_rules! pop_feature {
 }
 
 pub(crate) use pop_feature;
+
+macro_rules! pop_feature_as_inner {
+    ( $features:ident => $($value:tt)* ) => {
+        crate::component::features::pop_feature!($features => $( $value )* )
+            .map(|f| match f {
+                $( $value )* => {
+                    crate::component::features::pop_feature_as_inner!( @as_value $( $value )* )
+                },
+                _ => unreachable!()
+            })
+    };
+    ( @as_value $tt:tt :: $tr:tt ( $v:tt ) ) => {
+        $v
+    }
+}
+
+pub(crate) use pop_feature_as_inner;
 
 pub trait IntoInner<T> {
     fn into_inner(self) -> T;

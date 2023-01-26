@@ -305,6 +305,8 @@ pub trait OpenApi {
 
 /// Trait for implementing OpenAPI Schema object.
 ///
+/// Generated schemas can be referenced or reused in path operations.
+///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
 /// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
@@ -332,39 +334,52 @@ pub trait OpenApi {
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl utoipa::ToSchema for Pet {
-///     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-///         use utoipa::openapi::ToArray;
-///         utoipa::openapi::ObjectBuilder::new()
-///             .property(
-///                 "id",
-///                 utoipa::openapi::ObjectBuilder::new()
-///                     .schema_type(utoipa::openapi::SchemaType::Integer)
-///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64))),
-///             )
-///             .required("id")
-///             .property(
-///                 "name",
-///                 utoipa::openapi::Object::with_type(utoipa::openapi::SchemaType::String),
-///             )
-///             .required("name")
-///             .property(
-///                 "age",
-///                 utoipa::openapi::ObjectBuilder::new()
-///                     .schema_type(utoipa::openapi::SchemaType::Integer)
-///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32))),
-///             )
-///             .example(Some(serde_json::json!({
-///               "name": "bob the cat", "id": 1
-///             })))
-///             .into()
+/// impl<'__s> utoipa::ToSchema<'__s> for Pet {
+///     fn schema() -> (&'__s str, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>) {
+///          (
+///             "Pet",
+///             utoipa::openapi::ObjectBuilder::new()
+///                 .property(
+///                     "id",
+///                     utoipa::openapi::ObjectBuilder::new()
+///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+///                             utoipa::openapi::KnownFormat::Int64,
+///                         ))),
+///                 )
+///                 .required("id")
+///                 .property(
+///                     "name",
+///                     utoipa::openapi::ObjectBuilder::new()
+///                         .schema_type(utoipa::openapi::SchemaType::String),
+///                 )
+///                 .required("name")
+///                 .property(
+///                     "age",
+///                     utoipa::openapi::ObjectBuilder::new()
+///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+///                             utoipa::openapi::KnownFormat::Int32,
+///                         ))),
+///                 )
+///                 .example(Some(serde_json::json!({
+///                   "name":"bob the cat","id":1
+///                 })))
+///                 .into(),
+///         )
 ///     }
 /// }
 /// ```
-pub trait ToSchema {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema>;
+pub trait ToSchema<'__s> {
+    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
+    /// name or inlined directly to responses, request bodies or parameters.
+    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
 
-    fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
+    /// Optional set of alias schemas for the [`ToSchema::schema`].
+    ///
+    /// Typically there is no need to manually implement this method but it is instead implemented
+    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
+    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
         Vec::new()
     }
 }

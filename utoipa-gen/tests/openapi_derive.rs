@@ -1,9 +1,13 @@
+use std::{borrow::Cow, marker::PhantomData};
+
 use assert_json_diff::{assert_json_eq, assert_json_include};
+use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::{
     openapi::{RefOr, Response, ResponseBuilder},
     OpenApi, ToResponse,
 };
+use utoipa_gen::ToSchema;
 
 mod common;
 
@@ -247,5 +251,109 @@ fn derive_openapi_with_include_str_description() {
                 }
             }
             )
+    )
+}
+
+#[test]
+fn derive_openapi_with_generic_response() {
+    struct Resp;
+
+    #[derive(Serialize, ToResponse)]
+    struct Response<'a, Resp> {
+        #[serde(skip)]
+        _p: PhantomData<Resp>,
+        value: Cow<'a, str>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(responses(Response<Resp>)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let response = doc.pointer("/components/responses/Response");
+
+    assert_json_eq!(
+        response,
+        json!({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "properties": {
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["value"],
+                        "type": "object"
+                    }
+                }
+            },
+            "description": ""
+        })
+    )
+}
+
+#[test]
+fn derive_openapi_with_generic_schema() {
+    struct Value;
+
+    #[derive(Serialize, ToSchema)]
+    struct Pet<'a, Resp> {
+        #[serde(skip)]
+        _p: PhantomData<Resp>,
+        value: Cow<'a, str>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Pet<Value>)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schema = doc.pointer("/components/schemas/Pet");
+
+    assert_json_eq!(
+        schema,
+        json!({
+            "properties": {
+                "value": {
+                    "type": "string"
+                }
+            },
+            "required": ["value"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_openapi_with_generic_schema_with_as() {
+    struct Value;
+
+    #[derive(Serialize, ToSchema)]
+    #[schema(as = api::models::Pet)]
+    struct Pet<'a, Resp> {
+        #[serde(skip)]
+        _p: PhantomData<Resp>,
+        value: Cow<'a, str>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Pet<Value>)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schema = doc.pointer("/components/schemas/api.models.Pet");
+
+    assert_json_eq!(
+        schema,
+        json!({
+            "properties": {
+                "value": {
+                    "type": "string"
+                }
+            },
+            "required": ["value"],
+            "type": "object"
+        })
     )
 }

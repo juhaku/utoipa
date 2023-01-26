@@ -273,6 +273,7 @@ impl NamedStructResponse<'_> {
             generics: None,
             rename_all: None,
             struct_name: Cow::Owned(ident.to_string()),
+            schema_as: None,
         };
 
         let ty = Self::to_type(ident);
@@ -338,6 +339,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
             attributes,
             struct_name: Cow::Owned(ident.to_string()),
             rename_all: None,
+            schema_as: None,
         };
         let response_type = PathType::InlineSchema(inline_schema.to_token_stream(), ty);
 
@@ -442,11 +444,8 @@ impl<'r> EnumResponse<'r> {
             description,
         });
         response_value.response_type = if content.is_empty() {
-            let inline_schema = EnumSchema {
-                variants,
-                attributes,
-                enum_name: Cow::Owned(ident.to_string()),
-            };
+            let inline_schema =
+                EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes);
 
             Some(PathType::InlineSchema(
                 inline_schema.into_token_stream(),

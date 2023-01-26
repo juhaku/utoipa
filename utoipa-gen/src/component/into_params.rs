@@ -542,7 +542,7 @@ impl ToTokens for ParamSchema<'_> {
                             .expect("component should have a path");
                         if self.schema_features.is_inline() {
                             tokens.extend(quote_spanned! {component_path.span()=>
-                                <#component_path as utoipa::ToSchema>::schema()
+                                <#component_path as utoipa::ToSchema>::schema().1
                             })
                         } else if component.is_object() {
                             tokens.extend(quote! {

@@ -5,7 +5,7 @@ use syn::{
 };
 
 use crate::component::features::{
-    impl_into_inner, impl_merge, parse_features, Default, Example, ExclusiveMaximum,
+    impl_into_inner, impl_merge, parse_features, As, Default, Example, ExclusiveMaximum,
     ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
     Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern,
     ReadOnly, Rename, RenameAll, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
@@ -22,7 +22,8 @@ impl Parse for NamedFieldStructFeatures {
             Title,
             RenameAll,
             MaxProperties,
-            MinProperties
+            MinProperties,
+            As
         )))
     }
 }
@@ -39,7 +40,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Default,
             Title,
             Format,
-            ValueType
+            ValueType,
+            As
         )))
     }
 }
@@ -54,7 +56,8 @@ impl Parse for EnumFeatures {
             input as Example,
             Default,
             Title,
-            RenameAll
+            RenameAll,
+            As
         )))
     }
 }

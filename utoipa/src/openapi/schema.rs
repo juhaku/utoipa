@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use super::RefOr;
 use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
-use crate::ToResponse;
+use crate::{ToResponse, ToSchema};
 
 macro_rules! component_from_builder {
     ( $name:ident ) => {
@@ -119,6 +119,21 @@ impl ComponentsBuilder {
         self.schemas.insert(name.into(), schema.into());
 
         self
+    }
+
+    pub fn schema_from<'s, I: ToSchema<'s>>(mut self) -> Self {
+        let aliases = I::aliases();
+
+        // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
+        // Eventually aliases functionality should be extracted out from the `ToSchema`. Aliases
+        // are created when the main schema is a generic type which should be included in OpenAPI
+        // spec in its generic form.
+        if aliases.is_empty() {
+            let (name, schema) = I::schema();
+            self.schemas.insert(name.to_string(), schema);
+        }
+
+        self.schemas_from_iter(aliases)
     }
 
     /// Add [`Schema`]s from iterator.
