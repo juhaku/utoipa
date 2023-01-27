@@ -46,6 +46,9 @@ enum TypeTreeValue<'t> {
     /// Slice and array types need to be manually defined, since they cannot be recognized from
     /// generic arguments.
     Array(Vec<TypeTreeValue<'t>>, &'t Span),
+
+    // TODO: Is the span needed?
+    UnitType(&'t Span),
 }
 
 impl PartialEq for TypeTreeValue<'_> {
@@ -54,6 +57,9 @@ impl PartialEq for TypeTreeValue<'_> {
             Self::Path(_) => self == other,
             Self::TypePath(_) => self == other,
             Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
+
+            // TODO: or other == ()
+            Self::UnitType(_) => self == other,
         }
     }
 }
@@ -80,7 +86,15 @@ impl<'t> TypeTree<'t> {
                 vec![TypeTreeValue::TypePath(path)]
             },
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
-            Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
+
+            // TODO: cleanup
+            Type::Tuple(tuple) => {
+                if tuple.elems.len() == 0 {
+                    return vec![TypeTreeValue::UnitType(&tuple.paren_token.span)];
+                }
+                tuple.elems.iter().flat_map(Self::get_type_paths).collect()
+            },
+
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
             Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), &slice.bracket_token.span)],
             Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), &array.bracket_token.span)],
@@ -131,7 +145,17 @@ impl<'t> TypeTree<'t> {
                         generic_type: Some(GenericType::Vec),
                         children: Some(vec![Self::from_type_paths(value)]),
                     };
-                }
+                },
+                TypeTreeValue::UnitType(span) => {
+                    return TypeTree {
+                        // TODO: What is the "path" for? What value to set?
+                        path: Some(Cow::Owned(Ident::new("MyUnitType", *span).into())),
+                        // TODO: Is this correct?
+                        value_type: ValueType::Primitive,
+                        generic_type: None,
+                        children: None,
+                    }
+                },
             };
 
             // there will always be one segment at least
