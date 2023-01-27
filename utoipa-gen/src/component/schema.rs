@@ -1602,7 +1602,6 @@ impl ToTokens for SchemaProperty<'_> {
                                 utoipa::openapi::ObjectBuilder::new()
                                     .nullable(true)
                                     .default(Some(serde_json::Value::Null))
-                                    .example(Some(serde_json::Value::Null))
                             })
                         }
 
