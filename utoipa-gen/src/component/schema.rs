@@ -1595,7 +1595,19 @@ impl ToTokens for SchemaProperty<'_> {
                         }
                     }
                     // TODO support for tuple types
-                    ValueType::Tuple => (),
+                    ValueType::Tuple => {
+                        // Detect unit type ()
+                        if type_tree.children == None {
+                            tokens.extend(quote!{
+                                utoipa::openapi::ObjectBuilder::new()
+                                    .nullable(true)
+                                    .default(Some(serde_json::Value::Null))
+                                    .example(Some(serde_json::Value::Null))
+                            })
+                        }
+
+                        ()
+                    },
                 }
             }
         }
