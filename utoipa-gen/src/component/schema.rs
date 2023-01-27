@@ -1603,9 +1603,7 @@ impl ToTokens for SchemaProperty<'_> {
                                     .nullable(true)
                                     .default(Some(serde_json::Value::Null))
                             })
-                        }
-
-                        ()
+                        };
                     },
                 }
             }
