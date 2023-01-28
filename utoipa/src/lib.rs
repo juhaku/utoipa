@@ -384,6 +384,18 @@ pub trait ToSchema<'__s> {
     }
 }
 
+impl<'__s> ToSchema<'__s> for () {
+    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>) {
+        (
+            "UnitType",
+            openapi::schema::ObjectBuilder::new()
+                .nullable(true)
+                .default(Some(serde_json::Value::Null))
+                .into(),
+        )
+    }
+}
+
 /// Trait for implementing OpenAPI PathItem object with path.
 ///
 /// This trait is implemented via [`#[utoipa::path(...)]`][derive] attribute macro and there

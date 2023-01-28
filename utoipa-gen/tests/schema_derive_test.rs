@@ -3534,6 +3534,30 @@ fn derive_schema_with_custom_field_with_schema() {
 }
 
 #[test]
+fn derive_unit_type() {
+    let data = api_doc! {
+        struct Data {
+            unit_type: ()
+        }
+    };
+
+    assert_json_eq!(
+        data,
+        json!({
+            "type": "object",
+            "required": [ "unit_type" ],
+            "properties": {
+                "unit_type": {
+                    "type": "object",
+                    "default": null,
+                    "nullable": true
+                }
+            }
+        })
+    )
+}
+
+#[test]
 fn derive_unit_struct_schema() {
     let value = api_doc! {
         struct UnitValue;

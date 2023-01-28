@@ -84,7 +84,7 @@ impl<'t> TypeTree<'t> {
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
             Type::Tuple(tuple) => {
                 // Detect unit type ()
-                if tuple.elems.len() == 0 { return vec![TypeTreeValue::UnitType] }
+                if tuple.elems.is_empty() { return vec![TypeTreeValue::UnitType] }
 
                 tuple.elems.iter().flat_map(Self::get_type_paths).collect()
             },
@@ -138,7 +138,7 @@ impl<'t> TypeTree<'t> {
                         generic_type: Some(GenericType::Vec),
                         children: Some(vec![Self::from_type_paths(value)]),
                     };
-                },
+                }
                 TypeTreeValue::UnitType => {
                     return TypeTree {
                         path: None,
@@ -146,7 +146,7 @@ impl<'t> TypeTree<'t> {
                         generic_type: None,
                         children: None,
                     }
-                },
+                }
             };
 
             // there will always be one segment at least
