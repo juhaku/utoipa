@@ -58,6 +58,7 @@ where
 pub struct ObjectVariant<'o, T: ToTokens> {
     pub item: T,
     pub title: Option<TokenStream>,
+    pub example: Option<TokenStream>,
     pub name: Cow<'o, str>,
 }
 
@@ -67,12 +68,14 @@ where
 {
     fn to_tokens(&self) -> TokenStream {
         let title = &self.title;
+        let example = &self.example;
         let variant = &self.item;
         let name = &self.name;
 
         quote! {
             utoipa::openapi::schema::ObjectBuilder::new()
                 #title
+                #example
                 .property(#name, #variant)
         }
     }
@@ -80,6 +83,7 @@ where
 
 pub struct Enum<'e, V: Variant> {
     title: Option<TokenStream>,
+    example: Option<TokenStream>,
     len: usize,
     items: Array<'e, TokenStream>,
     schema_type: TokenStream,
@@ -97,6 +101,12 @@ impl<V: Variant> Enum<'_, V> {
 
         self
     }
+
+    pub fn with_example<I: Into<TokenStream>>(mut self, example: Option<I>) -> Self {
+        self.example = example.map(|example| example.into());
+
+        self
+    }
 }
 
 impl<T> ToTokens for Enum<'_, T>
@@ -106,6 +116,7 @@ where
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let len = &self.len;
         let title = &self.title;
+        let example = &self.example;
         let items = &self.items;
         let schema_type = &self.schema_type;
         let enum_type = &self.enum_type;
@@ -113,6 +124,7 @@ where
         tokens.extend(quote! {
             utoipa::openapi::ObjectBuilder::new()
                 #title
+                #example
                 .schema_type(#schema_type)
                 .enum_values::<[#enum_type; #len], #enum_type>(Some(#items))
         })
@@ -139,6 +151,7 @@ impl<V: Variant> FromIterator<V> for Enum<'_, V> {
 
         Self {
             title: None,
+            example: None,
             len,
             items,
             schema_type,

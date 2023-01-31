@@ -1085,6 +1085,69 @@ fn derive_complex_enum_title() {
 }
 
 #[test]
+fn derive_complex_enum_example() {
+    #[derive(Serialize)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum EnumWithExample {
+            #[schema(example = "EX: Unit")]
+            UnitValue,
+            #[schema(example = "EX: Named")]
+            NamedFields {
+                #[schema(example = "EX: Named id field")]
+                id: &'static str,
+            },
+            #[schema(example = "EX: Unnamed")]
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "string",
+                    "example": "EX: Unit",
+                    "enum": [
+                        "UnitValue",
+                    ],
+                },
+                {
+                    "type": "object",
+                    "example": "EX: Named",
+                    "properties": {
+                        "NamedFields": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "example": "EX: Named id field",
+                                },
+                            },
+                            "required": [
+                                "id",
+                            ],
+                        },
+                    },
+                },
+                {
+                    "type": "object",
+                    "example": "EX: Unnamed",
+                    "properties": {
+                        "UnnamedFields": {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                    },
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_complex_enum_serde_rename_all() {
     #[derive(Serialize)]
     struct Foo(String);
@@ -2737,7 +2800,7 @@ fn derive_struct_field_with_example() {
                     }
                 }
             },
-            "required": [ 
+            "required": [
                 "field1",
                 "field2",
                 "field3",
