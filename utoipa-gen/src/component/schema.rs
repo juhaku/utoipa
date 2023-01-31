@@ -9,7 +9,7 @@ use syn::{
     Token, Variant, Visibility,
 };
 
-use crate::{component::features::Rename, doc_comment::CommentAttributes, Array};
+use crate::{component::features::{Rename, Example}, doc_comment::CommentAttributes, Array};
 
 use self::{
     enum_variant::{
@@ -151,6 +151,7 @@ impl ToTokens for Schema<'_> {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum SchemaVariant<'a> {
     Named(NamedStructSchema<'a>),
     Unnamed(UnnamedStructSchema<'a>),
@@ -236,6 +237,7 @@ impl ToTokens for SchemaVariant<'_> {
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct UnitStructVariant;
 
 impl ToTokens for UnitStructVariant {
@@ -934,9 +936,12 @@ impl ComplexEnum<'_> {
                     rename_all,
                 );
 
+                let example = pop_feature!(named_struct_features => Feature::Example(_));
+
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
                     title: title_features.first().map(ToTokens::to_token_stream),
+                    example: example.as_ref().map(ToTokens::to_token_stream),
                     item: NamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
@@ -964,9 +969,12 @@ impl ComplexEnum<'_> {
                     rename_all,
                 );
 
+                let example = pop_feature!(unnamed_struct_features => Feature::Example(_));
+
                 self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
                     title: title_features.first().map(ToTokens::to_token_stream),
+                    example: example.as_ref().map(ToTokens::to_token_stream),
                     item: UnnamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
@@ -982,7 +990,8 @@ impl ComplexEnum<'_> {
                         Ok(parse_features!(
                             input as super::features::Title,
                             RenameAll,
-                            Rename
+                            Rename,
+                            Example
                         ))
                     })
                     .unwrap_or_default();
@@ -995,6 +1004,8 @@ impl ComplexEnum<'_> {
                     rename_all,
                 );
 
+                let example = pop_feature!(unit_features => Feature::Example(_));
+
                 // Unit variant is just simple enum with single variant.
                 Enum::new([SimpleEnumVariant {
                     value: variant_name
@@ -1002,6 +1013,7 @@ impl ComplexEnum<'_> {
                         .to_token_stream(),
                 }])
                 .with_title(title.as_ref().map(ToTokens::to_token_stream))
+                .with_example(example.as_ref().map(ToTokens::to_token_stream))
                 .to_token_stream()
             }
         }
