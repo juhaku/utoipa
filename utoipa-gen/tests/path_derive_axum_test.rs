@@ -1,5 +1,4 @@
 #![cfg(feature = "axum_extras")]
-#![cfg(feature = "json")]
 
 use std::sync::{Arc, Mutex};
 
@@ -95,12 +94,62 @@ fn derive_path_params_into_params_axum() {
 }
 
 #[test]
+fn get_todo_with_path_tuple() {
+    #[utoipa::path(
+        get,
+        path = "/person/{id}/{name}",
+        params(
+            ("id", description = "Person id"),
+            ("name", description = "Person name")
+        ),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_person(Path((id, name)): Path<(String, String)>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_person))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc
+        .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
+        .unwrap();
+
+    assert_json_eq!(
+        parameters,
+        &json!([
+            {
+                "description": "Person id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                },
+            },
+            {
+                "description": "Person name",
+                "in": "path",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                },
+            },
+        ])
+    )
+}
+
+#[test]
 fn get_todo_with_extension() {
     struct Todo {
         #[allow(unused)]
         id: i32,
     }
-    /// In-memonry todo store
+    /// In-memory todo store
     type Store = Mutex<Vec<Todo>>;
     /// List all Todo items
 

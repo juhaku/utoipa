@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, schema::RefOr, set_value, Object, Schema, SchemaType};
+use super::{builder, set_value, Object, RefOr, Schema, SchemaType};
 
 builder! {
     HeaderBuilder;
@@ -13,13 +13,13 @@ builder! {
     ///
     /// [header]: https://spec.openapis.org/oas/latest.html#header-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Header {
         /// Schema of header type.
         pub schema: RefOr<Schema>,
 
-        /// Additional descripiton of the header value.
+        /// Additional description of the header value.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
     }

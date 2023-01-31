@@ -4,15 +4,13 @@
 use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "serde_json")]
 use serde_json::Value;
 
 use super::{
-    build_fn, builder, from, new,
+    builder,
     request_body::RequestBody,
     response::{Response, Responses},
-    schema::RefOr,
-    set_value, Deprecated, ExternalDocs, Required, Schema, SecurityRequirement, Server,
+    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
 };
 
 builder! {
@@ -25,7 +23,7 @@ builder! {
     ///
     /// [paths]: https://spec.openapis.org/oas/latest.html#paths-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Paths {
         /// Map of relative paths with [`PathItem`]s holding [`Operation`]s matching
@@ -40,16 +38,34 @@ impl Paths {
         Default::default()
     }
 
-    /// Return [`Option<&PathItem>`] by given relative path if one exists
+    /// Return _`Option`_ of reference to [`PathItem`] by given relative path _`P`_ if one exists
     /// in [`Paths::paths`] map. Otherwise will return `None`.
+    ///
+    /// # Examples
+    ///
+    /// _**Get user path item.**_
+    /// ```rust
+    /// # use utoipa::openapi::path::{Paths, PathItemType};
+    /// # let paths = Paths::new();
+    /// let path_item = paths.get_path_item("/api/v1/user");
+    /// ```
     pub fn get_path_item<P: AsRef<str>>(&self, path: P) -> Option<&PathItem> {
         self.paths.get(path.as_ref())
     }
 
-    /// Return [`Option<&Operation>`] from map of paths or `None` if not found.
+    /// Return _`Option`_ of reference to [`Operation`] from map of paths or `None` if not found.
     ///
-    /// * First will try to find [`PathItem`] by given relative path.
+    /// * First will try to find [`PathItem`] by given relative path _`P`_ e.g. `"/api/v1/user"`.
     /// * Then tries to find [`Operation`] from [`PathItem`]'s operations by given [`PathItemType`].
+    ///
+    /// # Examples
+    ///
+    /// _**Get user operation from paths.**_
+    /// ```rust
+    /// # use utoipa::openapi::path::{Paths, PathItemType};
+    /// # let paths = Paths::new();
+    /// let operation = paths.get_path_operation("/api/v1/user", PathItemType::Get);
+    /// ```
     pub fn get_path_operation<P: AsRef<str>>(
         &self,
         path: P,
@@ -79,20 +95,20 @@ impl PathsBuilder {
 builder! {
     PathItemBuilder;
 
-    /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s availabe on
+    /// Implements [OpenAPI Path Item Object][path_item] what describes [`Operation`]s available on
     /// a single path.
     ///
     /// [path_item]: https://spec.openapis.org/oas/latest.html#path-item-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct PathItem {
-        /// Optional summary intented to apply all operations in this [`PathItem`].
+        /// Optional summary intended to apply all operations in this [`PathItem`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub summary: Option<String>,
 
-        /// Optional description intented to apply all operations in this [`PathItem`].
+        /// Optional description intended to apply all operations in this [`PathItem`].
         /// Description supports markdown syntax.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
@@ -140,12 +156,12 @@ impl PathItemBuilder {
         self
     }
 
-    /// Add or change summary intented to apply all operations in this [`PathItem`].
+    /// Add or change summary intended to apply all operations in this [`PathItem`].
     pub fn summary<S: Into<String>>(mut self, summary: Option<S>) -> Self {
         set_value!(self summary summary.map(|summary| summary.into()))
     }
 
-    /// Add or change optional description intented to apply all operations in this [`PathItem`].
+    /// Add or change optional description intended to apply all operations in this [`PathItem`].
     /// Description supports markdown syntax.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         set_value!(self description description.map(|description| description.into()))
@@ -195,11 +211,11 @@ builder! {
     ///
     /// [operation]: https://spec.openapis.org/oas/latest.html#operation-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Operation {
-        /// List of tags used for groupping operations.
+        /// List of tags used for grouping operations.
         ///
         /// When used with derive [`#[utoipa::path(...)]`][derive_path] attribute macro the default
         /// value used will be resolved from handler path provided in `#[openapi(paths(...))]` with
@@ -261,10 +277,10 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub deprecated: Option<Deprecated>,
 
-        /// Declaration which security mechanishms can be used for for the operation. Only one
+        /// Declaration which security mechanisms can be used for for the operation. Only one
         /// [`SecurityRequirement`] must be met.
         ///
-        /// Security for the [`Operation`] can be set to optional by adding emty security with
+        /// Security for the [`Operation`] can be set to optional by adding empty security with
         /// [`SecurityRequirement::default`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub security: Option<Vec<SecurityRequirement>>,
@@ -415,78 +431,75 @@ impl OperationBuilder {
     }
 }
 
-/// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
-///
-/// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Parameter {
-    /// Name of the parameter.
+builder! {
+    ParameterBuilder;
+
+    /// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
     ///
-    /// * For [`ParameterIn::Path`] this must in accordance to path templating.
-    /// * For [`ParameterIn::Query`] `Content-Type` or `Authorization` value will be ignored.
-    pub name: String,
+    /// [parameter]: https://spec.openapis.org/oas/latest.html#parameter-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Parameter {
+        /// Name of the parameter.
+        ///
+        /// * For [`ParameterIn::Path`] this must in accordance to path templating.
+        /// * For [`ParameterIn::Query`] `Content-Type` or `Authorization` value will be ignored.
+        pub name: String,
 
-    /// Parameter location.
-    #[serde(rename = "in")]
-    pub parameter_in: ParameterIn,
+        /// Parameter location.
+        #[serde(rename = "in")]
+        pub parameter_in: ParameterIn,
 
-    /// Markdown supported description of the parameter.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+        /// Markdown supported description of the parameter.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    /// Declares whether the parameter is required or not for api.
-    ///
-    /// * For [`ParameterIn::Path`] this must and will be [`Required::True`].
-    pub required: Required,
+        /// Declares whether the parameter is required or not for api.
+        ///
+        /// * For [`ParameterIn::Path`] this must and will be [`Required::True`].
+        pub required: Required,
 
-    /// Delcares the parameter deprecated status.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<Deprecated>,
-    // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
-    /// Schema of the parameter. Typically [`Schema::Object`] is used.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub schema: Option<RefOr<Schema>>,
+        /// Declares the parameter deprecated status.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub deprecated: Option<Deprecated>,
+        // pub allow_empty_value: bool, this is going to be removed from further open api spec releases
+        /// Schema of the parameter. Typically [`Schema::Object`] is used.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub schema: Option<RefOr<Schema>>,
 
-    /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of a content).
-    /// Default value is based on [`ParameterIn`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub style: Option<ParameterStyle>,
+        /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of a content).
+        /// Default value is based on [`ParameterIn`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub style: Option<ParameterStyle>,
 
-    /// When _`true`_ it will generate separate parameter value for each parameter with _`array`_ and _`object`_ type.
-    /// This is also _`true`_ by default for [`ParameterStyle::Form`].
-    ///
-    /// With explode _`false`_:
-    /// ```text
-    ///color=blue,black,brown
-    /// ```
-    ///
-    /// With explode _`true`_:
-    /// ```text
-    ///color=blue&color=black&color=brown
-    /// ```
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub explode: Option<bool>,
+        /// When _`true`_ it will generate separate parameter value for each parameter with _`array`_ and _`object`_ type.
+        /// This is also _`true`_ by default for [`ParameterStyle::Form`].
+        ///
+        /// With explode _`false`_:
+        /// ```text
+        ///color=blue,black,brown
+        /// ```
+        ///
+        /// With explode _`true`_:
+        /// ```text
+        ///color=blue&color=black&color=brown
+        /// ```
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub explode: Option<bool>,
 
-    /// Defines wheter parameter should allow reserved characters defined by
-    /// [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.2) _`:/?#[]@!$&'()*+,;=`_.
-    /// This is only applicable with [`ParameterIn::Query`]. Default value is _`false`_.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub allow_reserved: Option<bool>,
+        /// Defines whether parameter should allow reserved characters defined by
+        /// [RFC3986](https://tools.ietf.org/html/rfc3986#section-2.2) _`:/?#[]@!$&'()*+,;=`_.
+        /// This is only applicable with [`ParameterIn::Query`]. Default value is _`false`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub allow_reserved: Option<bool>,
 
-    /// Example of [`Parameter`]'s potential value. This examples will override example
-    /// within [`Parameter::schema`] if defined.
-    #[cfg(feature = "serde_json")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    example: Option<Value>,
-
-    /// Example of [`Parameter`]'s potential value. This examples will override example
-    /// within [`Parameter::schema`] if defined.
-    #[cfg(not(feature = "serde_json"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    example: Option<String>,
+        /// Example of [`Parameter`]'s potential value. This examples will override example
+        /// within [`Parameter::schema`] if defined.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        example: Option<Value>,
+    }
 }
 
 impl Parameter {
@@ -500,38 +513,7 @@ impl Parameter {
     }
 }
 
-/// Builder for [`Parameter`] with chainable configuration methods to create a new [`Parameter`].
-#[derive(Default)]
-pub struct ParameterBuilder {
-    name: String,
-
-    parameter_in: ParameterIn,
-
-    description: Option<String>,
-
-    required: Required,
-
-    deprecated: Option<Deprecated>,
-
-    schema: Option<RefOr<Schema>>,
-
-    style: Option<ParameterStyle>,
-
-    explode: Option<bool>,
-
-    allow_reserved: Option<bool>,
-
-    #[cfg(feature = "serde_json")]
-    example: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
-}
-
-from!(Parameter ParameterBuilder name, parameter_in, description, required, deprecated, schema, style, explode, allow_reserved, example);
-
 impl ParameterBuilder {
-    new!(pub ParameterBuilder);
     /// Add name of the [`Parameter`].
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
         set_value!(self name name.into())
@@ -585,18 +567,9 @@ impl ParameterBuilder {
     }
 
     /// Add or change example of [`Parameter`]'s potential value.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        set_value!(self example example.map(|example| example.into()))
-    }
-
-    /// Add or change example of [`Parameter`]'s potential value.
-    #[cfg(feature = "serde_json")]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
-
-    build_fn!(pub Parameter name, parameter_in, required, description, deprecated, schema, style, explode, allow_reserved, example);
 }
 
 /// In definition of [`Parameter`].
@@ -604,13 +577,13 @@ impl ParameterBuilder {
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {
-    /// Delcares that parameter is used as query parameter.
+    /// Declares that parameter is used as query parameter.
     Query,
-    /// Delcares that parameter is used as path parameter.
+    /// Declares that parameter is used as path parameter.
     Path,
-    /// Delcares that parameter is used as header value.
+    /// Declares that parameter is used as header value.
     Header,
-    /// Delcares that parameter is used as cookie value.
+    /// Declares that parameter is used as cookie value.
     Cookie,
 }
 
@@ -621,7 +594,7 @@ impl Default for ParameterIn {
 }
 
 /// Defines how [`Parameter`] should be serialized.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub enum ParameterStyle {
@@ -629,7 +602,7 @@ pub enum ParameterStyle {
     /// e.g _`;color=blue`_.
     /// Allowed with [`ParameterIn::Path`].
     Matrix,
-    /// Lable style parameters defined by [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570#section-3.2.5)
+    /// Label style parameters defined by [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570#section-3.2.5)
     /// e.g _`.color=blue`_.
     /// Allowed with [`ParameterIn::Path`].
     Label,

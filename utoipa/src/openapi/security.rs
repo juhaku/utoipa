@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::builder;
 
-/// OpenAPI [security requirment][security] object.
+/// OpenAPI [security requirement][security] object.
 ///
 /// Security requirement holds list of required [`SecurityScheme`] *names* and possible *scopes* required
 /// to execute the operation. They can be defined in [`#[utoipa::path(...)]`][path] or in `#[openapi(...)]`
@@ -24,7 +24,7 @@ use super::builder;
 /// [path]: ../../attr.path.html
 /// [openapi]: ../../derive.OpenApi.html
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct SecurityRequirement {
     #[serde(flatten)]
     value: BTreeMap<String, Vec<String>>,
@@ -90,14 +90,14 @@ impl SecurityRequirement {
 /// );
 /// ```
 ///
-/// Create JWT header authetication.
+/// Create JWT header authentication.
 /// ```rust
 /// # use utoipa::openapi::security::{SecurityScheme, HttpAuthScheme, HttpBuilder};
 /// SecurityScheme::Http(
 ///     HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
 /// );
 /// ```
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SecurityScheme {
@@ -108,9 +108,9 @@ pub enum SecurityScheme {
     ApiKey(ApiKey),
     /// Http authentication such as *`bearer`* or *`basic`*.
     Http(Http),
-    /// Open id connect url to discover OAuth2 configuraiton values.
+    /// Open id connect url to discover OAuth2 configuration values.
     OpenIdConnect(OpenIdConnect),
-    /// Authentication is done via client side cerfiticate.
+    /// Authentication is done via client side certificate.
     ///
     /// OpenApi 3.1 type
     #[serde(rename = "mutualTLS")]
@@ -121,7 +121,7 @@ pub enum SecurityScheme {
 }
 
 /// Api key authentication [`SecurityScheme`].
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "in", rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ApiKey {
@@ -135,7 +135,7 @@ pub enum ApiKey {
 
 /// Value object for [`ApiKey`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ApiKeyValue {
     /// Name of the [`ApiKey`] parameter.
@@ -187,7 +187,7 @@ builder! {
     ///
     /// Methods can be chained to configure _bearer_format_ or to add _description_.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Clone, Default)]
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
     #[serde(rename_all = "camelCase")]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Http {
@@ -269,7 +269,7 @@ impl HttpBuilder {
 
 /// Implements types according [RFC7235](https://datatracker.ietf.org/doc/html/rfc7235#section-5.1).
 ///
-/// Types are maintainted at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
+/// Types are maintained at <https://www.iana.org/assignments/http-authschemes/http-authschemes.xhtml>.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
@@ -296,7 +296,7 @@ impl Default for HttpAuthScheme {
 
 /// Open id connect [`SecurityScheme`]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenIdConnect {
@@ -343,7 +343,7 @@ impl OpenIdConnect {
 
 /// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
@@ -442,7 +442,7 @@ impl OAuth2 {
 ///
 ///
 /// See more details at <https://spec.openapis.org/oas/latest.html#oauth-flows-object>.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Flow {
@@ -471,7 +471,7 @@ impl Flow {
 
 /// Implicit [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Implicit {
@@ -554,7 +554,7 @@ impl Implicit {
 
 /// Authorization code [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AuthorizationCode {
@@ -575,7 +575,7 @@ pub struct AuthorizationCode {
 impl AuthorizationCode {
     /// Construct a new authorization code oauth flow.
     ///
-    /// Accpets three arguments: one which is authorization url, two a token url and
+    /// Accepts three arguments: one which is authorization url, two a token url and
     /// three a map of scopes for oauth flow.
     ///
     /// # Examples
@@ -649,7 +649,7 @@ impl AuthorizationCode {
 
 /// Password [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Password {
@@ -668,7 +668,7 @@ pub struct Password {
 impl Password {
     /// Construct a new password oauth flow.
     ///
-    /// Accpets two arguments: one which is a token url and
+    /// Accepts two arguments: one which is a token url and
     /// two a map of scopes for oauth flow.
     ///
     /// # Examples
@@ -703,7 +703,7 @@ impl Password {
 
     /// Construct a new password oauth flow with additional refresh url.
     ///
-    /// This is essentially same as [`Password::new`] but allows defining thrird parameter for `refresh_url`
+    /// This is essentially same as [`Password::new`] but allows defining third parameter for `refresh_url`
     /// for fetching refresh tokens.
     ///
     /// # Examples
@@ -731,7 +731,7 @@ impl Password {
 
 /// Client credentials [`Flow`] configuration for [`OAuth2`].
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ClientCredentials {
@@ -748,9 +748,9 @@ pub struct ClientCredentials {
 }
 
 impl ClientCredentials {
-    /// Construct a new client crendentials oauth flow.
+    /// Construct a new client credentials oauth flow.
     ///
-    /// Accpets two arguments: one which is a token url and
+    /// Accepts two arguments: one which is a token url and
     /// two a map of scopes for oauth flow.
     ///
     /// # Examples
@@ -783,9 +783,9 @@ impl ClientCredentials {
         }
     }
 
-    /// Construct a new client crendentials oauth flow with additional refresh url.
+    /// Construct a new client credentials oauth flow with additional refresh url.
     ///
-    /// This is essentially same as [`ClientCredentials::new`] but allows defining third paramter for
+    /// This is essentially same as [`ClientCredentials::new`] but allows defining third parameter for
     /// `refresh_url`.
     ///
     /// # Examples
@@ -811,14 +811,14 @@ impl ClientCredentials {
     }
 }
 
-/// [`OAuth2`] flow scopes object defines required permissions for oauh flow.
+/// [`OAuth2`] flow scopes object defines required permissions for oauth flow.
 ///
 /// Scopes must be given to oauth2 flow but depending on need one of few initialization methods
 /// could be used.
 ///
 /// * Create empty map of scopes you can use [`Scopes::new`].
 /// * Create map with only one scope you can use [`Scopes::one`].
-/// * Create mutliple scopes from iterator with [`Scopes::from_iter`].
+/// * Create multiple scopes from iterator with [`Scopes::from_iter`].
 ///
 /// # Examples
 ///
@@ -842,7 +842,7 @@ impl ClientCredentials {
 ///     ("read:items", "read my items")
 /// ]);
 /// ```
-#[derive(Default, Serialize, Deserialize, Clone)]
+#[derive(Default, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Scopes {
     scopes: BTreeMap<String, String>,
@@ -865,7 +865,7 @@ impl Scopes {
         }
     }
 
-    /// Construct new [`Scopes`] with hodling one scope.
+    /// Construct new [`Scopes`] with holding one scope.
     ///
     /// * `scope` Is be the permission required.
     /// * `description` Short description about the permission.
@@ -899,7 +899,6 @@ where
 }
 
 #[cfg(test)]
-#[cfg(feature = "json")]
 mod tests {
     use super::*;
 
@@ -1193,11 +1192,11 @@ mod tests {
     test_fn! {
         security_schema_correct_mutual_tls:
         SecurityScheme::MutualTls {
-            description: Some(String::from("authorizaion is performed with client side certificate"))
+            description: Some(String::from("authorization is performed with client side certificate"))
         };
         r###"{
   "type": "mutualTLS",
-  "description": "authorizaion is performed with client side certificate"
+  "description": "authorization is performed with client side certificate"
 }"###
     }
 }

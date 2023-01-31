@@ -9,15 +9,19 @@ use axum::{
 
 use crate::{Config, SwaggerUi, Url};
 
-impl<B> From<SwaggerUi> for Router<B>
+impl<S, B> From<SwaggerUi> for Router<S, B>
 where
+    S: Clone + Send + Sync + 'static,
     B: HttpBody + Send + 'static,
 {
     fn from(swagger_ui: SwaggerUi) -> Self {
         let urls_capacity = swagger_ui.urls.len();
 
         let (router, urls) = swagger_ui.urls.into_iter().fold(
-            (Router::<B>::new(), Vec::<Url>::with_capacity(urls_capacity)),
+            (
+                Router::<S, B>::new(),
+                Vec::<Url>::with_capacity(urls_capacity),
+            ),
             |(router, mut urls), url| {
                 let (url, openapi) = url;
                 (
@@ -34,23 +38,39 @@ where
         );
 
         let config = if let Some(config) = swagger_ui.config {
-            config.configure_defaults(urls)
+            if config.url.is_some() || !config.urls.is_empty() {
+                config
+            } else {
+                config.configure_defaults(urls)
+            }
         } else {
             Config::new(urls)
         };
 
-        router.route(
-            swagger_ui.path.as_ref(),
-            routing::get(serve_swagger_ui).layer(Extension(Arc::new(config))),
-        )
+        let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config)));
+        let path: &str = swagger_ui.path.as_ref();
+        let slash_path = format!("{}/", path);
+
+        router
+            .route(
+                path,
+                routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
+            )
+            .route(&format!("{}/", path), handler.clone())
+            .route(&format!("{}/*rest", path), handler)
     }
 }
 
 async fn serve_swagger_ui(
-    Path(tail): Path<String>,
+    path: Option<Path<String>>,
     Extension(state): Extension<Arc<Config<'static>>>,
 ) -> impl IntoResponse {
-    match super::serve(&tail[1..], state) {
+    let tail = match path.as_ref() {
+        Some(tail) => tail,
+        None => "",
+    };
+
+    match super::serve(tail, state) {
         Ok(file) => file
             .map(|file| {
                 (

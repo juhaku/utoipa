@@ -9,7 +9,7 @@ use std::{
 use regex::Regex;
 use zip::{result::ZipError, ZipArchive};
 
-const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.14.0";
+const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.15.5";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{}.zip", SWAGGER_UI_DIST_ZIP);
@@ -53,25 +53,25 @@ fn extract_within_path<const N: usize>(
             == Ordering::Equal
         {
             let directory = [&target_dir].iter().collect::<PathBuf>();
-            let outpath = directory.join(filepath);
+            let out_path = directory.join(filepath);
 
             if file.name().ends_with('/') {
-                fs::create_dir_all(&outpath)?;
+                fs::create_dir_all(&out_path)?;
             } else {
-                if let Some(p) = outpath.parent() {
+                if let Some(p) = out_path.parent() {
                     if !p.exists() {
                         fs::create_dir_all(p)?;
                     }
                 }
-                let mut outfile = fs::File::create(&outpath)?;
-                io::copy(&mut file, &mut outfile)?;
+                let mut out_file = fs::File::create(&out_path)?;
+                io::copy(&mut file, &mut out_file)?;
             }
             // Get and Set permissions
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
                 if let Some(mode) = file.unix_mode() {
-                    fs::set_permissions(&outpath, fs::Permissions::from_mode(mode))?;
+                    fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
                 }
             }
         }

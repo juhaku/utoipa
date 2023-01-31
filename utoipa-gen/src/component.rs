@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Span};
 use proc_macro_error::{abort, abort_call_site};
 use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
@@ -10,7 +10,7 @@ use self::serde::{RenameRule, SerdeContainer, SerdeValue};
 
 pub mod into_params;
 
-mod features;
+pub mod features;
 pub mod schema;
 pub mod serde;
 
@@ -39,15 +39,29 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     })
 }
 
-#[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 enum TypeTreeValue<'t> {
     TypePath(&'t TypePath),
     Path(&'t Path),
+    /// Slice and array types need to be manually defined, since they cannot be recognized from
+    /// generic arguments.
+    Array(Vec<TypeTreeValue<'t>>, &'t Span),
+}
+
+impl PartialEq for TypeTreeValue<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            Self::Path(_) => self == other,
+            Self::TypePath(_) => self == other,
+            Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
+        }
+    }
 }
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
+#[derive(Clone)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
     pub value_type: ValueType,
@@ -68,7 +82,8 @@ impl<'t> TypeTree<'t> {
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
             Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
-            Type::Array(array) => Self::get_type_paths(&array.elem),
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), &slice.bracket_token.span)],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), &array.bracket_token.span)],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -82,7 +97,7 @@ impl<'t> TypeTree<'t> {
                     .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
             }
             _ => abort_call_site!(
-                "unexpected type in component part get type path, expected one of: Path, Reference, Group"
+                "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject"
             ),
         }
     }
@@ -108,7 +123,17 @@ impl<'t> TypeTree<'t> {
             let path = match value {
                 TypeTreeValue::TypePath(type_path) => &type_path.path,
                 TypeTreeValue::Path(path) => path,
+                TypeTreeValue::Array(value, span) => {
+                    let array: Path = Ident::new("Array", *span).into();
+                    return TypeTree {
+                        path: Some(Cow::Owned(array)),
+                        value_type: ValueType::Object,
+                        generic_type: Some(GenericType::Vec),
+                        children: Some(vec![Self::from_type_paths(value)]),
+                    };
+                }
             };
+
             // there will always be one segment at least
             let last_segment = path
                 .segments
@@ -188,7 +213,7 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    // TODO should we recognize unknown generic types with `GenericType::Unkonwn` instead of `None`?
+    // TODO should we recognize unknown generic types with `GenericType::Unknown` instead of `None`?
     fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
         match &*segment.ident.to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
@@ -243,13 +268,33 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    fn update_path(&mut self, ident: &'_ Ident) {
-        self.path = Some(Cow::Owned(Path::from(ident.clone())))
+    /// Update current [`TypeTree`] from given `ident`.
+    ///
+    /// It will update everything else except `children` for the `TypeTree`. This means that the
+    /// `TypeTree` will not be changed and will be traveled as before update.
+    fn update(&mut self, ident: Ident) {
+        let new_path = Path::from(ident);
+
+        let segments = &new_path.segments;
+        let last_segment = segments
+            .last()
+            .expect("TypeTree::update path should have at least one segment");
+
+        let generic_type = Self::get_generic_type(last_segment);
+        let value_type = if SchemaType(&new_path).is_primitive() {
+            ValueType::Primitive
+        } else {
+            ValueType::Object
+        };
+
+        self.value_type = value_type;
+        self.generic_type = generic_type;
+        self.path = Some(Cow::Owned(new_path));
     }
 
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
-    fn is_object(&self) -> bool {
+    pub fn is_object(&self) -> bool {
         self.is("Object")
     }
 }

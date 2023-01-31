@@ -1,55 +1,51 @@
-#![cfg(feature = "json")]
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::assert_json_eq;
-#[cfg(feature = "chrono")]
-use chrono::{Date, DateTime, Duration, Utc};
-
 use serde::Serialize;
 use serde_json::{json, Value};
+use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
 
 mod common;
 
 macro_rules! api_doc {
-    ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt ) => {{
-        #[allow(dead_code)]
-        #[derive(ToSchema)]
-        $(#[$attr])*
-        $key $name $body
+    ( $(#[$meta:meta])* $key:ident $ident:ident $($tt:tt)* ) => {
+        {
+            #[derive(ToSchema)]
+            $(#[$meta])*
+            #[allow(unused)]
+            $key $ident $( $tt )*
 
-        api_doc!(@doc $name)
-    }};
+            let schema = api_doc!( @schema $ident $($tt)* );
+            serde_json::to_value(schema).unwrap()
+        }
+    };
+    ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
+         <$ident<$generic> as utoipa::ToSchema>::schema().1
+    };
+    ( @schema $ident:ident $($tt:tt)* ) => {
+         <$ident as utoipa::ToSchema>::schema().1
+    };
+}
 
-    ( $( #[$attr:meta] )* $key:ident $name:ident $body:tt; ) => {{
-        #[allow(dead_code)]
-        #[derive(ToSchema)]
-        $(#[$attr])*
-        $key $name $body;
+macro_rules! api_doc_aliases {
+    ( $(#[$meta:meta])* $key:ident $ident:ident $($tt:tt)* ) => {
+        {
+            #[derive(ToSchema)]
+            $(#[$meta])*
+            #[allow(unused)]
+            $key $ident $( $tt )*
 
-        api_doc!(@doc $name)
-    }};
-
-    ( $( #[$attr:meta] )* $key:ident $name:ident< $($life:lifetime)? $($generic:ident)? > $body:tt ) => {{
-        #[allow(dead_code)]
-        #[derive(ToSchema)]
-        $(#[$attr])*
-        $key $name<$($life)? $($generic)?> $body
-
-        api_doc!(@doc $name < $($life)? $($generic)?> )
-    }};
-
-    ( @doc $name:ident $( $generic:tt )* ) => {{
-        #[derive(OpenApi)]
-        #[openapi(components(schemas($name$($generic)*)))]
-        struct ApiDoc;
-
-        let json = serde_json::to_value(ApiDoc::openapi()).unwrap();
-
-        let component = json.pointer(&format!("/components/schemas/{}", stringify!($name))).unwrap_or(&serde_json::Value::Null);
-
-        component.clone()
-    }};
+            let schema = api_doc_aliases!( @schema $ident $($tt)* );
+            serde_json::to_value(schema).unwrap()
+        }
+    };
+    ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
+         <$ident<$generic> as utoipa::ToSchema>::aliases()
+    };
+    ( @schema $ident:ident $($tt:tt)* ) => {
+         <$ident as utoipa::ToSchema>::aliases()
+    };
 }
 
 #[test]
@@ -248,7 +244,7 @@ fn derive_enum_with_comments_success() {
         /// More than the first line is added to the description as well.
         enum AccountStatus {
             /// When user is valid to login, these enum variant level docs are omitted!!!!!
-            /// Since the OpenAPI spec does not have a place to put such infomation.
+            /// Since the OpenAPI spec does not have a place to put such information.
             Enabled,
             /// Login failed too many times
             Locked,
@@ -703,6 +699,26 @@ fn derive_simple_enum_serde_tag() {
     );
 }
 
+#[test]
+fn derive_simple_enum_serde_untagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Foo {
+            One,
+            Two,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "nullable": true,
+        })
+    );
+}
+
 /// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_unnamed_field_reference_with_comment() {
@@ -729,6 +745,7 @@ fn derive_complex_unnamed_field_reference_with_comment() {
                             "$ref": "#/components/schemas/CommentedReference",
                         },
                     },
+                    "required": ["UnnamedFieldWithCommentReference"],
                 },
             ],
         })
@@ -811,6 +828,7 @@ fn derive_complex_enum_with_schema_properties() {
                             "type": "object"
                         }
                     },
+                    "required": ["Variant"],
                     "type": "object"
                 },
                 {
@@ -825,6 +843,7 @@ fn derive_complex_enum_with_schema_properties() {
                             "type": "object"
                         }
                     },
+                    "required": ["Variant2"],
                     "type": "object"
                 }
             ]
@@ -1009,6 +1028,7 @@ fn derive_complex_enum() {
                             ],
                         },
                     },
+                    "required": ["NamedFields"],
                 },
                 {
                     "type": "object",
@@ -1017,6 +1037,7 @@ fn derive_complex_enum() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["UnnamedFields"],
                 },
             ],
         })
@@ -1069,6 +1090,7 @@ fn derive_complex_enum_title() {
                             ],
                         },
                     },
+                    "required": ["NamedFields"],
                 },
                 {
                     "type": "object",
@@ -1078,6 +1100,7 @@ fn derive_complex_enum_title() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["UnnamedFields"]
                 },
             ],
         })
@@ -1196,6 +1219,7 @@ fn derive_complex_enum_serde_rename_all() {
                             ],
                         },
                     },
+                    "required": ["named_fields"]
                 },
                 {
                     "type": "object",
@@ -1204,6 +1228,7 @@ fn derive_complex_enum_serde_rename_all() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["unnamed_fields"]
                 },
             ],
         })
@@ -1263,6 +1288,7 @@ fn derive_complex_enum_serde_rename_variant() {
                             ],
                         },
                     },
+                    "required": ["renamed_named_fields"]
                 },
                 {
                     "type": "object",
@@ -1271,6 +1297,7 @@ fn derive_complex_enum_serde_rename_variant() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["renamed_unnamed_fields"]
                 },
             ],
         })
@@ -1346,6 +1373,7 @@ fn derive_complex_enum_custom_rename() {
                             "type": "string"
                         }
                     },
+                    "required": ["NEWPOST"],
                     "type": "object",
                 },
                 {
@@ -1372,6 +1400,7 @@ fn derive_complex_enum_custom_rename() {
                             ]
                         }
                     },
+                    "required": ["update_post"],
                     "type": "object",
                 },
                 {
@@ -1389,6 +1418,7 @@ fn derive_complex_enum_custom_rename() {
                             ]
                         }
                     },
+                    "required": ["RANDOMVALUE"],
                     "type": "object",
                 }
             ]
@@ -1424,6 +1454,7 @@ fn derive_complex_enum_use_serde_rename_over_custom_rename() {
                         },
                     },
                     "type": "object",
+                    "required": ["string_value"]
                 },
                 {
                     "properties": {
@@ -1439,6 +1470,7 @@ fn derive_complex_enum_use_serde_rename_over_custom_rename() {
                         }
                     },
                     "type": "object",
+                    "required": ["number"]
                 }
             ]
         })
@@ -1516,6 +1548,7 @@ fn derive_complex_enum_with_title() {
                     },
                     "title": "admin",
                     "type": "object",
+                    "required": ["Admin"]
                 },
                 {
                     "properties": {
@@ -1530,6 +1563,7 @@ fn derive_complex_enum_with_title() {
                             "type": "object",
                         }
                     },
+                    "required": ["Moderator"],
                     "title": "moderator",
                     "type": "object",
                 },
@@ -1709,6 +1743,458 @@ fn derive_serde_flatten() {
                 ],
             },
             ]
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_serde_untagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Foo {
+            Bar(i32),
+            Baz(String),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "format": "int32",
+                    "type": "integer",
+                },
+                {
+                    "type": "string",
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_untagged() {
+    #[derive(Serialize)]
+    struct Foo {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Bar {
+            Baz(i32),
+            FooBar(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "format": "int32",
+                    "type": "integer",
+                },
+                {
+                    "$ref": "#/components/schemas/Foo",
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_untagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Foo {
+            One { n: i32 },
+            Two { bar: Bar },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                      "n": {
+                        "format": "int32",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "n"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                      "bar": {
+                        "$ref": "#/components/schemas/Bar"
+                      }
+                    },
+                    "required": [
+                      "bar"
+                    ],
+                    "type": "object"
+                }
+            ]
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_untagged_named_fields_rename_all() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Foo {
+            #[serde(rename_all = "camelCase")]
+            One { some_number: i32 },
+            #[serde(rename_all = "camelCase")]
+            Two { some_bar: Bar },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                      "someNumber": {
+                        "format": "int32",
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "someNumber"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                      "someBar": {
+                        "$ref": "#/components/schemas/Bar"
+                      }
+                    },
+                    "required": [
+                      "someBar"
+                    ],
+                    "type": "object"
+                }
+            ]
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_serde_adjacently_tagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Foo {
+            Bar(i32),
+            Baz(String),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Bar",
+                            ],
+                        },
+                        "content": {
+                            "format": "int32",
+                            "type": "integer",
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Baz",
+                            ]
+                        },
+                        "content": {
+                            "type": "string",
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_adjacently_tagged() {
+    #[derive(Serialize)]
+    struct Foo {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Bar {
+            Baz(i32),
+            FooBar(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Baz",
+                            ],
+                        },
+                        "content": {
+                            "type": "integer",
+                            "format": "int32",
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "FooBar",
+                            ],
+                        },
+                        "content": {
+                            "$ref": "#/components/schemas/Foo"
+                        },
+                    },
+                    "required": [
+                        "tag",
+                        "content"
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Foo {
+            One { n: i32 },
+            Two { bar: Bar },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "One",
+                            ],
+                        },
+                        "content": {
+                            "type": "object",
+                            "properties": {
+                                "n": {
+                                    "format": "int32",
+                                    "type": "integer",
+                                },
+                            },
+                            "required": [
+                                "n",
+                            ],
+                        },
+                    },
+                    "required": [
+                      "tag",
+                      "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Two",
+                            ],
+                        },
+                        "content": {
+                            "type": "object",
+                            "properties": {
+                                "bar": {
+                                    "$ref": "#/components/schemas/Bar",
+                                },
+                            },
+                            "required": [
+                                "bar",
+                            ],
+                        },
+                    },
+                    "required": [
+                      "tag",
+                      "content",
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
+        })
+    );
+}
+
+#[test]
+fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content")]
+        enum Foo {
+            #[serde(rename_all = "camelCase")]
+            One { some_number: i32 },
+            #[serde(rename_all = "camelCase")]
+            Two { some_bar: Bar },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "One",
+                            ],
+                        },
+                        "content": {
+                            "type": "object",
+                            "properties": {
+                                "someNumber": {
+                                    "format": "int32",
+                                    "type": "integer",
+                                },
+                            },
+                            "required": [
+                                "someNumber",
+                            ],
+                        },
+                    },
+                    "required": [
+                      "tag",
+                      "content"
+                    ],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "enum": [
+                                "Two",
+                            ],
+                        },
+                        "content": {
+                            "type": "object",
+                            "properties": {
+                                "someBar": {
+                                    "$ref": "#/components/schemas/Bar",
+                                },
+                            },
+                            "required": [
+                                "someBar",
+                            ],
+                        },
+                    },
+                    "required": [
+                      "tag",
+                      "content",
+                    ],
+                },
+            ],
+            "discriminator": {
+                "propertyName": "tag",
+            },
         })
     );
 }
@@ -1920,12 +2406,16 @@ fn derive_struct_xml_with_optional_vec() {
 #[cfg(feature = "chrono")]
 #[test]
 fn derive_component_with_chrono_feature() {
+    #![allow(deprecated)] // allow deprecated Date in tests as long as it is available from chrono
+    use chrono::{Date, DateTime, Duration, NaiveDate, Utc};
+
     let post = api_doc! {
         struct Post {
             id: i32,
             value: String,
             datetime: DateTime<Utc>,
             date: Date<Utc>,
+            naive_date: NaiveDate,
             duration: Duration,
         }
     };
@@ -1935,6 +2425,8 @@ fn derive_component_with_chrono_feature() {
         "properties.datetime.format" = r#""date-time""#, "Post datetime format"
         "properties.date.type" = r#""string""#, "Post date type"
         "properties.date.format" = r#""date""#, "Post date format"
+        "properties.naive_date.type" = r#""string""#, "Post date type"
+        "properties.naive_date.format" = r#""date""#, "Post date format"
         "properties.duration.type" = r#""string""#, "Post duration type"
         "properties.duration.format" = r#"null"#, "Post duration format"
         "properties.id.type" = r#""integer""#, "Post id type"
@@ -2222,15 +2714,31 @@ fn derive_parse_serde_field_attributes() {
             id: String,
             #[serde(skip)]
             _p: PhantomData<S>,
+            #[serde(skip_serializing)]
+            _p2: PhantomData<S>,
             long_field_num: i64,
         }
     };
 
-    assert_value! {post=>
-        "properties.uuid.type" = r#""string""#, "Post id type"
-        "properties.longFieldNum.type" = r#""integer""#, "Post long_field_num type"
-        "properties.longFieldNum.format" = r#""int64""#, "Post logn_field_num format"
-    }
+    assert_json_eq!(
+        post,
+        json!({
+            "properties": {
+                "longFieldNum": {
+                    "format": "int64",
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "uuid",
+                "longFieldNum"
+            ],
+            "type": "object"
+        })
+    )
 }
 
 #[test]
@@ -2331,6 +2839,50 @@ fn derive_component_with_aliases() {
     assert_value! {value=>
         "MyAlias.properties.bar.$ref" = r###""#/components/schemas/A""###, "MyAlias aliased property"
     }
+}
+
+#[test]
+fn derive_component_with_primitive_aliases() {
+    #[derive(Debug, OpenApi)]
+    #[openapi(components(schemas(BarString, BarInt)))]
+    struct ApiDoc;
+
+    #[derive(ToSchema)]
+    #[aliases(BarString = Bar<String>, BarInt = Bar<i32>)]
+    struct Bar<R> {
+        #[allow(dead_code)]
+        bar: R,
+    }
+
+    let doc = ApiDoc::openapi();
+    let doc_value = &serde_json::to_value(doc).unwrap();
+
+    let value = doc_value.pointer("/components/schemas").unwrap();
+
+    assert_json_eq!(
+        value,
+        json!({
+            "BarString": {
+                "properties": {
+                    "bar": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "required": ["bar"]
+            },
+            "BarInt": {
+                "properties": {
+                    "bar": {
+                        "type": "integer",
+                        "format": "int32",
+                    }
+               },
+                "type": "object",
+                "required": ["bar"]
+            }
+        })
+    )
 }
 
 #[test]
@@ -2453,6 +3005,7 @@ fn derive_component_with_complex_enum_lifetimes() {
                             "type": "object"
                         },
                     },
+                    "required": ["A"],
                     "type": "object"
                 },
                 {
@@ -2570,6 +3123,7 @@ fn derive_schema_for_repr_enum() {
     let value = api_doc! {
         #[derive(serde::Deserialize)]
         #[repr(i32)]
+        #[schema(example = 1, default = 0)]
         enum ExitCode {
             Error  = -1,
             Ok     = 0,
@@ -2577,10 +3131,15 @@ fn derive_schema_for_repr_enum() {
         }
     };
 
-    assert_value! {value=>
-        "enum" = r#"[-1,0,1]"#, "ExitCode enum variants"
-        "type" = r#""integer""#, "ExitCode enum type"
-    };
+    assert_json_eq!(
+        value,
+        json!({
+            "enum": [-1, 0, 1],
+            "type": "integer",
+            "default": 0,
+            "example": 1,
+        })
+    );
 }
 
 #[test]
@@ -2658,7 +3217,7 @@ fn derive_schema_for_skipped_repr_enum() {
             Error  = -1,
             Ok     = 0,
             #[serde(skip)]
-            Unknow = 1,
+            Unknown = 1,
         }
     };
 
@@ -2674,19 +3233,19 @@ fn derive_repr_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
         #[schema(default = repr_mode_default_fn)]
         #[repr(u16)]
-        enum ReprDefautlMode {
+        enum ReprDefaultMode {
             Mode1 = 0,
             Mode2
         }
     };
 
     assert_value! {mode=>
-        "default" = r#"1"#, "ReprDefautlMode default"
-        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
-        "type" = r#""integer""#, "ReprDefautlMode type"
+        "default" = r#"1"#, "ReprDefaultMode default"
+        "enum" = r#"[0,1]"#, "ReprDefaultMode enum variants"
+        "type" = r#""integer""#, "ReprDefaultMode type"
     };
     assert_value! {mode=>
-        "example" = Value::Null, "ReprDefautlMode example"
+        "example" = Value::Null, "ReprDefaultMode example"
     }
 }
 
@@ -2697,21 +3256,21 @@ fn repr_mode_default_fn() -> u16 {
 
 #[test]
 #[cfg(feature = "repr")]
-fn derive_repr_enum_with_with_custom_default_fn_and_exmaple() {
+fn derive_repr_enum_with_with_custom_default_fn_and_example() {
     let mode = api_doc! {
         #[schema(default = repr_mode_default_fn, example = 1)]
         #[repr(u16)]
-        enum ReprDefautlMode {
+        enum ReprDefaultMode {
             Mode1 = 0,
             Mode2
         }
     };
 
     assert_value! {mode=>
-        "default" = r#"1"#, "ReprDefautlMode default"
-        "enum" = r#"[0,1]"#, "ReprDefautlMode enum variants"
-        "type" = r#""integer""#, "ReprDefautlMode type"
-        "example" = r#"1"#, "ReprDefautlMode example"
+        "default" = r#"1"#, "ReprDefaultMode default"
+        "enum" = r#"[0,1]"#, "ReprDefaultMode enum variants"
+        "type" = r#""integer""#, "ReprDefaultMode type"
+        "example" = r#"1"#, "ReprDefaultMode example"
     };
 }
 
@@ -2767,8 +3326,6 @@ fn derive_struct_field_with_example() {
         }
     };
 
-    dbg!(&doc);
-
     assert_json_eq!(
         doc,
         json!({
@@ -2808,5 +3365,350 @@ fn derive_struct_field_with_example() {
             ],
             "type": "object"
         })
+    )
+}
+
+#[test]
+fn derive_struct_with_self_reference() {
+    let value = api_doc! {
+        struct Item {
+            id: String,
+            previous: Box<Self>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "string",
+                },
+                "previous": {
+                    "$ref": "#/components/schemas/Item",
+                },
+            },
+            "type": "object",
+            "required": ["id", "previous"]
+        })
+    )
+}
+
+#[test]
+fn derive_unnamed_struct_with_self_reference() {
+    let value = api_doc! {
+        struct Item(Box<Item>);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "$ref": "#/components/schemas/Item"
+        })
+    )
+}
+
+#[test]
+fn derive_enum_with_self_reference() {
+    let value = api_doc! {
+        enum EnumValue {
+            Item(Box<Self>),
+            Item2 {
+                value: Box<Self>
+            }
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "Item": {
+                            "$ref": "#/components/schemas/EnumValue"
+                        }
+                    },
+                    "type": "object",
+                    "required": ["Item"],
+                },
+                {
+                    "properties": {
+                        "Item2": {
+                            "properties": {
+                                "value": {
+                                    "$ref": "#/components/schemas/EnumValue"
+                                }
+                            },
+                            "required": ["value"],
+                            "type": "object",
+                        }
+                    },
+                    "required": ["Item2"],
+                    "type": "object",
+                }
+            ]
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_validation_fields() {
+    let value = api_doc! {
+        struct Item {
+            #[schema(maximum = 10, minimum = 5, multiple_of = 2.5)]
+            id: i32,
+
+            #[schema(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+            value: String,
+
+            #[schema(max_items = 5, min_items = 1, min_length = 1)]
+            items: Vec<String>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "format": "int32",
+                    "type": "integer",
+                    "maximum": 10.0,
+                    "minimum": 5.0,
+                    "multipleOf": 2.5,
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 5,
+                    "pattern": "[a-z]*"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1,
+                    },
+                    "maxItems": 5,
+                    "minItems": 1,
+                }
+            },
+            "type": "object",
+            "required": [
+                "id",
+                "value",
+                "items"
+            ]
+        })
+    );
+}
+
+#[test]
+fn derive_schema_with_slice_and_array() {
+    let value = api_doc! {
+        struct Item<'a> {
+            array: [&'a str; 10],
+            slice: &'a [&'a str],
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "slice": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "array",
+                "slice"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_schema_multiple_serde_definitions() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        struct Value {
+            #[serde(default)]
+            #[serde(rename = "ID")]
+            id: String
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "ID": {
+                    "type": "string",
+                }
+            },
+            "type": "object",
+        })
+    );
+}
+
+#[test]
+fn derive_schema_with_custom_field_with_schema() {
+    fn custom_type() -> Object {
+        ObjectBuilder::new()
+            .schema_type(utoipa::openapi::SchemaType::String)
+            .format(Some(utoipa::openapi::SchemaFormat::Custom(
+                "email".to_string(),
+            )))
+            .description(Some("this is the description"))
+            .build()
+    }
+    let value = api_doc! {
+        struct Value {
+            #[schema(schema_with = custom_type)]
+            id: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "description": "this is the description",
+                    "type": "string",
+                    "format": "email"
+                }
+            },
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_unit_struct_schema() {
+    let value = api_doc! {
+        struct UnitValue;
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "nullable": true,
+            "default": null,
+        })
+    )
+}
+
+#[test]
+fn derive_schema_with_multiple_schema_attributes() {
+    let value = api_doc! {
+        struct UserName {
+            #[schema(min_length = 5)]
+            #[schema(max_length = 10)]
+            name: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 10,
+                }
+            },
+            "required": ["name"]
+        })
+    )
+}
+
+#[test]
+fn derive_schema_with_generics_and_lifetimes() {
+    struct TResult;
+
+    let value = api_doc_aliases! {
+        #[aliases(Paginated1<'b> = Paginated<'b, String>, Paginated2 = Paginated<'b, Value>)]
+        struct Paginated<'r, TResult> {
+            pub total: usize,
+            pub data: Vec<TResult>,
+            pub next: Option<&'r str>,
+            pub prev: Option<&'r str>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!([
+            [
+                "Paginated1",
+                {
+                    "properties": {
+                        "data": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                    },
+                    "next": {
+                        "type": "string"
+                    },
+                    "prev": {
+                        "type": "string"
+                    },
+                    "total": {
+                        "type": "integer"
+                     }
+                    },
+                    "required": [
+                        "total",
+                        "data"
+                    ],
+                    "type": "object"
+                }
+            ],
+            [
+                "Paginated2",
+                {
+                    "properties": {
+                        "data": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/Value",
+                            }
+                        },
+                        "next": {
+                            "type": "string"
+                        },
+                        "prev": {
+                            "type": "string"
+                        },
+                        "total": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "total",
+                        "data"
+                    ],
+                    "type": "object"
+                }
+            ]
+        ])
     )
 }

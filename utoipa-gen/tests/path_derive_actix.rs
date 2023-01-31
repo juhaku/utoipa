@@ -1,4 +1,4 @@
-#![cfg(all(feature = "actix_extras", feature = "json"))]
+#![cfg(feature = "actix_extras")]
 
 use actix_web::web::{Path, Query};
 use serde::{Deserialize, Serialize};
@@ -50,7 +50,7 @@ fn derive_path_one_value_actix_success() {
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#""Foo id""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int32""#, "Parameter schema format"
     };
@@ -93,7 +93,7 @@ fn derive_path_with_unnamed_regex_actix_success() {
         "[0].name" = r#""arg0""#, "Parameter name"
         "[0].description" = r#""Foo path unnamed regex tail""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""string""#, "Parameter schema type"
         "[0].schema.format" = r#"null"#, "Parameter schema format"
     };
@@ -137,7 +137,7 @@ fn derive_path_with_named_regex_actix_success() {
         "[0].name" = r#""tail""#, "Parameter name"
         "[0].description" = r#""Foo path named regex tail""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""string""#, "Parameter schema type"
         "[0].schema.format" = r#"null"#, "Parameter schema format"
     };
@@ -177,7 +177,7 @@ fn derive_path_with_multiple_args() {
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#"null"#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int64""#, "Parameter schema format"
 
@@ -185,7 +185,7 @@ fn derive_path_with_multiple_args() {
         "[1].name" = r#""digest""#, "Parameter name"
         "[1].description" = r#"null"#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
-        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
     };
@@ -246,7 +246,7 @@ fn derive_complex_actix_web_path() {
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#"null"#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int64""#, "Parameter schema format"
     };
@@ -290,7 +290,7 @@ fn derive_path_with_multiple_args_with_descriptions() {
         "[0].name" = r#""id""#, "Parameter name"
         "[0].description" = r#""Foo id""#, "Parameter description"
         "[0].required" = r#"true"#, "Parameter required"
-        "[0].deprecated" = r#"false"#, "Parameter deprecated"
+        "[0].deprecated" = r#"null"#, "Parameter deprecated"
         "[0].schema.type" = r#""integer""#, "Parameter schema type"
         "[0].schema.format" = r#""int64""#, "Parameter schema format"
 
@@ -298,7 +298,7 @@ fn derive_path_with_multiple_args_with_descriptions() {
         "[1].name" = r#""digest""#, "Parameter name"
         "[1].description" = r#""Foo digest""#, "Parameter description"
         "[1].required" = r#"true"#, "Parameter required"
-        "[1].deprecated" = r#"false"#, "Parameter deprecated"
+        "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
         "[1].schema.format" = r#"null"#, "Parameter schema format"
     };

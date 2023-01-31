@@ -24,7 +24,11 @@ impl HttpServiceFactory for SwaggerUi {
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
             .app_data(Data::new(if let Some(config) = self.config {
-                config.configure_defaults(urls)
+                if config.url.is_some() || !config.urls.is_empty() {
+                    config
+                } else {
+                    config.configure_defaults(urls)
+                }
             } else {
                 Config::new(urls)
             }))
@@ -47,7 +51,7 @@ fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web
 }
 
 async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) -> HttpResponse {
-    match super::serve(&*path.into_inner(), data.into_inner()) {
+    match super::serve(&path.into_inner(), data.into_inner()) {
         Ok(swagger_file) => swagger_file
             .map(|file| {
                 HttpResponse::Ok()

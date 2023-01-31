@@ -1,3 +1,4 @@
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 //! This crate implements necessary boiler plate code to serve Swagger UI via web server. It
 //! works as a bridge for serving the OpenAPI documentation created with [`utoipa`][utoipa] library in the
 //! Swagger UI.
@@ -7,8 +8,8 @@
 //! **Currently implemented boiler plate for:**
 //!
 //! * **actix-web** `version >= 4`
-//! * **rocket** `version >=0.5.0-rc.1`
-//! * **axum** `version >=0.5`
+//! * **rocket** `version >=0.5.0-rc.2`
+//! * **axum** `version >=0.6`
 //!
 //! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -16,14 +17,14 @@
 //!
 //! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
 //!
-//! # Features
+//! # Crate Features
 //!
 //! * **actix-web** Enables `actix-web` integration with pre-configured SwaggerUI service factory allowing
 //!   users to use the Swagger UI without a hassle.
 //! * **rocket** Enables `rocket` integration with with pre-configured routes for serving the Swagger UI
 //!   and api doc without a hassle.
 //! * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
-//!   hazzle free.
+//!   hassle free.
 //! * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
 //!   builds as well.
 //!
@@ -32,13 +33,13 @@
 //! Use only the raw types without any boiler plate implementation.
 //! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = "2"
+//! utoipa-swagger-ui = "3"
 //!
 //! ```
 //! Enable actix-web framework with Swagger UI you could define the dependency as follows.
 //! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = { version = "2", features = ["actix-web"] }
+//! utoipa-swagger-ui = { version = "3", features = ["actix-web"] }
 //! ```
 //!
 //! **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
@@ -46,7 +47,7 @@
 //! # Examples
 //!
 //! Serve Swagger UI with api doc via **`actix-web`**. See full example from
-//! [exmaples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
+//! [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 //! ```no_run
 //! # use actix_web::{App, HttpServer};
 //! # use utoipa_swagger_ui::SwaggerUi;
@@ -98,12 +99,13 @@
 //!# #[openapi()]
 //!# struct ApiDoc;
 //!#
-//!# fn inner<B>()
+//!# fn inner<S, B>()
 //!# where
 //!#     B: HttpBody + Send + 'static,
+//!#     S: Clone + Send + Sync + 'static,
 //!# {
-//! let app = Router::<B>::new()
-//!     .merge(SwaggerUi::new("/swagger-ui/*tail")
+//! let app = Router::<S, B>::new()
+//!     .merge(SwaggerUi::new("/swagger-ui")
 //!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 //!# }
 //! ```
@@ -125,8 +127,6 @@ struct SwaggerUiDist;
 
 /// Entry point for serving Swagger UI and api docs in application. It uses provides
 /// builder style chainable configuration methods for configuring api doc urls.
-///
-/// Currently _**`actix-web, rocket, axum`**_ frameworks supports [`SwaggerUi`] type.
 ///
 /// # Examples
 ///
@@ -157,6 +157,10 @@ struct SwaggerUiDist;
 #[non_exhaustive]
 #[derive(Clone)]
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg_attr(
+    doc_cfg,
+    doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+)]
 pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
@@ -164,6 +168,10 @@ pub struct SwaggerUi {
 }
 
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg_attr(
+    doc_cfg,
+    doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+)]
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
     ///
@@ -432,7 +440,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// );
 /// ```
 #[non_exhaustive]
-#[derive(Default, Serialize, Clone)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Config<'a> {
     /// Url to fetch external configuration from.
@@ -561,9 +569,6 @@ impl<'a> Config<'a> {
 
         Self {
             oauth: oauth_config,
-            deep_linking: Some(true),
-            dom_id: Some("#swagger-ui".to_string()),
-            layout: SWAGGER_STANDALONE_LAYOUT,
             ..if urls_len == 1 {
                 Self::new_config_with_single_url(urls)
             } else {
@@ -622,6 +627,10 @@ impl<'a> Config<'a> {
 
     /// Constructs a new [`Config`] from [`Iterator`] of [`Url`]s.
     ///
+    /// [`Url`]s provided to the [`Config`] will only change the urls Swagger UI is going to use to
+    /// fetch the API document. This does not change the URL that is defined with [`SwaggerUi::url`]
+    /// or [`SwaggerUi::urls`] which defines the URL the API document is exposed from.
+    ///
     /// # Examples
     /// Create new config with 2 api doc urls.
     /// ```rust
@@ -658,6 +667,10 @@ impl<'a> Config<'a> {
     ///
     /// Current config will be returned with configured default values.
     #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg_attr(
+        doc_cfg,
+        doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+    )]
     fn configure_defaults<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(mut self, urls: I) -> Self {
         let Config {
             dom_id,
@@ -681,7 +694,7 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// Set extneral config url.
+    /// Set external config url.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
     /// let config = Config::new(["/api-doc/openapi.json"])
@@ -822,7 +835,7 @@ impl<'a> Config<'a> {
 
     /// Add `default_model_rendering` to set how models is show when API is first rendered.
     ///
-    /// The user can always switch the rendering for given model by cliking the `Model` and `Example Value` links.
+    /// The user can always switch the rendering for given model by clicking the `Model` and `Example Value` links.
     ///
     /// * `example` Makes example rendered first by default.
     /// * `model` Makes model rendered first by default.
@@ -1033,7 +1046,7 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// Set allowed http methods explisitly.
+    /// Set allowed http methods explicitly.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
     /// let config = Config::new(["/api-doc/openapi.json"])
@@ -1124,6 +1137,40 @@ impl<'a> Config<'a> {
     }
 }
 
+impl Default for Config<'_> {
+    fn default() -> Self {
+        Self {
+            config_url: Default::default(),
+            dom_id: Some("#swagger-ui".to_string()),
+            url: Default::default(),
+            urls_primary_name: Default::default(),
+            urls: Default::default(),
+            query_config_enabled: Default::default(),
+            deep_linking: Some(true),
+            display_operation_id: Default::default(),
+            default_models_expand_depth: Default::default(),
+            default_model_expand_depth: Default::default(),
+            default_model_rendering: Default::default(),
+            display_request_duration: Default::default(),
+            doc_expansion: Default::default(),
+            filter: Default::default(),
+            max_displayed_tags: Default::default(),
+            show_extensions: Default::default(),
+            show_common_extensions: Default::default(),
+            try_it_out_enabled: Default::default(),
+            request_snippets_enabled: Default::default(),
+            oauth2_redirect_url: Default::default(),
+            show_mutated_request: Default::default(),
+            supported_submit_methods: Default::default(),
+            validator_url: Default::default(),
+            with_credentials: Default::default(),
+            persist_authorization: Default::default(),
+            oauth: Default::default(),
+            layout: SWAGGER_STANDALONE_LAYOUT,
+        }
+    }
+}
+
 impl<'a> From<&'a str> for Config<'a> {
     fn from(s: &'a str) -> Self {
         Self::new([s])
@@ -1149,14 +1196,13 @@ pub struct SwaggerFile<'a> {
 /// User friendly way to serve Swagger UI and its content via web server.
 ///
 /// * **path** Should be the relative path to Swagger UI resource within the web server.
-/// * **config** Swagger [`Config`] to use for the Swagger UI. Currently supported configuration
-///   options are managing [`Url`]s.
+/// * **config** Swagger [`Config`] to use for the Swagger UI.
 ///
-/// Typically this function is implemented _**within**_ handler what handles _**GET**_ operations related to the
-/// Swagger UI. Handler itself must match to user defined path that points to the root of the Swagger UI and
-/// matches everything relatively from the root of the Swagger UI. The relative path from root of the Swagger UI
-/// must be taken to `tail` path variable which is used to serve [`SwaggerFile`]s. If Swagger UI
-/// is served from path `/swagger-ui/` then the `tail` is everything under the `/swagger-ui/` prefix.
+/// Typically this function is implemented _**within**_ handler what serves the Swagger UI. Handler itself must
+/// match to user defined path that points to the root of the Swagger UI and match everything relatively
+/// from the root of the Swagger UI _**(tail path)**_. The relative path from root of the Swagger UI
+/// is used to serve [`SwaggerFile`]s. If Swagger UI is served from path `/swagger-ui/` then the `tail`
+/// is everything under the `/swagger-ui/` prefix.
 ///
 /// _There are also implementations in [examples of utoipa repository][examples]._
 ///
@@ -1164,7 +1210,7 @@ pub struct SwaggerFile<'a> {
 ///
 /// # Examples
 ///
-/// Reference implementation with `actix-web`.
+/// _**Reference implementation with `actix-web`.**_
 /// ```rust
 /// # use actix_web::HttpResponse;
 /// # use std::sync::Arc;
@@ -1172,21 +1218,24 @@ pub struct SwaggerFile<'a> {
 /// // The config should be created in main function or in initialization before
 /// // creation of the handler which will handle serving the Swagger UI.
 /// let config = Arc::new(Config::from("/api-doc.json"));
+///
 /// // This "/" is for demonstrative purposes only. The actual path should point to
 /// // file within Swagger UI. In real implementation this is the `tail` path from root of the
 /// // Swagger UI to the file served.
-/// let path = "/";
+/// let tail_path = "/";
 ///
-/// match utoipa_swagger_ui::serve(path, config) {
-///     Ok(swagger_file) => swagger_file
-///         .map(|file| {
-///             HttpResponse::Ok()
-///                 .content_type(file.content_type)
-///                 .body(file.bytes.to_vec())
-///         })
-///         .unwrap_or_else(|| HttpResponse::NotFound().finish()),
-///     Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
-/// };
+/// fn get_swagger_ui(tail_path: String, config: Arc<Config>) -> HttpResponse {
+///   match utoipa_swagger_ui::serve(tail_path.as_ref(), config) {
+///       Ok(swagger_file) => swagger_file
+///           .map(|file| {
+///               HttpResponse::Ok()
+///                   .content_type(file.content_type)
+///                   .body(file.bytes.to_vec())
+///           })
+///           .unwrap_or_else(|| HttpResponse::NotFound().finish()),
+///       Err(error) => HttpResponse::InternalServerError().body(error.to_string()),
+///   }
+/// }
 /// ```
 pub fn serve<'a>(
     path: &str,

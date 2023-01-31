@@ -1,37 +1,38 @@
 [package]
 name = "utoipa-swagger-ui"
 description = "Swagger UI for utoipa"
-version = "2.0.2"
+version = "3.0.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["swagger-ui", "openapi", "documentation"]
 repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
-authors = [
-  "Juha Kukkonen <juha7kukkonen@gmail.com>"
-]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 
 [features]
 debug = []
 debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
-rust-embed = { version = "6.3", features = ["interpolate-folder-path"] }
+rust-embed = { version = "6.4", features = ["interpolate-folder-path"] }
 mime_guess = { version = "2.0" }
-actix-web =  { version = "4", features = [ "macros" ], optional = true, default-features = false }
-rocket = { version = "0.5.0-rc.1", features = ["json"], optional = true }
-axum = { version = "0.5", optional = true }
-utoipa = { version = "2", path = "../utoipa", default-features = false, features = [] }
+actix-web = { version = "4", features = [
+    "macros",
+], optional = true, default-features = false }
+rocket = { version = "0.5.0-rc.2", features = ["json"], optional = true }
+axum = { version = "0.6", optional = true }
+utoipa = { version = "3", path = "../utoipa" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 
 [dev-dependencies]
-similar = "2.1"
+similar = "2.2"
 
 [package.metadata.docs.rs]
-features = ["actix-web", "rocket"]
+features = ["actix-web", "axum", "rocket"]
+rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
 zip = { version = "0.6", default-features = false, features = ["deflate"] }
-regex = "1.5"  
+regex = "1.7"

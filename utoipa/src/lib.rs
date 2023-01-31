@@ -1,3 +1,4 @@
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 //! Want to have your API documented with OpenAPI? But you don't want to see the
 //! trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
 //! be like utopic? Don't worry utoipa is just there to fill this gap. It aims to do if not all then
@@ -39,25 +40,22 @@
 //! The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
 //! and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer.
 //!
-//! # Features
+//! # Crate Features
 //!
-//! * **default** Default enabled features are **json**.
-//! * **json** Enables **serde_json** serialization of OpenAPI objects which also allows usage of JSON within
-//!   OpenAPI values e.g. within `example` value. This is enabled by default.
 //! * **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
 //! * **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
-//!   parse `path` and `path and query parameters` from actix web path attribute macros. See [actix extras support][actix_path] or
+//!   parse `path`, `path` and `query` parameters from actix web path attribute macros. See [actix extras support][actix_path] or
 //!   [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
 //! * **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
-//!   able to parse `path`, `path and query parameters` from rocket path attribute macros. See [rocket extras support][rocket_path]
+//!   able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [rocket extras support][rocket_path]
 //!   or [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details
 //! * **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams`
 //!   without defining the `parameter_in` attribute. See [axum extras support][axum_path]
 //!   or [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
-//! * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date` and `Duration`
+//! * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
 //!   types. By default these types are parsed to `string` types with additional `format` information.
-//!   `format: date-time` for `DateTime` and `format: date` for `Date` according
+//!   `format: date-time` for `DateTime` and `format: date` for `Date` and `NaiveDate` according
 //!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To
 //!   override default `string` representation users have to use `value_type` attribute to override the type.
 //!   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
@@ -76,6 +74,9 @@
 //!   [`response`](https://docs.rs/utoipa/latest/utoipa/openapi/response/index.html) docs for examples.
 //! * **repr** Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
 //!   C-like enum representation. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
+//! * **preserve_order** Preserve order of properties when serializing the schema for a component.
+//!   When enabled, the properties are listed in order of fields in the corresponding struct definition.
+//!   When disabled, the properties are listed in alphabetical order.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
 //!
@@ -84,14 +85,14 @@
 //! Add minimal dependency declaration to Cargo.toml.
 //! ```toml
 //! [dependencies]
-//! utoipa = "2"
+//! utoipa = "3"
 //! ```
 //!
 //! To enable more features such as use actix framework extras you could define the
 //! dependency as follows.
 //! ```toml
 //! [dependencies]
-//! utoipa = { version = "2", features = ["actix_extras"] }
+//! utoipa = { version = "3", features = ["actix_extras"] }
 //! ```
 //!
 //! **Note!** To use `utoipa` together with Swagger UI you can use the [`utoipa-swagger-ui`][utoipa_swagger] crate.
@@ -132,7 +133,7 @@
 //!         path = "/pets/{id}",
 //!         responses(
 //!             (status = 200, description = "Pet found successfully", body = Pet),
-//!             (status = 404, description = "Pet was not found")
+//!             (status = NOT_FOUND, description = "Pet was not found")
 //!         ),
 //!         params(
 //!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
@@ -147,6 +148,7 @@
 //!     }
 //! }
 //! ```
+//! Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 //!
 //! Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
 //! ```rust
@@ -197,17 +199,51 @@
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 //! ```
+//!
+//! # Modify OpenAPI at runtime
+//!
+//! You can modify generated OpenAPI at runtime either via generated types directly or using
+//! [`Modify`] trait.
+//!
+//! _**Modify generated OpenAPI via types directly.**_
+//! ```rust
+//! # use utoipa::OpenApi;
+//! #[derive(OpenApi)]
+//! #[openapi(
+//!     info(description = "My Api description"),
+//! )]
+//! struct ApiDoc;
+//!
+//! let mut doc = ApiDoc::openapi();
+//! doc.info.title = String::from("My Api");
+//! ```
+//!
+//! _**You can even convert the generated [`OpenApi`] to [`openapi::OpenApiBuilder`].**_
+//! ```rust
+//! # use utoipa::openapi::OpenApiBuilder;
+//! # use utoipa::OpenApi;
+//! #[derive(OpenApi)]
+//! #[openapi(
+//!     info(description = "My Api description"),
+//! )]
+//! struct ApiDoc;
+//!
+//! let builder: OpenApiBuilder = ApiDoc::openapi().into();
+//! ```
+//!
+//! See [`Modify`] trait for examples on how to modify generated OpenAPI via it.
+//!
 //! # Go beyond the surface
 //!
 //! * See how to serve OpenAPI doc via Swagger UI check [`utoipa-swagger-ui`][utoipa_swagger] crate for more details.
 //! * Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
-//! * Modify generated OpenAPI at runtime check [`Modify`] trait for more details.
+//! * Check [`derive@IntoResponses`] and [`derive@ToResponse`] for examples on deriving responses.
 //! * More about OpenAPI security in [security documentation][security].
 //!
 //! [path]: attr.path.html
 //! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
 //! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
-//! [axum_path]: attr.path.html#axum_extras-suppport-for-axum
+//! [axum_path]: attr.path.html#axum_extras-support-for-axum
 //! [serde]: derive.ToSchema.html#partial-serde-attributes-support
 //!
 //! [security]: openapi/security/index.html
@@ -217,8 +253,6 @@ pub mod openapi;
 
 use std::collections::BTreeMap;
 
-use crate::openapi::schema::RefOr;
-use openapi::Response;
 pub use utoipa_gen::*;
 
 /// Trait for implementing OpenAPI specification in Rust.
@@ -271,6 +305,8 @@ pub trait OpenApi {
 
 /// Trait for implementing OpenAPI Schema object.
 ///
+/// Generated schemas can be referenced or reused in path operations.
+///
 /// This trait is derivable and can be used with `[#derive]` attribute. For a details of
 /// `#[derive(ToSchema)]` refer to [derive documentation][derive].
 ///
@@ -298,39 +334,52 @@ pub trait OpenApi {
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl utoipa::ToSchema for Pet {
-///     fn schema() -> utoipa::openapi::schema::Schema {
-///         use utoipa::openapi::ToArray;
-///         utoipa::openapi::ObjectBuilder::new()
-///             .property(
-///                 "id",
-///                 utoipa::openapi::ObjectBuilder::new()
-///                     .schema_type(utoipa::openapi::SchemaType::Integer)
-///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64))),
-///             )
-///             .required("id")
-///             .property(
-///                 "name",
-///                 utoipa::openapi::Object::with_type(utoipa::openapi::SchemaType::String),
-///             )
-///             .required("name")
-///             .property(
-///                 "age",
-///                 utoipa::openapi::ObjectBuilder::new()
-///                     .schema_type(utoipa::openapi::SchemaType::Integer)
-///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32))),
-///             )
-///             .example(Some(serde_json::json!({
-///               "name": "bob the cat", "id": 1
-///             })))
-///             .into()
+/// impl<'__s> utoipa::ToSchema<'__s> for Pet {
+///     fn schema() -> (&'__s str, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>) {
+///          (
+///             "Pet",
+///             utoipa::openapi::ObjectBuilder::new()
+///                 .property(
+///                     "id",
+///                     utoipa::openapi::ObjectBuilder::new()
+///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+///                             utoipa::openapi::KnownFormat::Int64,
+///                         ))),
+///                 )
+///                 .required("id")
+///                 .property(
+///                     "name",
+///                     utoipa::openapi::ObjectBuilder::new()
+///                         .schema_type(utoipa::openapi::SchemaType::String),
+///                 )
+///                 .required("name")
+///                 .property(
+///                     "age",
+///                     utoipa::openapi::ObjectBuilder::new()
+///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+///                             utoipa::openapi::KnownFormat::Int32,
+///                         ))),
+///                 )
+///                 .example(Some(serde_json::json!({
+///                   "name":"bob the cat","id":1
+///                 })))
+///                 .into(),
+///         )
 ///     }
 /// }
 /// ```
-pub trait ToSchema {
-    fn schema() -> openapi::schema::Schema;
+pub trait ToSchema<'__s> {
+    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
+    /// name or inlined directly to responses, request bodies or parameters.
+    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
 
-    fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
+    /// Optional set of alias schemas for the [`ToSchema::schema`].
+    ///
+    /// Typically there is no need to manually implement this method but it is instead implemented
+    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
+    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
         Vec::new()
     }
 }
@@ -566,7 +615,7 @@ pub trait IntoParams {
 /// ```
 /// use std::collections::BTreeMap;
 /// use utoipa::{
-///     openapi::{Response, ResponseBuilder, ResponsesBuilder, schema::RefOr},
+///     openapi::{Response, ResponseBuilder, ResponsesBuilder, RefOr},
 ///     IntoResponses,
 /// };
 ///
@@ -587,32 +636,36 @@ pub trait IntoParams {
 /// ```
 pub trait IntoResponses {
     /// Returns an ordered map of response codes to responses.
-    fn responses() -> BTreeMap<String, RefOr<Response>>;
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>>;
 }
 
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///
+/// _`ToResponse`_ trait can also be derived with [`#[derive(ToResponse)]`][derive].
+///
 /// # Examples
 ///
 /// ```
 /// use utoipa::{
-///     openapi::{Response, ResponseBuilder},
+///     openapi::{RefOr, Response, ResponseBuilder},
 ///     ToResponse,
 /// };
 ///
 /// struct MyResponse;
 ///
-/// impl ToResponse for MyResponse {
-///     fn response() -> (String, Response) {
+/// impl<'__r> ToResponse<'__r> for MyResponse {
+///     fn response() -> (&'__r str, RefOr<Response>) {
 ///         (
-///             "MyResponse".to_string(),
-///             ResponseBuilder::new().description("My Response").build(),
+///             "MyResponse",
+///             ResponseBuilder::new().description("My Response").build().into(),
 ///         )
 ///     }
 /// }
 /// ```
-pub trait ToResponse {
-    /// Returns a map of response component name (to be referenced) to a response.
-    fn response() -> (String, Response);
+///
+/// [derive]: derive.ToResponse.html
+pub trait ToResponse<'__r> {
+    /// Returns a tuple of response component name (to be referenced) to a response.
+    fn response() -> (&'__r str, openapi::RefOr<openapi::response::Response>);
 }

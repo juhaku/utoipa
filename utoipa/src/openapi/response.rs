@@ -6,8 +6,7 @@ use std::collections::BTreeMap;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::openapi::schema::RefOr;
-use crate::openapi::Ref;
+use crate::openapi::{Ref, RefOr};
 use crate::IntoResponses;
 
 use super::{builder, header::Header, set_value, Content};
@@ -21,7 +20,7 @@ builder! {
     ///
     /// [responses]: https://spec.openapis.org/oas/latest.html#responses-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Responses {
@@ -51,15 +50,17 @@ impl ResponsesBuilder {
 
     /// Add responses from an iterator over a pair of `(status_code, response): (String, Response)`.
     pub fn responses_from_iter<
-        I: Iterator<Item = (C, R)>,
+        I: IntoIterator<Item = (C, R)>,
         C: Into<String>,
         R: Into<RefOr<Response>>,
     >(
         mut self,
         iter: I,
     ) -> Self {
-        self.responses
-            .extend(iter.map(|(code, response)| (code.into(), response.into())));
+        self.responses.extend(
+            iter.into_iter()
+                .map(|(code, response)| (code.into(), response.into())),
+        );
         self
     }
 
@@ -100,7 +101,7 @@ builder! {
     ///
     /// [response]: https://spec.openapis.org/oas/latest.html#response-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Response {
@@ -167,65 +168,49 @@ impl From<Ref> for RefOr<Response> {
 
 /// Trait with convenience functions for documenting response bodies.
 ///
-/// This trait requires a feature-flag to enable:
-/// ```text
-/// [dependencies]
-/// utoipa = { version = "1", features = ["openapi_extensions"] }
-/// ```
+/// With a single method call we can add [`Content`] to our [`ResponseBuilder`] and [`Response`]
+/// that references a [schema][schema] using content-type `"application/json"`.
 ///
-/// Once enabled, with a single method call we can add [`Content`] to our ResponseBuilder
-/// that references a responses (or component) schema using content-tpe "application/json":
-///
+/// _**Add json response from schema ref.**_
 /// ```rust
 /// use utoipa::openapi::response::{ResponseBuilder, ResponseExt};
 ///
 /// let request = ResponseBuilder::new()
 ///     .description("A sample response")
-///     .json_response_ref("MyResponsePayload").build();
-/// // Alternately for component, use
-/// // let request = ResponseBuilder::new().json_component_ref("MyResponsePayload").build();
+///     .json_schema_ref("MyResponsePayload").build();
 /// ```
 ///
-/// If serialized to JSON, the above will result in a response schema like this:
-///
+/// If serialized to JSON, the above will result in a response schema like this.
 /// ```json
 /// {
 ///   "description": "A sample response",
 ///   "content": {
 ///     "application/json": {
 ///       "schema": {
-///         "$ref": "#/components/responses/MyResponsePayload"
+///         "$ref": "#/components/schemas/MyResponsePayload"
 ///       }
 ///     }
 ///   }
 /// }
 /// ```
 ///
+/// [response]: crate::ToResponse
+/// [schema]: crate::ToSchema
+///
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 pub trait ResponseExt {
-    /// Add [`Content`] to [`Response`] referring to a schema
+    /// Add [`Content`] to [`Response`] referring to a _`schema`_
     /// with Content-Type `application/json`.
-    fn json_component_ref(self, ref_name: &str) -> Self;
-
-    /// Add [`Content`] to [`Response`] referring to a response
-    /// with Content-Type `application/json`.
-    fn json_response_ref(self, ref_name: &str) -> Self;
+    fn json_schema_ref(self, ref_name: &str) -> Self;
 }
 
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for Response {
-    fn json_component_ref(mut self, ref_name: &str) -> Response {
+    fn json_schema_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
             Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
-        );
-        self
-    }
-
-    fn json_response_ref(mut self, ref_name: &str) -> Response {
-        self.content.insert(
-            "application/json".to_string(),
-            Content::new(crate::openapi::Ref::from_response_name(ref_name)),
         );
         self
     }
@@ -233,17 +218,10 @@ impl ResponseExt for Response {
 
 #[cfg(feature = "openapi_extensions")]
 impl ResponseExt for ResponseBuilder {
-    fn json_component_ref(self, ref_name: &str) -> ResponseBuilder {
+    fn json_schema_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
             "application/json",
             Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
-        )
-    }
-
-    fn json_response_ref(self, ref_name: &str) -> ResponseBuilder {
-        self.content(
-            "application/json",
-            Content::new(crate::openapi::Ref::from_response_name(ref_name)),
         )
     }
 }
@@ -267,7 +245,7 @@ mod tests {
             .description("A sample response")
             .content(
                 "application/json",
-                Content::new(crate::openapi::Ref::from_response_name("MyResponsePayload")),
+                Content::new(crate::openapi::Ref::from_schema_name("MySchemaPayload")),
             )
             .build();
         let serialized = serde_json::to_string_pretty(&request_body)?;
@@ -279,7 +257,7 @@ mod tests {
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/responses/MyResponsePayload"
+                    "$ref": "#/components/schemas/MySchemaPayload"
                   }
                 }
               }
@@ -287,16 +265,23 @@ mod tests {
         );
         Ok(())
     }
-    #[cfg(feature = "openapi_extensions")]
+}
+
+#[cfg(all(test, feature = "openapi_extensions"))]
+mod openapi_extensions_tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use crate::openapi::ResponseBuilder;
+
     use super::ResponseExt;
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn response_ext() {
         let request_body = ResponseBuilder::new()
             .description("A sample response")
             .build()
-            .json_response_ref("MyResponsePayload");
+            .json_schema_ref("MySchemaPayload");
 
         assert_json_eq!(
             request_body,
@@ -305,7 +290,7 @@ mod tests {
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/responses/MyResponsePayload"
+                    "$ref": "#/components/schemas/MySchemaPayload"
                   }
                 }
               }
@@ -313,12 +298,11 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn response_builder_ext() {
         let request_body = ResponseBuilder::new()
             .description("A sample response")
-            .json_response_ref("MyResponsePayload")
+            .json_schema_ref("MySchemaPayload")
             .build();
         assert_json_eq!(
             request_body,
@@ -327,7 +311,7 @@ mod tests {
               "content": {
                 "application/json": {
                   "schema": {
-                    "$ref": "#/components/responses/MyResponsePayload"
+                    "$ref": "#/components/schemas/MySchemaPayload"
                   }
                 }
               }

@@ -8,7 +8,7 @@ use regex::{Captures, Regex};
 use syn::{parse::Parse, LitStr, Token};
 
 use crate::{
-    component::{GenericType, TypeTree, ValueType},
+    component::ValueType,
     ext::{ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument},
     path::PathOperation,
 };
@@ -62,14 +62,10 @@ impl ArgumentResolver for PathOperations {
 }
 
 fn to_value_arg((arg, argument_in): (FnArg, ArgumentIn)) -> ValueArgument {
-    let (is_option, is_vec) = is_option_or_vec(&arg.ty);
-
     ValueArgument {
-        type_path: get_value_type(arg.ty),
+        type_tree: Some(arg.ty),
         argument_in,
-        name: Some(Cow::Owned(arg.name.to_string())),
-        is_array: is_vec,
-        is_option,
+        name: Some(Cow::Owned(arg.arg_type.get_name().to_string())),
     }
 }
 
@@ -80,11 +76,9 @@ fn to_anonymous_value_arg<'a>(macro_arg: MacroArg) -> ValueArgument<'a> {
     };
 
     ValueArgument {
-        type_path: None,
+        type_tree: None,
         argument_in,
         name: Some(Cow::Owned(name)),
-        is_array: false,
-        is_option: false,
     }
 }
 
@@ -94,14 +88,14 @@ fn with_parameter_in(
     move |arg: FnArg| {
         let parameter_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
-                if arg.name == &*path.name {
+                if arg.arg_type.get_name() == &*path.name {
                     Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Path) })
                 } else {
                     None
                 }
             }
             MacroArg::Query(query) => {
-                if arg.name == &*query.name {
+                if arg.arg_type.get_name() == &*query.name {
                     Some(quote! { || Some(utoipa::openapi::path::ParameterIn::Query) })
                 } else {
                     None
@@ -117,14 +111,14 @@ fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg,
     move |arg: FnArg| {
         let argument_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
-                if arg.name == &*path.name {
+                if arg.arg_type.get_name() == &*path.name {
                     Some(ArgumentIn::Path)
                 } else {
                     None
                 }
             }
             MacroArg::Query(query) => {
-                if arg.name == &*query.name {
+                if arg.arg_type.get_name() == &*query.name {
                     Some(ArgumentIn::Query)
                 } else {
                     None
@@ -137,22 +131,6 @@ fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg,
 }
 
 #[inline]
-fn get_value_type(ty: TypeTree<'_>) -> Option<Cow<syn::Path>> {
-    // TODO abort if map
-    match ty.generic_type {
-        Some(GenericType::Vec)
-        | Some(GenericType::Box)
-        | Some(GenericType::Cow)
-        | Some(GenericType::Map)
-        | Some(GenericType::Option)
-        | Some(GenericType::RefCell) => {
-            get_value_type(ty.children.unwrap().into_iter().next().unwrap())
-        }
-        None => ty.path,
-    }
-}
-
-#[inline]
 fn is_into_params(fn_arg: &FnArg) -> bool {
     matches!(fn_arg.ty.value_type, ValueType::Object) && matches!(fn_arg.ty.generic_type, None)
 }
@@ -161,24 +139,6 @@ fn is_into_params(fn_arg: &FnArg) -> bool {
 fn is_anonymous_arg(arg: &MacroArg) -> bool {
     matches!(arg, MacroArg::Path(path) if path.original_name == ANONYMOUS_ARG)
         || matches!(arg, MacroArg::Query(query) if query.original_name == ANONYMOUS_ARG)
-}
-
-type OptionOrVec = (bool, bool);
-
-#[inline]
-fn is_option_or_vec(ty: &TypeTree<'_>) -> OptionOrVec {
-    // TODO abort if map
-    let mut is_vec = matches!(ty.generic_type, Some(GenericType::Vec));
-    let mut is_option = matches!(ty.generic_type, Some(GenericType::Option));
-
-    if let Some(ref child) = ty.children {
-        let (child_option, child_vec) = is_option_or_vec(child.first().unwrap());
-
-        is_option = is_option || child_option;
-        is_vec = is_vec || child_vec;
-    }
-
-    (is_option, is_vec)
 }
 
 impl PathOperationResolver for PathOperations {
@@ -222,7 +182,7 @@ impl Parse for Path {
             // expect format (GET, uri = "url...")
             let ident = input.parse::<Ident>()?;
             input.parse::<Token![,]>()?;
-            input.parse::<Ident>()?; // explisitly 'uri'
+            input.parse::<Ident>()?; // explicitly 'uri'
             input.parse::<Token![=]>()?;
 
             (

@@ -1,12 +1,17 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
-use crate::{parse_utils, Required, Type};
+use crate::component::TypeTree;
+use crate::{parse_utils, AnyValue, Array, Required};
 
-use super::{property::Property, ContentTypeResolver};
+use super::example::Example;
+use super::media_type::MediaTypeSchema;
+use super::{PathType, PathTypeTree};
 
-/// Parsed information related to requst body of path.
+/// Parsed information related to request body of path.
 ///
 /// Supported configuration options:
 ///   * **content** Request body content object type. Can also be array e.g. `content = [String]`.
@@ -46,15 +51,17 @@ use super::{property::Property, ContentTypeResolver};
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr<'r> {
-    content: Option<Type<'r>>,
+    content: Option<PathType<'r>>,
     content_type: Option<String>,
     description: Option<String>,
+    example: Option<AnyValue>,
+    examples: Option<Punctuated<Example, Comma>>,
 }
 
 impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: content, content_type, description";
+            "unexpected attribute, expected any of: content, content_type, description, examples";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
@@ -90,6 +97,15 @@ impl Parse for RequestBodyAttr<'_> {
                         request_body_attr.description =
                             Some(parse_utils::parse_next_literal_str(&group)?)
                     }
+                    "example" => {
+                        request_body_attr.example = Some(parse_utils::parse_next(&group, || {
+                            AnyValue::parse_json(&group)
+                        })?)
+                    }
+                    "examples" => {
+                        request_body_attr.examples =
+                            Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
+                    }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
 
@@ -109,8 +125,7 @@ impl Parse for RequestBodyAttr<'_> {
                         format!("unexpected token, expected type such as String, {}", error),
                     )
                 })?),
-                content_type: None,
-                description: None,
+                ..Default::default()
             })
         } else {
             Err(lookahead.error())
@@ -118,22 +133,77 @@ impl Parse for RequestBodyAttr<'_> {
     }
 }
 
-impl ContentTypeResolver for RequestBodyAttr<'_> {}
-
 impl ToTokens for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         if let Some(body_type) = &self.content {
-            let property = Property::new(body_type);
+            let media_type_schema = match body_type {
+                PathType::Ref(ref_type) => quote! {
+                    utoipa::openapi::schema::Ref::new(#ref_type)
+                },
+                PathType::MediaType(body_type) => {
+                    let type_tree = body_type.as_type_tree();
+                    MediaTypeSchema {
+                        type_tree: &type_tree,
+                        is_inline: body_type.is_inline,
+                    }
+                    .to_token_stream()
+                }
+                PathType::InlineSchema(schema, _) => schema.to_token_stream(),
+            };
+            let mut content = quote! {
+                utoipa::openapi::content::ContentBuilder::new()
+                    .schema(#media_type_schema)
+            };
 
-            let content_type =
-                self.resolve_content_type(self.content_type.as_ref(), &property.schema_type());
-            let required: Required = (!body_type.is_option).into();
+            if let Some(ref example) = self.example {
+                content.extend(quote! {
+                    .example(Some(#example))
+                })
+            }
+            if let Some(ref examples) = self.examples {
+                let examples = examples
+                    .iter()
+                    .map(|example| {
+                        let name = &example.name;
+                        quote!((#name, #example))
+                    })
+                    .collect::<Array<TokenStream2>>();
+                content.extend(quote!(
+                    .examples_from_iter(#examples)
+                ))
+            }
 
-            tokens.extend(quote! {
-                utoipa::openapi::request_body::RequestBodyBuilder::new()
-                    .content(#content_type, utoipa::openapi::Content::new(#property))
-                    .required(Some(#required))
-            });
+            match body_type {
+                PathType::Ref(_) => {
+                    tokens.extend(quote! {
+                        utoipa::openapi::request_body::RequestBodyBuilder::new()
+                            .content("application/json", #content.build())
+                    });
+                }
+                PathType::MediaType(body_type) => {
+                    let type_tree = body_type.as_type_tree();
+                    let content_type = self
+                        .content_type
+                        .as_deref()
+                        .unwrap_or_else(|| type_tree.get_default_content_type());
+                    let required: Required = (!type_tree.is_option()).into();
+                    tokens.extend(quote! {
+                        utoipa::openapi::request_body::RequestBodyBuilder::new()
+                            .content(#content_type, #content.build())
+                            .required(Some(#required))
+                    });
+                }
+                PathType::InlineSchema(_, ty) => {
+                    let type_tree = TypeTree::from_type(ty);
+                    let default_type = type_tree.get_default_content_type();
+                    let required: Required = (!type_tree.is_option()).into();
+                    tokens.extend(quote! {
+                        utoipa::openapi::request_body::RequestBodyBuilder::new()
+                            .content(#default_type, #content.build())
+                            .required(Some(#required))
+                    });
+                }
+            }
         }
 
         if let Some(ref description) = self.description {

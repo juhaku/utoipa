@@ -28,7 +28,7 @@ builder! {
     /// [schema_object]: https://spec.openapis.org/oas/latest.html#schema-object
     /// [schema]: ../schema/index.html
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Xml {
         /// Used to replace the name of attribute or type used in schema property.
@@ -49,7 +49,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub attribute: Option<bool>,
 
-        /// Flag only usable with array definition. If set to true the ouput xml will wrap the array of items
+        /// Flag only usable with array definition. If set to true the output xml will wrap the array of items
         /// `<pets><pet></pet></pets>` instead of unwrapped `<pet></pet>`.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub wrapped: Option<bool>,

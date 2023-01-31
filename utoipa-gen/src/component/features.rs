@@ -1,21 +1,49 @@
-use std::mem;
+use std::{fmt::Display, mem, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::Parse, LitStr};
+use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
 
 use crate::{
     parse_utils,
     path::parameter::{self, ParameterStyle},
-    schema_type::SchemaFormat,
+    schema_type::{SchemaFormat, SchemaType},
     AnyValue,
 };
 
 use super::{schema, serde::RenameRule, GenericType, TypeTree};
 
+/// Parse `LitInt` from parse stream
+fn parse_integer<T: FromStr + Display>(input: ParseStream) -> syn::Result<T>
+where
+    <T as FromStr>::Err: Display,
+{
+    parse_utils::parse_next(input, || input.parse::<LitInt>()?.base10_parse())
+}
+
+/// Parse any `number`. Tries to parse `LitInt` or `LitFloat` from parse stream.
+fn parse_number<T>(input: ParseStream) -> syn::Result<T>
+where
+    T: FromStr,
+    <T as FromStr>::Err: Display,
+{
+    parse_utils::parse_next(input, || {
+        let lookup = input.lookahead1();
+        if lookup.peek(LitInt) {
+            input.parse::<LitInt>()?.base10_parse()
+        } else if lookup.peek(LitFloat) {
+            input.parse::<LitFloat>()?.base10_parse()
+        } else {
+            Err(lookup.error())
+        }
+    })
+}
+
 pub trait Name {
-    fn get_name() -> &'static str;
+    fn get_name() -> &'static str
+    where
+        Self: Sized;
 }
 
 macro_rules! name {
@@ -25,7 +53,32 @@ macro_rules! name {
                 $name
             }
         }
+
+        impl Display for $ident {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let name = <Self as Name>::get_name();
+                write!(f, "{name}")
+            }
+        }
     };
+}
+
+/// Define whether [`Feature`] variant is validatable or not
+pub trait Validatable {
+    fn is_validatable(&self) -> bool {
+        false
+    }
+}
+
+pub trait Validate: Validatable {
+    /// Perform validation check against schema type.
+    fn validate(&self, validator: impl Validator);
+}
+
+pub trait Parse {
+    fn parse(input: ParseStream, attribute: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized;
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -44,34 +97,74 @@ pub enum Feature {
     Rename(Rename),
     RenameAll(RenameAll),
     Style(Style),
-    AllowReserve(AllowReserved),
+    AllowReserved(AllowReserved),
     Explode(Explode),
     ParameterIn(ParameterIn),
     IntoParamsNames(Names),
+    MultipleOf(MultipleOf),
+    Maximum(Maximum),
+    Minimum(Minimum),
+    ExclusiveMaximum(ExclusiveMaximum),
+    ExclusiveMinimum(ExclusiveMinimum),
+    MaxLength(MaxLength),
+    MinLength(MinLength),
+    Pattern(Pattern),
+    MaxItems(MaxItems),
+    MinItems(MinItems),
+    MaxProperties(MaxProperties),
+    MinProperties(MinProperties),
+    SchemaWith(SchemaWith),
+    Description(Description),
+    Deprecated(Deprecated),
+    As(As),
 }
 
 impl Feature {
-    pub fn parse_named<T: Name>(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
-        let name = T::get_name();
-        match name {
-            "default" => Default::parse(input).map(Self::Default),
-            "example" => Example::parse(input).map(Self::Example),
-            "inline" => Inline::parse(input).map(Self::Inline),
-            "xml" => XmlAttr::parse(input).map(Self::XmlAttr),
-            "format" => Format::parse(input).map(Self::Format),
-            "value_type" => ValueType::parse(input).map(Self::ValueType),
-            "write_only" => WriteOnly::parse(input).map(Self::WriteOnly),
-            "read_only" => ReadOnly::parse(input).map(Self::ReadOnly),
-            "title" => Title::parse(input).map(Self::Title),
-            "nullable" => Nullable::parse(input).map(Self::Nullable),
-            "rename" => Rename::parse(input).map(Self::Rename),
-            "rename_all" => RenameAll::parse(input).map(Self::RenameAll),
-            "style" => Style::parse(input).map(Self::Style),
-            "allow_reserved" => AllowReserved::parse(input).map(Self::AllowReserve),
-            "explode" => Explode::parse(input).map(Self::Explode),
-            "parameter_in" => ParameterIn::parse(input).map(Self::ParameterIn),
-            "names" => Names::parse(input).map(Self::IntoParamsNames),
-            _unexpected => Err(syn::Error::new(ident.span(), format!("unexpected name: {}, expected one of: default, example, inline, xml, format, value_type, write_only, read_only, title", _unexpected))),
+    pub fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
+        match self {
+            Feature::MultipleOf(multiple_of) => multiple_of.validate(
+                ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)),
+            ),
+            Feature::Maximum(maximum) => maximum.validate(IsNumber(schema_type)),
+            Feature::Minimum(minimum) => minimum.validate(IsNumber(schema_type)),
+            Feature::ExclusiveMaximum(exclusive_maximum) => {
+                exclusive_maximum.validate(IsNumber(schema_type))
+            }
+            Feature::ExclusiveMinimum(exclusive_minimum) => {
+                exclusive_minimum.validate(IsNumber(schema_type))
+            }
+            Feature::MaxLength(max_length) => max_length.validate(
+                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(max_length.0)),
+            ),
+            Feature::MinLength(min_length) => min_length.validate(
+                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(min_length.0)),
+            ),
+            Feature::Pattern(pattern) => pattern.validate(IsString(schema_type)),
+            Feature::MaxItems(max_items) => max_items.validate(
+                ValidatorChain::new(&AboveZeroUsize(max_items.0)).next(&IsVec(type_tree)),
+            ),
+            Feature::MinItems(min_items) => min_items.validate(
+                ValidatorChain::new(&AboveZeroUsize(min_items.0)).next(&IsVec(type_tree)),
+            ),
+            _unsupported_variant => {
+                const SUPPORTED_VARIANTS: [&str; 10] = [
+                    "multiple_of",
+                    "maximum",
+                    "minimum",
+                    "exclusive_maximum",
+                    "exclusive_minimum",
+                    "max_length",
+                    "min_length",
+                    "pattern",
+                    "max_items",
+                    "min_items",
+                ];
+                panic!(
+                    "Unsupported variant: `{variant}` for Validate::validate, expected one of: {variants}",
+                    variant = _unsupported_variant,
+                    variants = SUPPORTED_VARIANTS.join(", ")
+                )
+            }
         }
     }
 }
@@ -90,10 +183,33 @@ impl ToTokens for Feature {
             Feature::Rename(rename) => rename.to_token_stream(),
             Feature::Style(style) => quote! { .style(Some(#style)) },
             Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
-            Feature::AllowReserve(allow_reserved) => {
+            Feature::MultipleOf(multiple_of) => quote! { .multiple_of(Some(#multiple_of)) },
+            Feature::AllowReserved(allow_reserved) => {
                 quote! { .allow_reserved(Some(#allow_reserved)) }
             }
             Feature::Explode(explode) => quote! { .explode(Some(#explode)) },
+            Feature::Maximum(maximum) => quote! { .maximum(Some(#maximum)) },
+            Feature::Minimum(minimum) => quote! { .minimum(Some(#minimum)) },
+            Feature::ExclusiveMaximum(exclusive_maximum) => {
+                quote! { .exclusive_maximum(Some(#exclusive_maximum)) }
+            }
+            Feature::ExclusiveMinimum(exclusive_minimum) => {
+                quote! { .exclusive_minimum(Some(#exclusive_minimum)) }
+            }
+            Feature::MaxLength(max_length) => quote! { .max_length(Some(#max_length)) },
+            Feature::MinLength(min_length) => quote! { .min_length(Some(#min_length)) },
+            Feature::Pattern(pattern) => quote! { .pattern(Some(#pattern)) },
+            Feature::MaxItems(max_items) => quote! { .max_items(Some(#max_items)) },
+            Feature::MinItems(min_items) => quote! { .min_items(Some(#min_items)) },
+            Feature::MaxProperties(max_properties) => {
+                quote! { .max_properties(Some(#max_properties)) }
+            }
+            Feature::MinProperties(min_properties) => {
+                quote! { .max_properties(Some(#min_properties)) }
+            }
+            Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
+            Feature::Description(description) => quote! { .description(Some(#description)) },
+            Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
             Feature::RenameAll(_) => {
                 abort! {
                     Span::call_site(),
@@ -108,10 +224,8 @@ impl ToTokens for Feature {
                 }
             }
             Feature::Inline(_) => {
-                abort! {
-                    Span::call_site(),
-                    "Inline feature does not support `ToTokens`"
-                }
+                // inline feature is ignored by `ToTokens`
+                TokenStream::new()
             }
             Feature::IntoParamsNames(_) => {
                 abort! {
@@ -120,10 +234,141 @@ impl ToTokens for Feature {
                     help = "Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."
                 }
             }
+            Feature::As(_) => {
+                abort!(Span::call_site(), "As does not support `ToTokens`")
+            }
         };
 
         tokens.extend(feature)
     }
+}
+
+impl Display for Feature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Feature::Default(default) => default.fmt(f),
+            Feature::Example(example) => example.fmt(f),
+            Feature::XmlAttr(xml) => xml.fmt(f),
+            Feature::Format(format) => format.fmt(f),
+            Feature::WriteOnly(write_only) => write_only.fmt(f),
+            Feature::ReadOnly(read_only) => read_only.fmt(f),
+            Feature::Title(title) => title.fmt(f),
+            Feature::Nullable(nullable) => nullable.fmt(f),
+            Feature::Rename(rename) => rename.fmt(f),
+            Feature::Style(style) => style.fmt(f),
+            Feature::ParameterIn(parameter_in) => parameter_in.fmt(f),
+            Feature::AllowReserved(allow_reserved) => allow_reserved.fmt(f),
+            Feature::Explode(explode) => explode.fmt(f),
+            Feature::RenameAll(rename_all) => rename_all.fmt(f),
+            Feature::ValueType(value_type) => value_type.fmt(f),
+            Feature::Inline(inline) => inline.fmt(f),
+            Feature::IntoParamsNames(names) => names.fmt(f),
+            Feature::MultipleOf(multiple_of) => multiple_of.fmt(f),
+            Feature::Maximum(maximum) => maximum.fmt(f),
+            Feature::Minimum(minimum) => minimum.fmt(f),
+            Feature::ExclusiveMaximum(exclusive_maximum) => exclusive_maximum.fmt(f),
+            Feature::ExclusiveMinimum(exclusive_minimum) => exclusive_minimum.fmt(f),
+            Feature::MaxLength(max_length) => max_length.fmt(f),
+            Feature::MinLength(min_length) => min_length.fmt(f),
+            Feature::Pattern(pattern) => pattern.fmt(f),
+            Feature::MaxItems(max_items) => max_items.fmt(f),
+            Feature::MinItems(min_items) => min_items.fmt(f),
+            Feature::MaxProperties(max_properties) => max_properties.fmt(f),
+            Feature::MinProperties(min_properties) => min_properties.fmt(f),
+            Feature::SchemaWith(with_schema) => with_schema.fmt(f),
+            Feature::Description(description) => description.fmt(f),
+            Feature::Deprecated(deprecated) => deprecated.fmt(f),
+            Feature::As(as_feature) => as_feature.fmt(f),
+        }
+    }
+}
+
+impl Validatable for Feature {
+    fn is_validatable(&self) -> bool {
+        match &self {
+            Feature::Default(default) => default.is_validatable(),
+            Feature::Example(example) => example.is_validatable(),
+            Feature::XmlAttr(xml) => xml.is_validatable(),
+            Feature::Format(format) => format.is_validatable(),
+            Feature::WriteOnly(write_only) => write_only.is_validatable(),
+            Feature::ReadOnly(read_only) => read_only.is_validatable(),
+            Feature::Title(title) => title.is_validatable(),
+            Feature::Nullable(nullable) => nullable.is_validatable(),
+            Feature::Rename(rename) => rename.is_validatable(),
+            Feature::Style(style) => style.is_validatable(),
+            Feature::ParameterIn(parameter_in) => parameter_in.is_validatable(),
+            Feature::AllowReserved(allow_reserved) => allow_reserved.is_validatable(),
+            Feature::Explode(explode) => explode.is_validatable(),
+            Feature::RenameAll(rename_all) => rename_all.is_validatable(),
+            Feature::ValueType(value_type) => value_type.is_validatable(),
+            Feature::Inline(inline) => inline.is_validatable(),
+            Feature::IntoParamsNames(names) => names.is_validatable(),
+            Feature::MultipleOf(multiple_of) => multiple_of.is_validatable(),
+            Feature::Maximum(maximum) => maximum.is_validatable(),
+            Feature::Minimum(minimum) => minimum.is_validatable(),
+            Feature::ExclusiveMaximum(exclusive_maximum) => exclusive_maximum.is_validatable(),
+            Feature::ExclusiveMinimum(exclusive_minimum) => exclusive_minimum.is_validatable(),
+            Feature::MaxLength(max_length) => max_length.is_validatable(),
+            Feature::MinLength(min_length) => min_length.is_validatable(),
+            Feature::Pattern(pattern) => pattern.is_validatable(),
+            Feature::MaxItems(max_items) => max_items.is_validatable(),
+            Feature::MinItems(min_items) => min_items.is_validatable(),
+            Feature::MaxProperties(max_properties) => max_properties.is_validatable(),
+            Feature::MinProperties(min_properties) => min_properties.is_validatable(),
+            Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
+            Feature::Description(description) => description.is_validatable(),
+            Feature::Deprecated(deprecated) => deprecated.is_validatable(),
+            Feature::As(as_feature) => as_feature.is_validatable(),
+        }
+    }
+}
+
+macro_rules! is_validatable {
+    ( $( $ident:ident => $validatable:literal ),* ) => {
+        $(
+            impl Validatable for $ident {
+                fn is_validatable(&self) -> bool {
+                    $validatable
+                }
+            }
+        )*
+    };
+}
+
+is_validatable! {
+    Default => false,
+    Example => false,
+    XmlAttr => false,
+    Format => false,
+    WriteOnly => false,
+    ReadOnly => false,
+    Title => false,
+    Nullable => false,
+    Rename => false,
+    Style => false,
+    ParameterIn => false,
+    AllowReserved => false,
+    Explode => false,
+    RenameAll => false,
+    ValueType => false,
+    Inline => false,
+    Names => false,
+    MultipleOf => true,
+    Maximum => true,
+    Minimum => true,
+    ExclusiveMaximum => true,
+    ExclusiveMinimum => true,
+    MaxLength => true,
+    MinLength => true,
+    Pattern => true,
+    MaxItems => true,
+    MinItems => true,
+    MaxProperties => false,
+    MinProperties => false,
+    SchemaWith => false,
+    Description => false,
+    Deprecated => false,
+    As => false
 }
 
 #[derive(Clone)]
@@ -131,7 +376,7 @@ impl ToTokens for Feature {
 pub struct Example(AnyValue);
 
 impl Parse for Example {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)
     }
 }
@@ -142,6 +387,12 @@ impl ToTokens for Example {
     }
 }
 
+impl From<Example> for Feature {
+    fn from(value: Example) -> Self {
+        Feature::Example(value)
+    }
+}
+
 name!(Example = "example");
 
 #[derive(Clone)]
@@ -149,7 +400,7 @@ name!(Example = "example");
 pub struct Default(AnyValue);
 
 impl Parse for Default {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)
     }
 }
@@ -160,6 +411,12 @@ impl ToTokens for Default {
     }
 }
 
+impl From<self::Default> for Feature {
+    fn from(value: self::Default) -> Self {
+        Feature::Default(value)
+    }
+}
+
 name!(Default = "default");
 
 #[derive(Clone)]
@@ -167,8 +424,20 @@ name!(Default = "default");
 pub struct Inline(bool);
 
 impl Parse for Inline {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl From<bool> for Inline {
+    fn from(value: bool) -> Self {
+        Inline(value)
+    }
+}
+
+impl From<Inline> for Feature {
+    fn from(value: Inline) -> Self {
+        Feature::Inline(value)
     }
 }
 
@@ -208,7 +477,7 @@ impl XmlAttr {
 }
 
 impl Parse for XmlAttr {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         let xml;
         parenthesized!(xml in input);
         xml.parse::<schema::xml::XmlAttr>().map(Self)
@@ -221,6 +490,12 @@ impl ToTokens for XmlAttr {
     }
 }
 
+impl From<XmlAttr> for Feature {
+    fn from(value: XmlAttr) -> Self {
+        Feature::XmlAttr(value)
+    }
+}
+
 name!(XmlAttr = "xml");
 
 #[derive(Clone)]
@@ -228,7 +503,7 @@ name!(XmlAttr = "xml");
 pub struct Format(SchemaFormat<'static>);
 
 impl Parse for Format {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
     }
 }
@@ -236,6 +511,12 @@ impl Parse for Format {
 impl ToTokens for Format {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Format> for Feature {
+    fn from(value: Format) -> Self {
+        Feature::Format(value)
     }
 }
 
@@ -253,8 +534,14 @@ impl ValueType {
 }
 
 impl Parse for ValueType {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<syn::Type>()).map(Self)
+    }
+}
+
+impl From<ValueType> for Feature {
+    fn from(value: ValueType) -> Self {
+        Feature::ValueType(value)
     }
 }
 
@@ -265,7 +552,7 @@ name!(ValueType = "value_type");
 pub struct WriteOnly(bool);
 
 impl Parse for WriteOnly {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -276,6 +563,12 @@ impl ToTokens for WriteOnly {
     }
 }
 
+impl From<WriteOnly> for Feature {
+    fn from(value: WriteOnly) -> Self {
+        Feature::WriteOnly(value)
+    }
+}
+
 name!(WriteOnly = "write_only");
 
 #[derive(Clone, Copy)]
@@ -283,7 +576,7 @@ name!(WriteOnly = "write_only");
 pub struct ReadOnly(bool);
 
 impl Parse for ReadOnly {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -294,6 +587,12 @@ impl ToTokens for ReadOnly {
     }
 }
 
+impl From<ReadOnly> for Feature {
+    fn from(value: ReadOnly) -> Self {
+        Feature::ReadOnly(value)
+    }
+}
+
 name!(ReadOnly = "read_only");
 
 #[derive(Clone)]
@@ -301,7 +600,7 @@ name!(ReadOnly = "read_only");
 pub struct Title(String);
 
 impl Parse for Title {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
@@ -312,6 +611,12 @@ impl ToTokens for Title {
     }
 }
 
+impl From<Title> for Feature {
+    fn from(value: Title) -> Self {
+        Feature::Title(value)
+    }
+}
+
 name!(Title = "title");
 
 #[derive(Clone, Copy)]
@@ -319,7 +624,7 @@ name!(Title = "title");
 pub struct Nullable(bool);
 
 impl Parse for Nullable {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -327,6 +632,12 @@ impl Parse for Nullable {
 impl ToTokens for Nullable {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Nullable> for Feature {
+    fn from(value: Nullable) -> Self {
+        Feature::Nullable(value)
     }
 }
 
@@ -343,7 +654,7 @@ impl Rename {
 }
 
 impl Parse for Rename {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next_literal_str(input).map(Self)
     }
 }
@@ -351,6 +662,12 @@ impl Parse for Rename {
 impl ToTokens for Rename {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Rename> for Feature {
+    fn from(value: Rename) -> Self {
+        Feature::Rename(value)
     }
 }
 
@@ -367,7 +684,7 @@ impl RenameAll {
 }
 
 impl Parse for RenameAll {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
 
         litstr
@@ -375,6 +692,12 @@ impl Parse for RenameAll {
             .parse::<RenameRule>()
             .map_err(|error| syn::Error::new(litstr.span(), error.to_string()))
             .map(Self)
+    }
+}
+
+impl From<RenameAll> for Feature {
+    fn from(value: RenameAll) -> Self {
+        Feature::RenameAll(value)
     }
 }
 
@@ -391,7 +714,7 @@ impl From<ParameterStyle> for Style {
 }
 
 impl Parse for Style {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<ParameterStyle>().map(Self))
     }
 }
@@ -402,6 +725,12 @@ impl ToTokens for Style {
     }
 }
 
+impl From<Style> for Feature {
+    fn from(value: Style) -> Self {
+        Feature::Style(value)
+    }
+}
+
 name!(Style = "style");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -409,7 +738,7 @@ name!(Style = "style");
 pub struct AllowReserved(bool);
 
 impl Parse for AllowReserved {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -420,6 +749,12 @@ impl ToTokens for AllowReserved {
     }
 }
 
+impl From<AllowReserved> for Feature {
+    fn from(value: AllowReserved) -> Self {
+        Feature::AllowReserved(value)
+    }
+}
+
 name!(AllowReserved = "allow_reserved");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -427,7 +762,7 @@ name!(AllowReserved = "allow_reserved");
 pub struct Explode(bool);
 
 impl Parse for Explode {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)
     }
 }
@@ -438,6 +773,12 @@ impl ToTokens for Explode {
     }
 }
 
+impl From<Explode> for Feature {
+    fn from(value: Explode) -> Self {
+        Feature::Explode(value)
+    }
+}
+
 name!(Explode = "explode");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -445,7 +786,7 @@ name!(Explode = "explode");
 pub struct ParameterIn(parameter::ParameterIn);
 
 impl Parse for ParameterIn {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
     }
 }
@@ -453,6 +794,12 @@ impl Parse for ParameterIn {
 impl ToTokens for ParameterIn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ParameterIn> for Feature {
+    fn from(value: ParameterIn) -> Self {
+        Feature::ParameterIn(value)
     }
 }
 
@@ -470,7 +817,7 @@ impl Names {
 }
 
 impl Parse for Names {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
             parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
                 .iter()
@@ -480,7 +827,651 @@ impl Parse for Names {
     }
 }
 
+impl From<Names> for Feature {
+    fn from(value: Names) -> Self {
+        Feature::IntoParamsNames(value)
+    }
+}
+
 name!(Names = "names");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MultipleOf(f64, Ident);
+
+impl Validate for MultipleOf {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`multiple_of` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`"
+            }
+        };
+    }
+}
+
+impl Parse for MultipleOf {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self> {
+        parse_number(input).map(|multiple_of| Self(multiple_of, ident))
+    }
+}
+
+impl ToTokens for MultipleOf {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MultipleOf> for Feature {
+    fn from(value: MultipleOf) -> Self {
+        Feature::MultipleOf(value)
+    }
+}
+
+name!(MultipleOf = "multiple_of");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Maximum(f64, Ident);
+
+impl Validate for Maximum {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`maximum` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`"
+            }
+        }
+    }
+}
+
+impl Parse for Maximum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_number(input).map(|maximum| Self(maximum, ident))
+    }
+}
+
+impl ToTokens for Maximum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Maximum> for Feature {
+    fn from(value: Maximum) -> Self {
+        Feature::Maximum(value)
+    }
+}
+
+name!(Maximum = "maximum");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Minimum(f64, Ident);
+
+impl Validate for Minimum {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`minimum` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`"
+            }
+        }
+    }
+}
+
+impl Parse for Minimum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_number(input).map(|maximum| Self(maximum, ident))
+    }
+}
+
+impl ToTokens for Minimum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Minimum> for Feature {
+    fn from(value: Minimum) -> Self {
+        Feature::Minimum(value)
+    }
+}
+
+name!(Minimum = "minimum");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct ExclusiveMaximum(f64, Ident);
+
+impl Validate for ExclusiveMaximum {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`exclusive_maximum` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`"
+            }
+        }
+    }
+}
+
+impl Parse for ExclusiveMaximum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_number(input).map(|max| Self(max, ident))
+    }
+}
+
+impl ToTokens for ExclusiveMaximum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ExclusiveMaximum> for Feature {
+    fn from(value: ExclusiveMaximum) -> Self {
+        Feature::ExclusiveMaximum(value)
+    }
+}
+
+name!(ExclusiveMaximum = "exclusive_maximum");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct ExclusiveMinimum(f64, Ident);
+
+impl Validate for ExclusiveMinimum {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`exclusive_minimum` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`"
+            }
+        }
+    }
+}
+
+impl Parse for ExclusiveMinimum {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_number(input).map(|min| Self(min, ident))
+    }
+}
+
+impl ToTokens for ExclusiveMinimum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ExclusiveMinimum> for Feature {
+    fn from(value: ExclusiveMinimum) -> Self {
+        Feature::ExclusiveMinimum(value)
+    }
+}
+
+name!(ExclusiveMinimum = "exclusive_minimum");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MaxLength(usize, Ident);
+
+impl Validate for MaxLength {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`max_length` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`"
+            }
+        }
+    }
+}
+
+impl Parse for MaxLength {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_integer(input).map(|max_length| Self(max_length, ident))
+    }
+}
+
+impl ToTokens for MaxLength {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MaxLength> for Feature {
+    fn from(value: MaxLength) -> Self {
+        Feature::MaxLength(value)
+    }
+}
+
+name!(MaxLength = "max_length");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MinLength(usize, Ident);
+
+impl Validate for MinLength {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`min_length` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`"
+            }
+        }
+    }
+}
+
+impl Parse for MinLength {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_integer(input).map(|max_length| Self(max_length, ident))
+    }
+}
+
+impl ToTokens for MinLength {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MinLength> for Feature {
+    fn from(value: MinLength) -> Self {
+        Feature::MinLength(value)
+    }
+}
+
+name!(MinLength = "min_length");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Pattern(String, Ident);
+
+impl Validate for Pattern {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`pattern` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`"
+            }
+        }
+    }
+}
+
+impl Parse for Pattern {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_utils::parse_next(input, || input.parse::<LitStr>())
+            .map(|pattern| Self(pattern.value(), ident))
+    }
+}
+
+impl ToTokens for Pattern {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Pattern> for Feature {
+    fn from(value: Pattern) -> Self {
+        Feature::Pattern(value)
+    }
+}
+
+name!(Pattern = "pattern");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MaxItems(usize, Ident);
+
+impl Validate for MaxItems {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`max_items` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems"
+            }
+        }
+    }
+}
+
+impl Parse for MaxItems {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_number(input).map(|max_items| Self(max_items, ident))
+    }
+}
+
+impl ToTokens for MaxItems {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MaxItems> for Feature {
+    fn from(value: MaxItems) -> Self {
+        Feature::MaxItems(value)
+    }
+}
+
+name!(MaxItems = "max_items");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MinItems(usize, Ident);
+
+impl Validate for MinItems {
+    fn validate(&self, validator: impl Validator) {
+        if let Err(error) = validator.is_valid() {
+            abort! {self.1, "`min_items` error: {}", error;
+                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems"
+            }
+        }
+    }
+}
+
+impl Parse for MinItems {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_number(input).map(|max_items| Self(max_items, ident))
+    }
+}
+
+impl ToTokens for MinItems {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MinItems> for Feature {
+    fn from(value: MinItems) -> Self {
+        Feature::MinItems(value)
+    }
+}
+
+name!(MinItems = "min_items");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MaxProperties(usize, Ident);
+
+impl Parse for MaxProperties {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_integer(input).map(|max_properties| Self(max_properties, ident))
+    }
+}
+
+impl ToTokens for MaxProperties {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MaxProperties> for Feature {
+    fn from(value: MaxProperties) -> Self {
+        Feature::MaxProperties(value)
+    }
+}
+
+name!(MaxProperties = "max_properties");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct MinProperties(usize, Ident);
+
+impl Parse for MinProperties {
+    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    where
+        Self: Sized,
+    {
+        parse_integer(input).map(|min_properties| Self(min_properties, ident))
+    }
+}
+
+impl ToTokens for MinProperties {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<MinProperties> for Feature {
+    fn from(value: MinProperties) -> Self {
+        Feature::MinProperties(value)
+    }
+}
+
+name!(MinProperties = "min_properties");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct SchemaWith(TypePath);
+
+impl Parse for SchemaWith {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
+        parse_utils::parse_next(input, || input.parse::<TypePath>().map(Self))
+    }
+}
+
+impl ToTokens for SchemaWith {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let path = &self.0;
+        tokens.extend(quote! {
+            #path()
+        })
+    }
+}
+
+impl From<SchemaWith> for Feature {
+    fn from(value: SchemaWith) -> Self {
+        Feature::SchemaWith(value)
+    }
+}
+
+name!(SchemaWith = "schema_with");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Description(String);
+
+impl Parse for Description {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for Description {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<Description> for Feature {
+    fn from(value: Description) -> Self {
+        Self::Description(value)
+    }
+}
+
+name!(Description = "description");
+
+/// Deprecated feature parsed from macro attributes.
+///
+/// This feature supports only syntax parsed from utoipa specific macro attributes, it does not
+/// support Rust `#[deprecated]` attribute.
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct Deprecated(bool);
+
+impl Parse for Deprecated {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for Deprecated {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let deprecated: crate::Deprecated = self.0.into();
+        deprecated.to_tokens(tokens);
+    }
+}
+
+impl From<Deprecated> for Feature {
+    fn from(value: Deprecated) -> Self {
+        Self::Deprecated(value)
+    }
+}
+
+name!(Deprecated = "deprecated");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct As(pub TypePath);
+
+impl Parse for As {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next(input, || input.parse()).map(Self)
+    }
+}
+
+impl From<As> for Feature {
+    fn from(value: As) -> Self {
+        Self::As(value)
+    }
+}
+
+name!(As = "as");
+
+pub trait Validator {
+    fn is_valid(&self) -> Result<(), &'static str>;
+}
+
+pub struct IsNumber<'a>(pub &'a SchemaType<'a>);
+
+impl Validator for IsNumber<'_> {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        if self.0.is_number() {
+            Ok(())
+        } else {
+            Err("can only be used with `number` type")
+        }
+    }
+}
+
+pub struct IsString<'a>(&'a SchemaType<'a>);
+
+impl Validator for IsString<'_> {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        if self.0.is_string() {
+            Ok(())
+        } else {
+            Err("can only be used with `string` type")
+        }
+    }
+}
+
+pub struct IsInteger<'a>(&'a SchemaType<'a>);
+
+impl Validator for IsInteger<'_> {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        if self.0.is_integer() {
+            Ok(())
+        } else {
+            Err("can only be used with `integer` type")
+        }
+    }
+}
+
+pub struct IsVec<'a>(&'a TypeTree<'a>);
+
+impl Validator for IsVec<'_> {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        if self.0.generic_type == Some(GenericType::Vec) {
+            Ok(())
+        } else {
+            Err("can only be used with `Vec`, `array` or `slice` types")
+        }
+    }
+}
+
+pub struct AboveZeroUsize(usize);
+
+impl Validator for AboveZeroUsize {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        if self.0 != 0 {
+            Ok(())
+        } else {
+            Err("can only be above zero value")
+        }
+    }
+}
+
+pub struct AboveZeroF64(f64);
+
+impl Validator for AboveZeroF64 {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        if self.0 > 0.0 {
+            Ok(())
+        } else {
+            Err("can only be above zero value")
+        }
+    }
+}
+
+pub struct ValidatorChain<'c> {
+    inner: &'c dyn Validator,
+    next: Option<&'c dyn Validator>,
+}
+
+impl Validator for ValidatorChain<'_> {
+    fn is_valid(&self) -> Result<(), &'static str> {
+        self.inner.is_valid().and_then(|_| {
+            if let Some(validator) = self.next.as_ref() {
+                validator.is_valid()
+            } else {
+                // if there is no next validator consider it valid
+                Ok(())
+            }
+        })
+    }
+}
+
+impl<'c> ValidatorChain<'c> {
+    pub fn new(validator: &'c dyn Validator) -> Self {
+        Self {
+            inner: validator,
+            next: None,
+        }
+    }
+
+    pub fn next(mut self, validator: &'c dyn Validator) -> Self {
+        self.next = Some(validator);
+
+        self
+    }
+}
 
 macro_rules! parse_features {
     ($ident:ident as $( $feature:path ),*) => {
@@ -491,7 +1482,9 @@ macro_rules! parse_features {
                 let attributes = names.join(", ");
 
                 while !input.is_empty() {
-                    let ident = input.parse::<syn::Ident>().map_err(|error| {
+                    let ident = input.parse::<syn::Ident>().or_else(|_| {
+                        input.parse::<syn::Token![as]>().map(|as_| syn::Ident::new("as", as_.span))
+                    }).map_err(|error| {
                         syn::Error::new(
                             error.span(),
                             format!("unexpected attribute, expected any of: {attributes}, {error}"),
@@ -501,7 +1494,7 @@ macro_rules! parse_features {
 
                     $(
                         if name == <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::Name>::get_name() {
-                            features.push(crate::component::features::Feature::parse_named::<$feature>(input, ident)?);
+                            features.push(<$feature as crate::component::features::Parse>::parse(input, ident)?.into());
                             if !input.is_empty() {
                                 input.parse::<syn::Token![,]>()?;
                             }
@@ -535,7 +1528,7 @@ impl IsInline for Vec<Feature> {
     fn is_inline(&self) -> bool {
         self.iter()
             .find_map(|feature| match feature {
-                Feature::Inline(inline) => Some(inline),
+                Feature::Inline(inline) if inline.0 => Some(inline),
                 _ => None,
             })
             .is_some()
@@ -565,6 +1558,9 @@ pub trait FeaturesExt {
 
     /// Pop [`RenameAll`] feature if exists in [`Vec<Feature>`] list.
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll>;
+
+    /// Extract [`XmlAttr`] feature for given `type_tree` if it has generic type [`GenericType::Vec`]
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
 }
 
 impl FeaturesExt for Vec<Feature> {
@@ -597,6 +1593,22 @@ impl FeaturesExt for Vec<Feature> {
                 _ => None,
             })
     }
+
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
+        self.iter_mut().find_map(|feature| match feature {
+            Feature::XmlAttr(xml_feature) => {
+                let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
+
+                // replace the original xml attribute with splitted value xml
+                if let Some(mut xml) = value_xml {
+                    mem::swap(xml_feature, &mut xml)
+                }
+
+                vec_xml.map(Feature::XmlAttr)
+            }
+            _ => None,
+        })
+    }
 }
 
 impl FeaturesExt for Option<Vec<Feature>> {
@@ -618,6 +1630,11 @@ impl FeaturesExt for Option<Vec<Feature>> {
         self.as_mut()
             .and_then(|features| features.pop_rename_all_feature())
     }
+
+    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
+        self.as_mut()
+            .and_then(|features| features.extract_vec_xml_feature(type_tree))
+    }
 }
 
 macro_rules! pop_feature {
@@ -627,6 +1644,23 @@ macro_rules! pop_feature {
 }
 
 pub(crate) use pop_feature;
+
+macro_rules! pop_feature_as_inner {
+    ( $features:ident => $($value:tt)* ) => {
+        crate::component::features::pop_feature!($features => $( $value )* )
+            .map(|f| match f {
+                $( $value )* => {
+                    crate::component::features::pop_feature_as_inner!( @as_value $( $value )* )
+                },
+                _ => unreachable!()
+            })
+    };
+    ( @as_value $tt:tt :: $tr:tt ( $v:tt ) ) => {
+        $v
+    }
+}
+
+pub(crate) use pop_feature_as_inner;
 
 pub trait IntoInner<T> {
     fn into_inner(self) -> T;
@@ -649,3 +1683,45 @@ macro_rules! impl_into_inner {
 }
 
 pub(crate) use impl_into_inner;
+
+pub trait Merge<T>: IntoInner<Vec<Feature>> {
+    fn merge(self, from: T) -> Self;
+}
+
+macro_rules! impl_merge {
+    ( $($ident:ident),* ) => {
+        $(
+            impl AsMut<Vec<Feature>> for $ident {
+                fn as_mut(&mut self) -> &mut Vec<Feature> {
+                    &mut self.0
+                }
+            }
+
+            impl crate::component::features::Merge<$ident> for $ident {
+                fn merge(mut self, from: $ident) -> Self {
+                    let a = self.as_mut();
+                    let mut b = from.into_inner();
+
+                    a.append(&mut b);
+
+                    self
+                }
+            }
+        )*
+    };
+}
+
+pub(crate) use impl_merge;
+
+impl IntoInner<Vec<Feature>> for Vec<Feature> {
+    fn into_inner(self) -> Vec<Feature> {
+        self
+    }
+}
+
+impl Merge<Vec<Feature>> for Vec<Feature> {
+    fn merge(mut self, mut from: Vec<Feature>) -> Self {
+        self.append(&mut from);
+        self
+    }
+}

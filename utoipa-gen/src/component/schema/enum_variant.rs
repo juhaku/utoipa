@@ -12,7 +12,7 @@ pub trait Variant {
     /// Implement `ToTokens` conversion for the [`Variant`]
     fn to_tokens(&self) -> TokenStream;
 
-    /// Get enum varinat type. By default enum variant is `string`
+    /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
             SchemaType(&parse_quote!(str)).to_token_stream(),
@@ -77,6 +77,7 @@ where
                 #title
                 #example
                 .property(#name, #variant)
+                .required(#name)
         }
     }
 }
@@ -223,6 +224,83 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
     }
 }
 
+pub struct UntaggedEnum;
+
+impl ToTokens for UntaggedEnum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(quote!(utoipa::openapi::ObjectBuilder::new().nullable(true)));
+    }
+}
+
+pub struct AdjacentlyTaggedEnum<T: Variant> {
+    items: TokenStream,
+    len: usize,
+    _p: PhantomData<T>,
+}
+
+impl<V: Variant> AdjacentlyTaggedEnum<V> {
+    pub fn new<'t, I: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(items: I) -> Self {
+        items.into_iter().collect()
+    }
+}
+
+impl<T> ToTokens for AdjacentlyTaggedEnum<T>
+where
+    T: Variant,
+{
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let len = &self.len;
+        let items = &self.items;
+
+        tokens.extend(quote! {
+            Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
+                #items
+        })
+    }
+}
+
+impl<'t, V: Variant> FromIterator<(Cow<'t, str>, Cow<'t, str>, V)> for AdjacentlyTaggedEnum<V> {
+    fn from_iter<T: IntoIterator<Item = (Cow<'t, str>, Cow<'t, str>, V)>>(iter: T) -> Self {
+        let mut len = 0;
+
+        let items = iter
+            .into_iter()
+            .enumerate()
+            .map(|(index, (tag, content, variant))| {
+                len = index + 1;
+
+                let (schema_type, enum_type) = variant.get_type();
+                let item = variant.to_tokens();
+                quote! {
+                    .item(
+                        utoipa::openapi::schema::ObjectBuilder::new()
+                            .property(
+                                #tag,
+                                utoipa::openapi::schema::ObjectBuilder::new()
+                                    .schema_type(utoipa::openapi::schema::SchemaType::String)
+                                    .enum_values::<[#enum_type; 1], #enum_type>(Some([#content]))
+                            )
+                            .required(#tag)
+                            .property(
+                                #content,
+                                utoipa::openapi::schema::ObjectBuilder::new()
+                                    .schema_type(#schema_type)
+                                    .enum_values::<[#enum_type; 1], #enum_type>(Some([#item]))
+                            )
+                            .required(#content)
+                    )
+                }
+            })
+            .collect::<TokenStream>();
+
+        Self {
+            items,
+            len,
+            _p: PhantomData,
+        }
+    }
+}
+
 /// Used to create complex enums with varying Object types.
 ///
 /// Will create `oneOf` object with discriminator field for referenced schemas.
@@ -248,7 +326,7 @@ where
         self.items.to_tokens(tokens);
 
         // currently uses serde `tag` attribute as a discriminator. This discriminator
-        // feature needs some refinment.
+        // feature needs some refinement.
         let discriminator = self.tag.as_ref().map(|tag| {
             quote! {
                 .discriminator(Some(utoipa::openapi::schema::Discriminator::new(#tag)))

@@ -21,6 +21,7 @@ pub use self::{
 
 pub mod content;
 pub mod encoding;
+pub mod example;
 pub mod external_docs;
 pub mod header;
 pub mod info;
@@ -58,7 +59,7 @@ builder! {
     ///
     /// See more details at <https://spec.openapis.org/oas/latest.html#openapi-object>.
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct OpenApi {
@@ -135,35 +136,91 @@ impl OpenApi {
         }
     }
 
-    /// Converts this [`OpenApi`] to JSON String. This method essentially calls [`serde_json::to_string`] method. [^json]
-    ///
-    /// [^json]: **json** feature is needed.
-    #[cfg(feature = "json")]
+    /// Converts this [`OpenApi`] to JSON String. This method essentially calls [`serde_json::to_string`] method.
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
 
-    /// Converts this [`OpenApi`] to pretty JSON String. This method essentially calls [`serde_json::to_string_pretty`] method. [^json]
-    ///
-    /// [^json]: **json** feature is needed.
-    #[cfg(feature = "json")]
+    /// Converts this [`OpenApi`] to pretty JSON String. This method essentially calls [`serde_json::to_string_pretty`] method.
     pub fn to_pretty_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
 
-    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method. [^yaml]
-    ///
-    /// [^yaml]: **yaml** feature is needed.
+    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method.
     #[cfg(feature = "yaml")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "yaml")))]
     pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
         serde_yaml::to_string(self)
+    }
+
+    /// Merge `other` [`OpenApi`] consuming it and resuming it's content.
+    ///
+    /// Merge function will take all `self` nonexistent _`servers`, `paths`, `schemas`, `responses`,
+    /// `security_schemes`, `security_requirements` and `tags`_ from _`other`_ [`OpenApi`].
+    ///
+    /// This function performs a shallow comparison for `paths`, `schemas`, `responses` and
+    /// `security schemes` which means that only _`name`_ and _`path`_ is used for comparison. When
+    /// match occurs the whole item will be ignored from merged results. Only items not
+    /// found will be appended to `self`.
+    ///
+    /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
+    /// comparison. Items not found from `self` will be appended to `self`.
+    ///
+    /// **Note!** `info`, `openapi` and `external_docs` will not be merged.
+    pub fn merge(&mut self, mut other: OpenApi) {
+        if let Some(other_servers) = &mut other.servers {
+            let servers = self.servers.get_or_insert(Vec::new());
+            other_servers.retain(|server| !servers.contains(server));
+            servers.append(other_servers);
+        }
+
+        if !other.paths.paths.is_empty() {
+            other
+                .paths
+                .paths
+                .retain(|path, _| self.paths.get_path_item(path).is_none());
+            self.paths.paths.append(&mut other.paths.paths);
+        };
+
+        if let Some(other_components) = &mut other.components {
+            let components = self.components.get_or_insert(Components::default());
+
+            other_components
+                .schemas
+                .retain(|name, _| !components.schemas.contains_key(name));
+            components.schemas.append(&mut other_components.schemas);
+
+            other_components
+                .responses
+                .retain(|name, _| !components.responses.contains_key(name));
+            components.responses.append(&mut other_components.responses);
+
+            other_components
+                .security_schemes
+                .retain(|name, _| !components.security_schemes.contains_key(name));
+            components
+                .security_schemes
+                .append(&mut other_components.security_schemes);
+        }
+
+        if let Some(other_security) = &mut other.security {
+            let security = self.security.get_or_insert(Vec::new());
+            other_security.retain(|requirement| !security.contains(requirement));
+            security.append(other_security);
+        }
+
+        if let Some(other_tags) = &mut other.tags {
+            let tags = self.tags.get_or_insert(Vec::new());
+            other_tags.retain(|tag| !tags.contains(tag));
+            tags.append(other_tags);
+        }
     }
 }
 
 impl OpenApiBuilder {
     /// Add [`Info`] metadata of the API.
-    pub fn info(mut self, info: Info) -> Self {
-        set_value!(self info info)
+    pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
+        set_value!(self info info.into())
     }
 
     /// Add iterator of [`Server`]s to configure target servers.
@@ -203,7 +260,7 @@ impl OpenApiBuilder {
 /// Represents available [OpenAPI versions][version].
 ///
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
     /// Will serialize to `3.0.3` the latest from 3.0 serde.
@@ -321,6 +378,18 @@ impl Default for Required {
     }
 }
 
+/// A [`Ref`] or some other type `T`.
+///
+/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
+/// other given type such as [`Schema`] or [`Response`].
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(untagged)]
+pub enum RefOr<T> {
+    Ref(Ref),
+    T(T),
+}
+
 macro_rules! build_fn {
     ( $vis:vis $name:ident $( $field:ident ),+ ) => {
         #[doc = concat!("Constructs a new [`", stringify!($name),"`] taking all fields values from this object.")]
@@ -422,8 +491,9 @@ macro_rules! builder {
 pub(crate) use builder;
 
 #[cfg(test)]
-#[cfg(feature = "serde_json")]
 mod tests {
+    use serde_json::json;
+
     use crate::openapi::{
         info::InfoBuilder,
         path::{OperationBuilder, PathsBuilder},
@@ -501,5 +571,123 @@ mod tests {
             serialized, expected
         );
         Ok(())
+    }
+
+    #[test]
+    fn merge_2_openapi_documents() {
+        let mut api_1 = OpenApi::new(
+            Info::new("Api", "v1"),
+            PathsBuilder::new()
+                .path(
+                    "/api/v1/user",
+                    PathItem::new(
+                        PathItemType::Get,
+                        OperationBuilder::new().response("200", Response::new("Get user success")),
+                    ),
+                )
+                .build(),
+        );
+
+        let api_2 = OpenApiBuilder::new()
+            .info(Info::new("Api", "v2"))
+            .paths(
+                PathsBuilder::new()
+                    .path(
+                        "/api/v1/user",
+                        PathItem::new(
+                            PathItemType::Get,
+                            OperationBuilder::new()
+                                .response("200", Response::new("This will not get added")),
+                        ),
+                    )
+                    .path(
+                        "/ap/v2/user",
+                        PathItem::new(
+                            PathItemType::Get,
+                            OperationBuilder::new()
+                                .response("200", Response::new("Get user success 2")),
+                        ),
+                    )
+                    .path(
+                        "/api/v2/user",
+                        PathItem::new(
+                            PathItemType::Post,
+                            OperationBuilder::new()
+                                .response("200", Response::new("Get user success")),
+                        ),
+                    )
+                    .build(),
+            )
+            .components(Some(
+                ComponentsBuilder::new()
+                    .schema(
+                        "User2",
+                        ObjectBuilder::new()
+                            .schema_type(SchemaType::Object)
+                            .property(
+                                "name",
+                                ObjectBuilder::new().schema_type(SchemaType::String).build(),
+                            ),
+                    )
+                    .build(),
+            ))
+            .build();
+
+        api_1.merge(api_2);
+        let value = serde_json::to_value(&api_1).unwrap();
+
+        assert_eq!(
+            value,
+            json!(
+                {
+                  "openapi": "3.0.3",
+                  "info": {
+                    "title": "Api",
+                    "version": "v1"
+                  },
+                  "paths": {
+                    "/ap/v2/user": {
+                      "get": {
+                        "responses": {
+                          "200": {
+                            "description": "Get user success 2"
+                          }
+                        }
+                      }
+                    },
+                    "/api/v1/user": {
+                      "get": {
+                        "responses": {
+                          "200": {
+                            "description": "Get user success"
+                          }
+                        }
+                      }
+                    },
+                    "/api/v2/user": {
+                      "post": {
+                        "responses": {
+                          "200": {
+                            "description": "Get user success"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "components": {
+                    "schemas": {
+                      "User2": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+            )
+        )
     }
 }

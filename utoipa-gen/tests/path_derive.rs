@@ -1,11 +1,11 @@
-#![cfg(feature = "json")]
 use std::collections::BTreeMap;
 
 use assert_json_diff::assert_json_eq;
 use paste::paste;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use utoipa::openapi::schema::RefOr;
+use utoipa::openapi::RefOr;
+use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
     IntoParams, IntoResponses, OpenApi, ToSchema,
@@ -114,6 +114,38 @@ test_api_fn! {
     #[deprecated]
 }
 
+macro_rules! api_fn_doc_with_params {
+    ( $method:ident: $path:literal => $( #[$attr:meta] )* $key:ident $name:ident $body:tt ) => {{
+        #[allow(dead_code)]
+        #[derive(serde::Deserialize, utoipa::IntoParams)]
+        $(#[$attr])*
+        $key $name $body
+
+        #[utoipa::path(
+                $method,
+                path = $path,
+                responses(
+                    (status = 200, description = "success response")
+                ),
+                params(
+                    $name,
+                )
+            )]
+        #[allow(unused)]
+        fn my_operation(params: MyParams) -> String {
+            "".to_string()
+        }
+
+        let operation: Value = test_api_fn_doc! {
+            my_operation,
+            operation: $method,
+            path: $path
+        };
+
+        operation
+    }};
+}
+
 #[test]
 fn derive_path_with_all_info_success() {
     let operation = test_api_fn_doc! {
@@ -125,12 +157,12 @@ fn derive_path_with_all_info_success() {
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 1);
     assert_value! {operation=>
        "deprecated" = r#"true"#, "Api fn deprecated status"
-       "description" = r#""This is test operation description\n\nAdditional info in long description\n""#, "Api fn description"
+       "description" = r#""This is test operation description\n\nAdditional info in long description""#, "Api fn description"
        "summary" = r#""This is test operation description""#, "Api fn summary"
        "operationId" = r#""foo_bar_id""#, "Api fn operation_id"
        "tags.[0]" = r#""custom_tag""#, "Api fn tag"
 
-       "parameters.[0].deprecated" = r#"false"#, "Path parameter deprecated"
+       "parameters.[0].deprecated" = r#"null"#, "Path parameter deprecated"
        "parameters.[0].description" = r#""Foo bar id""#, "Path parameter description"
        "parameters.[0].in" = r#""path""#, "Path parameter in"
        "parameters.[0].name" = r#""id""#, "Path parameter name"
@@ -154,34 +186,34 @@ fn derive_path_with_defaults_success() {
 
     assert_value! {operation=>
        "deprecated" = r#"false"#, "Api fn deprecated status"
-       "description" = r#""""#, "Api fn description"
        "operationId" = r#""test_operation3""#, "Api fn operation_id"
        "tags.[0]" = r#""derive_path_with_defaults""#, "Api fn tag"
        "parameters" = r#"null"#, "Api parameters"
     }
 }
 
-/// This is test operation
-///
-/// This is long description for test operation
-#[utoipa::path(
-    get,
-    path = "/foo/{id}",
-    responses(
-        (status = 200, description = "success response")
-    ),
-    params(
-        ("id" = u64, description = "Foo database id"),
-        ("since" = Option<String>, Query, description = "Datetime since foo is updated")
-    )
-)]
-#[allow(unused)]
-async fn get_foos_by_id_since() -> String {
-    "".to_string()
-}
-
 #[test]
 fn derive_path_with_extra_attributes_without_nested_module() {
+    /// This is test operation
+    ///
+    /// This is long description for test operation
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (
+                status = 200, description = "success response")
+            ),
+            params(
+                ("id" = u64, deprecated = false, description = "Foo database id"),
+                ("since" = Option<String>, Query, deprecated = false, description = "Datetime since foo is updated")
+            )
+    )]
+    #[allow(unused)]
+    async fn get_foos_by_id_since() -> String {
+        "".to_string()
+    }
+
     let operation = test_api_fn_doc! {
         get_foos_by_id_since,
         operation: get,
@@ -191,7 +223,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 2);
     assert_value! {operation=>
         "deprecated" = r#"false"#, "Api operation deprecated"
-        "description" = r#""This is test operation\n\nThis is long description for test operation\n""#, "Api operation description"
+        "description" = r#""This is test operation\n\nThis is long description for test operation""#, "Api operation description"
         "operationId" = r#""get_foos_by_id_since""#, "Api operation operation_id"
         "summary" = r#""This is test operation""#, "Api operation summary"
         "tags.[0]" = r#""crate""#, "Api operation tag"
@@ -289,7 +321,6 @@ fn derive_path_with_parameter_schema() {
         parameters,
         json!([
             {
-                "deprecated": false,
                 "description": "Foo database id",
                 "in": "path",
                 "name": "id",
@@ -300,7 +331,6 @@ fn derive_path_with_parameter_schema() {
                 }
             },
             {
-                "deprecated": false,
                 "description": "Datetime since foo is updated",
                 "in": "query",
                 "name": "since",
@@ -356,7 +386,6 @@ fn derive_path_with_parameter_inline_schema() {
         parameters,
         json!([
             {
-                "deprecated": false,
                 "description": "Foo database id",
                 "in": "path",
                 "name": "id",
@@ -367,7 +396,6 @@ fn derive_path_with_parameter_inline_schema() {
                 }
             },
             {
-                "deprecated": false,
                 "description": "Datetime since foo is updated",
                 "in": "query",
                 "name": "since",
@@ -424,11 +452,6 @@ fn derive_path_params_map() {
         "".to_string()
     }
 
-    use utoipa::OpenApi;
-    #[derive(OpenApi, Default)]
-    #[openapi(paths(use_maps))]
-    struct ApiDoc;
-
     let operation: Value = test_api_fn_doc! {
         use_maps,
         operation: get,
@@ -467,55 +490,146 @@ fn derive_path_params_map() {
 }
 
 #[test]
+fn derive_path_params_with_examples() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        struct MyParams {
+            #[param(example = json!({"key": "value"}))]
+            map: HashMap<String, String>,
+            #[param(example = json!(["value1", "value2"]))]
+            vec: Vec<String>,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "path",
+            "name": "map",
+            "required": true,
+            "example": {
+                "key": "value"
+            },
+            "schema": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          {
+            "in": "path",
+            "name": "vec",
+            "required": true,
+            "example": ["value1", "value2"],
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
+fn derive_path_query_params_with_schema_features() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        #[into_params(parameter_in = Query)]
+        struct MyParams {
+            #[serde(default)]
+            #[param(write_only, read_only, default = "value", nullable, xml(name = "xml_value"))]
+            value: String,
+            #[param(value_type = String, format = Binary)]
+            int: i64,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "query",
+            "name": "value",
+            "required": false,
+            "schema": {
+                "default": "value",
+                "type": "string",
+                "readOnly": true,
+                "writeOnly": true,
+                "nullable": true,
+                "xml": {
+                    "name": "xml_value"
+                }
+            }
+          },
+          {
+            "in": "query",
+            "name": "int",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
+fn derive_path_params_always_required() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        #[into_params(parameter_in = Path)]
+        struct MyParams {
+            #[serde(default)]
+            value: String,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "path",
+            "name": "value",
+            "required": true,
+            "schema": {
+                "type": "string",
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
 fn derive_required_path_params() {
-    #[derive(serde::Deserialize, IntoParams)]
-    #[into_params(parameter_in = Query)]
-    #[allow(dead_code)]
-    struct MyParams {
-        #[serde(default)]
-        vec_default: Option<Vec<String>>,
+    let operation = api_fn_doc_with_params! {get: "/list/{id}" =>
+        #[into_params(parameter_in = Query)]
+        struct MyParams {
+            #[serde(default)]
+            vec_default: Option<Vec<String>>,
 
-        #[serde(default)]
-        string_default: Option<String>,
+            #[serde(default)]
+            string_default: Option<String>,
 
-        #[serde(default)]
-        vec_default_required: Vec<String>,
+            #[serde(default)]
+            vec_default_required: Vec<String>,
 
-        #[serde(default)]
-        string_default_required: String,
+            #[serde(default)]
+            string_default_required: String,
 
-        vec_option: Option<Vec<String>>,
+            vec_option: Option<Vec<String>>,
 
-        string_option: Option<String>,
+            string_option: Option<String>,
 
-        vec: Vec<String>,
+            vec: Vec<String>,
 
-        string: String,
-    }
-
-    #[utoipa::path(
-        get,
-        path = "/list/{id}",
-        responses(
-            (status = 200, description = "success response")
-        ),
-        params(
-            MyParams,
-        )
-    )]
-    #[allow(unused)]
-    fn list(id: i64) -> String {
-        "".to_string()
-    }
-
-    #[derive(utoipa::OpenApi, Default)]
-    #[openapi(paths(list))]
-    struct ApiDoc;
-
-    let operation: Value = test_api_fn_doc! {
-        list,
-        operation: get,
-        path: "/list/{id}"
+            string: String,
+        }
     };
 
     let parameters = operation.get("parameters").unwrap();
@@ -605,52 +719,26 @@ fn derive_required_path_params() {
 
 #[test]
 fn derive_path_params_with_serde_and_custom_rename() {
-    #[derive(serde::Deserialize, IntoParams)]
-    #[into_params(parameter_in = Query)]
-    #[serde(rename_all = "camelCase")]
-    #[allow(dead_code)]
-    struct MyParams {
-        vec_default: Option<Vec<String>>,
+    let operation = api_fn_doc_with_params! {get: "/list/{id}" =>
+        #[into_params(parameter_in = Query)]
+        #[serde(rename_all = "camelCase")]
+        struct MyParams {
+            vec_default: Option<Vec<String>>,
 
-        #[serde(default, rename = "STRING")]
-        string_default: Option<String>,
+            #[serde(default, rename = "STRING")]
+            string_default: Option<String>,
 
-        #[serde(default, rename = "VEC")]
-        #[param(rename = "vec2")]
-        vec_default_required: Vec<String>,
+            #[serde(default, rename = "VEC")]
+            #[param(rename = "vec2")]
+            vec_default_required: Vec<String>,
 
-        #[serde(default)]
-        #[param(rename = "string_r2")]
-        string_default_required: String,
+            #[serde(default)]
+            #[param(rename = "string_r2")]
+            string_default_required: String,
 
-        string: String,
-    }
-
-    #[utoipa::path(
-        get,
-        path = "/list/{id}",
-        responses(
-            (status = 200, description = "success response")
-        ),
-        params(
-            MyParams,
-        )
-    )]
-    #[allow(unused)]
-    fn list(id: i64) -> String {
-        "".to_string()
-    }
-
-    #[derive(utoipa::OpenApi, Default)]
-    #[openapi(paths(list))]
-    struct ApiDoc;
-
-    let operation: Value = test_api_fn_doc! {
-        list,
-        operation: get,
-        path: "/list/{id}"
+            string: String,
+        }
     };
-
     let parameters = operation.get("parameters").unwrap();
 
     assert_json_eq!(
@@ -708,38 +796,12 @@ fn derive_path_params_with_serde_and_custom_rename() {
 
 #[test]
 fn derive_path_params_custom_rename_all() {
-    #[derive(serde::Deserialize, IntoParams)]
-    #[into_params(rename_all = "camelCase", parameter_in = Query)]
-    #[allow(dead_code)]
-    struct MyParams {
-        vec_default: Option<Vec<String>>,
-    }
-
-    #[utoipa::path(
-        get,
-        path = "/list/{id}",
-        responses(
-            (status = 200, description = "success response")
-        ),
-        params(
-            MyParams,
-        )
-    )]
-    #[allow(unused)]
-    fn list(id: i64) -> String {
-        "".to_string()
-    }
-
-    #[derive(utoipa::OpenApi, Default)]
-    #[openapi(paths(list))]
-    struct ApiDoc;
-
-    let operation: Value = test_api_fn_doc! {
-        list,
-        operation: get,
-        path: "/list/{id}"
+    let operation = api_fn_doc_with_params! {get: "/list/{id}" =>
+        #[into_params(rename_all = "camelCase", parameter_in = Query)]
+        struct MyParams {
+            vec_default: Option<Vec<String>>,
+        }
     };
-
     let parameters = operation.get("parameters").unwrap();
 
     assert_json_eq!(
@@ -762,39 +824,13 @@ fn derive_path_params_custom_rename_all() {
 
 #[test]
 fn derive_path_params_custom_rename_all_serde_will_override() {
-    #[derive(serde::Deserialize, IntoParams)]
-    #[into_params(rename_all = "camelCase", parameter_in = Query)]
-    #[serde(rename_all = "UPPERCASE")]
-    #[allow(dead_code)]
-    struct MyParams {
-        vec_default: Option<Vec<String>>,
-    }
-
-    #[utoipa::path(
-        get,
-        path = "/list/{id}",
-        responses(
-            (status = 200, description = "success response")
-        ),
-        params(
-            MyParams,
-        )
-    )]
-    #[allow(unused)]
-    fn list(id: i64) -> String {
-        "".to_string()
-    }
-
-    #[derive(utoipa::OpenApi, Default)]
-    #[openapi(paths(list))]
-    struct ApiDoc;
-
-    let operation: Value = test_api_fn_doc! {
-        list,
-        operation: get,
-        path: "/list/{id}"
+    let operation = api_fn_doc_with_params! {get: "/list/{id}" =>
+        #[into_params(rename_all = "camelCase", parameter_in = Query)]
+        #[serde(rename_all = "UPPERCASE")]
+        struct MyParams {
+            vec_default: Option<Vec<String>>,
+        }
     };
-
     let parameters = operation.get("parameters").unwrap();
 
     assert_json_eq!(
@@ -817,40 +853,15 @@ fn derive_path_params_custom_rename_all_serde_will_override() {
 
 #[test]
 fn derive_path_parameters_container_level_default() {
-    #[derive(serde::Deserialize, IntoParams, Default)]
-    #[into_params(parameter_in = Query)]
-    #[serde(default)]
-    #[allow(dead_code)]
-    struct MyParams {
-        vec_default: Vec<String>,
-        string: String,
-    }
-
-    #[utoipa::path(
-        get,
-        path = "/list/{id}",
-        responses(
-            (status = 200, description = "success response")
-        ),
-        params(
-            MyParams,
-        )
-    )]
-    #[allow(unused)]
-    fn list(id: i64) -> String {
-        "".to_string()
-    }
-
-    #[derive(utoipa::OpenApi, Default)]
-    #[openapi(paths(list))]
-    struct ApiDoc;
-
-    let operation: Value = test_api_fn_doc! {
-        list,
-        operation: get,
-        path: "/list/{id}"
+    let operation = api_fn_doc_with_params! {get: "/list/{id}" =>
+        #[derive(Default)]
+        #[into_params(parameter_in = Query)]
+        #[serde(default)]
+        struct MyParams {
+            vec_default: Vec<String>,
+            string: String,
+        }
     };
-
     let parameters = operation.get("parameters").unwrap();
 
     assert_json_eq!(
@@ -932,11 +943,6 @@ fn derive_path_params_intoparams() {
     fn list(id: i64, params: MyParams) -> String {
         "".to_string()
     }
-
-    use utoipa::OpenApi;
-    #[derive(OpenApi, Default)]
-    #[openapi(paths(list))]
-    struct ApiDoc;
 
     let operation: Value = test_api_fn_doc! {
         list,
@@ -1025,7 +1031,6 @@ fn derive_path_params_intoparams() {
                 "style": "form",
             },
             {
-                "deprecated": false,
                 "description": "Id of some items to list",
                 "in": "path",
                 "name": "id",
@@ -1220,6 +1225,84 @@ fn derive_path_params_into_params_with_raw_identifier() {
 }
 
 #[test]
+fn derive_path_with_validation_attributes() {
+    #[derive(IntoParams)]
+    #[allow(dead_code)]
+    struct Query {
+        #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
+        id: i32,
+
+        #[param(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+        value: String,
+
+        #[param(max_items = 5, min_items = 1)]
+        items: Vec<String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Query
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Query) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([
+            {
+                "schema": {
+                    "format": "int32",
+                    "type": "integer",
+                    "maximum": 10.0,
+                    "minimum": 5.0,
+                    "multipleOf": 2.5,
+                },
+                "required": true,
+                "name": "id",
+                "in": "path"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 5,
+                    "pattern": "[a-z]*"
+                },
+                "required": true,
+                "name": "value",
+                "in": "path"
+            },
+            {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                    },
+                    "maxItems": 5,
+                    "minItems": 1,
+                },
+                "required": true,
+                "name": "items",
+                "in": "path"
+            }
+        ])
+    );
+}
+
+#[test]
 fn derive_path_with_into_responses() {
     #[allow(unused)]
     enum MyResponse {
@@ -1294,4 +1377,63 @@ fn derive_path_with_uuid() {
         "parameters.[0].name" = r#""id""#, "Parameter id id"
         "parameters.[0].in" = r#""path""#, "Parameter in"
     }
+}
+
+#[test]
+fn derive_path_with_into_params_custom_schema() {
+    fn custom_type() -> Object {
+        ObjectBuilder::new()
+            .schema_type(utoipa::openapi::SchemaType::String)
+            .format(Some(utoipa::openapi::SchemaFormat::Custom(
+                "email".to_string(),
+            )))
+            .description(Some("this is the description"))
+            .build()
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Query {
+        #[param(schema_with = custom_type)]
+        email: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Query
+        )
+    )]
+    #[allow(unused)]
+    fn get_items(query: Query) -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+            {
+                "in": "query",
+                "name": "email",
+                "required": false,
+                "schema": {
+                    "description": "this is the description",
+                    "type": "string",
+                    "format": "email"
+                }
+            }
+        ])
+    )
 }

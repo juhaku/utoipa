@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use axum::{routing, Extension, Router, Server};
+use axum::{routing, Router, Server};
 use hyper::Error;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Error> {
 
     let store = Arc::new(Store::default());
     let app = Router::new()
-        .merge(SwaggerUi::new("/swagger-ui/*tail").url("/api-doc/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .route(
             "/todo",
             routing::get(todo::list_todos).post(todo::create_todo),
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Error> {
             "/todo/:id",
             routing::put(todo::mark_done).delete(todo::delete_todo),
         )
-        .layer(Extension(store));
+        .with_state(store);
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
     Server::bind(&address).serve(app.into_make_service()).await
@@ -69,16 +69,16 @@ mod todo {
     use std::sync::Arc;
 
     use axum::{
-        extract::{Path, Query},
+        extract::{Path, Query, State},
         response::IntoResponse,
-        Extension, Json,
+        Json,
     };
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
     use utoipa::{IntoParams, ToSchema};
 
-    /// In-memonry todo store
+    /// In-memory todo store
     pub(super) type Store = Mutex<Vec<Todo>>;
 
     /// Item to do.
@@ -114,7 +114,7 @@ mod todo {
             (status = 200, description = "List all todos successfully", body = [Todo])
         )
     )]
-    pub(super) async fn list_todos(Extension(store): Extension<Arc<Store>>) -> Json<Vec<Todo>> {
+    pub(super) async fn list_todos(State(store): State<Arc<Store>>) -> Json<Vec<Todo>> {
         let todos = store.lock().await.clone();
 
         Json(todos)
@@ -131,7 +131,7 @@ mod todo {
 
     /// Search Todos by query params.
     ///
-    /// Search `Todo`s by query parmas and return matching `Todo`s.
+    /// Search `Todo`s by query params and return matching `Todo`s.
     #[utoipa::path(
         get,
         path = "/todo/search",
@@ -143,7 +143,7 @@ mod todo {
         )
     )]
     pub(super) async fn search_todos(
-        Extension(store): Extension<Arc<Store>>,
+        State(store): State<Arc<Store>>,
         query: Query<TodoSearchQuery>,
     ) -> Json<Vec<Todo>> {
         Json(
@@ -173,8 +173,8 @@ mod todo {
         )
     )]
     pub(super) async fn create_todo(
+        State(store): State<Arc<Store>>,
         Json(todo): Json<Todo>,
-        Extension(store): Extension<Arc<Store>>,
     ) -> impl IntoResponse {
         let mut todos = store.lock().await;
 
@@ -218,7 +218,7 @@ mod todo {
     )]
     pub(super) async fn mark_done(
         Path(id): Path<i32>,
-        Extension(store): Extension<Arc<Store>>,
+        State(store): State<Arc<Store>>,
         headers: HeaderMap,
     ) -> StatusCode {
         match check_api_key(false, headers) {
@@ -258,7 +258,7 @@ mod todo {
     )]
     pub(super) async fn delete_todo(
         Path(id): Path<i32>,
-        Extension(store): Extension<Arc<Store>>,
+        State(store): State<Arc<Store>>,
         headers: HeaderMap,
     ) -> impl IntoResponse {
         match check_api_key(true, headers) {
@@ -283,7 +283,7 @@ mod todo {
         }
     }
 
-    // normally you should create a midleware for this but this is sufficient for sake of example.
+    // normally you should create a middleware for this but this is sufficient for sake of example.
     fn check_api_key(require_api_key: bool, headers: HeaderMap) -> Result<(), impl IntoResponse> {
         match headers.get("todo_apikey") {
             Some(header) if header != "utoipa-rocks" => Err((

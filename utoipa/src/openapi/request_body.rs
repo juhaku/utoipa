@@ -14,7 +14,7 @@ builder! {
     ///
     /// [request_body]: https://spec.openapis.org/oas/latest.html#request-body-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct RequestBody {
@@ -25,7 +25,7 @@ builder! {
         /// Map of request body contents mapped by content type e.g. `application/json`.
         pub content: BTreeMap<String, Content>,
 
-        /// Determines whether request body is reuqired in the request or not.
+        /// Determines whether request body is required in the request or not.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub required: Option<Required>,
     }
@@ -59,23 +59,18 @@ impl RequestBodyBuilder {
 
 /// Trait with convenience functions for documenting request bodies.
 ///
-/// This trait requires a feature-flag to enable:
-/// ```text
-/// [dependencies]
-/// utoipa = { version = "1", features = ["openapi_extensions"] }
-/// ```
+/// With a single method call we can add [`Content`] to our [`RequestBodyBuilder`] and
+/// [`RequestBody`] that references a [schema][schema] using
+/// content-type `"application/json"`.
 ///
-/// Once enabled, with a single method call we can add [`Content`] to our RequestBodyBuilder
-/// that references a [`crate::ToSchema`] schema using content-tpe "application/json":
-///
+/// _**Add json request body from schema ref.**_
 /// ```rust
 /// use utoipa::openapi::request_body::{RequestBodyBuilder, RequestBodyExt};
 ///
-/// let request = RequestBodyBuilder::new().json_component_ref("EmailPayload").build();
+/// let request = RequestBodyBuilder::new().json_schema_ref("EmailPayload").build();
 /// ```
 ///
-/// If serialized to JSON, the above will result in a requestBody schema like this:
-///
+/// If serialized to JSON, the above will result in a requestBody schema like this.
 /// ```json
 /// {
 ///   "content": {
@@ -88,16 +83,19 @@ impl RequestBodyBuilder {
 /// }
 /// ```
 ///
+/// [schema]: crate::ToSchema
+///
 #[cfg(feature = "openapi_extensions")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 pub trait RequestBodyExt {
-    /// Add [`Content`] to [`RequestBody`] referring to a schema
+    /// Add [`Content`] to [`RequestBody`] referring to a _`schema`_
     /// with Content-Type `application/json`.
-    fn json_component_ref(self, ref_name: &str) -> Self;
+    fn json_schema_ref(self, ref_name: &str) -> Self;
 }
 
 #[cfg(feature = "openapi_extensions")]
 impl RequestBodyExt for RequestBody {
-    fn json_component_ref(mut self, ref_name: &str) -> RequestBody {
+    fn json_schema_ref(mut self, ref_name: &str) -> RequestBody {
         self.content.insert(
             "application/json".to_string(),
             crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
@@ -108,7 +106,7 @@ impl RequestBodyExt for RequestBody {
 
 #[cfg(feature = "openapi_extensions")]
 impl RequestBodyExt for RequestBodyBuilder {
-    fn json_component_ref(self, ref_name: &str) -> RequestBodyBuilder {
+    fn json_schema_ref(self, ref_name: &str) -> RequestBodyBuilder {
         self.content(
             "application/json",
             crate::openapi::Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
@@ -160,16 +158,24 @@ mod tests {
         );
         Ok(())
     }
-    #[cfg(feature = "openapi_extensions")]
+}
+
+#[cfg(all(test, feature = "openapi_extensions"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
+mod openapi_extensions_tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use crate::openapi::request_body::RequestBodyBuilder;
+
     use super::RequestBodyExt;
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn request_body_ext() {
         let request_body = RequestBodyBuilder::new()
             .build()
             // build a RequestBody first to test the method
-            .json_component_ref("EmailPayload");
+            .json_schema_ref("EmailPayload");
         assert_json_eq!(
             request_body,
             json!({
@@ -184,11 +190,10 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "openapi_extensions")]
     #[test]
     fn request_body_builder_ext() {
         let request_body = RequestBodyBuilder::new()
-            .json_component_ref("EmailPayload")
+            .json_schema_ref("EmailPayload")
             .build();
         assert_json_eq!(
             request_body,

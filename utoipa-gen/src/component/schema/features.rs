@@ -1,12 +1,14 @@
 use proc_macro_error::ResultExt;
 use syn::{
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseBuffer, ParseStream},
     Attribute,
 };
 
 use crate::component::features::{
-    impl_into_inner, parse_features, Default, Example, Feature, Format, Inline, Nullable, ReadOnly,
-    Rename, RenameAll, Title, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, As, Default, Example, ExclusiveMaximum,
+    ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
+    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern,
+    ReadOnly, Rename, RenameAll, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -18,7 +20,10 @@ impl Parse for NamedFieldStructFeatures {
             input as Example,
             XmlAttr,
             Title,
-            RenameAll
+            RenameAll,
+            MaxProperties,
+            MinProperties,
+            As
         )))
     }
 }
@@ -35,7 +40,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Default,
             Title,
             Format,
-            ValueType
+            ValueType,
+            As
         )))
     }
 }
@@ -50,7 +56,8 @@ impl Parse for EnumFeatures {
             input as Example,
             Default,
             Title,
-            RenameAll
+            RenameAll,
+            As
         )))
     }
 }
@@ -85,7 +92,18 @@ impl Parse for NamedFieldFeatures {
             XmlAttr,
             Inline,
             Nullable,
-            Rename
+            Rename,
+            MultipleOf,
+            Maximum,
+            Minimum,
+            ExclusiveMaximum,
+            ExclusiveMinimum,
+            MaxLength,
+            MinLength,
+            Pattern,
+            MaxItems,
+            MinItems,
+            SchemaWith
         )))
     }
 }
@@ -128,13 +146,13 @@ impl_into_inner!(EnumUnnamedFieldVariantFeatures);
 pub trait FromAttributes {
     fn parse_features<T>(&self) -> Option<T>
     where
-        T: Parse;
+        T: Parse + Merge<T>;
 }
 
 impl FromAttributes for &'_ [Attribute] {
     fn parse_features<T>(&self) -> Option<T>
     where
-        T: Parse,
+        T: Parse + Merge<T>,
     {
         parse_schema_features::<T>(self)
     }
@@ -143,22 +161,40 @@ impl FromAttributes for &'_ [Attribute] {
 impl FromAttributes for Vec<Attribute> {
     fn parse_features<T>(&self) -> Option<T>
     where
-        T: Parse,
+        T: Parse + Merge<T>,
     {
         parse_schema_features::<T>(self)
     }
 }
 
-pub fn parse_schema_features<T: Sized + Parse>(attributes: &[Attribute]) -> Option<T> {
-    parse_schema_features_with(attributes, T::parse)
+impl_merge!(
+    NamedFieldStructFeatures,
+    UnnamedFieldStructFeatures,
+    EnumFeatures,
+    ComplexEnumFeatures,
+    NamedFieldFeatures,
+    EnumNamedFieldVariantFeatures,
+    EnumUnnamedFieldVariantFeatures
+);
+
+pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> Option<T> {
+    attributes
+        .iter()
+        .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
+        .reduce(|acc, item| acc.merge(item))
 }
 
-pub fn parse_schema_features_with<T>(
+pub fn parse_schema_features_with<
+    T: Merge<T>,
+    P: for<'r> FnOnce(&'r ParseBuffer<'r>) -> syn::Result<T> + Copy,
+>(
     attributes: &[Attribute],
-    parser: impl FnOnce(ParseStream) -> syn::Result<T>,
+    parser: P,
 ) -> Option<T> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.get_ident().unwrap() == "schema")
-        .map(|attribute| attribute.parse_args_with(parser).unwrap_or_abort())
+        .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .map(|attributes| attributes.parse_args_with(parser).unwrap_or_abort())
+        .reduce(|acc, item| acc.merge(item))
 }

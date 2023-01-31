@@ -1,11 +1,16 @@
+use std::borrow::Cow;
+use std::ops::Deref;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::punctuated::Punctuated;
+use syn::token::Paren;
 use syn::{parenthesized, parse::Parse, Token};
+use syn::{LitStr, Type};
 
+use crate::component::{GenericType, TypeTree};
 use crate::{parse_utils, Deprecated};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
 
@@ -26,10 +31,12 @@ use self::parameter::ValueParameter;
 ))]
 use crate::ext::{IntoParamsType, ValueArgument};
 
+pub mod example;
+mod media_type;
 pub mod parameter;
-mod property;
 mod request_body;
-mod response;
+pub mod response;
+mod status;
 
 pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 
@@ -42,17 +49,17 @@ pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 /// #[utoipa::path(delete,
 ///    operation_id = "custom_operation_id",
 ///    path = "/custom/path/{id}/{digest}",
-///    tag = "groupping_tag"
+///    tag = "grouping_tag"
 ///    request_body = [Foo]
 ///    responses = [
 ///         (status = 200, description = "success update Foos", body = [Foo], content_type = "application/json",
 ///             headers = [
-///                 ("fooo-bar" = String, description = "custom header value")
+///                 ("foo-bar" = String, description = "custom header value")
 ///             ]
 ///         ),
 ///         (status = 500, description = "internal server error", body = String, content_type = "text/plain",
 ///             headers = [
-///                 ("fooo-bar" = String, description = "custom header value")
+///                 ("foo-bar" = String, description = "custom header value")
 ///             ]
 ///         ),
 ///    ],
@@ -87,7 +94,7 @@ impl<'p> PathAttr<'p> {
     where
         'a: 'p,
     {
-        if let Some(mut arguments) = arguments {
+        if let Some(arguments) = arguments {
             if !self.params.is_empty() {
                 let mut value_parameters: Vec<&mut ValueParameter> = self
                     .params
@@ -97,14 +104,23 @@ impl<'p> PathAttr<'p> {
                         Parameter::Struct(_) => None,
                     })
                     .collect::<Vec<_>>();
-                PathAttr::update_existing_value_parameters_types(
-                    &mut value_parameters,
-                    &mut arguments,
-                );
+                let (existing_arguments, new_arguments): (Vec<ValueArgument>, Vec<ValueArgument>) =
+                    arguments.into_iter().partition(|argument| {
+                        value_parameters.iter().any(|parameter| {
+                            Some(parameter.name.as_ref()) == argument.name.as_deref()
+                        })
+                    });
 
-                let new_params =
-                    &mut PathAttr::get_new_value_parameters(&value_parameters, arguments);
-                self.params.append(new_params);
+                for argument in existing_arguments {
+                    if let Some(parameter) = value_parameters
+                        .iter_mut()
+                        .find(|parameter| Some(parameter.name.as_ref()) == argument.name.as_deref())
+                    {
+                        parameter.update_parameter_type(argument.type_tree);
+                    }
+                }
+                self.params
+                    .extend(new_arguments.into_iter().map(Parameter::from));
             } else {
                 // no parameters at all, add arguments to the parameters
                 let mut parameters = Vec::with_capacity(arguments.len());
@@ -114,31 +130,6 @@ impl<'p> PathAttr<'p> {
                     .map(Parameter::from)
                     .for_each(|parameter| parameters.push(parameter));
                 self.params = parameters;
-            }
-        }
-    }
-
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    fn update_existing_value_parameters_types<'a>(
-        parameters: &mut [&mut ValueParameter<'a>],
-        arguments: &'_ mut [ValueArgument<'a>],
-    ) {
-        use std::borrow::Cow;
-
-        for parameter in parameters {
-            if let Some(argument) = arguments
-                .iter()
-                .find(|argument| argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name)))
-            {
-                parameter.update_parameter_type(
-                    argument.type_path.clone(),
-                    argument.is_array,
-                    argument.is_option,
-                )
             }
         }
     }
@@ -173,34 +164,6 @@ impl<'p> PathAttr<'p> {
                     })
             }
         }
-    }
-
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    fn get_new_value_parameters<'a>(
-        parameters: &[&mut ValueParameter<'p>],
-        arguments: Vec<ValueArgument<'a>>,
-    ) -> Vec<Parameter<'p>>
-    where
-        'a: 'p,
-    {
-        use std::borrow::Cow;
-
-        arguments
-            .into_iter()
-            .filter_map(|argument| {
-                if !parameters.iter().any(|parameter| {
-                    argument.name.as_ref() == Some(&*Cow::Borrowed(&parameter.name))
-                }) {
-                    Some(Parameter::from(argument))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>()
     }
 }
 
@@ -383,8 +346,8 @@ impl<'p> Path<'p> {
         self
     }
 
-    pub fn doc_comments(mut self, doc_commens: Vec<String>) -> Self {
-        self.doc_comments = Some(doc_commens);
+    pub fn doc_comments(mut self, doc_comments: Vec<String>) -> Self {
+        self.doc_comments = Some(doc_comments);
 
         self
     }
@@ -555,15 +518,13 @@ impl ToTokens for Operation<'_> {
         }
 
         if let Some(description) = self.description {
-            let description = description
-                .iter()
-                .map(|comment| format!("{}\n", comment))
-                .collect::<Vec<String>>()
-                .join("");
+            let description = description.join("\n");
 
-            tokens.extend(quote! {
-                .description(Some(#description))
-            })
+            if !description.is_empty() {
+                tokens.extend(quote! {
+                    .description(Some(#description))
+                })
+            }
         }
 
         self.parameters
@@ -572,18 +533,130 @@ impl ToTokens for Operation<'_> {
     }
 }
 
-trait ContentTypeResolver {
-    fn resolve_content_type<'a>(
-        &self,
-        content_type: Option<&'a String>,
-        schema_type: &SchemaType<'a>,
-    ) -> &'a str {
-        if let Some(content_type) = content_type {
-            content_type
-        } else if schema_type.is_primitive() {
+/// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum PathType<'p> {
+    Ref(String),
+    MediaType(InlineType<'p>),
+    InlineSchema(TokenStream2, Type),
+}
+
+impl Parse for PathType<'_> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let fork = input.fork();
+        let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
+            fork.peek(Paren)
+        } else {
+            false
+        };
+
+        if is_ref {
+            input.parse::<Token![ref]>()?;
+            let ref_stream;
+            parenthesized!(ref_stream in input);
+            Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
+        } else {
+            Ok(Self::MediaType(input.parse()?))
+        }
+    }
+}
+
+// inline(syn::Type) | syn::Type
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct InlineType<'i> {
+    ty: Cow<'i, Type>,
+    is_inline: bool,
+}
+
+impl InlineType<'_> {
+    /// Get's the underlying [`syn::Type`] as [`TypeTree`].
+    fn as_type_tree(&self) -> TypeTree {
+        TypeTree::from_type(&self.ty)
+    }
+}
+
+impl Parse for InlineType<'_> {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let fork = input.fork();
+        let is_inline = if let Some(ident) = fork.parse::<Option<Ident>>()? {
+            ident == "inline" && fork.peek(Paren)
+        } else {
+            false
+        };
+
+        let ty = if is_inline {
+            input.parse::<Ident>()?;
+            let inlined;
+            parenthesized!(inlined in input);
+
+            inlined.parse::<Type>()?
+        } else {
+            input.parse::<Type>()?
+        };
+
+        Ok(InlineType {
+            ty: Cow::Owned(ty),
+            is_inline,
+        })
+    }
+}
+
+pub trait PathTypeTree {
+    /// Resolve default content type based on current [`Type`].
+    fn get_default_content_type(&self) -> &str;
+
+    /// Check whether [`TypeTree`] an option
+    fn is_option(&self) -> bool;
+
+    /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
+    fn is_array(&self) -> bool;
+}
+
+impl PathTypeTree for TypeTree<'_> {
+    /// Resolve default content type based on current [`Type`].
+    fn get_default_content_type(&self) -> &'static str {
+        if self.is_array()
+            && self
+                .children
+                .as_ref()
+                .map(|children| {
+                    children
+                        .iter()
+                        .flat_map(|child| &child.path)
+                        .any(|path| SchemaType(path).is_byte())
+                })
+                .unwrap_or(false)
+        {
+            "application/octet-stream"
+        } else if self
+            .path
+            .as_ref()
+            .map(|path| SchemaType(path.deref()))
+            .map(|schema_type| schema_type.is_primitive())
+            .unwrap_or(false)
+        {
             "text/plain"
         } else {
             "application/json"
+        }
+    }
+
+    /// Check whether [`TypeTree`] an option
+    fn is_option(&self) -> bool {
+        matches!(self.generic_type, Some(GenericType::Option))
+    }
+
+    /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
+    fn is_array(&self) -> bool {
+        match self.generic_type {
+            Some(GenericType::Vec) => true,
+            Some(_) => self
+                .children
+                .as_ref()
+                .unwrap()
+                .iter()
+                .any(|child| child.is_array()),
+            None => false,
         }
     }
 }

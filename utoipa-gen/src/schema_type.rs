@@ -7,7 +7,16 @@ use syn::{parse::Parse, Error, Ident, LitStr, Path};
 pub struct SchemaType<'a>(pub &'a syn::Path);
 
 impl SchemaType<'_> {
-    /// Check whether type is known to be primitive in wich case returns true.
+    fn last_segment_to_string(&self) -> String {
+        self.0
+            .segments
+            .last()
+            .expect("Expected at least one segment is_integer")
+            .ident
+            .to_string()
+    }
+
+    /// Check whether type is known to be primitive in which case returns true.
     pub fn is_primitive(&self) -> bool {
         let SchemaType(path) = self;
         let last_segment = match path.segments.last() {
@@ -68,6 +77,39 @@ impl SchemaType<'_> {
             primitive
         }
     }
+
+    pub fn is_integer(&self) -> bool {
+        matches!(
+            &*self.last_segment_to_string(),
+            "i8" | "i16"
+                | "i32"
+                | "i64"
+                | "i128"
+                | "isize"
+                | "u8"
+                | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "usize"
+        )
+    }
+
+    pub fn is_number(&self) -> bool {
+        match &*self.last_segment_to_string() {
+            "f32" | "f64" => true,
+            _ if self.is_integer() => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(&*self.last_segment_to_string(), "str" | "String")
+    }
+
+    pub fn is_byte(&self) -> bool {
+        matches!(&*self.last_segment_to_string(), "u8")
+    }
 }
 
 #[inline]
@@ -98,7 +140,7 @@ fn is_primitive(name: &str) -> bool {
 #[inline]
 #[cfg(feature = "chrono")]
 fn is_primitive_chrono(name: &str) -> bool {
-    matches!(name, "DateTime" | "Date" | "Duration")
+    matches!(name, "DateTime" | "Date" | "NaiveDate" | "Duration")
 }
 
 #[inline]
@@ -124,6 +166,8 @@ impl ToTokens for SchemaType<'_> {
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
             #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            #[cfg(feature = "chrono")]
+            "NaiveDate" => tokens.extend(quote!(utoipa::openapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "decimal")]
@@ -145,7 +189,7 @@ impl ToTokens for SchemaType<'_> {
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum SchemaFormat<'c> {
-    /// [`utoipa::openapi::shcema::SchemaFormat`] enum variant schema format.
+    /// [`utoipa::openapi::schema::SchemaFormat`] enum variant schema format.
     Variant(Variant),
     /// Rust type schema format.
     Type(Type<'c>),
@@ -206,7 +250,7 @@ impl Type<'_> {
 
             #[cfg(feature = "chrono")]
             if !known_format {
-                known_format = matches!(name, "DateTime" | "Date");
+                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate");
             }
 
             #[cfg(feature = "uuid")]
@@ -246,8 +290,10 @@ impl ToTokens for Type<'_> {
             "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Float) }),
             #[cfg(feature = "chrono")]
+            "NaiveDate" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
+            #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
-            #[cfg(any(feature = "chrono", feature = "Time"))]
+            #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uuid) }),

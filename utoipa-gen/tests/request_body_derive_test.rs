@@ -1,7 +1,7 @@
-#![cfg(feature = "json")]
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
 use utoipa::OpenApi;
+use utoipa_gen::ToSchema;
 
 mod common;
 
@@ -130,15 +130,26 @@ fn derive_request_body_primitive_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let content = doc
+        .pointer("/paths/~1foo/post/requestBody/content")
+        .unwrap();
 
-    assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""array""###, "Request body content object item type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###""integer""###, "Request body content items object type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.format" = r###""int64""###, "Request body content items object format"
-        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
-    }
+    assert_json_eq!(
+        content,
+        json!(
+        {
+            "application/json": {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            }
+        }
+        )
+    );
 }
 
 test_fn! {
@@ -331,14 +342,14 @@ fn derive_request_body_simple_inline_success() {
 }
 
 test_fn! {
-    module: derive_request_body_complex_required_explisit,
+    module: derive_request_body_complex_required_explicit,
     body: (content = Option<Foo>, description = "Create new Foo", content_type = "text/xml")
 }
 
 #[test]
-fn derive_request_body_complex_required_explisit_false_success() {
+fn derive_request_body_complex_required_explicit_false_success() {
     #[derive(OpenApi, Default)]
-    #[openapi(paths(derive_request_body_complex_required_explisit::post_foo))]
+    #[openapi(paths(derive_request_body_complex_required_explicit::post_foo))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -365,28 +376,47 @@ fn derive_request_body_complex_primitive_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-
-    assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###""array""###, "Request body content object item type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###""integer""###, "Request body content items object type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.format" = r###""int32""###, "Request body content items object format"
-        "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
-        "paths.~1foo.post.requestBody.description" = r###""Create new foo references""###, "Request body description"
-    }
+    let content = doc
+        .pointer("/paths/~1foo/post/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+        {
+            "application/json": {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        }
+        )
+    );
 }
 
 test_fn! {
-    module: derive_request_body_primitive_ref_path,
+    module: derive_request_body_ref_path,
     body: = path::to::Foo
 }
 
 #[test]
-fn derive_request_body_primitive_ref_path_success() {
+fn derive_request_body_ref_path_success() {
+    /// Some struct
+    #[derive(ToSchema)]
+    #[schema(as = path::to::Foo)]
+    #[allow(unused)]
+    pub struct Foo {
+        /// Some name
+        name: String,
+    }
+
     #[derive(OpenApi, Default)]
     #[openapi(
-        paths(derive_request_body_primitive_ref_path::post_foo),
-        components(schemas(derive_request_body_primitive_ref_path::Foo as path::to::Foo))
+        paths(derive_request_body_ref_path::post_foo),
+        components(schemas(Foo))
     )]
     struct ApiDoc;
 
@@ -400,4 +430,149 @@ fn derive_request_body_primitive_ref_path_success() {
         .as_str()
         .unwrap();
     assert_eq!(component_ref, "#/components/schemas/path.to.Foo");
+}
+
+#[test]
+fn request_body_with_example() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Value<'v> {
+        value: &'v str,
+    }
+
+    #[utoipa::path(get, path = "/item", request_body(content = Value, example = json!({"value": "this is value"})))]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Value)), paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/json": {
+                "example": {
+                    "value": "this is value"
+                },
+                "schema": {
+                    "$ref": "#/components/schemas/Value"
+                }
+            }
+        })
+    )
+}
+
+#[test]
+fn request_body_with_examples() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Value<'v> {
+        value: &'v str,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/item",
+        request_body(content = Value,
+            examples(
+                ("Value1" = (value = json!({"value": "this is value"}) ) ),
+                ("Value2" = (value = json!({"value": "this is value2"}) ) )
+            )
+        )
+    )]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Value)), paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/json": {
+                "examples": {
+                    "Value1": {
+                        "value": {
+                            "value": "this is value"
+                        }
+                    },
+                    "Value2": {
+                        "value": {
+                            "value": "this is value2"
+                        }
+                    }
+                },
+                "schema": {
+                    "$ref": "#/components/schemas/Value"
+                }
+            }
+        })
+    )
+}
+
+#[test]
+fn request_body_with_binary() {
+    #[utoipa::path(get, path = "/item", request_body(content = [u8]))]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/octet-stream": {
+                "schema": {
+                    "type": "string",
+                    "format": "binary"
+                }
+            }
+        })
+    )
+}
+
+#[test]
+fn request_body_with_external_ref() {
+    #[utoipa::path(get, path = "/item", request_body(content = ref("./MyUser.json")))]
+    #[allow(dead_code)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let content = doc
+        .pointer("/paths/~1item/get/requestBody/content")
+        .unwrap();
+    assert_json_eq!(
+        content,
+        json!(
+            {"application/json": {
+                "schema": {
+                    "$ref": "./MyUser.json"
+                }
+            }
+        })
+    )
 }

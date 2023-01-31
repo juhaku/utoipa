@@ -1,9 +1,7 @@
-#![cfg(feature = "json")]
-
 use assert_json_diff::assert_json_eq;
 use serde_json::{json, Value};
-use utoipa::openapi::Response;
-use utoipa::ToResponse;
+use utoipa::openapi::{RefOr, Response};
+use utoipa::{OpenApi, ToResponse};
 
 mod common;
 
@@ -93,13 +91,39 @@ fn derive_path_with_multiple_simple_responses() {
     }
 }
 
+test_fn! {
+    module: http_status_code_responses,
+    responses: (
+        (status = OK, description = "success"),
+        (status = http::status::StatusCode::NOT_FOUND, description = "not found"),
+    )
+}
+
+#[test]
+fn derive_http_status_code_responses() {
+    let doc = api_doc!(module: http_status_code_responses);
+    let responses = doc.pointer("/responses");
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "description": "success"
+            },
+            "404": {
+                "description": "not found"
+            }
+        })
+    )
+}
+
 struct ReusableResponse;
 
-impl ToResponse for ReusableResponse {
-    fn response() -> (String, Response) {
+impl<'r> ToResponse<'r> for ReusableResponse {
+    fn response() -> (&'r str, RefOr<Response>) {
         (
-            String::from("ReusableResponseName"),
-            Response::new("reusable response"),
+            "ReusableResponseName",
+            Response::new("reusable response").into(),
         )
     }
 }
@@ -158,14 +182,14 @@ test_response_types! {
 primitive_string_body => body: String, assert:
     "responses.200.content.text~1plain.schema.type" = r#""string""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
-primitive_string_sclice_body => body: [String], assert:
-    "responses.200.content.text~1plain.schema.items.type" = r#""string""#, "Response content items type"
-    "responses.200.content.text~1plain.schema.type" = r#""array""#, "Response content type"
+primitive_string_slice_body => body: [String], assert:
+    "responses.200.content.application~1json.schema.items.type" = r#""string""#, "Response content items type"
+    "responses.200.content.application~1json.schema.type" = r#""array""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_integer_slice_body => body: [i32], assert:
-    "responses.200.content.text~1plain.schema.items.type" = r#""integer""#, "Response content items type"
-    "responses.200.content.text~1plain.schema.items.format" = r#""int32""#, "Response content items format"
-    "responses.200.content.text~1plain.schema.type" = r#""array""#, "Response content type"
+    "responses.200.content.application~1json.schema.items.type" = r#""integer""#, "Response content items type"
+    "responses.200.content.application~1json.schema.items.format" = r#""int32""#, "Response content items format"
+    "responses.200.content.application~1json.schema.type" = r#""array""#, "Response content type"
     "responses.200.headers" = r###"null"###, "Response headers"
 primitive_integer_body => body: i64, assert:
     "responses.200.content.text~1plain.schema.type" = r#""integer""#, "Response content type"
@@ -220,6 +244,10 @@ response_no_body_with_complex_header_with_description => headers: (
     "responses.200.headers.random-digits.schema.type" = r###""array""###, "random-digits header type"
     "responses.200.headers.random-digits.schema.items.type" = r###""integer""###, "random-digits header items type"
     "responses.200.headers.random-digits.schema.items.format" = r###""int64""###, "random-digits header items format"
+binary_octet_stream => body: [u8], assert:
+    "responses.200.content.application~1octet-stream.schema.type" = r#""string""#, "Response content type"
+    "responses.200.content.application~1octet-stream.schema.format" = r#""binary""#, "Response content format"
+    "responses.200.headers" = r###"null"###, "Response headers"
 }
 
 test_fn! {
@@ -242,7 +270,7 @@ fn derive_response_with_json_example_success() {
 }
 
 #[test]
-fn derive_reponse_multiple_content_types() {
+fn derive_response_multiple_content_types() {
     test_fn! {
         module: response_multiple_content_types,
         responses: (
@@ -277,7 +305,6 @@ fn derive_response_body_inline_schema_component() {
         doc,
         json!({
             "deprecated": false,
-            "description": "",
             "operationId": "get_foo",
             "responses": {
                 "200": {
@@ -304,4 +331,309 @@ fn derive_response_body_inline_schema_component() {
             ]
         })
     );
+}
+
+#[test]
+fn derive_path_with_multiple_responses_via_content_attribute() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        id: String,
+    }
+
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User2 {
+        id: i32,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, content(
+                    ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
+                    ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+                )
+            )
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User, User2)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/vnd.user.v1+json": {
+                        "example": {
+                            "id": "id",
+                        },
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
+                        },
+                    },
+                    "application/vnd.user.v2+json": {
+                        "example": {
+                            "id": 2,
+                        },
+                        "schema": {
+                            "$ref": "#/components/schemas/User2",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}
+
+#[test]
+fn derive_path_with_multiple_examples() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        name: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, body = User,
+                examples(
+                    ("Demo" = (summary = "This is summary", description = "Long description", 
+                                value = json!(User{name: "Demo".to_string()}))),
+                    ("John" = (summary = "Another user", value = json!({"name": "John"})))
+                 )
+            )
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "examples": {
+                            "Demo": {
+                                "summary": "This is summary",
+                                "description": "Long description",
+                                "value": {
+                                    "name": "Demo"
+                                }
+                            },
+                            "John": {
+                                "summary": "Another user",
+                                "value": {
+                                    "name": "John"
+                                }
+                            }
+                        },
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}
+
+#[test]
+fn derive_path_with_multiple_responses_with_multiple_examples() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        id: String,
+    }
+
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User2 {
+        id: i32,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, content(
+                    ("application/vnd.user.v1+json" = User, 
+                        examples(
+                            ("StringUser" = (value = json!({"id": "1"}))),
+                            ("StringUser2" = (value = json!({"id": "2"})))
+                        ),
+                    ),
+                    ("application/vnd.user.v2+json" = User2, 
+                        examples(
+                            ("IntUser" = (value = json!({"id": 1}))),
+                            ("IntUser2" = (value = json!({"id": 2})))
+                        ),
+                    )
+                )
+            )
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User, User2)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/vnd.user.v1+json": {
+                        "examples": {
+                            "StringUser": {
+                                "value": {
+                                    "id": "1"
+                                }
+                            },
+                            "StringUser2": {
+                                "value": {
+                                    "id": "2"
+                                }
+                            }
+                        },
+                        "schema": {
+                            "$ref":
+                                "#/components/schemas/User",
+                        },
+                    },
+                    "application/vnd.user.v2+json": {
+                        "examples": {
+                            "IntUser": {
+                                "value": {
+                                    "id": 1
+                                }
+                            },
+                            "IntUser2": {
+                                "value": {
+                                    "id": 2
+                                }
+                            }
+                        },
+                        "schema": {
+                            "$ref": "#/components/schemas/User2",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}
+
+#[test]
+fn path_response_with_external_ref() {
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, body = ref("./MyUser.json"))
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref":
+                                "./MyUser.json",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
+}
+
+#[test]
+fn path_response_with_inline_ref_type() {
+    #[derive(serde::Serialize, utoipa::ToSchema, utoipa::ToResponse)]
+    #[allow(unused)]
+    struct User {
+        name: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo", 
+        responses(
+            (status = 200, response = inline(User))
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_item), components(schemas(User)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
+
+    assert_json_eq!(
+        responses,
+        json!({
+            "200": {
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object",
+                        },
+                    },
+                },
+                "description": "",
+            },
+        })
+    )
 }

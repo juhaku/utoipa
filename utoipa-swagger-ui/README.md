@@ -5,43 +5,44 @@
 [![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa-swagger-ui&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/)
 ![rustc](https://img.shields.io/static/v1?label=rustc&message=1.60%2B&color=orange&logo=rust)
 
-This crate implements necessary boiler plate code to serve Swagger UI via web server. It
-works as a bridge for serving the OpenAPI documetation created with 
-[utoipa](https://docs.rs/utoipa/) libarary in the Swagger UI.
+This crate implements necessary boilerplate code to serve Swagger UI via web server. It
+works as a bridge for serving the OpenAPI documentation created with 
+[utoipa](https://docs.rs/utoipa/) library in the Swagger UI.
 
-**Currently implemented boiler plate for:**
+**Currently implemented boilerplate for:**
 
 * **actix-web** `version >= 4`
-* **rocket** `version >=0.5.0-rc.1`
-* **axum** `version >=0.5`
+* **rocket** `version >=0.5.0-rc.2`
+* **axum** `version >=0.6`
 
-Serving Swagger UI is framework independant thus this crate also supports serving the Swagger UI with
-other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
+Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
+other frameworks as well. With other frameworks, there is a bit more manual implementation to be done. See
 more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/fn.serve.html) or 
 [examples](https://github.com/juhaku/utoipa/tree/master/examples).
 
-# Features
+# Crate Features
 
 * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
-  users to use the Swagger UI without a hazzle.
-* **rocket** Enables rocket integration with with pre-configured routes for serving the Swagger UI 
-  and api doc without a hazzle.
+  users to use the Swagger UI without a hassle.
+* **rocket** Enables rocket integration with pre-configured routes for serving the Swagger UI 
+  and api doc without a hassle.
 * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
   hazzle free.
 * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
   builds as well.
+
 # Install
 
-Use only the raw types without any boiler plate implementation.
+Use only the raw types without any boilerplate implementation.
 ```toml
 [dependencies]
-utoipa-swagger-ui = "2"
+utoipa-swagger-ui = "3"
 
 ```
 Enable actix-web framework with Swagger UI you could define the dependency as follows.
 ```toml
 [dependencies]
-utoipa-swagger-ui = { version = "2", features = ["actix-web"] }
+utoipa-swagger-ui = { version = "3", features = ["actix-web"] }
 ```
 
 **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
@@ -78,7 +79,7 @@ Setup Router to serve Swagger UI with **`axum`** framework. See full implementat
 Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
 ```rust
 let app = Router::new()
-    .merge(SwaggerUi::new("/swagger-ui/*tail")
+    .merge(SwaggerUi::new("/swagger-ui")
         .url("/api-doc/openapi.json", ApiDoc::openapi()));
 ```
 

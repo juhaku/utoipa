@@ -20,7 +20,7 @@ fn rocket() -> Rocket<Build> {
             todo::create_todo,
             todo::mark_done,
             todo::delete_todo,
-            todo::search_todos
+            todo::search_todos,
         ),
         components(
             schemas(todo::Todo, todo::TodoError)
@@ -151,10 +151,10 @@ mod todo {
         /// Unique todo id.
         #[schema(example = 1)]
         id: i32,
-        /// Description of a taks.
+        /// Description of a tasks.
         #[schema(example = "Buy groceries")]
         value: String,
-        /// Indicatation whether task is done or not.
+        /// Indication whether task is done or not.
         done: bool,
     }
 

@@ -2,17 +2,14 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "serde_json")]
 use serde_json::Value;
 
-use super::{
-    build_fn, builder, from, new, security::SecurityScheme, set_value, xml::Xml, Deprecated,
-    Response,
-};
-use crate::ToResponse;
+use super::RefOr;
+use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
+use crate::{ToResponse, ToSchema};
 
 macro_rules! component_from_builder {
     ( $name:ident ) => {
@@ -44,7 +41,7 @@ builder! {
     ///
     /// [components]: https://spec.openapis.org/oas/latest.html#components-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Components {
@@ -59,8 +56,8 @@ builder! {
         ///
         /// [response]: https://spec.openapis.org/oas/latest.html#response-object
         /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
-        #[serde(skip_serializing_if = "HashMap::is_empty", default)]
-        pub responses: HashMap<String, RefOr<Response>>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub responses: BTreeMap<String, RefOr<Response>>,
 
         /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
         ///
@@ -117,11 +114,26 @@ impl Components {
 impl ComponentsBuilder {
     /// Add [`Schema`] to [`Components`].
     ///
-    /// Accpets two arguments where first is name of the schema and second is the schema itself.
+    /// Accepts two arguments where first is name of the schema and second is the schema itself.
     pub fn schema<S: Into<String>, I: Into<RefOr<Schema>>>(mut self, name: S, schema: I) -> Self {
         self.schemas.insert(name.into(), schema.into());
 
         self
+    }
+
+    pub fn schema_from<'s, I: ToSchema<'s>>(mut self) -> Self {
+        let aliases = I::aliases();
+
+        // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
+        // Eventually aliases functionality should be extracted out from the `ToSchema`. Aliases
+        // are created when the main schema is a generic type which should be included in OpenAPI
+        // spec in its generic form.
+        if aliases.is_empty() {
+            let (name, schema) = I::schema();
+            self.schemas.insert(name.to_string(), schema);
+        }
+
+        self.schemas_from_iter(aliases)
     }
 
     /// Add [`Schema`]s from iterator.
@@ -168,7 +180,7 @@ impl ComponentsBuilder {
         self
     }
 
-    pub fn response_from_into<I: ToResponse>(self) -> Self {
+    pub fn response_from<'r, I: ToResponse<'r>>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }
@@ -213,14 +225,14 @@ impl ComponentsBuilder {
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
-    /// Defines object schema. Object is either `object` hodling **properties** which are other [`Schema`]s
+    /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
     /// or can be a field within the [`Object`].
     Object(Object),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
@@ -230,7 +242,7 @@ pub enum Schema {
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
 
-    /// Creates a _AnyOf_ type [composite Object][composite] shcema.
+    /// Creates a _AnyOf_ type [composite Object][composite] schema.
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf),
@@ -246,7 +258,7 @@ impl Default for Schema {
 /// [`OneOf`] composite object.
 ///
 /// [discriminator]: https://spec.openapis.org/oas/latest.html#discriminator-object
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Discriminator {
@@ -272,47 +284,44 @@ impl Discriminator {
     }
 }
 
-/// OneOf [Composite Object][oneof] component holds
-/// multiple components together where API endpoint could return any of them.
-///
-/// See [`Schema::OneOf`] for more details.
-///
-/// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
-#[derive(Serialize, Deserialize, Clone, Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct OneOf {
-    /// Components of _OneOf_ component.
-    #[serde(rename = "oneOf")]
-    pub items: Vec<RefOr<Schema>>,
+builder! {
+    OneOfBuilder;
 
-    /// Description of the [`OneOf`]. Markdown syntax is supported.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    /// OneOf [Composite Object][oneof] component holds
+    /// multiple components together where API endpoint could return any of them.
+    ///
+    /// See [`Schema::OneOf`] for more details.
+    ///
+    /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct OneOf {
+        /// Components of _OneOf_ component.
+        #[serde(rename = "oneOf")]
+        pub items: Vec<RefOr<Schema>>,
 
-    /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub default: Option<Value>,
+        /// Description of the [`OneOf`]. Markdown syntax is supported.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub default: Option<String>,
+        /// Default value which is provided when user has not provided the input in Swagger UI.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub example: Option<Value>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub example: Option<String>,
+        /// Example shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub example: Option<Value>,
 
-    /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
-    /// specific schema.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub discriminator: Option<Discriminator>,
+        /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
+        /// specific schema.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub discriminator: Option<Discriminator>,
+
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
+    }
 }
 
 impl OneOf {
@@ -343,31 +352,7 @@ impl OneOf {
     }
 }
 
-/// Builder for [`OneOf`] with chainable configuration methods to create a new [`OneOf`].
-#[derive(Default)]
-pub struct OneOfBuilder {
-    items: Vec<RefOr<Schema>>,
-
-    description: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    default: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    default: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    example: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
-
-    discriminator: Option<Discriminator>,
-}
-
 impl OneOfBuilder {
-    new!(pub OneOfBuilder);
-
     /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite]
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
@@ -383,27 +368,13 @@ impl OneOfBuilder {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[cfg(feature = "serde_json")]
     pub fn default(mut self, default: Option<Value>) -> Self {
         set_value!(self default default)
     }
 
-    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
-        set_value!(self default default.map(|default| default.into()))
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(feature = "serde_json")]
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        set_value!(self example example.map(|example| example.into()))
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
@@ -411,12 +382,13 @@ impl OneOfBuilder {
         set_value!(self discriminator discriminator)
     }
 
+    /// Add or change nullable flag for [`Object`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
+    }
+
     to_array_builder!();
-
-    build_fn!(pub OneOf items, description, default, example, discriminator);
 }
-
-from!(OneOf OneOfBuilder items, description, default, example, discriminator);
 
 impl From<OneOf> for Schema {
     fn from(one_of: OneOf) -> Self {
@@ -432,47 +404,43 @@ impl From<OneOfBuilder> for RefOr<Schema> {
 
 component_from_builder!(OneOfBuilder);
 
-/// AllOf [Composite Object][allof] component holds
-/// multiple components together where API endpoint will return a combination of all of them.
-///
-/// See [`Schema::AllOf`] for more details.
-///
-/// [allof]: https://spec.openapis.org/oas/latest.html#components-object
-#[derive(Serialize, Deserialize, Clone, Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct AllOf {
-    /// Components of _AllOf_ component.
-    #[serde(rename = "allOf")]
-    pub items: Vec<RefOr<Schema>>,
+builder! {
+    AllOfBuilder;
 
-    /// Description of the [`AllOf`]. Markdown syntax is supported.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    /// AllOf [Composite Object][allof] component holds
+    /// multiple components together where API endpoint will return a combination of all of them.
+    ///
+    /// See [`Schema::AllOf`] for more details.
+    ///
+    /// [allof]: https://spec.openapis.org/oas/latest.html#components-object
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct AllOf {
+        /// Components of _AllOf_ component.
+        #[serde(rename = "allOf")]
+        pub items: Vec<RefOr<Schema>>,
 
-    /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub default: Option<Value>,
+        /// Description of the [`AllOf`]. Markdown syntax is supported.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub default: Option<String>,
+        /// Default value which is provided when user has not provided the input in Swagger UI.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub example: Option<Value>,
+        /// Example shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub example: Option<Value>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub example: Option<String>,
+        /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
+        /// specific schema.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub discriminator: Option<Discriminator>,
 
-    /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
-    /// specific schema.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub discriminator: Option<Discriminator>,
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
+    }
 }
 
 impl AllOf {
@@ -503,31 +471,7 @@ impl AllOf {
     }
 }
 
-/// Builder for [`AllOf`] with chainable configuration methods to create a new [`AllOf`].
-#[derive(Default)]
-pub struct AllOfBuilder {
-    items: Vec<RefOr<Schema>>,
-
-    description: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    default: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    default: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    example: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
-
-    discriminator: Option<Discriminator>,
-}
-
 impl AllOfBuilder {
-    new!(pub AllOfBuilder);
-
     /// Adds a given [`Schema`] to [`AllOf`] [Composite Object][composite]
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
@@ -543,27 +487,13 @@ impl AllOfBuilder {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[cfg(feature = "serde_json")]
     pub fn default(mut self, default: Option<Value>) -> Self {
         set_value!(self default default)
     }
 
-    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
-        set_value!(self default default.map(|default| default.into()))
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(feature = "serde_json")]
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        set_value!(self example example.map(|example| example.into()))
     }
 
     /// Add or change discriminator field of the composite [`AllOf`] type.
@@ -571,12 +501,13 @@ impl AllOfBuilder {
         set_value!(self discriminator discriminator)
     }
 
+    /// Add or change nullable flag for [`Object`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
+    }
+
     to_array_builder!();
-
-    build_fn!(pub AllOf items, description, default, example, discriminator);
 }
-
-from!(AllOf AllOfBuilder items, description, default, example, discriminator);
 
 impl From<AllOf> for Schema {
     fn from(one_of: AllOf) -> Self {
@@ -592,94 +523,142 @@ impl From<AllOfBuilder> for RefOr<Schema> {
 
 component_from_builder!(AllOfBuilder);
 
-/// Implements subset of [OpenAPI Schema Object][schema] which allows
-/// adding other [`Schema`]s as **properties** to this [`Schema`].
-///
-/// This is a generic OpenAPI schema object which can used to present `object`, `field` or an `enum`.
-///
-/// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Object {
-    /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
-    /// `string` types.
-    #[serde(rename = "type")]
-    schema_type: SchemaType,
+#[cfg(not(feature = "preserve_order"))]
+type ObjectPropertiesMap<K, V> = BTreeMap<K, V>;
+#[cfg(feature = "preserve_order")]
+type ObjectPropertiesMap<K, V> = indexmap::IndexMap<K, V>;
 
-    /// Changes the [`Object`] title.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    title: Option<String>,
+builder! {
+    ObjectBuilder;
 
-    /// Additional format for detailing the schema type.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<SchemaFormat>,
+    /// Implements subset of [OpenAPI Schema Object][schema] which allows
+    /// adding other [`Schema`]s as **properties** to this [`Schema`].
+    ///
+    /// This is a generic OpenAPI schema object which can used to present `object`, `field` or an `enum`.
+    ///
+    /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Object {
+        /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
+        /// `string` types.
+        #[serde(rename = "type")]
+        pub schema_type: SchemaType,
 
-    /// Description of the [`Object`]. Markdown syntax is supported.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+        /// Changes the [`Object`] title.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
 
-    /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub default: Option<Value>,
+        /// Additional format for detailing the schema type.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub format: Option<SchemaFormat>,
 
-    /// Default value which is provided when user has not provided the input in Swagger UI.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub default: Option<String>,
+        /// Description of the [`Object`]. Markdown syntax is supported.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
-    /// Enum variants of fields that can be represented as `unit` type `enums`
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "repr"))]
-    pub enum_values: Option<Vec<String>>,
+        /// Default value which is provided when user has not provided the input in Swagger UI.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
 
-    /// Enum variants of fields that can be represented as `unit` type `enums`
-    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "repr")]
-    pub enum_values: Option<Vec<Value>>,
+        /// Enum variants of fields that can be represented as `unit` type `enums`
+        #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+        pub enum_values: Option<Vec<Value>>,
 
-    /// Vector of required field names.
-    #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
-    pub required: Vec<String>,
+        /// Vector of required field names.
+        #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
+        pub required: Vec<String>,
 
-    /// Map of fields with their [`Schema`] types.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty", default = "BTreeMap::new")]
-    pub properties: BTreeMap<String, RefOr<Schema>>,
+        /// Map of fields with their [`Schema`] types.
+        ///
+        /// With **preserve_order** feature flag [`indexmap::IndexMap`] will be used as
+        /// properties map backing implementation to retain property order of [`ToSchema`][to_schema].
+        /// By default [`BTreeMap`] will be used.
+        ///
+        /// [to_schema]: crate::ToSchema
+        #[serde(skip_serializing_if = "ObjectPropertiesMap::is_empty", default = "ObjectPropertiesMap::new")]
+        pub properties: ObjectPropertiesMap<String, RefOr<Schema>>,
 
-    /// Additional [`Schema`] for non specified fields (Useful for typed maps).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub additional_properties: Option<Box<RefOr<Schema>>>,
+        /// Additional [`Schema`] for non specified fields (Useful for typed maps).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub additional_properties: Option<Box<RefOr<Schema>>>,
 
-    /// Changes the [`Object`] deprecated status.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<Deprecated>,
+        /// Changes the [`Object`] deprecated status.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub deprecated: Option<Deprecated>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub example: Option<Value>,
+        /// Example shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub example: Option<Value>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub example: Option<String>,
+        /// Write only property will be only sent in _write_ requests like _POST, PUT_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub write_only: Option<bool>,
 
-    /// Write only property will be only sent in _write_ requests like _POST, PUT_.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub write_only: Option<bool>,
+        /// Read only property will be only sent in _read_ requests like _GET_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub read_only: Option<bool>,
 
-    /// Read only property will be only sent in _read_ requests like _GET_.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub read_only: Option<bool>,
+        /// Additional [`Xml`] formatting of the [`Object`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub xml: Option<Xml>,
 
-    /// Additional [`Xml`] formatting of the [`Object`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub xml: Option<Xml>,
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
 
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub nullable: bool,
+        /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
+        /// divided by the _`multiple_of`_ value results an integer.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub multiple_of: Option<f64>,
+
+        /// Specify inclusive upper limit for the [`Object`]'s value. Number is considered valid if
+        /// it is equal or less than the _`maximum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub maximum: Option<f64>,
+
+        /// Specify inclusive lower limit for the [`Object`]'s value. Number value is considered
+        /// valid if it is equal or greater than the _`minimum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub minimum: Option<f64>,
+
+        /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
+        /// valid if it is strictly less than _`exclusive_maximum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub exclusive_maximum: Option<f64>,
+
+        /// Specify exclusive lower limit for the [`Object`]'s value. Number value is considered
+        /// valid if it is strictly above the _`exclusive_minimum`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub exclusive_minimum: Option<f64>,
+
+        /// Specify maximum length for `string` values. _`max_length`_ cannot be a negative integer
+        /// value. Value is considered valid if content length is equal or less than the _`max_length`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub max_length: Option<usize>,
+
+        /// Specify minimum length for `string` values. _`min_length`_ cannot be a negative integer
+        /// value. Setting this to _`0`_ has the same effect as omitting this field. Value is
+        /// considered valid if content length is equal or more than the _`min_length`_.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub min_length: Option<usize>,
+
+        /// Define a valid `ECMA-262` dialect regular expression. The `string` content is
+        /// considered valid if the _`pattern`_ matches the value successfully.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub pattern: Option<String>,
+
+        /// Specify inclusive maximum amount of properties an [`Object`] can hold.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub max_properties: Option<usize>,
+
+        /// Specify inclusive minimum amount of properties an [`Object`] can hold. Setting this to
+        /// `0` will have same effect as omitting the attribute.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub min_properties: Option<usize>,
+    }
 }
 
 fn is_false(value: &bool) -> bool {
@@ -687,8 +666,8 @@ fn is_false(value: &bool) -> bool {
 }
 
 impl Object {
-    /// Initialize a new [`Object`] with default [`SchemaType`]. This effectifly same as calling
-    /// [`Object::with_type(SchemaType::Object)`].
+    /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
+    /// `Object::with_type(SchemaType::Object)`.
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -718,55 +697,7 @@ impl From<Object> for Schema {
 
 impl ToArray for Object {}
 
-/// Builder for [`Object`] with chainable configuration methods to create a new [`Object`].
-#[derive(Default)]
-pub struct ObjectBuilder {
-    schema_type: SchemaType,
-
-    title: Option<String>,
-
-    format: Option<SchemaFormat>,
-
-    description: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    default: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    default: Option<String>,
-
-    deprecated: Option<Deprecated>,
-
-    #[cfg(not(feature = "repr"))]
-    enum_values: Option<Vec<String>>,
-
-    #[cfg(feature = "repr")]
-    enum_values: Option<Vec<Value>>,
-
-    required: Vec<String>,
-
-    properties: BTreeMap<String, RefOr<Schema>>,
-
-    additional_properties: Option<Box<RefOr<Schema>>>,
-
-    write_only: Option<bool>,
-
-    read_only: Option<bool>,
-
-    #[cfg(feature = "serde_json")]
-    example: Option<Value>,
-
-    #[cfg(not(feature = "serde_json"))]
-    example: Option<String>,
-
-    xml: Option<Xml>,
-
-    nullable: bool,
-}
-
 impl ObjectBuilder {
-    new!(pub ObjectBuilder);
-
     /// Add or change type of the object e.g [`SchemaType::String`].
     pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
         set_value!(self schema_type schema_type)
@@ -816,15 +747,8 @@ impl ObjectBuilder {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[cfg(feature = "serde_json")]
     pub fn default(mut self, default: Option<Value>) -> Self {
         set_value!(self default default)
-    }
-
-    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn default<I: Into<String>>(mut self, default: Option<I>) -> Self {
-        set_value!(self default default.map(|default| default.into()))
     }
 
     /// Add or change deprecated status for [`Object`].
@@ -833,7 +757,6 @@ impl ObjectBuilder {
     }
 
     /// Add or change enum property variants.
-    #[cfg(feature = "repr")]
     pub fn enum_values<I: IntoIterator<Item = E>, E: Into<Value>>(
         mut self,
         enum_values: Option<I>,
@@ -842,26 +765,9 @@ impl ObjectBuilder {
             enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
     }
 
-    /// Add or change enum property variants.
-    #[cfg(not(feature = "repr"))]
-    pub fn enum_values<I: IntoIterator<Item = E>, E: Into<String>>(
-        mut self,
-        enum_values: Option<I>,
-    ) -> Self {
-        set_value!(self enum_values
-            enum_values.map(|values| values.into_iter().map(|enum_value| enum_value.into()).collect()))
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(feature = "serde_json")]
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        set_value!(self example example.map(|example| example.into()))
     }
 
     /// Add or change write only flag for [`Object`].
@@ -884,16 +790,58 @@ impl ObjectBuilder {
         set_value!(self nullable nullable)
     }
 
+    /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
+    pub fn multiple_of(mut self, multiple_of: Option<f64>) -> Self {
+        set_value!(self multiple_of multiple_of)
+    }
+
+    /// Set or change inclusive maximum value for `number` and `integer` values.
+    pub fn maximum(mut self, maximum: Option<f64>) -> Self {
+        set_value!(self maximum maximum)
+    }
+
+    /// Set or change inclusive minimum value for `number` and `integer` values.
+    pub fn minimum(mut self, minimum: Option<f64>) -> Self {
+        set_value!(self minimum minimum)
+    }
+
+    /// Set or change exclusive maximum value for `number` and `integer` values.
+    pub fn exclusive_maximum(mut self, exclusive_maximum: Option<f64>) -> Self {
+        set_value!(self exclusive_maximum exclusive_maximum)
+    }
+
+    /// Set or change exclusive minimum value for `number` and `integer` values.
+    pub fn exclusive_minimum(mut self, exclusive_minimum: Option<f64>) -> Self {
+        set_value!(self exclusive_minimum exclusive_minimum)
+    }
+
+    /// Set or change maximum length for `string` values.
+    pub fn max_length(mut self, max_length: Option<usize>) -> Self {
+        set_value!(self max_length max_length)
+    }
+
+    /// Set or change minimum length for `string` values.
+    pub fn min_length(mut self, min_length: Option<usize>) -> Self {
+        set_value!(self min_length min_length)
+    }
+
+    /// Set or change a valid regular expression for `string` value to match.
+    pub fn pattern<I: Into<String>>(mut self, pattern: Option<I>) -> Self {
+        set_value!(self pattern pattern.map(|pattern| pattern.into()))
+    }
+
+    /// Set or change maximum number of properties the [`Object`] can hold.
+    pub fn max_properties(mut self, max_properties: Option<usize>) -> Self {
+        set_value!(self max_properties max_properties)
+    }
+
+    /// Set or change minimum number of properties the [`Object`] can hold.
+    pub fn min_properties(mut self, min_properties: Option<usize>) -> Self {
+        set_value!(self min_properties min_properties)
+    }
+
     to_array_builder!();
-
-    build_fn!(pub Object schema_type, format, title, required, properties, description,
-              deprecated, default, enum_values, example, write_only, read_only, xml,
-              additional_properties, nullable);
 }
-
-from!(Object ObjectBuilder schema_type, format, title, required, properties, description,
-      deprecated, default, enum_values,  example, write_only, read_only, xml,
-      additional_properties, nullable);
 
 component_from_builder!(ObjectBuilder);
 
@@ -908,7 +856,7 @@ impl From<ObjectBuilder> for RefOr<Schema> {
 ///
 /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Ref {
     /// Reference location of the actual component.
@@ -928,13 +876,13 @@ impl Ref {
     /// Construct a new [`Ref`] from provided schema name. This will create a [`Ref`] that
     /// references the the reusable schemas.
     pub fn from_schema_name<I: Into<String>>(schema_name: I) -> Self {
-        Self::new(&format!("#/components/schemas/{}", schema_name.into()))
+        Self::new(format!("#/components/schemas/{}", schema_name.into()))
     }
 
     /// Construct a new [`Ref`] from provided response name. This will create a [`Ref`] that
     /// references the reusable response.
     pub fn from_response_name<I: Into<String>>(response_name: I) -> Self {
-        Self::new(&format!("#/components/responses/{}", response_name.into()))
+        Self::new(format!("#/components/responses/{}", response_name.into()))
     }
 
     to_array_builder!();
@@ -944,18 +892,6 @@ impl From<Ref> for RefOr<Schema> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
     }
-}
-
-/// A [`Ref`] or some other type `T`.
-///
-/// Typically used in combination with [`Components`] and is an union type between [`Ref`] and any
-/// other given type such as [`Schema`] or [`Response`].
-#[derive(Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(untagged)]
-pub enum RefOr<T> {
-    Ref(Ref),
-    T(T),
 }
 
 impl<T> From<T> for RefOr<T> {
@@ -984,48 +920,52 @@ impl From<Array> for RefOr<Schema> {
     }
 }
 
-/// Array represents [`Vec`] or [`slice`] type  of items.
-///
-/// See [`Schema::Array`] for more details.
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "camelCase")]
-pub struct Array {
-    /// Type will always be [`SchemaType::Array`]
-    #[serde(rename = "type")]
-    schema_type: SchemaType,
+builder! {
+    ArrayBuilder;
 
-    /// Schema representing the array items type.
-    pub items: Box<RefOr<Schema>>,
+    /// Array represents [`Vec`] or [`slice`] type  of items.
+    ///
+    /// See [`Schema::Array`] for more details.
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
+    pub struct Array {
+        /// Type will always be [`SchemaType::Array`]
+        #[serde(rename = "type")]
+        schema_type: SchemaType,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(feature = "serde_json")]
-    pub example: Option<Value>,
+        /// Schema representing the array items type.
+        pub items: Box<RefOr<Schema>>,
 
-    /// Example shown in UI of the value for richier documentation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg(not(feature = "serde_json"))]
-    pub example: Option<String>,
+        /// Example shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub example: Option<Value>,
 
-    /// Max length of the array.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_items: Option<usize>,
+        /// Max length of the array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub max_items: Option<usize>,
 
-    /// Min lenght of the array.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub min_items: Option<usize>,
+        /// Min length of the array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub min_items: Option<usize>,
 
-    /// Xml format of the array.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub xml: Option<Xml>,
+        /// Setting this to `true` will validate successfully if all elements of this [`Array`] are
+        /// unique.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub unique_items: bool,
+
+        /// Xml format of the array.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub xml: Option<Xml>,
+    }
 }
 
 impl Default for Array {
     fn default() -> Self {
         Self {
             schema_type: SchemaType::Array,
+            unique_items: bool::default(),
             items: Default::default(),
             example: Default::default(),
             max_items: Default::default(),
@@ -1053,53 +993,30 @@ impl Array {
     }
 }
 
-/// Builder for [`Array`] with chainable configuration methods to create a new [`Array`].
-pub struct ArrayBuilder {
-    schema_type: SchemaType,
-
-    pub items: Box<RefOr<Schema>>,
-
-    #[cfg(not(feature = "serde_json"))]
-    pub example: Option<String>,
-
-    #[cfg(feature = "serde_json")]
-    pub example: Option<Value>,
-
-    pub max_items: Option<usize>,
-
-    pub min_items: Option<usize>,
-
-    pub xml: Option<Xml>,
-}
-
 impl ArrayBuilder {
-    new!(pub ArrayBuilder);
-
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
     }
 
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(not(feature = "serde_json"))]
-    pub fn example<I: Into<String>>(mut self, example: Option<I>) -> Self {
-        set_value!(self example example.map(|example| example.into()))
-    }
-
-    /// Add or change example shown in UI of the value for richier documentation.
-    #[cfg(feature = "serde_json")]
+    /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
 
-    /// Set maximun allowed lenght for [`Array`].
+    /// Set maximum allowed length for [`Array`].
     pub fn max_items(mut self, max_items: Option<usize>) -> Self {
         set_value!(self max_items max_items)
     }
 
-    /// Set minimum allowed lenght for [`Array`].
+    /// Set minimum allowed length for [`Array`].
     pub fn min_items(mut self, min_items: Option<usize>) -> Self {
         set_value!(self min_items min_items)
+    }
+
+    /// Set or change whether [`Array`] should enforce all items to be unique.
+    pub fn unique_items(mut self, unique_items: bool) -> Self {
+        set_value!(self unique_items unique_items)
     }
 
     /// Set [`Xml`] formatting for [`Array`].
@@ -1108,26 +1025,9 @@ impl ArrayBuilder {
     }
 
     to_array_builder!();
-
-    build_fn!(pub Array schema_type, items, example, max_items, min_items, xml);
 }
-
-from!(Array ArrayBuilder schema_type, items, example, max_items, min_items, xml);
 
 component_from_builder!(ArrayBuilder);
-
-impl Default for ArrayBuilder {
-    fn default() -> Self {
-        Self {
-            schema_type: SchemaType::Array,
-            items: Default::default(),
-            example: Default::default(),
-            max_items: Default::default(),
-            min_items: Default::default(),
-            xml: Default::default(),
-        }
-    }
-}
 
 impl From<Array> for Schema {
     fn from(array: Array) -> Self {
@@ -1154,7 +1054,7 @@ where
 }
 
 /// Represents data type of [`Schema`].
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum SchemaType {
@@ -1187,7 +1087,7 @@ impl Default for SchemaType {
 /// supported by the UI it may default back to [`SchemaType`] alone.
 /// Format is an open value, so you can use any formats, even not those defined by the
 /// OpenAPI Specification.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase", untagged)]
 pub enum SchemaFormat {
@@ -1195,7 +1095,7 @@ pub enum SchemaFormat {
     Custom(String),
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum KnownFormat {
@@ -1209,7 +1109,7 @@ pub enum KnownFormat {
     Double,
     /// base64 encoded chars.
     Byte,
-    /// binary data (octec).
+    /// binary data (octet).
     Binary,
     /// ISO-8601 full date [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     Date,
@@ -1222,11 +1122,11 @@ pub enum KnownFormat {
     ///
     /// **uuid** feature need to be enabled.
     #[cfg(feature = "uuid")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "uuid")))]
     Uuid,
 }
 
 #[cfg(test)]
-#[cfg(feature = "serde_json")]
 mod tests {
     use assert_json_diff::assert_json_eq;
     use serde_json::{json, Value};
@@ -1346,6 +1246,52 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
+    #[test]
+    fn test_property_order() {
+        let json_value = ObjectBuilder::new()
+            .property(
+                "id",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Integer)
+                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                    .description(Some("Id of credential"))
+                    .default(Some(json!(1i32))),
+            )
+            .property(
+                "name",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::String)
+                    .description(Some("Name of credential")),
+            )
+            .property(
+                "status",
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::String)
+                    .default(Some(json!("Active")))
+                    .description(Some("Credential status"))
+                    .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
+            )
+            .property(
+                "history",
+                Array::new(Ref::from_schema_name("UpdateHistory")),
+            )
+            .property("tags", Object::with_type(SchemaType::String).to_array())
+            .build();
+
+        #[cfg(not(feature = "preserve_order"))]
+        assert_eq!(
+            json_value.properties.keys().collect::<Vec<_>>(),
+            vec!["history", "id", "name", "status", "tags"]
+        );
+
+        #[cfg(feature = "preserve_order")]
+        assert_eq!(
+            json_value.properties.keys().collect::<Vec<_>>(),
+            vec!["id", "name", "status", "history", "tags"]
+        );
     }
 
     // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties

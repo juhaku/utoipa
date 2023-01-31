@@ -31,11 +31,11 @@ builder! {
     /// OpenAPI [Info][info] object represents metadata of the API.
     ///
     /// You can use [`Info::new`] to construct a new [`Info`] object or alternatively use [`InfoBuilder::new`]
-    /// to construct a new [`Info`] with chainable configuraiton methods.
+    /// to construct a new [`Info`] with chainable configuration methods.
     ///
     /// [info]: <https://spec.openapis.org/oas/latest.html#info-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Info {
@@ -116,7 +116,7 @@ impl InfoBuilder {
         set_value!(self contact contact)
     }
 
-    /// Add licence of the API.
+    /// Add license of the API.
     pub fn license(mut self, license: Option<License>) -> Self {
         set_value!(self license license)
     }
@@ -129,11 +129,11 @@ builder! {
     /// OpenAPI [Contact][contact] information of the API.
     ///
     /// You can use [`Contact::new`] to construct a new [`Contact`] object or alternatively
-    /// use [`ContactBuilder::new`] to construct a new [`Contact`] with chainable configuraiton methods.
+    /// use [`ContactBuilder::new`] to construct a new [`Contact`] with chainable configuration methods.
     ///
     /// [contact]: <https://spec.openapis.org/oas/latest.html#contact-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Contact {
@@ -182,7 +182,7 @@ builder! {
     ///
     /// [license]: <https://spec.openapis.org/oas/latest.html#license-object>
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone)]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct License {

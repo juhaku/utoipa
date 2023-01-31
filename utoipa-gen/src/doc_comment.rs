@@ -52,8 +52,13 @@ impl CommentAttributes {
                     None
                 }
             }
-            _ => abort_call_site!("Exected only Meta::NameValue type"),
+            _ => abort_call_site!("Expected only Meta::NameValue type"),
         }
+    }
+
+    /// Returns found `doc comments` as formatted `String` joining them all with `\n` _(new line)_.
+    pub(crate) fn as_formatted_string(&self) -> String {
+        self.join("\n")
     }
 }
 
