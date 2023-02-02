@@ -618,7 +618,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `path = "..."` Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
 ///
-/// * `operation_id = "..."` Unique operation id for the endpoint. By default this is mapped to function name.
+/// * `operation_id = ...` Unique operation id for the endpoint. By default this is mapped to function name.
+///   The operation_id can be any valid expression (e.g. string literals, macro invocations, variables) so long
+///   as its result can be converted to a `String` using `String::from`.
 ///
 /// * `context_path = "..."` Can add optional scope for **path**. The **context_path** will be prepended to beginning of **path**.
 ///   This is particularly useful when **path** does not contain the full path to the endpoint. For example if web framework

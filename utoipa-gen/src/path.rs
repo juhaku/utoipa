@@ -4,11 +4,12 @@ use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::token::Paren;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{LitStr, Type};
+use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::{parse_utils, Deprecated};
@@ -77,7 +78,7 @@ pub struct PathAttr<'p> {
     request_body: Option<RequestBodyAttr<'p>>,
     responses: Vec<Response<'p>>,
     pub(super) path: Option<String>,
-    operation_id: Option<String>,
+    operation_id: Option<Expr>,
     tag: Option<String>,
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementAttr>>,
@@ -183,7 +184,8 @@ impl Parse for PathAttr<'_> {
 
             match attribute_name {
                 "operation_id" => {
-                    path_attr.operation_id = Some(parse_utils::parse_next_literal_str(input)?);
+                    path_attr.operation_id =
+                        Some(parse_utils::parse_next(input, || Expr::parse(input))?);
                 }
                 "path" => {
                     path_attr.path = Some(parse_utils::parse_next_literal_str(input)?);
@@ -362,11 +364,14 @@ impl<'p> Path<'p> {
 impl<'p> ToTokens for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
-        let operation_id: &String = self
+        let operation_id = self
             .path_attr
             .operation_id
-            .as_ref()
-            .or(Some(&self.fn_name))
+            .clone()
+            .or(Some(ExprLit {
+                attrs: vec![],
+                lit: Lit::Str(LitStr::new(&self.fn_name, Span::call_site()))
+            }.into()))
             .unwrap_or_else(|| {
                 abort! {
                     Span::call_site(), "operation id is not defined for path";
@@ -469,7 +474,7 @@ impl<'p> ToTokens for Path<'p> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Operation<'a> {
-    operation_id: &'a String,
+    operation_id: Expr,
     summary: Option<&'a String>,
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
@@ -498,8 +503,8 @@ impl ToTokens for Operation<'_> {
                 .securities(Some(#security_requirements))
             })
         }
-        let operation_id = self.operation_id;
-        tokens.extend(quote! {
+        let operation_id = &self.operation_id;
+        tokens.extend(quote_spanned! { operation_id.span() =>
             .operation_id(Some(#operation_id))
         });
 
