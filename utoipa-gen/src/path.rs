@@ -4,12 +4,12 @@ use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use proc_macro_error::abort;
-use quote::{format_ident, quote, ToTokens, quote_spanned};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Paren;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{LitStr, Type, Expr, ExprLit, Lit};
+use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::{parse_utils, Deprecated};
@@ -184,7 +184,8 @@ impl Parse for PathAttr<'_> {
 
             match attribute_name {
                 "operation_id" => {
-                    path_attr.operation_id = Some(parse_utils::parse_next(input, || Expr::parse(input))?);
+                    path_attr.operation_id =
+                        Some(parse_utils::parse_next(input, || Expr::parse(input))?);
                 }
                 "path" => {
                     path_attr.path = Some(parse_utils::parse_next_literal_str(input)?);
