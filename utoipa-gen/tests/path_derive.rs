@@ -1269,6 +1269,29 @@ fn derive_path_params_into_params_with_unit_type() {
 }
 
 #[test]
+fn arbitrary_expr_in_operation_id() {
+    #[utoipa::path(
+        get,
+        path = "foo",
+        operation_id=format!("{}", 3+5),
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn get_foo() {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let operation_id = doc.pointer("/paths/foo/get/operationId").unwrap();
+
+    assert_json_eq!(operation_id, json!("8"))
+}
+
+#[test]
 fn derive_path_with_validation_attributes() {
     #[derive(IntoParams)]
     #[allow(dead_code)]

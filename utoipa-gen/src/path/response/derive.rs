@@ -31,7 +31,7 @@ pub struct ToResponse<'r> {
 }
 
 impl<'r> ToResponse<'r> {
-    const LIFETIME: &str = "'__r";
+    const LIFETIME: &'static str = "'__r";
 
     pub fn new(
         attributes: Vec<Attribute>,

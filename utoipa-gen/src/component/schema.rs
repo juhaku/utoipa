@@ -51,7 +51,7 @@ pub struct Schema<'a> {
 }
 
 impl<'a> Schema<'a> {
-    const TO_SCHEMA_LIFETIME: &str = "'__s";
+    const TO_SCHEMA_LIFETIME: &'static str = "'__s";
     pub fn new(
         data: &'a Data,
         attributes: &'a [Attribute],

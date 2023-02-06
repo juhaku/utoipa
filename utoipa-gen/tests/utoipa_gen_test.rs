@@ -46,11 +46,14 @@ struct Pet {
 mod pet_api {
     use super::*;
 
+    const ID: &str = "get_pet";
+
     /// Get pet by id
     ///
     /// Get pet from database by pet database id
     #[utoipa::path(
         get,
+        operation_id = ID,
         path = "/pets/{id}",
         responses(
             (status = 200, description = "Pet found successfully", body = Pet),
