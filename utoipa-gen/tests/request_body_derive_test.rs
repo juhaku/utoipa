@@ -433,6 +433,42 @@ fn derive_request_body_ref_path_success() {
 }
 
 #[test]
+fn unit_type_request_body() {
+    type UT = ();
+
+    #[utoipa::path(
+        post,
+        path = "/unit_type_test",
+        request_body = UT
+    )]
+    #[allow(unused)]
+    fn unit_type_test() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(unit_type_test), components(schemas(UT)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let request_body: &Value = doc
+        .pointer("/paths/~1unit_type_test/post/requestBody")
+        .unwrap();
+
+    assert_json_eq!(
+        request_body,
+        json!({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/UT"
+                    }
+                }
+            },
+            "required": true
+        })
+    )
+}
+
+#[test]
 fn request_body_with_example() {
     #[derive(ToSchema)]
     #[allow(unused)]

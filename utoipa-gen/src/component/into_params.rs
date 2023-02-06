@@ -561,7 +561,16 @@ impl ToTokens for ParamSchema<'_> {
                         }
                     }
                     // TODO support for tuple types
-                    ValueType::Tuple => (),
+                    ValueType::Tuple => {
+                        // Detect unit type ()
+                        if component.children.is_none() {
+                            tokens.extend(quote! {
+                                utoipa::openapi::ObjectBuilder::new()
+                                    .nullable(true)
+                                    .default(Some(serde_json::Value::Null))
+                            })
+                        };
+                    }
                 }
             }
         };

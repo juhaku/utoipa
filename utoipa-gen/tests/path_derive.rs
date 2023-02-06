@@ -1225,6 +1225,50 @@ fn derive_path_params_into_params_with_raw_identifier() {
 }
 
 #[test]
+fn derive_path_params_into_params_with_unit_type() {
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Path)]
+    struct Filter {
+        #[allow(unused)]
+        r#in: (),
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        json!([{
+            "in": "path",
+            "name": "in",
+            "required": true,
+            "schema": {
+                "type": "object",
+                "default": null,
+                "nullable": true
+            }
+        }])
+    )
+}
+
+#[test]
 fn arbitrary_expr_in_operation_id() {
     #[utoipa::path(
         get,

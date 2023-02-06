@@ -46,6 +46,7 @@ enum TypeTreeValue<'t> {
     /// Slice and array types need to be manually defined, since they cannot be recognized from
     /// generic arguments.
     Array(Vec<TypeTreeValue<'t>>, &'t Span),
+    UnitType,
 }
 
 impl PartialEq for TypeTreeValue<'_> {
@@ -54,6 +55,7 @@ impl PartialEq for TypeTreeValue<'_> {
             Self::Path(_) => self == other,
             Self::TypePath(_) => self == other,
             Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
+            Self::UnitType => self == other,
         }
     }
 }
@@ -80,7 +82,12 @@ impl<'t> TypeTree<'t> {
                 vec![TypeTreeValue::TypePath(path)]
             },
             Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
-            Type::Tuple(tuple) => tuple.elems.iter().flat_map(Self::get_type_paths).collect(),
+            Type::Tuple(tuple) => {
+                // Detect unit type ()
+                if tuple.elems.is_empty() { return vec![TypeTreeValue::UnitType] }
+
+                tuple.elems.iter().flat_map(Self::get_type_paths).collect()
+            },
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
             Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), &slice.bracket_token.span)],
             Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), &array.bracket_token.span)],
@@ -131,6 +138,14 @@ impl<'t> TypeTree<'t> {
                         generic_type: Some(GenericType::Vec),
                         children: Some(vec![Self::from_type_paths(value)]),
                     };
+                }
+                TypeTreeValue::UnitType => {
+                    return TypeTree {
+                        path: None,
+                        value_type: ValueType::Tuple,
+                        generic_type: None,
+                        children: None,
+                    }
                 }
             };
 
