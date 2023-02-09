@@ -434,22 +434,20 @@ fn derive_request_body_ref_path_success() {
 
 #[test]
 fn unit_type_request_body() {
-    type UT = ();
-
     #[utoipa::path(
         post,
         path = "/unit_type_test",
-        request_body = UT
+        request_body = ()
     )]
     #[allow(unused)]
     fn unit_type_test() {}
 
     #[derive(OpenApi)]
-    #[openapi(paths(unit_type_test), components(schemas(UT)))]
+    #[openapi(paths(unit_type_test))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
-    let request_body: &Value = doc
+    let request_body = doc
         .pointer("/paths/~1unit_type_test/post/requestBody")
         .unwrap();
 
@@ -459,7 +457,9 @@ fn unit_type_request_body() {
             "content": {
                 "application/json": {
                     "schema": {
-                        "$ref": "#/components/schemas/UT"
+                        "default": null,
+                        "nullable": true,
+                        "type": "object"
                     }
                 }
             },

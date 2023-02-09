@@ -30,6 +30,19 @@ macro_rules! to_array_builder {
     };
 }
 
+/// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
+/// 
+/// Can be used in places where an item can be serialized as `null`. This is used with unit type
+/// enum variants and tuple unit types.
+pub fn empty() -> Schema {
+    Schema::Object(
+        ObjectBuilder::new()
+            .nullable(true)
+            .default(Some(serde_json::Value::Null))
+            .into(),
+    )
+}
+
 builder! {
     ComponentsBuilder;
 
