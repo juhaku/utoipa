@@ -82,8 +82,7 @@ impl Parse for RequestBodyAttr<'_> {
                                 Error::new(
                                     error.span(),
                                     format!(
-                                        "unexpected token, expected type such as String, {}",
-                                        error
+                                        "unexpected token, expected type such as String, {error}",
                                     ),
                                 )
                             })?,
@@ -122,7 +121,7 @@ impl Parse for RequestBodyAttr<'_> {
                 content: Some(input.parse().map_err(|error| {
                     Error::new(
                         error.span(),
-                        format!("unexpected token, expected type such as String, {}", error),
+                        format!("unexpected token, expected type such as String, {error}"),
                     )
                 })?),
                 ..Default::default()

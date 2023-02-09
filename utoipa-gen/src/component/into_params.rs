@@ -565,9 +565,7 @@ impl ToTokens for ParamSchema<'_> {
                         // Detect unit type ()
                         if component.children.is_none() {
                             tokens.extend(quote! {
-                                utoipa::openapi::ObjectBuilder::new()
-                                    .nullable(true)
-                                    .default(Some(serde_json::Value::Null))
+                                utoipa::openapi::schema::empty()
                             })
                         };
                     }

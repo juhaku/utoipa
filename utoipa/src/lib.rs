@@ -366,8 +366,7 @@ pub trait OpenApi {
 ///                   "name":"bob the cat","id":1
 ///                 })))
 ///                 .into(),
-///         )
-///     }
+///         ) }
 /// }
 /// ```
 pub trait ToSchema<'__s> {
@@ -384,15 +383,14 @@ pub trait ToSchema<'__s> {
     }
 }
 
-impl<'__s> ToSchema<'__s> for () {
+/// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
+/// This will serialize to _`null`_ in JSON and [`openapi::schema::empty`] is used to create the
+/// [`openapi::schema::Schema`] for the type.
+pub type TupleUnit = ();
+
+impl<'__s> ToSchema<'__s> for TupleUnit {
     fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>) {
-        (
-            "UnitType",
-            openapi::schema::ObjectBuilder::new()
-                .nullable(true)
-                .default(Some(serde_json::Value::Null))
-                .into(),
-        )
+        ("TupleUnit", openapi::schema::empty().into())
     }
 }
 

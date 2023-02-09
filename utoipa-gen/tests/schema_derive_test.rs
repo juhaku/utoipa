@@ -4,7 +4,7 @@ use assert_json_diff::assert_json_eq;
 use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::openapi::{Object, ObjectBuilder};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::{OpenApi, ToSchema, TupleUnit};
 
 mod common;
 
@@ -715,6 +715,7 @@ fn derive_simple_enum_serde_untagged() {
         json!({
             "type": "object",
             "nullable": true,
+            "default": null,
         })
     );
 }
@@ -3672,4 +3673,53 @@ fn derive_schema_with_generics_and_lifetimes() {
             ]
         ])
     )
+}
+
+#[test]
+fn derive_struct_with_unit_alias() {
+    struct V;
+
+    let value = api_doc_aliases! {
+        #[aliases(UnitDataValue = DataValue<TupleUnit>)]
+        struct DataValue<V> {
+            name: String,
+            v: V,
+        }
+    };
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(components(schemas(TupleUnit)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+    let doc_value = serde_json::to_value(&doc).unwrap();
+    let unit = doc_value.pointer("/components/schemas/TupleUnit").unwrap();
+
+    assert_json_eq!(
+        value,
+        json!([[
+              "UnitDataValue",
+              {
+                  "properties": {
+                      "name": {
+                          "type": "string",
+                      },
+                      "v": {
+                          "$ref": "#/components/schemas/TupleUnit"
+                      },
+                  },
+                  "required": ["name", "v"],
+                  "type": "object"
+              }
+        ]])
+    );
+
+    assert_json_eq!(
+        unit,
+        json!({
+            "default": null,
+            "nullable": true,
+            "type": "object",
+        })
+    );
 }

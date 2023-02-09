@@ -246,9 +246,7 @@ struct UnitStructVariant;
 impl ToTokens for UnitStructVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(quote! {
-            utoipa::openapi::schema::ObjectBuilder::new()
-                .nullable(true)
-                .default(Some(serde_json::Value::Null))
+            utoipa::openapi::schema::empty()
         });
     }
 }
@@ -1599,9 +1597,7 @@ impl ToTokens for SchemaProperty<'_> {
                         // Detect unit type ()
                         if type_tree.children.is_none() {
                             tokens.extend(quote! {
-                                utoipa::openapi::ObjectBuilder::new()
-                                    .nullable(true)
-                                    .default(Some(serde_json::Value::Null))
+                                utoipa::openapi::schema::empty()
                             })
                         };
                     }

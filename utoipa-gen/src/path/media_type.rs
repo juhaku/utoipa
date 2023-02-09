@@ -89,13 +89,14 @@ impl ToTokens for MediaTypeSchema<'_> {
                 tokens.extend(media_type_schema.to_token_stream())
             }
             None => {
-                let path = type_tree
-                    .path
-                    .as_ref()
-                    .expect("ValueType::Primitive must have path")
-                    .deref();
                 match type_tree.value_type {
                     ValueType::Primitive => {
+                        let path = type_tree
+                            .path
+                            .as_ref()
+                            .expect("ValueType::Primitive must have path")
+                            .deref();
+
                         let schema_type = SchemaType(path);
                         tokens.extend(quote! {
                             utoipa::openapi::ObjectBuilder::new()
@@ -109,6 +110,12 @@ impl ToTokens for MediaTypeSchema<'_> {
                         }
                     }
                     ValueType::Object => {
+                        let path = type_tree
+                            .path
+                            .as_ref()
+                            .expect("ValueType::Object must have path")
+                            .deref();
+
                         if type_tree.is_object() {
                             tokens.extend(quote! {
                                 utoipa::openapi::ObjectBuilder::new()
@@ -134,9 +141,7 @@ impl ToTokens for MediaTypeSchema<'_> {
                         // Detect unit type ()
                         if type_tree.children.is_none() {
                             tokens.extend(quote! {
-                                utoipa::openapi::ObjectBuilder::new()
-                                    .nullable(true)
-                                    .default(Some(serde_json::Value::Null))
+                                utoipa::openapi::schema::empty()
                             })
                         };
                     }

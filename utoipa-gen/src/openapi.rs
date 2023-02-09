@@ -81,7 +81,7 @@ impl Parse for OpenApiAttr<'_> {
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
-                Error::new(error.span(), format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+                Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
             })?;
             let attribute = &*ident.to_string();
 
@@ -192,7 +192,7 @@ impl Parse for Tag {
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
-                syn::Error::new(error.span(), format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+                syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
             })?;
             let attribute_name = &*ident.to_string();
 
@@ -469,7 +469,7 @@ impl Parse for Components {
 
         while !content.is_empty() {
             let ident = content.parse::<Ident>().map_err(|error| {
-                Error::new(error.span(), format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+                Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
             })?;
             let attribute = &*ident.to_string();
 

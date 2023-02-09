@@ -215,7 +215,7 @@ pub struct UntaggedEnum;
 
 impl ToTokens for UntaggedEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(quote!(utoipa::openapi::ObjectBuilder::new().nullable(true)));
+        tokens.extend(quote!(utoipa::openapi::schema::empty()));
     }
 }
 
