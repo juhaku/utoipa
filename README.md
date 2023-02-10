@@ -258,7 +258,8 @@ This would produce api doc something similar to:
      info(description = "My Api description"),
  )]
  struct ApiDoc;
-let mut doc = ApiDoc::openapi();
+
+ let mut doc = ApiDoc::openapi();
  doc.info.title = String::from("My Api");
  ```
 
