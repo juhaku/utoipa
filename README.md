@@ -276,6 +276,7 @@ This would produce api doc something similar to:
 - Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
 - Check [IntoResponses](https://docs.rs/utoipa/latest/utoipa/derive.IntoResponses.html) and [ToResponse](https://docs.rs/utoipa/latest/utoipa/derive.ToResponse.html) for examples on deriving responses.
 - More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
+- Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 
 # License
 
