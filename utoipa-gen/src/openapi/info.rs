@@ -326,6 +326,10 @@ pub(super) fn impl_info(parsed: Option<Info>) -> Info {
         if parsed.contact.is_some() {
             info.contact = parsed.contact;
         }
+
+        if parsed.version.is_some() {
+            info.version = parsed.version;
+        }
     }
 
     info
