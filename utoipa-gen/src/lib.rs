@@ -1357,9 +1357,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * env `CARGO_PKG_LICENSE` map to info `license`
 ///
 /// # `info(...)` attribute syntax
+///
 /// * `title = ...` Define title of the API. It can be literal string.
 /// * `description = ...` Define description of the API. Markdown can be used for rich text
 ///   representation. It can be literal string or [`include_str!`] statement.
+/// * `version = ...` Override default version from _`Cargo.toml`_. Value must be literal string.
 /// * `contact(...)` Used to override the whole contact generated from environment variables.
 ///     * `name = ...` Define identifying name of contact person / organization. It Can be a literal string.
 ///     * `email = ...` Define email address of the contact person / organization. It can be a literal string.
@@ -1369,6 +1371,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     * `url = ...` Define optional URL of the license. It must be URL formatted string.
 ///
 /// # `servers(...)` attribute syntax
+///
 /// * `url = ...` Define the url for server. It can be literal string.
 /// * `description = ...` Define description for the server. It can be literal string.
 /// * `variables(...)` Can be used to define variables for the url.
@@ -2399,7 +2402,7 @@ impl Parse for ExternalDocs {
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
-                syn::Error::new(error.span(), format!("{}, {}", EXPECTED_ATTRIBUTE, error))
+                syn::Error::new(error.span(), format!("{EXPECTED_ATTRIBUTE}, {error}"))
             })?;
             let attribute_name = &*ident.to_string();
 

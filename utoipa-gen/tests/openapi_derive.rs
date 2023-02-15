@@ -198,6 +198,7 @@ fn derive_openapi_with_custom_info() {
     #[openapi(info(
         title = "title override",
         description = "description override",
+        version = "1.0.0",
         contact(name = "Test")
     ))]
     struct ApiDoc;
@@ -217,7 +218,8 @@ fn derive_openapi_with_custom_info() {
                     },
                     "contact": {
                         "name": "Test"
-                    }
+                    },
+                    "version": "1.0.0",
                 }
             )
     )
