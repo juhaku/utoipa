@@ -57,7 +57,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
   able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
   or [examples](./examples) for more details.
 - **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without 
-  defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-suppport-for-axum) 
+  defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)
   or [examples](./examples) for more details.
 - **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
 - **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
