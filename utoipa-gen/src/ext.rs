@@ -197,7 +197,7 @@ pub mod fn_arg {
             match self {
                 Self::Single(ident) => ident,
                 // perform best effort name, by just taking the first one from the list
-                Self::Tuple(tuple) => tuple
+                Self::Destructed(tuple) => tuple
                     .first()
                     .expect("Expected at least one argument in FnArgType::Tuple"),
             }
