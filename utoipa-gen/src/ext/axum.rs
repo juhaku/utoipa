@@ -48,7 +48,7 @@ fn get_value_arguments(value_args: Vec<FnArg>) -> impl Iterator<Item = super::Va
                 .into_iter()
                 .map(|ty| to_value_argument(Some(Cow::Owned(name.to_string())), ty))
                 .collect::<Vec<_>>(),
-            FnArgType::Tuple(tuple) => tuple
+            FnArgType::Destructed(tuple) => tuple
                 .iter()
                 .zip(
                     path_arg

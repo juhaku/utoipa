@@ -144,6 +144,10 @@ impl<'p> PathAttr<'p> {
         &mut self,
         into_params_types: Option<Vec<IntoParamsType>>,
     ) {
+        fn path_segments(path: &syn::Path) -> Vec<&'_ Ident> {
+            path.segments.iter().map(|segment| &segment.ident).collect()
+        }
+
         if !self.params.is_empty() {
             if let Some(mut into_params_types) = into_params_types {
                 self.params
@@ -153,10 +157,12 @@ impl<'p> PathAttr<'p> {
                         Parameter::Struct(parameter) => Some(parameter),
                     })
                     .for_each(|parameter| {
+
                         if let Some(into_params_argument) =
                             into_params_types
                                 .iter_mut()
-                                .find(|argument| matches!(&argument.type_path, Some(path) if path.as_ref() == &parameter.path.path))
+                                .find(|argument| matches!(&argument.type_path, Some(path) if path_segments(path.as_ref()) == path_segments(&parameter.path.path))
+)
                         {
                             parameter.update_parameter_in(
                                 &mut into_params_argument.parameter_in_provider,
