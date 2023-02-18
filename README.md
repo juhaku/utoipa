@@ -40,6 +40,7 @@ web framework which supports decorating functions with macros similarly to **war
 
 ### Community examples
 
+- **[graphul](https://github.com/graphul-rs/graphul/tree/main/examples/utoipa-swagger-ui)**
 - **[salvo](https://github.com/salvo-rs/salvo/tree/main/examples/todos-openapi)**
 
 ## What's up with the word play?
