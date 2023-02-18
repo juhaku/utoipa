@@ -31,7 +31,7 @@ macro_rules! to_array_builder {
 }
 
 /// Create an _`empty`_ [`Schema`] that serializes to _`null`_.
-/// 
+///
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
@@ -1198,7 +1198,7 @@ mod tests {
             .build();
 
         let serialized = serde_json::to_string_pretty(&openapi)?;
-        println!("serialized json:\n {}", serialized);
+        println!("serialized json:\n {serialized}");
 
         let value = serde_json::to_value(&openapi)?;
         let credential = get_json_path(&value, "components.schemas.Credential.properties");
@@ -1359,8 +1359,7 @@ mod tests {
         let value_string = serde_json::to_string(&json_value).unwrap();
         assert_eq!(
             value_string, expected,
-            "value string != expected string, {} != {}",
-            value_string, expected
+            "value string != expected string, {value_string} != {expected}"
         );
     }
 

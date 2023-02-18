@@ -183,7 +183,7 @@ impl Parse for PathAttr<'_> {
             let ident = input.parse::<Ident>().map_err(|error| {
                 syn::Error::new(
                     error.span(),
-                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                    format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}"),
                 )
             })?;
             let attribute_name = &*ident.to_string();
@@ -277,7 +277,7 @@ impl PathOperation {
     pub fn from_ident(ident: &Ident) -> Self {
         match ident.to_string().as_str().parse::<PathOperation>() {
             Ok(operation) => operation,
-            Err(error) => abort!(ident.span(), format!("{}", error)),
+            Err(error) => abort!(ident.span(), format!("{error}")),
         }
     }
 }

@@ -60,7 +60,7 @@ impl Parse for XmlAttr {
                         let wrapped_attribute = group.parse::<Ident>().map_err(|error| {
                             Error::new(
                                 error.span(),
-                                format!("unexpected attribute, expected: name, {}", error),
+                                format!("unexpected attribute, expected: name, {error}"),
                             )
                         })?;
                         if wrapped_attribute != "name" {

@@ -309,9 +309,7 @@ ui.initOAuth({
 });"#;
         assert!(
             file.contains(expected),
-            "expected file to contain {}, was {}",
-            expected,
-            file
+            "expected file to contain {expected}, was {file}"
         )
     }
 }

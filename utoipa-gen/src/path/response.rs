@@ -94,7 +94,7 @@ impl Parse for ResponseTuple<'_> {
             let ident = input.parse::<Ident>().map_err(|error| {
                 Error::new(
                     error.span(),
-                    format!("{}, {}", EXPECTED_ATTRIBUTE_MESSAGE, error),
+                    format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}"),
                 )
             })?;
             let attribute_name = &*ident.to_string();
@@ -790,7 +790,7 @@ impl Parse for Header {
             header.value_type = Some(input.parse().map_err(|error| {
                 Error::new(
                     error.span(),
-                    format!("unexpected token, expected type such as String, {}", error),
+                    format!("unexpected token, expected type such as String, {error}"),
                 )
             })?);
         }
@@ -805,7 +805,7 @@ impl Parse for Header {
                 .map_err(|error| {
                     Error::new(
                         error.span(),
-                        format!("unexpected attribute, expected: description, {}", error),
+                        format!("unexpected attribute, expected: description, {error}"),
                     )
                 })
                 .and_then(|ident| {

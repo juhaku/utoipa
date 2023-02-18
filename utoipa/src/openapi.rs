@@ -528,8 +528,7 @@ mod tests {
 
         assert_eq!(
             serialized, raw_json,
-            "expected serialized json to match raw: \nserialized: \n{} \nraw: \n{}",
-            serialized, raw_json
+            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"
         );
         Ok(())
     }
@@ -567,8 +566,7 @@ mod tests {
 
         assert_eq!(
             serialized, expected,
-            "expected serialized json to match raw: \nserialized: \n{} \nraw: \n{}",
-            serialized, expected
+            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{expected}"
         );
         Ok(())
     }

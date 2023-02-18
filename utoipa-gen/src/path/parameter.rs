@@ -202,10 +202,7 @@ impl Parse for ValueParameter<'_> {
                         input.parse().map_err(|error| {
                             Error::new(
                                 error.span(),
-                                format!(
-                                    "unexpected token, expected type such as String, {}",
-                                    error
-                                ),
+                                format!("unexpected token, expected type such as String, {error}"),
                             )
                         })
                     })?),
@@ -395,7 +392,7 @@ impl Parse for ParameterIn {
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("unexpected in, expected one of: {}", variants)
+            format!("unexpected in, expected one of: {variants}")
         }
         let style = input.parse::<Ident>()?;
 

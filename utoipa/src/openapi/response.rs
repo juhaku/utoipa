@@ -249,7 +249,7 @@ mod tests {
             )
             .build();
         let serialized = serde_json::to_string_pretty(&request_body)?;
-        println!("serialized json:\n {}", serialized);
+        println!("serialized json:\n {serialized}");
         assert_json_eq!(
             request_body,
             json!({
