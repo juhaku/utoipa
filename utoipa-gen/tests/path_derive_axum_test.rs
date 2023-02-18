@@ -224,3 +224,138 @@ fn derive_path_params_into_params_unnamed() {
         ])
     )
 }
+
+#[test]
+fn derive_path_params_with_ignored_parameter() {
+    struct Auth;
+    #[derive(Deserialize, IntoParams)]
+    #[into_params(names("id", "name"))]
+    struct IdAndName(u64, String);
+
+    #[utoipa::path(
+        get,
+        path = "/person/{id}/{name}",
+        params(IdAndName),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_person(_: Auth, person: Path<IdAndName>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_person))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc
+        .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
+        .unwrap();
+
+    assert_json_eq!(
+        parameters,
+        &json!([
+            {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer",
+                },
+            },
+            {
+                "in": "path",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                },
+            },
+        ])
+    )
+}
+
+#[test]
+fn derive_path_params_with_unnamed_struct_desctructed() {
+    #[derive(Deserialize, IntoParams)]
+    #[into_params(names("id", "name"))]
+    struct IdAndName(u64, String);
+
+    #[utoipa::path(
+        get,
+        path = "/person/{id}/{name}",
+        params(IdAndName),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_person(Path(IdAndName(id, name)): Path<IdAndName>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_person))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc
+        .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
+        .unwrap();
+
+    assert_json_eq!(
+        parameters,
+        &json!([
+            {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer",
+                },
+            },
+            {
+                "in": "path",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                },
+            },
+        ])
+    )
+}
+
+#[test]
+fn derive_path_query_params_with_named_struct_destructed() {
+    #[derive(IntoParams)]
+    #[allow(unused)]
+    struct QueryParmas<'q> {
+        name: &'q str,
+    }
+
+    #[utoipa::path(get, path = "/item", params(QueryParmas))]
+    #[allow(unused)]
+    async fn get_item(Query(QueryParmas { name }): Query<QueryParmas<'static>>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/~1item/get/parameters").unwrap();
+
+    assert_json_eq!(
+        parameters,
+        &json!([
+            {
+                "in": "query",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                },
+            },
+        ])
+    )
+}

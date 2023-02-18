@@ -166,6 +166,7 @@ pub mod fn_arg {
     use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
+    use syn::PatStruct;
     use syn::{punctuated::Punctuated, token::Comma, Pat, PatType};
 
     use crate::component::TypeTree;
@@ -185,7 +186,7 @@ pub mod fn_arg {
     #[derive(PartialEq, Eq, PartialOrd, Ord)]
     pub enum FnArgType<'t> {
         Single(&'t Ident),
-        Tuple(Vec<&'t Ident>),
+        Destructed(Vec<&'t Ident>),
     }
 
     impl FnArgType<'_> {
@@ -196,7 +197,7 @@ pub mod fn_arg {
             match self {
                 Self::Single(ident) => ident,
                 // perform best effort name, by just taking the first one from the list
-                Self::Tuple(tuple) => tuple
+                Self::Destructed(tuple) => tuple
                     .first()
                     .expect("Expected at least one argument in FnArgType::Tuple"),
             }
@@ -232,11 +233,16 @@ pub mod fn_arg {
     pub fn get_fn_args(fn_args: &Punctuated<syn::FnArg, Comma>) -> impl Iterator<Item = FnArg<'_>> {
         fn_args
             .iter()
-            .map(|arg| {
+            .filter_map(|arg| {
                 let pat_type = get_fn_arg_pat_type(arg);
 
-                let arg_name = get_pat_fn_arg_type(pat_type.pat.as_ref());
-                (TypeTree::from_type(&pat_type.ty), arg_name)
+                match pat_type.pat.as_ref() {
+                    syn::Pat::Wild(_) => None,
+                    _ => {
+                        let arg_name = get_pat_fn_arg_type(pat_type.pat.as_ref());
+                        Some((TypeTree::from_type(&pat_type.ty), arg_name))
+                    }
+                }
             })
             .map(FnArg::from)
     }
@@ -246,7 +252,7 @@ pub mod fn_arg {
         let arg_name = match pat {
             syn::Pat::Ident(ident) => FnArgType::Single(&ident.ident),
             syn::Pat::Tuple(tuple) => {
-                FnArgType::Tuple(tuple.elems.iter().map(|item| {
+                FnArgType::Destructed(tuple.elems.iter().map(|item| {
                     match item {
                         syn::Pat::Ident(ident) => &ident.ident,
                         _ => abort!(item, "expected syn::Ident in get_pat_fn_arg_type Pat::Tuple")
@@ -257,6 +263,18 @@ pub mod fn_arg {
                 get_pat_fn_arg_type(tuple_struct.pat.elems.first().as_ref().expect(
                     "PatTuple expected to have at least one element, cannot get fn argument",
                 ))
+            },
+            syn::Pat::Struct(PatStruct { fields, ..}) => {
+                let idents = fields.iter()
+                    .map(|field| get_pat_fn_arg_type(&field.pat))
+                    .fold(Vec::<&'_ Ident>::new(), |mut idents, field_type| {
+                        if let FnArgType::Single(ident) = field_type {
+                            idents.push(ident)
+                        }
+                        idents
+                    });
+
+                FnArgType::Destructed(idents)
             }
             _ => abort!(pat,
                 "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
