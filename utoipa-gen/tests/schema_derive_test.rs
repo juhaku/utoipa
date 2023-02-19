@@ -3821,3 +3821,28 @@ fn derive_struct_with_deprecated_fields() {
         })
     )
 }
+
+#[test]
+fn derive_schema_with_object_type_description() {
+    let value = api_doc! {
+        struct Value {
+            /// This is object value
+            #[schema(value_type = Object)]
+            object: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "object": {
+                    "description": "This is object value",
+                    "type": "object"
+                },
+            },
+            "required": ["object"],
+            "type": "object"
+        })
+    )
+}

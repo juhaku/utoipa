@@ -1410,6 +1410,24 @@ impl<'a> SchemaProperty<'a> {
     fn is_option(&self) -> bool {
         matches!(self.type_tree.generic_type, Some(GenericType::Option))
     }
+
+    fn get_description(&self) -> Option<TokenStream> {
+        self.comments
+            .and_then(|comments| {
+                let comment = CommentAttributes::as_formatted_string(comments);
+                if comment.is_empty() {
+                    None
+                } else {
+                    Some(comment)
+                }
+            })
+            .map(|description| quote! { .description(Some(#description)) })
+    }
+
+    fn get_deprecated(&self) -> Option<TokenStream> {
+        self.deprecated
+            .map(|deprecated| quote! { .deprecated(Some(#deprecated)) })
+    }
 }
 
 impl ToTokens for SchemaProperty<'_> {
@@ -1420,20 +1438,8 @@ impl ToTokens for SchemaProperty<'_> {
                 let mut features = self.features.unwrap_or(&empty_features).clone();
                 let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
 
-                let deprecated = self
-                    .deprecated
-                    .map(|deprecated| quote! { .deprecated(Some(#deprecated)) });
-                let description = self
-                    .comments
-                    .and_then(|comments| {
-                        let comment = CommentAttributes::as_formatted_string(comments);
-                        if comment.is_empty() {
-                            None
-                        } else {
-                            Some(comment)
-                        }
-                    })
-                    .map(|description| quote! { .description(Some(#description)) });
+                let deprecated = self.get_deprecated();
+                let description = self.get_description();
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
@@ -1472,20 +1478,8 @@ impl ToTokens for SchemaProperty<'_> {
                 let max_items = pop_feature!(features => Feature::MaxItems(_));
                 let min_items = pop_feature!(features => Feature::MinItems(_));
 
-                let deprecated = self
-                    .deprecated
-                    .map(|deprecated| quote! { .deprecated(Some(#deprecated)) });
-                let description = self
-                    .comments
-                    .and_then(|comments| {
-                        let comment = CommentAttributes::as_formatted_string(comments);
-                        if comment.is_empty() {
-                            None
-                        } else {
-                            Some(comment)
-                        }
-                    })
-                    .map(|description| quote! { .description(Some(#description)) });
+                let deprecated = self.get_deprecated();
+                let description = self.get_description();
 
                 let schema_property = SchemaProperty {
                     type_tree: self
@@ -1573,17 +1567,8 @@ impl ToTokens for SchemaProperty<'_> {
                             })
                         }
 
-                        if let Some(description) =
-                            self.comments.map(CommentAttributes::as_formatted_string)
-                        {
-                            if !description.is_empty() {
-                                tokens.extend(quote! {.description(Some(#description))})
-                            }
-                        };
-
-                        if let Some(deprecated) = self.deprecated {
-                            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-                        }
+                        tokens.extend(self.get_description());
+                        tokens.extend(self.get_deprecated());
 
                         if let Some(features) = self.features {
                             for feature in
@@ -1601,7 +1586,10 @@ impl ToTokens for SchemaProperty<'_> {
                             .unwrap_or_default();
 
                         if type_tree.is_object() {
-                            tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new() })
+                            let deprecated = self.get_deprecated();
+                            let description = self.get_description();
+
+                            tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new()#description #deprecated })
                         } else {
                             let type_path = &**type_tree.path.as_ref().unwrap();
                             if is_inline {
