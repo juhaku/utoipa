@@ -946,10 +946,18 @@ builder! {
     pub struct Array {
         /// Type will always be [`SchemaType::Array`]
         #[serde(rename = "type")]
-        schema_type: SchemaType,
+        pub schema_type: SchemaType,
 
         /// Schema representing the array items type.
         pub items: Box<RefOr<Schema>>,
+
+        /// Description of the [`Array`]. Markdown syntax is supported.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+
+        /// Marks the [`Array`] deprecated.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub deprecated: Option<Deprecated>,
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -980,6 +988,8 @@ impl Default for Array {
             schema_type: SchemaType::Array,
             unique_items: bool::default(),
             items: Default::default(),
+            description: Default::default(),
+            deprecated: Default::default(),
             example: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
@@ -1010,6 +1020,16 @@ impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
+    }
+
+    /// Add or change description of the property. Markdown syntax is supported.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add or change deprecated status for [`Array`].
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        set_value!(self deprecated deprecated)
     }
 
     /// Add or change example shown in UI of the value for richer documentation.

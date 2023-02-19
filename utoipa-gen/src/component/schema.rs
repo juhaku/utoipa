@@ -1420,6 +1420,20 @@ impl ToTokens for SchemaProperty<'_> {
                 let mut features = self.features.unwrap_or(&empty_features).clone();
                 let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
 
+                let deprecated = self
+                    .deprecated
+                    .map(|deprecated| quote! { .deprecated(Some(#deprecated)) });
+                let description = self
+                    .comments
+                    .and_then(|comments| {
+                        let comment = CommentAttributes::as_formatted_string(comments);
+                        if comment.is_empty() {
+                            None
+                        } else {
+                            Some(comment)
+                        }
+                    })
+                    .map(|description| quote! { .description(Some(#description)) });
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
@@ -1433,25 +1447,21 @@ impl ToTokens for SchemaProperty<'_> {
                         .iter()
                         .nth(1)
                         .expect("SchemaProperty Map type should have 2 child"),
-                    comments: self.comments,
+                    comments: None,
                     features: Some(&features),
-                    deprecated: self.deprecated,
+                    deprecated: None,
                     object_name: self.object_name,
                 };
 
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#schema_property))
+                    utoipa::openapi::ObjectBuilder::new()
+                        .additional_properties(Some(#schema_property))
+                        #description
+                        #deprecated
                 });
 
                 if let Some(ref example) = example {
                     tokens.extend(example.to_token_stream());
-                }
-
-                if let Some(description) = self.comments.map(CommentAttributes::as_formatted_string)
-                {
-                    if !description.is_empty() {
-                        tokens.extend(quote! { .description(Some(#description))})
-                    }
                 }
             }
             Some(GenericType::Vec) => {
@@ -1462,6 +1472,21 @@ impl ToTokens for SchemaProperty<'_> {
                 let max_items = pop_feature!(features => Feature::MaxItems(_));
                 let min_items = pop_feature!(features => Feature::MinItems(_));
 
+                let deprecated = self
+                    .deprecated
+                    .map(|deprecated| quote! { .deprecated(Some(#deprecated)) });
+                let description = self
+                    .comments
+                    .and_then(|comments| {
+                        let comment = CommentAttributes::as_formatted_string(comments);
+                        if comment.is_empty() {
+                            None
+                        } else {
+                            Some(comment)
+                        }
+                    })
+                    .map(|description| quote! { .description(Some(#description)) });
+
                 let schema_property = SchemaProperty {
                     type_tree: self
                         .type_tree
@@ -1471,9 +1496,9 @@ impl ToTokens for SchemaProperty<'_> {
                         .iter()
                         .next()
                         .expect("SchemaProperty Vec should have 1 child"),
-                    comments: self.comments,
+                    comments: None,
                     features: Some(&features),
-                    deprecated: self.deprecated,
+                    deprecated: None,
                     object_name: self.object_name,
                 };
 
@@ -1486,6 +1511,8 @@ impl ToTokens for SchemaProperty<'_> {
                 tokens.extend(quote! {
                     utoipa::openapi::schema::ArrayBuilder::new()
                         .items(#schema_property)
+                        #deprecated
+                        #description
                 });
 
                 if let Some(ref example) = example {
