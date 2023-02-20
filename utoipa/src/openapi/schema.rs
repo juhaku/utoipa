@@ -596,7 +596,7 @@ builder! {
 
         /// Additional [`Schema`] for non specified fields (Useful for typed maps).
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub additional_properties: Option<Box<RefOr<Schema>>>,
+        pub additional_properties: Option<Box<AdditionalProperties<Schema>>>,
 
         /// Changes the [`Object`] deprecated status.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -735,7 +735,7 @@ impl ObjectBuilder {
         self
     }
 
-    pub fn additional_properties<I: Into<RefOr<Schema>>>(
+    pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
         mut self,
         additional_properties: Option<I>,
     ) -> Self {
@@ -861,6 +861,37 @@ component_from_builder!(ObjectBuilder);
 impl From<ObjectBuilder> for RefOr<Schema> {
     fn from(builder: ObjectBuilder) -> Self {
         Self::T(Schema::Object(builder.build()))
+    }
+}
+
+/// AdditionalProperties is used to define values of map fields of the [`Schema`].
+///
+/// The value can either be [`RefOr`] or _`bool`_.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(untagged)]
+pub enum AdditionalProperties<T> {
+    /// Use when value type of the map is a known [`Schema`] or [`Ref`] to the [`Schema`].
+    RefOr(RefOr<T>),
+    /// Use _`AdditionalProperties::FreeForm(true)`_ when any value is allowed in the map.
+    FreeForm(bool),
+}
+
+impl<T> From<RefOr<T>> for AdditionalProperties<T> {
+    fn from(value: RefOr<T>) -> Self {
+        Self::RefOr(value)
+    }
+}
+
+impl From<ObjectBuilder> for AdditionalProperties<Schema> {
+    fn from(value: ObjectBuilder) -> Self {
+        Self::RefOr(RefOr::T(Schema::Object(value.build())))
+    }
+}
+
+impl From<Ref> for AdditionalProperties<Schema> {
+    fn from(value: Ref) -> Self {
+        Self::RefOr(RefOr::Ref(value))
     }
 }
 
@@ -1124,10 +1155,14 @@ impl Default for SchemaType {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase", untagged)]
 pub enum SchemaFormat {
+    /// Use to define additional detail about the value.
     KnownFormat(KnownFormat),
+    /// Can be used to provide additional detail about the value when [`SchemaFormat::KnownFormat`]
+    /// is not suitable.
     Custom(String),
 }
 
+/// Known schema format modifier property to provide fine detail of the primitive type.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
@@ -1643,6 +1678,58 @@ mod tests {
         let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
 
         let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_deserialize_schema_with_additional_properties() {
+        let schema = Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "map",
+                    ObjectBuilder::new()
+                        .additional_properties(Some(AdditionalProperties::FreeForm(true))),
+                )
+                .build(),
+        );
+
+        let json_str = serde_json::to_string(&schema).unwrap();
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).unwrap();
+
+        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_deserialize_schema_with_additional_properties_object() {
+        let schema = Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "map",
+                    ObjectBuilder::new().additional_properties(Some(
+                        ObjectBuilder::new()
+                            .property("name", Object::with_type(SchemaType::String)),
+                    )),
+                )
+                .build(),
+        );
+
+        let json_str = serde_json::to_string(&schema).unwrap();
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).unwrap();
+
+        let json_de_str = serde_json::to_string(&deserialized).unwrap();
         println!("----------------------------");
         println!("{json_de_str}");
 

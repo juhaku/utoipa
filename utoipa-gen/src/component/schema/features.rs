@@ -5,10 +5,11 @@ use syn::{
 };
 
 use crate::component::features::{
-    impl_into_inner, impl_merge, parse_features, As, Default, Example, ExclusiveMaximum,
-    ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
-    Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern,
-    ReadOnly, Rename, RenameAll, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+    impl_into_inner, impl_merge, parse_features, AdditionalProperites, As, Default, Example,
+    ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength,
+    MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf,
+    Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Title, ValueType, WriteOnly,
+    XmlAttr,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -103,7 +104,8 @@ impl Parse for NamedFieldFeatures {
             Pattern,
             MaxItems,
             MinItems,
-            SchemaWith
+            SchemaWith,
+            AdditionalProperites
         )))
     }
 }

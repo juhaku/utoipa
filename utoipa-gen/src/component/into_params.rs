@@ -12,9 +12,10 @@ use crate::{
     component::{
         self,
         features::{
-            self, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum, Explode, Format,
-            Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum, MultipleOf, Names,
-            Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style, WriteOnly, XmlAttr,
+            self, AdditionalProperites, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
+            Explode, Format, Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
+            MultipleOf, Names, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style,
+            WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -246,7 +247,8 @@ impl Parse for FieldFeatures {
             MinLength,
             Pattern,
             MaxItems,
-            MinItems
+            MinItems,
+            AdditionalProperites
         )))
     }
 }
@@ -310,7 +312,8 @@ impl Param<'_> {
                     | Feature::MinLength(_)
                     | Feature::Pattern(_)
                     | Feature::MaxItems(_)
-                    | Feature::MinItems(_) => {
+                    | Feature::MinItems(_)
+                    | Feature::AdditionalProperties(_) => {
                         schema_features.push(feature);
                     }
                     _ => {
@@ -490,22 +493,32 @@ impl ToTokens for ParamSchema<'_> {
                 tokens.extend(param_type.into_token_stream())
             }
             Some(GenericType::Map) => {
-                // Maps are treated as generic objects with no named properties and
-                // additionalProperties denoting the type
+                let mut features = self.schema_features.clone();
+                let additional_properties =
+                    pop_feature!(features => Feature::AdditionalProperties(_));
 
-                let component_property = ParamSchema {
-                    component: component
-                        .children
-                        .as_ref()
-                        .expect("Map ParamType should have children")
-                        .iter()
-                        .nth(1)
-                        .expect("Map Param type should have 2 child"),
-                    schema_features: self.schema_features,
-                };
+                let additional_properties = additional_properties
+                    .as_ref()
+                    .map(ToTokens::to_token_stream)
+                    .unwrap_or_else(|| {
+                        // Maps are treated as generic objects with no named properties and
+                        let schema_type = ParamSchema {
+                            component: component
+                                .children
+                                .as_ref()
+                                .expect("Map ParamType should have children")
+                                .iter()
+                                .nth(1)
+                                .expect("Map Param type should have 2 child"),
+                            schema_features: features.as_ref(),
+                        };
+
+                        quote! { .additional_properties(Some(#schema_type)) }
+                    });
 
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().additional_properties(Some(#component_property))
+                    utoipa::openapi::ObjectBuilder::new()
+                        #additional_properties
                 });
             }
             None => {

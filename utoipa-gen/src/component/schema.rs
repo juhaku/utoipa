@@ -1437,31 +1437,41 @@ impl ToTokens for SchemaProperty<'_> {
                 let empty_features = Vec::new();
                 let mut features = self.features.unwrap_or(&empty_features).clone();
                 let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+                let additional_properties =
+                    pop_feature!(features => Feature::AdditionalProperties(_));
 
                 let deprecated = self.get_deprecated();
                 let description = self.get_description();
-                // Maps are treated as generic objects with no named properties and
-                // additionalProperties denoting the type
-                // maps have 2 child schemas and we are interested the second one of them
-                // which is used to determine the additional properties
-                let schema_property = SchemaProperty {
-                    type_tree: self
-                        .type_tree
-                        .children
-                        .as_ref()
-                        .expect("SchemaProperty Map type should have children")
-                        .iter()
-                        .nth(1)
-                        .expect("SchemaProperty Map type should have 2 child"),
-                    comments: None,
-                    features: Some(&features),
-                    deprecated: None,
-                    object_name: self.object_name,
-                };
+
+                let additional_properties = additional_properties
+                    .as_ref()
+                    .map(ToTokens::to_token_stream)
+                    .unwrap_or_else(|| {
+                        // Maps are treated as generic objects with no named properties and
+                        // additionalProperties denoting the type
+                        // maps have 2 child schemas and we are interested the second one of them
+                        // which is used to determine the additional properties
+                        let schema_property = SchemaProperty {
+                            type_tree: self
+                                .type_tree
+                                .children
+                                .as_ref()
+                                .expect("SchemaProperty Map type should have children")
+                                .iter()
+                                .nth(1)
+                                .expect("SchemaProperty Map type should have 2 child"),
+                            comments: None,
+                            features: Some(&features),
+                            deprecated: None,
+                            object_name: self.object_name,
+                        };
+
+                        quote! { .additional_properties(Some(#schema_property)) }
+                    });
 
                 tokens.extend(quote! {
                     utoipa::openapi::ObjectBuilder::new()
-                        .additional_properties(Some(#schema_property))
+                        #additional_properties
                         #description
                         #deprecated
                 });

@@ -63,17 +63,68 @@ fn derive_map_type() {
 
 #[test]
 fn derive_map_ref() {
-    enum Foo {}
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum Foo {
+        Variant,
+    }
 
     let map = api_doc! {
         struct Map {
-            map: HashMap<String, Foo>
+            map: HashMap<String, Foo>,
+            #[schema(inline)]
+            map2: HashMap<String, Foo>
         }
     };
 
-    assert_value! { map=>
-        "properties.map.additionalProperties.$ref" = r##""#/components/schemas/Foo""##, "Additional Property reference"
+    assert_json_eq!(
+        map,
+        json!({
+            "properties": {
+                "map": {
+                    "additionalProperties": {
+                        "$ref": "#/components/schemas/Foo"
+                    },
+                    "type": "object",
+                },
+                "map2": {
+                    "additionalProperties": {
+                        "type": "string",
+                        "enum": ["Variant"]
+                    },
+                    "type": "object"
+                }
+            },
+            "required": ["map", "map2"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_map_free_form_property() {
+    let map = api_doc! {
+        struct Map {
+            #[schema(additional_properties)]
+            map: HashMap<String, String>,
+        }
     };
+
+    dbg!(&map);
+
+    assert_json_eq!(
+        map,
+        json!({
+            "properties": {
+                "map": {
+                    "additionalProperties": true,
+                    "type": "object",
+                },
+            },
+            "required": ["map"],
+            "type": "object"
+        })
+    )
 }
 
 #[test]

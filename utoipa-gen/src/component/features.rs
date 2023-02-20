@@ -117,6 +117,7 @@ pub enum Feature {
     Description(Description),
     Deprecated(Deprecated),
     As(As),
+    AdditionalProperties(AdditionalProperites),
 }
 
 impl Feature {
@@ -210,6 +211,9 @@ impl ToTokens for Feature {
             Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
             Feature::Description(description) => quote! { .description(Some(#description)) },
             Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
+            Feature::AdditionalProperties(additional_properties) => {
+                quote! { .additional_properties(Some(#additional_properties)) }
+            }
             Feature::RenameAll(_) => {
                 abort! {
                     Span::call_site(),
@@ -279,6 +283,7 @@ impl Display for Feature {
             Feature::Description(description) => description.fmt(f),
             Feature::Deprecated(deprecated) => deprecated.fmt(f),
             Feature::As(as_feature) => as_feature.fmt(f),
+            Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
         }
     }
 }
@@ -319,6 +324,9 @@ impl Validatable for Feature {
             Feature::Description(description) => description.is_validatable(),
             Feature::Deprecated(deprecated) => deprecated.is_validatable(),
             Feature::As(as_feature) => as_feature.is_validatable(),
+            Feature::AdditionalProperties(additional_properites) => {
+                additional_properites.is_validatable()
+            }
         }
     }
 }
@@ -368,7 +376,8 @@ is_validatable! {
     SchemaWith => false,
     Description => false,
     Deprecated => false,
-    As => false
+    As => false,
+    AdditionalProperites => false
 }
 
 #[derive(Clone)]
@@ -1363,6 +1372,38 @@ impl From<As> for Feature {
 }
 
 name!(As = "as");
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
+pub struct AdditionalProperites(bool);
+
+impl Parse for AdditionalProperites {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for AdditionalProperites {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let additional_properties = &self.0;
+        tokens.extend(quote!(
+            utoipa::openapi::schema::AdditionalProperties::FreeForm(
+                #additional_properties
+            )
+        ))
+    }
+}
+
+name!(AdditionalProperites = "additional_properties");
+
+impl From<AdditionalProperites> for Feature {
+    fn from(value: AdditionalProperites) -> Self {
+        Self::AdditionalProperties(value)
+    }
+}
 
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
