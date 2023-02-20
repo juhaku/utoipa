@@ -535,6 +535,32 @@ fn derive_path_params_with_examples() {
 }
 
 #[test]
+fn path_parameters_with_free_form_properties() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        struct MyParams {
+            #[param(additional_properties)]
+            map: HashMap<String, String>,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_eq! {
+        parameters,
+        json!{[
+            {
+            "in": "path",
+            "name": "map",
+            "required": true,
+            "schema": {
+              "additionalProperties": true,
+              "type": "object"
+            }
+          }
+        ]}
+    }
+}
+
+#[test]
 fn derive_path_query_params_with_schema_features() {
     let operation = api_fn_doc_with_params! {get: "/foo" =>
         #[into_params(parameter_in = Query)]
