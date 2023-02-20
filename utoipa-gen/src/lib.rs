@@ -158,6 +158,10 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
+/// * `additional_properties = ...` Can be used to define free form types for maps such as
+///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap). 
+///   Free form type enables use of arbitrary types within map values.
+///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
 /// # Xml attribute Configuration Options
 ///
@@ -301,7 +305,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// where super type declares common code for type aliases.
 ///
 /// In this example we have common `Status` type which accepts one generic type. It is then defined
-/// with `#[aliases(...)]` that it is going to be used with [`std::string::String`] and [`i32`] values.
+/// with `#[aliases(...)]` that it is going to be used with [`String`](std::string::String) and [`i32`] values.
 /// The generic argument could also be another [`ToSchema`][to_schema] as well.
 /// ```rust
 /// # use utoipa::{ToSchema, OpenApi};
@@ -1532,7 +1536,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// Typically path parameters need to be defined within [`#[utoipa::path(...params(...))]`][path_params] section
 /// for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
-/// Still [`std::primitive`] and [`String`] path parameters or [`tuple`] style path parameters need to be defined
+/// Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
 /// within `params(...)` section if description or other than default configuration need to be given.
 ///
 /// You can use the Rust's own `#[deprecated]` attribute on field to mark it as
@@ -1632,6 +1636,11 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
+///
+/// * `additional_properties = ...` Can be used to define free form types for maps such as
+///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap). 
+///   Free form type enables use of arbitrary types within map values.
+///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
 /// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
 ///
