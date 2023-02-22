@@ -27,6 +27,12 @@ pub struct SerdeValue {
     pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
+    pub skip_serializing_if: bool,
+    pub double_option: bool,
+}
+
+impl SerdeValue {
+    const SERDE_WITH_DOUBLE_OPTION: &'static str = "::serde_with::rust::double_option";
 }
 
 impl SerdeValue {
@@ -39,6 +45,20 @@ impl SerdeValue {
                 match tt {
                     TokenTree::Ident(ident) if ident == "skip" || ident == "skip_serializing" => {
                         value.skip = true
+                    }
+                    TokenTree::Ident(ident) if ident == "skip_serializing_if" => {
+                        value.skip_serializing_if = true
+                    }
+                    TokenTree::Ident(ident) if ident == "with" => {
+                        value.double_option = parse_next_lit_str(next)
+                            .and_then(|(literal, _)| {
+                                if literal == SerdeValue::SERDE_WITH_DOUBLE_OPTION {
+                                    Some(true)
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or(false);
                     }
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
@@ -200,6 +220,9 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
                 if value.skip {
                     acc.skip = value.skip;
                 }
+                if value.skip_serializing_if {
+                    acc.skip_serializing_if = value.skip_serializing_if;
+                }
                 if value.rename.is_some() {
                     acc.rename = value.rename;
                 }
@@ -208,6 +231,9 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
                 }
                 if value.default {
                     acc.default = value.default;
+                }
+                if value.double_option {
+                    acc.double_option = value.double_option;
                 }
 
                 acc

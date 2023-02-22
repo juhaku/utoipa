@@ -159,11 +159,21 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 /// * `additional_properties = ...` Can be used to define free form types for maps such as
-///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap). 
+///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// # Xml attribute Configuration Options
+/// #### Field nullability and required rules
+///
+/// Field is considered _`required`_ if
+/// * it does not have _`skip_serializing_if`_ property
+/// * and it does not have _`serde_with`_ _[`double_option`](https://docs.rs/serde_with/latest/serde_with/rust/double_option/index.html)_
+/// * and it does not have default value provided with serde _`default`_
+///   attribute
+/// 
+/// Field is considered _`nullable`_ when field type is _`Option`_.
+///
+/// ## Xml attribute Configuration Options
 ///
 /// * `xml(name = "...")` Will set name for property or type.
 /// * `xml(namespace = "...")` Will set namespace for xml element which needs to be valid uri.
@@ -184,6 +194,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `rename = "..."` Supported **only** at the field or variant level.
 /// * `skip = "..."` Supported  **only** at the field or variant level.
 /// * `skip_serializing = "..."` Supported  **only** at the field or variant level.
+/// * `with = ...` Supported **only at field level!**
 /// * `tag = "..."` Supported at the container level. `tag` attribute works as a [discriminator field][discriminator] for an enum.
 /// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
@@ -198,6 +209,10 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// **Note!** `tag` attribute has some limitations like it cannot be used
 /// with **unnamed field structs** and **tuple types**.  See more at
 /// [enum representation docs](https://serde.rs/enum-representations.html).
+///
+/// **Note!** `with` attribute is used in tandem with [serde_with](https://github.com/jonasbb/serde_with) to recognize
+/// _[`double_option`](https://docs.rs/serde_with/latest/serde_with/rust/double_option/index.html)_ from **field value**.
+/// _`double_option`_ is **only** supported attribute from _`serde_with`_ crate.
 ///
 /// ```rust
 /// # use serde::Serialize;
@@ -1638,7 +1653,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 ///
 /// * `additional_properties = ...` Can be used to define free form types for maps such as
-///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap). 
+///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///

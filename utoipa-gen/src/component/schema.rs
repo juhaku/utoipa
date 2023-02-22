@@ -31,7 +31,7 @@ use self::{
 use super::{
     features::{
         parse_features, pop_feature, pop_feature_as_inner, As, Feature, FeaturesExt, IntoInner,
-        IsInline, RenameAll, ToTokensExt, Validatable,
+        IsInline, Nullable, RenameAll, ToTokensExt, Validatable,
     },
     serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
@@ -374,8 +374,20 @@ impl ToTokens for NamedStructSchema<'_> {
                             .property(#name, #property)
                         });
 
-                        if let Property::Schema(schema_property) = property {
-                            if !schema_property.is_option()
+                        // Named struct field is considered required if
+                        //   * it does not have `skip_serializing_if` property
+                        //   * and it does not have `serde_with` douple_option
+                        //   * and it does not have default value provided with serde `default`
+                        //     attribute
+                        if let Property::Schema(_) = property {
+                            if !field_rule
+                                .as_ref()
+                                .map(|rule| rule.skip_serializing_if)
+                                .unwrap_or(false)
+                                && !field_rule
+                                    .as_ref()
+                                    .map(|rule| rule.double_option)
+                                    .unwrap_or(false)
                                 && !super::is_default(
                                     &container_rules.as_ref(),
                                     &field_rule.as_ref(),
@@ -1406,11 +1418,6 @@ impl<'a> SchemaProperty<'a> {
         }
     }
 
-    /// Check whether property is required or not
-    fn is_option(&self) -> bool {
-        matches!(self.type_tree.generic_type, Some(GenericType::Option))
-    }
-
     fn get_description(&self) -> Option<TokenStream> {
         self.comments
             .and_then(|comments| {
@@ -1439,6 +1446,7 @@ impl ToTokens for SchemaProperty<'_> {
                 let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
                 let additional_properties =
                     pop_feature!(features => Feature::AdditionalProperties(_));
+                let nullable = pop_feature!(features => Feature::Nullable(_));
 
                 let deprecated = self.get_deprecated();
                 let description = self.get_description();
@@ -1479,6 +1487,7 @@ impl ToTokens for SchemaProperty<'_> {
                 if let Some(ref example) = example {
                     tokens.extend(example.to_token_stream());
                 }
+                nullable.to_tokens(tokens)
             }
             Some(GenericType::Vec) => {
                 let empty_features = Vec::new();
@@ -1487,6 +1496,7 @@ impl ToTokens for SchemaProperty<'_> {
                 let xml = features.extract_vec_xml_feature(self.type_tree);
                 let max_items = pop_feature!(features => Feature::MaxItems(_));
                 let min_items = pop_feature!(features => Feature::MinItems(_));
+                let nullable = pop_feature!(features => Feature::Nullable(_));
 
                 let deprecated = self.get_deprecated();
                 let description = self.get_description();
@@ -1536,11 +1546,39 @@ impl ToTokens for SchemaProperty<'_> {
                     validate(&min_items);
                     tokens.extend(min_items.to_token_stream())
                 }
+
+                nullable.to_tokens(tokens);
             }
-            Some(GenericType::Option)
-            | Some(GenericType::Cow)
-            | Some(GenericType::Box)
-            | Some(GenericType::RefCell) => {
+            Some(GenericType::Option) => {
+                let empty_features = Vec::<Feature>::new();
+                let mut features = self.features.unwrap_or(&empty_features).clone();
+
+                // Add nullable feature if not already exists. Option is always nullable
+                if !features
+                    .iter()
+                    .any(|feature| matches!(feature, Feature::Nullable(_)))
+                {
+                    features.push(Nullable::new().into());
+                }
+
+                let schema_property = SchemaProperty {
+                    type_tree: self
+                        .type_tree
+                        .children
+                        .as_ref()
+                        .expect("SchemaProperty generic container type should have children")
+                        .iter()
+                        .next()
+                        .expect("SchemaProperty generic container type should have 1 child"),
+                    comments: self.comments,
+                    features: Some(&features),
+                    deprecated: self.deprecated,
+                    object_name: self.object_name,
+                };
+
+                tokens.extend(schema_property.into_token_stream());
+            }
+            Some(GenericType::Cow) | Some(GenericType::Box) | Some(GenericType::RefCell) => {
                 let schema_property = SchemaProperty {
                     type_tree: self
                         .type_tree
@@ -1560,6 +1598,9 @@ impl ToTokens for SchemaProperty<'_> {
             }
             None => {
                 let type_tree = self.type_tree;
+                let empty_feature = Vec::<Feature>::new();
+                let mut features = self.features.unwrap_or(&empty_feature).clone();
+                let nullable = pop_feature!(features => Feature::Nullable(_));
 
                 match type_tree.value_type {
                     ValueType::Primitive => {
@@ -1580,14 +1621,11 @@ impl ToTokens for SchemaProperty<'_> {
                         tokens.extend(self.get_description());
                         tokens.extend(self.get_deprecated());
 
-                        if let Some(features) = self.features {
-                            for feature in
-                                features.iter().filter(|feature| feature.is_validatable())
-                            {
-                                feature.validate(&schema_type, type_tree);
-                            }
-                            tokens.extend(features.to_token_stream())
+                        for feature in features.iter().filter(|feature| feature.is_validatable()) {
+                            feature.validate(&schema_type, type_tree);
                         }
+                        tokens.extend(features.to_token_stream());
+                        nullable.to_tokens(tokens);
                     }
                     ValueType::Object => {
                         let is_inline = self
@@ -1599,21 +1637,46 @@ impl ToTokens for SchemaProperty<'_> {
                             let deprecated = self.get_deprecated();
                             let description = self.get_description();
 
-                            tokens.extend(quote! { utoipa::openapi::ObjectBuilder::new()#description #deprecated })
+                            tokens.extend(quote! {
+                                utoipa::openapi::ObjectBuilder::new()
+                                    #description #deprecated #nullable
+                            })
                         } else {
                             let type_path = &**type_tree.path.as_ref().unwrap();
                             if is_inline {
-                                tokens.extend(quote_spanned! {type_path.span() =>
-                                    <#type_path as utoipa::ToSchema>::schema().1
-                                });
+                                nullable
+                                    .map(|_| {
+                                        quote_spanned! {type_path.span()=>
+                                            utoipa::openapi::schema::AllOfBuilder::new()
+                                                .item(<#type_path as utoipa::ToSchema>::schema().1)
+                                                .item(utoipa::openapi::schema::Object::nullable())
+                                        }
+                                    })
+                                    .unwrap_or_else(|| {
+                                        quote_spanned! {type_path.span() =>
+                                            <#type_path as utoipa::ToSchema>::schema().1
+                                        }
+                                    })
+                                    .to_tokens(tokens);
                             } else {
                                 let mut name = Cow::Owned(format_path_ref(type_path));
                                 if name == "Self" {
                                     name = Cow::Borrowed(self.object_name);
                                 }
-                                tokens.extend(quote! {
-                                    utoipa::openapi::Ref::from_schema_name(#name)
-                                })
+                                nullable
+                                    .map(|_| {
+                                        quote! {
+                                            utoipa::openapi::schema::AllOfBuilder::new()
+                                                .item(utoipa::openapi::Ref::from_schema_name(#name))
+                                                .item(utoipa::openapi::schema::Object::nullable())
+                                        }
+                                    })
+                                    .unwrap_or_else(|| {
+                                        quote! {
+                                            utoipa::openapi::Ref::from_schema_name(#name)
+                                        }
+                                    })
+                                    .to_tokens(tokens);
                             }
                         }
                     }
