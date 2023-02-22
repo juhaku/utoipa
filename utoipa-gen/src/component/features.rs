@@ -632,6 +632,12 @@ name!(Title = "title");
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Nullable(bool);
 
+impl Nullable {
+    pub fn new() -> Self {
+        Self(true)
+    }
+}
+
 impl Parse for Nullable {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_bool_or_true(input).map(Self)

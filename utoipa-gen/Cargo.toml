@@ -34,6 +34,7 @@ rust_decimal = "1"
 chrono = { version = "0.4", features = ["serde"] }
 assert-json-diff = "2"
 time = { version = "0.3", features = ["serde-human-readable"] }
+serde_with = "2.2.0"
 
 [features]
 debug = ["syn/extra-traits"]

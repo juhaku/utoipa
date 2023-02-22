@@ -245,9 +245,6 @@ pub enum Schema {
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
-    /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
-    /// or can be a field within the [`Object`].
-    Object(Object),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
@@ -259,6 +256,9 @@ pub enum Schema {
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf),
+    /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
+    /// or can be a field within the [`Object`].
+    Object(Object),
 }
 
 impl Default for Schema {
@@ -551,14 +551,15 @@ builder! {
     ///
     /// [schema]: https://spec.openapis.org/oas/latest.html#schema-object
     #[non_exhaustive]
-    #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Object {
         /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
         /// `string` types.
         #[serde(rename = "type")]
-        pub schema_type: SchemaType,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub schema_type: Option<SchemaType>,
 
         /// Changes the [`Object`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -678,6 +679,38 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+impl Default for Object {
+    fn default() -> Self {
+        Self {
+            schema_type: Some(SchemaType::Object),
+            title: Default::default(),
+            format: Default::default(),
+            description: Default::default(),
+            default: Default::default(),
+            enum_values: Default::default(),
+            required: Default::default(),
+            properties: Default::default(),
+            additional_properties: Default::default(),
+            deprecated: Default::default(),
+            example: Default::default(),
+            write_only: Default::default(),
+            read_only: Default::default(),
+            xml: Default::default(),
+            nullable: Default::default(),
+            multiple_of: Default::default(),
+            maximum: Default::default(),
+            minimum: Default::default(),
+            exclusive_maximum: Default::default(),
+            exclusive_minimum: Default::default(),
+            max_length: Default::default(),
+            min_length: Default::default(),
+            pattern: Default::default(),
+            max_properties: Default::default(),
+            min_properties: Default::default(),
+        }
+    }
+}
+
 impl Object {
     /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
     /// `Object::with_type(SchemaType::Object)`.
@@ -696,7 +729,36 @@ impl Object {
     /// ```
     pub fn with_type(schema_type: SchemaType) -> Self {
         Self {
-            schema_type,
+            schema_type: Some(schema_type),
+            ..Default::default()
+        }
+    }
+
+    /// Initialize new empty nullable [`Object`].
+    ///
+    /// This is useful in combination of [`AllOf`] to create nullable type from another type.
+    ///
+    /// # Examples
+    ///
+    /// Create nullable type with name.
+    /// ```rust
+    /// # use utoipa::openapi::schema::{AllOfBuilder, ObjectBuilder, Object, SchemaType};
+    /// let nullable_type = AllOfBuilder::new()
+    ///     .item(ObjectBuilder::new().property("name", Object::with_type(SchemaType::String)))
+    ///     .item(Object::nullable()).build();
+    /// # assert_json_diff::assert_json_eq!(nullable_type, serde_json::json!({
+    /// #    "allOf": [
+    /// #         {"properties": {
+    /// #             "name": { "type": "string"},
+    /// #         }, "type": "object"},
+    /// #         {"nullable": true }
+    /// # ]
+    /// # }))
+    /// ```
+    pub fn nullable() -> Self {
+        Self {
+            schema_type: None,
+            nullable: true,
             ..Default::default()
         }
     }
@@ -713,7 +775,7 @@ impl ToArray for Object {}
 impl ObjectBuilder {
     /// Add or change type of the object e.g [`SchemaType::String`].
     pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
-        set_value!(self schema_type schema_type)
+        set_value!(self schema_type Some(schema_type))
     }
 
     /// Add or change additional format for detailing the schema type.
@@ -1010,6 +1072,10 @@ builder! {
         /// Xml format of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
+
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
     }
 }
 
@@ -1025,6 +1091,7 @@ impl Default for Array {
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
+            nullable: Default::default(),
         }
     }
 }
@@ -1086,6 +1153,11 @@ impl ArrayBuilder {
     /// Set [`Xml`] formatting for [`Array`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         set_value!(self xml xml)
+    }
+
+    /// Add or change nullable flag for [`Object`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
     }
 
     to_array_builder!();

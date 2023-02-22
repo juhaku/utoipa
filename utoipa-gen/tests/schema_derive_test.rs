@@ -110,8 +110,6 @@ fn derive_map_free_form_property() {
         }
     };
 
-    dbg!(&map);
-
     assert_json_eq!(
         map,
         json!({
@@ -232,7 +230,7 @@ fn derive_struct_with_custom_properties_success() {
 }
 
 #[test]
-fn derive_struct_with_optional_properties_success() {
+fn derive_struct_with_optional_properties() {
     struct Book;
     let owner = api_doc! {
         struct Owner {
@@ -244,19 +242,43 @@ fn derive_struct_with_optional_properties_success() {
         }
     };
 
-    assert_value! {owner=>
-        "type" = r#""object""#, "Owner type"
-        "properties.id.type" = r#""integer""#, "Owner id type"
-        "properties.id.format" = r#""int64""#, "Owner id format"
-        "properties.id.default" = r#"1"#, "Owner id default"
-        "properties.enabled.type" = r#""boolean""#, "Owner enabled"
-        "properties.books.type" = r#""array""#, "Owner books"
-        "properties.books.items.$ref" = r###""#/components/schemas/Book""###, "Owner books items ref"
-        "properties.metadata.type" = r#""object""#, "Owner metadata"
-    };
-    assert_value! {owner=>
-        "required" = Value::Array(vec![Value::String("id".to_string())]), "Owner required"
-    }
+    assert_json_eq!(
+        owner,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "default": 1,
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "nullable": true,
+                },
+                "books": {
+                    "items": {
+                        "$ref": "#/components/schemas/Book",
+                    },
+                    "nullable": true,
+                    "type": "array"
+                },
+                "metadata": {
+                    "type": "object",
+                    "nullable": true,
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+            },
+            "required": [
+                "id",
+                "enabled",
+                "books",
+                "metadata",
+            ],
+            "type": "object"
+        })
+    );
 }
 
 #[test]
@@ -656,26 +678,40 @@ fn derive_struct_with_inline() {
                     "type": "object"
                 },
                 "foo2": {
-                    "properties": {
-                        "name": {
-                            "type": "string"
-                        },
-                    },
-                    "required": [
-                        "name"
-                    ],
-                    "type": "object"
+                    "allOf": [
+                     {
+                         "properties": {
+                             "name": {
+                                 "type": "string"
+                             },
+                         },
+                         "required": [
+                             "name"
+                         ],
+                         "type": "object"
+                     },
+                     {
+                         "nullable": true,
+                     }
+                    ]
                 },
                 "foo3": {
-                    "properties": {
-                        "name": {
-                            "type": "string"
+                    "allOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
                         },
+                        "required": [
+                            "name"
+                        ],
+                        "type": "object"
                     },
-                    "required": [
-                        "name"
-                    ],
-                    "type": "object"
+                    {
+                        "nullable": true,
+                    }
+                    ]
                 },
                 "foo4": {
                     "items": {
@@ -694,6 +730,8 @@ fn derive_struct_with_inline() {
             },
             "required": [
                 "foo1",
+                "foo2",
+                "foo3",
                 "foo4",
             ],
             "type": "object"
@@ -1108,6 +1146,7 @@ fn derive_complex_enum() {
                                 },
                                 "names": {
                                     "type": "array",
+                                    "nullable": true,
                                     "items": {
                                         "type": "string",
                                     },
@@ -1115,6 +1154,7 @@ fn derive_complex_enum() {
                             },
                             "required": [
                                 "id",
+                                "names"
                             ],
                         },
                     },
@@ -1236,6 +1276,7 @@ fn derive_complex_enum_serde_rename_all() {
                                 },
                                 "names": {
                                     "type": "array",
+                                    "nullable": true,
                                     "items": {
                                         "type": "string",
                                     },
@@ -1243,6 +1284,7 @@ fn derive_complex_enum_serde_rename_all() {
                             },
                             "required": [
                                 "id",
+                                "names"
                             ],
                         },
                     },
@@ -1305,6 +1347,7 @@ fn derive_complex_enum_serde_rename_variant() {
                                 },
                                 "renamed_names": {
                                     "type": "array",
+                                    "nullable": true,
                                     "items": {
                                         "type": "string",
                                     },
@@ -1312,6 +1355,7 @@ fn derive_complex_enum_serde_rename_variant() {
                             },
                             "required": [
                                 "renamed_id",
+                                "renamed_names"
                             ],
                         },
                     },
@@ -1649,6 +1693,7 @@ fn derive_complex_enum_serde_tag() {
                         },
                         "names": {
                             "type": "array",
+                            "nullable": true,
                             "items": {
                                 "type": "string",
                             },
@@ -1662,6 +1707,7 @@ fn derive_complex_enum_serde_tag() {
                     },
                     "required": [
                         "id",
+                        "names",
                         "tag",
                     ],
                 },
@@ -2312,23 +2358,62 @@ fn derive_struct_with_read_only_and_write_only() {
 }
 
 #[test]
-fn derive_struct_with_nullable() {
+fn derive_struct_with_nullable_and_required() {
     let user = api_doc! {
+        #[derive(Serialize)]
         struct User {
+            #[schema(nullable)]
+            #[serde(with = "::serde_with::rust::double_option")]
+            fax: Option<Option<String>>,
             #[schema(nullable)]
             phone: Option<Option<String>>,
             #[schema(nullable = false)]
             email: String,
-            name: String
+            name: String,
+            #[schema(nullable)]
+            edit_history: Vec<String>,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            friends: Vec<Option<String>>
         }
     };
 
-    assert_value! {user=>
-        "properties.phone.type" = r###""string""###, "User phone type"
-        "properties.phone.nullable" = r###"true"###, "User phone nullable"
-        "properties.email.nullable" = r###"null"###, "User email not nullable"
-        "properties.name.nullable" = r###"null"###, "User name not nullable"
-    }
+    assert_json_eq!(
+        user,
+        json!({
+            "properties": {
+                "fax": {
+                    "type": "string",
+                    "nullable": true,
+                },
+                "phone": {
+                    "type": "string",
+                    "nullable": true,
+                },
+                "email": {
+                    "type": "string",
+                },
+                "name": {
+                    "type": "string",
+                },
+                "edit_history": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "nullable": true,
+                },
+                "friends": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "nullable": true,
+                    },
+                }
+            },
+            "required": ["phone", "email", "name", "edit_history"],
+            "type": "object"
+        })
+    )
 }
 
 #[test]
@@ -2415,13 +2500,14 @@ fn derive_struct_xml_with_optional_vec() {
                             "name": "link"
                         }
                     },
+                    "nullable": true,
                     "xml": {
                         "name": "linkList",
                         "wrapped": true,
                     }
                 }
             },
-            "required": ["id"],
+            "required": ["id", "links"],
             "type": "object",
             "xml": {
                 "name": "user"
@@ -2814,7 +2900,7 @@ fn derive_parse_serde_complex_enum() {
         "oneOf.[1].properties.namedFields.properties.id.type" = r#""string""#, "Named fields id type"
         "oneOf.[1].properties.namedFields.properties.nameList.type" = r#""array""#, "Named fields nameList type"
         "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
-        "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
+        "oneOf.[1].properties.namedFields.required" = r#"["id","nameList"]"#, "Named fields required"
 
         "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
     }
@@ -2969,10 +3055,12 @@ fn derive_component_with_into_params_value_type() {
                     "type": "array"
                 },
                 "value3": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true,
                 },
                 "value4": {
-                    "type": "object"
+                    "type": "object",
+                    "nullable": true,
                 },
                 "value5": {
                     "items": {
@@ -2992,6 +3080,8 @@ fn derive_component_with_into_params_value_type() {
                 "another_id",
                 "value1",
                 "value2",
+                "value3",
+                "value4",
                 "value5",
                 "value6",
             ],
@@ -3717,10 +3807,12 @@ fn derive_schema_with_generics_and_lifetimes() {
                             }
                     },
                     "next": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true,
                     },
                     "prev": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true,
                     },
                     "total": {
                         "type": "integer"
@@ -3728,7 +3820,9 @@ fn derive_schema_with_generics_and_lifetimes() {
                     },
                     "required": [
                         "total",
-                        "data"
+                        "data",
+                        "next",
+                        "prev"
                     ],
                     "type": "object"
                 }
@@ -3744,10 +3838,12 @@ fn derive_schema_with_generics_and_lifetimes() {
                             }
                         },
                         "next": {
-                            "type": "string"
+                            "type": "string",
+                            "nullable": true,
                         },
                         "prev": {
-                            "type": "string"
+                            "type": "string",
+                            "nullable": true,
                         },
                         "total": {
                             "type": "integer"
@@ -3755,7 +3851,9 @@ fn derive_schema_with_generics_and_lifetimes() {
                     },
                     "required": [
                         "total",
-                        "data"
+                        "data",
+                        "next",
+                        "prev"
                     ],
                     "type": "object"
                 }
