@@ -156,6 +156,7 @@ struct SwaggerUiDist;
 ///
 #[non_exhaustive]
 #[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 #[cfg_attr(
     doc_cfg,
@@ -165,6 +166,7 @@ pub struct SwaggerUi {
     path: Cow<'static, str>,
     urls: Vec<(Url<'static>, OpenApi)>,
     config: Option<Config<'static>>,
+    external_urls: Vec<(Url<'static>, serde_json::Value)>,
 }
 
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
@@ -191,6 +193,7 @@ impl SwaggerUi {
             path: path.into(),
             urls: Vec::new(),
             config: None,
+            external_urls: Vec::new(),
         }
     }
 
@@ -262,6 +265,79 @@ impl SwaggerUi {
         self
     }
 
+    /// Add external API doc to the [`SwaggerUi`].
+    ///
+    /// This operation is unchecked and so it does not check any validity of provided content.
+    /// Users are required to do their own check if any regarding validity of the external
+    /// OpenAPI document.
+    ///
+    /// Method accepts two arguments, one is [`Url`] the API doc is served at and the second one is
+    /// the [`serde_json::Value`] of the OpenAPI doc to be served.
+    ///
+    /// # Examples
+    ///
+    /// Add external API doc to the [`SwaggerUi`].
+    ///```rust
+    /// # use utoipa_swagger_ui::{SwaggerUi, Url};
+    /// # use utoipa::OpenApi;
+    /// # use serde_json::json;
+    /// let external_openapi = json!({"openapi": "3.0.0"});
+    ///
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .external_url_unchecked("/api-docs/openapi.json", external_openapi);
+    ///```
+    pub fn external_url_unchecked<U: Into<Url<'static>>>(
+        mut self,
+        url: U,
+        openapi: serde_json::Value,
+    ) -> Self {
+        self.external_urls.push((url.into(), openapi));
+
+        self
+    }
+
+    /// Add external API docs to the [`SwaggerUi`] from iterator.
+    ///
+    /// This operation is unchecked and so it does not check any validity of provided content.
+    /// Users are required to do their own check if any regarding validity of the external
+    /// OpenAPI documents.
+    ///
+    /// Method accepts one argument, an `iter` of [`Url`] and [`serde_json::Value`] tuples. The
+    /// [`Url`] will point to location the OpenAPI document is served and the [`serde_json::Value`]
+    /// is the OpenAPI document to be served.
+    ///
+    /// # Examples
+    ///
+    /// Add external API docs to the [`SwaggerUi`].
+    ///```rust
+    /// # use utoipa_swagger_ui::{SwaggerUi, Url};
+    /// # use utoipa::OpenApi;
+    /// # use serde_json::json;
+    /// let external_openapi = json!({"openapi": "3.0.0"});
+    /// let external_openapi2 = json!({"openapi": "3.0.0"});
+    ///
+    /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
+    ///     .external_urls_from_iter_unchecked([
+    ///         ("/api-docs/openapi.json", external_openapi),
+    ///         ("/api-docs/openapi2.json", external_openapi2)
+    ///     ]);
+    ///```
+    pub fn external_urls_from_iter_unchecked<
+        I: IntoIterator<Item = (U, serde_json::Value)>,
+        U: Into<Url<'static>>,
+    >(
+        mut self,
+        external_urls: I,
+    ) -> Self {
+        self.external_urls.extend(
+            external_urls
+                .into_iter()
+                .map(|(url, doc)| (url.into(), doc)),
+        );
+
+        self
+    }
+
     /// Add oauth [`oauth::Config`] into [`SwaggerUi`].
     ///
     /// Method takes one argument which exposes the [`oauth::Config`] to the user.
@@ -318,7 +394,8 @@ impl SwaggerUi {
 
 /// Rust type for Swagger UI url configuration object.
 #[non_exhaustive]
-#[derive(Default, Serialize, Clone, Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default, Serialize, Clone)]
 pub struct Url<'a> {
     name: Cow<'a, str>,
     url: Cow<'a, str>,
@@ -441,6 +518,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// ```
 #[non_exhaustive]
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "camelCase")]
 pub struct Config<'a> {
     /// Url to fetch external configuration from.
