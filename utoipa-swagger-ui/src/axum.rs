@@ -16,26 +16,30 @@ where
 {
     fn from(swagger_ui: SwaggerUi) -> Self {
         let urls_capacity = swagger_ui.urls.len();
+        let external_urls_capacity = swagger_ui.external_urls.len();
 
         let (router, urls) = swagger_ui.urls.into_iter().fold(
             (
                 Router::<S, B>::new(),
-                Vec::<Url>::with_capacity(urls_capacity),
+                Vec::<Url>::with_capacity(urls_capacity + external_urls_capacity),
             ),
-            |(router, mut urls), url| {
+            |router_and_urls, url| {
                 let (url, openapi) = url;
-                (
-                    router.route(
-                        url.url.as_ref(),
-                        routing::get(move || async { Json(openapi) }),
+
+                add_api_doc_to_urls(
+                    router_and_urls,
+                    (
+                        url,
+                        serde_json::to_value(openapi)
+                            .expect("Cannot convert OpenApi to serde_json::Value"),
                     ),
-                    {
-                        urls.push(url);
-                        urls
-                    },
                 )
             },
         );
+        let (router, urls) = swagger_ui
+            .external_urls
+            .into_iter()
+            .fold((router, urls), add_api_doc_to_urls);
 
         let config = if let Some(config) = swagger_ui.config {
             if config.url.is_some() || !config.urls.is_empty() {
@@ -59,6 +63,28 @@ where
             .route(&format!("{}/", path), handler.clone())
             .route(&format!("{}/*rest", path), handler)
     }
+}
+
+fn add_api_doc_to_urls<S, B>(
+    router_and_urls: (Router<S, B>, Vec<Url<'static>>),
+    url: (Url<'static>, serde_json::Value),
+) -> (Router<S, B>, Vec<Url<'static>>)
+where
+    S: Clone + Send + Sync + 'static,
+    B: HttpBody + Send + 'static,
+{
+    let (router, mut urls) = router_and_urls;
+    let (url, openapi) = url;
+    (
+        router.route(
+            url.url.as_ref(),
+            routing::get(move || async { Json(openapi) }),
+        ),
+        {
+            urls.push(url);
+            urls
+        },
+    )
 }
 
 async fn serve_swagger_ui(

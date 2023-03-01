@@ -17,17 +17,30 @@ use crate::{Config, SwaggerFile, SwaggerUi};
 
 impl From<SwaggerUi> for Vec<Route> {
     fn from(swagger_ui: SwaggerUi) -> Self {
-        let mut routes = Vec::<Route>::with_capacity(swagger_ui.urls.len() + 1);
-        let mut api_docs = Vec::<Route>::with_capacity(swagger_ui.urls.len());
+        let mut routes =
+            Vec::<Route>::with_capacity(swagger_ui.urls.len() + 1 + swagger_ui.external_urls.len());
+        let mut api_docs =
+            Vec::<Route>::with_capacity(swagger_ui.urls.len() + swagger_ui.external_urls.len());
 
-        let urls = swagger_ui.urls.into_iter().map(|(url, openapi)| {
-            api_docs.push(Route::new(
-                rocket::http::Method::Get,
-                url.url.as_ref(),
-                ServeApiDoc(openapi),
-            ));
-            url
-        });
+        let urls = swagger_ui
+            .urls
+            .into_iter()
+            .map(|(url, openapi)| {
+                (
+                    url,
+                    serde_json::to_value(openapi)
+                        .expect("Cannot convert OpenApi to serde_json::Value"),
+                )
+            })
+            .chain(swagger_ui.external_urls.into_iter())
+            .map(|(url, openapi)| {
+                api_docs.push(Route::new(
+                    rocket::http::Method::Get,
+                    &url.url,
+                    ServeApiDoc(openapi),
+                ));
+                url
+            });
 
         routes.push(Route::new(
             rocket::http::Method::Get,
@@ -52,7 +65,7 @@ impl From<SwaggerUi> for Vec<Route> {
 }
 
 #[derive(Clone)]
-struct ServeApiDoc(utoipa::openapi::OpenApi);
+struct ServeApiDoc(serde_json::Value);
 
 #[rocket::async_trait]
 impl Handler for ServeApiDoc {

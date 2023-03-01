@@ -5,21 +5,29 @@ use actix_web::{
     Responder as ActixResponder,
 };
 
-use utoipa::openapi::OpenApi;
-
 use crate::{Config, SwaggerUi};
 
 impl HttpServiceFactory for SwaggerUi {
     fn register(self, config: &mut actix_web::dev::AppService) {
-        let urls = self
+        let mut urls = self
             .urls
             .into_iter()
             .map(|url| {
                 let (url, openapi) = url;
-                register_api_doc_url_resource(url.url.as_ref(), openapi, config);
+                register_api_doc_url_resource(
+                    url.url.as_ref(),
+                    serde_json::to_value(openapi)
+                        .expect("Cannot convert OpenApi to serde_json::Value"),
+                    config,
+                );
                 url
             })
             .collect::<Vec<_>>();
+        let external_api_docs = self.external_urls.into_iter().map(|(url, api_doc)| {
+            register_api_doc_url_resource(url.url.as_ref(), api_doc, config);
+            url
+        });
+        urls.extend(external_api_docs);
 
         let swagger_resource = Resource::new(self.path.as_ref())
             .guard(Get())
@@ -38,8 +46,12 @@ impl HttpServiceFactory for SwaggerUi {
     }
 }
 
-fn register_api_doc_url_resource(url: &str, api: OpenApi, config: &mut actix_web::dev::AppService) {
-    pub async fn get_api_doc(api_doc: web::Data<OpenApi>) -> impl ActixResponder {
+fn register_api_doc_url_resource(
+    url: &str,
+    api: serde_json::Value,
+    config: &mut actix_web::dev::AppService,
+) {
+    pub async fn get_api_doc(api_doc: web::Data<serde_json::Value>) -> impl ActixResponder {
         HttpResponse::Ok().json(api_doc.as_ref())
     }
 
