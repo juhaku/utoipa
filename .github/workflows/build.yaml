@@ -57,10 +57,10 @@ jobs:
               root_changed=true
             fi
           done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
-          echo "::set-output name=root_changed::$root_changed"
-          echo "::set-output name=utoipa_changed::$utoipa_changed"
-          echo "::set-output name=gen_changed::$gen_changed"
-          echo "::set-output name=swagger_changed::$swagger_changed"
+          echo "root_changed=$root_changed" >> $GITHUB_OUTPUT
+          echo "utoipa_changed=$utoipa_changed" >> $GITHUB_OUTPUT
+          echo "gen_changed=$gen_changed" >> $GITHUB_OUTPUT
+          echo "swagger_changed=$swagger_changed" >> $GITHUB_OUTPUT
 
       - name: Run tests
         run: |
