@@ -238,7 +238,8 @@ fn derive_struct_with_optional_properties() {
             id: u64,
             enabled: Option<bool>,
             books: Option<Vec<Book>>,
-            metadata: Option<HashMap<String, String>>
+            metadata: Option<HashMap<String, String>>,
+            optional_book: Option<Book>
         }
     };
 
@@ -269,12 +270,21 @@ fn derive_struct_with_optional_properties() {
                         "type": "string"
                     }
                 },
+                "optional_book": {
+                    "nullable": true,
+                    "allOf": [
+                        {
+                            "$ref": "#/components/schemas/Book"
+                        }
+                    ]
+                }
             },
             "required": [
                 "id",
                 "enabled",
                 "books",
                 "metadata",
+                "optional_book"
             ],
             "type": "object"
         })
