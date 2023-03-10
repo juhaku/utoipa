@@ -688,6 +688,7 @@ fn derive_struct_with_inline() {
                     "type": "object"
                 },
                 "foo2": {
+                    "nullable": true,
                     "allOf": [
                      {
                          "properties": {
@@ -699,13 +700,11 @@ fn derive_struct_with_inline() {
                              "name"
                          ],
                          "type": "object"
-                     },
-                     {
-                         "nullable": true,
                      }
                     ]
                 },
                 "foo3": {
+                    "nullable": true,
                     "allOf": [
                     {
                         "properties": {
@@ -717,9 +716,6 @@ fn derive_struct_with_inline() {
                             "name"
                         ],
                         "type": "object"
-                    },
-                    {
-                        "nullable": true,
                     }
                     ]
                 },

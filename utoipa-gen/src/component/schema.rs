@@ -1645,11 +1645,11 @@ impl ToTokens for SchemaProperty<'_> {
                             let type_path = &**type_tree.path.as_ref().unwrap();
                             if is_inline {
                                 nullable
-                                    .map(|_| {
+                                    .map(|nullable| {
                                         quote_spanned! {type_path.span()=>
                                             utoipa::openapi::schema::AllOfBuilder::new()
+                                                #nullable
                                                 .item(<#type_path as utoipa::ToSchema>::schema().1)
-                                                .item(utoipa::openapi::schema::Object::nullable())
                                         }
                                     })
                                     .unwrap_or_else(|| {
