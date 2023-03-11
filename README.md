@@ -62,9 +62,9 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :be
   defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)
   or [examples](./examples) for more details.
 - **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
-- **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
+- **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate`, `NaiveDateTime` and `Duration`
   types. By default these types are parsed to `string` types with additional `format` information.
-  `format: date-time` for `DateTime` and `format: date` for `Date` and `NaiveDate` according
+  `format: date-time` for `DateTime` and `NaiveDateTime` and `format: date` for `Date` and `NaiveDate` according
   [RFC3339](https://www.rfc-editor.org/rfc/rfc3339#section-5.6) as `ISO-8601`. To
   override default `string` representation users have to use `value_type` attribute to override the type.
   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
