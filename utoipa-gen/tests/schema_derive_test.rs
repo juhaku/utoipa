@@ -2526,13 +2526,14 @@ fn derive_struct_xml_with_optional_vec() {
 #[test]
 fn derive_component_with_chrono_feature() {
     #![allow(deprecated)] // allow deprecated Date in tests as long as it is available from chrono
-    use chrono::{Date, DateTime, Duration, NaiveDate, Utc};
+    use chrono::{Date, DateTime, NaiveDateTime, Duration, NaiveDate, Utc};
 
     let post = api_doc! {
         struct Post {
             id: i32,
             value: String,
             datetime: DateTime<Utc>,
+            naive_datetime: NaiveDateTime,
             date: Date<Utc>,
             naive_date: NaiveDate,
             duration: Duration,
@@ -2542,6 +2543,8 @@ fn derive_component_with_chrono_feature() {
     assert_value! {post=>
         "properties.datetime.type" = r#""string""#, "Post datetime type"
         "properties.datetime.format" = r#""date-time""#, "Post datetime format"
+        "properties.naive_datetime.type" = r#""string""#, "Post datetime type"
+        "properties.naive_datetime.format" = r#""date-time""#, "Post datetime format"
         "properties.date.type" = r#""string""#, "Post date type"
         "properties.date.format" = r#""date""#, "Post date format"
         "properties.naive_date.type" = r#""string""#, "Post date type"

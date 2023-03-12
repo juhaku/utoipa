@@ -140,7 +140,7 @@ fn is_primitive(name: &str) -> bool {
 #[inline]
 #[cfg(feature = "chrono")]
 fn is_primitive_chrono(name: &str) -> bool {
-    matches!(name, "DateTime" | "Date" | "NaiveDate" | "Duration")
+    matches!(name, "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime")
 }
 
 #[inline]
@@ -166,6 +166,8 @@ impl ToTokens for SchemaType<'_> {
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
             #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            #[cfg(feature = "chrono")]
+            "NaiveDateTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "chrono")]
             "NaiveDate" => tokens.extend(quote!(utoipa::openapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
@@ -250,7 +252,7 @@ impl Type<'_> {
 
             #[cfg(feature = "chrono")]
             if !known_format {
-                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate");
+                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
             }
 
             #[cfg(feature = "uuid")]
@@ -293,6 +295,8 @@ impl ToTokens for Type<'_> {
             "NaiveDate" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
             #[cfg(feature = "chrono")]
             "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
+            #[cfg(feature = "chrono")]
+            "NaiveDateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
             #[cfg(feature = "uuid")]
