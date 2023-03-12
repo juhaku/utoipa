@@ -95,6 +95,13 @@ impl SchemaType<'_> {
         )
     }
 
+    pub fn is_unsigned_integer(&self) -> bool {
+        matches!(
+            &*self.last_segment_to_string(),
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+        )
+    }
+
     pub fn is_number(&self) -> bool {
         match &*self.last_segment_to_string() {
             "f32" | "f64" => true,
@@ -140,7 +147,10 @@ fn is_primitive(name: &str) -> bool {
 #[inline]
 #[cfg(feature = "chrono")]
 fn is_primitive_chrono(name: &str) -> bool {
-    matches!(name, "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime")
+    matches!(
+        name,
+        "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime"
+    )
 }
 
 #[inline]

@@ -31,7 +31,7 @@ use self::{
 use super::{
     features::{
         parse_features, pop_feature, pop_feature_as_inner, As, Feature, FeaturesExt, IntoInner,
-        IsInline, Nullable, RenameAll, ToTokensExt, Validatable,
+        IsInline, Minimum, Nullable, RenameAll, ToTokensExt, Validatable,
     },
     serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
     FieldRename, GenericType, TypeTree, ValueType, VariantRename,
@@ -1606,6 +1606,15 @@ impl ToTokens for SchemaProperty<'_> {
                     ValueType::Primitive => {
                         let type_path = &**type_tree.path.as_ref().unwrap();
                         let schema_type = SchemaType(type_path);
+                        if schema_type.is_unsigned_integer() {
+                            // add default minimum feature only when there is no explicit minimum
+                            // provided
+                            if !features
+                                .iter().any(|feature| matches!(&feature, Feature::Minimum(_)))
+                            {
+                                features.push(Minimum::new(0f64, type_path.span()).into());
+                            }
+                        }
 
                         tokens.extend(quote! {
                             utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)

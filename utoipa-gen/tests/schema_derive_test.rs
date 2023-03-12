@@ -251,6 +251,7 @@ fn derive_struct_with_optional_properties() {
                     "type": "integer",
                     "format": "int64",
                     "default": 1,
+                    "minimum": 0.0,
                 },
                 "enabled": {
                     "type": "boolean",
@@ -3590,6 +3591,12 @@ fn derive_struct_with_validation_fields() {
 
             #[schema(max_items = 5, min_items = 1, min_length = 1)]
             items: Vec<String>,
+
+            unsigned: u16,
+
+            #[schema(minimum = 2)]
+            unsigned_value: u32,
+
         }
     };
 
@@ -3618,13 +3625,25 @@ fn derive_struct_with_validation_fields() {
                     },
                     "maxItems": 5,
                     "minItems": 1,
+                },
+                "unsigned": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 0.0
+                },
+                "unsigned_value": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 2.0,
                 }
             },
             "type": "object",
             "required": [
                 "id",
                 "value",
-                "items"
+                "items",
+                "unsigned",
+                "unsigned_value"
             ]
         })
     );
@@ -3824,7 +3843,8 @@ fn derive_schema_with_generics_and_lifetimes() {
                         "nullable": true,
                     },
                     "total": {
-                        "type": "integer"
+                        "type": "integer",
+                        "minimum": 0.0,
                      }
                     },
                     "required": [
@@ -3855,7 +3875,8 @@ fn derive_schema_with_generics_and_lifetimes() {
                             "nullable": true,
                         },
                         "total": {
-                            "type": "integer"
+                            "type": "integer",
+                            "minimum": 0.0
                         }
                     },
                     "required": [

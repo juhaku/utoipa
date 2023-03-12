@@ -925,6 +925,12 @@ name!(Maximum = "maximum");
 #[derive(Clone)]
 pub struct Minimum(f64, Ident);
 
+impl Minimum {
+    pub fn new(value: f64, span: Span) -> Self {
+        Self(value, Ident::new("empty", span))
+    }
+}
+
 impl Validate for Minimum {
     fn validate(&self, validator: impl Validator) {
         if let Err(error) = validator.is_valid() {
