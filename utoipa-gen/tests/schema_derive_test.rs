@@ -2527,7 +2527,7 @@ fn derive_struct_xml_with_optional_vec() {
 #[test]
 fn derive_component_with_chrono_feature() {
     #![allow(deprecated)] // allow deprecated Date in tests as long as it is available from chrono
-    use chrono::{Date, DateTime, NaiveDateTime, Duration, NaiveDate, Utc};
+    use chrono::{Date, DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
 
     let post = api_doc! {
         struct Post {
@@ -2962,6 +2962,50 @@ fn derive_component_with_aliases() {
     assert_value! {value=>
         "MyAlias.properties.bar.$ref" = r###""#/components/schemas/A""###, "MyAlias aliased property"
     }
+}
+
+#[test]
+fn derive_complex_enum_as() {
+    struct Foobar;
+
+    #[derive(ToSchema)]
+    #[schema(as = named::BarBar)]
+    #[allow(unused)]
+    enum BarBar {
+        Foo { foo: Foobar },
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(BarBar)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let value = doc
+        .pointer("/components/schemas/named.BarBar")
+        .expect("Should have BarBar named to named.BarBar");
+
+    assert_json_eq!(
+        &value,
+        json!({
+            "oneOf": [
+            {
+                "properties": {
+                    "Foo": {
+                        "properties": {
+                            "foo": {
+                                "$ref": "#/components/schemas/Foobar"
+                            }
+                        },
+                        "required": ["foo"],
+                        "type": "object"
+                    }
+                },
+                "required": ["Foo"],
+                "type": "object",
+            }
+            ]
+        })
+    )
 }
 
 #[test]

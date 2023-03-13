@@ -72,7 +72,8 @@ impl Parse for ComplexEnumFeatures {
         Ok(ComplexEnumFeatures(parse_features!(
             input as Example,
             Default,
-            RenameAll
+            RenameAll,
+            As
         )))
     }
 }
