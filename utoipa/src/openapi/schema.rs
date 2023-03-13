@@ -678,7 +678,6 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
-
 impl Object {
     /// Initialize a new [`Object`] with default [`SchemaType`]. This effectively same as calling
     /// `Object::with_type(SchemaType::Object)`.

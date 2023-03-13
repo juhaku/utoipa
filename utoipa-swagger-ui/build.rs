@@ -13,9 +13,7 @@ const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-4.15.5";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{SWAGGER_UI_DIST_ZIP}.zip");
-    println!(
-        "cargo:rustc-env=UTOIPA_SWAGGER_UI_VERSION={SWAGGER_UI_DIST_ZIP}"
-    );
+    println!("cargo:rustc-env=UTOIPA_SWAGGER_UI_VERSION={SWAGGER_UI_DIST_ZIP}");
 
     let target_dir = env::var("OUT_DIR").unwrap();
     println!("cargo:rustc-env=UTOIPA_SWAGGER_DIR={}", &target_dir);

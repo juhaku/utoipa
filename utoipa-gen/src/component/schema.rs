@@ -1610,7 +1610,8 @@ impl ToTokens for SchemaProperty<'_> {
                             // add default minimum feature only when there is no explicit minimum
                             // provided
                             if !features
-                                .iter().any(|feature| matches!(&feature, Feature::Minimum(_)))
+                                .iter()
+                                .any(|feature| matches!(&feature, Feature::Minimum(_)))
                             {
                                 features.push(Minimum::new(0f64, type_path.span()).into());
                             }

@@ -170,7 +170,7 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * and it does not have _`serde_with`_ _[`double_option`](https://docs.rs/serde_with/latest/serde_with/rust/double_option/index.html)_
 /// * and it does not have default value provided with serde _`default`_
 ///   attribute
-/// 
+///
 /// Field is considered _`nullable`_ when field type is _`Option`_.
 ///
 /// ## Xml attribute Configuration Options
