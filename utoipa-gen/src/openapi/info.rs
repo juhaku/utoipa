@@ -66,7 +66,14 @@ impl Info<'_> {
         let description = std::env::var("CARGO_PKG_DESCRIPTION").ok().map(Str::String);
         let contact = std::env::var("CARGO_PKG_AUTHORS")
             .ok()
-            .and_then(|authors| Contact::try_from(authors).ok());
+            .and_then(|authors| Contact::try_from(authors).ok())
+            .and_then(|contact| {
+                if contact.name.is_none() && contact.email.is_none() && contact.url.is_none() {
+                    None
+                } else {
+                    Some(contact)
+                }
+            });
         let license = std::env::var("CARGO_PKG_LICENSE").ok().map(License::from);
 
         Info {
@@ -292,10 +299,17 @@ impl TryFrom<String> for Contact<'_> {
     type Error = io::Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        if let Some((name, email)) = get_parsed_author(value.split(':').into_iter().next()) {
+        if let Some((name, email)) = get_parsed_author(value.split(':').next()) {
+            let non_empty = |value: &str| -> Option<Cow<'static, str>> {
+                if !value.is_empty() {
+                    Some(Cow::Owned(value.to_string()))
+                } else {
+                    None
+                }
+            };
             Ok(Contact {
-                name: Some(Cow::Owned(name.to_string())),
-                email: Some(Cow::Owned(email.to_string())),
+                name: non_empty(name),
+                email: non_empty(email),
                 ..Default::default()
             })
         } else {
@@ -387,5 +401,32 @@ mod tests {
         } else {
             panic!("Expected Some(Tessu Tester, ), but was none")
         }
+    }
+
+    #[test]
+    fn contact_from_only_name() {
+        let author = "Suzy Lin";
+        let contanct = Contact::try_from(author.to_string()).unwrap();
+
+        assert!(contanct.name.is_some(), "Suzy should have name");
+        assert!(contanct.email.is_none(), "Suzy should not have email");
+    }
+
+    #[test]
+    fn contact_from_name_and_email() {
+        let author = "Suzy Lin <suzy@lin.com>";
+        let contanct = Contact::try_from(author.to_string()).unwrap();
+
+        assert!(contanct.name.is_some(), "Suzy should have name");
+        assert!(contanct.email.is_some(), "Suzy should have email");
+    }
+
+    #[test]
+    fn contact_from_empty() {
+        let author = "";
+        let contact = Contact::try_from(author.to_string()).unwrap();
+
+        assert!(contact.name.is_none(), "Contat name should be empty");
+        assert!(contact.email.is_none(), "Contat email should be empty");
     }
 }
