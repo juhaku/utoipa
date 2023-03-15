@@ -514,13 +514,9 @@ impl ToTokens for Operation<'_> {
             .operation_id(Some(#operation_id))
         });
 
-        let deprecated = self
-            .deprecated
-            .map(Into::<Deprecated>::into)
-            .unwrap_or(Deprecated::False);
-        tokens.extend(quote! {
-           .deprecated(Some(#deprecated))
-        });
+        if let Some(deprecated) = self.deprecated.map(Into::<Deprecated>::into) {
+            tokens.extend(quote!( .deprecated(Some(#deprecated))))
+        }
 
         if let Some(summary) = self.summary {
             tokens.extend(quote! {

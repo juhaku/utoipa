@@ -185,7 +185,7 @@ fn derive_path_with_defaults_success() {
     };
 
     assert_value! {operation=>
-       "deprecated" = r#"false"#, "Api fn deprecated status"
+       "deprecated" = r#"null"#, "Api fn deprecated status"
        "operationId" = r#""test_operation3""#, "Api fn operation_id"
        "tags.[0]" = r#""derive_path_with_defaults""#, "Api fn tag"
        "parameters" = r#"null"#, "Api parameters"
@@ -222,7 +222,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
 
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 2);
     assert_value! {operation=>
-        "deprecated" = r#"false"#, "Api operation deprecated"
+        "deprecated" = r#"null"#, "Api operation deprecated"
         "description" = r#""This is test operation\n\nThis is long description for test operation""#, "Api operation description"
         "operationId" = r#""get_foos_by_id_since""#, "Api operation operation_id"
         "summary" = r#""This is test operation""#, "Api operation summary"
