@@ -304,7 +304,6 @@ fn derive_response_body_inline_schema_component() {
     assert_json_eq!(
         doc,
         json!({
-            "deprecated": false,
             "operationId": "get_foo",
             "responses": {
                 "200": {
