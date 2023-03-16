@@ -369,25 +369,8 @@ impl ToTokens for NamedStructSchema<'_> {
                             .property(#name, #property)
                         });
 
-                        // Named struct field is considered required if
-                        //   * it does not have `skip_serializing_if` property
-                        //   * and it does not have `serde_with` douple_option
-                        //   * and it does not have default value provided with serde `default`
-                        //     attribute
                         if let Property::Schema(_) = property {
-                            if !field_rule
-                                .as_ref()
-                                .map(|rule| rule.skip_serializing_if)
-                                .unwrap_or(false)
-                                && !field_rule
-                                    .as_ref()
-                                    .map(|rule| rule.double_option)
-                                    .unwrap_or(false)
-                                && !super::is_default(
-                                    &container_rules.as_ref(),
-                                    &field_rule.as_ref(),
-                                )
-                            {
+                            if super::is_required(field_rule.as_ref(), container_rules.as_ref()) {
                                 object_tokens.extend(quote! {
                                     .required(#name)
                                 })

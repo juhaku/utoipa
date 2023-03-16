@@ -1429,7 +1429,7 @@ mod tests {
     }
 
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
-        path.split('.').into_iter().fold(value, |acc, fragment| {
+        path.split('.').fold(value, |acc, fragment| {
             acc.get(fragment).unwrap_or(&serde_json::value::Value::Null)
         })
     }
