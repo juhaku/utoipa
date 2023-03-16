@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-swagger-ui"
 description = "Swagger UI for utoipa"
-version = "3.1.0"
+version = "3.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -15,7 +15,7 @@ debug = []
 debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
-rust-embed = { version = "6.4", features = ["interpolate-folder-path"] }
+rust-embed = { version = "6.6", features = ["interpolate-folder-path"] }
 mime_guess = { version = "2.0" }
 actix-web = { version = "4", features = [
     "macros",
