@@ -12,12 +12,12 @@ use syn::{
     Attribute, Error, ExprPath, LitInt, LitStr, Token,
 };
 
-use crate::{component::TypeTree, parse_utils, AnyValue, Array};
-
-use super::{
-    example::Example, media_type::MediaTypeSchema, status::STATUS_CODES, InlineType, PathType,
-    PathTypeTree,
+use crate::{
+    component::{features::Inline, ComponentSchema, TypeTree},
+    parse_utils, AnyValue, Array,
 };
+
+use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
 
 pub mod derive;
 
@@ -285,10 +285,14 @@ impl ToTokens for ResponseTuple<'_> {
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {
                             let type_tree = path_type.as_type_tree();
-                            MediaTypeSchema {
+
+                            ComponentSchema::new(crate::component::ComponentSchemaProps {
                                 type_tree: &type_tree,
-                                is_inline: path_type.is_inline,
-                            }
+                                features: Some(vec![Inline::from(path_type.is_inline).into()]),
+                                description: None,
+                                deprecated: None,
+                                object_name: "",
+                            })
                             .to_token_stream()
                         }
                         PathType::InlineSchema(schema, _) => schema.to_token_stream(),
@@ -830,10 +834,15 @@ impl ToTokens for Header {
         if let Some(header_type) = &self.value_type {
             // header property with custom type
             let type_tree = header_type.as_type_tree();
-            let media_type_schema = MediaTypeSchema {
+
+            let media_type_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
                 type_tree: &type_tree,
-                is_inline: header_type.is_inline,
-            };
+                features: Some(vec![Inline::from(header_type.is_inline).into()]),
+                description: None,
+                deprecated: None,
+                object_name: "",
+            })
+            .to_token_stream();
 
             tokens.extend(quote! {
                 utoipa::openapi::HeaderBuilder::new().schema(#media_type_schema)

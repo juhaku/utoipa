@@ -4,11 +4,11 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
-use crate::component::TypeTree;
-use crate::{parse_utils, AnyValue, Array, Required};
+use crate::component::features::Inline;
+use crate::component::ComponentSchema;
+use crate::{parse_utils, AnyValue, Array};
 
 use super::example::Example;
-use super::media_type::MediaTypeSchema;
 use super::{PathType, PathTypeTree};
 
 /// Parsed information related to request body of path.
@@ -141,10 +141,13 @@ impl ToTokens for RequestBodyAttr<'_> {
                 },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
-                    MediaTypeSchema {
+                    ComponentSchema::new(crate::component::ComponentSchemaProps {
                         type_tree: &type_tree,
-                        is_inline: body_type.is_inline,
-                    }
+                        features: Some(vec![Inline::from(body_type.is_inline).into()]),
+                        description: None,
+                        deprecated: None,
+                        object_name: "",
+                    })
                     .to_token_stream()
                 }
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
@@ -185,22 +188,14 @@ impl ToTokens for RequestBodyAttr<'_> {
                         .content_type
                         .as_deref()
                         .unwrap_or_else(|| type_tree.get_default_content_type());
-                    let required: Required = (!type_tree.is_option()).into();
                     tokens.extend(quote! {
                         utoipa::openapi::request_body::RequestBodyBuilder::new()
                             .content(#content_type, #content.build())
-                            .required(Some(#required))
+                            .required(Some(utoipa::openapi::Required::True))
                     });
                 }
-                PathType::InlineSchema(_, ty) => {
-                    let type_tree = TypeTree::from_type(ty);
-                    let default_type = type_tree.get_default_content_type();
-                    let required: Required = (!type_tree.is_option()).into();
-                    tokens.extend(quote! {
-                        utoipa::openapi::request_body::RequestBodyBuilder::new()
-                            .content(#default_type, #content.build())
-                            .required(Some(#required))
-                    });
+                PathType::InlineSchema(_, _) => {
+                    unreachable!("PathType::InlineSchema is not implemented for RequestBodyAttr");
                 }
             }
         }

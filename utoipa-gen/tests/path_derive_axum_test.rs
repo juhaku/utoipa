@@ -81,11 +81,12 @@ fn derive_path_params_into_params_axum() {
                 "description":  "Age filter for user",
                 "in":  "query",
                 "name": "age",
-                "required": false,
+                "required": true,
                 "schema": {
                     "items": {
                         "type": "string",
                     },
+                    "nullable": true,
                     "type": "array",
                 }
             },
@@ -211,6 +212,7 @@ fn derive_path_params_into_params_unnamed() {
                 "schema": {
                     "format": "int64",
                     "type": "integer",
+                    "minimum": 0.0,
                 },
             },
             {
@@ -262,6 +264,7 @@ fn derive_path_params_with_ignored_parameter() {
                 "schema": {
                     "format": "int64",
                     "type": "integer",
+                    "minimum": 0.0,
                 },
             },
             {
@@ -312,6 +315,7 @@ fn derive_path_params_with_unnamed_struct_desctructed() {
                 "schema": {
                     "format": "int64",
                     "type": "integer",
+                    "minimum": 0.0,
                 },
             },
             {

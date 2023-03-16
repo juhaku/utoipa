@@ -84,15 +84,25 @@ fn derive_request_body_option_array_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let body = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type"
-        "paths.~1foo.post.requestBody.content.application~1json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Request body content items object type"
-        "paths.~1foo.post.requestBody.content.application~1json.schema.type" = r###""array""###, "Request body content items type"
-        "paths.~1foo.post.requestBody.content.text~1plain" = r###"null"###, "Request body content object type not text/plain"
-        "paths.~1foo.post.requestBody.required" = r###"false"###, "Request body required"
-        "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
-    }
+    assert_json_eq!(
+        body,
+        json!({
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "items": {
+                            "$ref": "#/components/schemas/Foo"
+                        },
+                        "nullable": true,
+                        "type": "array",
+                    },
+                }
+            },
+            "required": true,
+        })
+    );
 }
 
 test_fn! {
@@ -143,7 +153,8 @@ fn derive_request_body_primitive_array_success() {
                     "type": "array",
                     "items": {
                         "type": "integer",
-                        "format": "int64"
+                        "format": "int64",
+                        "minimum": 0.0,
                     }
                 }
             }
@@ -353,15 +364,27 @@ fn derive_request_body_complex_required_explicit_false_success() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let body = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json" = r###"null"###, "Request body content object type not application/json"
-        "paths.~1foo.post.requestBody.content.text~1xml.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.type" = r###"null"###, "Request body content object item type"
-        "paths.~1foo.post.requestBody.content.text~1plain.schema.items.type" = r###"null"###, "Request body content items object type"
-        "paths.~1foo.post.requestBody.required" = r###"false"###, "Request body required"
-        "paths.~1foo.post.requestBody.description" = r###""Create new Foo""###, "Request body description"
-    }
+    assert_json_eq!(
+        body,
+        json!({
+            "content": {
+                "text/xml": {
+                    "schema": {
+                        "allOf": [
+                        {
+                            "$ref": "#/components/schemas/Foo"
+                        }
+                        ],
+                        "nullable": true,
+                    }
+                }
+            },
+            "description": "Create new Foo",
+            "required": true,
+        })
+    );
 }
 
 test_fn! {
@@ -388,7 +411,8 @@ fn derive_request_body_complex_primitive_array_success() {
                     "type": "array",
                     "items": {
                         "type": "integer",
-                        "format": "int32"
+                        "format": "int32",
+                        "minimum": 0.0,
                     }
                 }
             }
