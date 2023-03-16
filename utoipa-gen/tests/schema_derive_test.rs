@@ -382,7 +382,7 @@ fn derive_enum_with_comments_success() {
 #[test]
 fn derive_struct_unnamed_field_single_value_type_success() {
     let point = api_doc! {
-        struct Point(f64);
+        struct Point(f32);
     };
 
     assert_value! {point=>
@@ -403,7 +403,7 @@ fn derive_struct_unnamed_fields_tuple_with_same_type_success() {
     assert_value! {point=>
         "type" = r#""array""#, "Point type"
         "items.type" = r#""number""#, "Point items type"
-        "items.format" = r#""float""#, "Point items format"
+        "items.format" = r#""double""#, "Point items format"
         "items.description" = r#""Contains x and y coordinates\n\nCoordinates are used to pinpoint location on a map""#, "Point items description"
         "maxItems" = r#"2"#, "Wrapper max items"
         "minItems" = r#"2"#, "Wrapper min items"
