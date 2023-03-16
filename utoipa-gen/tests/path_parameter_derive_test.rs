@@ -192,7 +192,7 @@ fn derive_parameters_with_all_types() {
         "[2].in" = r#""query""#, "Parameter in"
         "[2].name" = r#""numbers""#, "Parameter name"
         "[2].description" = r#""Foo numbers list""#, "Parameter description"
-        "[2].required" = r#"false"#, "Parameter required"
+        "[2].required" = r#"true"#, "Parameter required"
         "[2].deprecated" = r#"null"#, "Parameter deprecated"
         "[2].schema.type" = r#""array""#, "Parameter schema type"
         "[2].schema.format" = r#"null"#, "Parameter schema format"
@@ -284,7 +284,7 @@ fn derive_params_with_params_ext() {
         "[0].in" = r#""query""#, "Parameter in"
         "[0].name" = r#""value""#, "Parameter name"
         "[0].description" = r#""Foo value description""#, "Parameter description"
-        "[0].required" = r#"false"#, "Parameter required"
+        "[0].required" = r#"true"#, "Parameter required"
         "[0].deprecated" = r#"true"#, "Parameter deprecated"
         "[0].schema.type" = r#""array""#, "Parameter schema type"
         "[0].schema.items.type" = r#""string""#, "Parameter schema items type"
@@ -326,7 +326,7 @@ fn derive_path_params_with_parameter_type_args() {
               {
                   "in": "query",
                   "name": "value",
-                  "required": false,
+                  "required": true,
                   "deprecated": true,
                   "description": "Foo value description",
                   "schema": {
@@ -337,6 +337,7 @@ fn derive_path_params_with_parameter_type_args() {
                           "type": "string"
                       },
                       "maxItems": 1,
+                      "nullable": true,
                   },
                   "style": "form",
                   "allowReserved": true,

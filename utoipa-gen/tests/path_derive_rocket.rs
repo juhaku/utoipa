@@ -125,12 +125,13 @@ fn resolve_get_with_optional_query_args() {
             {
                 "in": "query",
                 "name": "colors",
-                "required": false,
+                "required": true,
                 "schema": {
                     "items": {
                         "type": "string",
                     },
-                    "type": "array"
+                    "type": "array",
+                    "nullable": true,
                 }
             }
         ])

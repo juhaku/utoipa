@@ -2,10 +2,9 @@ use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
 use proc_macro_error::{abort, ResultExt};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Generics, Ident,
+    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident,
 };
 
 use crate::{
@@ -20,17 +19,16 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    schema_type::{SchemaFormat, SchemaType},
     Array, Required,
 };
 
 use super::{
     features::{
         impl_into_inner, impl_merge, parse_features, pop_feature, Feature, FeaturesExt, IntoInner,
-        IsInline, Merge, ToTokensExt, Validatable,
+        Merge, ToTokensExt,
     },
     serde::{self, SerdeContainer},
-    GenericType, TypeTree, ValueType,
+    ComponentSchema, TypeTree,
 };
 
 impl_merge!(IntoParamsFeatures, FieldFeatures);
@@ -401,189 +399,23 @@ impl ToTokens for Param<'_> {
                 .map(|value_type| value_type.as_type_tree())
                 .unwrap_or(type_tree);
 
-            let is_default = super::is_default(&self.serde_container, &field_param_serde.as_ref());
             let required: Required =
-                (!(matches!(&component.generic_type, Some(GenericType::Option)) || is_default))
-                    .into();
+                component::is_required(field_param_serde.as_ref(), self.serde_container).into();
 
             tokens.extend(quote! {
                 .required(#required)
             });
             tokens.extend(param_features.to_token_stream());
 
-            let schema = ParamSchema {
-                component: &component,
-                schema_features: &schema_features,
-            };
+            let schema = ComponentSchema::new(component::ComponentSchemaProps {
+                type_tree: &component,
+                features: Some(schema_features),
+                description: None,
+                deprecated: None,
+                object_name: "",
+            });
+
             tokens.extend(quote! { .schema(Some(#schema)).build() });
         }
-    }
-}
-
-pub struct ParamSchema<'a> {
-    pub component: &'a TypeTree<'a>,
-    pub schema_features: &'a Vec<Feature>,
-}
-
-impl ToTokens for ParamSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let component = self.component;
-
-        match &component.generic_type {
-            Some(GenericType::Vec) => {
-                let mut features = self.schema_features.clone();
-                let xml = features.extract_vec_xml_feature(self.component);
-                let max_items = pop_feature!(features => Feature::MaxItems(_));
-                let min_items = pop_feature!(features => Feature::MinItems(_));
-
-                let param_type = ParamSchema {
-                    component: component
-                        .children
-                        .as_ref()
-                        .expect("Vec ParamType should have children")
-                        .iter()
-                        .next()
-                        .expect("Vec ParamType should have 1 child"),
-                    schema_features: &features,
-                };
-
-                tokens.extend(quote! {
-                    utoipa::openapi::ArrayBuilder::new().items(#param_type)
-                });
-
-                let validate = |feature: &Feature| {
-                    let type_path = &**self
-                        .component
-                        .path
-                        .as_ref()
-                        .expect("Vec ParamType must have path");
-                    let schema_type = SchemaType(type_path);
-                    feature.validate(&schema_type, self.component);
-                };
-
-                if let Some(vec_xml) = xml.as_ref() {
-                    tokens.extend(vec_xml.to_token_stream());
-                }
-
-                if let Some(max_items) = max_items {
-                    validate(&max_items);
-                    tokens.extend(max_items.to_token_stream())
-                }
-
-                if let Some(min_items) = min_items {
-                    validate(&min_items);
-                    tokens.extend(min_items.to_token_stream())
-                }
-            }
-            Some(GenericType::Option)
-            | Some(GenericType::Cow)
-            | Some(GenericType::Box)
-            | Some(GenericType::RefCell) => {
-                let param_type = ParamSchema {
-                    component: component
-                        .children
-                        .as_ref()
-                        .expect("Generic container ParamType should have children")
-                        .iter()
-                        .next()
-                        .expect("Generic container ParamType should have 1 child"),
-                    schema_features: self.schema_features,
-                };
-
-                tokens.extend(param_type.into_token_stream())
-            }
-            Some(GenericType::Map) => {
-                let mut features = self.schema_features.clone();
-                let additional_properties =
-                    pop_feature!(features => Feature::AdditionalProperties(_));
-
-                let additional_properties = additional_properties
-                    .as_ref()
-                    .map(ToTokens::to_token_stream)
-                    .unwrap_or_else(|| {
-                        // Maps are treated as generic objects with no named properties and
-                        let schema_type = ParamSchema {
-                            component: component
-                                .children
-                                .as_ref()
-                                .expect("Map ParamType should have children")
-                                .iter()
-                                .nth(1)
-                                .expect("Map Param type should have 2 child"),
-                            schema_features: features.as_ref(),
-                        };
-
-                        quote! { .additional_properties(Some(#schema_type)) }
-                    });
-
-                tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new()
-                        #additional_properties
-                });
-            }
-            None => {
-                match component.value_type {
-                    ValueType::Primitive => {
-                        let type_path = &**component.path.as_ref().unwrap();
-                        let schema_type = SchemaType(type_path);
-
-                        tokens.extend(quote! {
-                            utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
-                        });
-
-                        let format: SchemaFormat = (type_path).into();
-                        if format.is_known_format() {
-                            tokens.extend(quote! {
-                                .format(Some(#format))
-                            })
-                        }
-
-                        for feature in self
-                            .schema_features
-                            .iter()
-                            .filter(|feature| feature.is_validatable())
-                        {
-                            feature.validate(&schema_type, self.component);
-                        }
-
-                        tokens.extend(self.schema_features.to_token_stream())
-                    }
-                    ValueType::Object => {
-                        let component_path = &**component
-                            .path
-                            .as_ref()
-                            .expect("component should have a path");
-                        if self.schema_features.is_inline() {
-                            tokens.extend(quote_spanned! {component_path.span()=>
-                                <#component_path as utoipa::ToSchema>::schema().1
-                            })
-                        } else if component.is_object() {
-                            tokens.extend(quote! {
-                                utoipa::openapi::ObjectBuilder::new()
-                            });
-                        } else {
-                            let name: String = component_path
-                                .segments
-                                .last()
-                                .expect("Expected there to be at least one element in the path")
-                                .ident
-                                .to_string();
-                            tokens.extend(quote! {
-                                utoipa::openapi::Ref::from_schema_name(#name)
-                            });
-                        }
-                    }
-                    // TODO support for tuple types
-                    ValueType::Tuple => {
-                        // Detect unit type ()
-                        if component.children.is_none() {
-                            tokens.extend(quote! {
-                                utoipa::openapi::schema::empty()
-                            })
-                        };
-                    }
-                }
-            }
-        };
     }
 }

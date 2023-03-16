@@ -11,18 +11,19 @@ use syn::{
 
 use crate::{
     component::{
+        self,
         features::{
             impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum,
             ExclusiveMinimum, Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems,
             MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Style, ToTokensExt,
             WriteOnly, XmlAttr,
         },
-        into_params::ParamSchema,
+        ComponentSchema,
     },
     parse_utils, Required,
 };
 
-use super::{InlineType, PathTypeTree};
+use super::InlineType;
 
 /// Parameter of request such as in path, header, query or cookie
 ///
@@ -120,30 +121,31 @@ impl ToTokens for ParameterSchema<'_> {
                 feature = "rocket_extras",
                 feature = "axum_extras"
             ))]
-            ParameterType::External(type_tree) => {
-                let required: Required = (!type_tree.is_option()).into();
-
-                to_tokens(
-                    ParamSchema {
-                        component: type_tree,
-                        schema_features: &self.features,
-                    },
-                    required,
-                )
-            }
+            ParameterType::External(type_tree) => to_tokens(
+                ComponentSchema::new(component::ComponentSchemaProps {
+                    type_tree,
+                    features: Some(self.features.clone()),
+                    description: None,
+                    deprecated: None,
+                    object_name: "",
+                }),
+                Required::True,
+            ),
             ParameterType::Parsed(inline_type) => {
                 let type_tree = inline_type.as_type_tree();
-                let required: Required = (!type_tree.is_option()).into();
                 let mut schema_features = Vec::<Feature>::new();
                 schema_features.clone_from(&self.features);
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
                 to_tokens(
-                    ParamSchema {
-                        component: &type_tree,
-                        schema_features: &schema_features,
-                    },
-                    required,
+                    ComponentSchema::new(component::ComponentSchemaProps {
+                        type_tree: &type_tree,
+                        features: Some(schema_features),
+                        description: None,
+                        deprecated: None,
+                        object_name: "",
+                    }),
+                    Required::True,
                 )
             }
         }
