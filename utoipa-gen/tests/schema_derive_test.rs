@@ -2805,7 +2805,7 @@ fn derive_struct_with_rust_decimal_with_type_override() {
         "properties.id.type" = r#""integer""#, "Post id type"
         "properties.id.format" = r#""int32""#, "Post id format"
         "properties.rating.type" = r#""number""#, "Post rating type"
-        "properties.rating.format" = r#""float""#, "Post rating format"
+        "properties.rating.format" = r#""double""#, "Post rating format"
     }
 }
 
