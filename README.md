@@ -280,6 +280,12 @@ This would produce api doc something similar to:
 - More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
 - Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 
+## General Pitfalls
+
+### SwaggerUI not working inside Docker
+
+When running your Rust application with SwaggerUI inside a Docker container, it's only possible to use a release build. This is because the [debug-embed](https://github.com/pyrossh/rust-embed#features) flag is not enabled in debug builds by default, which can cause issues with embedding necessary files into the binary. Therefore, make sure to use the `--release` flag when building your Rust application for use inside Docker.
+
 # License
 
 Licensed under either of [Apache 2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT) license at your option.
