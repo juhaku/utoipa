@@ -340,7 +340,6 @@ impl<'t> TypeTree<'t> {
 #[cfg(not(feature = "debug"))]
 impl PartialEq for TypeTree<'_> {
     fn eq(&self, other: &Self) -> bool {
-        use quote::ToTokens;
         let path_eg = match (self.path.as_ref(), other.path.as_ref()) {
             (Some(Cow::Borrowed(self_path)), Some(Cow::Borrowed(other_path))) => {
                 self_path.into_token_stream().to_string()
