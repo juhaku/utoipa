@@ -125,7 +125,7 @@ fn resolve_get_with_optional_query_args() {
             {
                 "in": "query",
                 "name": "colors",
-                "required": true,
+                "required": false,
                 "schema": {
                     "items": {
                         "type": "string",

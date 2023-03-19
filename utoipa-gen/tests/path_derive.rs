@@ -241,7 +241,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
         "parameters.[1].description" = r#""Datetime since foo is updated""#, "Parameter 1 description"
         "parameters.[1].in" = r#""query""#, "Parameter 1 in"
         "parameters.[1].name" = r#""since""#, "Parameter 1 name"
-        "parameters.[1].required" = r#"true"#, "Parameter 1 required"
+        "parameters.[1].required" = r#"false"#, "Parameter 1 required"
         "parameters.[1].schema.allOf.[0].format" = r#"null"#, "Parameter 1 schema format"
         "parameters.[1].schema.allOf.[0].type" = r#"null"#, "Parameter 1 schema type"
         "parameters.[1].schema.allOf.nullable" = r#"null"#, "Parameter 1 schema type"
@@ -337,7 +337,7 @@ fn derive_path_with_parameter_schema() {
                 "description": "Datetime since foo is updated",
                 "in": "query",
                 "name": "since",
-                "required": true,
+                "required": false,
                 "schema": {
                     "allOf": [
                         {
@@ -408,7 +408,7 @@ fn derive_path_with_parameter_inline_schema() {
                 "description": "Datetime since foo is updated",
                 "in": "query",
                 "name": "since",
-                "required": true,
+                "required": false,
                 "schema": {
                     "allOf": [
                         {
@@ -720,7 +720,7 @@ fn derive_required_path_params() {
             {
                 "in": "query",
                 "name": "vec_option",
-                "required": true,
+                "required": false,
                 "schema": {
                     "nullable": true,
                     "items": {
@@ -732,7 +732,7 @@ fn derive_required_path_params() {
             {
                 "in": "query",
                 "name": "string_option",
-                "required": true,
+                "required": false,
                 "schema": {
                     "nullable": true,
                     "type": "string"
@@ -791,7 +791,7 @@ fn derive_path_params_with_serde_and_custom_rename() {
             {
                 "in": "query",
                 "name": "vecDefault",
-                "required": true,
+                "required": false,
                 "schema": {
                     "type": "array",
                     "nullable": true,
@@ -856,7 +856,7 @@ fn derive_path_params_custom_rename_all() {
             {
                 "in": "query",
                 "name": "vecDefault",
-                "required": true,
+                "required": false,
                 "schema": {
                     "type": "array",
                     "nullable": true,
@@ -886,7 +886,7 @@ fn derive_path_params_custom_rename_all_serde_will_override() {
             {
                 "in": "query",
                 "name": "VEC_DEFAULT",
-                "required": true,
+                "required": false,
                 "schema": {
                     "type": "array",
                     "nullable": true,
@@ -1021,7 +1021,7 @@ fn derive_path_params_intoparams() {
                 "example": "2020-04-12T10:23:00Z",
                 "in": "query",
                 "name": "since",
-                "required": true,
+                "required": false,
                 "schema": {
                     "nullable": true,
                     "type": "string"
@@ -1055,7 +1055,7 @@ fn derive_path_params_intoparams() {
                 "description": "An optional Foo item inline.",
                 "in": "query",
                 "name": "foo_inline_option",
-                "required": true,
+                "required": false,
                 "schema": {
                     "allOf": [
                         {
@@ -1199,7 +1199,7 @@ fn derive_path_params_into_params_with_value_type() {
         {
             "in": "query",
             "name": "value3",
-            "required": true,
+            "required": false,
             "schema": {
                 "nullable": true,
                 "type": "string"
@@ -1208,7 +1208,7 @@ fn derive_path_params_into_params_with_value_type() {
         {
             "in": "query",
             "name": "value4",
-            "required": true,
+            "required": false,
             "schema": {
                 "nullable": true,
                 "type": "object"
@@ -1558,6 +1558,62 @@ fn derive_path_with_into_params_custom_schema() {
                     "format": "email"
                 }
             }
+        ])
+    )
+}
+
+#[test]
+fn derive_into_params_required() {
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        name: String,
+        name2: Option<String>,
+        #[param(required)]
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+          {
+              "in": "query",
+              "name": "name",
+              "required": true,
+              "schema": {
+                  "type": "string",
+              },
+          },
+          {
+              "in": "query",
+              "name": "name2",
+              "required": false,
+              "schema": {
+                  "type": "string",
+                  "nullable": true,
+              },
+          },
+          {
+              "in": "query",
+              "name": "name3",
+              "required": true,
+              "schema": {
+                  "type": "string",
+                  "nullable": true,
+              },
+          },
         ])
     )
 }

@@ -36,7 +36,10 @@ mod security_requirement;
 
 use crate::path::{Path, PathAttr};
 
-use self::path::response::derive::{IntoResponses, ToResponse};
+use self::{
+    component::features,
+    path::response::derive::{IntoResponses, ToResponse},
+};
 
 #[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
@@ -138,6 +141,8 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 ///    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
+/// * `required = ...` Can be used to enforce required status for the field. [See
+///   rules][derive@ToSchema#field-nullability-and-required-rules]
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 /// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename field
 ///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
@@ -166,7 +171,8 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// #### Field nullability and required rules
 ///
 /// Field is considered _`required`_ if
-/// * it does not have _`skip_serializing_if`_ property
+/// * it is not `Option` field
+/// * and it does not have _`skip_serializing_if`_ property
 /// * and it does not have _`serde_with`_ _[`double_option`](https://docs.rs/serde_with/latest/serde_with/rust/double_option/index.html)_
 /// * and it does not have default value provided with serde _`default`_
 ///   attribute
@@ -194,7 +200,8 @@ use self::path::response::derive::{IntoResponses, ToResponse};
 /// * `rename = "..."` Supported **only** at the field or variant level.
 /// * `skip = "..."` Supported  **only** at the field or variant level.
 /// * `skip_serializing = "..."` Supported  **only** at the field or variant level.
-/// * `with = ...` Supported **only at field level!**
+/// * `skip_serializing_if = "..."` Supported  **only** at the field level.
+/// * `with = ...` Supported **only at field level.**
 /// * `tag = "..."` Supported at the container level. `tag` attribute works as a [discriminator field][discriminator] for an enum.
 /// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
@@ -1586,6 +1593,24 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
 /// * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 ///
+/// Use `names` to define name for single unnamed argument.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(names("id"))]
+/// struct Id(u64);
+/// ```
+///
+/// Use `names` to define names for multiple unnamed arguments.
+/// ```rust
+/// # use utoipa::IntoParams;
+/// #
+/// #[derive(IntoParams)]
+/// #[into_params(names("id", "name"))]
+/// struct IdAndName(u64, String);
+/// ```
+///
 /// # IntoParams Field Attributes for `#[param(...)]`
 ///
 /// The following attributes are available for use in the `#[param(...)]` on struct fields:
@@ -1623,6 +1648,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 ///
+/// * `required = ...` Can be used to enforce required status for the parameter. [See
+///    rules][derive@IntoParams#field-nullability-and-required-rules]
+///
 /// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 ///
 /// * `multiple_of = ...` Can be used to define multiplier for a value. Value is considered valid
@@ -1657,34 +1685,21 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// **Note!** `#[into_params(...)]` is only supported on unnamed struct types to declare names for the arguments.
+/// #### Field nullability and required rules
 ///
-/// Use `names` to define name for single unnamed argument.
-/// ```rust
-/// # use utoipa::IntoParams;
-/// #
-/// #[derive(IntoParams)]
-/// #[into_params(names("id"))]
-/// struct Id(u64);
-/// ```
-///
-/// Use `names` to define names for multiple unnamed arguments.
-/// ```rust
-/// # use utoipa::IntoParams;
-/// #
-/// #[derive(IntoParams)]
-/// #[into_params(names("id", "name"))]
-/// struct IdAndName(u64, String);
-/// ```
+/// Same rules for nullability and required status apply for _`IntoParams`_ field attributes as for
+/// _`ToSchema`_ field attributes. [See the rules][`derive@ToSchema#field-nullability-and-required-rules`].
 ///
 /// # Partial `#[serde(...)]` attributes support
 ///
 /// IntoParams derive has partial support for [serde attributes]. These supported attributes will reflect to the
-/// generated OpenAPI doc. The following attributes are currently supported :
+/// generated OpenAPI doc. The following attributes are currently supported:
 ///
 /// * `rename_all = "..."` Supported at the container level.
 /// * `rename = "..."` Supported **only** at the field level.
 /// * `default` Supported at the container level and field level according to [serde attributes].
+/// * `skip_serializing_if = "..."` Supported  **only** at the field level.
+/// * `with = ...` Supported **only** at field level.
 ///
 /// Other _`serde`_ attributes will impact the serialization but will not be reflected on the generated OpenAPI doc.
 ///
@@ -2386,6 +2401,7 @@ impl ToTokens for Deprecated {
     }
 }
 
+#[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Required {
     True,
@@ -2399,6 +2415,13 @@ impl From<bool> for Required {
         } else {
             Self::False
         }
+    }
+}
+
+impl From<features::Required> for Required {
+    fn from(value: features::Required) -> Self {
+        let features::Required(required) = value;
+        crate::Required::from(required)
     }
 }
 

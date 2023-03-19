@@ -258,11 +258,18 @@ pub struct NamedStructSchema<'a> {
     pub schema_as: Option<As>,
 }
 
+struct NamedStructFieldOptions<'a> {
+    property: Property,
+    rename_field_value: Option<Cow<'a, str>>,
+    required: Option<super::features::Required>,
+    is_option: bool,
+}
+
 impl NamedStructSchema<'_> {
     fn field_as_schema_property<R>(
         &self,
         field: &Field,
-        yield_: impl FnOnce(Property, Option<Cow<'_, str>>) -> R,
+        yield_: impl FnOnce(NamedStructFieldOptions<'_>) -> R,
     ) -> R {
         let type_tree = &mut TypeTree::from_type(&field.ty);
 
@@ -305,21 +312,26 @@ impl NamedStructSchema<'_> {
             .map(|value_type| value_type.as_type_tree());
         let comments = CommentAttributes::from_attributes(&field.attrs);
         let with_schema = pop_feature!(field_features => Feature::SchemaWith(_));
+        let required = pop_feature_as_inner!(field_features => Feature::Required(_v));
+        let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
+        let is_option = type_tree.is_option();
 
-        yield_(
-            if let Some(with_schema) = with_schema {
+        yield_(NamedStructFieldOptions {
+            property: if let Some(with_schema) = with_schema {
                 Property::WithSchema(with_schema)
             } else {
                 Property::Schema(ComponentSchema::new(super::ComponentSchemaProps {
-                    type_tree: override_type_tree.as_ref().unwrap_or(type_tree),
+                    type_tree,
                     features: field_features,
                     description: Some(&comments),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                 }))
             },
-            rename_field,
-        )
+            rename_field_value: rename_field,
+            required,
+            is_option,
+        })
     }
 }
 
@@ -348,37 +360,57 @@ impl ToTokens for NamedStructSchema<'_> {
                         field_name = &field_name[2..];
                     }
 
-                    self.field_as_schema_property(field, |property, rename| {
-                        let rename_to = field_rule
-                            .as_ref()
-                            .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
-                            .or(rename);
-                        let rename_all = container_rules
-                            .as_ref()
-                            .and_then(|container_rule| container_rule.rename_all.as_ref())
-                            .or_else(|| {
-                                self.rename_all
-                                    .as_ref()
-                                    .map(|rename_all| rename_all.as_rename_rule())
+                    self.field_as_schema_property(
+                        field,
+                        |NamedStructFieldOptions {
+                             property,
+                             rename_field_value,
+                             required,
+                             is_option,
+                         }| {
+                            let rename_to = field_rule
+                                .as_ref()
+                                .and_then(|field_rule| {
+                                    field_rule.rename.as_deref().map(Cow::Borrowed)
+                                })
+                                .or(rename_field_value);
+                            let rename_all = container_rules
+                                .as_ref()
+                                .and_then(|container_rule| container_rule.rename_all.as_ref())
+                                .or_else(|| {
+                                    self.rename_all
+                                        .as_ref()
+                                        .map(|rename_all| rename_all.as_rename_rule())
+                                });
+
+                            let name =
+                                super::rename::<FieldRename>(field_name, rename_to, rename_all)
+                                    .unwrap_or(Cow::Borrowed(field_name));
+
+                            object_tokens.extend(quote! {
+                                .property(#name, #property)
                             });
 
-                        let name = super::rename::<FieldRename>(field_name, rename_to, rename_all)
-                            .unwrap_or(Cow::Borrowed(field_name));
-
-                        object_tokens.extend(quote! {
-                            .property(#name, #property)
-                        });
-
-                        if let Property::Schema(_) = property {
-                            if super::is_required(field_rule.as_ref(), container_rules.as_ref()) {
-                                object_tokens.extend(quote! {
-                                    .required(#name)
-                                })
+                            if let Property::Schema(_) = property {
+                                if (!is_option
+                                    && super::is_required(
+                                        field_rule.as_ref(),
+                                        container_rules.as_ref(),
+                                    ))
+                                    || required
+                                        .as_ref()
+                                        .map(super::features::Required::is_true)
+                                        .unwrap_or(false)
+                                {
+                                    object_tokens.extend(quote! {
+                                        .required(#name)
+                                    })
+                                }
                             }
-                        }
 
-                        object_tokens
-                    })
+                            object_tokens
+                        },
+                    )
                 },
             );
 
@@ -397,9 +429,12 @@ impl ToTokens for NamedStructSchema<'_> {
             });
 
             for field in flatten_fields {
-                self.field_as_schema_property(field, |schema_property, _| {
-                    tokens.extend(quote! { .item(#schema_property) });
-                })
+                self.field_as_schema_property(
+                    field,
+                    |NamedStructFieldOptions { property, .. }| {
+                        tokens.extend(quote! { .item(#property) });
+                    },
+                )
             }
 
             tokens.extend(quote! {

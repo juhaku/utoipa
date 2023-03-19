@@ -6,7 +6,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::features::Inline;
 use crate::component::ComponentSchema;
-use crate::{parse_utils, AnyValue, Array};
+use crate::{parse_utils, AnyValue, Array, Required};
 
 use super::example::Example;
 use super::{PathType, PathTypeTree};
@@ -184,6 +184,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                 }
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
+                    let required: Required = (!type_tree.is_option()).into();
                     let content_type = self
                         .content_type
                         .as_deref()
@@ -191,7 +192,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                     tokens.extend(quote! {
                         utoipa::openapi::request_body::RequestBodyBuilder::new()
                             .content(#content_type, #content.build())
-                            .required(Some(utoipa::openapi::Required::True))
+                            .required(Some(#required))
                     });
                 }
                 PathType::InlineSchema(_, _) => {
