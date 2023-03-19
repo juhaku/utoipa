@@ -81,7 +81,7 @@ fn derive_path_params_into_params_axum() {
                 "description":  "Age filter for user",
                 "in":  "query",
                 "name": "age",
-                "required": true,
+                "required": false,
                 "schema": {
                     "items": {
                         "type": "string",

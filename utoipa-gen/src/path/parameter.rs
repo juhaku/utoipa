@@ -121,18 +121,23 @@ impl ToTokens for ParameterSchema<'_> {
                 feature = "rocket_extras",
                 feature = "axum_extras"
             ))]
-            ParameterType::External(type_tree) => to_tokens(
-                ComponentSchema::new(component::ComponentSchemaProps {
-                    type_tree,
-                    features: Some(self.features.clone()),
-                    description: None,
-                    deprecated: None,
-                    object_name: "",
-                }),
-                Required::True,
-            ),
+            ParameterType::External(type_tree) => {
+                let required: Required = (!type_tree.is_option()).into();
+
+                to_tokens(
+                    ComponentSchema::new(component::ComponentSchemaProps {
+                        type_tree,
+                        features: Some(self.features.clone()),
+                        description: None,
+                        deprecated: None,
+                        object_name: "",
+                    }),
+                    required,
+                )
+            }
             ParameterType::Parsed(inline_type) => {
                 let type_tree = inline_type.as_type_tree();
+                let required: Required = (!type_tree.is_option()).into();
                 let mut schema_features = Vec::<Feature>::new();
                 schema_features.clone_from(&self.features);
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
@@ -145,7 +150,7 @@ impl ToTokens for ParameterSchema<'_> {
                         deprecated: None,
                         object_name: "",
                     }),
-                    Required::True,
+                    required,
                 )
             }
         }

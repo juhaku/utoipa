@@ -100,7 +100,7 @@ fn derive_request_body_option_array_success() {
                     },
                 }
             },
-            "required": true,
+            "required": false,
         })
     );
 }
@@ -382,7 +382,7 @@ fn derive_request_body_complex_required_explicit_false_success() {
                 }
             },
             "description": "Create new Foo",
-            "required": true,
+            "required": false,
         })
     );
 }

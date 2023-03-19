@@ -118,6 +118,7 @@ pub enum Feature {
     Deprecated(Deprecated),
     As(As),
     AdditionalProperties(AdditionalProperites),
+    Required(Required),
 }
 
 impl Feature {
@@ -241,6 +242,10 @@ impl ToTokens for Feature {
             Feature::As(_) => {
                 abort!(Span::call_site(), "As does not support `ToTokens`")
             }
+            Feature::Required(required) => {
+                let name = <Required as Name>::get_name();
+                quote! { .#name(#required) }
+            }
         };
 
         tokens.extend(feature)
@@ -284,6 +289,7 @@ impl Display for Feature {
             Feature::Deprecated(deprecated) => deprecated.fmt(f),
             Feature::As(as_feature) => as_feature.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
+            Feature::Required(required) => required.fmt(f),
         }
     }
 }
@@ -327,6 +333,7 @@ impl Validatable for Feature {
             Feature::AdditionalProperties(additional_properites) => {
                 additional_properites.is_validatable()
             }
+            Feature::Required(required) => required.is_validatable(),
         }
     }
 }
@@ -377,7 +384,8 @@ is_validatable! {
     Description => false,
     Deprecated => false,
     As => false,
-    AdditionalProperites => false
+    AdditionalProperites => false,
+    Required => false
 }
 
 #[derive(Clone)]
@@ -1416,6 +1424,55 @@ impl From<AdditionalProperites> for Feature {
         Self::AdditionalProperties(value)
     }
 }
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Required(pub bool);
+
+impl Required {
+    pub fn is_true(&self) -> bool {
+        self.0 == true
+    }
+}
+
+impl Parse for Required {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_bool_or_true(input).map(Self)
+    }
+}
+
+impl ToTokens for Required {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens)
+    }
+}
+
+impl From<crate::Required> for Required {
+    fn from(value: crate::Required) -> Self {
+        if value == crate::Required::True {
+            Self(true)
+        } else {
+            Self(false)
+        }
+    }
+}
+
+impl From<bool> for Required {
+    fn from(value: bool) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Required> for Feature {
+    fn from(value: Required) -> Self {
+        Self::Required(value)
+    }
+}
+
+name!(Required = "required");
 
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;

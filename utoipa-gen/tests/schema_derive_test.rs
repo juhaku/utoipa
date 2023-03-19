@@ -282,10 +282,6 @@ fn derive_struct_with_optional_properties() {
             },
             "required": [
                 "id",
-                "enabled",
-                "books",
-                "metadata",
-                "optional_book"
             ],
             "type": "object"
         })
@@ -737,8 +733,6 @@ fn derive_struct_with_inline() {
             },
             "required": [
                 "foo1",
-                "foo2",
-                "foo3",
                 "foo4",
             ],
             "type": "object"
@@ -1161,7 +1155,6 @@ fn derive_complex_enum() {
                             },
                             "required": [
                                 "id",
-                                "names"
                             ],
                         },
                     },
@@ -1291,7 +1284,6 @@ fn derive_complex_enum_serde_rename_all() {
                             },
                             "required": [
                                 "id",
-                                "names"
                             ],
                         },
                     },
@@ -1362,7 +1354,6 @@ fn derive_complex_enum_serde_rename_variant() {
                             },
                             "required": [
                                 "renamed_id",
-                                "renamed_names"
                             ],
                         },
                     },
@@ -1714,7 +1705,6 @@ fn derive_complex_enum_serde_tag() {
                     },
                     "required": [
                         "id",
-                        "names",
                         "tag",
                     ],
                 },
@@ -2380,7 +2370,9 @@ fn derive_struct_with_nullable_and_required() {
             #[schema(nullable)]
             edit_history: Vec<String>,
             #[serde(skip_serializing_if = "Vec::is_empty")]
-            friends: Vec<Option<String>>
+            friends: Vec<Option<String>>,
+            #[schema(required)]
+            updated: Option<String>,
         }
     };
 
@@ -2415,9 +2407,18 @@ fn derive_struct_with_nullable_and_required() {
                         "type": "string",
                         "nullable": true,
                     },
+                },
+                "updated": {
+                    "type": "string",
+                    "nullable": true,
                 }
             },
-            "required": ["phone", "email", "name", "edit_history"],
+            "required": [
+                "email",
+                "name",
+                "edit_history",
+                "updated",
+            ],
             "type": "object"
         })
     )
@@ -2514,7 +2515,7 @@ fn derive_struct_xml_with_optional_vec() {
                     }
                 }
             },
-            "required": ["id", "links"],
+            "required": ["id"],
             "type": "object",
             "xml": {
                 "name": "user"
@@ -2910,7 +2911,7 @@ fn derive_parse_serde_complex_enum() {
         "oneOf.[1].properties.namedFields.properties.id.type" = r#""string""#, "Named fields id type"
         "oneOf.[1].properties.namedFields.properties.nameList.type" = r#""array""#, "Named fields nameList type"
         "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
-        "oneOf.[1].properties.namedFields.required" = r#"["id","nameList"]"#, "Named fields required"
+        "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
 
         "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
     }
@@ -3053,7 +3054,7 @@ fn derive_component_with_primitive_aliases() {
 }
 
 #[test]
-fn derive_component_with_into_params_value_type() {
+fn derive_component_with_to_schema_value_type() {
     #[derive(ToSchema)]
     struct Foo {
         #[allow(unused)]
@@ -3134,8 +3135,6 @@ fn derive_component_with_into_params_value_type() {
                 "another_id",
                 "value1",
                 "value2",
-                "value3",
-                "value4",
                 "value5",
                 "value6",
             ],
@@ -3894,8 +3893,6 @@ fn derive_schema_with_generics_and_lifetimes() {
                     "required": [
                         "total",
                         "data",
-                        "next",
-                        "prev"
                     ],
                     "type": "object"
                 }
@@ -3926,8 +3923,6 @@ fn derive_schema_with_generics_and_lifetimes() {
                     "required": [
                         "total",
                         "data",
-                        "next",
-                        "prev"
                     ],
                     "type": "object"
                 }

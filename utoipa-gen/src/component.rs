@@ -335,6 +335,11 @@ impl<'t> TypeTree<'t> {
     pub fn is_object(&self) -> bool {
         self.is("Object")
     }
+
+    /// Check whether the [`TypeTree`]'s `generic_type` is [`GenericType::Option`]
+    pub fn is_option(&self) -> bool {
+        matches!(self.generic_type, Some(GenericType::Option))
+    }
 }
 
 #[cfg(not(feature = "debug"))]
