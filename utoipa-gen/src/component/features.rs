@@ -416,6 +416,12 @@ name!(Example = "example");
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Default(AnyValue);
 
+impl Default {
+    pub fn new_default_trait(struct_ident: Ident, field_ident: Ident) -> Self {
+        Self(AnyValue::new_default_trait(struct_ident, field_ident))
+    }
+}
+
 impl Parse for Default {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)

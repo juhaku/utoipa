@@ -230,6 +230,71 @@ fn derive_struct_with_custom_properties_success() {
 }
 
 #[test]
+fn derive_struct_with_default_attr() {
+    let book = api_doc! {
+        #[schema(default="")]
+        struct Book {
+            name: String,
+            #[schema(default = 0)]
+            id: u64,
+            year: u64,
+            hash: String,
+        }
+
+        impl Default for Book {
+            fn default() -> Self {
+                Self {
+                    name: "No name".to_string(),
+                    id: 999,
+                    year: 2020,
+                    hash: "Test hash".to_string(),
+                }
+            }
+        }
+    };
+
+    assert_value! { book =>
+        "properties.name.default" = r#""No name""#, "Book name default"
+        "properties.id.default" = r#"0"#, "Book id default"
+        "properties.year.default" = r#"2020"#, "Book year default"
+        "properties.hash.default" = r#""Test hash""#, "Book hash default"
+    };
+}
+
+#[test]
+fn derive_struct_with_serde_default_attr() {
+    let book = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(default)]
+        struct Book {
+            name: String,
+            #[schema(default = 0)]
+            id: u64,
+            year: u64,
+            hash: String,
+        }
+
+        impl Default for Book {
+            fn default() -> Self {
+                Self {
+                    name: "No name".to_string(),
+                    id: 999,
+                    year: 2020,
+                    hash: "Test hash".to_string(),
+                }
+            }
+        }
+    };
+
+    assert_value! { book =>
+        "properties.name.default" = r#""No name""#, "Book name default"
+        "properties.id.default" = r#"0"#, "Book id default"
+        "properties.year.default" = r#"2020"#, "Book year default"
+        "properties.hash.default" = r#""Test hash""#, "Book hash default"
+    };
+}
+
+#[test]
 fn derive_struct_with_optional_properties() {
     struct Book;
     let owner = api_doc! {
@@ -3279,7 +3344,8 @@ fn derive_schema_with_default_struct() {
         json!({
             "properties": {
                 "field": {
-                    "type": "string"
+                    "type": "string",
+                    "default": ""
                 }
             },
             "type": "object"

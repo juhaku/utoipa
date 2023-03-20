@@ -278,6 +278,30 @@ impl NamedStructSchema<'_> {
             .parse_features::<NamedFieldFeatures>()
             .into_inner();
 
+        let schema_default = self
+            .features
+            .as_ref()
+            .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
+            .unwrap_or(false);
+        let serde_default = serde::parse_container(self.attributes)
+            .map(|rules| rules.default)
+            .unwrap_or(false);
+
+        if schema_default || serde_default {
+            let field_ident = field.ident.as_ref().unwrap().to_owned();
+            let struct_ident: Ident = syn::parse_str(&self.struct_name).unwrap();
+            let default_feature = Feature::Default(
+                crate::component::features::Default::new_default_trait(struct_ident, field_ident),
+            );
+            if let Some(ref mut features) = field_features {
+                if !features.iter().any(|f| matches!(f, Feature::Default(_))) {
+                    features.push(default_feature);
+                }
+            } else {
+                field_features = Some(vec![default_feature])
+            }
+        }
+
         let rename_field =
             pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
                 Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
