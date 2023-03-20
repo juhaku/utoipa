@@ -232,7 +232,7 @@ fn derive_struct_with_custom_properties_success() {
 #[test]
 fn derive_struct_with_default_attr() {
     let book = api_doc! {
-        #[schema(default="")]
+        #[schema(default)]
         struct Book {
             name: String,
             #[schema(default = 0)]

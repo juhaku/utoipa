@@ -84,8 +84,8 @@ use self::{
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
 ///   OpenAPI spec as _`path.to.Pet`_.
-/// * `default` Can be used to populate default values on all fields using the struct's 
-///   [`Default`](std::default::Default) implementation. 
+/// * `default` Can be used to populate default values on all fields using the struct's
+///   [`Default`](std::default::Default) implementation.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.

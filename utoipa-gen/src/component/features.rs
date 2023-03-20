@@ -174,7 +174,7 @@ impl Feature {
 impl ToTokens for Feature {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let feature = match &self {
-            Feature::Default(default) => quote! { .default(Some(#default)) },
+            Feature::Default(default) => quote! { .default(#default) },
             Feature::Example(example) => quote! { .example(Some(#example)) },
             Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
             Feature::Format(format) => quote! { .format(Some(#format)) },
@@ -414,23 +414,30 @@ name!(Example = "example");
 
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Default(AnyValue);
+pub struct Default(Option<AnyValue>);
 
 impl Default {
     pub fn new_default_trait(struct_ident: Ident, field_ident: Ident) -> Self {
-        Self(AnyValue::new_default_trait(struct_ident, field_ident))
+        Self(Some(AnyValue::new_default_trait(struct_ident, field_ident)))
     }
 }
 
 impl Parse for Default {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)
+        if input.peek(syn::Token![=]) {
+            parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(|any| Self(Some(any)))
+        } else {
+            Ok(Self(None))
+        }
     }
 }
 
 impl ToTokens for Default {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
+        match &self.0 {
+            Some(inner) => tokens.extend(quote! {Some(#inner)}),
+            None => tokens.extend(quote! {None}),
+        }
     }
 }
 

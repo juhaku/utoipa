@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::{abort, ResultExt};
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
     FieldsNamed, FieldsUnnamed, GenericParam, Generics, Lifetime, LifetimeDef, Path, PathArguments,
@@ -269,6 +269,7 @@ impl NamedStructSchema<'_> {
     fn field_as_schema_property<R>(
         &self,
         field: &Field,
+        container_rules: &Option<SerdeContainer>,
         yield_: impl FnOnce(NamedStructFieldOptions<'_>) -> R,
     ) -> R {
         let type_tree = &mut TypeTree::from_type(&field.ty);
@@ -283,22 +284,23 @@ impl NamedStructSchema<'_> {
             .as_ref()
             .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
             .unwrap_or(false);
-        let serde_default = serde::parse_container(self.attributes)
+        let serde_default = container_rules
+            .as_ref()
             .map(|rules| rules.default)
             .unwrap_or(false);
 
         if schema_default || serde_default {
             let field_ident = field.ident.as_ref().unwrap().to_owned();
-            let struct_ident: Ident = syn::parse_str(&self.struct_name).unwrap();
+            let struct_ident = format_ident!("{}", &self.struct_name);
             let default_feature = Feature::Default(
                 crate::component::features::Default::new_default_trait(struct_ident, field_ident),
             );
-            if let Some(ref mut features) = field_features {
-                if !features.iter().any(|f| matches!(f, Feature::Default(_))) {
-                    features.push(default_feature);
-                }
-            } else {
-                field_features = Some(vec![default_feature])
+            let features_inner = field_features.get_or_insert(vec![default_feature.clone()]);
+            if !features_inner
+                .iter()
+                .any(|f| matches!(f, Feature::Default(_)))
+            {
+                features_inner.push(default_feature);
             }
         }
 
@@ -386,6 +388,7 @@ impl ToTokens for NamedStructSchema<'_> {
 
                     self.field_as_schema_property(
                         field,
+                        &container_rules,
                         |NamedStructFieldOptions {
                              property,
                              rename_field_value,
@@ -455,6 +458,7 @@ impl ToTokens for NamedStructSchema<'_> {
             for field in flatten_fields {
                 self.field_as_schema_property(
                     field,
+                    &container_rules,
                     |NamedStructFieldOptions { property, .. }| {
                         tokens.extend(quote! { .item(#property) });
                     },
