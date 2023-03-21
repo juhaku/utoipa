@@ -282,9 +282,16 @@ This would produce api doc something similar to:
 
 ## General Pitfalls
 
-### SwaggerUI not working inside Docker
+#### Swagger UI returns 404 Not Found from build binary
 
-When running your Rust application with SwaggerUI inside a Docker container, it's only possible to use a release build. This is because the [debug-embed](https://github.com/pyrossh/rust-embed#features) flag is not enabled in debug builds by default, which can cause issues with embedding necessary files into the binary. Therefore, make sure to use the `--release` flag when building your Rust application for use inside Docker.
+This is highly probably due to `RustEmbed` not embedding the Swagger UI to the executable. This is natural since the `RustEmbed` 
+library **does not** by default embed files on debug builds. To fix this you can do one of the following.
+
+1. Build your executable in `--release` mode
+2. or add `debug-embed` feature flag to your `Cargo.toml` for `utoipa-swagger-ui`. This will enable the debug emebed feature flag for
+   `RustEmbed` as well. Read more about this [here](https://github.com/juhaku/utoipa/issues/527#issuecomment-1474219098) and [here](https://github.com/juhaku/utoipa/issues/268).
+
+Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
 
 # License
 
