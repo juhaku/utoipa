@@ -537,6 +537,43 @@ fn derive_struct_unnamed_field_vec_type_success() {
 }
 
 #[test]
+fn derive_struct_unnamed_field_single_value_default_success() {
+    let point = api_doc! {
+        #[schema(default)]
+        struct Point(f32);
+
+        impl Default for Point {
+            fn default() -> Self {
+                Self(3.5)
+            }
+        }
+    };
+
+    assert_value! {point=>
+        "type" = r#""number""#, "Point type"
+        "format" = r#""float""#, "Point format"
+        "default" = r#"3.5"#, "Point default"
+    }
+}
+
+#[test]
+fn derive_struct_unnamed_field_multiple_value_default_ignored() {
+    let point = api_doc! {
+        #[schema(default)]
+        struct Point(f32, f32);
+
+        impl Default for Point {
+            fn default() -> Self {
+                Self(3.5, 6.4)
+            }
+        }
+    };
+    // Default values shouldn't be assigned as the struct is represented
+    // as an array
+    assert!(!point.to_string().contains("default"))
+}
+
+#[test]
 fn derive_struct_nested_vec_success() {
     let vecs = api_doc! {
         struct VecTest {

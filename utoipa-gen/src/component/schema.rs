@@ -298,10 +298,7 @@ impl NamedStructSchema<'_> {
                 let field_ident = field.ident.as_ref().unwrap().to_owned();
                 let struct_ident = format_ident!("{}", &self.struct_name);
                 features_inner.push(Feature::Default(
-                    crate::features::Default::new_default_trait(
-                        struct_ident,
-                        field_ident,
-                    ),
+                    crate::features::Default::new_default_trait(struct_ident, field_ident.into()),
                 ));
             }
         }
@@ -530,6 +527,20 @@ impl ToTokens for UnnamedStructSchema<'_> {
                     .as_ref()
                     .map(|override_type| matches!(override_type.value_type, ValueType::Object))
                     .unwrap_or_default();
+            }
+
+            if fields_len == 1 {
+                if let Some(ref mut features) = unnamed_struct_features {
+                    if pop_feature!(features => Feature::Default(crate::features::Default(None)))
+                        .is_some()
+                    {
+                        let struct_ident = format_ident!("{}", &self.struct_name);
+                        let index: syn::Index = 0.into();
+                        features.push(Feature::Default(
+                            crate::features::Default::new_default_trait(struct_ident, index.into()),
+                        ));
+                    }
+                }
             }
 
             tokens.extend(

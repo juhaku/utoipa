@@ -414,10 +414,10 @@ name!(Example = "example");
 
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Default(Option<AnyValue>);
+pub struct Default(pub(crate) Option<AnyValue>);
 
 impl Default {
-    pub fn new_default_trait(struct_ident: Ident, field_ident: Ident) -> Self {
+    pub fn new_default_trait(struct_ident: Ident, field_ident: syn::Member) -> Self {
         Self(Some(AnyValue::new_default_trait(struct_ident, field_ident)))
     }
 }

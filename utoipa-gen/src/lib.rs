@@ -23,7 +23,7 @@ use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
+    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -110,7 +110,9 @@ use self::{
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
+///   only one field, the field's default value in the schema will be set from the struct's
+///   [`Default`](std::default::Default) implementation.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -2500,7 +2502,7 @@ pub(self) enum AnyValue {
     Json(TokenStream2),
     DefaultTrait {
         struct_ident: Ident,
-        field_ident: Ident,
+        field_ident: Member,
     },
 }
 
@@ -2557,7 +2559,7 @@ impl AnyValue {
         }
     }
 
-    fn new_default_trait(struct_ident: Ident, field_ident: Ident) -> Self {
+    fn new_default_trait(struct_ident: Ident, field_ident: Member) -> Self {
         Self::DefaultTrait {
             struct_ident,
             field_ident,
