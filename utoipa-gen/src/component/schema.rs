@@ -290,17 +290,19 @@ impl NamedStructSchema<'_> {
             .unwrap_or(false);
 
         if schema_default || serde_default {
-            let field_ident = field.ident.as_ref().unwrap().to_owned();
-            let struct_ident = format_ident!("{}", &self.struct_name);
-            let default_feature = Feature::Default(
-                crate::component::features::Default::new_default_trait(struct_ident, field_ident),
-            );
-            let features_inner = field_features.get_or_insert(vec![default_feature.clone()]);
+            let features_inner = field_features.get_or_insert(vec![]);
             if !features_inner
                 .iter()
                 .any(|f| matches!(f, Feature::Default(_)))
             {
-                features_inner.push(default_feature);
+                let field_ident = field.ident.as_ref().unwrap().to_owned();
+                let struct_ident = format_ident!("{}", &self.struct_name);
+                features_inner.push(Feature::Default(
+                    crate::features::Default::new_default_trait(
+                        struct_ident,
+                        field_ident,
+                    ),
+                ));
             }
         }
 
