@@ -24,7 +24,8 @@ impl Parse for NamedFieldStructFeatures {
             RenameAll,
             MaxProperties,
             MinProperties,
-            As
+            As,
+            Default
         )))
     }
 }

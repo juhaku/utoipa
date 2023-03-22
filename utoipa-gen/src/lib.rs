@@ -23,7 +23,7 @@ use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Token,
+    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -84,6 +84,8 @@ use self::{
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
 ///   OpenAPI spec as _`path.to.Pet`_.
+/// * `default` Can be used to populate default values on all fields using the struct's
+///   [`Default`](std::default::Default) implementation.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
@@ -108,7 +110,9 @@ use self::{
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
+///   only one field, the field's default value in the schema will be set from the struct's
+///   [`Default`](std::default::Default) implementation.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -2496,6 +2500,10 @@ impl ToTokens for ExternalDocs {
 pub(self) enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),
+    DefaultTrait {
+        struct_ident: Ident,
+        field_ident: Member,
+    },
 }
 
 impl AnyValue {
@@ -2550,6 +2558,13 @@ impl AnyValue {
             Ok(AnyValue::Json(parse_utils::parse_json_token_stream(input)?))
         }
     }
+
+    fn new_default_trait(struct_ident: Ident, field_ident: Member) -> Self {
+        Self::DefaultTrait {
+            struct_ident,
+            field_ident,
+        }
+    }
 }
 
 impl ToTokens for AnyValue {
@@ -2559,6 +2574,12 @@ impl ToTokens for AnyValue {
                 serde_json::json!(#json)
             }),
             Self::String(string) => string.to_tokens(tokens),
+            Self::DefaultTrait {
+                struct_ident,
+                field_ident,
+            } => tokens.extend(
+                quote! {::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()},
+            ),
         }
     }
 }
