@@ -39,7 +39,7 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 /// or field attributes of struct.
 fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     attributes.iter().find_map(|attribute| {
-        if *attribute.path.get_ident().unwrap() == "deprecated" {
+        if attribute.path.get_ident().map(|ident| *ident == "deprecated").unwrap_or(false) {
             Some(Deprecated::True)
         } else {
             None

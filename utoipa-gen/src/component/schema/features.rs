@@ -185,7 +185,7 @@ impl_merge!(
 pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> Option<T> {
     attributes
         .iter()
-        .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .filter(|attribute| attribute.path.get_ident().map(|ident| *ident == "schema").unwrap_or(false))
         .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }
@@ -199,7 +199,7 @@ pub fn parse_schema_features_with<
 ) -> Option<T> {
     attributes
         .iter()
-        .filter(|attribute| attribute.path.get_ident().unwrap() == "schema")
+        .filter(|attribute| attribute.path.get_ident().map(|ident| *ident == "schema").unwrap_or(false))
         .map(|attributes| attributes.parse_args_with(parser).unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }
