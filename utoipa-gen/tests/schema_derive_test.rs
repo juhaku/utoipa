@@ -1387,6 +1387,7 @@ fn derive_complex_enum_example() {
                             ],
                         },
                     },
+                    "required": ["NamedFields"]
                 },
                 {
                     "type": "object",
@@ -1396,6 +1397,7 @@ fn derive_complex_enum_example() {
                             "$ref": "#/components/schemas/Foo",
                         },
                     },
+                    "required": ["UnnamedFields"]
                 },
             ],
         })
