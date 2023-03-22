@@ -203,7 +203,8 @@ This would produce api doc something similar to:
             "deprecated": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "minimum": 0.0,
             }
           }
         ],
@@ -234,14 +235,16 @@ This would produce api doc something similar to:
         "properties": {
           "id": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "minimum": 0.0,
           },
           "name": {
             "type": "string"
           },
           "age": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "nullable": true,
           }
         }
       }
@@ -284,13 +287,13 @@ This would produce api doc something similar to:
 
 ## General Pitfalls
 
-#### Swagger UI returns 404 Not Found from build binary
+#### Swagger UI returns 404 NotFound from built binary
 
 This is highly probably due to `RustEmbed` not embedding the Swagger UI to the executable. This is natural since the `RustEmbed` 
-library **does not** by default embed files on debug builds. To fix this you can do one of the following.
+library **does not** by default embed files on debug builds. To get around this you can do one of the following.
 
 1. Build your executable in `--release` mode
-2. or add `debug-embed` feature flag to your `Cargo.toml` for `utoipa-swagger-ui`. This will enable the debug emebed feature flag for
+2. or add `debug-embed` feature flag to your `Cargo.toml` for `utoipa-swagger-ui`. This will enable the `debug-emebed` feature flag for
    `RustEmbed` as well. Read more about this [here](https://github.com/juhaku/utoipa/issues/527#issuecomment-1474219098) and [here](https://github.com/juhaku/utoipa/issues/268).
 
 Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
