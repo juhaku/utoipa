@@ -4232,3 +4232,84 @@ fn derive_schema_with_object_type_description() {
         })
     )
 }
+
+#[test]
+fn derive_tuple_named_struct_field() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Person {
+        name: String,
+    }
+
+    let value = api_doc! {
+        struct Post {
+            info: (String, i64, bool, Person)
+        }
+    };
+assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "info": {
+                    "items": {
+                        "allOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "integer",
+                                "format": "int64",
+                            },
+                            {
+                                "type": "boolean",
+                            },
+                            {
+                                "$ref": "#/components/schemas/Person"
+                            }
+                        ]
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object",
+            "required": ["info"]
+        })
+    )
+}
+
+#[test]
+fn derive_nullable_tuple() {
+    let value = api_doc! {
+        struct Post {
+            /// This is description
+            #[deprecated]
+            info: Option<(String, i64)>
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "info": {
+                    "items": {
+                        "allOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "integer",
+                                "format": "int64",
+                            },
+                        ]
+                    },
+                    "type": "array",
+                    "nullable": true,
+                    "deprecated": true,
+                    "description": "This is description",
+                }
+            },
+            "type": "object",
+        })
+    )
+}

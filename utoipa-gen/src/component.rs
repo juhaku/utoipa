@@ -39,7 +39,12 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 /// or field attributes of struct.
 fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     attributes.iter().find_map(|attribute| {
-        if attribute.path.get_ident().map(|ident| *ident == "deprecated").unwrap_or(false) {
+        if attribute
+            .path
+            .get_ident()
+            .map(|ident| *ident == "deprecated")
+            .unwrap_or(false)
+        {
             Some(Deprecated::True)
         } else {
             None
@@ -741,14 +746,43 @@ impl<'c> ComponentSchema {
                     }
                 }
             }
-            // TODO support for tuple types
             ValueType::Tuple => {
-                // Detect unit type ()
-                if type_tree.children.is_none() {
-                    tokens.extend(quote! {
-                        utoipa::openapi::schema::empty()
+                type_tree
+                    .children
+                    .as_ref()
+                    .map(|children| {
+                        let all_of = children.iter().fold(
+                            quote! { utoipa::openapi::schema::AllOfBuilder::new() },
+                            |mut all_of, child| {
+                                let features = if child.is_option() {
+                                    Some(vec![Feature::Nullable(Nullable::new())])
+                                } else {
+                                    None
+                                };
+
+                                let item = ComponentSchema::new(ComponentSchemaProps {
+                                    type_tree: child,
+                                    features,
+                                    description: None,
+                                    deprecated: None,
+                                    object_name,
+                                });
+                                all_of.extend(quote!( .item(#item) ));
+
+                                all_of
+                            },
+                        );
+                        quote! {
+                            utoipa::openapi::schema::ArrayBuilder::new()
+                                .items(#all_of)
+                                #nullable
+                                #description_stream
+                                #deprecated_stream
+                        }
                     })
-                };
+                    .unwrap_or_else(|| quote!(utoipa::openapi::schema::empty()))
+                    .to_tokens(tokens);
+                    tokens.extend(features.to_token_stream());
             }
         }
     }
