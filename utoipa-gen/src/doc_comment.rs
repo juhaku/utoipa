@@ -1,8 +1,8 @@
 use std::ops::Deref;
 
-use proc_macro2::{Ident, Span};
-use proc_macro_error::{abort_call_site, emit_warning, ResultExt};
-use syn::{Attribute, Lit, Meta};
+use proc_macro2::Ident;
+use proc_macro_error::abort_call_site;
+use syn::{Attribute, Expr, Lit, Meta};
 
 const DOC_ATTRIBUTE_TYPE: &str = "doc";
 
@@ -27,7 +27,7 @@ impl CommentAttributes {
     }
 
     fn get_attribute_ident(attribute: &Attribute) -> Option<&Ident> {
-        attribute.path.get_ident()
+        attribute.path().get_ident()
     }
 
     fn as_string_vec<'a, I: Iterator<Item = &'a Attribute>>(attributes: I) -> Vec<String> {
@@ -38,17 +38,15 @@ impl CommentAttributes {
     }
 
     fn parse_doc_comment(attribute: &Attribute) -> Option<String> {
-        let meta = attribute.parse_meta().unwrap_or_abort();
-
-        match meta {
+        match &attribute.meta {
             Meta::NameValue(name_value) => {
-                if let Lit::Str(doc_comment) = name_value.lit {
-                    Some(doc_comment.value().trim().to_string())
+                if let Expr::Lit(ref doc_comment) = name_value.value {
+                    if let Lit::Str(ref comment) = doc_comment.lit {
+                        Some(comment.value().trim().to_string())
+                    } else {
+                        None
+                    }
                 } else {
-                    emit_warning!(
-                        Span::call_site(),
-                        "Expected Lit::Str types for types in meta, ignoring value"
-                    );
                     None
                 }
             }

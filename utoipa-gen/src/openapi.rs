@@ -1,5 +1,4 @@
 use proc_macro2::Ident;
-use proc_macro_error::ResultExt;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -14,7 +13,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
     parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementAttr, Array,
-    ExternalDocs,
+    ExternalDocs, ResultExt,
 };
 
 use self::info::Info;
@@ -68,7 +67,7 @@ impl<'o> OpenApiAttr<'o> {
 pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
     attrs
         .iter()
-        .filter(|attribute| attribute.path.is_ident("openapi"))
+        .filter(|attribute| attribute.path().is_ident("openapi"))
         .map(|attribute| attribute.parse_args::<OpenApiAttr>().unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }

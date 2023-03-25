@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use proc_macro_error::ResultExt;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
@@ -14,7 +13,7 @@ use syn::{
 
 use crate::{
     component::{features::Inline, ComponentSchema, TypeTree},
-    parse_utils, AnyValue, Array,
+    parse_utils, AnyValue, Array, ResultExt,
 };
 
 use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
@@ -387,7 +386,7 @@ trait DeriveResponseValue: Parse {
     fn from_attributes(attributes: &[Attribute]) -> Option<Self> {
         attributes
             .iter()
-            .filter(|attribute| attribute.path.get_ident().unwrap() == "response")
+            .filter(|attribute| attribute.path().get_ident().unwrap() == "response")
             .map(|attribute| attribute.parse_args::<Self>().unwrap_or_abort())
             .reduce(|acc, item| acc.merge_from(item))
     }

@@ -16,10 +16,10 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use proc_macro_error::{proc_macro_error, OptionExt, ResultExt};
+use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens, TokenStreamExt};
 
-use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
@@ -1329,7 +1329,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.iter().find_map(|attr| {
-            if !matches!(attr.path.get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
+            if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
             {
                 None
             } else {
@@ -2584,10 +2584,40 @@ impl ToTokens for AnyValue {
     }
 }
 
+trait ResultExt<T> {
+    fn unwrap_or_abort(self) -> T;
+    fn expect_or_abort(self, message: &str) -> T;
+}
+
+impl<T> ResultExt<T> for Result<T, syn::Error> {
+    fn unwrap_or_abort(self) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => abort!(error.span(), format!("{error}")),
+        }
+    }
+
+    fn expect_or_abort(self, message: &str) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => abort!(error.span(), format!("{error}: {message}")),
+        }
+    }
+}
+
+trait OptionExt<T> {
+    fn expect_or_abort(self, message: &str) -> T;
+}
+
+impl<T> OptionExt<T> for Option<T> {
+    fn expect_or_abort(self, message: &str) -> T {
+        self.unwrap_or_else(|| abort!(Span::call_site(), message))
+    }
+}
+
 /// Parsing utils
 mod parse_utils {
     use proc_macro2::{Group, Ident, TokenStream};
-    use proc_macro_error::ResultExt;
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
@@ -2595,6 +2625,8 @@ mod parse_utils {
         token::Comma,
         Error, LitBool, LitStr, Token,
     };
+
+    use crate::ResultExt;
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input

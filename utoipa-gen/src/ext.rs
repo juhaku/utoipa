@@ -260,7 +260,7 @@ pub mod fn_arg {
                 }).collect::<Vec<_>>())
             },
             syn::Pat::TupleStruct(tuple_struct) => {
-                get_pat_fn_arg_type(tuple_struct.pat.elems.first().as_ref().expect(
+                get_pat_fn_arg_type(tuple_struct.elems.first().as_ref().expect(
                     "PatTuple expected to have at least one element, cannot get fn argument",
                 ))
             },

@@ -40,7 +40,7 @@ fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&Se
 fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
     attributes.iter().find_map(|attribute| {
         if attribute
-            .path
+            .path()
             .get_ident()
             .map(|ident| *ident == "deprecated")
             .unwrap_or(false)
@@ -74,7 +74,7 @@ enum TypeTreeValue<'t> {
     Path(&'t Path),
     /// Slice and array types need to be manually defined, since they cannot be recognized from
     /// generic arguments.
-    Array(Vec<TypeTreeValue<'t>>, &'t Span),
+    Array(Vec<TypeTreeValue<'t>>, Span),
     UnitType,
 }
 
@@ -118,16 +118,18 @@ impl<'t> TypeTree<'t> {
                 tuple.elems.iter().flat_map(Self::get_type_paths).collect()
             },
             Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), &slice.bracket_token.span)],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), &array.bracket_token.span)],
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), slice.bracket_token.span.join())],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), array.bracket_token.span.join())],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
                     .iter()
                     .find_map(|bound| {
-                        match bound {
+                        match &bound {
                             syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                            syn::TypeParamBound::Lifetime(_) => None
+                            syn::TypeParamBound::Lifetime(_) => None,
+                            syn::TypeParamBound::Verbatim(_) => None,
+                            _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
                         }
                     })
                     .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
@@ -159,7 +161,7 @@ impl<'t> TypeTree<'t> {
                 TypeTreeValue::TypePath(type_path) => &type_path.path,
                 TypeTreeValue::Path(path) => path,
                 TypeTreeValue::Array(value, span) => {
-                    let array: Path = Ident::new("Array", *span).into();
+                    let array: Path = Ident::new("Array", span).into();
                     return TypeTree {
                         path: Some(Cow::Owned(array)),
                         value_type: ValueType::Object,
@@ -782,7 +784,7 @@ impl<'c> ComponentSchema {
                     })
                     .unwrap_or_else(|| quote!(utoipa::openapi::schema::empty()))
                     .to_tokens(tokens);
-                    tokens.extend(features.to_token_stream());
+                tokens.extend(features.to_token_stream());
             }
         }
     }

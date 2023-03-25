@@ -4246,7 +4246,7 @@ fn derive_tuple_named_struct_field() {
             info: (String, i64, bool, Person)
         }
     };
-assert_json_eq!(
+    assert_json_eq!(
         value,
         json!({
             "properties": {
