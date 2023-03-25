@@ -26,9 +26,8 @@ impl ArgumentResolver for PathOperations {
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
     ) {
-        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) = fn_arg::get_fn_args(fn_args)
-            .into_iter()
-            .partition(fn_arg::is_into_params);
+        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
+            fn_arg::get_fn_args(fn_args).partition(fn_arg::is_into_params);
 
         if let Some(macro_args) = macro_args {
             let primitive_args = get_primitive_args(value_args);
@@ -98,12 +97,12 @@ fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> Valu
 impl PathOperationResolver for PathOperations {
     fn resolve_operation(item_fn: &ItemFn) -> Option<ResolvedOperation> {
         item_fn.attrs.iter().find_map(|attribute| {
-            if is_valid_request_type(attribute.path.get_ident()) {
+            if is_valid_request_type(attribute.path().get_ident()) {
                 match attribute.parse_args::<Path>() {
                     Ok(path) => Some(ResolvedOperation {
                         path: path.0,
                         path_operation: PathOperation::from_ident(
-                            attribute.path.get_ident().unwrap(),
+                            attribute.path().get_ident().unwrap(),
                         ),
                     }),
                     Err(error) => abort!(

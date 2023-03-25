@@ -1,15 +1,17 @@
-use proc_macro_error::ResultExt;
 use syn::{
     parse::{Parse, ParseBuffer, ParseStream},
     Attribute,
 };
 
-use crate::component::features::{
-    impl_into_inner, impl_merge, parse_features, AdditionalProperites, As, Default, Example,
-    ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength,
-    MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf,
-    Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType,
-    WriteOnly, XmlAttr,
+use crate::{
+    component::features::{
+        impl_into_inner, impl_merge, parse_features, AdditionalProperites, As, Default, Example,
+        ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems,
+        MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum,
+        MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title,
+        ValueType, WriteOnly, XmlAttr,
+    },
+    ResultExt,
 };
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -185,7 +187,13 @@ impl_merge!(
 pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(attributes: &[Attribute]) -> Option<T> {
     attributes
         .iter()
-        .filter(|attribute| attribute.path.get_ident().map(|ident| *ident == "schema").unwrap_or(false))
+        .filter(|attribute| {
+            attribute
+                .path()
+                .get_ident()
+                .map(|ident| *ident == "schema")
+                .unwrap_or(false)
+        })
         .map(|attribute| attribute.parse_args::<T>().unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }
@@ -199,7 +207,13 @@ pub fn parse_schema_features_with<
 ) -> Option<T> {
     attributes
         .iter()
-        .filter(|attribute| attribute.path.get_ident().map(|ident| *ident == "schema").unwrap_or(false))
+        .filter(|attribute| {
+            attribute
+                .path()
+                .get_ident()
+                .map(|ident| *ident == "schema")
+                .unwrap_or(false)
+        })
         .map(|attributes| attributes.parse_args_with(parser).unwrap_or_abort())
         .reduce(|acc, item| acc.merge(item))
 }

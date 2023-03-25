@@ -2,21 +2,21 @@ use std::borrow::Cow;
 use std::{iter, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, emit_error, ResultExt};
+use proc_macro_error::{abort, emit_error};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{
-    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeDef, LitStr, Path, Type, TypePath,
-    Variant,
+    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr, Path, Type,
+    TypePath, Variant,
 };
 
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::path::{InlineType, PathType};
-use crate::Array;
+use crate::{Array, ResultExt};
 
 use super::{
     Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
@@ -84,7 +84,7 @@ impl ToTokens for ToResponse<'_> {
         let mut to_reponse_generics = self.generics.clone();
         to_reponse_generics
             .params
-            .push(syn::GenericParam::Lifetime(LifetimeDef::new(
+            .push(syn::GenericParam::Lifetime(LifetimeParam::new(
                 lifetime.clone(),
             )));
         let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
@@ -194,7 +194,7 @@ trait Response {
         const ERROR: &str =
             "Unexpected field attribute, field attributes are only supported at unnamed fields";
 
-        let ident = attribute.path.get_ident().unwrap();
+        let ident = attribute.path().get_ident().unwrap();
         match &*ident.to_string() {
             "to_schema" => (false, ERROR),
             "ref_response" => (false, ERROR),
@@ -225,13 +225,13 @@ impl<'u> UnnamedStructResponse<'u> {
     fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
         let is_inline = inner_attributes
             .iter()
-            .any(|attribute| attribute.path.get_ident().unwrap() == "to_schema");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
         let ref_response = inner_attributes
             .iter()
-            .any(|attribute| attribute.path.get_ident().unwrap() == "ref_response");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "ref_response");
         let to_response = inner_attributes
             .iter()
-            .any(|attribute| attribute.path.get_ident().unwrap() == "to_response");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "to_response");
 
         if is_inline && (ref_response || to_response) {
             abort!(
@@ -395,7 +395,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
         Self::validate_attributes(inner_attributes, |attribute| {
             const ERROR: &str =
                 "Unexpected attribute, `content` is only supported on unnamed field enum variant";
-            if attribute.path.get_ident().unwrap() == "content" {
+            if attribute.path().get_ident().unwrap() == "content" {
                 (false, ERROR)
             } else {
                 (true, ERROR)
@@ -406,7 +406,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
 
         let is_inline = inner_attributes
             .iter()
-            .any(|attribute| attribute.path.get_ident().unwrap() == "to_schema");
+            .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
         let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
             description,
             derive_value,
@@ -508,7 +508,7 @@ impl<'r> EnumResponse<'r> {
             field
                 .attrs
                 .iter()
-                .find(|attribute| attribute.path.get_ident().unwrap() == "content")
+                .find(|attribute| attribute.path().get_ident().unwrap() == "content")
                 .map(|attribute| {
                     attribute
                         .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
@@ -522,7 +522,7 @@ impl<'r> EnumResponse<'r> {
                 field
                     .attrs
                     .iter()
-                    .any(|attribute| attribute.path.get_ident().unwrap() == "to_schema")
+                    .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema")
             })
             .unwrap_or(false);
 

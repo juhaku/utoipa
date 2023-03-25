@@ -3,8 +3,10 @@
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenTree};
-use proc_macro_error::{abort, ResultExt};
+use proc_macro_error::abort;
 use syn::{buffer::Cursor, Attribute, Error};
+
+use crate::ResultExt;
 
 #[inline]
 fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
@@ -209,7 +211,7 @@ impl SerdeContainer {
 pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
     attributes
         .iter()
-        .filter(|attribute| attribute.path.is_ident("serde"))
+        .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| {
             serde_attribute
                 .parse_args_with(SerdeValue::parse)
@@ -244,7 +246,7 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
 pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
     attributes
         .iter()
-        .filter(|attribute| attribute.path.is_ident("serde"))
+        .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| {
             serde_attribute
                 .parse_args_with(SerdeContainer::parse)

@@ -1,15 +1,19 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, ResultExt};
+use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, GenericParam, Generics, Lifetime, LifetimeDef, Path, PathArguments,
-    Token, Variant, Visibility,
+    FieldsNamed, FieldsUnnamed, GenericParam, Generics, Lifetime, LifetimeParam, Path,
+    PathArguments, Token, Variant, Visibility,
 };
 
-use crate::{component::features::{Rename, Example}, doc_comment::CommentAttributes, Array};
+use crate::{
+    component::features::{Example, Rename},
+    doc_comment::CommentAttributes,
+    Array, ResultExt,
+};
 
 use self::{
     enum_variant::{
@@ -127,7 +131,7 @@ impl ToTokens for Schema<'_> {
             ident.to_string()
         };
 
-        let schema_lifetime: GenericParam = LifetimeDef::new(life.clone()).into();
+        let schema_lifetime: GenericParam = LifetimeParam::new(life.clone()).into();
         let schema_generics = Generics {
             params: [schema_lifetime.clone()].into_iter().collect(),
             ..Default::default()
@@ -609,7 +613,7 @@ impl<'e> EnumSchema<'e> {
                 attributes
                     .iter()
                     .find_map(|attribute| {
-                        if attribute.path.is_ident("repr") {
+                        if attribute.path().is_ident("repr") {
                             attribute.parse_args::<syn::TypePath>().ok()
                         } else {
                             None
@@ -1539,7 +1543,7 @@ impl Parse for AliasSchema {
 fn parse_aliases(attributes: &[Attribute]) -> Option<Punctuated<AliasSchema, Comma>> {
     attributes
         .iter()
-        .find(|attribute| attribute.path.is_ident("aliases"))
+        .find(|attribute| attribute.path().is_ident("aliases"))
         .map(|aliases| {
             aliases
                 .parse_args_with(Punctuated::<AliasSchema, Comma>::parse_terminated)

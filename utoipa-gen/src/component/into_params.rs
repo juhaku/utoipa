@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use proc_macro_error::{abort, ResultExt};
+use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident,
@@ -19,7 +19,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    Array, Required,
+    Array, Required, ResultExt,
 };
 
 use super::{
@@ -69,7 +69,7 @@ impl ToTokens for IntoParams {
         let mut into_params_features = self
             .attrs
             .iter()
-            .filter(|attr| attr.path.is_ident("into_params"))
+            .filter(|attr| attr.path().is_ident("into_params"))
             .map(|attribute| {
                 attribute
                     .parse_args::<IntoParamsFeatures>()
@@ -80,7 +80,7 @@ impl ToTokens for IntoParams {
         let serde_container = serde::parse_container(&self.attrs);
 
         // #[param] is only supported over fields
-        if self.attrs.iter().any(|attr| attr.path.is_ident("param")) {
+        if self.attrs.iter().any(|attr| attr.path().is_ident("param")) {
             abort! {
                 ident,
                 "found `param` attribute in unsupported context";
@@ -272,7 +272,7 @@ impl Param<'_> {
             .field
             .attrs
             .iter()
-            .filter(|attribute| attribute.path.is_ident("param"))
+            .filter(|attribute| attribute.path().is_ident("param"))
             .map(|attribute| {
                 attribute
                     .parse_args::<FieldFeatures>()

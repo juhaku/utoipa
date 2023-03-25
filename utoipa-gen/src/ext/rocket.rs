@@ -144,7 +144,7 @@ fn is_anonymous_arg(arg: &MacroArg) -> bool {
 impl PathOperationResolver for PathOperations {
     fn resolve_operation(ast_fn: &syn::ItemFn) -> Option<super::ResolvedOperation> {
         ast_fn.attrs.iter().find_map(|attribute| {
-            if is_valid_route_type(attribute.path.get_ident()) {
+            if is_valid_route_type(attribute.path().get_ident()) {
                 let Path(path, operation) = match attribute.parse_args::<Path>() {
                     Ok(path) => path,
                     Err(error) => abort!(
@@ -162,7 +162,7 @@ impl PathOperationResolver for PathOperations {
                 } else {
                     Some(ResolvedOperation {
                         path_operation: PathOperation::from_ident(
-                            attribute.path.get_ident().unwrap(),
+                            attribute.path().get_ident().unwrap(),
                         ),
                         path,
                     })
