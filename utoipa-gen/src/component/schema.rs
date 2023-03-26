@@ -884,7 +884,7 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
                     .map(|variant| (Cow::Borrowed(tag.as_str()), variant)),
             )
             .to_token_stream(),
-            SerdeEnumRepr::Untagged => UntaggedEnum.to_token_stream(),
+            SerdeEnumRepr::Untagged => UntaggedEnum::new().to_token_stream(),
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 AdjacentlyTaggedEnum::new(enum_values.into_iter().map(|variant| {
                     (
@@ -1063,20 +1063,14 @@ impl ComplexEnum<'_> {
                 .to_token_stream()
             }
             Fields::Unit => {
-                let unnamed_struct_features = variant
-                    .attrs
-                    .parse_features::<EnumUnnamedFieldVariantFeatures>()
-                    .into_inner()
+                let mut unit_features =
+                    features::parse_schema_features_with(&variant.attrs, |input| {
+                        Ok(parse_features!(input as super::features::Title))
+                    })
                     .unwrap_or_default();
+                let title = pop_feature!(unit_features => Feature::Title(_));
 
-                UnnamedStructSchema {
-                    struct_name: Cow::Borrowed(&*self.enum_name),
-                    attributes: &variant.attrs,
-                    features: Some(unnamed_struct_features),
-                    fields: &Punctuated::default(),
-                    schema_as: None,
-                }
-                .to_token_stream()
+                UntaggedEnum::with_title(title).to_token_stream()
             }
         }
     }
