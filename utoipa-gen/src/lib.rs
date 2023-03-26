@@ -21,8 +21,10 @@ use quote::{quote, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
+    bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    token::Bracket,
     DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
 };
 
@@ -37,7 +39,10 @@ mod security_requirement;
 use crate::path::{Path, PathAttr};
 
 use self::{
-    component::features,
+    component::{
+        features::{self, Feature},
+        ComponentSchema, ComponentSchemaProps, TypeTree,
+    },
     path::response::derive::{IntoResponses, ToResponse},
 };
 
@@ -2317,6 +2322,96 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
     };
 
     into_responses.to_token_stream().into()
+}
+
+/// Create OpenAPI Schema from arbitrary type.
+///
+/// This macro provides a quick way to render arbitrary types as OpenAPI Schema Objects. It
+/// supports two call formats.
+/// 1. With type only
+/// 2. With _`#[inline]`_ attribute to inline the referenced schemas.
+///
+/// By default the macro will create references `($ref)` for non primitive types like _`Pet`_.
+/// However when used with _`#[inline]`_ the non [`primitive`][primitive] type schemas will
+/// be inlined to the schema output.
+///
+/// ```rust
+/// # #[derive(utoipa::ToSchema)]
+/// # struct Pet {id: i32};
+/// let schema = utoipa::schema!(Vec<Pet>);
+///
+/// // with inline
+/// let schema = utoipa::schema!(#[inline] Vec<Pet>);
+/// ```
+///
+/// # Examples
+///
+/// _**Create vec of pets schema.**_
+/// ```rust
+/// # use utoipa::openapi::schema::{Schema, Array, Object, ObjectBuilder, SchemaFormat,
+/// # KnownFormat, SchemaType};
+/// # use utoipa::openapi::RefOr;
+/// #[derive(utoipa::ToSchema)]
+/// struct Pet {
+///     id: i32,
+///     name: String,
+/// }
+///
+/// let schema: RefOr<Schema> = utoipa::schema!(#[inline] Vec<Pet>).into();
+/// // will output
+/// let generated = RefOr::T(Schema::Array(
+///     Array::new(
+///         ObjectBuilder::new()
+///             .property("id", ObjectBuilder::new()
+///                 .schema_type(SchemaType::Integer)
+///                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+///                 .build())
+///             .required("id")
+///             .property("name", Object::with_type(SchemaType::String))
+///             .required("name")
+///     )
+/// ));
+/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&schema).unwrap(), serde_json::to_value(&generated).unwrap());
+/// ```
+///
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+#[proc_macro]
+pub fn schema(input: TokenStream) -> TokenStream {
+    struct Schema {
+        inline: bool,
+        ty: syn::Type,
+    }
+    impl Parse for Schema {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            let inline = if input.peek(Token![#]) && input.peek2(Bracket) {
+                input.parse::<Token![#]>()?;
+
+                let inline;
+                bracketed!(inline in input);
+                let i = inline.parse::<Ident>()?;
+                i == "inline"
+            } else {
+                false
+            };
+
+            let ty = input.parse()?;
+
+            Ok(Self { inline, ty })
+        }
+    }
+
+    let schema = syn::parse_macro_input!(input as Schema);
+    let type_tree = TypeTree::from_type(&schema.ty);
+
+    let schema = ComponentSchema::new(ComponentSchemaProps {
+        features: Some(vec![Feature::Inline(schema.inline.into())]),
+        type_tree: &type_tree,
+        deprecated: None,
+        description: None,
+        object_name: "",
+    });
+
+    schema.to_token_stream().into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)

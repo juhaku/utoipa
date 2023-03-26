@@ -251,7 +251,7 @@
 
 pub mod openapi;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 pub use utoipa_gen::*;
 
@@ -383,6 +383,12 @@ pub trait ToSchema<'__s> {
     }
 }
 
+impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema> {
+    fn from(_: T) -> Self {
+        T::schema().1
+    }
+}
+
 /// Represents _`nullable`_ type. This can be used anywhere where "nothing" needs to be evaluated.
 /// This will serialize to _`null`_ in JSON and [`openapi::schema::empty`] is used to create the
 /// [`openapi::schema::Schema`] for the type.
@@ -391,6 +397,224 @@ pub type TupleUnit = ();
 impl<'__s> ToSchema<'__s> for TupleUnit {
     fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>) {
         ("TupleUnit", openapi::schema::empty().into())
+    }
+}
+
+macro_rules! impl_partial_schema {
+    ( $ty:path ) => {
+        impl_partial_schema!( @impl_schema $ty );
+    };
+    ( & $ty:path ) => {
+        impl_partial_schema!( @impl_schema &$ty );
+    };
+    ( @impl_schema $( $tt:tt )* ) => {
+        impl PartialSchema for $($tt)* {
+            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+                schema!( $($tt)* ).into()
+            }
+        }
+    };
+}
+
+macro_rules! impl_partial_schema_primitive {
+    ( $( $tt:path  ),* ) => {
+        $( impl_partial_schema!( $tt ); )*
+    };
+}
+
+// Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
+// ONLY for internal use!
+#[doc(hidden)]
+mod utoipa {
+    pub use super::*;
+}
+
+/// Trait used to implement only _`Schema`_ part of the OpenAPI doc.
+///
+/// This trait is by default implemented for Rust [`primitive`][primitive] types and some well known types like
+/// [`Vec`], [`Option`], [`HashMap`] and [`BTreeMap`]. The default implementation adds `schema()`
+/// method to the implementing type allowing simple conversion of the type to the OpenAPI Schema
+/// object. Moreover this allows handy way of constructing schema objects manually if ever so
+/// wished.
+///
+/// The trait can be implemented manually easily on any type. This trait comes especially handy
+/// with [`macro@schema`] macro that can be used to generate schema for arbitrary types.
+/// ```rust
+/// # use utoipa::PartialSchema;
+/// # use utoipa::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use utoipa::openapi::RefOr;
+/// #
+/// struct MyType;
+///
+/// impl PartialSchema for MyType {
+///     fn schema() -> RefOr<Schema> {
+///         // ... impl schema generation here
+///         RefOr::T(Schema::Object(ObjectBuilder::new().build()))
+///     }
+/// }
+/// ```
+///
+/// # Examples
+///
+/// _**Create number schema from u64.**_
+/// ```rust
+/// # use utoipa::PartialSchema;
+/// # use utoipa::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use utoipa::openapi::RefOr;
+/// #
+/// let number: RefOr<Schema> = u64::schema().into();
+///
+/// // would be equal to manual implementation
+/// let number2 = RefOr::T(
+///     Schema::Object(
+///         ObjectBuilder::new()
+///             .schema_type(SchemaType::Integer)
+///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
+///             .minimum(Some(0.0))
+///             .build()
+///         )
+///     );
+/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
+/// ```
+///
+/// _**Construct a Pet object schema manually.**_
+/// ```rust
+/// # use utoipa::PartialSchema;
+/// # use utoipa::openapi::schema::ObjectBuilder;
+/// struct Pet {
+///     id: i32,
+///     name: String,
+/// }
+///
+/// let pet_schema = ObjectBuilder::new()
+///     .property("id", i32::schema())
+///     .property("name", String::schema())
+///     .required("id").required("name")
+///     .build();
+/// ```
+///
+/// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
+pub trait PartialSchema {
+    /// Return ref or schema of implementing type that can then be used to
+    /// construct combined schemas.
+    fn schema() -> openapi::RefOr<openapi::schema::Schema>;
+}
+
+#[rustfmt::skip]
+impl_partial_schema_primitive!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+    Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>, 
+    Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
+    Option<String>, Option<&str>, Option<char>
+);
+
+impl_partial_schema!(&str);
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(#[inline] Vec<T>).into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(#[inline] Option<Vec<T>>).into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            [T]
+        )
+        .into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            &[T]
+        )
+        .into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            &mut [T]
+        )
+        .into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            Option<&[T]>
+        )
+        .into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            Option<&mut [T]>
+        )
+        .into()
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(#[inline] Option<T>).into()
+    }
+}
+
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            BTreeMap<K, V>
+        )
+        .into()
+    }
+}
+
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            Option<BTreeMap<K, V>>
+        )
+        .into()
+    }
+}
+
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            HashMap<K, V>
+        )
+        .into()
+    }
+}
+
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            Option<HashMap<K, V>>
+        )
+        .into()
     }
 }
 
@@ -618,7 +842,7 @@ pub trait IntoParams {
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
-/// responses, to be used in an operation.
+/// responses, to be used in operation.
 ///
 /// # Examples
 ///
@@ -678,4 +902,91 @@ pub trait IntoResponses {
 pub trait ToResponse<'__r> {
     /// Returns a tuple of response component name (to be referenced) to a response.
     fn response() -> (&'__r str, openapi::RefOr<openapi::response::Response>);
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_json_diff::assert_json_eq;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_partial_schema() {
+        for (name, schema, value) in [
+            (
+                "i8",
+                i8::schema(),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i16",
+                i16::schema(),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i32",
+                i32::schema(),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i64",
+                i64::schema(),
+                json!({"type": "integer", "format": "int64"}),
+            ),
+            ("i128", i128::schema(), json!({"type": "integer"})),
+            ("isize", isize::schema(), json!({"type": "integer"})),
+            (
+                "u8",
+                u8::schema(),
+                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
+            ),
+            (
+                "u16",
+                u16::schema(),
+                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
+            ),
+            (
+                "u32",
+                u32::schema(),
+                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
+            ),
+            (
+                "u64",
+                u64::schema(),
+                json!({"type": "integer", "format": "int64", "minimum": 0.0}),
+            ),
+            (
+                "u128",
+                u128::schema(),
+                json!({"type": "integer", "minimum": 0.0}),
+            ),
+            (
+                "usize",
+                usize::schema(),
+                json!({"type": "integer", "minimum": 0.0 }),
+            ),
+            ("bool", bool::schema(), json!({"type": "boolean"})),
+            ("str", str::schema(), json!({"type": "string"})),
+            ("String", String::schema(), json!({"type": "string"})),
+            ("char", char::schema(), json!({"type": "string"})),
+            (
+                "f32",
+                f32::schema(),
+                json!({"type": "number", "format": "float"}),
+            ),
+            (
+                "f64",
+                f64::schema(),
+                json!({"type": "number", "format": "double"}),
+            ),
+        ] {
+            println!(
+                "{name}: {json}",
+                json = serde_json::to_string(&schema).unwrap()
+            );
+            let schema = serde_json::to_value(schema).unwrap();
+            assert_json_eq!(schema, value);
+        }
+    }
 }
