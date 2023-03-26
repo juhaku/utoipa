@@ -4313,3 +4313,34 @@ fn derive_nullable_tuple() {
         })
     )
 }
+
+#[test]
+fn derive_unit_type_untagged_enum() {
+    #[derive(Serialize)]
+    struct AggregationRequest;
+
+    let value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum ComputeRequest {
+            Aggregation(AggregationRequest),
+            Breakdown,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "$ref": "#/components/schemas/AggregationRequest"
+                },
+                {
+                    "type": "object",
+                    "nullable": true,
+                    "default": null,
+                }
+            ]
+        })
+    )
+}

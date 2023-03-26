@@ -5,6 +5,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_quote, TypePath};
 
+use crate::component::features::Feature;
 use crate::schema_type::SchemaType;
 use crate::Array;
 
@@ -224,11 +225,30 @@ impl<'t, V: Variant> FromIterator<(Cow<'t, str>, V)> for TaggedEnum<V> {
     }
 }
 
-pub struct UntaggedEnum;
+pub struct UntaggedEnum {
+    title: Option<Feature>,
+}
+
+impl UntaggedEnum {
+    pub fn new() -> Self {
+        Self { title: None }
+    }
+
+    pub fn with_title(title: Option<Feature>) -> Self {
+        Self { title }
+    }
+}
 
 impl ToTokens for UntaggedEnum {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(quote!(utoipa::openapi::schema::empty()));
+        let title = &self.title;
+
+        tokens.extend(quote! {
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .nullable(true)
+                .default(Some(serde_json::Value::Null))
+                #title
+        })
     }
 }
 
