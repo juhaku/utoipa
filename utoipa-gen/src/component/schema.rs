@@ -4,9 +4,9 @@ use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
-    parse::Parse, parse_quote, punctuated::Punctuated, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Lifetime, LifetimeParam, Path,
-    PathArguments, Token, Type, Variant, Visibility,
+    parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
+    Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, GenericParam, Generics,
+    Lifetime, LifetimeParam, Path, PathArguments, Token, Type, Variant, Visibility,
 };
 
 use crate::{
@@ -126,14 +126,17 @@ impl ToTokens for Schema<'_> {
                 .map(|alias| {
                     let name = quote::format_ident!("{}", alias.name);
                     let ty = &alias.ty;
-                    let name_generics = &alias.generics.as_ref().map(|generics| {
-                        let (impl_generics, _, _) = generics.split_for_impl();
-                        impl_generics
-                    });
                     let vis = self.vis;
+                    let name_generics = alias.get_lifetimes().fold(
+                        Punctuated::<&GenericArgument, Comma>::new(),
+                        |mut acc, lifetime| {
+                            acc.push(lifetime);
+                            acc
+                        },
+                    );
 
                     quote! {
-                        #vis type #name #name_generics = #ty;
+                        #vis type #name < #name_generics > = #ty;
                     }
                 })
                 .collect::<TokenStream>()
@@ -1496,23 +1499,49 @@ fn is_flatten(rule: &Option<SerdeValue>) -> bool {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AliasSchema {
     pub name: String,
-    pub generics: Option<Generics>,
     pub ty: Type,
+}
+
+impl AliasSchema {
+    fn get_lifetimes(&self) -> impl Iterator<Item = &GenericArgument> {
+        fn lifetimes_from_type(ty: &Type) -> impl Iterator<Item = &GenericArgument> {
+            match ty {
+                Type::Path(type_path) => type_path
+                    .path
+                    .segments
+                    .iter()
+                    .flat_map(|segment| match &segment.arguments {
+                        PathArguments::AngleBracketed(angle_bracketed_args) => {
+                            Some(angle_bracketed_args.args.iter())
+                        }
+                        _ => None,
+                    })
+                    .flatten()
+                    .flat_map(|arg| match arg {
+                        GenericArgument::Type(type_argument) => {
+                            lifetimes_from_type(type_argument).collect::<Vec<_>>()
+                        }
+                        _ => vec![arg],
+                    })
+                    .filter(|generic_arg| matches!(generic_arg, syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static")),
+                _ => abort!(
+                    &ty.span(),
+                    "AliasSchema `get_lifetimes` only supports syn::TypePath types"
+                ),
+            }
+        }
+
+        lifetimes_from_type(&self.ty)
+    }
 }
 
 impl Parse for AliasSchema {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = input.parse::<Ident>()?;
-        let generics = if input.peek(Token![<]) {
-            Some(input.parse::<Generics>()?)
-        } else {
-            None
-        };
         input.parse::<Token![=]>()?;
 
         Ok(Self {
             name: name.to_string(),
-            generics,
             ty: input.parse::<Type>()?,
         })
     }
