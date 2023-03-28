@@ -294,24 +294,11 @@ impl NamedStructSchema<'_> {
     ) -> R {
         let type_tree = &mut TypeTree::from_type(&field.ty);
         if let Some(aliases) = &self.aliases {
-            if let Some(ref mut field_types) = type_tree.children {
-                for (new_generic, old_generic_matcher) in aliases.iter() {
-                    if let Some(field_old_generic) = field_types
-                        .iter()
-                        .enumerate()
-                        .find_map(|(index, field_ty)| {
-                            if field_ty == *old_generic_matcher {
-                                Some(index)
-                            } else {
-                                None
-                            }
-                        })
-                        .and_then(|index| field_types.get_mut(index))
-                    {
-                        *field_old_generic = new_generic.clone();
-                    }
+            for (new_generic, old_generic_matcher) in aliases.iter() {
+                if let Some(generic_match) = type_tree.find_mut(old_generic_matcher) {
+                    *generic_match = new_generic.clone();
                 }
-            };
+            }
         }
 
         let mut field_features = field
