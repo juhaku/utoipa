@@ -4,9 +4,9 @@ use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
 use quote::{format_ident, quote, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, GenericParam, Generics, Lifetime, LifetimeParam, Path,
-    PathArguments, Token, Variant, Visibility,
+    parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
+    Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, GenericParam, Generics,
+    Lifetime, LifetimeParam, Path, PathArguments, Token, Type, Variant, Visibility,
 };
 
 use crate::{
@@ -78,24 +78,36 @@ impl<'a> Schema<'a> {
 impl ToTokens for Schema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ident = self.ident;
-        let variant = SchemaVariant::new(self.data, self.attributes, ident, self.generics, None);
+        let variant = SchemaVariant::new(
+            self.data,
+            self.attributes,
+            ident,
+            self.generics,
+            None::<Vec<(TypeTree, &TypeTree)>>,
+        );
 
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let life = &Lifetime::new(Schema::TO_SCHEMA_LIFETIME, Span::call_site());
+
+        let schema_ty: Type = parse_quote!(#ident #ty_generics);
+        let schema_children = &*TypeTree::from_type(&schema_ty).children.unwrap_or_default();
 
         let aliases = self.aliases.as_ref().map(|aliases| {
             let alias_schemas = aliases
                 .iter()
                 .map(|alias| {
                     let name = &*alias.name;
+                    let alias_type_tree = TypeTree::from_type(&alias.ty);
 
                     let variant = SchemaVariant::new(
                         self.data,
                         self.attributes,
                         ident,
                         self.generics,
-                        Some(alias),
+                        alias_type_tree
+                            .children
+                            .map(|children| children.into_iter().zip(schema_children)),
                     );
                     quote! { (#name, #variant.into()) }
                 })
@@ -114,12 +126,17 @@ impl ToTokens for Schema<'_> {
                 .map(|alias| {
                     let name = quote::format_ident!("{}", alias.name);
                     let ty = &alias.ty;
-                    let (_, alias_type_generics, _) = &alias.generics.split_for_impl();
                     let vis = self.vis;
-                    let name_generics = &alias.get_name_lifetime_generics();
+                    let name_generics = alias.get_lifetimes().fold(
+                        Punctuated::<&GenericArgument, Comma>::new(),
+                        |mut acc, lifetime| {
+                            acc.push(lifetime);
+                            acc
+                        },
+                    );
 
                     quote! {
-                        #vis type #name #name_generics = #ty #alias_type_generics;
+                        #vis type #name < #name_generics > = #ty;
                     }
                 })
                 .collect::<TokenStream>()
@@ -164,12 +181,12 @@ enum SchemaVariant<'a> {
 }
 
 impl<'a> SchemaVariant<'a> {
-    pub fn new(
+    pub fn new<I: IntoIterator<Item = (TypeTree<'a>, &'a TypeTree<'a>)>>(
         data: &'a Data,
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-        alias: Option<&'a AliasSchema>,
+        aliases: Option<I>,
     ) -> SchemaVariant<'a> {
         match data {
             Data::Struct(content) => match &content.fields {
@@ -203,7 +220,7 @@ impl<'a> SchemaVariant<'a> {
                         fields: named,
                         generics: Some(generics),
                         schema_as,
-                        alias,
+                        aliases: aliases.map(|aliases| aliases.into_iter().collect()),
                     })
                 }
                 Fields::Unit => Self::Unit(UnitStructVariant),
@@ -260,7 +277,7 @@ pub struct NamedStructSchema<'a> {
     pub features: Option<Vec<Feature>>,
     pub rename_all: Option<RenameAll>,
     pub generics: Option<&'a Generics>,
-    pub alias: Option<&'a AliasSchema>,
+    pub aliases: Option<Vec<(TypeTree<'a>, &'a TypeTree<'a>)>>,
     pub schema_as: Option<As>,
 }
 
@@ -279,6 +296,13 @@ impl NamedStructSchema<'_> {
         yield_: impl FnOnce(NamedStructFieldOptions<'_>) -> R,
     ) -> R {
         let type_tree = &mut TypeTree::from_type(&field.ty);
+        if let Some(aliases) = &self.aliases {
+            for (new_generic, old_generic_matcher) in aliases.iter() {
+                if let Some(generic_match) = type_tree.find_mut(old_generic_matcher) {
+                    *generic_match = new_generic.clone();
+                }
+            }
+        }
 
         let mut field_features = field
             .attrs
@@ -314,25 +338,6 @@ impl NamedStructSchema<'_> {
                 Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
                 _ => None,
             });
-
-        if let Some((generic_types, alias)) = self.generics.zip(self.alias) {
-            generic_types
-                .type_params()
-                .enumerate()
-                .for_each(|(index, generic)| {
-                    if let Some(generic_type) = type_tree.find_mut_by_ident(&generic.ident) {
-                        generic_type.update(
-                            alias
-                                .generics
-                                .type_params()
-                                .nth(index)
-                                .unwrap()
-                                .ident
-                                .clone(),
-                        );
-                    };
-                })
-        }
 
         let deprecated = super::get_deprecated(&field.attrs);
         let value_type = field_features
@@ -953,7 +958,7 @@ impl ComplexEnum<'_> {
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
                         generics: None,
-                        alias: None,
+                        aliases: None,
                         schema_as: None,
                     },
                 })
@@ -1041,7 +1046,7 @@ impl ComplexEnum<'_> {
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
-                    alias: None,
+                    aliases: None,
                     schema_as: None,
                 }
                 .to_token_stream()
@@ -1109,7 +1114,7 @@ impl ComplexEnum<'_> {
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
-                    alias: None,
+                    aliases: None,
                     schema_as: None,
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);
@@ -1261,7 +1266,7 @@ impl ComplexEnum<'_> {
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     generics: None,
-                    alias: None,
+                    aliases: None,
                     schema_as: None,
                 };
                 let title = title_features.first().map(ToTokens::to_token_stream);
@@ -1494,42 +1499,50 @@ fn is_flatten(rule: &Option<SerdeValue>) -> bool {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct AliasSchema {
     pub name: String,
-    pub ty: Ident,
-    pub generics: Generics,
+    pub ty: Type,
 }
 
 impl AliasSchema {
-    fn get_name_lifetime_generics(&self) -> Option<Generics> {
-        let lifetimes = self
-            .generics
-            .lifetimes()
-            .filter(|lifetime| lifetime.lifetime.ident != "'static")
-            .map(|lifetime| GenericParam::Lifetime(lifetime.clone()))
-            .collect::<Punctuated<GenericParam, Comma>>();
-
-        if !lifetimes.is_empty() {
-            Some(Generics {
-                params: lifetimes,
-                ..Default::default()
-            })
-        } else {
-            None
+    fn get_lifetimes(&self) -> impl Iterator<Item = &GenericArgument> {
+        fn lifetimes_from_type(ty: &Type) -> impl Iterator<Item = &GenericArgument> {
+            match ty {
+                Type::Path(type_path) => type_path
+                    .path
+                    .segments
+                    .iter()
+                    .flat_map(|segment| match &segment.arguments {
+                        PathArguments::AngleBracketed(angle_bracketed_args) => {
+                            Some(angle_bracketed_args.args.iter())
+                        }
+                        _ => None,
+                    })
+                    .flatten()
+                    .flat_map(|arg| match arg {
+                        GenericArgument::Type(type_argument) => {
+                            lifetimes_from_type(type_argument).collect::<Vec<_>>()
+                        }
+                        _ => vec![arg],
+                    })
+                    .filter(|generic_arg| matches!(generic_arg, syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static")),
+                _ => abort!(
+                    &ty.span(),
+                    "AliasSchema `get_lifetimes` only supports syn::TypePath types"
+                ),
+            }
         }
+
+        lifetimes_from_type(&self.ty)
     }
 }
 
 impl Parse for AliasSchema {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name = input.parse::<Ident>()?;
-        if input.peek(Token![<]) {
-            input.parse::<Generics>()?;
-        }
         input.parse::<Token![=]>()?;
 
         Ok(Self {
             name: name.to_string(),
-            ty: input.parse::<Ident>()?,
-            generics: input.parse()?,
+            ty: input.parse::<Type>()?,
         })
     }
 }

@@ -300,7 +300,7 @@ impl NamedStructResponse<'_> {
         let inline_schema = NamedStructSchema {
             attributes,
             fields,
-            alias: None,
+            aliases: None,
             features: None,
             generics: None,
             rename_all: None,
@@ -364,7 +364,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         let ty = Self::to_type(ident);
 
         let inline_schema = NamedStructSchema {
-            alias: None,
+            aliases: None,
             fields,
             features: None,
             generics: None,

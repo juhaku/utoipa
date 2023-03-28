@@ -4023,7 +4023,7 @@ fn derive_schema_with_generics_and_lifetimes() {
     struct TResult;
 
     let value = api_doc_aliases! {
-        #[aliases(Paginated1<'b> = Paginated<'b, String>, Paginated2 = Paginated<'b, Value>)]
+        #[aliases(Paginated1 = Paginated<'b, String>, Paginated2 = Paginated<'b, Cow<'c, bool>>)]
         struct Paginated<'r, TResult> {
             pub total: usize,
             pub data: Vec<TResult>,
@@ -4072,7 +4072,7 @@ fn derive_schema_with_generics_and_lifetimes() {
                         "data": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/components/schemas/Value",
+                                "type": "boolean"
                             }
                         },
                         "next": {
