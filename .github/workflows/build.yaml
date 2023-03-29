@@ -25,11 +25,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 2
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/bin/
@@ -61,6 +61,14 @@ jobs:
           echo "utoipa_changed=$utoipa_changed" >> $GITHUB_OUTPUT
           echo "gen_changed=$gen_changed" >> $GITHUB_OUTPUT
           echo "swagger_changed=$swagger_changed" >> $GITHUB_OUTPUT
+
+      - name: Check format
+        run: |
+          cargo fmt --check --package ${matrix.testset}
+
+      - name: Check clippy
+        run: |
+          cargo clippy --quiet --forzen --locked --package ${matrix.testset}
 
       - name: Run tests
         run: |
