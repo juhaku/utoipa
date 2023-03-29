@@ -1,4 +1,4 @@
-# utoipa - Auto generated OpenAPI documentation
+# utoipa - Auto-generated OpenAPI documentation
 
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/crates/v/utoipa.svg?label=crates.io&color=orange&logo=rust)](https://crates.io/crates/utoipa)
@@ -7,27 +7,27 @@
 
 Pronounced **_/ju:ˈtoʊ:i.pɑ/_** or **_/ju:ˈtoʊˌaɪ.piˈeɪ/_** whatever works better for you.
 
-Want to have your API documented with OpenAPI? But you don't want to see the
-trouble with manual YAML or JSON tweaking? Would like it to be so easy that it would almost
-be like utopic? Don't worry utoipa is just there to fill this gap. It aims to do if not all then
-the most of heavy lifting for you enabling you to focus writing the actual API logic instead of
+Want to have your API documented with OpenAPI? But don't want to be bothered
+with manual YAML or JSON tweaking? Would like it to be so easy that it would almost
+be utopic? Don't worry: utoipa is here to fill this gap. It aims to do, if not all, then
+most of the heavy lifting for you, enabling you to focus on writing the actual API logic instead of
 documentation. It aims to be _minimal_, _simple_ and _fast_. It uses simple proc macros which
 you can use to annotate your code to have items documented.
 
-Utoipa crate provides auto generated OpenAPI documentation for Rust REST APIs. It treats
-code first approach as a first class citizen and simplifies API documentation by providing
+The `utoipa` crate provides auto-generated OpenAPI documentation for Rust REST APIs. It treats
+code-first approach as a first class citizen and simplifies API documentation by providing
 simple macros for generating the documentation from your code.
 
-It also contains Rust types of OpenAPI spec allowing you to write the OpenAPI spec only using
+It also contains Rust types of the OpenAPI spec, allowing you to write the OpenAPI spec only using
 Rust if auto generation is not your flavor or does not fit your purpose.
 
-Long term goal of the library is to be the place to go when OpenAPI documentation is needed in Rust
+Long term goal of the library is to be the place to go when OpenAPI documentation is needed in any Rust
 codebase.
 
 Utoipa is framework agnostic and could be used together with any web framework or even without one. While
-being portable and standalone one of its key aspects is simple integration with web frameworks.
+being portable and standalone, one of its key aspects is simple integration with web frameworks.
 
-## Choose your flavor and document your API with ice cold IPA
+## Choose your flavor and document your API with ice-cold IPA
 
 Existing [examples](./examples) for following frameworks:
 
@@ -38,7 +38,7 @@ Existing [examples](./examples) for following frameworks:
 - **[rocket](https://github.com/SergioBenitez/Rocket)**
 
 Even if there is no example for your favourite framework `utoipa` can be used with any
-web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
+web framework which supports decorating functions with macros similarly to the **warp** and **tide** examples.
 
 ### Community examples
 
@@ -48,8 +48,8 @@ web framework which supports decorating functions with macros similarly to **war
 
 ## What's up with the word play?
 
-The name comes from words `utopic` and `api` where `uto` is the first three letters of _utopic_
-and the `ipa` is _api_ reversed. Aaand... `ipa` is also awesome type of beer :beer:.
+The name comes from the words `utopic` and `api` where `uto` are the first three letters of _utopic_
+and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer :beer:.
 
 ## Crate Features
 
@@ -154,11 +154,11 @@ mod pet_api {
 ```
 Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 
-_This attribute macro substantially will create another struct named with `__path_` prefix + handler function name.
+_This attribute macro will create another struct named with `__path_` prefix + handler function name.
 So when you implement `some_handler` function in different file and want to export this, make sure `__path_some_handler`
 in the module can also be accessible from the root._
 
-Tie the `Schema` and the endpoint above to the OpenApi schema with following `OpenApi` derive proc macro.
+Tie the `Schema` and the endpoint above to the OpenAPI schema with following `OpenApi` derive proc macro.
 
 ```rust
 use utoipa::OpenApi;
