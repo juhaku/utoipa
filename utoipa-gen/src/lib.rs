@@ -2672,9 +2672,9 @@ impl ToTokens for AnyValue {
             Self::DefaultTrait {
                 struct_ident,
                 field_ident,
-            } => tokens.extend(
-                quote! {::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()},
-            ),
+            } => tokens.extend(quote! {
+                serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+            }),
         }
     }
 }
