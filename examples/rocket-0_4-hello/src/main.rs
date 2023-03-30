@@ -15,7 +15,7 @@ fn main() {
     struct ApiDoc;
 
     rocket::ignite()
-        .manage(Arc::new(Config::from("/api-doc/openapi.json")))
+        .manage(Arc::new(Config::from("/api-docs/openapi.json")))
         .manage(ApiDoc::openapi())
         .mount("/", routes![hello, serve_api_doc, serve_swagger])
         .launch();
@@ -44,7 +44,7 @@ fn serve_swagger(tail: PathBuf, config: State<Arc<Config>>) -> Response<'static>
     }
 }
 
-#[get("/api-doc/openapi.json")]
+#[get("/api-docs/openapi.json")]
 fn serve_api_doc(openapi: State<utoipa::openapi::OpenApi>) -> Response<'static> {
     let json_string = serde_json::to_string(openapi.inner()).unwrap();
     let len = json_string.len() as u64;

@@ -70,7 +70,7 @@ async fn main() -> Result<(), impl Error> {
             .wrap(Logger::default())
             .configure(todo::configure(store.clone()))
             .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi.clone()),
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
     })
     .bind((Ipv4Addr::UNSPECIFIED, 8080))?

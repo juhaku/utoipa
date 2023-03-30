@@ -49,7 +49,7 @@ fn rocket() -> Rocket<Build> {
         .register("/todo", catchers![unauthorized])
         .mount(
             "/",
-            SwaggerUi::new("/swagger-ui/<_..>").url("/api-doc/openapi.json", ApiDoc::openapi()),
+            SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
         .mount(
             "/todo",

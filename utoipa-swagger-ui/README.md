@@ -55,7 +55,7 @@ HttpServer::new(move || {
     App::new()
         .service(
             SwaggerUi::new("/swagger-ui/{_:.*}")
-                .url("/api-doc/openapi.json", ApiDoc::openapi()),
+                .url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
   })
   .bind((Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
@@ -70,7 +70,7 @@ fn rocket() -> Rocket<Build> {
         .mount(
             "/",
             SwaggerUi::new("/swagger-ui/<_..>")
-                .url("/api-doc/openapi.json", ApiDoc::openapi()),
+                .url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
 }
 ```
@@ -80,7 +80,7 @@ Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/maste
 ```rust
 let app = Router::new()
     .merge(SwaggerUi::new("/swagger-ui")
-        .url("/api-doc/openapi.json", ApiDoc::openapi()));
+        .url("/api-docs/openapi.json", ApiDoc::openapi()));
 ```
 
 # License

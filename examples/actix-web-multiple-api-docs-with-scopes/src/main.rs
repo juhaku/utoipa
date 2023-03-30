@@ -26,11 +26,11 @@ async fn main() -> Result<(), impl Error> {
             )
             .service(SwaggerUi::new("/swagger-ui/{_:.*}").urls(vec![
                 (
-                    Url::new("api1", "/api-doc/openapi1.json"),
+                    Url::new("api1", "/api-docs/openapi1.json"),
                     ApiDoc1::openapi(),
                 ),
                 (
-                    Url::with_primary("api2", "/api-doc/openapi2.json", true),
+                    Url::with_primary("api2", "/api-docs/openapi2.json", true),
                     ApiDoc2::openapi(),
                 ),
             ]))

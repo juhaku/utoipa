@@ -60,7 +60,7 @@
 //!         App::new()
 //!             .service(
 //!                 SwaggerUi::new("/swagger-ui/{_:.*}")
-//!                     .url("/api-doc/openapi.json", ApiDoc::openapi()),
+//!                     .url("/api-docs/openapi.json", ApiDoc::openapi()),
 //!             )
 //!     })
 //!     .bind((Ipv4Addr::UNSPECIFIED, 8989)).unwrap()
@@ -84,7 +84,7 @@
 //!         .mount(
 //!             "/",
 //!             SwaggerUi::new("/swagger-ui/<_..>")
-//!                 .url("/api-doc/openapi.json", ApiDoc::openapi()),
+//!                 .url("/api-docs/openapi.json", ApiDoc::openapi()),
 //!         )
 //! }
 //! ```
@@ -106,7 +106,7 @@
 //!# {
 //! let app = Router::<S, B>::new()
 //!     .merge(SwaggerUi::new("/swagger-ui")
-//!         .url("/api-doc/openapi.json", ApiDoc::openapi()));
+//!         .url("/api-docs/openapi.json", ApiDoc::openapi()));
 //!# }
 //! ```
 use std::{borrow::Cow, error::Error, mem, sync::Arc};
@@ -138,7 +138,7 @@ struct SwaggerUiDist;
 /// # #[openapi()]
 /// # struct ApiDoc;
 /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-///     .url("/api-doc/openapi.json", ApiDoc::openapi());
+///     .url("/api-docs/openapi.json", ApiDoc::openapi());
 /// ```
 ///
 /// Create a new [`SwaggerUi`] with custom [`Config`] and [`oauth::Config`].
@@ -149,7 +149,7 @@ struct SwaggerUiDist;
 /// # #[openapi()]
 /// # struct ApiDoc;
 /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-///     .url("/api-doc/openapi.json", ApiDoc::openapi())
+///     .url("/api-docs/openapi.json", ApiDoc::openapi())
 ///     .config(Config::default().try_it_out_enabled(true).filter(true))
 ///     .oauth(oauth::Config::new());
 /// ```
@@ -210,7 +210,7 @@ impl SwaggerUi {
     /// ```rust
     /// # use utoipa_swagger_ui::SwaggerUi;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-doc/openapi.json", utoipa::openapi::OpenApi::new(
+    ///     .url("/api-docs/openapi.json", utoipa::openapi::OpenApi::new(
     ///        utoipa::openapi::Info::new("my application", "0.1.0"),
     ///        utoipa::openapi::Paths::new(),
     /// ));
@@ -224,7 +224,7 @@ impl SwaggerUi {
     /// # #[openapi()]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-doc/openapi.json", ApiDoc::openapi());
+    ///     .url("/api-docs/openapi.json", ApiDoc::openapi());
     /// ```
     pub fn url<U: Into<Url<'static>>>(mut self, url: U, openapi: OpenApi) -> Self {
         self.urls.push((url.into(), openapi));
@@ -254,8 +254,8 @@ impl SwaggerUi {
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .urls(
     ///       vec![
-    ///          (Url::with_primary("api doc 1", "/api-doc/openapi.json", true), ApiDoc::openapi()),
-    ///          (Url::new("api doc 2", "/api-doc/openapi2.json"), ApiDoc2::openapi())
+    ///          (Url::with_primary("api doc 1", "/api-docs/openapi.json", true), ApiDoc::openapi()),
+    ///          (Url::new("api doc 2", "/api-docs/openapi2.json"), ApiDoc2::openapi())
     ///     ]
     /// );
     /// ```
@@ -352,7 +352,7 @@ impl SwaggerUi {
     /// # #[openapi()]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
+    ///     .url("/api-docs/openapi.json", ApiDoc::openapi())
     ///     .oauth(oauth::Config::new()
     ///         .client_id("client-id")
     ///         .scopes(vec![String::from("openid")])
@@ -382,7 +382,7 @@ impl SwaggerUi {
     /// # #[openapi()]
     /// # struct ApiDoc;
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
-    ///     .url("/api-doc/openapi.json", ApiDoc::openapi())
+    ///     .url("/api-docs/openapi.json", ApiDoc::openapi())
     ///     .config(Config::default().try_it_out_enabled(true).filter(true));
     /// ```
     pub fn config(mut self, config: Config<'static>) -> Self {
@@ -414,7 +414,7 @@ impl<'a> Url<'a> {
     ///
     /// ```rust
     /// # use utoipa_swagger_ui::Url;
-    /// let url = Url::new("My Api", "/api-doc/openapi.json");
+    /// let url = Url::new("My Api", "/api-docs/openapi.json");
     /// ```
     pub fn new(name: &'a str, url: &'a str) -> Self {
         Self {
@@ -439,7 +439,7 @@ impl<'a> Url<'a> {
     /// Set "My Api" as primary.
     /// ```rust
     /// # use utoipa_swagger_ui::Url;
-    /// let url = Url::with_primary("My Api", "/api-doc/openapi.json", true);
+    /// let url = Url::with_primary("My Api", "/api-docs/openapi.json", true);
     /// ```
     pub fn with_primary(name: &'a str, url: &'a str, primary: bool) -> Self {
         Self {
@@ -496,15 +496,15 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// If there is multiple api docs to serve config can be also directly created with [`Config::new`]
 /// ```rust
 /// # use utoipa_swagger_ui::Config;
-/// let config = Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]);
+/// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
 /// ```
 ///
 /// Or same as above but more verbose syntax.
 /// ```rust
 /// # use utoipa_swagger_ui::{Config, Url};
 /// let config = Config::new([
-///     Url::new("api1", "/api-doc/openapi1.json"),
-///     Url::new("api2", "/api-doc/openapi2.json")
+///     Url::new("api1", "/api-docs/openapi1.json"),
+///     Url::new("api2", "/api-docs/openapi2.json")
 /// ]);
 /// ```
 ///
@@ -512,7 +512,7 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 /// ```rust
 /// # use utoipa_swagger_ui::{Config, oauth};
 /// let config = Config::with_oauth_config(
-///     ["/api-doc/openapi1.json", "/api-doc/openapi2.json"],
+///     ["/api-docs/openapi1.json", "/api-docs/openapi2.json"],
 ///     oauth::Config::new(),
 /// );
 /// ```
@@ -713,7 +713,7 @@ impl<'a> Config<'a> {
     /// Create new config with 2 api doc urls.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]);
+    /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
     /// ```
     pub fn new<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(urls: I) -> Self {
         Self::new_(urls, None)
@@ -726,7 +726,7 @@ impl<'a> Config<'a> {
     /// ```rust
     /// # use utoipa_swagger_ui::{Config, oauth};
     /// let config = Config::with_oauth_config(
-    ///     ["/api-doc/openapi1.json", "/api-doc/openapi2.json"],
+    ///     ["/api-docs/openapi1.json", "/api-docs/openapi2.json"],
     ///     oauth::Config::new(),
     /// );
     /// ```
@@ -775,7 +775,7 @@ impl<'a> Config<'a> {
     /// Set external config url.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .config_url("http://url.to.external.config");
     /// ```
     pub fn config_url<S: Into<String>>(mut self, config_url: S) -> Self {
@@ -793,7 +793,7 @@ impl<'a> Config<'a> {
     /// Set custom dom id where the Swagger UI will place it's content.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"]).dom_id("#my-id");
+    /// let config = Config::new(["/api-docs/openapi.json"]).dom_id("#my-id");
     /// ```
     pub fn dom_id<S: Into<String>>(mut self, dom_id: S) -> Self {
         self.dom_id = Some(dom_id.into());
@@ -811,7 +811,7 @@ impl<'a> Config<'a> {
     /// Enable query config.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .query_config_enabled(true);
     /// ```
     pub fn query_config_enabled(mut self, query_config_enabled: bool) -> Self {
@@ -833,7 +833,7 @@ impl<'a> Config<'a> {
     /// Disable the deep linking.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .deep_linking(false);
     /// ```
     pub fn deep_linking(mut self, deep_linking: bool) -> Self {
@@ -851,7 +851,7 @@ impl<'a> Config<'a> {
     /// Allow operation id to be shown.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_operation_id(true);
     /// ```
     pub fn display_operation_id(mut self, display_operation_id: bool) -> Self {
@@ -869,7 +869,7 @@ impl<'a> Config<'a> {
     /// Configure Swagger to use Base Layout instead of Standalone
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .use_base_layout();
     /// ```
     pub fn use_base_layout(mut self) -> Self {
@@ -887,7 +887,7 @@ impl<'a> Config<'a> {
     /// Hide all the models.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_models_expand_depth(-1);
     /// ```
     pub fn default_models_expand_depth(mut self, default_models_expand_depth: isize) -> Self {
@@ -902,7 +902,7 @@ impl<'a> Config<'a> {
     ///
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_expand_depth(1);
     /// ```
     pub fn default_model_expand_depth(mut self, default_model_expand_depth: isize) -> Self {
@@ -922,7 +922,7 @@ impl<'a> Config<'a> {
     ///
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .default_model_rendering(r#"["example"*, "model"]"#);
     /// ```
     pub fn default_model_rendering<S: Into<String>>(mut self, default_model_rendering: S) -> Self {
@@ -939,7 +939,7 @@ impl<'a> Config<'a> {
     /// Enable request duration of the _**'Try it out'**_ requests.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .display_request_duration(true);
     /// ```
     pub fn display_request_duration(mut self, display_request_duration: bool) -> Self {
@@ -958,7 +958,7 @@ impl<'a> Config<'a> {
     ///
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .doc_expansion(r#"["list"*, "full", "none"]"#);
     /// ```
     pub fn doc_expansion<S: Into<String>>(mut self, doc_expansion: S) -> Self {
@@ -979,7 +979,7 @@ impl<'a> Config<'a> {
     /// Enable filtering.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .filter(true);
     /// ```
     pub fn filter(mut self, filter: bool) -> Self {
@@ -997,7 +997,7 @@ impl<'a> Config<'a> {
     /// Display only 4 operations.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .max_displayed_tags(4);
     /// ```
     pub fn max_displayed_tags(mut self, max_displayed_tags: usize) -> Self {
@@ -1014,7 +1014,7 @@ impl<'a> Config<'a> {
     /// Show vendor extensions.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_extensions(true);
     /// ```
     pub fn show_extensions(mut self, show_extensions: bool) -> Self {
@@ -1032,7 +1032,7 @@ impl<'a> Config<'a> {
     /// Show common extensions.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_common_extensions(true);
     /// ```
     pub fn show_common_extensions(mut self, show_common_extensions: bool) -> Self {
@@ -1050,7 +1050,7 @@ impl<'a> Config<'a> {
     /// Enable _**'Try it out'**_ section by default.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .try_it_out_enabled(true);
     /// ```
     pub fn try_it_out_enabled(mut self, try_it_out_enabled: bool) -> Self {
@@ -1070,7 +1070,7 @@ impl<'a> Config<'a> {
     /// Enable request snippets section.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .request_snippets_enabled(true);
     /// ```
     pub fn request_snippets_enabled(mut self, request_snippets_enabled: bool) -> Self {
@@ -1086,7 +1086,7 @@ impl<'a> Config<'a> {
     /// Add oauth redirect url.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .oauth2_redirect_url("http://my.oauth2.redirect.url");
     /// ```
     pub fn oauth2_redirect_url<S: Into<String>>(mut self, oauth2_redirect_url: S) -> Self {
@@ -1104,7 +1104,7 @@ impl<'a> Config<'a> {
     /// Use request after `requestInterceptor` to produce the curl command.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .show_mutated_request(true);
     /// ```
     pub fn show_mutated_request(mut self, show_mutated_request: bool) -> Self {
@@ -1127,14 +1127,14 @@ impl<'a> Config<'a> {
     /// Set allowed http methods explicitly.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .supported_submit_methods(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
     /// ```
     ///
     /// Allow _**'Try it out'**_ for only GET operations.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .supported_submit_methods(["get"]);
     /// ```
     pub fn supported_submit_methods<I: IntoIterator<Item = S>, S: Into<String>>(
@@ -1164,7 +1164,7 @@ impl<'a> Config<'a> {
     /// Disable the validator.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .validator_url("none");
     /// ```
     pub fn validator_url<S: Into<String>>(mut self, validator_url: S) -> Self {
@@ -1186,7 +1186,7 @@ impl<'a> Config<'a> {
     /// Enable passing credentials to CORS requests.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .with_credentials(true);
     /// ```
     pub fn with_credentials(mut self, with_credentials: bool) -> Self {
@@ -1205,7 +1205,7 @@ impl<'a> Config<'a> {
     /// Persists authorization throughout browser close and refresh.
     /// ```rust
     /// # use utoipa_swagger_ui::Config;
-    /// let config = Config::new(["/api-doc/openapi.json"])
+    /// let config = Config::new(["/api-docs/openapi.json"])
     ///     .persist_authorization(true);
     /// ```
     pub fn persist_authorization(mut self, persist_authorization: bool) -> Self {
@@ -1395,7 +1395,7 @@ window.ui = SwaggerUIBundle({
     #[test]
     fn format_swagger_config_json_single_url() {
         let formatted_config = match format_config(
-            &Config::new(["/api-doc/openapi1.json"]),
+            &Config::new(["/api-docs/openapi1.json"]),
             String::from(TEST_INITIAL_CONFIG),
         ) {
             Ok(file) => file,
@@ -1405,7 +1405,7 @@ window.ui = SwaggerUIBundle({
         const EXPECTED: &str = r###"
 window.ui = SwaggerUIBundle({
     "dom_id": "#swagger-ui",
-  "url": "/api-doc/openapi1.json",
+  "url": "/api-docs/openapi1.json",
   "deepLinking": true,
   "layout": "StandaloneLayout",
   presets: [
@@ -1423,7 +1423,7 @@ window.ui = SwaggerUIBundle({
     #[test]
     fn format_swagger_config_json_single_url_with_name() {
         let formatted_config = match format_config(
-            &Config::new([Url::new("api-doc1", "/api-doc/openapi1.json")]),
+            &Config::new([Url::new("api-doc1", "/api-docs/openapi1.json")]),
             String::from(TEST_INITIAL_CONFIG),
         ) {
             Ok(file) => file,
@@ -1436,7 +1436,7 @@ window.ui = SwaggerUIBundle({
   "urls": [
     {
       "name": "api-doc1",
-      "url": "/api-doc/openapi1.json"
+      "url": "/api-docs/openapi1.json"
     }
   ],
   "deepLinking": true,
@@ -1458,7 +1458,7 @@ window.ui = SwaggerUIBundle({
         let formatted_config = match format_config(
             &Config::new([Url::with_primary(
                 "api-doc1",
-                "/api-doc/openapi1.json",
+                "/api-docs/openapi1.json",
                 true,
             )]),
             String::from(TEST_INITIAL_CONFIG),
@@ -1474,7 +1474,7 @@ window.ui = SwaggerUIBundle({
   "urls": [
     {
       "name": "api-doc1",
-      "url": "/api-doc/openapi1.json"
+      "url": "/api-docs/openapi1.json"
     }
   ],
   "deepLinking": true,
@@ -1495,8 +1495,8 @@ window.ui = SwaggerUIBundle({
     fn format_swagger_config_multiple_urls_with_primary() {
         let formatted_config = match format_config(
             &Config::new([
-                Url::with_primary("api-doc1", "/api-doc/openapi1.json", true),
-                Url::new("api-doc2", "/api-doc/openapi2.json"),
+                Url::with_primary("api-doc1", "/api-docs/openapi1.json", true),
+                Url::new("api-doc2", "/api-docs/openapi2.json"),
             ]),
             String::from(TEST_INITIAL_CONFIG),
         ) {
@@ -1511,11 +1511,11 @@ window.ui = SwaggerUIBundle({
   "urls": [
     {
       "name": "api-doc1",
-      "url": "/api-doc/openapi1.json"
+      "url": "/api-docs/openapi1.json"
     },
     {
       "name": "api-doc2",
-      "url": "/api-doc/openapi2.json"
+      "url": "/api-docs/openapi2.json"
     }
   ],
   "deepLinking": true,
@@ -1535,7 +1535,7 @@ window.ui = SwaggerUIBundle({
     #[test]
     fn format_swagger_config_multiple_urls() {
         let formatted_config = match format_config(
-            &Config::new(["/api-doc/openapi1.json", "/api-doc/openapi2.json"]),
+            &Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]),
             String::from(TEST_INITIAL_CONFIG),
         ) {
             Ok(file) => file,
@@ -1547,12 +1547,12 @@ window.ui = SwaggerUIBundle({
     "dom_id": "#swagger-ui",
   "urls": [
     {
-      "name": "/api-doc/openapi1.json",
-      "url": "/api-doc/openapi1.json"
+      "name": "/api-docs/openapi1.json",
+      "url": "/api-docs/openapi1.json"
     },
     {
-      "name": "/api-doc/openapi2.json",
-      "url": "/api-doc/openapi2.json"
+      "name": "/api-docs/openapi2.json",
+      "url": "/api-docs/openapi2.json"
     }
   ],
   "deepLinking": true,
@@ -1572,7 +1572,7 @@ window.ui = SwaggerUIBundle({
     #[test]
     fn format_swagger_config_with_multiple_fields() {
         let formatted_config = match format_config(
-            &Config::new(["/api-doc/openapi1.json"])
+            &Config::new(["/api-docs/openapi1.json"])
                 .deep_linking(false)
                 .dom_id("#another-el")
                 .default_model_expand_depth(-1)
@@ -1604,7 +1604,7 @@ window.ui = SwaggerUIBundle({
         const EXPECTED: &str = r###"
 window.ui = SwaggerUIBundle({
     "dom_id": "#another-el",
-  "url": "/api-doc/openapi1.json",
+  "url": "/api-docs/openapi1.json",
   "queryConfigEnabled": true,
   "deepLinking": false,
   "displayOperationId": true,

@@ -13,7 +13,7 @@ use crate::todo::Store;
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    let config = Arc::new(Config::from("/api-doc/openapi.json"));
+    let config = Arc::new(Config::from("/api-docs/openapi.json"));
     let mut app = tide::with_state(config);
 
     #[derive(OpenApi)]
@@ -47,7 +47,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     // serve OpenApi json
-    app.at("/api-doc/openapi.json")
+    app.at("/api-docs/openapi.json")
         .get(|_| async move { Ok(Response::builder(200).body(json!(ApiDoc::openapi()))) });
 
     // serve Swagger UI
