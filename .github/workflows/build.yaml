@@ -17,7 +17,7 @@ jobs:
   test:
     strategy:
       matrix:
-        testset:
+        crate:
           - utoipa
           - utoipa-gen
           - utoipa-swagger-ui
@@ -64,22 +64,22 @@ jobs:
 
       - name: Check format
         run: |
-          cargo fmt --check --package ${matrix.testset}
+          cargo fmt --check --package ${{ matrix.crate }}
 
       - name: Check clippy
         run: |
-          cargo clippy --quiet --forzen --locked --package ${matrix.testset}
+          cargo clippy --quiet --forzen --locked --package ${{ matrix.crate }}
 
       - name: Run tests
         run: |
-          if [[ "${{ matrix.testset }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.utoipa_changed }} == true ]]; then
+          if [[ "${{ matrix.crate }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.utoipa_changed }} == true ]]; then
             cargo test -p utoipa --features openapi_extensions,yaml
-          elif [[ "${{ matrix.testset }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
+          elif [[ "${{ matrix.crate }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
             cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,utoipa/uuid,utoipa/time,time,utoipa/repr
 
             cargo test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
             cargo test -p utoipa-gen --test path_derive_rocket --features rocket_extras
             cargo test -p utoipa-gen --test path_derive_axum_test --features axum_extras
-          elif [[ "${{ matrix.testset }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
+          elif [[ "${{ matrix.crate }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
             cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
           fi
