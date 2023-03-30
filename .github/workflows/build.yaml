@@ -68,7 +68,7 @@ jobs:
 
       - name: Check clippy
         run: |
-          cargo clippy --quiet --forzen --locked --package ${{ matrix.crate }}
+          cargo clippy --quiet --frozen --locked --package ${{ matrix.crate }}
 
       - name: Run tests
         run: |
