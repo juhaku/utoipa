@@ -284,18 +284,19 @@ mod todo {
     }
 
     // normally you should create a middleware for this but this is sufficient for sake of example.
-    fn check_api_key(require_api_key: bool, headers: HeaderMap) -> Result<(), impl IntoResponse> {
+    fn check_api_key(
+        require_api_key: bool,
+        headers: HeaderMap,
+    ) -> Result<(), (StatusCode, Json<TodoError>)> {
         match headers.get("todo_apikey") {
             Some(header) if header != "utoipa-rocks" => Err((
                 StatusCode::UNAUTHORIZED,
                 Json(TodoError::Unauthorized(String::from("incorrect api key"))),
-            )
-                .into_response()),
+            )),
             None if require_api_key => Err((
                 StatusCode::UNAUTHORIZED,
                 Json(TodoError::Unauthorized(String::from("missing api key"))),
-            )
-                .into_response()),
+            )),
             _ => Ok(()),
         }
     }
