@@ -13,7 +13,7 @@ use rocket::{
     Data as RocketData, Request, Response, Route,
 };
 
-use crate::{Config, SwaggerFile, SwaggerUi};
+use crate::{ApiDoc, Config, SwaggerFile, SwaggerUi};
 
 impl From<SwaggerUi> for Vec<Route> {
     fn from(swagger_ui: SwaggerUi) -> Self {
@@ -25,14 +25,13 @@ impl From<SwaggerUi> for Vec<Route> {
         let urls = swagger_ui
             .urls
             .into_iter()
-            .map(|(url, openapi)| {
-                (
-                    url,
-                    serde_json::to_value(openapi)
-                        .expect("Cannot convert OpenApi to serde_json::Value"),
-                )
-            })
-            .chain(swagger_ui.external_urls.into_iter())
+            .map(|(url, openapi)| (url, ApiDoc::Utoipa(openapi)))
+            .chain(
+                swagger_ui
+                    .external_urls
+                    .into_iter()
+                    .map(|(url, api_doc)| (url, ApiDoc::Value(api_doc))),
+            )
             .map(|(url, openapi)| {
                 api_docs.push(Route::new(
                     rocket::http::Method::Get,
@@ -65,7 +64,7 @@ impl From<SwaggerUi> for Vec<Route> {
 }
 
 #[derive(Clone)]
-struct ServeApiDoc(serde_json::Value);
+struct ServeApiDoc(ApiDoc);
 
 #[rocket::async_trait]
 impl Handler for ServeApiDoc {

@@ -7,7 +7,7 @@ use axum::{
     Json, Router,
 };
 
-use crate::{Config, SwaggerUi, Url};
+use crate::{ApiDoc, Config, SwaggerUi, Url};
 
 impl<S, B> From<SwaggerUi> for Router<S, B>
 where
@@ -23,23 +23,16 @@ where
                 Router::<S, B>::new(),
                 Vec::<Url>::with_capacity(urls_capacity + external_urls_capacity),
             ),
-            |router_and_urls, url| {
-                let (url, openapi) = url;
-
-                add_api_doc_to_urls(
-                    router_and_urls,
-                    (
-                        url,
-                        serde_json::to_value(openapi)
-                            .expect("Cannot convert OpenApi to serde_json::Value"),
-                    ),
-                )
+            |router_and_urls, (url, openapi)| {
+                add_api_doc_to_urls(router_and_urls, (url, ApiDoc::Utoipa(openapi)))
             },
         );
-        let (router, urls) = swagger_ui
-            .external_urls
-            .into_iter()
-            .fold((router, urls), add_api_doc_to_urls);
+        let (router, urls) = swagger_ui.external_urls.into_iter().fold(
+            (router, urls),
+            |router_and_urls, (url, openapi)| {
+                add_api_doc_to_urls(router_and_urls, (url, ApiDoc::Value(openapi)))
+            },
+        );
 
         let config = if let Some(config) = swagger_ui.config {
             if config.url.is_some() || !config.urls.is_empty() {
@@ -67,7 +60,7 @@ where
 
 fn add_api_doc_to_urls<S, B>(
     router_and_urls: (Router<S, B>, Vec<Url<'static>>),
-    url: (Url<'static>, serde_json::Value),
+    url: (Url<'static>, ApiDoc),
 ) -> (Router<S, B>, Vec<Url<'static>>)
 where
     S: Clone + Send + Sync + 'static,

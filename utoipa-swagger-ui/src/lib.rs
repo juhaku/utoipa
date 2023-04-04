@@ -1368,6 +1368,28 @@ fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error>
     Ok(file.replace("{{config}}", &config_json[2..&config_json.len() - 2]))
 }
 
+/// Is used to provide general way to deliver multiple types of OpenAPI docs via `utoipa-swagger-ui`.
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[derive(Clone)]
+enum ApiDoc {
+    Utoipa(utoipa::openapi::OpenApi),
+    Value(serde_json::Value),
+}
+
+// Delegate serde's `Serialize` to the variant itself.
+#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+impl Serialize for ApiDoc {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Value(value) => value.serialize(serializer),
+            Self::Utoipa(utoipa) => utoipa.serialize(serializer),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use similar::TextDiff;
