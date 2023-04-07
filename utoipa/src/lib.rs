@@ -77,7 +77,7 @@
 //! * **preserve_order** Preserve order of properties when serializing the schema for a component.
 //!   When enabled, the properties are listed in order of fields in the corresponding struct definition.
 //!   When disabled, the properties are listed in alphabetical order.
-//! * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to 
+//! * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
 //!   `BTreeMap` and `HashMap`.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
