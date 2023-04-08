@@ -117,7 +117,7 @@ pub enum Feature {
     Description(Description),
     Deprecated(Deprecated),
     As(As),
-    AdditionalProperties(AdditionalProperites),
+    AdditionalProperties(AdditionalProperties),
     Required(Required),
 }
 
@@ -384,7 +384,7 @@ is_validatable! {
     Description => false,
     Deprecated => false,
     As => false,
-    AdditionalProperites => false,
+    AdditionalProperties => false,
     Required => false
 }
 
@@ -1408,9 +1408,9 @@ name!(As = "as");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct AdditionalProperites(bool);
+pub struct AdditionalProperties(bool);
 
-impl Parse for AdditionalProperites {
+impl Parse for AdditionalProperties {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
         Self: std::marker::Sized,
@@ -1419,7 +1419,7 @@ impl Parse for AdditionalProperites {
     }
 }
 
-impl ToTokens for AdditionalProperites {
+impl ToTokens for AdditionalProperties {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let additional_properties = &self.0;
         tokens.extend(quote!(
@@ -1430,10 +1430,10 @@ impl ToTokens for AdditionalProperites {
     }
 }
 
-name!(AdditionalProperites = "additional_properties");
+name!(AdditionalProperties = "additional_properties");
 
-impl From<AdditionalProperites> for Feature {
-    fn from(value: AdditionalProperites) -> Self {
+impl From<AdditionalProperties> for Feature {
+    fn from(value: AdditionalProperties) -> Self {
         Self::AdditionalProperties(value)
     }
 }
