@@ -5,7 +5,7 @@ use syn::{
 
 use crate::{
     component::features::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperites, As, Default, Example,
+        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Example,
         ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems,
         MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum,
         MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title,
@@ -109,7 +109,7 @@ impl Parse for NamedFieldFeatures {
             MaxItems,
             MinItems,
             SchemaWith,
-            AdditionalProperites,
+            AdditionalProperties,
             Required
         )))
     }

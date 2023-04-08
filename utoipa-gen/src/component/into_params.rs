@@ -11,7 +11,7 @@ use crate::{
     component::{
         self,
         features::{
-            self, AdditionalProperites, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
+            self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
             Explode, Format, Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
             MultipleOf, Names, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style,
             WriteOnly, XmlAttr,
@@ -247,7 +247,7 @@ impl Parse for FieldFeatures {
             Pattern,
             MaxItems,
             MinItems,
-            AdditionalProperites
+            AdditionalProperties
         )))
     }
 }
