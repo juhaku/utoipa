@@ -557,7 +557,7 @@ builder! {
     pub struct Object {
         /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
         /// `string` types.
-        #[serde(rename = "type")]
+        #[serde(rename = "type", skip_serializing_if="SchemaType::is_value")]
         pub schema_type: SchemaType,
 
         /// Changes the [`Object`] title.
@@ -1135,6 +1135,9 @@ pub enum SchemaType {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
     /// _schema_type_ [`SchemaType::Object`].
     Object,
+    /// Indicates generic JSON content. Used with [`Object`] and [`ObjectBuilder`] on a field
+    /// of any valid JSON type.
+    Value,
     /// Indicates string type of content. Used with [`Object`] and [`ObjectBuilder`] on a `string`
     /// field.
     String,
@@ -1149,6 +1152,11 @@ pub enum SchemaType {
     Boolean,
     /// Used with [`Array`] and [`ArrayBuilder`]. Indicates array type of content.
     Array,
+}
+impl SchemaType {
+    fn is_value(type_: &SchemaType) -> bool {
+        *type_ == SchemaType::Value
+    }
 }
 
 impl Default for SchemaType {

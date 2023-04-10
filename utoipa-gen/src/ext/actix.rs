@@ -78,7 +78,7 @@ fn get_primitive_args(value_args: Vec<FnArg>) -> impl Iterator<Item = TypeTree> 
             ValueType::Tuple => path_arg
                 .children
                 .expect("ValueType::Tuple will always have children"),
-            ValueType::Object => {
+            ValueType::Object | ValueType::Value => {
                 unreachable!("Value arguments does not have ValueType::Object arguments")
             }
         })

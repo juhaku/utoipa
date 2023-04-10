@@ -244,12 +244,14 @@ impl<'t> TypeTree<'t> {
 
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
-        let is_primitive = SchemaType(path).is_primitive();
+        let schema_type = SchemaType(path);
 
         Self {
             path: Some(Cow::Borrowed(path)),
-            value_type: if is_primitive {
+            value_type: if schema_type.is_primitive() {
                 ValueType::Primitive
+            } else if schema_type.is_value() {
+                ValueType::Value
             } else {
                 ValueType::Object
             },
@@ -321,6 +323,12 @@ impl<'t> TypeTree<'t> {
         self.is("Object")
     }
 
+    /// `Value` virtual type is used when any JSON value is required in OpenAPI spec. Typically used
+    /// with `value_type` attribute for a member of type `serde_json::Value`.
+    pub fn is_value(&self) -> bool {
+        self.is("Value")
+    }
+
     /// Check whether the [`TypeTree`]'s `generic_type` is [`GenericType::Option`]
     pub fn is_option(&self) -> bool {
         matches!(self.generic_type, Some(GenericType::Option))
@@ -356,6 +364,7 @@ pub enum ValueType {
     Primitive,
     Object,
     Tuple,
+    Value,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -678,6 +687,15 @@ impl<'c> ComponentSchema {
                 }
                 tokens.extend(features.to_token_stream());
                 nullable.to_tokens(tokens);
+            }
+            ValueType::Value => {
+                if type_tree.is_value() {
+                    tokens.extend(quote! {
+                        utoipa::openapi::ObjectBuilder::new()
+                            .schema_type(utoipa::openapi::schema::SchemaType::Value)
+                            #description_stream #deprecated_stream #nullable
+                    })
+                }
             }
             ValueType::Object => {
                 let is_inline = features.is_inline();
