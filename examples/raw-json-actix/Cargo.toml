@@ -1,0 +1,20 @@
+[package]
+name = "raw-json-actix"
+description = "Simple actix-web using raw JSON with utoipa and Swagger"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = [
+  "Example <example@example.com>"
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "4"
+env_logger = "0.10.0"
+serde_json = "1.0"
+utoipa = { path = "../../utoipa", features = ["actix_extras"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
+
+[workspace]
