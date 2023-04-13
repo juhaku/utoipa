@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{any::TypeId, borrow::Cow};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::abort;
@@ -10,6 +10,7 @@ use syn::{
 };
 
 use crate::{
+    autocfg::{self, SCHEMAS},
     component::features::{Example, Rename},
     doc_comment::CommentAttributes,
     Array, ResultExt,
@@ -64,14 +65,22 @@ impl<'a> Schema<'a> {
             None
         };
 
-        Self {
+        let schema = Self {
             data,
             ident,
             attributes,
             generics,
             aliases,
             vis,
-        }
+        };
+
+        #[cfg(feature = "autocfg")]
+        SCHEMAS.write().unwrap().push(autocfg::Schema::new(
+            ident.to_string(),
+            schema.to_token_stream().to_string(),
+        ));
+
+        schema
     }
 }
 

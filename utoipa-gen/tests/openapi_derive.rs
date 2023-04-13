@@ -359,3 +359,20 @@ fn derive_openapi_with_generic_schema_with_as() {
         })
     )
 }
+
+#[test]
+fn derive_openapi_with_auto_modules() {
+    #[utoipa::module(scope = "/user")]
+    mod innner_test {
+        // #![utoipa::module(scope = "/user")]
+
+        #[derive(utoipa::ToSchema)]
+        #[allow(unused)]
+        struct Value {
+            value: String,
+        }
+
+        #[utoipa::path(get, path = "/item")]
+        fn get_item() {}
+    }
+}

@@ -25,9 +25,11 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
+    DeriveInput, ExprPath, ItemFn, ItemMod, Lit, LitStr, Member, Token,
 };
 
+mod module;
+mod autocfg;
 mod component;
 mod doc_comment;
 mod ext;
@@ -36,7 +38,7 @@ mod path;
 mod schema_type;
 mod security_requirement;
 
-use crate::path::{Path, PathAttr};
+use crate::{path::{Path, PathAttr}, module::ModuleAttr};
 
 use self::{
     component::{
@@ -1347,6 +1349,16 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         #ast_fn
     }
     .into()
+}
+
+#[proc_macro_attribute]
+pub fn module(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let module = syn::parse_macro_input!(attr as ModuleAttr);
+    let a = item.clone();
+    let parsed = syn::parse_macro_input!(item as ItemMod);
+    dbg!(&parsed);
+
+    a
 }
 
 #[proc_macro_error]

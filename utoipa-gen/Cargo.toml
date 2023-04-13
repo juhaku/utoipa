@@ -20,6 +20,7 @@ proc-macro-error = "1.0"
 regex = { version = "1.7", optional = true }
 lazy_static = { version = "1.4", optional = true }
 uuid = { version = "1", optional = true }
+once_cell = "1.17.1"
 
 [dev-dependencies]
 utoipa = { path = "../utoipa", default-features = false }
@@ -49,3 +50,4 @@ time = []
 smallvec = []
 repr = []
 indexmap = []
+autocfg = []

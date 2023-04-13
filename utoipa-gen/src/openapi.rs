@@ -425,6 +425,8 @@ impl ToTokens for OpenApi<'_> {
             None
         };
 
+        // let s = SCHEMAS.read().unwrap();
+        // dbg!(&s);
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
