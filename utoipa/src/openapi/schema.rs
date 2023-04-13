@@ -1177,10 +1177,22 @@ pub enum SchemaFormat {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum KnownFormat {
+    /// 8 bit integer.
+    Int8,
+    /// 16 bit integer.
+    Int16,
     /// 32 bit integer.
     Int32,
     /// 64 bit integer.
     Int64,
+    /// 8 bit unsigned integer.
+    UInt8,
+    /// 16 bit unsigned integer.
+    UInt16,
+    /// 32 bit unsigned integer.
+    UInt32,
+    /// 64 bit unsigned integer.
+    UInt64,
     /// floating point number.
     Float,
     /// double (floating point) number.
