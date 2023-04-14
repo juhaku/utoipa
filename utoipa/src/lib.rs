@@ -79,6 +79,7 @@
 //!   When disabled, the properties are listed in alphabetical order.
 //! * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
 //!   `BTreeMap` and `HashMap`.
+//! * **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
 //!
@@ -464,7 +465,7 @@ mod utoipa {
 /// # use utoipa::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
 /// # use utoipa::openapi::RefOr;
 /// #
-/// let number: RefOr<Schema> = u64::schema().into();
+/// let number: RefOr<Schema> = i64::schema().into();
 ///
 /// // would be equal to manual implementation
 /// let number2 = RefOr::T(
@@ -472,7 +473,6 @@ mod utoipa {
 ///         ObjectBuilder::new()
 ///             .schema_type(SchemaType::Integer)
 ///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
-///             .minimum(Some(0.0))
 ///             .build()
 ///         )
 ///     );
@@ -913,8 +913,9 @@ mod tests {
 
     use super::*;
 
+    #[cfg(not(feature = "non_strict_integers"))]
     #[test]
-    fn test_partial_schema() {
+    fn test_partial_schema_strict_integers() {
         for (name, schema, value) in [
             (
                 "i8",
@@ -958,16 +959,75 @@ mod tests {
                 u64::schema(),
                 json!({"type": "integer", "format": "int64", "minimum": 0.0}),
             ),
+        ] {
+            println!(
+                "{name}: {json}",
+                json = serde_json::to_string(&schema).unwrap()
+            );
+            let schema = serde_json::to_value(schema).unwrap();
+            assert_json_eq!(schema, value);
+        }
+    }
+
+    #[cfg(feature = "non_strict_integers")]
+    #[test]
+    fn test_partial_schema_non_strict_integers() {
+        for (name, schema, value) in [
             (
-                "u128",
-                u128::schema(),
-                json!({"type": "integer", "minimum": 0.0}),
+                "i8",
+                i8::schema(),
+                json!({"type": "integer", "format": "int8"}),
             ),
             (
-                "usize",
-                usize::schema(),
-                json!({"type": "integer", "minimum": 0.0 }),
+                "i16",
+                i16::schema(),
+                json!({"type": "integer", "format": "int16"}),
             ),
+            (
+                "i32",
+                i32::schema(),
+                json!({"type": "integer", "format": "int32"}),
+            ),
+            (
+                "i64",
+                i64::schema(),
+                json!({"type": "integer", "format": "int64"}),
+            ),
+            ("i128", i128::schema(), json!({"type": "integer"})),
+            ("isize", isize::schema(), json!({"type": "integer"})),
+            (
+                "u8",
+                u8::schema(),
+                json!({"type": "integer", "format": "uint8", "minimum": 0.0}),
+            ),
+            (
+                "u16",
+                u16::schema(),
+                json!({"type": "integer", "format": "uint16", "minimum": 0.0}),
+            ),
+            (
+                "u32",
+                u32::schema(),
+                json!({"type": "integer", "format": "uint32", "minimum": 0.0}),
+            ),
+            (
+                "u64",
+                u64::schema(),
+                json!({"type": "integer", "format": "uint64", "minimum": 0.0}),
+            ),
+        ] {
+            println!(
+                "{name}: {json}",
+                json = serde_json::to_string(&schema).unwrap()
+            );
+            let schema = serde_json::to_value(schema).unwrap();
+            assert_json_eq!(schema, value);
+        }
+    }
+
+    #[test]
+    fn test_partial_schema() {
+        for (name, schema, value) in [
             ("bool", bool::schema(), json!({"type": "boolean"})),
             ("str", str::schema(), json!({"type": "string"})),
             ("String", String::schema(), json!({"type": "string"})),

@@ -229,7 +229,7 @@ object_body_with_multiple_headers => body: Foo, headers: (
     "responses.200.headers.another-header.schema.type" = r###""string""###, "another-header header type"
     "responses.200.headers.another-header.description" = r###"null"###, "another-header header description"
 object_body_with_header_with_type => body: Foo, headers: (
-    ("random-digits" = [u64]),
+    ("random-digits" = [i64]),
 ), assert:
     "responses.200.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Response content type"
     "responses.200.headers.random-digits.schema.type" = r###""array""###, "random-digits header type"
@@ -237,7 +237,7 @@ object_body_with_header_with_type => body: Foo, headers: (
     "responses.200.headers.random-digits.schema.items.type" = r###""integer""###, "random-digits header items type"
     "responses.200.headers.random-digits.schema.items.format" = r###""int64""###, "random-digits header items format"
 response_no_body_with_complex_header_with_description => headers: (
-    ("random-digits" = [u64], description = "Random digits response header"),
+    ("random-digits" = [i64], description = "Random digits response header"),
 ), assert:
     "responses.200.content" = r###"null"###, "Response content type"
     "responses.200.headers.random-digits.description" = r###""Random digits response header""###, "random-digits header description"

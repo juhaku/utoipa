@@ -37,12 +37,14 @@ time = { version = "0.3", features = ["serde-human-readable"] }
 serde_with = "2.3"
 
 [features]
+# See README.md for list and explanations of features
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
 chrono = []
 yaml = []
 decimal = []
 rocket_extras = ["regex", "lazy_static", "syn/extra-traits"]
+non_strict_integers = []
 uuid = ["dep:uuid"]
 axum_extras = ["syn/extra-traits"]
 time = []

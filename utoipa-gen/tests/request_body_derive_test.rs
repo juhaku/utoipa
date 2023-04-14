@@ -130,7 +130,7 @@ fn derive_request_body_primitive_simple_success() {
 
 test_fn! {
     module: derive_request_body_primitive_simple_array,
-    body: = [u64]
+    body: = [i64]
 }
 
 #[test]
@@ -154,7 +154,6 @@ fn derive_request_body_primitive_array_success() {
                     "items": {
                         "type": "integer",
                         "format": "int64",
-                        "minimum": 0.0,
                     }
                 }
             }
@@ -389,7 +388,7 @@ fn derive_request_body_complex_required_explicit_false_success() {
 
 test_fn! {
     module: derive_request_body_complex_primitive_array,
-    body: (content = [u32], description = "Create new foo references")
+    body: (content = [i32], description = "Create new foo references")
 }
 
 #[test]
@@ -412,7 +411,6 @@ fn derive_request_body_complex_primitive_array_success() {
                     "items": {
                         "type": "integer",
                         "format": "int32",
-                        "minimum": 0.0,
                     }
                 }
             }

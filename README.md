@@ -89,6 +89,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
   When disabled, the properties are listed in alphabetical order.
 - **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to 
   `BTreeMap` and `HashMap`.
+- **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 
