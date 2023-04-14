@@ -496,16 +496,16 @@ fn unit_type_request_body() {
 fn request_body_with_example() {
     #[derive(ToSchema)]
     #[allow(unused)]
-    struct Value<'v> {
+    struct Foo<'v> {
         value: &'v str,
     }
 
-    #[utoipa::path(get, path = "/item", request_body(content = Value, example = json!({"value": "this is value"})))]
+    #[utoipa::path(get, path = "/item", request_body(content = Foo, example = json!({"value": "this is value"})))]
     #[allow(dead_code)]
     fn get_item() {}
 
     #[derive(OpenApi)]
-    #[openapi(components(schemas(Value)), paths(get_item))]
+    #[openapi(components(schemas(Foo)), paths(get_item))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -521,7 +521,7 @@ fn request_body_with_example() {
                     "value": "this is value"
                 },
                 "schema": {
-                    "$ref": "#/components/schemas/Value"
+                    "$ref": "#/components/schemas/Foo"
                 }
             }
         })
@@ -532,14 +532,14 @@ fn request_body_with_example() {
 fn request_body_with_examples() {
     #[derive(ToSchema)]
     #[allow(unused)]
-    struct Value<'v> {
+    struct Foo<'v> {
         value: &'v str,
     }
 
     #[utoipa::path(
         get,
         path = "/item",
-        request_body(content = Value,
+        request_body(content = Foo,
             examples(
                 ("Value1" = (value = json!({"value": "this is value"}) ) ),
                 ("Value2" = (value = json!({"value": "this is value2"}) ) )
@@ -550,7 +550,7 @@ fn request_body_with_examples() {
     fn get_item() {}
 
     #[derive(OpenApi)]
-    #[openapi(components(schemas(Value)), paths(get_item))]
+    #[openapi(components(schemas(Foo)), paths(get_item))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
@@ -575,7 +575,7 @@ fn request_body_with_examples() {
                     }
                 },
                 "schema": {
-                    "$ref": "#/components/schemas/Value"
+                    "$ref": "#/components/schemas/Foo"
                 }
             }
         })

@@ -124,8 +124,10 @@ use self::{
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
-///    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
+///   or _`Value`.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   struct.
@@ -146,8 +148,10 @@ use self::{
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
-///    _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
+///   or _`Value`.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
 /// * `required = ...` Can be used to enforce required status for the field. [See
@@ -1636,8 +1640,10 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///    Value can be any Rust type what normally could be used to serialize to JSON or custom type such as _`Object`_.
-///    _`Object`_ will be rendered as generic OpenAPI object.
+///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
+///   or _`Value`.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 ///
 /// * `inline` If set, the schema for this field's type needs to be a [`ToSchema`][to_schema], and
 ///   the schema definition will be inlined.

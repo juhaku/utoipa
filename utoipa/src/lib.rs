@@ -103,7 +103,7 @@
 //!
 //! # Examples
 //!
-//! Create a struct or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
+//! Create a struct, or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
 //! as a component in openapi schema.
 //! ```rust
 //! use utoipa::ToSchema;
@@ -118,7 +118,6 @@
 //! Create an handler that would handle your business logic and add `path` proc attribute macro over it.
 //! ```rust
 //! mod pet_api {
-//! #     use utoipa::OpenApi;
 //! #     use utoipa::ToSchema;
 //! #
 //! #     #[derive(ToSchema)]
@@ -150,9 +149,10 @@
 //!     }
 //! }
 //! ```
+//!
 //! Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 //!
-//! Tie the component and the above api to the openapi schema with following `OpenApi` derive proc macro.
+//! Tie the above component and api to the openapi schema with following `OpenApi` derive proc macro.
 //! ```rust
 //! # mod pet_api {
 //! #     use utoipa::ToSchema;
@@ -194,7 +194,7 @@
 //! #   name: String,
 //! #   age: Option<i32>,
 //! # }
-//! # use utoipa::OpenApi;
+//! use utoipa::OpenApi;
 //! #[derive(OpenApi)]
 //! #[openapi(paths(pet_api::get_pet_by_id), components(schemas(Pet)))]
 //! struct ApiDoc;

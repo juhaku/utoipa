@@ -16,6 +16,10 @@ impl SchemaType<'_> {
             .to_string()
     }
 
+    pub fn is_value(&self) -> bool {
+        matches!(&*self.last_segment_to_string(), "Value")
+    }
+
     /// Check whether type is known to be primitive in which case returns true.
     pub fn is_primitive(&self) -> bool {
         let SchemaType(path) = self;

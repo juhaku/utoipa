@@ -4234,6 +4234,49 @@ fn derive_schema_with_object_type_description() {
 }
 
 #[test]
+fn derive_schema_with_explicit_value_type() {
+    let value = api_doc! {
+        struct Value {
+            #[schema(value_type = Value)]
+            any: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "any": {
+                },
+            },
+            "required": ["any"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_schema_with_implicit_value_type() {
+    let value = api_doc! {
+        struct Value {
+            any: serde_json::Value,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "any": {
+                },
+            },
+            "required": ["any"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 fn derive_tuple_named_struct_field() {
     #[derive(ToSchema)]
     #[allow(unused)]
