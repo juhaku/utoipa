@@ -1192,20 +1192,32 @@ pub enum SchemaFormat {
 #[serde(rename_all = "lowercase")]
 pub enum KnownFormat {
     /// 8 bit integer.
+    #[cfg(feature = "non_strict_integers")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
     Int8,
     /// 16 bit integer.
+    #[cfg(feature = "non_strict_integers")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
     Int16,
     /// 32 bit integer.
     Int32,
     /// 64 bit integer.
     Int64,
     /// 8 bit unsigned integer.
+    #[cfg(feature = "non_strict_integers")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
     UInt8,
     /// 16 bit unsigned integer.
+    #[cfg(feature = "non_strict_integers")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
     UInt16,
     /// 32 bit unsigned integer.
+    #[cfg(feature = "non_strict_integers")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
     UInt32,
     /// 64 bit unsigned integer.
+    #[cfg(feature = "non_strict_integers")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
     UInt64,
     /// floating point number.
     Float,

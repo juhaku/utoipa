@@ -300,7 +300,7 @@ fn derive_struct_with_optional_properties() {
     let owner = api_doc! {
         struct Owner {
             #[schema(default = 1)]
-            id: u64,
+            id: i64,
             enabled: Option<bool>,
             books: Option<Vec<Book>>,
             metadata: Option<HashMap<String, String>>,
@@ -316,7 +316,6 @@ fn derive_struct_with_optional_properties() {
                     "type": "integer",
                     "format": "int64",
                     "default": 1,
-                    "minimum": 0.0,
                 },
                 "enabled": {
                     "type": "boolean",
@@ -647,8 +646,8 @@ fn derive_unnamed_struct_deprecated_success() {
 #[test]
 fn derive_unnamed_struct_example_json_array_success() {
     let pet_age = api_doc! {
-        #[schema(example = "0", default = u64::default)]
-        struct PetAge(u64, u64);
+        #[schema(example = "0", default = i64::default)]
+        struct PetAge(i64, i64);
     };
 
     assert_value! {pet_age=>
@@ -3811,6 +3810,61 @@ fn derive_struct_with_validation_fields() {
         }
     };
 
+    #[cfg(feature = "non_strict_integers")]
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "id": {
+                    "format": "int32",
+                    "type": "integer",
+                    "maximum": 10.0,
+                    "minimum": 5.0,
+                    "multipleOf": 2.5,
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 5,
+                    "pattern": "[a-z]*"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1,
+                    },
+                    "maxItems": 5,
+                    "minItems": 1,
+                },
+                "unsigned": {
+                    "type": "integer",
+                    "format": "uint16",
+                    "minimum": 0.0
+                },
+                "unsigned_value": {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 2.0,
+                }
+                "unsigned_value": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 2.0,
+                }
+            },
+            "type": "object",
+            "required": [
+                "id",
+                "value",
+                "items",
+                "unsigned",
+                "unsigned_value"
+            ]
+        })
+    );
+
+    #[cfg(not(feature = "non_strict_integers"))]
     assert_json_eq!(
         value,
         json!({

@@ -151,7 +151,7 @@ mod mod_derive_parameters_all_types {
         params(
             ("id" = i32, Path, description = "Foo id"),
             ("since" = String, Query, deprecated, description = "Datetime since"),
-            ("numbers" = Option<[u64]>, Query, description = "Foo numbers list"),
+            ("numbers" = Option<[i64]>, Query, description = "Foo numbers list"),
             ("token" = String, Header, deprecated, description = "Token of foo"),
             ("cookieval" = String, Cookie, deprecated, description = "Foo cookie"),
         )

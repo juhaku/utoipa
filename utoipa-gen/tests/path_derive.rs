@@ -205,7 +205,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
                 status = 200, description = "success response")
             ),
             params(
-                ("id" = u64, deprecated = false, description = "Foo database id"),
+                ("id" = i64, deprecated = false, description = "Foo database id"),
                 ("since" = Option<String>, Query, deprecated = false, description = "Datetime since foo is updated")
             )
     )]
@@ -233,7 +233,6 @@ fn derive_path_with_extra_attributes_without_nested_module() {
         "parameters.[0].in" = r#""path""#, "Parameter 0 in"
         "parameters.[0].name" = r#""id""#, "Parameter 0 name"
         "parameters.[0].required" = r#"true"#, "Parameter 0 required"
-        "parameters.[0].schema.minimum" = r#"0.0"#, "Parameter 0 minimum"
         "parameters.[0].schema.format" = r#""int64""#, "Parameter 0 schema format"
         "parameters.[0].schema.type" = r#""integer""#, "Parameter 0 schema type"
 
@@ -302,7 +301,7 @@ fn derive_path_with_parameter_schema() {
             (status = 200, description = "success response")
         ),
         params(
-            ("id" = u64, description = "Foo database id"),
+            ("id" = i64, description = "Foo database id"),
             ("since" = Option<Since>, Query, description = "Datetime since foo is updated")
         )
     )]
@@ -330,7 +329,6 @@ fn derive_path_with_parameter_schema() {
                 "schema": {
                     "format": "int64",
                     "type": "integer",
-                    "minimum": 0.0,
                 }
             },
             {
@@ -373,7 +371,7 @@ fn derive_path_with_parameter_inline_schema() {
             (status = 200, description = "success response")
         ),
         params(
-            ("id" = u64, description = "Foo database id"),
+            ("id" = i64, description = "Foo database id"),
             ("since" = inline(Option<Since>), Query, description = "Datetime since foo is updated")
         )
     )]
@@ -401,7 +399,6 @@ fn derive_path_with_parameter_inline_schema() {
                 "schema": {
                     "format": "int64",
                     "type": "integer",
-                    "minimum": 0.0,
                 }
             },
             {
@@ -954,7 +951,7 @@ fn derive_path_params_intoparams() {
         /// Foo database id.
         #[param(example = 1)]
         #[allow(unused)]
-        id: u64,
+        id: i64,
         /// Datetime since foo is updated.
         #[param(example = "2020-04-12T10:23:00Z")]
         #[allow(unused)]
@@ -1012,7 +1009,6 @@ fn derive_path_params_intoparams() {
                 "schema": {
                     "format": "int64",
                     "type": "integer",
-                    "minimum": 0.0,
                 },
                 "style": "form"
             },

@@ -300,10 +300,27 @@ impl ToTokens for Type<'_> {
         let name = &*last_segment.ident.to_string();
 
         match name {
-            "i8" | "i16" | "i32" | "u8" | "u16" | "u32" => {
+            #[cfg(feature="non_strict_integers")]
+            "i8" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8) }),
+            #[cfg(feature="non_strict_integers")]
+            "u8" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8) }),
+            #[cfg(feature="non_strict_integers")]
+            "i16" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16) }),
+            #[cfg(feature="non_strict_integers")]
+            "u16" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16) }),
+            #[cfg(feature="non_strict_integers")]
+            #[cfg(feature="non_strict_integers")]
+            "u32" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt32) }),
+            #[cfg(feature="non_strict_integers")]
+            "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt64) }),
+            #[cfg(not(feature="non_strict_integers"))]
+            "i8" | "i16" | "u8" | "u16" | "u32" => {
                 tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32) })
             }
-            "i64" | "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
+            #[cfg(not(feature="non_strict_integers"))]
+            "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
+            "i32" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32) }),
+            "i64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
             "f32" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Float) }),
             "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
             #[cfg(feature = "chrono")]

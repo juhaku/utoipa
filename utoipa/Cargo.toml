@@ -19,6 +19,7 @@ categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 
 [features]
+# See README.md for list and explanations of features
 default = []
 debug = ["utoipa-gen/debug"]
 actix_extras = ["utoipa-gen/actix_extras"]
@@ -26,6 +27,7 @@ rocket_extras = ["utoipa-gen/rocket_extras"]
 axum_extras = ["utoipa-gen/axum_extras"]
 chrono = ["utoipa-gen/chrono"]
 decimal = ["utoipa-gen/decimal"]
+non_strict_integers = ["utoipa-gen/non_strict_integers"]
 yaml = ["serde_yaml", "utoipa-gen/yaml"]
 uuid = ["utoipa-gen/uuid"]
 time = ["utoipa-gen/time"]
@@ -46,5 +48,5 @@ indexmap = { version = "1", features = ["serde"] }
 assert-json-diff = "2"
 
 [package.metadata.docs.rs]
-features = ["actix_extras", "openapi_extensions", "yaml", "uuid"]
+features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "yaml"]
 rustdoc-args = ["--cfg", "doc_cfg"]
