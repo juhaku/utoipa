@@ -875,6 +875,21 @@ pub trait IntoResponses {
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>>;
 }
 
+impl<T: IntoResponses, E: IntoResponses> IntoResponses for Result<T, E> {
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+        let mut responses = T::responses();
+        responses.append(&mut E::responses());
+
+        responses
+    }
+}
+
+impl IntoResponses for () {
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+        BTreeMap::new()
+    }
+}
+
 /// This trait is implemented to document a type which represents a single response which can be
 /// referenced or reused as a component in multiple operations.
 ///

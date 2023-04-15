@@ -9,6 +9,9 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 use crate::component::TypeTree;
 use crate::path::PathOperation;
 
+#[cfg(feature = "auto_types")]
+pub mod auto_types;
+
 #[cfg(feature = "actix_extras")]
 pub mod actix;
 

@@ -1,4 +1,5 @@
 #![cfg(feature = "actix_extras")]
+#![cfg(not(feature = "auto_types"))]
 
 use utoipa::OpenApi;
 

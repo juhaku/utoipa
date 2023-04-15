@@ -1,3 +1,5 @@
+#![cfg(not(feature = "auto_types"))]
+
 use std::collections::BTreeMap;
 
 use assert_json_diff::assert_json_eq;
