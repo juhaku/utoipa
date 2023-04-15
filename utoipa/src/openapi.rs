@@ -1,6 +1,7 @@
 //! Rust implementation of Openapi Spec V3.
 
-use serde::{de::Visitor, Deserialize, Serialize, Serializer};
+use serde::{de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt::Formatter;
 
 pub use self::{
     content::{Content, ContentBuilder},
@@ -260,7 +261,7 @@ impl OpenApiBuilder {
 /// Represents available [OpenAPI versions][version].
 ///
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
     /// Will serialize to `3.0.3` the latest from 3.0 serde.
@@ -271,6 +272,55 @@ pub enum OpenApiVersion {
 impl Default for OpenApiVersion {
     fn default() -> Self {
         Self::Version3
+    }
+}
+
+impl<'de> Deserialize<'de> for OpenApiVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct VersionVisitor;
+
+        impl<'v> Visitor<'v> for VersionVisitor {
+            type Value = OpenApiVersion;
+
+            fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+                formatter.write_str("a version string in x, x.y, or x.y.z format")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                self.visit_string(v.to_string())
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                let parts = v.split('.').collect::<Vec<_>>();
+                if parts.len() > 3 {
+                    return Err(E::custom(format!(
+                        "Invalid format of OpenAPI version: {}",
+                        v,
+                    )));
+                }
+
+                Ok(match parts[0] {
+                    "3" => Self::Value::Version3,
+                    _ => {
+                        return Err(E::custom(format!(
+                            "Unsupported major version: {}",
+                            parts[0],
+                        )))
+                    }
+                })
+            }
+        }
+
+        deserializer.deserialize_string(VersionVisitor)
     }
 }
 
@@ -687,5 +737,17 @@ mod tests {
                 }
             )
         )
+    }
+
+    #[test]
+    fn deserialize_other_versions() {
+        [r#""3.0.3""#, r#""3.0.0""#, r#""3.0""#, r#""3""#]
+            .iter()
+            .for_each(|v| {
+                assert!(matches!(
+                    serde_json::from_str::<OpenApiVersion>(v).unwrap(),
+                    OpenApiVersion::Version3,
+                ));
+            });
     }
 }
