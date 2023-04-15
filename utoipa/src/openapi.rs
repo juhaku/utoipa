@@ -286,7 +286,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             type Value = OpenApiVersion;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-                formatter.write_str("a version string in x, x.y, or x.y.z format")
+                formatter.write_str("a version string in 3, 3.0, or 3.0.x format")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -301,21 +301,16 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
                 E: Error,
             {
                 let parts = v.split('.').collect::<Vec<_>>();
-                if parts.len() > 3 {
+                if parts.len() > 3 || parts.len() < 1 {
                     return Err(E::custom(format!(
                         "Invalid format of OpenAPI version: {}",
                         v,
                     )));
                 }
 
-                Ok(match parts[0] {
-                    "3" => Self::Value::Version3,
-                    _ => {
-                        return Err(E::custom(format!(
-                            "Unsupported major version: {}",
-                            parts[0],
-                        )))
-                    }
+                Ok(match (parts[0], parts.get(1).map(|p| *p).unwrap_or("0")) {
+                    ("3", "0") => Self::Value::Version3,
+                    _ => return Err(E::custom(format!("Unsupported version: {}", &v))),
                 })
             }
         }
