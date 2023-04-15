@@ -4387,3 +4387,35 @@ fn derive_unit_type_untagged_enum() {
         })
     )
 }
+
+#[test]
+fn derive_schema_with_unit_hashmap() {
+    let value = api_doc! {
+        struct Container {
+            volumes: HashMap<String, HashMap<(), ()>>
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "volumes": {
+                    "additionalProperties": {
+                        "additionalProperties": {
+                            "type": "object",
+                            "default": null,
+                            "nullable": true,
+                        },
+                        "type": "object"
+                    },
+                    "type": "object"
+                },
+            },
+            "required": [
+                "volumes"
+            ],
+            "type": "object"
+        })
+    )
+}
