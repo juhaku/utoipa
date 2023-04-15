@@ -29,7 +29,7 @@ builder! {
         /// media type and specified schema if present. [`Content::examples`] and
         /// [`Content::example`] are mutually exclusive. If both are defined `examples` will
         /// override value in `example`.
-        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub examples: BTreeMap<String, RefOr<Example>>,
 
         /// A map between a property name and its encoding information.
