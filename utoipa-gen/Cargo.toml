@@ -28,7 +28,7 @@ serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
 axum = "0.6"
 paste = "1"
-rocket = "0.5.0-rc.2"
+rocket = "0.5.0-rc.3"
 smallvec = { version = "1.10", features = ["serde"] }
 rust_decimal = "1"
 chrono = { version = "0.4", features = ["serde"] }
