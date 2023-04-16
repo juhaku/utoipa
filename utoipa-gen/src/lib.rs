@@ -1295,12 +1295,20 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     #[cfg(any(
         feature = "actix_extras",
         feature = "rocket_extras",
-        feature = "axum_extras"
+        feature = "axum_extras",
+        feature = "auto_types"
     ))]
     let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
+
+    #[cfg(feature = "auto_types")]
+    {
+        if let Some(responses) = ext::auto_types::parse_fn_operation_responses(&ast_fn) {
+            path_attribute.responses_from_into_responses(responses);
+        };
+    }
 
     let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
 
@@ -1338,6 +1346,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.iter().find_map(|attr| {
+
             if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
             {
                 None

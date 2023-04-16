@@ -134,6 +134,12 @@ impl<'p> PathAttr<'p> {
         }
     }
 
+    #[cfg(feature = "auto_types")]
+    pub fn responses_from_into_responses(&mut self, ty: &'p syn::TypePath) {
+        self.responses
+            .push(Response::IntoResponses(Cow::Borrowed(ty)))
+    }
+
     #[cfg(any(
         feature = "actix_extras",
         feature = "rocket_extras",

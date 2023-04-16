@@ -1,14 +1,13 @@
-use std::borrow::Cow;
-
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
+use std::borrow::Cow;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Error, ExprPath, LitInt, LitStr, Token,
+    Attribute, Error, ExprPath, LitInt, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -23,7 +22,7 @@ pub mod derive;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response<'r> {
     /// A type that implements `utoipa::IntoResponses`.
-    IntoResponses(ExprPath),
+    IntoResponses(Cow<'r, TypePath>),
     /// The tuple definition of a response.
     Tuple(ResponseTuple<'r>),
 }
@@ -31,7 +30,7 @@ pub enum Response<'r> {
 impl Parse for Response<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::IntoResponses(input.parse()?))
+            Ok(Self::IntoResponses(Cow::Owned(input.parse::<TypePath>()?)))
         } else {
             let response;
             parenthesized!(response in input);
