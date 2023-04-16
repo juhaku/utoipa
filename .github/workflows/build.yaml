@@ -42,44 +42,33 @@ jobs:
       - name: Resolve changed paths
         id: changes
         run: |
-          root_changed=false
-          utoipa_changed=false
-          gen_changed=false
-          swagger_changed=false
+          changes=false
           while read -r change; do
-            if [[ "$change" == "utoipa-gen" ]]; then
-              gen_changed=true
-            elif [[ "$change" == "utoipa-swagger-ui" ]]; then
-              swagger_changed=true
-            elif [[ "$change" == "utoipa" ]]; then
-              utoipa_changed=true
-            else
-              root_changed=true
+            if [[ "$change" == "utoipa-gen" && "${{ matrix.crate }}" == "utoipa-gen" && $changes == false ]]; then
+              changes=true
+            elif [[ "$change" == "utoipa-swagger-ui" && "${{ matrix.crate }}" == "utoipa-swagger-ui" && $changes == false ]]; then
+              changes=true
+            elif [[ "$change" == "utoipa" && "${{ matrix.crate }}" == "utoipa" && $changes == false ]]; then
+              changes=true
             fi
           done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
-          echo "root_changed=$root_changed" >> $GITHUB_OUTPUT
-          echo "utoipa_changed=$utoipa_changed" >> $GITHUB_OUTPUT
-          echo "gen_changed=$gen_changed" >> $GITHUB_OUTPUT
-          echo "swagger_changed=$swagger_changed" >> $GITHUB_OUTPUT
+          echo "${{ matrix.crate }} changes: $changes"
+          echo "changes=$changes" >> $GITHUB_OUTPUT
 
       - name: Check format
         run: |
-          cargo fmt --check --package ${{ matrix.crate }}
+          if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
+            cargo fmt --check --package ${{ matrix.crate }}
+          fi
 
       - name: Check clippy
         run: |
-          cargo clippy --quiet --package ${{ matrix.crate }}
+          if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
+            cargo clippy --quiet --package ${{ matrix.crate }}
+          fi
 
       - name: Run tests
         run: |
-          if [[ "${{ matrix.crate }}" == "utoipa" ]] && [[ ${{ steps.changes.outputs.utoipa_changed }} == true ]]; then
-            cargo test -p utoipa --features openapi_extensions,yaml
-          elif [[ "${{ matrix.crate }}" == "utoipa-gen" ]] && [[ ${{ steps.changes.outputs.gen_changed }} == true ]]; then
-            cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,utoipa/uuid,utoipa/time,time,utoipa/repr
-
-            cargo test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
-            cargo test -p utoipa-gen --test path_derive_rocket --features rocket_extras
-            cargo test -p utoipa-gen --test path_derive_axum_test --features axum_extras
-          elif [[ "${{ matrix.crate }}" == "utoipa-swagger-ui" ]] && [[ ${{ steps.changes.outputs.swagger_changed }} == true ]]; then
-            cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
+          if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
+            ./scripts/test.sh ${{ matrix.crate }}
           fi
