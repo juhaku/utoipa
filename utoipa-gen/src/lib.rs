@@ -125,7 +125,7 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
-///   or _`Value`.
+///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
@@ -149,7 +149,7 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`.
+///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
@@ -1650,7 +1650,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`.
+///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 ///
