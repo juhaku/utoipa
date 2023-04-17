@@ -258,6 +258,7 @@ use std::collections::{BTreeMap, HashMap};
 
 pub use utoipa_gen::*;
 
+
 /// Trait for implementing OpenAPI specification in Rust.
 ///
 /// This trait is derivable and can be used with `#[derive]` attribute. The derived implementation
@@ -887,6 +888,111 @@ impl<T: IntoResponses, E: IntoResponses> IntoResponses for Result<T, E> {
 impl IntoResponses for () {
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
         BTreeMap::new()
+    }
+}
+
+#[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+fn default_response_for_partial_schema<S: PartialSchema>(
+    content_type: &str,
+) -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+    BTreeMap::from_iter(std::iter::once((
+        content_type.to_string(),
+        openapi::response::ResponseBuilder::new()
+            .content(
+                "text/plain",
+                openapi::content::ContentBuilder::new()
+                    .schema(S::schema())
+                    .build(),
+            )
+            .build()
+            .into(),
+    )))
+}
+
+#[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+fn default_schema_for_schema(
+    content_type: &str,
+    schema_provider: impl FnOnce() -> openapi::RefOr<openapi::schema::Schema>,
+) -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+    BTreeMap::from_iter(std::iter::once((
+        content_type.to_string(),
+        openapi::response::ResponseBuilder::new()
+            .content(
+                "text/plain",
+                openapi::content::ContentBuilder::new()
+                    .schema(schema_provider())
+                    .build(),
+            )
+            .build()
+            .into(),
+    )))
+}
+
+macro_rules! impl_into_responses_primitive {
+    ( $path:path ) => {
+        impl IntoResponses for $path {
+            fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+                default_response_for_partial_schema::<$path>("text/plain")
+            }
+        }
+    };
+    ( & $( $life:lifetime )? $path:path ) => {
+        impl IntoResponses for & $( $life )* $path {
+            fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+                default_response_for_partial_schema::<& $($life)* $path>("text/plain")
+            }
+        }
+    };
+}
+
+#[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+impl_into_responses_primitive!(String);
+
+#[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+impl_into_responses_primitive!(&str);
+
+// #[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+// impl_into_responses_primitive!(Vec<u8>);
+impl IntoResponses for &'static [u8] {
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+        default_schema_for_schema("application/octet-stream", || {
+            schema!(
+                #[inline]
+                [u8]
+            )
+            .into()
+        })
+    }
+}
+
+impl IntoResponses for Vec<u8> {
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+        default_schema_for_schema("application/octet-stream", || {
+            schema!(#[inline] Vec<u8>).into()
+        })
+    }
+}
+
+#[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+impl<'__r, R: actix_web::Responder + ToResponse<'__r>> IntoResponses
+    for (R, actix_web::http::StatusCode)
+{
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+        let (_, response) = R::response();
+        BTreeMap::from_iter(std::iter::once(("default".to_string(), response)))
+    }
+}
+
+impl<'__s, T: ToSchema<'__s>> PartialSchema for T {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        <T as ToSchema>::schema().1
+    }
+}
+
+#[cfg(all(feature = "actix_extras", feature = "auto_types"))]
+impl<T: PartialSchema> IntoResponses for actix_web::web::Json<T> {
+    fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
+        default_schema_for_schema("application/json", || T::schema())
     }
 }
 

@@ -36,7 +36,8 @@ indexmap = ["utoipa-gen/indexmap"]
 openapi_extensions = []
 repr = ["utoipa-gen/repr"]
 preserve_order = []
-auto_types = ["utoipa-gen/auto_types"]
+auto_types = ["utoipa-gen/auto_types", "__actix_auto_types"]
+__actix_auto_types = ["dep:actix-web"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -44,6 +45,7 @@ serde_json = { version = "1.0" }
 serde_yaml = { version = "0.9", optional = true }
 utoipa-gen = { version = "3.3.0", path = "../utoipa-gen" }
 indexmap = { version = "1", features = ["serde"] }
+actix-web = { version = "4", optional = true }
 
 [dev-dependencies]
 assert-json-diff = "2"
