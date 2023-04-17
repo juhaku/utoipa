@@ -173,7 +173,7 @@ use self::{
 ///   be non-negative integer.
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
-/// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
+/// * `schema_with = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 /// * `additional_properties = ...` Can be used to define free form types for maps such as
@@ -1700,7 +1700,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
 ///
-/// * `with_schema = ...` Use _`schema`_ created by provided function reference instead of the
+/// * `schema_with = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
 ///

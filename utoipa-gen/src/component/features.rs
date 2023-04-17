@@ -209,7 +209,7 @@ impl ToTokens for Feature {
             Feature::MinProperties(min_properties) => {
                 quote! { .max_properties(Some(#min_properties)) }
             }
-            Feature::SchemaWith(with_schema) => with_schema.to_token_stream(),
+            Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
             Feature::Description(description) => quote! { .description(Some(#description)) },
             Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
             Feature::AdditionalProperties(additional_properties) => {
@@ -284,7 +284,7 @@ impl Display for Feature {
             Feature::MinItems(min_items) => min_items.fmt(f),
             Feature::MaxProperties(max_properties) => max_properties.fmt(f),
             Feature::MinProperties(min_properties) => min_properties.fmt(f),
-            Feature::SchemaWith(with_schema) => with_schema.fmt(f),
+            Feature::SchemaWith(schema_with) => schema_with.fmt(f),
             Feature::Description(description) => description.fmt(f),
             Feature::Deprecated(deprecated) => deprecated.fmt(f),
             Feature::As(as_feature) => as_feature.fmt(f),
@@ -326,12 +326,12 @@ impl Validatable for Feature {
             Feature::MinItems(min_items) => min_items.is_validatable(),
             Feature::MaxProperties(max_properties) => max_properties.is_validatable(),
             Feature::MinProperties(min_properties) => min_properties.is_validatable(),
-            Feature::SchemaWith(with_schema) => with_schema.is_validatable(),
+            Feature::SchemaWith(schema_with) => schema_with.is_validatable(),
             Feature::Description(description) => description.is_validatable(),
             Feature::Deprecated(deprecated) => deprecated.is_validatable(),
             Feature::As(as_feature) => as_feature.is_validatable(),
-            Feature::AdditionalProperties(additional_properites) => {
-                additional_properites.is_validatable()
+            Feature::AdditionalProperties(additional_properties) => {
+                additional_properties.is_validatable()
             }
             Feature::Required(required) => required.is_validatable(),
         }

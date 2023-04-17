@@ -347,14 +347,14 @@ impl NamedStructSchema<'_> {
             .as_ref()
             .map(|value_type| value_type.as_type_tree());
         let comments = CommentAttributes::from_attributes(&field.attrs);
-        let with_schema = pop_feature!(field_features => Feature::SchemaWith(_));
+        let schema_with = pop_feature!(field_features => Feature::SchemaWith(_));
         let required = pop_feature_as_inner!(field_features => Feature::Required(_v));
         let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
         let is_option = type_tree.is_option();
 
         yield_(NamedStructFieldOptions {
-            property: if let Some(with_schema) = with_schema {
-                Property::WithSchema(with_schema)
+            property: if let Some(schema_with) = schema_with {
+                Property::SchemaWith(schema_with)
             } else {
                 Property::Schema(ComponentSchema::new(super::ComponentSchemaProps {
                     type_tree,
@@ -1449,14 +1449,14 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Property {
     Schema(ComponentSchema),
-    WithSchema(Feature),
+    SchemaWith(Feature),
 }
 
 impl ToTokens for Property {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Schema(schema) => schema.to_tokens(tokens),
-            Self::WithSchema(with_schema) => with_schema.to_tokens(tokens),
+            Self::SchemaWith(schema_with) => schema_with.to_tokens(tokens),
         }
     }
 }
