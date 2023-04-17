@@ -6,7 +6,7 @@
 ![rustc](https://img.shields.io/static/v1?label=rustc&message=1.60%2B&color=orange&logo=rust)
 
 This crate implements necessary boilerplate code to serve Swagger UI via web server. It
-works as a bridge for serving the OpenAPI documentation created with 
+works as a bridge for serving the OpenAPI documentation created with
 [utoipa](https://docs.rs/utoipa/) library in the Swagger UI.
 
 **Currently implemented boilerplate for:**
@@ -17,14 +17,14 @@ works as a bridge for serving the OpenAPI documentation created with
 
 Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 other frameworks as well. With other frameworks, there is a bit more manual implementation to be done. See
-more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/fn.serve.html) or 
+more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/fn.serve.html) or
 [examples](https://github.com/juhaku/utoipa/tree/master/examples).
 
 # Crate Features
 
 * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
   users to use the Swagger UI without a hassle.
-* **rocket** Enables rocket integration with pre-configured routes for serving the Swagger UI 
+* **rocket** Enables rocket integration with pre-configured routes for serving the Swagger UI
   and api doc without a hassle.
 * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
   hazzle free.
@@ -87,5 +87,5 @@ let app = Router::new()
 
 Licensed under either of [Apache 2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT) license at your option.
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate 
-by you, shall be dual licensed, without any additional terms or conditions. 
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate
+by you, shall be dual licensed, without any additional terms or conditions.
