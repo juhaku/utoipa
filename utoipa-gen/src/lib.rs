@@ -1334,11 +1334,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         use ext::ArgumentResolver;
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
-        let (arguments, into_params_types) =
+        let (arguments, into_params_types, body) =
             PathOperations::resolve_arguments(&ast_fn.sig.inputs, args);
 
         path_attribute.update_parameters(arguments);
         path_attribute.update_parameters_parameter_in(into_params_types);
+
+        #[cfg(feature = "auto_types")]
+        path_attribute.update_request_body(body);
     }
 
     let path = Path::new(path_attribute, fn_name)

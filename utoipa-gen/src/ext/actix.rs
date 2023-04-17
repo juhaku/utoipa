@@ -25,12 +25,13 @@ impl ArgumentResolver for PathOperations {
     ) -> (
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
+        Option<super::RequestBody<'_>>,
     ) {
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
             fn_arg::get_fn_args(fn_args).partition(fn_arg::is_into_params);
 
         if let Some(macro_args) = macro_args {
-            let primitive_args = get_primitive_args(value_args);
+            let (primitive_args, body) = split_path_args_and_request(value_args);
 
             (
                 Some(
@@ -47,8 +48,10 @@ impl ArgumentResolver for PathOperations {
                         .map(fn_arg::into_into_params_type)
                         .collect(),
                 ),
+                body.into_iter().next().map(Into::into),
             )
         } else {
+            let (_, body) = split_path_args_and_request(value_args);
             (
                 None,
                 Some(
@@ -58,30 +61,55 @@ impl ArgumentResolver for PathOperations {
                         .map(fn_arg::into_into_params_type)
                         .collect(),
                 ),
+                body.into_iter().next().map(Into::into),
             )
         }
     }
 }
 
-fn get_primitive_args(value_args: Vec<FnArg>) -> impl Iterator<Item = TypeTree> {
-    value_args
+fn split_path_args_and_request(
+    value_args: Vec<FnArg>,
+) -> (
+    impl Iterator<Item = TypeTree>,
+    impl Iterator<Item = TypeTree>,
+) {
+    let (path_args, body_types): (Vec<FnArg>, Vec<FnArg>) = value_args
         .into_iter()
-        .filter(|arg| arg.ty.is("Path"))
-        .flat_map(|path_arg| {
-            path_arg
-                .ty
-                .children
-                .expect("Path argument must have children")
+        .filter(|arg| {
+            arg.ty.is("Path") || arg.ty.is("Json") || arg.ty.is("Form") || arg.ty.is("Bytes")
         })
-        .flat_map(|path_arg| match path_arg.value_type {
-            ValueType::Primitive => vec![path_arg],
-            ValueType::Tuple => path_arg
-                .children
-                .expect("ValueType::Tuple will always have children"),
-            ValueType::Object | ValueType::Value => {
-                unreachable!("Value arguments does not have ValueType::Object arguments")
+        .partition(|arg| arg.ty.is("Path"));
+
+    (
+        path_args
+            .into_iter()
+            .flat_map(|path_arg| {
+                path_arg
+                    .ty
+                    .children
+                    .expect("Path argument must have children")
+            })
+            .flat_map(|path_arg| match path_arg.value_type {
+                ValueType::Primitive => vec![path_arg],
+                ValueType::Tuple => path_arg
+                    .children
+                    .expect("ValueType::Tuple will always have children"),
+                ValueType::Object | ValueType::Value => {
+                    unreachable!("Value arguments does not have ValueType::Object arguments")
+                }
+            }),
+        {
+            #[cfg(feature = "auto_types")]
+            {
+                body_types.into_iter().map(|json| json.ty)
             }
-        })
+
+            #[cfg(not(feature = "auto_types"))]
+            {
+                std::iter::empty()
+            }
+        },
+    )
 }
 
 fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> ValueArgument {

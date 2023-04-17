@@ -12,6 +12,7 @@ use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
+use crate::path::request_body::RequestBody;
 use crate::{parse_utils, Deprecated};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
 
@@ -40,41 +41,11 @@ mod status;
 
 pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
 
-/// PathAttr is parsed `#[utoipa::path(...)]` proc macro and its attributes.
-/// Parsed attributes can be used to override or append OpenAPI Path
-/// options.
-///
-/// # Example
-/// ```text
-/// #[utoipa::path(delete,
-///    operation_id = "custom_operation_id",
-///    path = "/custom/path/{id}/{digest}",
-///    tag = "grouping_tag"
-///    request_body = [Foo]
-///    responses = [
-///         (status = 200, description = "success update Foos", body = [Foo], content_type = "application/json",
-///             headers = [
-///                 ("foo-bar" = String, description = "custom header value")
-///             ]
-///         ),
-///         (status = 500, description = "internal server error", body = String, content_type = "text/plain",
-///             headers = [
-///                 ("foo-bar" = String, description = "custom header value")
-///             ]
-///         ),
-///    ],
-///    params = [
-///      ("id" = u64, description = "Id of Foo"),
-///      ("digest", description = "Foos message digest of last updated"),
-///      ("x-csrf-token", header, required, deprecated),
-///    ]
-/// )]
-/// ```
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
-    request_body: Option<RequestBodyAttr<'p>>,
+    request_body: Option<RequestBody<'p>>,
     responses: Vec<Response<'p>>,
     pub(super) path: Option<String>,
     operation_id: Option<Expr>,
@@ -140,6 +111,11 @@ impl<'p> PathAttr<'p> {
             .push(Response::IntoResponses(Cow::Borrowed(ty)))
     }
 
+    #[cfg(feature = "auto_types")]
+    pub fn update_request_body(&mut self, request_body: Option<crate::ext::RequestBody<'p>>) {
+        self.request_body = request_body.map(RequestBody::Ext);
+    }
+
     #[cfg(any(
         feature = "actix_extras",
         feature = "rocket_extras",
@@ -202,7 +178,8 @@ impl Parse for PathAttr<'_> {
                     path_attr.path = Some(parse_utils::parse_next_literal_str(input)?);
                 }
                 "request_body" => {
-                    path_attr.request_body = Some(input.parse::<RequestBodyAttr>()?);
+                    path_attr.request_body =
+                        Some(RequestBody::Parsed(input.parse::<RequestBodyAttr>()?));
                 }
                 "responses" => {
                     let responses;
@@ -490,7 +467,7 @@ struct Operation<'a> {
     description: Option<&'a Vec<String>>,
     deprecated: &'a Option<bool>,
     parameters: &'a Vec<Parameter<'a>>,
-    request_body: Option<&'a RequestBodyAttr<'a>>,
+    request_body: Option<&'a RequestBody<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementAttr>>,
 }

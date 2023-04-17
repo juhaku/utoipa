@@ -70,6 +70,5 @@ fn path_operation_auto_types_default_response_type() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/get").unwrap();
 
-    dbg!(&path);
     assert_json_eq!(&path.pointer("/responses").unwrap(), serde_json::json!({}))
 }

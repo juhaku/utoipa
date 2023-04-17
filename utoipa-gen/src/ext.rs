@@ -4,10 +4,13 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use proc_macro2::TokenStream;
+use quote::{quote, quote_spanned, ToTokens};
+use syn::parse_quote;
+use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
-use crate::component::TypeTree;
-use crate::path::PathOperation;
+use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
+use crate::path::{PathOperation, PathTypeTree};
 
 #[cfg(feature = "auto_types")]
 pub mod auto_types;
@@ -72,6 +75,115 @@ pub enum ArgumentIn {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+pub struct RequestBody<'r> {
+    ty: TypeTree<'r>,
+}
+
+impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
+    fn from(value: TypeTree<'t>) -> RequestBody<'t> {
+        Self { ty: value }
+    }
+}
+
+impl ToTokens for RequestBody<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let mut actual_body = get_actual_body_type(&self.ty).unwrap().clone();
+
+        if let Some(option) = find_option_type_tree(&self.ty) {
+            let path = option.path.clone();
+            actual_body = TypeTree {
+                children: Some(vec![actual_body]),
+                generic_type: Some(crate::component::GenericType::Option),
+                value_type: crate::component::ValueType::Object,
+                span: Some(path.span()),
+                path,
+            }
+        };
+
+        let required = if actual_body.is_option() {
+            quote!(utoipa::openapi::Required::False)
+        } else {
+            quote!(utoipa::openapi::Required::True)
+        };
+
+        let mut create_body_tokens = |content_type: &str, actual_body: &TypeTree| {
+            let schema = ComponentSchema::new(ComponentSchemaProps {
+                type_tree: actual_body,
+                features: None,
+                description: None,
+                deprecated: None,
+                object_name: "",
+            });
+
+            tokens.extend(quote_spanned! {actual_body.span.unwrap()=>
+                utoipa::openapi::request_body::RequestBodyBuilder::new()
+                    .content(#content_type,
+                        utoipa::openapi::content::Content::new(#schema)
+                    )
+                    .required(Some(#required))
+                    .description(Some(""))
+                    .build()
+            })
+        };
+
+        if self.ty.is("Bytes") {
+            let bytes_as_bytes_vec = parse_quote!(Vec<u8>);
+            let ty = TypeTree::from_type(&bytes_as_bytes_vec);
+            create_body_tokens("application/octet-stream", &ty);
+        } else if self.ty.is("Form") {
+            create_body_tokens("application/x-www-form-urlencoded", &actual_body);
+        } else {
+            create_body_tokens(actual_body.get_default_content_type(), &actual_body);
+        };
+    }
+}
+
+fn get_actual_body_type<'t>(ty: &'t TypeTree<'t>) -> Option<&'t TypeTree<'t>> {
+    ty.path
+        .as_deref()
+        .expect("RequestBody TypeTree must have syn::Path")
+        .segments
+        .iter()
+        .find_map(|segment| match &*segment.ident.to_string() {
+            "Json" => Some(
+                ty.children
+                    .as_deref()
+                    .expect("Json must have children")
+                    .first()
+                    .expect("Json must have one child"),
+            ),
+            "Form" => Some(
+                ty.children
+                    .as_deref()
+                    .expect("Form must have children")
+                    .first()
+                    .expect("Form must have one child"),
+            ),
+            "Option" => get_actual_body_type(
+                ty.children
+                    .as_deref()
+                    .expect("Option must have children")
+                    .first()
+                    .expect("Option must have one child"),
+            ),
+            "Bytes" => Some(ty),
+            _ => None,
+        })
+}
+
+fn find_option_type_tree<'t>(ty: &'t TypeTree) -> Option<&'t TypeTree<'t>> {
+    let eq = ty.generic_type == Some(crate::component::GenericType::Option);
+
+    if !eq {
+        ty.children
+            .as_ref()
+            .and_then(|children| children.iter().find_map(find_option_type_tree))
+    } else {
+        Some(ty)
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct MacroPath {
     pub path: String,
     pub args: Vec<MacroArg>,
@@ -124,8 +236,9 @@ pub trait ArgumentResolver {
     ) -> (
         Option<Vec<ValueArgument<'_>>>,
         Option<Vec<IntoParamsType<'_>>>,
+        Option<RequestBody<'_>>,
     ) {
-        (None, None)
+        (None, None, None)
     }
 }
 
