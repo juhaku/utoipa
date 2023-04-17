@@ -1019,9 +1019,9 @@ fn derive_complex_enum_with_schema_properties() {
     let value: Value = api_doc! {
         /// This is the description
         #[derive(Serialize)]
-        #[schema(example = json!(EnumWithProperites::Variant2{name: String::from("foobar")}),
-            default = json!(EnumWithProperites::Variant{id: String::from("1")}))]
-        enum EnumWithProperites {
+        #[schema(example = json!(EnumWithProperties::Variant2{name: String::from("foobar")}),
+            default = json!(EnumWithProperties::Variant{id: String::from("1")}))]
+        enum EnumWithProperties {
             Variant {
                 id: String
             },
