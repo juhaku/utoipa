@@ -3178,7 +3178,7 @@ fn derive_complex_enum_as() {
 #[test]
 fn derive_component_with_primitive_aliases() {
     #[derive(Debug, OpenApi)]
-    #[openapi(components(schemas(BarString, BarInt)))]
+    #[openapi(components(schemas(BarString, BarInt, Foo)))]
     struct ApiDoc;
 
     #[derive(ToSchema)]
@@ -3186,6 +3186,12 @@ fn derive_component_with_primitive_aliases() {
     struct Bar<R> {
         #[allow(dead_code)]
         bar: R,
+    }
+    #[derive(ToSchema)]
+    struct Foo {
+        #[allow(dead_code)]
+        #[schema(value_type=BarString)]
+        baz: Bar<String>,
     }
 
     let doc = ApiDoc::openapi();
@@ -3214,9 +3220,18 @@ fn derive_component_with_primitive_aliases() {
                },
                 "type": "object",
                 "required": ["bar"]
+            },
+            "Foo": {
+                "properties": {
+                    "baz": {
+                        "$ref": "#/components/schemas/BarString",
+                    }
+               },
+                "type": "object",
+                "required": ["baz"]
             }
         })
-    )
+    );
 }
 
 #[test]

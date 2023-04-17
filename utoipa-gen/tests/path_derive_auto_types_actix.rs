@@ -9,7 +9,7 @@ use actix_web::{get, HttpResponse, Responder, ResponseError};
 use assert_json_diff::assert_json_eq;
 
 #[test]
-fn path_operation_auto_types_ressponses() {
+fn path_operation_auto_types_responses() {
     /// Test item to to return
     #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
     struct Item<'s> {
