@@ -11,7 +11,7 @@ Want to have your API documented with OpenAPI? But don't want to be bothered
 with manual YAML or JSON tweaking? Would like it to be so easy that it would almost
 be utopic? Don't worry: utoipa is here to fill this gap. It aims to do, if not all, then
 most of the heavy lifting for you, enabling you to focus on writing the actual API logic instead of
-documentation. It aims to be _minimal_, _simple_ and _fast_. It uses simple proc macros which
+documentation. It aims to be _minimal_, _simple_ and _fast_. It uses simple `proc` macros which
 you can use to annotate your code to have items documented.
 
 The `utoipa` crate provides auto-generated OpenAPI documentation for Rust REST APIs. It treats
@@ -24,20 +24,25 @@ Rust if auto generation is not your flavor or does not fit your purpose.
 Long term goal of the library is to be the place to go when OpenAPI documentation is needed in any Rust
 codebase.
 
-Utoipa is framework agnostic and could be used together with any web framework or even without one. While
+Utoipa is framework-agnostic, and could be used together with any web framework, or even without one. While
 being portable and standalone, one of its key aspects is simple integration with web frameworks.
 
 ## Choose your flavor and document your API with ice-cold IPA
 
-Existing [examples](./examples) for following frameworks:
+Refer to the existing [examples](./examples) for building the "todo" app in the following frameworks:
 
 - **[actix-web](https://github.com/actix/actix-web)**
 - **[axum](https://github.com/tokio-rs/axum)**
 - **[warp](https://github.com/seanmonstar/warp)**
 - **[tide](https://github.com/http-rs/tide)**
-- **[rocket](https://github.com/SergioBenitez/Rocket)**
+- **[rocket](https://github.com/SergioBenitez/Rocket)** (`0.4` and `0.5.0-rc3`)
 
-Even if there is no example for your favourite framework `utoipa` can be used with any
+All examples include a [Swagger-UI](https://github.com/swagger-api/swagger-ui).
+
+There are also examples of building multiple OpenAPI docs in one application, each separated in Swagger UI.
+These examples exist only for the **actix** and **warp** frameworks.
+
+Even if there is no example for your favourite framework, `utoipa` can be used with any
 web framework which supports decorating functions with macros similarly to the **warp** and **tide** examples.
 
 ### Community examples
@@ -60,7 +65,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
   able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
   or [examples](./examples) for more details.
-- **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without 
+- **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without
   defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)
   or [examples](./examples) for more details.
 - **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
@@ -87,7 +92,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **preserve_order** Preserve order of properties when serializing the schema for a component.
   When enabled, the properties are listed in order of fields in the corresponding struct definition.
   When disabled, the properties are listed in alphabetical order.
-- **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to 
+- **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.
 - **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
 
@@ -290,9 +295,9 @@ This would produce api doc something similar to:
 
 ## General Pitfalls
 
-#### Swagger UI returns 404 NotFound from built binary
+### Swagger UI returns 404 NotFound from built binary
 
-This is highly probably due to `RustEmbed` not embedding the Swagger UI to the executable. This is natural since the `RustEmbed` 
+This is highly probably due to `RustEmbed` not embedding the Swagger UI to the executable. This is natural since the `RustEmbed`
 library **does not** by default embed files on debug builds. To get around this you can do one of the following.
 
 1. Build your executable in `--release` mode
@@ -301,7 +306,7 @@ library **does not** by default embed files on debug builds. To get around this 
 
 Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
 
-# License
+## License
 
 Licensed under either of [Apache 2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT) license at your option.
 
