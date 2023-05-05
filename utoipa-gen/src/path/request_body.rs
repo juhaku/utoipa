@@ -11,6 +11,23 @@ use crate::{parse_utils, AnyValue, Array, Required};
 use super::example::Example;
 use super::{PathType, PathTypeTree};
 
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub enum RequestBody<'r> {
+    Parsed(RequestBodyAttr<'r>),
+    #[cfg(feature = "auto_types")]
+    Ext(crate::ext::RequestBody<'r>),
+}
+
+impl ToTokens for RequestBody<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self {
+            Self::Parsed(parsed) => parsed.to_tokens(tokens),
+            #[cfg(feature = "auto_types")]
+            Self::Ext(ext) => ext.to_tokens(tokens),
+        }
+    }
+}
+
 /// Parsed information related to request body of path.
 ///
 /// Supported configuration options:

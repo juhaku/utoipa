@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     fn_arg::{self, FnArg},
-    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver,
+    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver, RequestBody,
     ResolvedOperation,
 };
 
@@ -28,11 +28,13 @@ impl ArgumentResolver for PathOperations {
     ) -> (
         Option<Vec<ValueArgument<'_>>>,
         Option<Vec<IntoParamsType<'_>>>,
+        Option<RequestBody<'_>>,
     ) {
         let mut args = fn_arg::get_fn_args(fn_args).collect::<Vec<_>>();
         args.sort_unstable();
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
             args.into_iter().partition(is_into_params);
+        // TODO resolve request body from value_args
 
         macro_args
             .map(|args| {
@@ -55,9 +57,10 @@ impl ArgumentResolver for PathOperations {
                             .map(fn_arg::into_into_params_type)
                             .collect(),
                     ),
+                    None,
                 )
             })
-            .unwrap_or_else(|| (None, None))
+            .unwrap_or_else(|| (None, None, None))
     }
 }
 

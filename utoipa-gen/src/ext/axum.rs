@@ -18,11 +18,12 @@ impl ArgumentResolver for PathOperations {
     ) -> (
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
+        Option<super::RequestBody<'_>>,
     ) {
-        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) = fn_arg::get_fn_args(args)
-            .into_iter()
-            .partition(fn_arg::is_into_params);
+        let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
+            fn_arg::get_fn_args(args).partition(fn_arg::is_into_params);
 
+        // TODO value args resolve request body
         (
             Some(get_value_arguments(value_args).collect()),
             Some(
@@ -32,6 +33,7 @@ impl ArgumentResolver for PathOperations {
                     .map(fn_arg::into_into_params_type)
                     .collect(),
             ),
+            None,
         )
     }
 }

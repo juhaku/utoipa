@@ -76,6 +76,7 @@ enum TypeTreeValue<'t> {
     /// generic arguments.
     Array(Vec<TypeTreeValue<'t>>, Span),
     UnitType,
+    Tuple(Vec<TypeTreeValue<'t>>, Span),
 }
 
 impl PartialEq for TypeTreeValue<'_> {
@@ -84,6 +85,7 @@ impl PartialEq for TypeTreeValue<'_> {
             Self::Path(_) => self == other,
             Self::TypePath(_) => self == other,
             Self::Array(array, _) => matches!(other, Self::Array(other, _) if other == array),
+            Self::Tuple(tuple, _) => matches!(other, Self::Tuple(other, _) if other == tuple),
             Self::UnitType => self == other,
         }
     }
@@ -91,10 +93,11 @@ impl PartialEq for TypeTreeValue<'_> {
 
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
-#[cfg_attr(feature = "debug", derive(Debug, PartialEq))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
+    pub span: Option<Span>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
     pub children: Option<Vec<TypeTree<'t>>>,
@@ -102,24 +105,26 @@ pub struct TypeTree<'t> {
 
 impl<'t> TypeTree<'t> {
     pub fn from_type(ty: &'t Type) -> TypeTree<'t> {
-        Self::from_type_paths(Self::get_type_paths(ty))
+        Self::convert_types(Self::get_type_tree_values(ty))
+            .next()
+            .expect("TypeTree from type should have one TypeTree parent")
     }
 
-    fn get_type_paths(ty: &'t Type) -> Vec<TypeTreeValue> {
+    fn get_type_tree_values(ty: &'t Type) -> Vec<TypeTreeValue> {
         match ty {
             Type::Path(path) => {
                 vec![TypeTreeValue::TypePath(path)]
             },
-            Type::Reference(reference) => Self::get_type_paths(reference.elem.as_ref()),
+            Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref()),
             Type::Tuple(tuple) => {
                 // Detect unit type ()
                 if tuple.elems.is_empty() { return vec![TypeTreeValue::UnitType] }
 
-                tuple.elems.iter().flat_map(Self::get_type_paths).collect()
+                vec![TypeTreeValue::Tuple(tuple.elems.iter().flat_map(Self::get_type_tree_values).collect(), tuple.span())]
             },
-            Type::Group(group) => Self::get_type_paths(group.elem.as_ref()),
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_paths(&slice.elem), slice.bracket_token.span.join())],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_paths(&array.elem), array.bracket_token.span.join())],
+            Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref()),
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem), slice.bracket_token.span.join())],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&array.elem), array.bracket_token.span.join())],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -140,21 +145,6 @@ impl<'t> TypeTree<'t> {
         }
     }
 
-    fn from_type_paths(paths: Vec<TypeTreeValue<'t>>) -> TypeTree<'t> {
-        if paths.len() > 1 {
-            TypeTree {
-                path: None,
-                children: Some(Self::convert_types(paths).collect()),
-                generic_type: None,
-                value_type: ValueType::Tuple,
-            }
-        } else {
-            Self::convert_types(paths)
-                .next()
-                .expect("TypeTreeValue from_type_paths expected at least one TypePath")
-        }
-    }
-
     fn convert_types(paths: Vec<TypeTreeValue<'t>>) -> impl Iterator<Item = TypeTree<'t>> {
         paths.into_iter().map(|value| {
             let path = match value {
@@ -164,14 +154,25 @@ impl<'t> TypeTree<'t> {
                     let array: Path = Ident::new("Array", span).into();
                     return TypeTree {
                         path: Some(Cow::Owned(array)),
+                        span: Some(span),
                         value_type: ValueType::Object,
                         generic_type: Some(GenericType::Vec),
-                        children: Some(vec![Self::from_type_paths(value)]),
+                        children: Some(Self::convert_types(value).collect()),
                     };
+                }
+                TypeTreeValue::Tuple(tuple, span) => {
+                    return TypeTree {
+                        path: None,
+                        span: Some(span),
+                        children: Some(Self::convert_types(tuple).collect()),
+                        generic_type: None,
+                        value_type: ValueType::Tuple,
+                    }
                 }
                 TypeTreeValue::UnitType => {
                     return TypeTree {
                         path: None,
+                        span: None,
                         value_type: ValueType::Tuple,
                         generic_type: None,
                         children: None,
@@ -248,6 +249,7 @@ impl<'t> TypeTree<'t> {
 
         Self {
             path: Some(Cow::Borrowed(path)),
+            span: Some(path.span()),
             value_type: if schema_type.is_primitive() {
                 ValueType::Primitive
             } else if schema_type.is_value() {
@@ -335,8 +337,16 @@ impl<'t> TypeTree<'t> {
     }
 }
 
-#[cfg(not(feature = "debug"))]
 impl PartialEq for TypeTree<'_> {
+    #[cfg(feature = "debug")]
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+            && self.value_type == other.value_type
+            && self.generic_type == other.generic_type
+            && self.children == other.children
+    }
+
+    #[cfg(not(feature = "debug"))]
     fn eq(&self, other: &Self) -> bool {
         let path_eg = match (self.path.as_ref(), other.path.as_ref()) {
             (Some(Cow::Borrowed(self_path)), Some(Cow::Borrowed(other_path))) => {
