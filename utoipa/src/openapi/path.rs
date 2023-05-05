@@ -1,7 +1,10 @@
 //! Implements [OpenAPI Path Object][paths] types.
 //!
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-use std::{collections::BTreeMap, iter};
+use std::iter;
+
+#[cfg(not(feature = "preserve_path_order"))]
+use std::{collections::BTreeMap};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -12,6 +15,11 @@ use super::{
     response::{Response, Responses},
     set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
 };
+
+#[cfg(not(feature = "preserve_path_order"))]
+type PathsMap<K, V> = BTreeMap<K, V>;
+#[cfg(feature = "preserve_path_order")]
+type PathsMap<K, V> = indexmap::IndexMap<K, V>;
 
 builder! {
     PathsBuilder;
@@ -28,7 +36,7 @@ builder! {
     pub struct Paths {
         /// Map of relative paths with [`PathItem`]s holding [`Operation`]s matching
         /// api endpoints.
-        pub paths: BTreeMap<String, PathItem>,
+        pub paths: PathsMap<String, PathItem>,
     }
 }
 
@@ -80,10 +88,10 @@ impl Paths {
 impl PathsBuilder {
     /// Append [`PathItem`] with path to map of paths. If path already exists it will merge [`Operation`]s of
     /// [`PathItem`] with already found path item operations.
-    pub fn path<I: Into<String>>(mut self, path: I, mut item: PathItem) -> Self {
+    pub fn path<I: Into<String>>(mut self, path: I, item: PathItem) -> Self {
         let path_string = path.into();
         if let Some(existing_item) = self.paths.get_mut(&path_string) {
-            existing_item.operations.append(&mut item.operations);
+            existing_item.operations.extend(&mut item.operations.into_iter());
         } else {
             self.paths.insert(path_string, item);
         }
@@ -127,14 +135,14 @@ builder! {
         /// Map of operations in this [`PathItem`]. Operations can hold only one operation
         /// per [`PathItemType`].
         #[serde(flatten)]
-        pub operations: BTreeMap<PathItemType, Operation>,
+        pub operations: PathsMap<PathItemType, Operation>,
     }
 }
 
 impl PathItem {
     /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`PathItemType`].
     pub fn new<O: Into<Operation>>(path_item_type: PathItemType, operation: O) -> Self {
-        let operations = BTreeMap::from_iter(iter::once((path_item_type, operation.into())));
+        let operations = PathsMap::from_iter(iter::once((path_item_type, operation.into())));
 
         Self {
             operations,
