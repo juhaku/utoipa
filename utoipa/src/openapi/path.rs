@@ -4,7 +4,7 @@
 use std::iter;
 
 #[cfg(not(feature = "preserve_path_order"))]
-use std::{collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -91,7 +91,9 @@ impl PathsBuilder {
     pub fn path<I: Into<String>>(mut self, path: I, item: PathItem) -> Self {
         let path_string = path.into();
         if let Some(existing_item) = self.paths.get_mut(&path_string) {
-            existing_item.operations.extend(&mut item.operations.into_iter());
+            existing_item
+                .operations
+                .extend(&mut item.operations.into_iter());
         } else {
             self.paths.insert(path_string, item);
         }
