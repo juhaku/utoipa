@@ -119,7 +119,7 @@ utoipa = { version = "3", features = ["actix_extras"] }
 
 ## Examples
 
-Create a struct, or it could be an enum also. Add `ToSchema` derive macro to it, so it can be registered
+Create a struct, or it could also be an enum. Add `ToSchema` derive macro to it, so it can be registered
 as an OpenAPI schema.
 
 ```rust
