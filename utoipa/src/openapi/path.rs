@@ -190,7 +190,7 @@ impl PathItemBuilder {
 }
 
 /// Path item operation type.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum PathItemType {
@@ -637,7 +637,81 @@ pub enum ParameterStyle {
 #[cfg(test)]
 mod tests {
     use super::{Operation, OperationBuilder};
-    use crate::openapi::{security::SecurityRequirement, server::Server};
+    use crate::openapi::{
+        security::SecurityRequirement, server::Server, PathItem, PathItemType, PathsBuilder,
+    };
+
+    #[test]
+    fn test_path_order() {
+        let paths_list = PathsBuilder::new()
+            .path(
+                "/todo",
+                PathItem::new(PathItemType::Get, OperationBuilder::new()),
+            )
+            .path(
+                "/todo",
+                PathItem::new(PathItemType::Post, OperationBuilder::new()),
+            )
+            .path(
+                "/todo/{id}",
+                PathItem::new(PathItemType::Delete, OperationBuilder::new()),
+            )
+            .path(
+                "/todo/{id}",
+                PathItem::new(PathItemType::Get, OperationBuilder::new()),
+            )
+            .path(
+                "/todo/{id}",
+                PathItem::new(PathItemType::Put, OperationBuilder::new()),
+            )
+            .path(
+                "/todo/search",
+                PathItem::new(PathItemType::Get, OperationBuilder::new()),
+            )
+            .build();
+
+        let mut actual_value = Vec::new();
+
+        for path in paths_list.paths.keys() {
+            let path_item = paths_list.paths.get(path);
+            if let Some(path_item) = path_item {
+                for method in path_item.operations.keys() {
+                    actual_value.push((path.as_str(), method));
+                }
+            }
+        }
+
+        let get = PathItemType::Get;
+        let post = PathItemType::Post;
+        let put = PathItemType::Put;
+        let delete = PathItemType::Delete;
+
+        #[cfg(not(feature = "preserve_path_order"))]
+        {
+            let expected_value = vec![
+                ("/todo", &get),
+                ("/todo", &post),
+                ("/todo/search", &get),
+                ("/todo/{id}", &get),
+                ("/todo/{id}", &put),
+                ("/todo/{id}", &delete),
+            ];
+            assert_eq!(actual_value, expected_value);
+        }
+
+        #[cfg(feature = "preserve_path_order")]
+        {
+            let expected_value = vec![
+                ("/todo", &get),
+                ("/todo", &post),
+                ("/todo/{id}", &delete),
+                ("/todo/{id}", &get),
+                ("/todo/{id}", &put),
+                ("/todo/search", &get),
+            ];
+            assert_eq!(actual_value, expected_value);
+        }
+    }
 
     #[test]
     fn operation_new() {
