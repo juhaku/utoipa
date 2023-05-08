@@ -92,6 +92,9 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **preserve_order** Preserve order of properties when serializing the schema for a component.
   When enabled, the properties are listed in order of fields in the corresponding struct definition.
   When disabled, the properties are listed in alphabetical order.
+- **preserve_path_order** Preserve order of OpenAPI Paths according to order they have been
+  introduced to the `#[openapi(paths(...))]` macro attribute. If disabled the paths will be
+  ordered in alphabetical order.
 - **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.
 - **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.

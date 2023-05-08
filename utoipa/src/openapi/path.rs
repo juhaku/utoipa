@@ -3,9 +3,6 @@
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
 use std::iter;
 
-#[cfg(not(feature = "preserve_path_order"))]
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -17,7 +14,7 @@ use super::{
 };
 
 #[cfg(not(feature = "preserve_path_order"))]
-type PathsMap<K, V> = BTreeMap<K, V>;
+type PathsMap<K, V> = std::collections::BTreeMap<K, V>;
 #[cfg(feature = "preserve_path_order")]
 type PathsMap<K, V> = indexmap::IndexMap<K, V>;
 
@@ -190,7 +187,7 @@ impl PathItemBuilder {
 }
 
 /// Path item operation type.
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum PathItemType {
