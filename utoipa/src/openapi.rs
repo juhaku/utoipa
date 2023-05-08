@@ -180,7 +180,7 @@ impl OpenApi {
                 .paths
                 .paths
                 .retain(|path, _| self.paths.get_path_item(path).is_none());
-            self.paths.paths.append(&mut other.paths.paths);
+            self.paths.paths.extend(&mut other.paths.paths.into_iter());
         };
 
         if let Some(other_components) = &mut other.components {
