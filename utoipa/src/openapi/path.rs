@@ -670,16 +670,19 @@ mod tests {
             )
             .build();
 
-        let mut actual_value = Vec::new();
-
-        for path in paths_list.paths.keys() {
-            let path_item = paths_list.paths.get(path);
-            if let Some(path_item) = path_item {
-                for method in path_item.operations.keys() {
-                    actual_value.push((path.as_str(), method));
-                }
-            }
-        }
+        let actual_value = paths_list
+            .paths
+            .iter()
+            .flat_map(|(path, path_item)| {
+                path_item.operations.iter().fold(
+                    Vec::<(&str, &PathItemType)>::with_capacity(paths_list.paths.len()),
+                    |mut acc, (method, _)| {
+                        acc.push((path.as_str(), method));
+                        acc
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
 
         let get = PathItemType::Get;
         let post = PathItemType::Post;
