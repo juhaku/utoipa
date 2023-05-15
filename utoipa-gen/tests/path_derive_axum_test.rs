@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use assert_json_diff::assert_json_eq;
+use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
 use axum::{
     extract::{Path, Query},
     Extension,
@@ -202,7 +202,9 @@ fn derive_path_params_into_params_unnamed() {
         .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
         .unwrap();
 
-    assert_json_eq!(
+    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
+
+    assert_json_matches!(
         parameters,
         &json!([
             {
@@ -223,7 +225,8 @@ fn derive_path_params_into_params_unnamed() {
                     "type": "string",
                 },
             },
-        ])
+        ]),
+        config
     )
 }
 
@@ -254,7 +257,9 @@ fn derive_path_params_with_ignored_parameter() {
         .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
         .unwrap();
 
-    assert_json_eq!(
+    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
+
+    assert_json_matches!(
         parameters,
         &json!([
             {
@@ -275,7 +280,8 @@ fn derive_path_params_with_ignored_parameter() {
                     "type": "string",
                 },
             },
-        ])
+        ]),
+        config
     )
 }
 
@@ -305,7 +311,8 @@ fn derive_path_params_with_unnamed_struct_desctructed() {
         .pointer("/paths/~1person~1{id}~1{name}/get/parameters")
         .unwrap();
 
-    assert_json_eq!(
+    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
+    assert_json_matches!(
         parameters,
         &json!([
             {
@@ -326,7 +333,8 @@ fn derive_path_params_with_unnamed_struct_desctructed() {
                     "type": "string",
                 },
             },
-        ])
+        ]),
+        config
     )
 }
 

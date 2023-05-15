@@ -624,27 +624,27 @@ builder! {
 
         /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
         /// divided by the _`multiple_of`_ value results an integer.
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
         pub multiple_of: Option<f64>,
 
         /// Specify inclusive upper limit for the [`Object`]'s value. Number is considered valid if
         /// it is equal or less than the _`maximum`_.
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
         pub maximum: Option<f64>,
 
         /// Specify inclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is equal or greater than the _`minimum`_.
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
         pub minimum: Option<f64>,
 
         /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly less than _`exclusive_maximum`_.
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
         pub exclusive_maximum: Option<f64>,
 
         /// Specify exclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly above the _`exclusive_minimum`_.
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
         pub exclusive_minimum: Option<f64>,
 
         /// Specify maximum length for `string` values. _`max_length`_ cannot be a negative integer
@@ -967,6 +967,21 @@ impl From<Object> for RefOr<Schema> {
 impl From<Array> for RefOr<Schema> {
     fn from(array: Array) -> Self {
         Self::T(Schema::Array(array))
+    }
+}
+
+fn omit_decimal_zero<S>(maybe_value: &Option<f64>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    if let Some(v) = maybe_value {
+        if v.fract() == 0.0 && *v >= i64::MIN as f64 && *v <= i64::MAX as f64 {
+            s.serialize_i64(v.trunc() as i64)
+        } else {
+            s.serialize_f64(*v)
+        }
+    } else {
+        s.serialize_none()
     }
 }
 
