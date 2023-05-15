@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use assert_json_diff::assert_json_eq;
+use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
 use paste::paste;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -1381,7 +1381,9 @@ fn derive_path_with_validation_attributes() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
 
-    assert_json_eq!(
+    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
+
+    assert_json_matches!(
         parameters,
         json!([
             {
@@ -1420,7 +1422,8 @@ fn derive_path_with_validation_attributes() {
                 "name": "items",
                 "in": "path"
             }
-        ])
+        ]),
+        config
     );
 }
 
