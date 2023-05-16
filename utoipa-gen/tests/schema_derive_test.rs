@@ -3864,11 +3864,6 @@ fn derive_struct_with_validation_fields() {
                     "format": "uint32",
                     "minimum": 2.0,
                 }
-                "unsigned_value": {
-                    "type": "integer",
-                    "format": "int32",
-                    "minimum": 2.0,
-                }
             },
             "type": "object",
             "required": [

@@ -1020,22 +1020,22 @@ mod tests {
             (
                 "u8",
                 u8::schema(),
-                json!({"type": "integer", "format": "uint8", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint8", "minimum": 0}),
             ),
             (
                 "u16",
                 u16::schema(),
-                json!({"type": "integer", "format": "uint16", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint16", "minimum": 0}),
             ),
             (
                 "u32",
                 u32::schema(),
-                json!({"type": "integer", "format": "uint32", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint32", "minimum": 0}),
             ),
             (
                 "u64",
                 u64::schema(),
-                json!({"type": "integer", "format": "uint64", "minimum": 0.0}),
+                json!({"type": "integer", "format": "uint64", "minimum": 0}),
             ),
         ] {
             println!(
