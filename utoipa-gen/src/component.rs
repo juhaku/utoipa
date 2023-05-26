@@ -208,18 +208,24 @@ impl<'t> TypeTree<'t> {
         let mut generic_types = match &last_segment.arguments {
             PathArguments::AngleBracketed(angle_bracketed_args) => {
                 // if all type arguments are lifetimes we ignore the generic type
-                if angle_bracketed_args
-                    .args
-                    .iter()
-                    .all(|arg| matches!(arg, GenericArgument::Lifetime(_)))
-                {
+                if angle_bracketed_args.args.iter().all(|arg| {
+                    matches!(
+                        arg,
+                        GenericArgument::Lifetime(_) | GenericArgument::Const(_)
+                    )
+                }) {
                     None
                 } else {
                     Some(
                         angle_bracketed_args
                             .args
                             .iter()
-                            .filter(|arg| !matches!(arg, GenericArgument::Lifetime(_)))
+                            .filter(|arg| {
+                                !matches!(
+                                    arg,
+                                    GenericArgument::Lifetime(_) | GenericArgument::Const(_)
+                                )
+                            })
                             .map(|arg| match arg {
                                 GenericArgument::Type(arg) => arg,
                                 _ => abort!(
