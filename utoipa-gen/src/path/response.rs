@@ -518,6 +518,10 @@ impl Parse for DeriveIntoResponsesValue {
             return Err(Error::new(first_span, MISSING_STATUS_ERROR));
         }
 
+        if !input.is_empty() {
+            input.parse::<Token![,]>()?;
+        }
+
         while !input.is_empty() {
             let ident = input.parse::<Ident>()?;
             let attribute_name = &*ident.to_string();
@@ -547,7 +551,7 @@ impl Parse for DeriveIntoResponsesValue {
             }
 
             if !input.is_empty() {
-                input.parse::<Comma>()?;
+                input.parse::<Token![,]>()?;
             }
         }
 
