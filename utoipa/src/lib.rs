@@ -53,7 +53,7 @@
 //!   without defining the `parameter_in` attribute. See [axum extras support][axum_path]
 //!   or [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
 //! * **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
-//! * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate` and `Duration`
+//! * **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate`, `NaiveTime` and `Duration`
 //!   types. By default these types are parsed to `string` types with additional `format` information.
 //!   `format: date-time` for `DateTime` and `format: date` for `Date` and `NaiveDate` according
 //!   [RFC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14) as `ISO-8601`. To

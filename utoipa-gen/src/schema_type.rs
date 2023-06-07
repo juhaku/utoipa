@@ -153,7 +153,7 @@ fn is_primitive(name: &str) -> bool {
 fn is_primitive_chrono(name: &str) -> bool {
     matches!(
         name,
-        "DateTime" | "Date" | "NaiveDate" | "Duration" | "NaiveDateTime"
+        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime"
     )
 }
 
@@ -184,6 +184,8 @@ impl ToTokens for SchemaType<'_> {
             "NaiveDateTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "chrono")]
             "NaiveDate" => tokens.extend(quote!(utoipa::openapi::SchemaType::String)),
+            #[cfg(feature = "chrono")]
+            "NaiveTime" => tokens.extend(quote!(utoipa::openapi::SchemaType::String)),
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
             #[cfg(feature = "decimal")]
@@ -266,7 +268,10 @@ impl Type<'_> {
 
             #[cfg(feature = "chrono")]
             if !known_format {
-                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
+                known_format = matches!(
+                    name,
+                    "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "NaiveDateTime"
+                );
             }
 
             #[cfg(feature = "uuid")]
