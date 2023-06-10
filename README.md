@@ -50,6 +50,7 @@ web framework which supports decorating functions with macros similarly to the *
 - **[graphul](https://github.com/graphul-rs/graphul/tree/main/examples/utoipa-swagger-ui)**
 - **[salvo](https://github.com/salvo-rs/salvo/tree/main/examples/todos-openapi)**
 - **[viz](https://github.com/viz-rs/viz/tree/main/examples/routing/openapi)**
+- **[ntex](https://github.com/leon3s/ntex-rest-api-example)**
 
 ## What's up with the word play?
 
