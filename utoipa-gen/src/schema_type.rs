@@ -182,7 +182,9 @@ impl ToTokens for SchemaType<'_> {
             "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+                tokens.extend(quote! { utoipa::openapi::SchemaType::String })
+            }
 
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" | "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
@@ -270,10 +272,7 @@ impl Type<'_> {
 
             #[cfg(feature = "chrono")]
             if !known_format {
-                known_format = matches!(
-                    name,
-                    "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime"
-                );
+                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
             }
 
             #[cfg(feature = "uuid")]
