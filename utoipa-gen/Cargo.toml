@@ -34,7 +34,7 @@ rust_decimal = "1"
 chrono = { version = "0.4", features = ["serde"] }
 assert-json-diff = "2"
 time = { version = "0.3", features = ["serde-human-readable"] }
-serde_with = "2.3"
+serde_with = "3.0"
 
 [features]
 # See README.md for list and explanations of features
@@ -45,7 +45,7 @@ yaml = []
 decimal = []
 rocket_extras = ["regex", "lazy_static", "syn/extra-traits"]
 non_strict_integers = []
-uuid = ["dep:uuid"]
+uuid = ["dep:uuid", "utoipa/uuid"]
 axum_extras = ["syn/extra-traits"]
 time = []
 smallvec = []
