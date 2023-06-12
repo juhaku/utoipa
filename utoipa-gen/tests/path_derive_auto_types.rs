@@ -1,4 +1,4 @@
-#![cfg(feature = "auto_types")]
+#![cfg(feature = "auto_into_responses")]
 
 use assert_json_diff::assert_json_eq;
 use utoipa::OpenApi;

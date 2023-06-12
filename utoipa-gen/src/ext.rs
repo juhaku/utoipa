@@ -126,15 +126,32 @@ impl ToTokens for RequestBody<'_> {
             })
         };
 
+        let content_type = TypeTreeExt::get_default_content_type(&actual_body);
         if self.ty.is("Bytes") {
             let bytes_as_bytes_vec = parse_quote!(Vec<u8>);
             let ty = TypeTree::from_type(&bytes_as_bytes_vec);
-            create_body_tokens("application/octet-stream", &ty);
-        } else if self.ty.is("Form") {
-            create_body_tokens("application/x-www-form-urlencoded", &actual_body);
+            create_body_tokens(content_type, &ty);
         } else {
-            create_body_tokens(actual_body.get_default_content_type(), &actual_body);
+            create_body_tokens(content_type, &actual_body);
         };
+    }
+}
+
+#[cfg(feature = "actix_auto_responses")]
+trait TypeTreeExt<'t> {
+    fn get_default_content_type(&'t self) -> &'t str;
+}
+
+#[cfg(feature = "actix_auto_responses")]
+impl<'t> TypeTreeExt<'t> for TypeTree<'t> {
+    fn get_default_content_type(&self) -> &str {
+        if self.is("Bytes") || self.is("ByteString") {
+            "application/octet-stream"
+        } else if self.is("Form") {
+            "application/x-www-form-urlencoded"
+        } else {
+            <Self as PathTypeTree>::get_default_content_type(self)
+        }
     }
 }
 
@@ -169,6 +186,122 @@ fn get_actual_body_type<'t>(ty: &'t TypeTree<'t>) -> Option<&'t TypeTree<'t>> {
             "Bytes" => Some(ty),
             _ => None,
         })
+}
+
+fn get_actual_type(ty: TypeTree<'_>) -> Option<(Option<TypeTree<'_>>, Option<TypeTree<'_>>)> {
+    ty.path.as_ref().and_then(|path| {
+        // TODO
+        path.segments
+            .iter()
+            .find_map(|segment| match &*segment.ident.to_string() {
+                "Json" => Some((
+                    Some(
+                        ty.children
+                            .as_deref()
+                            .expect("Json must have children")
+                            .first()
+                            .expect("Json must have one child")
+                            .clone(),
+                    ),
+                    None,
+                )),
+                "Form" => Some((
+                    Some(
+                        ty.children
+                            .as_deref()
+                            .expect("Form must have children")
+                            .first()
+                            .expect("Form must have one child")
+                            .clone(),
+                    ),
+                    None,
+                )),
+                "Option" => get_actual_type(
+                    ty.children
+                        .as_deref()
+                        .expect("Option must have children")
+                        .first()
+                        .expect("Option must have one child")
+                        .clone(),
+                ),
+                "Bytes" | "ByteString" => Some((Some(ty.clone()), None)),
+                "Result" => {
+                    let children = ty.children.as_deref().expect("Result must have children");
+
+                    Some((
+                        get_actual_type(
+                            children
+                                .first()
+                                .expect("Result children must have at least one child")
+                                .clone(),
+                        )
+                        .unwrap()
+                        .0,
+                        children
+                            .get(1)
+                            .and_then(|other_type| get_actual_type(other_type.clone()).unwrap().0),
+                    ))
+                }
+                _ => Some((Some(ty.clone()), None)),
+            })
+    })
+
+    // ty.path
+    //     .as_deref()
+    //     .expect("get_actual_type TypeTree must have syn::Path")
+    //     .segments
+    //     .iter()
+    //     .find_map(|segment| match &*segment.ident.to_string() {
+    //         "Json" => Some((
+    //             Some(
+    //                 ty.children
+    //                     .as_deref()
+    //                     .expect("Json must have children")
+    //                     .first()
+    //                     .expect("Json must have one child")
+    //                     .clone(),
+    //             ),
+    //             None,
+    //         )),
+    //         "Form" => Some((
+    //             Some(
+    //                 ty.children
+    //                     .as_deref()
+    //                     .expect("Form must have children")
+    //                     .first()
+    //                     .expect("Form must have one child")
+    //                     .clone(),
+    //             ),
+    //             None,
+    //         )),
+    //         "Option" => get_actual_type(
+    //             ty.children
+    //                 .as_deref()
+    //                 .expect("Option must have children")
+    //                 .first()
+    //                 .expect("Option must have one child")
+    //                 .clone(),
+    //         ),
+    //         "Bytes" | "ByteString" => Some((Some(ty), None)),
+    //         "Result" => {
+    //             let children = ty.children.as_deref().expect("Result must have children");
+
+    //             Some((
+    //                 get_actual_type(
+    //                     children
+    //                         .first()
+    //                         .expect("Result children must have at least one child")
+    //                         .clone(),
+    //                 )
+    //                 .unwrap()
+    //                 .0,
+    //                 children
+    //                     .get(1)
+    //                     .and_then(|other_type| get_actual_type(other_type.clone()).unwrap().0),
+    //             ))
+    //         }
+    //         _ => Some((Some(ty), None)),
+    //     })
 }
 
 fn find_option_type_tree<'t>(ty: &'t TypeTree) -> Option<&'t TypeTree<'t>> {

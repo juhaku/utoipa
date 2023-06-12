@@ -195,6 +195,19 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
     }
 }
 
+impl<'t, 'c> From<(Cow<'t, syn::Type>, &'c str)> for ResponseValue<'t> {
+    fn from((value, content_type): (Cow<'t, syn::Type>, &'c str)) -> Self {
+        Self {
+            response_type: Some(PathType::MediaType(InlineType {
+                ty: value,
+                is_inline: false,
+            })),
+            content_type: Some(vec![content_type.to_string()]),
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
@@ -561,7 +574,7 @@ impl Parse for DeriveIntoResponsesValue {
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct ResponseStatus(TokenStream2);
+pub struct ResponseStatus(TokenStream2);
 
 impl Parse for ResponseStatus {
     fn parse(input: ParseStream) -> syn::Result<Self> {

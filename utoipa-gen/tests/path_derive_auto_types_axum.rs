@@ -1,4 +1,8 @@
-#![cfg(all(feature = "auto_types", feature = "axum_extras"))]
+#![cfg(all(
+    feature = "auto_types",
+    feature = "auto_into_responses",
+    feature = "axum_extras"
+))]
 
 use assert_json_diff::assert_json_eq;
 use utoipa::OpenApi;

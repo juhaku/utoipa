@@ -105,10 +105,15 @@ impl<'p> PathAttr<'p> {
         }
     }
 
-    #[cfg(feature = "auto_types")]
+    #[cfg(feature = "auto_into_responses")]
     pub fn responses_from_into_responses(&mut self, ty: &'p syn::TypePath) {
         self.responses
             .push(Response::IntoResponses(Cow::Borrowed(ty)))
+    }
+
+    #[cfg(feature = "actix_auto_responses")]
+    pub fn responses_from_vec(&mut self, mut responses: Vec<Response<'p>>) {
+        self.responses.append(&mut responses)
     }
 
     #[cfg(feature = "auto_types")]
@@ -603,7 +608,7 @@ pub trait PathTypeTree {
 
 impl PathTypeTree for TypeTree<'_> {
     /// Resolve default content type based on current [`Type`].
-    fn get_default_content_type(&self) -> &'static str {
+    fn get_default_content_type(&self) -> &str {
         if self.is_array()
             && self
                 .children
