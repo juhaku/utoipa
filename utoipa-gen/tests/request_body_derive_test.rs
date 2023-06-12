@@ -481,7 +481,6 @@ fn unit_type_request_body() {
                     "schema": {
                         "default": null,
                         "nullable": true,
-                        "type": "object"
                     }
                 }
             },

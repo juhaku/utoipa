@@ -4038,7 +4038,6 @@ fn derive_unit_type() {
             "required": [ "unit_type" ],
             "properties": {
                 "unit_type": {
-                    "type": "object",
                     "default": null,
                     "nullable": true
                 }
@@ -4056,7 +4055,6 @@ fn derive_unit_struct_schema() {
     assert_json_eq!(
         value,
         json!({
-            "type": "object",
             "nullable": true,
             "default": null,
         })
@@ -4217,7 +4215,6 @@ fn derive_struct_with_unit_alias() {
         json!({
             "default": null,
             "nullable": true,
-            "type": "object",
         })
     );
 }
@@ -4477,7 +4474,6 @@ fn derive_schema_with_unit_hashmap() {
                 "volumes": {
                     "additionalProperties": {
                         "additionalProperties": {
-                            "type": "object",
                             "default": null,
                             "nullable": true,
                         },
