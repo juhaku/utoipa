@@ -37,6 +37,7 @@ macro_rules! to_array_builder {
 pub fn empty() -> Schema {
     Schema::Object(
         ObjectBuilder::new()
+            .schema_type(SchemaType::Value)
             .nullable(true)
             .default(Some(serde_json::Value::Null))
             .into(),

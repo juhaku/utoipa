@@ -1315,7 +1315,6 @@ fn derive_path_params_into_params_with_unit_type() {
             "name": "in",
             "required": true,
             "schema": {
-                "type": "object",
                 "default": null,
                 "nullable": true
             }
