@@ -15,3 +15,6 @@ If you want to see some logging, you may prepend the command with `RUST_LOG=debu
 ```bash
 RUST_LOG=debug cargo run
 ```
+
+Rocket `0.4` needs nightly toolchain, so if you encounter error, remove `Cargo.lock` and run `cargo clean`
+and then try to re-build / re-run the project.
