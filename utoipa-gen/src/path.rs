@@ -112,6 +112,11 @@ impl<'p> PathAttr<'p> {
     }
 
     #[cfg(feature = "auto_types")]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     pub fn update_request_body(&mut self, request_body: Option<crate::ext::RequestBody<'p>>) {
         self.request_body = request_body.map(RequestBody::Ext);
     }

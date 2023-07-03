@@ -15,6 +15,11 @@ use super::{PathType, PathTypeTree};
 pub enum RequestBody<'r> {
     Parsed(RequestBodyAttr<'r>),
     #[cfg(feature = "auto_types")]
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
     Ext(crate::ext::RequestBody<'r>),
 }
 
@@ -23,6 +28,11 @@ impl ToTokens for RequestBody<'_> {
         match self {
             Self::Parsed(parsed) => parsed.to_tokens(tokens),
             #[cfg(feature = "auto_types")]
+            #[cfg(any(
+                feature = "actix_extras",
+                feature = "rocket_extras",
+                feature = "axum_extras"
+            ))]
             Self::Ext(ext) => ext.to_tokens(tokens),
         }
     }
