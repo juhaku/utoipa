@@ -12,7 +12,7 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
 use crate::path::{PathOperation, PathTypeTree};
 
-#[cfg(feature = "auto_types")]
+#[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
 
 #[cfg(feature = "actix_extras")]

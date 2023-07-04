@@ -1,4 +1,4 @@
-#![cfg(all(feature = "auto_types", feature = "actix_extras"))]
+#![cfg(all(feature = "auto_into_responses", feature = "actix_extras"))]
 
 use actix_web::web::{Form, Json};
 use std::fmt::Display;

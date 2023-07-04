@@ -105,20 +105,23 @@ impl<'p> PathAttr<'p> {
         }
     }
 
-    #[cfg(feature = "auto_types")]
+    #[cfg(feature = "auto_into_responses")]
     pub fn responses_from_into_responses(&mut self, ty: &'p syn::TypePath) {
         self.responses
             .push(Response::IntoResponses(Cow::Borrowed(ty)))
     }
 
-    #[cfg(feature = "auto_types")]
     #[cfg(any(
         feature = "actix_extras",
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
     pub fn update_request_body(&mut self, request_body: Option<crate::ext::RequestBody<'p>>) {
-        self.request_body = request_body.map(RequestBody::Ext);
+        use std::mem;
+
+        self.request_body = request_body
+            .map(RequestBody::Ext)
+            .or(mem::take(&mut self.request_body));
     }
 
     #[cfg(any(
@@ -143,7 +146,6 @@ impl<'p> PathAttr<'p> {
                         Parameter::Struct(parameter) => Some(parameter),
                     })
                     .for_each(|parameter| {
-
                         if let Some(into_params_argument) =
                             into_params_types
                                 .iter_mut()

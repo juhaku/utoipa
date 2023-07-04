@@ -1,4 +1,4 @@
-#![cfg(all(feature = "auto_types", feature = "axum_extras"))]
+#![cfg(feature = "auto_into_responses")]
 
 use assert_json_diff::assert_json_eq;
 use utoipa::OpenApi;
@@ -54,4 +54,21 @@ fn path_operation_auto_types_responses() {
             }
         })
     )
+}
+
+#[test]
+fn path_operation_auto_types_default_response_type() {
+    #[utoipa::path(get, path = "/item")]
+    #[allow(unused)]
+    async fn post_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(post_item))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+    let value = serde_json::to_value(&doc).unwrap();
+    let path = value.pointer("/paths/~1item/get").unwrap();
+
+    assert_json_eq!(&path.pointer("/responses").unwrap(), serde_json::json!({}))
 }
