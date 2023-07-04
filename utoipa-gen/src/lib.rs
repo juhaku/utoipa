@@ -1296,18 +1296,23 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         feature = "actix_extras",
         feature = "rocket_extras",
         feature = "axum_extras",
-        feature = "auto_types"
+        feature = "auto_into_responses"
     ))]
     let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    #[cfg(feature = "auto_types")]
+    #[cfg(feature = "auto_into_responses")]
     {
         if let Some(responses) = ext::auto_types::parse_fn_operation_responses(&ast_fn) {
             path_attribute.responses_from_into_responses(responses);
         };
+    }
+    #[cfg(feature = "actix_auto_responses")]
+    {
+        let responses = ext::auto_types::parse_actix_web_response(&ast_fn);
+        path_attribute.responses_from_vec(responses);
     }
 
     let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
