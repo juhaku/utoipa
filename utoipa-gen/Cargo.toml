@@ -51,4 +51,6 @@ time = []
 smallvec = []
 repr = []
 indexmap = []
-auto_types = []
+
+# EXPERIEMENTAL! use with cauntion
+auto_into_responses = []

@@ -73,7 +73,7 @@ fn split_path_args_and_request(
     impl Iterator<Item = TypeTree>,
     impl Iterator<Item = TypeTree>,
 ) {
-    let (path_args, _body_types): (Vec<FnArg>, Vec<FnArg>) = value_args
+    let (path_args, body_types): (Vec<FnArg>, Vec<FnArg>) = value_args
         .into_iter()
         .filter(|arg| {
             arg.ty.is("Path") || arg.ty.is("Json") || arg.ty.is("Form") || arg.ty.is("Bytes")
@@ -98,17 +98,7 @@ fn split_path_args_and_request(
                     unreachable!("Value arguments does not have ValueType::Object arguments")
                 }
             }),
-        {
-            #[cfg(feature = "auto_types")]
-            {
-                _body_types.into_iter().map(|json| json.ty)
-            }
-
-            #[cfg(not(feature = "auto_types"))]
-            {
-                std::iter::empty()
-            }
-        },
+        body_types.into_iter().map(|json| json.ty),
     )
 }
 

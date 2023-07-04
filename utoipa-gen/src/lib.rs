@@ -1296,14 +1296,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         feature = "actix_extras",
         feature = "rocket_extras",
         feature = "axum_extras",
-        feature = "auto_types"
+        feature = "auto_into_responses"
     ))]
     let mut path_attribute = path_attribute;
 
     let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
     let fn_name = &*ast_fn.sig.ident.to_string();
 
-    #[cfg(feature = "auto_types")]
+    #[cfg(feature = "auto_into_responses")]
     {
         if let Some(responses) = ext::auto_types::parse_fn_operation_responses(&ast_fn) {
             path_attribute.responses_from_into_responses(responses);
@@ -1334,14 +1334,13 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         use ext::ArgumentResolver;
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
-        let (arguments, into_params_types, _body) =
+        let (arguments, into_params_types, body) =
             PathOperations::resolve_arguments(&ast_fn.sig.inputs, args);
 
         path_attribute.update_parameters(arguments);
         path_attribute.update_parameters_parameter_in(into_params_types);
 
-        #[cfg(feature = "auto_types")]
-        path_attribute.update_request_body(_body);
+        path_attribute.update_request_body(body);
     }
 
     let path = Path::new(path_attribute, fn_name)

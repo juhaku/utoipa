@@ -878,6 +878,7 @@ pub trait IntoResponses {
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>>;
 }
 
+#[cfg(feature = "auto_into_responses")]
 impl<T: IntoResponses, E: IntoResponses> IntoResponses for Result<T, E> {
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
         let mut responses = T::responses();
@@ -887,6 +888,7 @@ impl<T: IntoResponses, E: IntoResponses> IntoResponses for Result<T, E> {
     }
 }
 
+#[cfg(feature = "auto_into_responses")]
 impl IntoResponses for () {
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>> {
         BTreeMap::new()

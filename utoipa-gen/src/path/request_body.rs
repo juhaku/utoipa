@@ -14,7 +14,6 @@ use super::{PathType, PathTypeTree};
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum RequestBody<'r> {
     Parsed(RequestBodyAttr<'r>),
-    #[cfg(feature = "auto_types")]
     #[cfg(any(
         feature = "actix_extras",
         feature = "rocket_extras",
@@ -27,7 +26,6 @@ impl ToTokens for RequestBody<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
             Self::Parsed(parsed) => parsed.to_tokens(tokens),
-            #[cfg(feature = "auto_types")]
             #[cfg(any(
                 feature = "actix_extras",
                 feature = "rocket_extras",

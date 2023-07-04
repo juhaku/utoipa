@@ -36,8 +36,10 @@ indexmap = ["utoipa-gen/indexmap"]
 openapi_extensions = []
 repr = ["utoipa-gen/repr"]
 preserve_order = []
-auto_types = ["utoipa-gen/auto_types"]
 preserve_path_order = []
+
+# EXPERIEMENTAL! use with cauntion
+auto_into_responses = ["utoipa-gen/auto_into_responses"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
