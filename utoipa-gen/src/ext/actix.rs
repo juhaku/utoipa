@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use lazy_static::lazy_static;
 use proc_macro2::Ident;
 use proc_macro_error::abort;
 use regex::{Captures, Regex};
@@ -45,7 +44,7 @@ impl ArgumentResolver for PathOperations {
                     into_params_args
                         .into_iter()
                         .flat_map(fn_arg::with_parameter_in)
-                        .map(fn_arg::into_into_params_type)
+                        .map(Into::into)
                         .collect(),
                 ),
                 body.into_iter().next().map(Into::into),
@@ -58,7 +57,7 @@ impl ArgumentResolver for PathOperations {
                     into_params_args
                         .into_iter()
                         .flat_map(fn_arg::with_parameter_in)
-                        .map(fn_arg::into_into_params_type)
+                        .map(Into::into)
                         .collect(),
                 ),
                 body.into_iter().next().map(Into::into),
@@ -158,13 +157,11 @@ impl Parse for Path {
 impl PathResolver for PathOperations {
     fn resolve_path(path: &Option<String>) -> Option<MacroPath> {
         path.as_ref().map(|path| {
-            lazy_static! {
-                static ref RE: Regex = Regex::new(r"\{[a-zA-Z0-9_][^{}]*}").unwrap();
-            }
+            let regex = Regex::new(r"\{[a-zA-Z0-9_][^{}]*}").unwrap();
 
-            let mut args = Vec::<MacroArg>::with_capacity(RE.find_iter(path).count());
+            let mut args = Vec::<MacroArg>::with_capacity(regex.find_iter(path).count());
             MacroPath {
-                path: RE
+                path: regex
                     .replace_all(path, |captures: &Captures| {
                         let mut capture = &captures[0];
                         let original_name = String::from(capture);

@@ -19,20 +19,6 @@ use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAt
 use self::response::Response;
 use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
 
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "rocket_extras",
-    feature = "axum_extras"
-))]
-use self::parameter::ValueParameter;
-
-#[cfg(any(
-    feature = "actix_extras",
-    feature = "rocket_extras",
-    feature = "axum_extras"
-))]
-use crate::ext::{IntoParamsType, ValueArgument};
-
 pub mod example;
 pub mod parameter;
 mod request_body;
@@ -56,55 +42,6 @@ pub struct PathAttr<'p> {
 }
 
 impl<'p> PathAttr<'p> {
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    pub fn update_parameters<'a>(&mut self, arguments: Option<Vec<ValueArgument<'a>>>)
-    where
-        'a: 'p,
-    {
-        if let Some(arguments) = arguments {
-            if !self.params.is_empty() {
-                let mut value_parameters: Vec<&mut ValueParameter> = self
-                    .params
-                    .iter_mut()
-                    .filter_map(|parameter| match parameter {
-                        Parameter::Value(value) => Some(value),
-                        Parameter::Struct(_) => None,
-                    })
-                    .collect::<Vec<_>>();
-                let (existing_arguments, new_arguments): (Vec<ValueArgument>, Vec<ValueArgument>) =
-                    arguments.into_iter().partition(|argument| {
-                        value_parameters.iter().any(|parameter| {
-                            Some(parameter.name.as_ref()) == argument.name.as_deref()
-                        })
-                    });
-
-                for argument in existing_arguments {
-                    if let Some(parameter) = value_parameters
-                        .iter_mut()
-                        .find(|parameter| Some(parameter.name.as_ref()) == argument.name.as_deref())
-                    {
-                        parameter.update_parameter_type(argument.type_tree);
-                    }
-                }
-                self.params
-                    .extend(new_arguments.into_iter().map(Parameter::from));
-            } else {
-                // no parameters at all, add arguments to the parameters
-                let mut parameters = Vec::with_capacity(arguments.len());
-
-                arguments
-                    .into_iter()
-                    .map(Parameter::from)
-                    .for_each(|parameter| parameters.push(parameter));
-                self.params = parameters;
-            }
-        }
-    }
-
     #[cfg(feature = "auto_into_responses")]
     pub fn responses_from_into_responses(&mut self, ty: &'p syn::TypePath) {
         self.responses
@@ -124,40 +61,31 @@ impl<'p> PathAttr<'p> {
             .or(mem::take(&mut self.request_body));
     }
 
+    /// Update path with external parameters from extensions.
     #[cfg(any(
         feature = "actix_extras",
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn update_parameters_parameter_in(
+    pub fn update_parameters_ext<I: IntoIterator<Item = Parameter<'p>>>(
         &mut self,
-        into_params_types: Option<Vec<IntoParamsType>>,
+        ext_parameters: I,
     ) {
-        fn path_segments(path: &syn::Path) -> Vec<&'_ Ident> {
-            path.segments.iter().map(|segment| &segment.ident).collect()
-        }
+        let ext_params = ext_parameters.into_iter();
 
-        if !self.params.is_empty() {
-            if let Some(mut into_params_types) = into_params_types {
-                self.params
-                    .iter_mut()
-                    .filter_map(|parameter| match parameter {
-                        Parameter::Value(_) => None,
-                        Parameter::Struct(parameter) => Some(parameter),
-                    })
-                    .for_each(|parameter| {
-                        if let Some(into_params_argument) =
-                            into_params_types
-                                .iter_mut()
-                                .find(|argument| matches!(&argument.type_path, Some(path) if path_segments(path.as_ref()) == path_segments(&parameter.path.path))
-)
-                        {
-                            parameter.update_parameter_in(
-                                &mut into_params_argument.parameter_in_provider,
-                            );
-                        }
-                    })
+        if self.params.is_empty() {
+            self.params = ext_params.collect();
+        } else {
+            let (existing_params, new_params): (Vec<Parameter>, Vec<Parameter>) =
+                ext_params.partition(|param| self.params.iter().any(|p| p == param));
+
+            for existing in existing_params {
+                if let Some(param) = self.params.iter_mut().find(|p| **p == existing) {
+                    param.merge(existing);
+                }
             }
+
+            self.params.extend(new_params.into_iter());
         }
     }
 }

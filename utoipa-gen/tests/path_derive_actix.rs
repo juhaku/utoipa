@@ -1,8 +1,15 @@
 #![cfg(feature = "actix_extras")]
 
-use actix_web::web::{Path, Query};
+use std::fmt::Display;
+
+use actix_web::{
+    get, post,
+    web::{Json, Path, Query},
+    ResponseError,
+};
+use assert_json_diff::assert_json_eq;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use utoipa::{
     openapi::{
         path::{Parameter, ParameterBuilder, ParameterIn},
@@ -759,6 +766,101 @@ fn derive_into_params_in_another_module() {
         "[0].in" = r#""path""#, "Parameter in"
         "[0].name" = r#""id""#, "Parameter name"
     }
+}
+
+#[test]
+fn path_with_all_args() {
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Item(String);
+
+    /// Error
+    #[derive(Debug)]
+    struct Error;
+
+    impl Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Error")
+        }
+    }
+
+    impl ResponseError for Error {}
+
+    #[derive(serde::Serialize, serde::Deserialize, IntoParams)]
+    struct Filter {
+        age: i32,
+        status: String,
+    }
+
+    #[utoipa::path]
+    #[post("/item/{id}/{name}")]
+    async fn post_item(
+        _path: Path<(i32, String)>,
+        _query: Query<Filter>,
+        _body: Json<Item>,
+    ) -> Result<Json<Item>, Error> {
+        Ok(Json(Item(String::new())))
+    }
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(post_item))]
+    struct Doc;
+
+    let doc = serde_json::to_value(Doc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1item~1{id}~1{name}/post").unwrap();
+
+    assert_json_eq!(
+        &operation.pointer("/parameters").unwrap(),
+        json!([
+              {
+                  "in": "path",
+                  "name": "id",
+                  "required": true,
+                  "schema": {
+                      "format": "int32",
+                      "type": "integer"
+                  }
+              },
+              {
+                  "in": "path",
+                  "name": "name",
+                  "required": true,
+                  "schema": {
+                      "type": "string"
+                  }
+              },
+              {
+                  "in": "query",
+                  "name": "age",
+                  "required": true,
+                  "schema": {
+                      "format": "int32",
+                      "type": "integer"
+                  }
+              },
+              {
+                  "in": "query",
+                  "name": "status",
+                  "required": true,
+                  "schema": {
+                      "type": "string"
+                  }
+              }
+        ])
+    );
+    assert_json_eq!(
+        &operation.pointer("/requestBody"),
+        json!({
+            "description": "",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Item"
+                    }
+                }
+            },
+            "required": true,
+        })
+    )
 }
 
 macro_rules! test_derive_path_operations {
