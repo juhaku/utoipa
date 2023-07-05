@@ -18,7 +18,6 @@ syn = { version = "2.0", features = ["full", "extra-traits"] }
 quote = "1.0"
 proc-macro-error = "1.0"
 regex = { version = "1.7", optional = true }
-lazy_static = { version = "1.4", optional = true }
 uuid = { version = "1", optional = true }
 
 [dev-dependencies]
@@ -39,11 +38,11 @@ serde_with = "3.0"
 [features]
 # See README.md for list and explanations of features
 debug = ["syn/extra-traits"]
-actix_extras = ["regex", "lazy_static", "syn/extra-traits"]
+actix_extras = ["regex", "syn/extra-traits"]
 chrono = []
 yaml = []
 decimal = []
-rocket_extras = ["regex", "lazy_static", "syn/extra-traits"]
+rocket_extras = ["regex", "syn/extra-traits"]
 non_strict_integers = []
 uuid = ["dep:uuid", "utoipa/uuid"]
 axum_extras = ["syn/extra-traits"]

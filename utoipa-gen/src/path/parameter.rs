@@ -6,7 +6,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, ExprPath, LitStr, Token,
+    Error, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -37,17 +37,37 @@ use super::InlineType;
 ///
 /// The `= String` type statement is optional if automatic resolution is supported.
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(PartialEq, Eq)]
 pub enum Parameter<'a> {
     Value(ValueParameter<'a>),
     /// Identifier for a struct that implements `IntoParams` trait.
-    Struct(StructParameter),
+    IntoParamsIdent(IntoParamsIdentParameter<'a>),
+}
+
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
+impl<'p> Parameter<'p> {
+    pub fn merge(&mut self, other: Parameter<'p>) {
+        match (self, other) {
+            (Self::Value(value), Parameter::Value(other)) => {
+                value.parameter_schema = other.parameter_schema;
+            }
+            (Self::IntoParamsIdent(into_params), Parameter::IntoParamsIdent(other)) => {
+                *into_params = other;
+            }
+            _ => (),
+        }
+    }
 }
 
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.fork().parse::<ExprPath>().is_ok() {
-            Ok(Self::Struct(StructParameter {
-                path: input.parse()?,
+        if input.fork().parse::<TypePath>().is_ok() {
+            Ok(Self::IntoParamsIdent(IntoParamsIdentParameter {
+                path: Cow::Owned(input.parse::<TypePath>()?.path),
                 parameter_in_fn: None,
             }))
         } else {
@@ -60,11 +80,11 @@ impl ToTokens for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Parameter::Value(parameter) => tokens.extend(quote! { .parameter(#parameter) }),
-            Parameter::Struct(StructParameter {
+            Parameter::IntoParamsIdent(IntoParamsIdentParameter {
                 path,
                 parameter_in_fn,
             }) => {
-                let last_ident = &path.path.segments.last().unwrap().ident;
+                let last_ident = &path.segments.last().unwrap().ident;
 
                 let default_parameter_in_provider = &quote! { || None };
                 let parameter_in_provider = parameter_in_fn
@@ -99,6 +119,20 @@ impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
                 features: Vec::new(),
             }),
             ..Default::default()
+        })
+    }
+}
+
+#[cfg(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+))]
+impl<'a> From<crate::ext::IntoParamsType<'a>> for Parameter<'a> {
+    fn from(value: crate::ext::IntoParamsType<'a>) -> Self {
+        Self::IntoParamsIdent(IntoParamsIdentParameter {
+            path: value.type_path.expect("IntoParams type must have a path"),
+            parameter_in_fn: Some(value.parameter_in_provider),
         })
     }
 }
@@ -177,19 +211,13 @@ pub struct ValueParameter<'a> {
     features: (Vec<Feature>, Vec<Feature>),
 }
 
-impl<'p> ValueParameter<'p> {
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    pub fn update_parameter_type(&mut self, type_path: Option<crate::component::TypeTree<'p>>) {
-        self.parameter_schema = type_path.map(|type_tree| ParameterSchema {
-            parameter_type: ParameterType::External(type_tree),
-            features: self.features.0.clone(), // clone possible features for the parameter schema
-        })
+impl PartialEq for ValueParameter<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.parameter_in == other.parameter_in
     }
 }
+
+impl Eq for ValueParameter<'_> {}
 
 impl Parse for ValueParameter<'_> {
     fn parse(input_with_parens: ParseStream) -> syn::Result<Self> {
@@ -343,23 +371,30 @@ impl ToTokens for ValueParameter<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct StructParameter {
-    pub path: ExprPath,
+pub struct IntoParamsIdentParameter<'i> {
+    pub path: Cow<'i, syn::Path>,
     /// quote!{ ... } of function which should implement `parameter_in_provider` for [`utoipa::IntoParams::into_param`]
     parameter_in_fn: Option<TokenStream>,
 }
 
-impl StructParameter {
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    pub fn update_parameter_in(&mut self, parameter_in_provider: &mut TokenStream) {
-        use std::mem;
-        self.parameter_in_fn = Some(mem::take(parameter_in_provider));
+// Compare paths loosly only by segment idents ignoring possible generics
+impl PartialEq for IntoParamsIdentParameter<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.path
+            .segments
+            .iter()
+            .map(|segment| &segment.ident)
+            .collect::<Vec<_>>()
+            == other
+                .path
+                .segments
+                .iter()
+                .map(|segment| &segment.ident)
+                .collect::<Vec<_>>()
     }
 }
+
+impl Eq for IntoParamsIdentParameter<'_> {}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Eq, Clone, Copy)]

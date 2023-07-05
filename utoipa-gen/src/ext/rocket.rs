@@ -1,6 +1,5 @@
 use std::{borrow::Cow, str::FromStr};
 
-use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
 use proc_macro_error::abort;
 use quote::quote;
@@ -54,7 +53,7 @@ impl ArgumentResolver for PathOperations {
                         into_params_args
                             .into_iter()
                             .flat_map(with_parameter_in(&named_args))
-                            .map(fn_arg::into_into_params_type)
+                            .map(Into::into)
                             .collect(),
                     ),
                     None,
@@ -220,16 +219,14 @@ fn is_valid_route_type(ident: Option<&Ident>) -> bool {
 impl PathResolver for PathOperations {
     fn resolve_path(path: &Option<String>) -> Option<MacroPath> {
         path.as_ref().map(|whole_path| {
-            lazy_static! {
-                static ref RE: Regex = Regex::new(r"<[a-zA-Z0-9_][^<>]*>").unwrap();
-            }
+            let regex = Regex::new(r"<[a-zA-Z0-9_][^<>]*>").unwrap();
 
             whole_path
                 .split_once('?')
                 .or(Some((whole_path, "")))
                 .map(|(path, query)| {
                     let mut names =
-                        Vec::<MacroArg>::with_capacity(RE.find_iter(whole_path).count());
+                        Vec::<MacroArg>::with_capacity(regex.find_iter(whole_path).count());
                     let mut underscore_count = 0;
 
                     let mut format_arg =
@@ -259,12 +256,12 @@ impl PathResolver for PathOperations {
                             arg
                         };
 
-                    let path = RE.replace_all(path, |captures: &Captures| {
+                    let path = regex.replace_all(path, |captures: &Captures| {
                         format_arg(captures, MacroArg::Path)
                     });
 
                     if !query.is_empty() {
-                        RE.replace_all(query, |captures: &Captures| {
+                        regex.replace_all(query, |captures: &Captures| {
                             format_arg(captures, MacroArg::Query)
                         });
                     }

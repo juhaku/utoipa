@@ -30,7 +30,7 @@ impl ArgumentResolver for PathOperations {
                 into_params_args
                     .into_iter()
                     .flat_map(fn_arg::with_parameter_in)
-                    .map(fn_arg::into_into_params_type)
+                    .map(Into::into)
                     .collect(),
             ),
             None,

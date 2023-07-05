@@ -301,15 +301,15 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
                 E: Error,
             {
                 let parts = v.split('.').collect::<Vec<_>>();
-                if parts.len() > 3 || parts.len() < 1 {
+                if parts.len() > 3 || parts.is_empty() {
                     return Err(E::custom(format!(
                         "Invalid format of OpenAPI version: {}",
                         v,
                     )));
                 }
 
-                Ok(match (parts[0], parts.get(1).map(|p| *p).unwrap_or("0")) {
-                    ("3", "0") => Self::Value::Version3,
+                Ok(match (parts[0], parts.get(1).copied().unwrap_or("0")) {
+                    ("3", "0") => OpenApiVersion::Version3,
                     _ => return Err(E::custom(format!("Unsupported version: {}", &v))),
                 })
             }

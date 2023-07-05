@@ -61,6 +61,15 @@ pub struct IntoParamsType<'a> {
     pub type_path: Option<Cow<'a, syn::Path>>,
 }
 
+impl<'i> From<(Option<Cow<'i, syn::Path>>, TokenStream)> for IntoParamsType<'i> {
+    fn from((type_path, parameter_in_provider): (Option<Cow<'i, syn::Path>>, TokenStream)) -> Self {
+        IntoParamsType {
+            parameter_in_provider,
+            type_path,
+        }
+    }
+}
+
 #[cfg(any(
     feature = "actix_extras",
     feature = "rocket_extras",
@@ -276,9 +285,7 @@ impl PathOperationResolver for PathOperations {}
 ))]
 pub mod fn_arg {
 
-    use std::borrow::Cow;
-
-    use proc_macro2::{Ident, TokenStream};
+    use proc_macro2::Ident;
     use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
@@ -288,8 +295,6 @@ pub mod fn_arg {
     use crate::component::TypeTree;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use crate::component::ValueType;
-
-    use super::IntoParamsType;
 
     /// Http operation handler functions fn argument.
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -410,11 +415,14 @@ pub mod fn_arg {
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     pub(super) fn with_parameter_in(
         arg: FnArg<'_>,
-    ) -> Option<(Option<std::borrow::Cow<'_, syn::Path>>, TokenStream)> {
+    ) -> Option<(
+        Option<std::borrow::Cow<'_, syn::Path>>,
+        proc_macro2::TokenStream,
+    )> {
         let parameter_in_provider = if arg.ty.is("Path") {
             quote! { || Some (utoipa::openapi::path::ParameterIn::Path) }
         } else if arg.ty.is("Query") {
-            quote! { || Some( utoipa::openapi::path::ParameterIn::Query) }
+            quote! { || Some(utoipa::openapi::path::ParameterIn::Query) }
         } else {
             quote! { || None }
         };
@@ -429,15 +437,6 @@ pub mod fn_arg {
             .path;
 
         Some((type_path, parameter_in_provider))
-    }
-
-    pub(super) fn into_into_params_type(
-        (type_path, parameter_in_provider): (Option<Cow<'_, syn::Path>>, TokenStream),
-    ) -> IntoParamsType<'_> {
-        IntoParamsType {
-            parameter_in_provider,
-            type_path,
-        }
     }
 
     // if type is either Path or Query with direct children as Object types without generics
