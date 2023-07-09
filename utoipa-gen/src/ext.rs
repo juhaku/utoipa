@@ -45,6 +45,19 @@ pub struct ValueArgument<'a> {
     pub type_tree: Option<TypeTree<'a>>,
 }
 
+#[cfg(feature = "actix_extras")]
+impl<'v> From<(MacroArg, TypeTree<'v>)> for ValueArgument<'v> {
+    fn from((macro_arg, primitive_arg): (MacroArg, TypeTree<'v>)) -> Self {
+        Self {
+            name: match macro_arg {
+                MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+            },
+            type_tree: Some(primitive_arg),
+            argument_in: ArgumentIn::Path,
+        }
+    }
+}
+
 #[cfg_attr(
     not(any(
         feature = "actix_extras",
@@ -272,7 +285,11 @@ pub struct PathOperations;
 )))]
 impl ArgumentResolver for PathOperations {}
 
-#[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+#[cfg(not(any(
+    feature = "actix_extras",
+    feature = "rocket_extras",
+    feature = "axum_extras"
+)))]
 impl PathResolver for PathOperations {}
 
 #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]

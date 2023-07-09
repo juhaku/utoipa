@@ -1311,7 +1311,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
-
     let resolved_path = PathOperations::resolve_path(
         &resolved_operation
             .as_mut()

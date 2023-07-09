@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
 use axum::{
     extract::{Path, Query},
-    Extension,
+    Extension, Json,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -369,5 +369,91 @@ fn derive_path_query_params_with_named_struct_destructed() {
                 },
             },
         ])
+    )
+}
+
+#[test]
+fn path_with_path_query_body_resolved() {
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Item(String);
+
+    #[allow(unused)]
+    struct Error;
+
+    #[derive(serde::Serialize, serde::Deserialize, IntoParams)]
+    struct Filter {
+        age: i32,
+        status: String,
+    }
+
+    #[utoipa::path(path = "/item/{id}/{name}", post)]
+    #[allow(unused)]
+    async fn post_item(
+        _path: Path<(i32, String)>,
+        _query: Query<Filter>,
+        _body: Json<Item>,
+    ) -> Result<Json<Item>, Error> {
+        Ok(Json(Item(String::new())))
+    }
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(post_item))]
+    struct Doc;
+
+    let doc = serde_json::to_value(Doc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1item~1{id}~1{name}/post").unwrap();
+
+    assert_json_eq!(
+        &operation.pointer("/parameters").unwrap(),
+        json!([
+              {
+                  "in": "path",
+                  "name": "id",
+                  "required": true,
+                  "schema": {
+                      "format": "int32",
+                      "type": "integer"
+                  }
+              },
+              {
+                  "in": "path",
+                  "name": "name",
+                  "required": true,
+                  "schema": {
+                      "type": "string"
+                  }
+              },
+              {
+                  "in": "query",
+                  "name": "age",
+                  "required": true,
+                  "schema": {
+                      "format": "int32",
+                      "type": "integer"
+                  }
+              },
+              {
+                  "in": "query",
+                  "name": "status",
+                  "required": true,
+                  "schema": {
+                      "type": "string"
+                  }
+              }
+        ])
+    );
+    assert_json_eq!(
+        &operation.pointer("/requestBody"),
+        json!({
+            "description": "",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Item"
+                    }
+                }
+            },
+            "required": true,
+        })
     )
 }
