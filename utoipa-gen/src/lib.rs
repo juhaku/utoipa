@@ -1274,7 +1274,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 ///```
 ///
-/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
+/// [in_enum]: openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
 /// [to_schema]: trait.ToSchema.html
 /// [openapi]: derive.OpenApi.html
@@ -1916,7 +1916,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [path_params]: attr.path.html#params-attributes
 /// [struct]: https://doc.rust-lang.org/std/keyword.struct.html
 /// [style]: openapi/path/enum.ParameterStyle.html
-/// [in_enum]: utoipa/openapi/path/enum.ParameterIn.html
+/// [in_enum]: openapi/path/enum.ParameterIn.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
