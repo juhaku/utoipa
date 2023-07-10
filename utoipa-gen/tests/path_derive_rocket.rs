@@ -1,8 +1,11 @@
 #![cfg(feature = "rocket_extras")]
 
 use assert_json_diff::assert_json_eq;
+use rocket::post;
+use rocket::serde::json::Json;
 use serde_json::{json, Value};
 use utoipa::OpenApi;
+use utoipa_gen::ToSchema;
 
 mod common;
 
@@ -416,6 +419,108 @@ fn resolve_path_query_params_from_form() {
     )
 }
 
+#[test]
+fn path_with_all_args_and_body() {
+    use rocket::FromForm;
+    use utoipa::IntoParams;
+
+    #[derive(serde::Serialize, serde::Deserialize, ToSchema)]
+    struct Hello<'a> {
+        message: &'a str,
+    }
+
+    #[derive(serde::Deserialize, FromForm, IntoParams)]
+    #[allow(unused)]
+    struct QueryParams {
+        foo: String,
+        bar: i64,
+    }
+
+    #[utoipa::path(
+    responses(
+        (
+            status = 200, description = "Hello from server")
+        ),
+        params(
+            ("id", description = "Hello id"),
+            QueryParams
+        )
+    )]
+    #[post("/hello/<id>/<name>?<colors>&<rest..>", data = "<hello>")]
+    #[allow(unused)]
+    fn post_hello(
+        id: i32,
+        name: &str,
+        colors: Vec<&str>,
+        rest: QueryParams,
+        hello: Json<Hello>,
+    ) -> String {
+        "Hello".to_string()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(post_hello))]
+    struct ApiDoc;
+
+    let openapi = ApiDoc::openapi();
+    let value = &serde_json::to_value(&openapi).unwrap();
+    let operation = value
+        .pointer("/paths/~1hello~1{id}~1{name}/post")
+        .unwrap();
+
+    assert_json_eq!(
+        operation.pointer("/parameters"),
+        json!([
+            {
+                "description": "Hello id",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            {
+                "in": "path",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "in": "query",
+                "name": "foo",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "in": "query",
+                "name": "bar",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            {
+                "in": "query",
+                "name": "colors",
+                "required": true,
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        ])
+    )
+}
+
 macro_rules! test_derive_path_operations {
     ( $($name:ident: $operation:ident)* ) => {
         $(
@@ -425,10 +530,10 @@ macro_rules! test_derive_path_operations {
                     use rocket::$operation;
 
                     #[utoipa::path(
-                                                responses(
-                                                    (status = 200, description = "Hello from server")
-                                                )
-                                            )]
+                        responses(
+                            (status = 200, description = "Hello from server")
+                            )
+                        )]
                     #[$operation("/hello")]
                     #[allow(unused)]
                     fn hello() -> String {

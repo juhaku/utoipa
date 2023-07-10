@@ -206,8 +206,8 @@ fn find_option_type_tree<'t>(ty: &'t TypeTree) -> Option<&'t TypeTree<'t>> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct MacroPath {
-    pub path: String,
+pub struct MacroPath<P> {
+    pub path: P,
     pub args: Vec<MacroArg>,
 }
 
@@ -246,32 +246,35 @@ pub struct ArgValue {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ResolvedOperation {
+pub struct Operation<P> {
     pub path_operation: PathOperation,
-    pub path: String,
+    pub path: P,
 }
 
-pub trait ArgumentResolver {
+pub trait ArgumentResolver<'a> {
+    type Item;
     fn resolve_arguments(
-        _: &'_ Punctuated<syn::FnArg, Comma>,
-        _: Option<Vec<MacroArg>>,
+        _: &'a Punctuated<syn::FnArg, Comma>,
+        _: Option<MacroPath<Self::Item>>,
     ) -> (
-        Option<Vec<ValueArgument<'_>>>,
-        Option<Vec<IntoParamsType<'_>>>,
-        Option<RequestBody<'_>>,
+        Vec<ValueArgument<'a>>,
+        Vec<IntoParamsType<'a>>,
+        Option<RequestBody<'a>>,
     ) {
-        (None, None, None)
+        (Vec::new(), Vec::new(), None)
     }
 }
 
 pub trait PathResolver {
-    fn resolve_path(_: &Option<String>) -> Option<MacroPath> {
+    type Item;
+    fn resolve_macro_path<P: Into<Self::Item>>(_: Option<P>) -> Option<MacroPath<Self::Item>> {
         None
     }
 }
 
 pub trait PathOperationResolver {
-    fn resolve_operation(_: &ItemFn) -> Option<ResolvedOperation> {
+    type Item;
+    fn resolve_operation(_: &ItemFn) -> Option<Operation<Self::Item>> {
         None
     }
 }

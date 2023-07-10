@@ -191,11 +191,25 @@ impl PathOperation {
     ///
     /// Ident must have value of http request type as lower case string such as `get`.
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+    #[deprecated]
     pub fn from_ident(ident: &Ident) -> Self {
         match ident.to_string().as_str().parse::<PathOperation>() {
             Ok(operation) => operation,
             Err(error) => abort!(ident.span(), format!("{error}")),
         }
+    }
+}
+
+#[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+impl TryFrom<&Ident> for PathOperation {
+    type Error = syn::Error;
+
+    fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
+        ident
+            .to_string()
+            .as_str()
+            .parse::<PathOperation>()
+            .map_err(|error| syn::Error::new(ident.span(), error.to_string()))
     }
 }
 
@@ -265,8 +279,8 @@ impl<'p> Path<'p> {
         self
     }
 
-    pub fn path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
-        self.path = path_provider();
+    pub fn path<S: Into<String>>(mut self, path: Option<S>) -> Self {
+        self.path = path.map(Into::into);
 
         self
     }

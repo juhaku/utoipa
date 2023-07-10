@@ -1311,11 +1311,17 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
-    let resolved_path = PathOperations::resolve_path(
-        &resolved_operation
+    let resolved_path = PathOperations::resolve_macro_path(
+        resolved_operation
             .as_mut()
             .map(|operation| mem::take(&mut operation.path))
-            .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
+            .or_else(|| {
+                path_attribute
+                    .path
+                    .as_ref()
+                    .map(String::to_string)
+                    .map(Into::into)
+            }), // cannot use mem take because we need this later
     );
 
     #[cfg(any(
@@ -1324,6 +1330,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         feature = "axum_extras"
     ))]
     let mut resolved_path = resolved_path;
+    let path: Option<String> = resolved_path
+        .as_mut()
+        .map(|path| mem::take(&mut path.path).into());
 
     #[cfg(any(
         feature = "actix_extras",
@@ -1333,15 +1342,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         use ext::ArgumentResolver;
         use path::parameter::Parameter;
-        let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
+        // let args = resolved_path.as_mut().map(|path| mem::take(&mut path));
         let (arguments, into_params_types, body) =
-            PathOperations::resolve_arguments(&ast_fn.sig.inputs, args);
+            PathOperations::resolve_arguments(&ast_fn.sig.inputs, resolved_path.map(Into::into));
 
         let parameters = arguments
             .into_iter()
-            .flatten()
             .map(Parameter::from)
-            .chain(into_params_types.into_iter().flatten().map(Parameter::from));
+            .chain(into_params_types.into_iter().map(Parameter::from));
         path_attribute.update_parameters_ext(parameters);
 
         path_attribute.update_request_body(body);
@@ -1349,7 +1357,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let path = Path::new(path_attribute, fn_name)
         .path_operation(resolved_operation.map(|operation| operation.path_operation))
-        .path(|| resolved_path.map(|path| path.path))
+        .path(path)
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.iter().find_map(|attr| {
 
