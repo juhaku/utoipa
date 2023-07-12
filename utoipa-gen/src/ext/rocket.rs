@@ -24,6 +24,7 @@ impl ArgumentResolver for PathOperations {
     fn resolve_arguments(
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
         macro_args: Option<Vec<MacroArg>>,
+        body: String,
     ) -> (
         Option<Vec<ValueArgument<'_>>>,
         Option<Vec<IntoParamsType<'_>>>,
@@ -33,12 +34,17 @@ impl ArgumentResolver for PathOperations {
         args.sort_unstable();
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
             args.into_iter().partition(is_into_params);
-        // TODO resolve request body from value_args
 
         macro_args
             .map(|args| {
                 let (anonymous_args, named_args): (Vec<MacroArg>, Vec<MacroArg>) =
                     args.into_iter().partition(is_anonymous_arg);
+
+                let body = into_params_args
+                    .iter()
+                    .find(|arg| *arg.arg_type.get_name() == body)
+                    .map(|arg| arg.ty.clone())
+                    .map(Into::into);
 
                 (
                     Some(
@@ -56,7 +62,7 @@ impl ArgumentResolver for PathOperations {
                             .map(Into::into)
                             .collect(),
                     ),
-                    None,
+                    body,
                 )
             })
             .unwrap_or_else(|| (None, None, None))
@@ -147,7 +153,11 @@ impl PathOperationResolver for PathOperations {
     fn resolve_operation(ast_fn: &syn::ItemFn) -> Option<super::ResolvedOperation> {
         ast_fn.attrs.iter().find_map(|attribute| {
             if is_valid_route_type(attribute.path().get_ident()) {
-                let Path(path, operation) = match attribute.parse_args::<Path>() {
+                let Path {
+                    path,
+                    operation,
+                    body,
+                } = match attribute.parse_args::<Path>() {
                     Ok(path) => path,
                     Err(error) => abort!(
                         error.span(),
@@ -156,10 +166,11 @@ impl PathOperationResolver for PathOperations {
                     ),
                 };
 
-                if let Some(operation) = operation {
+                if !operation.is_empty() {
                     Some(ResolvedOperation {
                         path_operation: PathOperation::from_str(&operation).unwrap(),
                         path,
+                        body,
                     })
                 } else {
                     Some(ResolvedOperation {
@@ -167,6 +178,7 @@ impl PathOperationResolver for PathOperations {
                             attribute.path().get_ident().unwrap(),
                         ),
                         path,
+                        body,
                     })
                 }
             } else {
@@ -176,25 +188,64 @@ impl PathOperationResolver for PathOperations {
     }
 }
 
-struct Path(String, Option<String>);
+struct Path {
+    path: String,
+    operation: String,
+    body: String,
+}
 
 impl Parse for Path {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let (path, operation) = if input.peek(syn::Ident) {
-            // expect format (GET, uri = "url...")
+        let has_data = |input: syn::parse::ParseStream| -> bool {
+            let fork = input.fork();
+            if fork.peek(syn::Ident) {
+                matches!(fork.parse::<syn::Ident>(), Ok(data) if data == "data")
+            } else {
+                false
+            }
+        };
+
+        let parse_body = |input: syn::parse::ParseStream| -> syn::Result<String> {
+            input.parse::<syn::Ident>()?; // data
+            input.parse::<Token![=]>()?;
+
+            input
+                .parse::<LitStr>()
+                .map(|value| value.value().replace(['<', '>'], ""))
+        };
+
+        let (path, operation, body) = if input.peek(syn::Ident) {
+            // expect format (GET, uri = "url...", data = ...)
             let ident = input.parse::<Ident>()?;
             input.parse::<Token![,]>()?;
             input.parse::<Ident>()?; // explicitly 'uri'
             input.parse::<Token![=]>()?;
+            let uri = input.parse::<LitStr>()?.value();
+            let operation = ident.to_string().to_lowercase();
 
-            (
-                input.parse::<LitStr>()?.value(),
-                Some(ident.to_string().to_lowercase()),
-            )
+            if !input.is_empty() && input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+            let body = if has_data(input) {
+                parse_body(input)?
+            } else {
+                String::new()
+            };
+
+            (uri, operation, body)
         } else {
-            // expect format ("url...")
+            // expect format ("url...", data = ...)
+            let uri = input.parse::<LitStr>()?.value();
+            if !input.is_empty() && input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+            let body = if has_data(input) {
+                parse_body(input)?
+            } else {
+                String::new()
+            };
 
-            (input.parse::<LitStr>()?.value(), None)
+            (uri, String::new(), body)
         };
 
         // ignore rest of the tokens from rocket path attribute macro
@@ -206,7 +257,11 @@ impl Parse for Path {
             Ok(((), rest))
         })?;
 
-        Ok(Self(path, operation))
+        Ok(Self {
+            path,
+            operation,
+            body,
+        })
     }
 }
 

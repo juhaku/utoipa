@@ -21,6 +21,7 @@ impl ArgumentResolver for PathOperations {
     fn resolve_arguments(
         fn_args: &Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<MacroArg>>,
+        _: String,
     ) -> (
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,
@@ -121,6 +122,7 @@ impl PathOperationResolver for PathOperations {
                         path_operation: PathOperation::from_ident(
                             attribute.path().get_ident().unwrap(),
                         ),
+                        body: String::new(),
                     }),
                     Err(error) => abort!(
                         error.span(),

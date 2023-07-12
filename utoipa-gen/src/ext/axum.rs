@@ -16,6 +16,7 @@ impl ArgumentResolver for PathOperations {
     fn resolve_arguments(
         args: &'_ Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<super::MacroArg>>,
+        _: String,
     ) -> (
         Option<Vec<super::ValueArgument<'_>>>,
         Option<Vec<super::IntoParamsType<'_>>>,

@@ -249,12 +249,14 @@ pub struct ArgValue {
 pub struct ResolvedOperation {
     pub path_operation: PathOperation,
     pub path: String,
+    pub body: String,
 }
 
 pub trait ArgumentResolver {
     fn resolve_arguments(
         _: &'_ Punctuated<syn::FnArg, Comma>,
         _: Option<Vec<MacroArg>>,
+        _: String,
     ) -> (
         Option<Vec<ValueArgument<'_>>>,
         Option<Vec<IntoParamsType<'_>>>,
