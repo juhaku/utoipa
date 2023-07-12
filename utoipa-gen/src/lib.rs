@@ -1334,8 +1334,13 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         use ext::ArgumentResolver;
         use path::parameter::Parameter;
         let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
+        let body = resolved_operation
+            .as_mut()
+            .map(|path| mem::take(&mut path.body))
+            .unwrap_or_default();
+
         let (arguments, into_params_types, body) =
-            PathOperations::resolve_arguments(&ast_fn.sig.inputs, args);
+            PathOperations::resolve_arguments(&ast_fn.sig.inputs, args, body);
 
         let parameters = arguments
             .into_iter()
