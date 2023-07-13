@@ -1,11 +1,11 @@
 #![cfg(feature = "actix_extras")]
 
-use std::fmt::Display;
+use std::{fmt::Display, future::Ready};
 
 use actix_web::{
     get, post,
     web::{Json, Path, Query},
-    ResponseError,
+    FromRequest, ResponseError,
 };
 use assert_json_diff::assert_json_eq;
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,7 @@ use utoipa::{
     },
     IntoParams, OpenApi, ToSchema,
 };
+use uuid::Uuid;
 
 mod common;
 
@@ -845,6 +846,145 @@ fn path_with_all_args() {
                       "type": "string"
                   }
               }
+        ])
+    );
+    assert_json_eq!(
+        &operation.pointer("/requestBody"),
+        json!({
+            "description": "",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Item"
+                    }
+                }
+            },
+            "required": true,
+        })
+    )
+}
+
+#[test]
+fn path_with_all_args_using_uuid() {
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Item(String);
+
+    /// Error
+    #[derive(Debug)]
+    struct Error;
+
+    impl Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Error")
+        }
+    }
+
+    impl ResponseError for Error {}
+
+    #[utoipa::path]
+    #[post("/item/{uuid}")]
+    async fn post_item(_path: Path<uuid::Uuid>, _body: Json<Item>) -> Result<Json<Item>, Error> {
+        Ok(Json(Item(String::new())))
+    }
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(post_item))]
+    struct Doc;
+
+    let doc = serde_json::to_value(Doc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1item~1{uuid}/post").unwrap();
+
+    assert_json_eq!(
+        &operation.pointer("/parameters").unwrap(),
+        json!([
+              {
+                  "in": "path",
+                  "name": "uuid",
+                  "required": true,
+                  "schema": {
+                      "format": "uuid",
+                      "type": "string"
+                  }
+              },
+        ])
+    );
+    assert_json_eq!(
+        &operation.pointer("/requestBody"),
+        json!({
+            "description": "",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Item"
+                    }
+                }
+            },
+            "required": true,
+        })
+    )
+}
+
+#[test]
+fn path_with_all_args_using_custom_uuid() {
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Item(String);
+
+    /// Error
+    #[derive(Debug)]
+    struct Error;
+
+    impl Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Error")
+        }
+    }
+
+    impl ResponseError for Error {}
+
+    #[derive(Serialize, Deserialize, IntoParams)]
+    #[into_params(names("custom_uuid"))]
+    struct Id(Uuid);
+
+    impl FromRequest for Id {
+        type Error = Error;
+
+        type Future = Ready<Result<Self, Self::Error>>;
+
+        fn from_request(
+            _: &actix_web::HttpRequest,
+            _: &mut actix_web::dev::Payload,
+        ) -> Self::Future {
+            todo!()
+        }
+    }
+
+    #[utoipa::path]
+    #[post("/item/{custom_uuid}")]
+    async fn post_item(_path: Path<Id>, _body: Json<Item>) -> Result<Json<Item>, Error> {
+        Ok(Json(Item(String::new())))
+    }
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(post_item))]
+    struct Doc;
+
+    let doc = serde_json::to_value(Doc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1item~1{custom_uuid}/post").unwrap();
+
+    dbg!(&operation);
+
+    assert_json_eq!(
+        &operation.pointer("/parameters").unwrap(),
+        json!([
+              {
+                  "in": "path",
+                  "name": "custom_uuid",
+                  "required": true,
+                  "schema": {
+                      "format": "uuid",
+                      "type": "string"
+                  }
+              },
         ])
     );
     assert_json_eq!(

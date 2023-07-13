@@ -18,10 +18,10 @@ syn = { version = "2.0", features = ["full", "extra-traits"] }
 quote = "1.0"
 proc-macro-error = "1.0"
 regex = { version = "1.7", optional = true }
-uuid = { version = "1", optional = true }
+uuid = { version = "1", features = ["serde"], optional = true }
 
 [dev-dependencies]
-utoipa = { path = "../utoipa", default-features = false }
+utoipa = { path = "../utoipa", features = ["uuid"], default-features = false }
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
