@@ -461,9 +461,21 @@ pub mod fn_arg {
     // if type is either Path or Query with direct children as Object types without generics
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     pub(super) fn is_into_params(fn_arg: &FnArg) -> bool {
-        (fn_arg.ty.is("Path") || fn_arg.ty.is("Query"))
-            && fn_arg
+        use crate::component::GenericType;
+        let mut ty = &fn_arg.ty;
+
+        if fn_arg.ty.generic_type == Some(GenericType::Option) {
+            ty = fn_arg
                 .ty
+                .children
+                .as_ref()
+                .expect("FnArg Option must have children")
+                .first()
+                .expect("FnArg Option must have 1 child");
+        }
+
+        (ty.is("Path") || ty.is("Query"))
+            && ty
                 .children
                 .as_ref()
                 .map(|children| {

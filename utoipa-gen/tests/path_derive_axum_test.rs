@@ -457,3 +457,41 @@ fn path_with_path_query_body_resolved() {
         })
     )
 }
+
+#[test]
+fn test_into_params_for_option_query_type() {
+    #[utoipa::path(
+        get,
+        path = "/items",
+        params(("id" = u32, Query, description = "")),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_item(id: Option<Query<u32>>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1items/get").unwrap();
+
+    assert_json_eq!(
+        operation.pointer("/parameters"),
+        json!([
+            {
+                "description": "",
+                "in": "query",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        ])
+    )
+}

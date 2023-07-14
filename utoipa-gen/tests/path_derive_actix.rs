@@ -971,8 +971,6 @@ fn path_with_all_args_using_custom_uuid() {
     let doc = serde_json::to_value(Doc::openapi()).unwrap();
     let operation = doc.pointer("/paths/~1item~1{custom_uuid}/post").unwrap();
 
-    dbg!(&operation);
-
     assert_json_eq!(
         &operation.pointer("/parameters").unwrap(),
         json!([
