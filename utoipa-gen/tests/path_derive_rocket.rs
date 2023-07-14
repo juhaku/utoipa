@@ -1,10 +1,15 @@
 #![cfg(feature = "rocket_extras")]
 
+use std::io::Error;
+
 use assert_json_diff::assert_json_eq;
 use rocket::post;
+use rocket::request::FromParam;
 use rocket::serde::json::Json;
 use serde_json::{json, Value};
-use utoipa::OpenApi;
+use utoipa::openapi::path::ParameterBuilder;
+use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa_gen::schema;
 
 mod common;
 
@@ -529,6 +534,79 @@ fn path_with_all_args_and_body() {
             "required": true
         })
     );
+}
+
+#[test]
+fn path_with_enum_path_param() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum ApiVersion {
+        V1,
+    }
+
+    impl IntoParams for ApiVersion {
+        fn into_params(
+            _: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>,
+        ) -> Vec<utoipa::openapi::path::Parameter> {
+            vec![ParameterBuilder::new()
+                .description(Some(""))
+                .name("api_version")
+                .required(utoipa::openapi::Required::True)
+                .parameter_in(utoipa::openapi::path::ParameterIn::Path)
+                .schema(Some(schema!(
+                    #[inline]
+                    ApiVersion
+                )))
+                .build()]
+        }
+    }
+
+    impl<'a> FromParam<'a> for ApiVersion {
+        type Error = Error;
+
+        fn from_param(_param: &'a str) -> Result<Self, Self::Error> {
+            todo!()
+        }
+    }
+
+    #[utoipa::path(
+        post,
+        path = "/item",
+        responses(
+            (status = 201, description = "Item created successfully"),
+        ),
+    )]
+    #[post("/<api_version>/item", format = "json")]
+    #[allow(unused)]
+    async fn create_item(api_version: ApiVersion) -> String {
+        todo!()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(create_item))]
+    struct ApiDoc;
+
+    let openapi = ApiDoc::openapi();
+    let value = &serde_json::to_value(&openapi).unwrap();
+    let operation = value.pointer("/paths/~1item/post").unwrap();
+
+    assert_json_eq!(
+        operation.pointer("/parameters"),
+        json!([
+            {
+                "description": "",
+                "in": "path",
+                "name": "api_version",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                    "enum": [
+                        "V1"
+                    ]
+                }
+            }
+        ])
+    )
 }
 
 macro_rules! test_derive_path_operations {
