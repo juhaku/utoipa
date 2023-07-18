@@ -5,8 +5,8 @@ use syn::{
 
 use crate::{
     component::features::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Example,
-        ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems,
+        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Deprecated,
+        Example, ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems,
         MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength, MinProperties, Minimum,
         MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title,
         ValueType, WriteOnly, XmlAttr,
@@ -27,7 +27,8 @@ impl Parse for NamedFieldStructFeatures {
             MaxProperties,
             MinProperties,
             As,
-            Default
+            Default,
+            Deprecated
         )))
     }
 }
@@ -45,7 +46,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Title,
             Format,
             ValueType,
-            As
+            As,
+            Deprecated
         )))
     }
 }
@@ -61,7 +63,8 @@ impl Parse for EnumFeatures {
             Default,
             Title,
             RenameAll,
-            As
+            As,
+            Deprecated
         )))
     }
 }
@@ -76,7 +79,8 @@ impl Parse for ComplexEnumFeatures {
             input as Example,
             Default,
             RenameAll,
-            As
+            As,
+            Deprecated
         )))
     }
 }
@@ -110,7 +114,8 @@ impl Parse for NamedFieldFeatures {
             MinItems,
             SchemaWith,
             AdditionalProperties,
-            Required
+            Required,
+            Deprecated
         )))
     }
 }
@@ -126,7 +131,8 @@ impl Parse for EnumNamedFieldVariantFeatures {
             XmlAttr,
             Title,
             Rename,
-            RenameAll
+            RenameAll,
+            Deprecated
         )))
     }
 }
@@ -143,7 +149,8 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
             Title,
             Format,
             ValueType,
-            Rename
+            Rename,
+            Deprecated
         )))
     }
 }
