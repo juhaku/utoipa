@@ -91,7 +91,10 @@ use self::{
 ///   OpenAPI spec as _`path.to.Pet`_.
 /// * `default` Can be used to populate default values on all fields using the struct's
 ///   [`Default`](std::default::Default) implementation.
-///
+/// * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the fields as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
 /// * `default = ...` Can be method reference or _`json!(...)`_.
@@ -104,6 +107,9 @@ use self::{
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
 ///   OpenAPI spec as _`path.to.Pet`_.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
 ///
 /// # Enum Variant Optional Configuration Options for `#[schema(...)]`
 /// Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
@@ -134,6 +140,9 @@ use self::{
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
 ///   OpenAPI spec as _`path.to.Pet`_.
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
 ///
 /// # Named Fields Optional Configuration Options for `#[schema(...)]`
 /// * `example = ...` Can be method reference or _`json!(...)`_.
@@ -180,6 +189,9 @@ use self::{
 ///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
 ///
 /// #### Field nullability and required rules
 ///

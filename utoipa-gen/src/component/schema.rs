@@ -12,7 +12,7 @@ use syn::{
 use crate::{
     component::features::{Example, Rename},
     doc_comment::CommentAttributes,
-    Array, ResultExt,
+    Array, Deprecated, ResultExt,
 };
 
 use self::{
@@ -333,13 +333,21 @@ impl NamedStructSchema<'_> {
             }
         }
 
+        // check for Rust's `#[deprecated]` attribute first, then check for `deprecated` feature
+        let deprecated = super::get_deprecated(&field.attrs).or_else(|| {
+            pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature
+            {
+                Feature::Deprecated(_) => Some(Deprecated::True),
+                _ => None,
+            })
+        });
+
         let rename_field =
             pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
                 Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
                 _ => None,
             });
 
-        let deprecated = super::get_deprecated(&field.attrs);
         let value_type = field_features
             .as_mut()
             .and_then(|features| features.pop_value_type_feature());

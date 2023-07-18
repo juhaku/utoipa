@@ -629,11 +629,45 @@ fn derive_struct_with_deprecated() {
 }
 
 #[test]
+fn derive_struct_with_schema_deprecated() {
+    let pet = api_doc! {
+        #[schema(deprecated)]
+        struct Pet {
+            name: String,
+            #[schema(deprecated)]
+            age: i32
+        }
+    };
+
+    assert_value! {pet=>
+        "deprecated" = r#"true"#, "Pet deprecated"
+        "properties.name.type" = r#""string""#, "Pet properties name type"
+        "properties.name.deprecated" = r#"null"#, "Pet properties name deprecated"
+        "properties.age.type" = r#""integer""#, "Pet properties age type"
+        "properties.age.deprecated" = r#"true"#, "Pet properties age deprecated"
+        "example" = r#"null"#, "Pet example"
+    }
+}
+
+#[test]
 fn derive_unnamed_struct_deprecated_success() {
     #[allow(deprecated)]
     let pet_age = api_doc! {
         #[deprecated]
         #[schema(example = 8)]
+        struct PetAge(u64);
+    };
+
+    assert_value! {pet_age=>
+        "deprecated" = r#"true"#, "PetAge deprecated"
+        "example" = r#"8"#, "PetAge example"
+    }
+}
+
+#[test]
+fn derive_unnamed_struct_schema_deprecated_success() {
+    let pet_age = api_doc! {
+        #[schema(deprecated, example = 8)]
         struct PetAge(u64);
     };
 
@@ -666,6 +700,22 @@ fn derive_enum_with_deprecated() {
     #[allow(deprecated)]
     let mode = api_doc! {
         #[deprecated]
+        enum Mode {
+            Mode1, Mode2
+        }
+    };
+
+    assert_value! {mode=>
+        "enum" = r#"["Mode1","Mode2"]"#, "Mode enum variants"
+        "type" = r#""string""#, "Mode type"
+        "deprecated" = r#"true"#, "Mode deprecated"
+    };
+}
+
+#[test]
+fn derive_enum_with_schema_deprecated() {
+    let mode = api_doc! {
+        #[schema(deprecated)]
         enum Mode {
             Mode1, Mode2
         }
@@ -4233,6 +4283,66 @@ fn derive_struct_with_deprecated_fields() {
             #[deprecated]
             foobars: Vec<Foobar>,
             #[deprecated]
+            map: HashMap<String, String>
+        }
+    };
+
+    assert_json_eq!(
+        account,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64",
+                    "deprecated": true
+                },
+                "username": {
+                    "type": "string",
+                    "deprecated": true
+                },
+                "role_ids": {
+                    "type": "array",
+                    "deprecated": true,
+                    "items": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                },
+                "foobars": {
+                    "type": "array",
+                    "deprecated": true,
+                    "items": {
+                        "$ref": "#/components/schemas/Foobar"
+                    }
+                },
+                "map": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "deprecated": true,
+                    "type": "object"
+                }
+            },
+            "required": ["id", "username", "role_ids", "foobars", "map"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_schema_deprecated_fields() {
+    struct Foobar;
+    let account = api_doc! {
+        struct AccountA {
+            #[schema(deprecated)]
+            id: i64,
+            #[schema(deprecated)]
+            username: String,
+            #[schema(deprecated)]
+            role_ids: Vec<i32>,
+            #[schema(deprecated)]
+            foobars: Vec<Foobar>,
+            #[schema(deprecated)]
             map: HashMap<String, String>
         }
     };
