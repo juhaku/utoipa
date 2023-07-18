@@ -1732,10 +1732,6 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
-///   not in the code. If you'd like to mark the field as deprecated in the code as well use
-///   Rust's own `#[deprecated]` attribute instead.
-///
 /// #### Field nullability and required rules
 ///
 /// Same rules for nullability and required status apply for _`IntoParams`_ field attributes as for
