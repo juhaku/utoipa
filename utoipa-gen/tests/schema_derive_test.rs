@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
@@ -4594,6 +4595,81 @@ fn derive_schema_with_unit_hashmap() {
             },
             "required": [
                 "volumes"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_arc() {
+    let greeting = api_doc! {
+        struct Greeting {
+            greeting: Arc<String>
+        }
+    };
+
+    assert_json_eq!(
+        greeting,
+        json!({
+            "properties": {
+                "greeting": {
+                    "type": "string"
+                },
+            },
+            "required": [
+                "greeting"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_nested_arc() {
+    let greeting = api_doc! {
+        struct Greeting {
+            greeting: Arc<Arc<String>>
+        }
+    };
+
+    assert_json_eq!(
+        greeting,
+        json!({
+            "properties": {
+                "greeting": {
+                    "type": "string"
+                },
+            },
+            "required": [
+                "greeting"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_collection_of_arcs() {
+    let greeting = api_doc! {
+        struct Greeting {
+            greeting: Arc<Vec<String>>
+        }
+    };
+
+    assert_json_eq!(
+        greeting,
+        json!({
+            "properties": {
+                "greeting": {
+                    "items": {
+                        "type": "string",
+                    },
+                    "type": "array"
+                },
+            },
+            "required": [
+                "greeting"
             ],
             "type": "object"
         })
