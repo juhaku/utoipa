@@ -566,7 +566,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 ComponentSchema::new(super::ComponentSchemaProps {
                     type_tree: override_type_tree.as_ref().unwrap_or(first_part),
                     features: unnamed_struct_features,
-                    description: None,
+                    description: Some(&CommentAttributes::from_attributes(self.attributes)),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                 })
