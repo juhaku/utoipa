@@ -386,7 +386,7 @@ fn path_with_path_query_body_resolved() {
         status: String,
     }
 
-    #[utoipa::path(path = "/item/{id}/{name}", post)]
+    #[utoipa::path(path = "/item/{id}/{name}", params(Filter), post)]
     #[allow(unused)]
     async fn post_item(
         _path: Path<(i32, String)>,
@@ -407,23 +407,6 @@ fn path_with_path_query_body_resolved() {
         &operation.pointer("/parameters").unwrap(),
         json!([
               {
-                  "in": "path",
-                  "name": "id",
-                  "required": true,
-                  "schema": {
-                      "format": "int32",
-                      "type": "integer"
-                  }
-              },
-              {
-                  "in": "path",
-                  "name": "name",
-                  "required": true,
-                  "schema": {
-                      "type": "string"
-                  }
-              },
-              {
                   "in": "query",
                   "name": "age",
                   "required": true,
@@ -435,6 +418,23 @@ fn path_with_path_query_body_resolved() {
               {
                   "in": "query",
                   "name": "status",
+                  "required": true,
+                  "schema": {
+                      "type": "string"
+                  }
+              },
+              {
+                  "in": "path",
+                  "name": "id",
+                  "required": true,
+                  "schema": {
+                      "format": "int32",
+                      "type": "integer"
+                  }
+              },
+              {
+                  "in": "path",
+                  "name": "name",
                   "required": true,
                   "schema": {
                       "type": "string"
