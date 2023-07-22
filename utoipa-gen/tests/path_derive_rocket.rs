@@ -440,6 +440,7 @@ fn path_with_all_args_and_body() {
         bar: i64,
     }
 
+    // NOTE! temporarily disable automatic parameter recognition
     #[utoipa::path(
     responses(
         (
@@ -447,6 +448,7 @@ fn path_with_all_args_and_body() {
         ),
         params(
             ("id", description = "Hello id"),
+            QueryParams
         )
     )]
     #[post("/hello/<id>/<name>?<colors>&<rest..>", data = "<hello>")]
@@ -484,6 +486,23 @@ fn path_with_all_args_and_body() {
             },
             {
                 "in": "query",
+                "name": "foo",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            },
+            {
+                "in": "query",
+                "name": "bar",
+                "required": true,
+                "schema": {
+                    "format": "int64",
+                    "type": "integer"
+                }
+            },
+            {
+                "in": "query",
                 "name": "colors",
                 "required": true,
                 "schema": {
@@ -500,24 +519,8 @@ fn path_with_all_args_and_body() {
                 "schema": {
                     "type": "string"
                 }
-            },
-            {
-                "in": "query",
-                "name": "foo",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "bar",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer"
-                }
-            },
+            }
+
         ])
     );
     assert_json_eq!(
@@ -569,9 +572,13 @@ fn path_with_enum_path_param() {
         }
     }
 
+    // NOTE! temporarily disable automatic parameter recognition
     #[utoipa::path(
         post,
         path = "/item",
+        params(
+            ApiVersion
+        ),
         responses(
             (status = 201, description = "Item created successfully"),
         ),

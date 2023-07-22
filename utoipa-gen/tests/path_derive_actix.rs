@@ -792,7 +792,8 @@ fn path_with_all_args() {
         status: String,
     }
 
-    #[utoipa::path]
+    // NOTE! temporarily disable automatic parameter recognition
+    #[utoipa::path(params(Filter))]
     #[post("/item/{id}/{name}")]
     async fn post_item(
         _path: Path<(i32, String)>,
@@ -813,23 +814,6 @@ fn path_with_all_args() {
         &operation.pointer("/parameters").unwrap(),
         json!([
               {
-                  "in": "path",
-                  "name": "id",
-                  "required": true,
-                  "schema": {
-                      "format": "int32",
-                      "type": "integer"
-                  }
-              },
-              {
-                  "in": "path",
-                  "name": "name",
-                  "required": true,
-                  "schema": {
-                      "type": "string"
-                  }
-              },
-              {
                   "in": "query",
                   "name": "age",
                   "required": true,
@@ -841,6 +825,23 @@ fn path_with_all_args() {
               {
                   "in": "query",
                   "name": "status",
+                  "required": true,
+                  "schema": {
+                      "type": "string"
+                  }
+              },
+              {
+                  "in": "path",
+                  "name": "id",
+                  "required": true,
+                  "schema": {
+                      "format": "int32",
+                      "type": "integer"
+                  }
+              },
+              {
+                  "in": "path",
+                  "name": "name",
                   "required": true,
                   "schema": {
                       "type": "string"
@@ -958,7 +959,8 @@ fn path_with_all_args_using_custom_uuid() {
         }
     }
 
-    #[utoipa::path]
+    // NOTE! temporarily disable automatic parameter recognition
+    #[utoipa::path(params(Id))]
     #[post("/item/{custom_uuid}")]
     async fn post_item(_path: Path<Id>, _body: Json<Item>) -> Result<Json<Item>, Error> {
         Ok(Json(Item(String::new())))

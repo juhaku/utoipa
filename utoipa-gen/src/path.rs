@@ -73,20 +73,20 @@ impl<'p> PathAttr<'p> {
     ) {
         let ext_params = ext_parameters.into_iter();
 
-        if self.params.is_empty() {
-            self.params = ext_params.collect();
-        } else {
-            let (existing_params, new_params): (Vec<Parameter>, Vec<Parameter>) =
-                ext_params.partition(|param| self.params.iter().any(|p| p == param));
+        let (existing_params, new_params): (Vec<Parameter>, Vec<Parameter>) =
+            ext_params.partition(|param| self.params.iter().any(|p| p == param));
 
-            for existing in existing_params {
-                if let Some(param) = self.params.iter_mut().find(|p| **p == existing) {
-                    param.merge(existing);
-                }
+        for existing in existing_params {
+            if let Some(param) = self.params.iter_mut().find(|p| **p == existing) {
+                param.merge(existing);
             }
-
-            self.params.extend(new_params.into_iter());
         }
+
+        self.params.extend(
+            new_params
+                .into_iter()
+                .filter(|param| !matches!(param, Parameter::IntoParamsIdent(_))),
+        );
     }
 }
 
