@@ -11,9 +11,9 @@ if [[ "$crate" == "utoipa" ]]; then
 elif [[ "$crate" == "utoipa-gen" ]]; then
     cargo test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,utoipa/uuid,utoipa/time,time,utoipa/repr
 
-    cargo test -p utoipa-gen --test path_derive_auto_into_responses --features auto_into_responses
-    cargo test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras
-    cargo test -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,utoipa/auto_into_responses
+    cargo test -p utoipa-gen --test path_derive_auto_into_responses --features auto_into_responses,utoipa/uuid,uuid
+    cargo test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,utoipa/uuid,uuid
+    cargo test -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,utoipa/auto_into_responses,utoipa/uuid,uuid
 
     cargo test -p utoipa-gen --test path_derive_rocket --features rocket_extras
 
