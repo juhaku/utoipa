@@ -1291,7 +1291,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [to_schema]: trait.ToSchema.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
-/// [security_schema]: openapi/security/struct.SecuritySchema.html
+/// [security_schema]: openapi/security/enum.SecurityScheme.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html

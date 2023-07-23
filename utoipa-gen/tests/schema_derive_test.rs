@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
 
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
@@ -3458,8 +3457,8 @@ fn derive_component_with_raw_identifier() {
     )
 }
 
-#[cfg(feature = "smallvec")]
 #[test]
+#[cfg(feature = "smallvec")]
 fn derive_component_with_smallvec_feature() {
     use smallvec::SmallVec;
 
@@ -4612,7 +4611,10 @@ fn derive_schema_with_unit_hashmap() {
 }
 
 #[test]
+#[cfg(feature = "rc_schema")]
 fn derive_struct_with_arc() {
+    use std::sync::Arc;
+
     let greeting = api_doc! {
         struct Greeting {
             greeting: Arc<String>
@@ -4636,9 +4638,13 @@ fn derive_struct_with_arc() {
 }
 
 #[test]
+#[cfg(feature = "rc_schema")]
 fn derive_struct_with_nested_arc() {
+    use std::sync::Arc;
+
     let greeting = api_doc! {
         struct Greeting {
+            #[allow(clippy::redundant_allocation)]
             greeting: Arc<Arc<String>>
         }
     };
@@ -4660,7 +4666,10 @@ fn derive_struct_with_nested_arc() {
 }
 
 #[test]
+#[cfg(feature = "rc_schema")]
 fn derive_struct_with_collection_of_arcs() {
+    use std::sync::Arc;
+
     let greeting = api_doc! {
         struct Greeting {
             greeting: Arc<Vec<String>>
@@ -4676,6 +4685,33 @@ fn derive_struct_with_collection_of_arcs() {
                         "type": "string",
                     },
                     "type": "array"
+                },
+            },
+            "required": [
+                "greeting"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+#[cfg(feature = "rc_schema")]
+fn derive_struct_with_rc() {
+    use std::rc::Rc;
+
+    let greeting = api_doc! {
+        struct Greeting {
+            greeting: Rc<String>
+        }
+    };
+
+    assert_json_eq!(
+        greeting,
+        json!({
+            "properties": {
+                "greeting": {
+                    "type": "string"
                 },
             },
             "required": [

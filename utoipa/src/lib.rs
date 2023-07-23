@@ -83,6 +83,8 @@
 //! * **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
 //!   `BTreeMap` and `HashMap`.
 //! * **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
+//! * **rc_schema** Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
+//!   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
 //!
 //! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
 //!
@@ -245,6 +247,7 @@
 //! * Browse to [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more comprehensive examples.
 //! * Check [`derive@IntoResponses`] and [`derive@ToResponse`] for examples on deriving responses.
 //! * More about OpenAPI security in [security documentation][security].
+//! * Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 //!
 //! [path]: attr.path.html
 //! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket

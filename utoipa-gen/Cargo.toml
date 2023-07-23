@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-gen"
 description = "Code generation implementation for utoipa"
-version = "3.4.2"
+version = "3.4.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -50,6 +50,7 @@ time = []
 smallvec = []
 repr = []
 indexmap = []
+rc_schema = []
 
 # EXPERIEMENTAL! use with cauntion
 auto_into_responses = []
