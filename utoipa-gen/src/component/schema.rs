@@ -532,7 +532,6 @@ impl ToTokens for UnnamedStructSchema<'_> {
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
             let mut unnamed_struct_features = self.features.clone();
-
             let value_type = unnamed_struct_features
                 .as_mut()
                 .and_then(|features| features.pop_value_type_feature());
