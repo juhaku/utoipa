@@ -56,9 +56,11 @@ impl<'p> PathAttr<'p> {
     pub fn update_request_body(&mut self, request_body: Option<crate::ext::RequestBody<'p>>) {
         use std::mem;
 
-        self.request_body = request_body
-            .map(RequestBody::Ext)
-            .or(mem::take(&mut self.request_body));
+        if self.request_body.is_none() {
+            self.request_body = request_body
+                .map(RequestBody::Ext)
+                .or(mem::take(&mut self.request_body));
+        }
     }
 
     /// Update path with external parameters from extensions.
