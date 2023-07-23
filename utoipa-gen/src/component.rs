@@ -276,11 +276,14 @@ impl<'t> TypeTree<'t> {
             "IndexMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
             #[cfg(feature = "smallvec")]
-            "SmallVec" => Some(GenericType::Vec),
+            "SmallVec" => Some(GenericType::SmallVec),
             "Option" => Some(GenericType::Option),
             "Cow" => Some(GenericType::Cow),
             "Box" => Some(GenericType::Box),
+            #[cfg(feature = "rc_schema")]
             "Arc" => Some(GenericType::Arc),
+            #[cfg(feature = "rc_schema")]
+            "Rc" => Some(GenericType::Rc),
             "RefCell" => Some(GenericType::RefCell),
             _ => None,
         }
@@ -388,12 +391,17 @@ pub enum ValueType {
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum GenericType {
     Vec,
+    #[cfg(feature = "smallvec")]
+    SmallVec,
     Map,
     Option,
     Cow,
     Box,
     RefCell,
+    #[cfg(feature = "rc_schema")]
     Arc,
+    #[cfg(feature = "rc_schema")]
+    Rc,
 }
 
 trait Rename {
@@ -485,6 +493,15 @@ impl<'c> ComponentSchema {
                 description_stream,
                 deprecated_stream,
             ),
+            #[cfg(feature = "smallvec")]
+            Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            ),
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
                 if !features
@@ -509,10 +526,7 @@ impl<'c> ComponentSchema {
                 })
                 .to_tokens(&mut tokens);
             }
-            Some(GenericType::Cow)
-            | Some(GenericType::Box)
-            | Some(GenericType::RefCell)
-            | Some(GenericType::Arc) => {
+            Some(GenericType::Cow) | Some(GenericType::Box) | Some(GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
@@ -521,6 +535,23 @@ impl<'c> ComponentSchema {
                         .iter()
                         .next()
                         .expect("ComponentSchema generic container type should have 1 child"),
+                    features: Some(features),
+                    description,
+                    deprecated,
+                    object_name,
+                })
+                .to_tokens(&mut tokens);
+            }
+            #[cfg(feature = "rc_schema")]
+            Some(GenericType::Arc) | Some(GenericType::Rc) => {
+                ComponentSchema::new(ComponentSchemaProps {
+                    type_tree: type_tree
+                        .children
+                        .as_ref()
+                        .expect("ComponentSchema rc generic container type should have children")
+                        .iter()
+                        .next()
+                        .expect("ComponentSchema rc generic container type should have 1 child"),
                     features: Some(features),
                     description,
                     deprecated,
@@ -610,6 +641,19 @@ impl<'c> ComponentSchema {
             .iter()
             .next()
             .expect("CompnentSchema Vec should have 1 child");
+
+        #[cfg(feature = "smallvec")]
+        let child = if type_tree.generic_type == Some(GenericType::SmallVec) {
+            child
+                .children
+                .as_ref()
+                .expect("SmallVec should have children")
+                .iter()
+                .next()
+                .expect("SmallVec should have 1 child")
+        } else {
+            child
+        };
 
         // is octet-stream
         let schema = if child
