@@ -522,8 +522,6 @@ impl ToTokens for UnnamedStructSchema<'_> {
         let first_field = self.fields.first().unwrap();
         let first_part = &TypeTree::from_type(&first_field.ty);
 
-        let mut is_object = matches!(first_part.value_type, ValueType::Object);
-
         let all_fields_are_same = fields_len == 1
             || self.fields.iter().skip(1).all(|field| {
                 let schema_part = &TypeTree::from_type(&field.ty);
@@ -540,13 +538,6 @@ impl ToTokens for UnnamedStructSchema<'_> {
             let override_type_tree = value_type
                 .as_ref()
                 .map(|value_type| value_type.as_type_tree());
-
-            if override_type_tree.is_some() {
-                is_object = override_type_tree
-                    .as_ref()
-                    .map(|override_type| matches!(override_type.value_type, ValueType::Object))
-                    .unwrap_or_default();
-            }
 
             if fields_len == 1 {
                 if let Some(ref mut features) = unnamed_struct_features {
@@ -566,7 +557,7 @@ impl ToTokens for UnnamedStructSchema<'_> {
                 ComponentSchema::new(super::ComponentSchemaProps {
                     type_tree: override_type_tree.as_ref().unwrap_or(first_part),
                     features: unnamed_struct_features,
-                    description: None,
+                    description: Some(&CommentAttributes::from_attributes(self.attributes)),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
                 })
@@ -588,18 +579,13 @@ impl ToTokens for UnnamedStructSchema<'_> {
             if let Some(ref attrs) = self.features {
                 tokens.extend(attrs.to_token_stream())
             }
-        };
-
-        let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
-        if !description.is_empty() && !is_object {
-            tokens.extend(quote! {
-                .description(Some(#description))
-            })
         }
 
         if fields_len > 1 {
+            let description =
+                CommentAttributes::from_attributes(self.attributes).as_formatted_string();
             tokens.extend(
-                quote! { .to_array_builder().max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
+                quote! { .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
             )
         }
     }

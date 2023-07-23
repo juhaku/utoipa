@@ -314,6 +314,10 @@ builder! {
         #[serde(rename = "oneOf")]
         pub items: Vec<RefOr<Schema>>,
 
+        /// Changes the [`OneOf`] title.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
+
         /// Description of the [`OneOf`]. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
@@ -321,7 +325,6 @@ builder! {
         /// Default value which is provided when user has not provided the input in Swagger UI.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub default: Option<Value>,
-
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -374,6 +377,11 @@ impl OneOfBuilder {
         self.items.push(component.into());
 
         self
+    }
+
+    /// Add or change the title of the [`OneOf`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 
     /// Add or change optional description for `OneOf` component.
@@ -434,6 +442,10 @@ builder! {
         #[serde(rename = "allOf")]
         pub items: Vec<RefOr<Schema>>,
 
+        /// Changes the [`AllOf`] title.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
+
         /// Description of the [`AllOf`]. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
@@ -493,6 +505,11 @@ impl AllOfBuilder {
         self.items.push(component.into());
 
         self
+    }
+
+    /// Add or change the title of the [`AllOf`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 
     /// Add or change optional description for `AllOf` component.
@@ -1001,6 +1018,10 @@ builder! {
         #[serde(rename = "type")]
         pub schema_type: SchemaType,
 
+        /// Changes the [`Array`] title.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
+
         /// Schema representing the array items type.
         pub items: Box<RefOr<Schema>>,
 
@@ -1042,6 +1063,7 @@ builder! {
 impl Default for Array {
     fn default() -> Self {
         Self {
+            title: Default::default(),
             schema_type: SchemaType::Array,
             unique_items: bool::default(),
             items: Default::default(),
@@ -1078,6 +1100,11 @@ impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
+    }
+
+    /// Add or change the title of the [`Array`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 
     /// Add or change description of the property. Markdown syntax is supported.

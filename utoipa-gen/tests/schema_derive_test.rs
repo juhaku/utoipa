@@ -497,6 +497,7 @@ fn derive_struct_unnamed_field_with_generic_types_success() {
 #[test]
 fn derive_struct_unnamed_field_with_nested_generic_type_success() {
     let point = api_doc! {
+        /// Some description
         struct Wrapper(Option<Vec<i32>>);
     };
 
@@ -504,12 +505,14 @@ fn derive_struct_unnamed_field_with_nested_generic_type_success() {
         "type" = r#""array""#, "Wrapper type"
         "items.type" = r#""integer""#, "Wrapper items type"
         "items.format" = r#""int32""#, "Wrapper items format"
+        "description" = r#""Some description""#, "Wrapper description"
     }
 }
 
 #[test]
 fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
     let point = api_doc! {
+        /// Some documentation
         struct Wrapper(Option<Vec<i32>>, String);
     };
 
@@ -517,12 +520,15 @@ fn derive_struct_unnamed_field_with_multiple_nested_generic_type_success() {
         "type" = r#""array""#, "Wrapper type"
         "items.type" = r#""object""#, "Wrapper items type"
         "items.format" = r#"null"#, "Wrapper items format"
+        "description" = r#""Some documentation""#, "Wrapper description"
     }
 }
 
 #[test]
 fn derive_struct_unnamed_field_vec_type_success() {
     let point = api_doc! {
+        /// Some documentation
+        /// more documentation
         struct Wrapper(Vec<i32>);
     };
 
@@ -532,6 +538,7 @@ fn derive_struct_unnamed_field_vec_type_success() {
         "items.format" = r#""int32""#, "Wrapper items format"
         "maxItems" = r#"null"#, "Wrapper max items"
         "minItems" = r#"null"#, "Wrapper min items"
+        "description" = r#""Some documentation\nmore documentation""#, "Wrapper description"
     }
 }
 
@@ -995,6 +1002,27 @@ fn derive_simple_enum_serde_untagged() {
             "type": "object",
             "nullable": true,
             "default": null,
+        })
+    );
+}
+
+#[test]
+fn derive_struct_unnamed_field_reference_with_comment() {
+    #[derive(ToSchema, Serialize)]
+    struct Bar {
+        value: String,
+    }
+
+    let value = api_doc! {
+        #[derive(Serialize)]
+        /// Description should not apply to $ref that is created for inner type Bar
+        struct Foo(Bar);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+          "$ref": "#/components/schemas/Bar"
         })
     );
 }
