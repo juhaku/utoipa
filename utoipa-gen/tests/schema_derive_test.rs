@@ -1006,7 +1006,6 @@ fn derive_simple_enum_serde_untagged() {
     );
 }
 
-
 /// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_unnamed_field_reference_with_comment() {

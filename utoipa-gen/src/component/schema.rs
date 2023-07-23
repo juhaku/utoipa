@@ -583,12 +583,13 @@ impl ToTokens for UnnamedStructSchema<'_> {
         }
 
         if fields_len > 1 {
-            let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
+            let description =
+                CommentAttributes::from_attributes(self.attributes).as_formatted_string();
             tokens.extend(
                 quote! { .to_array_builder().description(Some(#description)).max_items(Some(#fields_len)).min_items(Some(#fields_len)) },
             )
         }
-   }
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
