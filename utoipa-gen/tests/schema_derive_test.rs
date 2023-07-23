@@ -1006,6 +1006,27 @@ fn derive_simple_enum_serde_untagged() {
     );
 }
 
+#[test]
+fn derive_struct_unnamed_field_reference_with_comment() {
+    #[derive(ToSchema, Serialize)]
+    struct Bar {
+        value: String,
+    }
+
+    let value = api_doc! {
+        #[derive(Serialize)]
+        /// Description should not apply to $ref that is created for inner type Bar
+        struct Foo(Bar);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+          "$ref": "#/components/schemas/Bar"
+        })
+    );
+}
+
 /// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_unnamed_field_reference_with_comment() {
