@@ -1012,7 +1012,6 @@ fn derive_complex_unnamed_field_reference_with_comment() {
     #[derive(Serialize)]
     struct CommentedReference(String);
 
-    println!("before ref serialize");
     let value: Value = api_doc! {
         #[derive(Serialize)]
         enum EnumWithReference {
@@ -1021,7 +1020,6 @@ fn derive_complex_unnamed_field_reference_with_comment() {
             UnnamedFieldWithCommentReference(CommentedReference),
         }
     };
-    println!("after ref serialize");
 
     assert_json_eq!(
         value,
