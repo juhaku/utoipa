@@ -672,6 +672,11 @@ builder! {
         /// `0` will have same effect as omitting the attribute.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub min_properties: Option<usize>,
+
+        /// Specify OpenAPI extensions as map with string keys and JSON values
+        /// as specified at https://swagger.io/docs/specification/openapi-extensions/
+        #[serde(flatten, skip_serializing_if = "Option::is_none")]
+        pub extensions: Option<ObjectPropertiesMap<String, Value>>,
     }
 }
 
@@ -852,6 +857,11 @@ impl ObjectBuilder {
     /// Set or change minimum number of properties the [`Object`] can hold.
     pub fn min_properties(mut self, min_properties: Option<usize>) -> Self {
         set_value!(self min_properties min_properties)
+    }
+
+    /// set or change OpenAPI extensions for this [`Object`]
+    pub fn extensions(mut self, extensions: Option<ObjectPropertiesMap<String, Value>>) -> Self {
+        set_value!(self extensions extensions)
     }
 
     to_array_builder!();
@@ -1426,6 +1436,24 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_extensions() {
+        let mut extensions = ObjectPropertiesMap::new();
+        extensions.insert("x-example-1".to_string(), json! { {"foo": "bar"}});
+        extensions.insert("x-example-2".to_string(), json! { 42 });
+
+        let json_value = ObjectBuilder::new().extensions(Some(extensions)).build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "x-example-1": {
+                    "foo": "bar"
+                    },
+                "x-example-2": 42
+            })
+        )
+    }
     // Examples taken from https://spec.openapis.org/oas/latest.html#model-with-map-dictionary-properties
     #[test]
     fn test_additional_properties() {
