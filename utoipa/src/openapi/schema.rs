@@ -256,10 +256,15 @@ pub enum Schema {
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
 
-    /// Creates a _AnyOf_ type [composite Object][composite] schema.
+    /// Creates a _AllOf_ type [composite Object][composite] schema.
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AllOf(AllOf),
+
+    /// Creates a _AnyOf_ type [composite Object][composite] schema.
+    ///
+    /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
+    AnyOf(AnyOf),
 }
 
 impl Default for Schema {
@@ -553,6 +558,125 @@ impl From<AllOfBuilder> for RefOr<Schema> {
 }
 
 component_from_builder!(AllOfBuilder);
+
+builder! {
+    AnyOfBuilder;
+
+    /// AnyOf [Composite Object][anyof] component holds
+    /// multiple components together where API endpoint will return a combination of one or more of them.
+    ///
+    /// See [`Schema::AnyOf`] for more details.
+    ///
+    /// [anyof]: https://spec.openapis.org/oas/latest.html#components-object
+    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct AnyOf {
+        /// Components of _AnyOf component.
+        #[serde(rename = "anyOf")]
+        pub items: Vec<RefOr<Schema>>,
+
+        /// Description of the [`AnyOf`]. Markdown syntax is supported.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
+
+        /// Default value which is provided when user has not provided the input in Swagger UI.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
+
+        /// Example shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub example: Option<Value>,
+
+        /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
+        /// specific schema.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub discriminator: Option<Discriminator>,
+
+        /// Set `true` to allow `"null"` to be used as value for given type.
+        #[serde(default, skip_serializing_if = "is_false")]
+        pub nullable: bool,
+    }
+}
+
+impl AnyOf {
+    /// Construct a new [`AnyOf`] component.
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    /// Construct a new [`AnyOf`] component with given capacity.
+    ///
+    /// AnyOf component is then able to contain number of components without
+    /// reallocating.
+    ///
+    /// # Examples
+    ///
+    /// Create [`AnyOf`] component with initial capacity of 5.
+    /// ```rust
+    /// # use utoipa::openapi::schema::AnyOf;
+    /// let one_of = AnyOf::with_capacity(5);
+    /// ```
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            items: Vec::with_capacity(capacity),
+            ..Default::default()
+        }
+    }
+}
+
+impl AnyOfBuilder {
+    /// Adds a given [`Schema`] to [`AnyOf`] [Composite Object][composite]
+    ///
+    /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
+    pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
+        self.items.push(component.into());
+
+        self
+    }
+
+    /// Add or change optional description for `AnyOf` component.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
+    }
+
+    /// Add or change example shown in UI of the value for richer documentation.
+    pub fn example(mut self, example: Option<Value>) -> Self {
+        set_value!(self example example)
+    }
+
+    /// Add or change discriminator field of the composite [`AnyOf`] type.
+    pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
+        set_value!(self discriminator discriminator)
+    }
+
+    /// Add or change nullable flag for [`AnyOf`].
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        set_value!(self nullable nullable)
+    }
+
+    to_array_builder!();
+}
+
+impl From<AnyOf> for Schema {
+    fn from(any_of: AnyOf) -> Self {
+        Self::AnyOf(any_of)
+    }
+}
+
+impl From<AnyOfBuilder> for RefOr<Schema> {
+    fn from(any_of: AnyOfBuilder) -> Self {
+        Self::T(Schema::AnyOf(any_of.build()))
+    }
+}
+
+component_from_builder!(AnyOfBuilder);
 
 #[cfg(not(feature = "preserve_order"))]
 type ObjectPropertiesMap<K, V> = BTreeMap<K, V>;
@@ -1724,6 +1848,47 @@ mod tests {
         println!("----------------------------");
         println!("{json_de_str}");
 
+        assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_deserialize_any_of_of_within_ref_or_t_object_builder() {
+        let ref_or_schema = RefOr::T(Schema::Object(
+            ObjectBuilder::new()
+                .property(
+                    "test",
+                    RefOr::T(Schema::AnyOf(
+                        AnyOfBuilder::new()
+                            .item(Schema::Array(
+                                ArrayBuilder::new()
+                                    .items(RefOr::T(Schema::Object(
+                                        ObjectBuilder::new()
+                                            .property("element", RefOr::Ref(Ref::new("#/test")))
+                                            .build(),
+                                    )))
+                                    .build(),
+                            ))
+                            .item(RefOr::T(Schema::Object(
+                                ObjectBuilder::new()
+                                    .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
+                                    .build(),
+                            )))
+                            .build(),
+                    )),
+                )
+                .build(),
+        ));
+
+        let json_str = serde_json::to_string(&ref_or_schema).expect("");
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+        let json_de_str = serde_json::to_string(&deserialized).expect("");
+        println!("----------------------------");
+        println!("{json_de_str}");
+        assert!(json_str.contains("\"anyOf\""));
         assert_eq!(json_str, json_de_str);
     }
 
