@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use proc_macro2::Ident;
-use proc_macro_error::abort_call_site;
 use syn::{Attribute, Expr, Lit, Meta};
 
 const DOC_ATTRIBUTE_TYPE: &str = "doc";
@@ -50,7 +49,8 @@ impl CommentAttributes {
                     None
                 }
             }
-            _ => abort_call_site!("Expected only Meta::NameValue type"),
+            // ignore `#[doc(hidden)]` and similar tags.
+            _ => None,
         }
     }
 
