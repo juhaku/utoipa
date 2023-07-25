@@ -4739,3 +4739,17 @@ fn derive_struct_with_rc() {
         })
     )
 }
+
+#[test]
+fn derive_doc_hidden() {
+    let map = api_doc! {
+        #[doc(hidden)]
+        struct Map {
+            map: HashMap<String, String>,
+        }
+    };
+
+    assert_value! { map=>
+        "properties.map.additionalProperties.type" = r#""string""#, "Additional Property Type"
+    };
+}
