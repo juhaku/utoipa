@@ -667,7 +667,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `operation` _**Must be first parameter!**_ Accepted values are known http operations such as
 ///   _`get, post, put, delete, head, options, connect, patch, trace`_.
 ///
-/// * `path = "..."` Must be OpenAPI format compatible str with arguments withing curly braces. E.g _`{id}`_
+/// * `path = "..."` Must be OpenAPI format compatible str with arguments within curly braces. E.g _`{id}`_
 ///
 /// * `operation_id = ...` Unique operation id for the endpoint. By default this is mapped to function name.
 ///   The operation_id can be any valid expression (e.g. string literals, macro invocations, variables) so long
@@ -902,7 +902,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `style = ...` Defines how parameters are serialized by [`ParameterStyle`][style]. Default values are based on _`in`_ attribute.
 ///
-/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter withing _`object`_ or _`array`_.
+/// * `explode` Defines whether new _`parameter=value`_ is created for each parameter within _`object`_ or _`array`_.
 ///
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 ///
@@ -1446,7 +1446,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `url = ...` Define the url for server. It can be literal string.
 /// * `description = ...` Define description for the server. It can be literal string.
 /// * `variables(...)` Can be used to define variables for the url.
-///     * `name = ...` Is the first argument withing parentheses. It must be literal string.
+///     * `name = ...` Is the first argument within parentheses. It must be literal string.
 ///     * `default = ...` Defines a default value for the variable if nothing else will be
 ///       provided. If _`enum_values`_ is defined the _`default`_ must be found within the enum
 ///       options. It can be a literal string.
@@ -1662,7 +1662,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// * `style = ...` Defines how the parameter is serialized by [`ParameterStyle`][style]. Default values are based on _`parameter_in`_ attribute.
 ///
-/// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter withing _`object`_ or _`array`_.
+/// * `explode` Defines whether new _`parameter=value`_ pair is created for each parameter within _`object`_ or _`array`_.
 ///
 /// * `allow_reserved` Defines whether reserved characters _`:/?#[]@!$&'()*+,;=`_ is allowed within value.
 ///
