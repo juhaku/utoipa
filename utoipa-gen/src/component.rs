@@ -583,6 +583,7 @@ impl<'c> ComponentSchema {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
+        let default = pop_feature!(features => Feature::Default(_));
 
         let additional_properties = additional_properties
             .as_ref()
@@ -614,6 +615,7 @@ impl<'c> ComponentSchema {
                 #additional_properties
                 #description_stream
                 #deprecated_stream
+                #default
         });
 
         example.to_tokens(tokens);
@@ -633,6 +635,7 @@ impl<'c> ComponentSchema {
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
+        let default = pop_feature!(features => Feature::Default(_));
 
         let child = type_tree
             .children
@@ -704,6 +707,10 @@ impl<'c> ComponentSchema {
             tokens.extend(min_items.to_token_stream())
         }
 
+        if let Some(default) = default {
+            tokens.extend(default.to_token_stream())
+        }
+
         example.to_tokens(tokens);
         xml.to_tokens(tokens);
         nullable.to_tokens(tokens);
@@ -773,39 +780,43 @@ impl<'c> ComponentSchema {
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     if is_inline {
-                        nullable
-                            .map(|nullable| {
-                                quote_spanned! {type_path.span()=>
-                                    utoipa::openapi::schema::AllOfBuilder::new()
-                                        #nullable
-                                        .item(<#type_path as utoipa::ToSchema>::schema().1)
-                                }
-                            })
-                            .unwrap_or_else(|| {
-                                quote_spanned! {type_path.span() =>
-                                    <#type_path as utoipa::ToSchema>::schema().1
-                                }
-                            })
-                            .to_tokens(tokens);
+                        let default = pop_feature!(features => Feature::Default(_));
+                        let schema = if default.is_some() || nullable.is_some() {
+                            quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    #nullable
+                                    .item(<#type_path as utoipa::ToSchema>::schema().1)
+                                    #default
+                            }
+                        } else {
+                            quote_spanned! {type_path.span() =>
+                                <#type_path as utoipa::ToSchema>::schema().1
+                            }
+                        };
+
+                        schema.to_tokens(tokens);
                     } else {
                         let mut name = Cow::Owned(format_path_ref(type_path));
                         if name == "Self" && !object_name.is_empty() {
                             name = Cow::Borrowed(object_name);
                         }
-                        nullable
-                            .map(|nullable| {
-                                quote! {
-                                    utoipa::openapi::schema::AllOfBuilder::new()
-                                        #nullable
-                                        .item(utoipa::openapi::Ref::from_schema_name(#name))
-                                }
-                            })
-                            .unwrap_or_else(|| {
-                                quote! {
-                                    utoipa::openapi::Ref::from_schema_name(#name)
-                                }
-                            })
-                            .to_tokens(tokens);
+
+                        let default = pop_feature!(features => Feature::Default(_));
+
+                        let schema = if default.is_some() || nullable.is_some() {
+                            quote! {
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    #nullable
+                                    .item(utoipa::openapi::Ref::from_schema_name(#name))
+                                    #default
+                            }
+                        } else {
+                            quote! {
+                                utoipa::openapi::Ref::from_schema_name(#name)
+                            }
+                        };
+
+                        schema.to_tokens(tokens);
                     }
                 }
             }
