@@ -262,6 +262,80 @@ fn derive_struct_with_default_attr() {
 }
 
 #[test]
+fn derive_struct_with_default_attr_field() {
+    struct Book;
+    let owner = api_doc! {
+        struct Owner {
+            #[schema(default = json!({ "name": "Dune" }))]
+            favorite_book: Book,
+            #[schema(default = json!([{ "name": "The Fellowship Of The Ring" }]))]
+            books: Vec<Book>,
+            #[schema(default = json!({ "National Library": { "name": "The Stranger" } }))]
+            leases: HashMap<String, Book>,
+            #[schema(default = json!({ "name": "My Book" }))]
+            authored: Option<Book>,
+        }
+    };
+
+    assert_json_eq!(
+        owner,
+        json!({
+            "properties": {
+                "favorite_book": {
+                    "allOf": [
+                        {
+                            "$ref": "#/components/schemas/Book",
+                        },
+                    ],
+                    "default": {
+                        "name": "Dune",
+                    },
+                },
+                "books": {
+                    "items": {
+                        "$ref": "#/components/schemas/Book",
+                    },
+                    "type": "array",
+                    "default": [
+                        {
+                            "name": "The Fellowship Of The Ring"
+                        }
+                    ]
+                },
+                "leases": {
+                    "additionalProperties": {
+                        "$ref": "#/components/schemas/Book",
+                    },
+                    "default": {
+                        "National Library": {
+                            "name": "The Stranger",
+                        },
+                    },
+                    "type": "object",
+                },
+                "authored": {
+                    "allOf": [
+                        {
+                            "$ref": "#/components/schemas/Book",
+                        },
+                    ],
+                    "default": {
+                        "name": "My Book",
+                    },
+                    "nullable": true,
+                },
+            },
+            "required": [
+                "favorite_book",
+                "books",
+                "leases",
+            ],
+            "type": "object",
+        })
+    );
+}
+
+#[test]
 fn derive_struct_with_serde_default_attr() {
     let book = api_doc! {
         #[derive(serde::Deserialize)]

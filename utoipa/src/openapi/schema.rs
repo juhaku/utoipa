@@ -1161,6 +1161,10 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
 
+        /// Default value which is provided when user has not provided the input in Swagger UI.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
+
         /// Max length of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub max_items: Option<usize>,
@@ -1194,6 +1198,7 @@ impl Default for Array {
             description: Default::default(),
             deprecated: Default::default(),
             example: Default::default(),
+            default: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
@@ -1244,6 +1249,11 @@ impl ArrayBuilder {
     /// Add or change example shown in UI of the value for richer documentation.
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
     }
 
     /// Set maximum allowed length for [`Array`].
