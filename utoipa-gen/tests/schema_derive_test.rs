@@ -4932,7 +4932,6 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
 
     assert_json_eq!(
         value,
-
         json!({
             "description": "top level doc for My enum",
             "oneOf": [
