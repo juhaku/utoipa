@@ -1328,7 +1328,7 @@ name!(SchemaWith = "schema_with");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct Description(String);
+pub struct Description(pub String);
 
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>

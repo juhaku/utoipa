@@ -10,7 +10,7 @@ use syn::{
 };
 
 use crate::{
-    component::features::{Example, Rename},
+    component::features::{Description, Example, Rename},
     doc_comment::CommentAttributes,
     Array, Deprecated, ResultExt,
 };
@@ -1007,7 +1007,12 @@ impl ComplexEnum<'_> {
                     rename_all,
                 );
 
-                let example = pop_feature!(unit_features => Feature::Example(_));
+                let example: Option<Feature> = pop_feature!(unit_features => Feature::Example(_));
+
+                let description =
+                    CommentAttributes::from_attributes(&variant.attrs).as_formatted_string();
+                let description = (!description.is_empty())
+                    .then(|| Feature::Description(Description(description)));
 
                 // Unit variant is just simple enum with single variant.
                 Enum::new([SimpleEnumVariant {
@@ -1017,6 +1022,7 @@ impl ComplexEnum<'_> {
                 }])
                 .with_title(title.as_ref().map(ToTokens::to_token_stream))
                 .with_example(example.as_ref().map(ToTokens::to_token_stream))
+                .with_description(description.as_ref().map(ToTokens::to_token_stream))
                 .to_token_stream()
             }
         }

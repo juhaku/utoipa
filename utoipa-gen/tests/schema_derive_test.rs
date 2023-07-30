@@ -4827,3 +4827,150 @@ fn derive_doc_hidden() {
         "properties.map.additionalProperties.type" = r#""string""#, "Additional Property Type"
     };
 }
+
+#[test]
+fn derive_schema_with_docstring_on_unit_varian_of_enum() {
+    let value: Value = api_doc! {
+        /// top level doc for My enum
+        #[derive(Serialize)]
+        enum MyEnum {
+            /// unit variant doc
+            UnitVariant,
+            /// non-unit doc
+            NonUnitVariant(String),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "description": "top level doc for My enum",
+            "oneOf": [
+                {
+                    "description": "unit variant doc",
+                    "enum": [
+                        "UnitVariant"
+                    ],
+                    "type": "string"
+                },
+                {
+                    "properties": {
+                        "NonUnitVariant": {
+                            "description": "non-unit doc",
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "NonUnitVariant"
+                    ],
+                    "type": "object"
+                }
+            ]
+        })
+    );
+}
+
+#[test]
+fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
+    let value: Value = api_doc! {
+        /// top level doc for My enum
+        enum MyEnum {
+            /// doc for tuple variant with Option as first element - I now produce a description
+            TupleVariantWithOptionFirst(Option<String>),
+
+            /// doc for tuple variant without Option as first element - I produce a description
+            TupleVariantWithNoOption(String),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!(
+                {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "TupleVariantWithOptionFirst"
+                      ],
+                      "properties": {
+                        "TupleVariantWithOptionFirst": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "doc for tuple variant with Option as first element - I now produce a description"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "TupleVariantWithNoOption"
+                      ],
+                      "properties": {
+                        "TupleVariantWithNoOption": {
+                          "type": "string",
+                          "description": "doc for tuple variant without Option as first element - I produce a description"
+                        }
+                      }
+                    }
+                  ],
+                  "description": "top level doc for My enum"
+                }
+        )
+    );
+
+    let value: Value = api_doc! {
+        /// top level doc for My enum
+        enum MyEnum {
+            /// doc for tuple variant with Option as first element - I now produce a description
+            TupleVariantWithOptionFirst(Option<String>, String),
+
+            /// doc for tuple variant without Option as first element - I produce a description
+            TupleVariantWithOptionSecond(String, Option<String>),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+
+        json!({
+            "description": "top level doc for My enum",
+            "oneOf": [
+                {
+                    "properties": {
+                        "TupleVariantWithOptionFirst": {
+                            "description": "doc for tuple variant with Option as first element - I now produce a description",
+                            "items": {
+                                "type": "object"
+                            },
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "type": "array"
+                        }
+                    },
+                    "required": [
+                        "TupleVariantWithOptionFirst"
+                    ],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "TupleVariantWithOptionSecond": {
+                            "description": "doc for tuple variant without Option as first element - I produce a description",
+                            "items": {
+                                "type": "object"
+                            },
+                            "maxItems": 2,
+                            "minItems": 2,
+                            "type": "array"
+                        }
+                    },
+                    "required": [
+                        "TupleVariantWithOptionSecond"
+                    ],
+                    "type": "object"
+                }
+            ]
+        })
+    );
+}
