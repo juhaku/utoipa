@@ -1328,7 +1328,7 @@ name!(SchemaWith = "schema_with");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct Description(pub String);
+pub struct Description(String);
 
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -1342,6 +1342,12 @@ impl Parse for Description {
 impl ToTokens for Description {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.0.to_tokens(tokens);
+    }
+}
+
+impl From<String> for Description {
+    fn from(value: String) -> Self {
+      Self(value)
     }
 }
 

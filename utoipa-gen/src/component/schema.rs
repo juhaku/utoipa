@@ -1012,7 +1012,7 @@ impl ComplexEnum<'_> {
                 let description =
                     CommentAttributes::from_attributes(&variant.attrs).as_formatted_string();
                 let description = (!description.is_empty())
-                    .then(|| Feature::Description(Description(description)));
+                    .then(|| Feature::Description(description.into()));
 
                 // Unit variant is just simple enum with single variant.
                 Enum::new([SimpleEnumVariant {
