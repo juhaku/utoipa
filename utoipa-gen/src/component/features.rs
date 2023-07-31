@@ -1347,7 +1347,7 @@ impl ToTokens for Description {
 
 impl From<String> for Description {
     fn from(value: String) -> Self {
-      Self(value)
+        Self(value)
     }
 }
 
