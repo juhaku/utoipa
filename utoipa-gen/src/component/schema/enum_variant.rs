@@ -90,6 +90,7 @@ pub struct Enum<'e, V: Variant> {
     items: Array<'e, TokenStream>,
     schema_type: TokenStream,
     enum_type: TokenStream,
+    description: Option<TokenStream>,
     _p: PhantomData<V>,
 }
 
@@ -109,6 +110,12 @@ impl<V: Variant> Enum<'_, V> {
 
         self
     }
+
+    pub fn with_description<I: Into<TokenStream>>(mut self, description: Option<I>) -> Self {
+        self.description = description.map(|description| description.into());
+
+        self
+    }
 }
 
 impl<T> ToTokens for Enum<'_, T>
@@ -122,10 +129,12 @@ where
         let items = &self.items;
         let schema_type = &self.schema_type;
         let enum_type = &self.enum_type;
+        let description = &self.description;
 
         tokens.extend(quote! {
             utoipa::openapi::ObjectBuilder::new()
                 #title
+                #description
                 #example
                 .schema_type(#schema_type)
                 .enum_values::<[#enum_type; #len], #enum_type>(Some(#items))
@@ -154,6 +163,7 @@ impl<V: Variant> FromIterator<V> for Enum<'_, V> {
         Self {
             title: None,
             example: None,
+            description: None,
             len,
             items,
             schema_type,

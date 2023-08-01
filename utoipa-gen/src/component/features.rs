@@ -1345,6 +1345,12 @@ impl ToTokens for Description {
     }
 }
 
+impl From<String> for Description {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
 impl From<Description> for Feature {
     fn from(value: Description) -> Self {
         Self::Description(value)
