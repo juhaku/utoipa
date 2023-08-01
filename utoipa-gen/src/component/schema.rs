@@ -1,3 +1,4 @@
+
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
@@ -10,7 +11,7 @@ use syn::{
 };
 
 use crate::{
-    component::features::{Description, Example, Rename},
+    component::features::{Example, Rename},
     doc_comment::CommentAttributes,
     Array, Deprecated, ResultExt,
 };
