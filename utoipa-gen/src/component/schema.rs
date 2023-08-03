@@ -10,7 +10,7 @@ use syn::{
 };
 
 use crate::{
-    component::features::{Description, Example, Rename},
+    component::features::{Example, Rename},
     doc_comment::CommentAttributes,
     Array, Deprecated, ResultExt,
 };
