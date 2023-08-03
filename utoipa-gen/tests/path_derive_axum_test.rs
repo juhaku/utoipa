@@ -495,3 +495,119 @@ fn test_into_params_for_option_query_type() {
         ])
     )
 }
+
+#[test]
+fn path_param_single_arg_primitive_type() {
+    #[utoipa::path(
+        get,
+        path = "/items/{id}",
+        params(("id" = u32, Path, description = "")),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_item(id: Path<u32>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1items~1{id}/get").unwrap();
+
+    assert_json_eq!(
+        operation.pointer("/parameters"),
+        json!([
+            {
+                "description": "",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        ])
+    )
+}
+
+#[test]
+fn path_param_single_arg_non_primitive_type() {
+    #[derive(utoipa::ToSchema)]
+    struct Id(String);
+
+    #[utoipa::path(
+        get,
+        path = "/items/{id}",
+        params(("id" = inline(Id), Path, description = "")),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_item(id: Path<Id>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1items~1{id}/get").unwrap();
+
+    assert_json_eq!(
+        operation.pointer("/parameters"),
+        json!([
+            {
+                "description": "",
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                }
+            }
+        ])
+    )
+}
+
+#[test]
+fn path_param_single_arg_non_primitive_type_into_params() {
+    #[derive(utoipa::ToSchema, utoipa::IntoParams)]
+    #[into_params(names("id"))]
+    struct Id(String);
+
+    #[utoipa::path(
+        get,
+        path = "/items/{id}",
+        params(Id),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_item(id: Path<Id>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1items~1{id}/get").unwrap();
+
+    assert_json_eq!(
+        operation.pointer("/parameters"),
+        json!([
+            {
+                "in": "path",
+                "name": "id",
+                "required": true,
+                "schema": {
+                    "type": "string",
+                }
+            }
+        ])
+    )
+}
