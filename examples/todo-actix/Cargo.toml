@@ -1,6 +1,6 @@
 [package]
 name = "todo-actix"
-description = "Simple actix-web todo example api with utoipa and Swagger"
+description = "Simple actix-web todo example api with utoipa and Swagger UI and Redoc"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -19,5 +19,6 @@ log = "0.4"
 futures = "0.3"
 utoipa = { path = "../../utoipa", features = ["actix_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
+utoipa-redoc = { path = "../../utoipa-redoc", features = ["actix-web"] }
 
 [workspace]
