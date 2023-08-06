@@ -9,6 +9,7 @@ use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
+use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::Store;
@@ -50,6 +51,7 @@ async fn main() -> Result<(), Error> {
     let store = Arc::new(Store::default());
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
         .route(
             "/todo",
             routing::get(todo::list_todos).post(todo::create_todo),

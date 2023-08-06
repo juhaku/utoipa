@@ -15,6 +15,7 @@ use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
+use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::{ErrorResponse, TodoStore};
@@ -69,6 +70,7 @@ async fn main() -> Result<(), impl Error> {
         App::new()
             .wrap(Logger::default())
             .configure(todo::configure(store.clone()))
+            .service(Redoc::with_url("/redoc", openapi.clone()))
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )

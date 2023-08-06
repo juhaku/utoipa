@@ -1,4 +1,4 @@
-# todo-rocket ~ utoipa with utoipa-swagger-ui example
+# todo-rocket ~ utoipa with utoipa-swagger-ui and utoipa-redoc example
 
 This is a demo `rocket` application with in-memory storage to manage Todo items. The API
 demonstrates `utoipa` with `utoipa-swagger-ui` functionalities.
@@ -6,6 +6,8 @@ demonstrates `utoipa` with `utoipa-swagger-ui` functionalities.
 For security restricted endpoints the super secret API key is: `utoipa-rocks`.
 
 Just run command below to run the demo application and browse to `http://localhost:8000/swagger-ui/`.
+
+If you prefer Redoc just head to `http://localhost:8000/redoc` and view the Open API.
 
 ```bash
 cargo run

@@ -16,6 +16,7 @@ jobs:
           - utoipa
           - utoipa-gen
           - utoipa-swagger-ui
+          - utoipa-redoc
     runs-on: ubuntu-latest
 
     steps:

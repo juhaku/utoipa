@@ -21,4 +21,6 @@ elif [[ "$crate" == "utoipa-gen" ]]; then
     cargo test -p utoipa-gen --test path_derive_auto_into_responses_axum --features axum_extras,utoipa/auto_into_responses
 elif [[ "$crate" == "utoipa-swagger-ui" ]]; then
     cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
+elif [[ "$crate" == "utoipa-redoc" ]]; then
+    cargo test -p utoipa-redoc --features actix-web,rocket,axum
 fi

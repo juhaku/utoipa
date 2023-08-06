@@ -37,7 +37,7 @@ Refer to the existing [examples](./examples) for building the "todo" app in the 
 - **[tide](https://github.com/http-rs/tide)**
 - **[rocket](https://github.com/SergioBenitez/Rocket)** (`0.4` and `0.5.0-rc3`)
 
-All examples include a [Swagger-UI](https://github.com/swagger-api/swagger-ui).
+All examples include a [Swagger-UI](https://github.com/swagger-api/swagger-ui) or [Redoc](https://github.com/Redocly/redoc).
 
 There are also examples of building multiple OpenAPI docs in one application, each separated in Swagger UI.
 These examples exist only for the **actix** and **warp** frameworks.

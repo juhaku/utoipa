@@ -5,6 +5,7 @@ use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
+use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::TodoStore;
@@ -51,6 +52,7 @@ fn rocket() -> Rocket<Build> {
             "/",
             SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
+        .mount("/", Redoc::with_url("/redoc", ApiDoc::openapi()))
         .mount(
             "/todo",
             routes![
