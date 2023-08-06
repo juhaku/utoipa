@@ -1,6 +1,18 @@
 [workspace]
 resolver = "2"
-members = ["utoipa", "utoipa-gen", "utoipa-swagger-ui", "utoipa-redoc"]
+members = [
+    "utoipa",
+    "utoipa-gen",
+    "utoipa-swagger-ui",
+    "utoipa-redoc",
+    "utoipa-rapidoc",
+]
 
 [workspace.metadata.publish]
-order = ["utoipa-gen", "utoipa", "utoipa-swagger-ui", "utoipa-redoc"]
+order = [
+    "utoipa-gen",
+    "utoipa",
+    "utoipa-swagger-ui",
+    "utoipa-redoc",
+    "utoipa-rapidoc",
+]

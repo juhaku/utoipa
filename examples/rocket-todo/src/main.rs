@@ -5,6 +5,7 @@ use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
+use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -52,6 +53,17 @@ fn rocket() -> Rocket<Build> {
             "/",
             SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
+        // There is no need to create RapiDoc::with_openapi because the OpenApi is served
+        // via SwaggerUi instead we only make rapidoc to point to the existing doc.
+        .mount(
+            "/",
+            RapiDoc::new("/api-docs/openapi.json").path("/rapidoc")
+        )
+        // Alternative to above
+        // .mount(
+        //     "/",
+        //     RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc")
+        // )
         .mount("/", Redoc::with_url("/redoc", ApiDoc::openapi()))
         .mount(
             "/todo",

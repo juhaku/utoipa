@@ -23,4 +23,6 @@ elif [[ "$crate" == "utoipa-swagger-ui" ]]; then
     cargo test -p utoipa-swagger-ui --features actix-web,rocket,axum
 elif [[ "$crate" == "utoipa-redoc" ]]; then
     cargo test -p utoipa-redoc --features actix-web,rocket,axum
+elif [[ "$crate" == "utoipa-rapidoc" ]]; then
+    cargo test -p utoipa-rapidoc --features actix-web,rocket,axum
 fi
