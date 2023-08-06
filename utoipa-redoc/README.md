@@ -8,8 +8,8 @@
 This crate works as a bridge between [utoipa](https://docs.rs/utoipa/latest/utoipa/) and [Redoc](https://redocly.com/) OpenAPI visualizer.
 
 Utoipa-redoc provides simple mechanism to transform OpenAPI spec resource to a servable HTML
-file which can be served via [predefined framework integration][Self#examples] or used
-[standalone][Self#using-standalone] and served manually.
+file which can be served via [predefined framework integration](#examples) or used
+[standalone](#using-standalone) and served manually.
 
 You may find fullsize examples from utoipa's Github [repository][examples].
 
@@ -41,7 +41,7 @@ framework.
 
 `Redoc::to_html` method can be used to convert the `Redoc` instance to a servable html
 file.
-```
+```rust
 let redoc = Redoc::new(ApiDoc::openapi());
 
 // Then somewhere in your application that handles http operation.
@@ -54,7 +54,7 @@ let redoc_handler = move || async {
 # Customization
 
 Utoipa-redoc enables full customizaton support for [Redoc][redoc] according to what can be
-customized by modifying the HTML template and [configuration options][Self#configuration].
+customized by modifying the HTML template and [configuration options](#configuration).
 
 The default [HTML template][redoc_html_quickstart] can be fully overridden to ones liking with
 `Redoc::custom_html` method. The HTML template **must** contain **`$spec`** and **`$config`**
@@ -120,15 +120,13 @@ _**Serve `Redoc` via `axum` framework.**_
 
 _**Use `Redoc` to serve OpenAPI spec from url.**_
 ```rust
-# use utoipa_redoc::Redoc;
 Redoc::new(
   "https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml")
 ```
 
 _**Use `Redoc` to serve custom OpenAPI spec using serde's `json!()` macro.**_
 ```rust
-# use utoipa_redoc::Redoc;
-Redoc::new(json!({"openapi": 3.1.0}));
+Redoc::new(json!({"openapi": "3.1.0"}));
 ```
 
 [redoc]: <https://redocly.com/>

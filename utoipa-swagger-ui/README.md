@@ -37,8 +37,8 @@ Use only the raw types without any boilerplate implementation.
 ```toml
 [dependencies]
 utoipa-swagger-ui = "3"
-
 ```
+
 Enable actix-web framework with Swagger UI you could define the dependency as follows.
 ```toml
 [dependencies]

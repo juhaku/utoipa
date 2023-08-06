@@ -34,8 +34,8 @@
 //! ```toml
 //! [dependencies]
 //! utoipa-swagger-ui = "3"
-//!
 //! ```
+//!
 //! Enable actix-web framework with Swagger UI you could define the dependency as follows.
 //! ```toml
 //! [dependencies]
