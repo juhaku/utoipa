@@ -61,7 +61,7 @@
 //!
 //! The default [HTML template][redoc_html_quickstart] can be fully overridden to ones liking with
 //! [`Redoc::custom_html`] method. The HTML template **must** contain **`$spec`** and **`$config`**
-//! variables which are replaced during [`Redoc::to_html`] evaluation.
+//! variables which are replaced during [`Redoc::to_html`] execution.
 //!
 //! * **`$spec`** Will be the [`Spec`] that will be rendered via [Redoc][redoc].
 //! * **`$config`** Will be the current [`Config`]. By default this is [`EmptyConfig`].
@@ -193,7 +193,6 @@ mod actix;
 mod axum;
 mod rocket;
 
-#[doc(hidden)]
 const DEFAULT_HTML: &str = include_str!("../res/redoc.html");
 
 /// Trait makes [`Redoc`] to accept an _`URL`_ the [Redoc][redoc] will be served via predefined web

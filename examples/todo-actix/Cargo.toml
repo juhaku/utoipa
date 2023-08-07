@@ -20,5 +20,6 @@ futures = "0.3"
 utoipa = { path = "../../utoipa", features = ["actix_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["actix-web"] }
+utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["actix-web"] }
 
 [workspace]

@@ -1,11 +1,11 @@
 [package]
-name = "utoipa-redoc"
-description = "Redoc for utoipa"
-version = "0.1.0"
+name = "utoipa-rapidoc"
+description = "RapiDoc for utoipa"
 edition = "2021"
+version = "0.1.0"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-keywords = ["redoc", "openapi", "documentation"]
+keywords = ["rapidoc", "openapi", "documentation"]
 repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]

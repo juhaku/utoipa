@@ -13,6 +13,7 @@ rocket = { version = "0.5.0-rc.3", features = ["json"] }
 utoipa = { path = "../../utoipa", features = ["rocket_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["rocket"] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["rocket"] }
+utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["rocket"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 env_logger = "0.10.0"
