@@ -85,6 +85,8 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
   See the `value_type` in [component derive docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html).
 - **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
+- **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
+  format `ulid` in OpenAPI spec.
 - **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 - **openapi_extensions** Adds traits and functions that provide extra convenience functions.
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.

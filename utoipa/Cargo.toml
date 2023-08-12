@@ -30,6 +30,7 @@ decimal = ["utoipa-gen/decimal"]
 non_strict_integers = ["utoipa-gen/non_strict_integers"]
 yaml = ["serde_yaml", "utoipa-gen/yaml"]
 uuid = ["utoipa-gen/uuid"]
+ulid = ["utoipa-gen/ulid"]
 time = ["utoipa-gen/time"]
 smallvec = ["utoipa-gen/smallvec"]
 indexmap = ["utoipa-gen/indexmap"]
@@ -53,5 +54,5 @@ indexmap = { version = "2", features = ["serde"] }
 assert-json-diff = "2"
 
 [package.metadata.docs.rs]
-features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "yaml"]
+features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "ulid", "yaml"]
 rustdoc-args = ["--cfg", "doc_cfg"]

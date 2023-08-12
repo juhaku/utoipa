@@ -68,6 +68,8 @@
 //!   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
 //! * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
+//! * **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
+//!   format `ulid` in OpenAPI spec.
 //! * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 //! * **openapi_extensions** Adds convenience functions for documenting common scenarios, such as JSON request bodies and responses.
 //!   See the [`request_body`](https://docs.rs/utoipa/latest/utoipa/openapi/request_body/index.html) and

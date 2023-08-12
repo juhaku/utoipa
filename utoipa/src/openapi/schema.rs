@@ -1417,6 +1417,12 @@ pub enum KnownFormat {
     #[cfg(feature = "uuid")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "uuid")))]
     Uuid,
+    /// Used with [`String`] values to indicate value is in ULID format.
+    ///
+    /// **ulid** feature need to be enabled.
+    #[cfg(feature = "ulid")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "ulid")))]
+    Ulid,
 }
 
 #[cfg(test)]
