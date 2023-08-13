@@ -1501,6 +1501,40 @@ fn derive_path_with_uuid() {
     }
 }
 
+#[cfg(feature = "ulid")]
+#[test]
+fn derive_path_with_ulid() {
+    use ulid::Ulid;
+
+    #[utoipa::path(
+        get,
+        path = "/items/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = Ulid, description = "Foo ulid"),
+        )
+    )]
+    #[allow(unused)]
+    fn get_items(id: Ulid) -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items/{id}"
+    };
+
+    assert_value! {operation=>
+        "parameters.[0].schema.type" = r#""string""#, "Parameter id type"
+        "parameters.[0].schema.format" = r#""ulid""#, "Parameter id format"
+        "parameters.[0].description" = r#""Foo ulid""#, "Parameter id description"
+        "parameters.[0].name" = r#""id""#, "Parameter id id"
+        "parameters.[0].in" = r#""path""#, "Parameter in"
+    }
+}
+
 #[test]
 fn derive_path_with_into_params_custom_schema() {
     fn custom_type() -> Object {
