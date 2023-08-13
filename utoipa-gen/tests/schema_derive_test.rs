@@ -3148,6 +3148,23 @@ fn derive_struct_with_uuid_type() {
     }
 }
 
+#[cfg(feature = "ulid")]
+#[test]
+fn derive_struct_with_ulid_type() {
+    use ulid::Ulid;
+
+    let post = api_doc! {
+        struct Post {
+            id: Ulid,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""string""#, "Post id type"
+        "properties.id.format" = r#""ulid""#, "Post id format"
+    }
+}
+
 #[test]
 fn derive_parse_serde_field_attributes() {
     struct S;
