@@ -428,7 +428,7 @@ impl Parse for Variant {
                 }
                 #[cfg(all(not(feature = "uuid"), not(feature = "ulid")))]
                 {
-                    _format != &"Ulid" && _format != &"Ulid"
+                    _format != &"Uuid" && _format != &"Ulid"
                 }
             })
             .collect::<Vec<_>>();
