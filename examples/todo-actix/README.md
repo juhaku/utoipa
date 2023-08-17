@@ -7,9 +7,9 @@ For security restricted endpoints the super secret API key is: `utoipa-rocks`.
 
 Just run command below to run the demo application and browse to `http://localhost:8080/swagger-ui/`.
 
-If you prefer Redoc just head to `http://localhost:8000/redoc` and view the Open API.
+If you prefer Redoc just head to `http://localhost:8080/redoc` and view the Open API.
 
-RapiDoc can be found from `http://localhost:8000/rapidoc`.
+RapiDoc can be found from `http://localhost:8080/rapidoc`.
 
 ```bash
 cargo run
