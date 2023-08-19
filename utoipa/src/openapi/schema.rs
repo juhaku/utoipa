@@ -284,6 +284,10 @@ pub struct Discriminator {
     /// Defines a discriminator property name which must be found within all composite
     /// objects.
     pub property_name: String,
+
+    // An object to hold mappings between payload values and schema names or references.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+    pub mapping: BTreeMap<String, String>,
 }
 
 impl Discriminator {
@@ -299,6 +303,7 @@ impl Discriminator {
     pub fn new<I: Into<String>>(property_name: I) -> Self {
         Self {
             property_name: property_name.into(),
+            mapping: BTreeMap::new(),
         }
     }
 }
