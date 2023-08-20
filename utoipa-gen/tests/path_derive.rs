@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
 use paste::paste;
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use utoipa::openapi::RefOr;
@@ -1641,6 +1642,147 @@ fn derive_into_params_required() {
               "in": "query",
               "name": "name3",
               "required": true,
+              "schema": {
+                  "type": "string",
+                  "nullable": true,
+              },
+          },
+        ])
+    )
+}
+
+#[test]
+fn derive_into_params_with_serde_skip() {
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        name: String,
+        name2: Option<String>,
+        #[serde(skip)]
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+          {
+              "in": "query",
+              "name": "name",
+              "required": true,
+              "schema": {
+                  "type": "string",
+              },
+          },
+          {
+              "in": "query",
+              "name": "name2",
+              "required": false,
+              "schema": {
+                  "type": "string",
+                  "nullable": true,
+              },
+          },
+        ])
+    )
+}
+
+#[test]
+fn derive_into_params_with_serde_skip_deserializing() {
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        name: String,
+        name2: Option<String>,
+        #[serde(skip_deserializing)]
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+          {
+              "in": "query",
+              "name": "name",
+              "required": true,
+              "schema": {
+                  "type": "string",
+              },
+          },
+          {
+              "in": "query",
+              "name": "name2",
+              "required": false,
+              "schema": {
+                  "type": "string",
+                  "nullable": true,
+              },
+          },
+        ])
+    )
+}
+
+#[test]
+fn derive_into_params_with_serde_skip_serializing() {
+    #[derive(IntoParams, Serialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        name: String,
+        name2: Option<String>,
+        #[serde(skip_serializing)]
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+          {
+              "in": "query",
+              "name": "name",
+              "required": true,
+              "schema": {
+                  "type": "string",
+              },
+          },
+          {
+              "in": "query",
+              "name": "name2",
+              "required": false,
               "schema": {
                   "type": "string",
                   "nullable": true,
