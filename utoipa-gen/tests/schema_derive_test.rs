@@ -3571,9 +3571,7 @@ fn derive_component_with_linked_list() {
     use std::collections::LinkedList;
 
     let example_schema = api_doc! {
-        struct ExampleSchema<'a> {
-            id: u64,
-            name: &'a str,
+        struct ExampleSchema {
             values: LinkedList<f64>
         }
     };
@@ -3582,20 +3580,14 @@ fn derive_component_with_linked_list() {
         example_schema,
         json!({
             "properties": {
-                "id": {
-                    "type": "uint64"
-                },
-                "name": {
-                    "type": "string"
-                },
                 "values": {
                     "items": {
-                        "type": "string"
+                        "type": "number"
                     },
                     "type": "array"
                 }
             },
-            "required": ["links"],
+            "required": ["values"],
             "type": "object"
         })
     )
