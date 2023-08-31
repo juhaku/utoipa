@@ -3178,7 +3178,7 @@ fn derive_struct_with_url_type() {
 
     assert_value! {post=>
         "properties.id.type" = r#""string""#, "Post id type"
-        "properties.id.format" = r#""url""#, "Post id format"
+        "properties.id.format" = r#""uri""#, "Post id format"
     }
 }
 

@@ -394,7 +394,7 @@ impl ToTokens for Type<'_> {
             "Ulid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Ulid) }),
 
             #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Url) }),
+            "Url" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uri) }),
 
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
@@ -423,7 +423,7 @@ pub enum Variant {
     #[cfg(feature = "ulid")]
     Ulid,
     #[cfg(feature = "url")]
-    Url,
+    Uri,
     Custom(String),
 }
 
@@ -431,7 +431,7 @@ impl Parse for Variant {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const FORMATS: [&str; 12] = [
             "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
-            "Uuid", "Ulid", "Url",
+            "Uuid", "Ulid", "Uri",
         ];
         let known_formats = FORMATS
             .into_iter()
@@ -450,11 +450,11 @@ impl Parse for Variant {
                 }
                 #[cfg(all(not(feature = "uuid"), not(feature = "ulid"), feature = "url"))]
                 {
-                    _format != &"Url"
+                    _format != &"Uri"
                 }
                 #[cfg(all(not(feature = "uuid"), not(feature = "ulid"), not(feature = "url")))]
                 {
-                    _format != &"Uuid" && _format != &"Ulid"
+                    _format != &"Uuid" && _format != &"Ulid" && _format != &"Uri"
                 }
             })
             .collect::<Vec<_>>();
@@ -479,7 +479,7 @@ impl Parse for Variant {
                 #[cfg(feature = "ulid")]
                 "Ulid" => Ok(Self::Ulid),
                 #[cfg(feature = "url")]
-                "Url" => Ok(Self::Url),
+                "Uri" => Ok(Self::Uri),
                 _ => Err(Error::new(
                     format.span(),
                     format!(
@@ -536,8 +536,8 @@ impl ToTokens for Variant {
                 utoipa::openapi::KnownFormat::Ulid
             ))),
             #[cfg(feature = "url")]
-            Self::Url => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Url
+            Self::Uri => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Uri
             ))),
             Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::SchemaFormat::Custom(
                 String::from(#value)

@@ -1428,7 +1428,7 @@ pub enum KnownFormat {
     /// **url** feature need to be enabled.
     #[cfg(feature = "url")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
-    Url,
+    Uri,
 }
 
 #[cfg(test)]
