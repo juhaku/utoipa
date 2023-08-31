@@ -3567,6 +3567,41 @@ fn derive_component_with_raw_identifier() {
 }
 
 #[test]
+fn derive_component_with_linked_list() {
+    use std::collections::LinkedList;
+
+    let example_schema = api_doc! {
+        struct ExampleSchema<'a> {
+            id: u64,
+            name: &'a str,
+            values: LinkedList<f64>
+        }
+    };
+
+    assert_json_eq!(
+        example_schema,
+        json!({
+            "properties": {
+                "id": {
+                    "type": "uint64"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["links"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 #[cfg(feature = "smallvec")]
 fn derive_component_with_smallvec_feature() {
     use smallvec::SmallVec;
