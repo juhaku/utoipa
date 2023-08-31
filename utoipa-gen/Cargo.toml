@@ -20,6 +20,7 @@ proc-macro-error = "1.0"
 regex = { version = "1.7", optional = true }
 uuid = { version = "1", features = ["serde"], optional = true }
 ulid = { version = "1", optional = true, default-features = false }
+url = { version = "2", optional = true }
 
 [dev-dependencies]
 utoipa = { path = "../utoipa", features = ["uuid"], default-features = false }
@@ -47,6 +48,7 @@ rocket_extras = ["regex", "syn/extra-traits"]
 non_strict_integers = []
 uuid = ["dep:uuid"]
 ulid = ["dep:ulid"]
+url = ["dep:url"]
 axum_extras = ["regex", "syn/extra-traits"]
 time = []
 smallvec = []
