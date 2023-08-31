@@ -433,30 +433,17 @@ impl Parse for Variant {
             "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
             "Uuid", "Ulid", "Uri",
         ];
+        let excluded_format: &[&str] = &[
+            #[cfg(not(feature = "uuid"))]
+            "Uuid",
+            #[cfg(not(feature = "ulid"))]
+            "Ulid",
+            #[cfg(not(feature = "url"))]
+            "Uri",
+        ];
         let known_formats = FORMATS
             .into_iter()
-            .filter(|_format| {
-                #[cfg(all(feature = "uuid", feature = "ulid", feature = "url"))]
-                {
-                    true
-                }
-                #[cfg(all(not(feature = "uuid"), feature = "ulid", not(feature = "url")))]
-                {
-                    _format != &"Uuid"
-                }
-                #[cfg(all(feature = "uuid", not(feature = "ulid"), not(feature = "url")))]
-                {
-                    _format != &"Ulid"
-                }
-                #[cfg(all(not(feature = "uuid"), not(feature = "ulid"), feature = "url"))]
-                {
-                    _format != &"Uri"
-                }
-                #[cfg(all(not(feature = "uuid"), not(feature = "ulid"), not(feature = "url")))]
-                {
-                    _format != &"Uuid" && _format != &"Ulid" && _format != &"Uri"
-                }
-            })
+            .filter(|_format| !excluded_format.contains(&_format))
             .collect::<Vec<_>>();
 
         let lookahead = input.lookahead1();
