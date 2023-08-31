@@ -3582,7 +3582,8 @@ fn derive_component_with_linked_list() {
             "properties": {
                 "values": {
                     "items": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "double"
                     },
                     "type": "array"
                 }
