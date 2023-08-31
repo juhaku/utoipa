@@ -87,6 +87,8 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
   format `uuid` in OpenAPI spec.
 - **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
   format `ulid` in OpenAPI spec.
+- **url** Add support for [url](https://github.com/servo/rust-url). `Url` type will be presented as `String` with
+  format `uri` in OpenAPI spec.
 - **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 - **openapi_extensions** Adds traits and functions that provide extra convenience functions.
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.

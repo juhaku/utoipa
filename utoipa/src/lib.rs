@@ -70,6 +70,8 @@
 //!   format `uuid` in OpenAPI spec.
 //! * **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
 //!   format `ulid` in OpenAPI spec.
+//! * **url** Add support for [url](https://github.com/servo/rust-url). `Url` type will be presented as `String` with
+//!   format `uri` in OpenAPI spec.
 //! * **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
 //! * **openapi_extensions** Adds convenience functions for documenting common scenarios, such as JSON request bodies and responses.
 //!   See the [`request_body`](https://docs.rs/utoipa/latest/utoipa/openapi/request_body/index.html) and

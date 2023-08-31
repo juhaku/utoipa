@@ -3165,6 +3165,23 @@ fn derive_struct_with_ulid_type() {
     }
 }
 
+#[cfg(feature = "url")]
+#[test]
+fn derive_struct_with_url_type() {
+    use url::Url;
+
+    let post = api_doc! {
+        struct Post {
+            id: Url,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""string""#, "Post id type"
+        "properties.id.format" = r#""uri""#, "Post id format"
+    }
+}
+
 #[test]
 fn derive_parse_serde_field_attributes() {
     struct S;

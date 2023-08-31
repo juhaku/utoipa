@@ -1423,6 +1423,12 @@ pub enum KnownFormat {
     #[cfg(feature = "ulid")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "ulid")))]
     Ulid,
+    /// Used with [`String`] values to indicate value is in Url format.
+    ///
+    /// **url** feature need to be enabled.
+    #[cfg(feature = "url")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    Uri,
 }
 
 #[cfg(test)]
