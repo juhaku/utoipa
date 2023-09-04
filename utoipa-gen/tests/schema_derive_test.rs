@@ -3131,7 +3131,6 @@ fn derive_struct_with_rust_decimal_with_type_override() {
     }
 }
 
-
 #[cfg(feature = "decimal_float")]
 #[test]
 fn derive_struct_with_rust_decimal_float() {
