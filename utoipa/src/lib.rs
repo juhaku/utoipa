@@ -66,6 +66,9 @@
 //! * **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `String`. If you wish to change the format you need to override the type.
 //!   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
+//! * **decimal_float** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
+//!   it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your
+//!   documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
 //! * **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
 //! * **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with

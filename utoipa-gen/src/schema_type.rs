@@ -32,6 +32,7 @@ impl SchemaType<'_> {
         #[cfg(not(any(
             feature = "chrono",
             feature = "decimal",
+            feature = "decimal_float",
             feature = "rocket_extras",
             feature = "uuid",
             feature = "ulid",
@@ -45,6 +46,7 @@ impl SchemaType<'_> {
         #[cfg(any(
             feature = "chrono",
             feature = "decimal",
+            feature = "decimal_float",
             feature = "rocket_extras",
             feature = "uuid",
             feature = "ulid",
@@ -59,7 +61,7 @@ impl SchemaType<'_> {
                 primitive = is_primitive_chrono(name);
             }
 
-            #[cfg(feature = "decimal")]
+            #[cfg(any(feature = "decimal", feature = "decimal_float"))]
             if !primitive {
                 primitive = is_primitive_rust_decimal(name);
             }
@@ -172,7 +174,7 @@ fn is_primitive_chrono(name: &str) -> bool {
 }
 
 #[inline]
-#[cfg(feature = "decimal")]
+#[cfg(any(feature = "decimal", feature = "decimal_float"))]
 fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
@@ -205,6 +207,9 @@ impl ToTokens for SchemaType<'_> {
 
             #[cfg(feature = "decimal")]
             "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+
+            #[cfg(feature = "decimal_float")]
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
 
             #[cfg(feature = "rocket_extras")]
             "PathBuf" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
@@ -283,6 +288,7 @@ impl Type<'_> {
 
         #[cfg(not(any(
             feature = "chrono",
+            feature = "decimal_float",
             feature = "uuid",
             feature = "ulid",
             feature = "url",
@@ -294,6 +300,7 @@ impl Type<'_> {
 
         #[cfg(any(
             feature = "chrono",
+            feature = "decimal_float",
             feature = "uuid",
             feature = "ulid",
             feature = "url",
@@ -305,6 +312,11 @@ impl Type<'_> {
             #[cfg(feature = "chrono")]
             if !known_format {
                 known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
+            }
+
+            #[cfg(feature = "decimal_float")]
+            if !known_format {
+                known_format = matches!(name, "Decimal");
             }
 
             #[cfg(feature = "uuid")]
@@ -386,6 +398,9 @@ impl ToTokens for Type<'_> {
 
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
+
+            #[cfg(any(feature = "decimal_float"))]
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
 
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uuid) }),
