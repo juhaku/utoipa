@@ -7,6 +7,9 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+#[cfg(all(feature = "decimal", feature = "decimal_float"))]
+compile_error!("`decimal` and `decimal_float` are mutually exclusive feature flags");
+
 use std::{mem, ops::Deref};
 
 use component::schema::Schema;
