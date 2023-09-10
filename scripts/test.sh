@@ -13,10 +13,10 @@ for crate in $crates; do
         $CARGO test -p utoipa --features openapi_extensions,preserve_order,preserve_path_order,debug
     elif [[ "$crate" == "utoipa-gen" ]]; then
         $CARGO test -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,utoipa/uuid,uuid,utoipa/ulid,ulid,utoipa/url,url,utoipa/time,time,utoipa/repr,utoipa/smallvec,smallvec,rc_schema,utoipa/rc_schema
-
         $CARGO test -p utoipa-gen --test schema_derive_test --features decimal_float
+
         $CARGO test -p utoipa-gen --test path_derive_auto_into_responses --features auto_into_responses,utoipa/uuid,uuid
-        $CARGO test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,utoipa/uuid,uuid
+        $CARGO test -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,utoipa/uuid,uuid,utoipa/chrono,chrono,utoipa/time,time
         $CARGO test -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,utoipa/auto_into_responses,utoipa/uuid,uuid
 
         $CARGO test -p utoipa-gen --test path_derive_rocket --features rocket_extras
