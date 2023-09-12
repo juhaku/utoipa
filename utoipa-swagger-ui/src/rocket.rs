@@ -114,7 +114,7 @@ struct RedirectResponder(String);
 impl<'r, 'a: 'r> Responder<'r, 'a> for RedirectResponder {
     fn respond_to(self, _request: &'r Request<'_>) -> rocket::response::Result<'a> {
         Response::build()
-            .status(Status::MovedPermanently)
+            .status(Status::Found)
             .raw_header("Location", self.0)
             .ok()
     }
