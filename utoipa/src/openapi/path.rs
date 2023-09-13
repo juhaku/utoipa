@@ -109,7 +109,7 @@ impl PathsBuilder {
     }
     /// Appends a [`Path`] to map of paths. By calling [`path`](PathsBuilder::path) method.
     /// None will be passed into [Path::path_item] method.
-    pub fn path_from<P: Path>(self) -> Self {
+    pub fn path_from<P: Path>(mut self) -> Self {
         self.path(P::path(), P::path_item(None))
     }
 }
