@@ -294,7 +294,6 @@ impl<'p> Path<'p> {
 
 impl<'p> ToTokens for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self
             .path_attr
             .operation_id
@@ -391,14 +390,15 @@ impl<'p> ToTokens for Path<'p> {
             security: self.path_attr.security.as_ref(),
         };
         let impl_for = if let Some(impl_for) = &self.path_attr.impl_for {
-            impl_for
+            impl_for.clone()
         } else {
+            let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
             tokens.extend(quote! {
                 #[allow(non_camel_case_types)]
                 #[doc(hidden)]
                 pub struct #path_struct;
             });
-            &path_struct
+            path_struct
         };
         tokens.extend(quote! {
 
