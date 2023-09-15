@@ -1923,3 +1923,118 @@ fn derive_into_params_with_serde_skip_serializing() {
         ])
     )
 }
+
+#[test]
+fn derive_path_with_const_expression_context_path() {
+    const FOOBAR: &str = "/api/v1/prefix";
+
+    #[utoipa::path(
+        context_path = FOOBAR,
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/api/v1/prefix/items"
+    };
+
+    assert_ne!(operation, Value::Null);
+}
+
+#[test]
+fn derive_path_with_const_expression_reference_context_path() {
+    const FOOBAR: &str = "/api/v1/prefix";
+
+    #[utoipa::path(
+        context_path = &FOOBAR,
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/api/v1/prefix/items"
+    };
+
+    assert_ne!(operation, Value::Null);
+}
+
+#[test]
+fn derive_path_with_const_expression() {
+    const FOOBAR: &str = "/items";
+
+    #[utoipa::path(
+        get,
+        path = FOOBAR,
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_ne!(operation, Value::Null);
+}
+
+#[test]
+fn derive_path_with_tag_constant() {
+    const TAG: &str = "mytag";
+
+    #[utoipa::path(
+        get,
+        tag = TAG,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_ne!(operation, Value::Null);
+    assert_json_eq!(
+        &operation,
+        json!({
+            "operationId": "get_items",
+            "responses": {
+                "200": {
+                    "description": "success response",
+                },
+            },
+            "tags": ["mytag"]
+        })
+    );
+}

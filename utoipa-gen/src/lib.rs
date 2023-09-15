@@ -1330,8 +1330,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let resolved_path = PathOperations::resolve_path(
         &resolved_operation
             .as_mut()
-            .map(|operation| mem::take(&mut operation.path))
-            .or_else(|| path_attribute.path.as_ref().map(String::to_string)), // cannot use mem take because we need this later
+            .map(|operation| mem::take(&mut operation.path).to_string())
+            .or_else(|| path_attribute.path.as_ref().map(|path| path.to_string())), // cannot use mem take because we need this later
     );
 
     #[cfg(any(
@@ -2757,16 +2757,43 @@ impl<T> OptionExt<T> for Option<T> {
 
 /// Parsing utils
 mod parse_utils {
+    use std::fmt::Display;
+
     use proc_macro2::{Group, Ident, TokenStream};
+    use quote::ToTokens;
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
         token::Comma,
-        Error, LitBool, LitStr, Token,
+        Error, Expr, LitBool, LitStr, Token,
     };
 
     use crate::ResultExt;
+
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub enum Value {
+        LitStr(LitStr),
+        Expr(Expr),
+    }
+
+    impl ToTokens for Value {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                Self::LitStr(str) => str.to_tokens(tokens),
+                Self::Expr(expr) => expr.to_tokens(tokens),
+            }
+        }
+    }
+
+    impl Display for Value {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Self::LitStr(str) => write!(f, "{str}", str = str.value()),
+                Self::Expr(expr) => write!(f, "{expr}", expr = expr.into_token_stream()),
+            }
+        }
+    }
 
     pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
         input
@@ -2777,6 +2804,22 @@ mod parse_utils {
 
     pub fn parse_next_literal_str(input: ParseStream) -> syn::Result<String> {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
+    }
+
+    pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
+        parse_next(input, || {
+            if input.peek(LitStr) {
+                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+            } else {
+                Ok(Value::Expr(input.parse::<Expr>()?))
+            }
+        })
+        .map_err(|error| {
+            syn::Error::new(
+                error.span(),
+                format!("expected literal string or expression argument: {error}"),
+            )
+        })
     }
 
     pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
