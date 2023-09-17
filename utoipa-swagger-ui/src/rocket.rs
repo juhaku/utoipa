@@ -2,8 +2,6 @@
 
 use std::{borrow::Cow, io::Cursor, sync::Arc};
 
-use rocket::response::status::Custom;
-use rocket::response::Responder;
 use rocket::{
     http::{Header, Status},
     response::{status::NotFound, Responder as RocketResponder},
@@ -94,7 +92,7 @@ impl Handler for ServeSwagger {
                 .unwrap_or_else(|| Outcome::from(request, NotFound("Swagger UI file not found"))),
             Err(error) => Outcome::from(
                 request,
-                Custom(Status::InternalServerError, error.to_string()),
+                rocket::response::status::Custom(Status::InternalServerError, error.to_string()),
             ),
         }
     }
@@ -111,7 +109,7 @@ impl<'r, 'o: 'r> RocketResponder<'r, 'o> for SwaggerFile<'o> {
 }
 
 struct RedirectResponder(String);
-impl<'r, 'a: 'r> Responder<'r, 'a> for RedirectResponder {
+impl<'r, 'a: 'r> RocketResponder<'r, 'a> for RedirectResponder {
     fn respond_to(self, _request: &'r Request<'_>) -> rocket::response::Result<'a> {
         Response::build()
             .status(Status::Found)
