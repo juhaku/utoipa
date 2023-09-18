@@ -6,6 +6,7 @@
 use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::builder;
 
@@ -349,13 +350,13 @@ pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
     pub flows: BTreeMap<String, Flow>,
 
-    /// Optional name of token to use
-    #[serde(skip_serializing_if = "Option::is_none", rename = "x-tokenName")]
-    pub token_name: Option<String>,
-
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something"
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Value>,
 }
 
 impl OAuth2 {
@@ -395,7 +396,7 @@ impl OAuth2 {
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
-            token_name: None,
+            extensions: None,
             description: None,
         }
     }
@@ -438,13 +439,13 @@ impl OAuth2 {
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
-            token_name: None,
+            extensions: None,
             description: Some(description.into()),
         }
     }
 
-    pub fn set_token_name(&mut self, token_name: Option<String>) {
-        self.token_name = token_name;
+    pub fn set_extensions(&mut self, extensions: Option<Value>) {
+        self.extensions = extensions;
     }
 }
 
