@@ -4273,6 +4273,7 @@ fn derive_schema_with_custom_field_with_schema() {
                     "format": "email"
                 }
             },
+            "required": [ "id" ],
             "type": "object"
         })
     )
