@@ -349,6 +349,10 @@ pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
     pub flows: BTreeMap<String, Flow>,
 
+    /// Optional name of token to use
+    #[serde(skip_serializing_if = "Option::is_none", rename = "x-tokenName")]
+    pub token_name: Option<String>,
+
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -391,6 +395,7 @@ impl OAuth2 {
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
+            token_name: None,
             description: None,
         }
     }
@@ -433,8 +438,13 @@ impl OAuth2 {
                     .into_iter()
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
+            token_name: None,
             description: Some(description.into()),
         }
+    }
+
+    pub fn set_token_name(&mut self, token_name: Option<String>) {
+        self.token_name = token_name;
     }
 }
 
