@@ -1036,6 +1036,12 @@ impl From<ObjectBuilder> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<ArrayBuilder> for AdditionalProperties<Schema> {
+    fn from(value: ArrayBuilder) -> Self {
+        Self::RefOr(RefOr::T(Schema::Array(value.build())))
+    }
+}
+
 impl From<Ref> for AdditionalProperties<Schema> {
     fn from(value: Ref) -> Self {
         Self::RefOr(RefOr::Ref(value))
@@ -1428,6 +1434,12 @@ pub enum KnownFormat {
     #[cfg(feature = "ulid")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "ulid")))]
     Ulid,
+    /// Used with [`String`] values to indicate value is in Url format.
+    ///
+    /// **url** feature need to be enabled.
+    #[cfg(feature = "url")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    Uri,
 }
 
 #[cfg(test)]
@@ -1610,6 +1622,24 @@ mod tests {
                 "type": "object",
                 "additionalProperties": {
                     "type": "string"
+                }
+            })
+        );
+
+        let json_value = ObjectBuilder::new()
+            .additional_properties(Some(
+                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(SchemaType::Number)),
+            ))
+            .build();
+        assert_json_eq!(
+            json_value,
+            json!({
+                "type": "object",
+                "additionalProperties": {
+                    "items": {
+                        "type": "number",
+                    },
+                    "type": "array",
                 }
             })
         );

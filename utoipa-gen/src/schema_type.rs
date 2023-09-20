@@ -32,9 +32,11 @@ impl SchemaType<'_> {
         #[cfg(not(any(
             feature = "chrono",
             feature = "decimal",
+            feature = "decimal_float",
             feature = "rocket_extras",
             feature = "uuid",
             feature = "ulid",
+            feature = "url",
             feature = "time",
         )))]
         {
@@ -44,9 +46,11 @@ impl SchemaType<'_> {
         #[cfg(any(
             feature = "chrono",
             feature = "decimal",
+            feature = "decimal_float",
             feature = "rocket_extras",
             feature = "uuid",
             feature = "ulid",
+            feature = "url",
             feature = "time",
         ))]
         {
@@ -57,7 +61,7 @@ impl SchemaType<'_> {
                 primitive = is_primitive_chrono(name);
             }
 
-            #[cfg(feature = "decimal")]
+            #[cfg(any(feature = "decimal", feature = "decimal_float"))]
             if !primitive {
                 primitive = is_primitive_rust_decimal(name);
             }
@@ -75,6 +79,11 @@ impl SchemaType<'_> {
             #[cfg(feature = "ulid")]
             if !primitive {
                 primitive = matches!(name, "Ulid");
+            }
+
+            #[cfg(feature = "url")]
+            if !primitive {
+                primitive = matches!(name, "Url");
             }
 
             #[cfg(feature = "time")]
@@ -165,7 +174,7 @@ fn is_primitive_chrono(name: &str) -> bool {
 }
 
 #[inline]
-#[cfg(feature = "decimal")]
+#[cfg(any(feature = "decimal", feature = "decimal_float"))]
 fn is_primitive_rust_decimal(name: &str) -> bool {
     matches!(name, "Decimal")
 }
@@ -199,6 +208,9 @@ impl ToTokens for SchemaType<'_> {
             #[cfg(feature = "decimal")]
             "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
 
+            #[cfg(feature = "decimal_float")]
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
+
             #[cfg(feature = "rocket_extras")]
             "PathBuf" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
 
@@ -207,6 +219,9 @@ impl ToTokens for SchemaType<'_> {
 
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+
+            #[cfg(feature = "url")]
+            "Url" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
 
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
@@ -273,8 +288,10 @@ impl Type<'_> {
 
         #[cfg(not(any(
             feature = "chrono",
+            feature = "decimal_float",
             feature = "uuid",
             feature = "ulid",
+            feature = "url",
             feature = "time"
         )))]
         {
@@ -283,8 +300,10 @@ impl Type<'_> {
 
         #[cfg(any(
             feature = "chrono",
+            feature = "decimal_float",
             feature = "uuid",
             feature = "ulid",
+            feature = "url",
             feature = "time"
         ))]
         {
@@ -295,6 +314,11 @@ impl Type<'_> {
                 known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
             }
 
+            #[cfg(feature = "decimal_float")]
+            if !known_format {
+                known_format = matches!(name, "Decimal");
+            }
+
             #[cfg(feature = "uuid")]
             if !known_format {
                 known_format = matches!(name, "Uuid");
@@ -303,6 +327,11 @@ impl Type<'_> {
             #[cfg(feature = "ulid")]
             if !known_format {
                 known_format = matches!(name, "Ulid");
+            }
+
+            #[cfg(feature = "url")]
+            if !known_format {
+                known_format = matches!(name, "Url");
             }
 
             #[cfg(feature = "time")]
@@ -370,11 +399,17 @@ impl ToTokens for Type<'_> {
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
 
+            #[cfg(any(feature = "decimal_float"))]
+            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
+
             #[cfg(feature = "uuid")]
             "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uuid) }),
 
             #[cfg(feature = "ulid")]
             "Ulid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Ulid) }),
+
+            #[cfg(feature = "url")]
+            "Url" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uri) }),
 
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
@@ -402,35 +437,28 @@ pub enum Variant {
     Uuid,
     #[cfg(feature = "ulid")]
     Ulid,
+    #[cfg(feature = "url")]
+    Uri,
     Custom(String),
 }
 
 impl Parse for Variant {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const FORMATS: [&str; 11] = [
+        const FORMATS: [&str; 12] = [
             "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
-            "Uuid", "Ulid",
+            "Uuid", "Ulid", "Uri",
+        ];
+        let excluded_format: &[&str] = &[
+            #[cfg(not(feature = "uuid"))]
+            "Uuid",
+            #[cfg(not(feature = "ulid"))]
+            "Ulid",
+            #[cfg(not(feature = "url"))]
+            "Uri",
         ];
         let known_formats = FORMATS
             .into_iter()
-            .filter(|_format| {
-                #[cfg(all(feature = "uuid", feature = "ulid"))]
-                {
-                    true
-                }
-                #[cfg(all(not(feature = "uuid"), feature = "ulid"))]
-                {
-                    _format != &"Uuid"
-                }
-                #[cfg(all(feature = "uuid", not(feature = "ulid")))]
-                {
-                    _format != &"Ulid"
-                }
-                #[cfg(all(not(feature = "uuid"), not(feature = "ulid")))]
-                {
-                    _format != &"Uuid" && _format != &"Ulid"
-                }
-            })
+            .filter(|_format| !excluded_format.contains(&_format))
             .collect::<Vec<_>>();
 
         let lookahead = input.lookahead1();
@@ -452,6 +480,8 @@ impl Parse for Variant {
                 "Uuid" => Ok(Self::Uuid),
                 #[cfg(feature = "ulid")]
                 "Ulid" => Ok(Self::Ulid),
+                #[cfg(feature = "url")]
+                "Uri" => Ok(Self::Uri),
                 _ => Err(Error::new(
                     format.span(),
                     format!(
@@ -506,6 +536,10 @@ impl ToTokens for Variant {
             #[cfg(feature = "ulid")]
             Self::Ulid => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
                 utoipa::openapi::KnownFormat::Ulid
+            ))),
+            #[cfg(feature = "url")]
+            Self::Uri => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Uri
             ))),
             Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::SchemaFormat::Custom(
                 String::from(#value)

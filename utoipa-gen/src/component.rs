@@ -275,6 +275,7 @@ impl<'t> TypeTree<'t> {
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
+            "LinkedList" => Some(GenericType::LinkedList),
             #[cfg(feature = "smallvec")]
             "SmallVec" => Some(GenericType::SmallVec),
             "Option" => Some(GenericType::Option),
@@ -391,6 +392,7 @@ pub enum ValueType {
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum GenericType {
     Vec,
+    LinkedList,
     #[cfg(feature = "smallvec")]
     SmallVec,
     Map,
@@ -486,6 +488,14 @@ impl<'c> ComponentSchema {
                 deprecated_stream,
             ),
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            ),
+            Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,

@@ -3131,6 +3131,47 @@ fn derive_struct_with_rust_decimal_with_type_override() {
     }
 }
 
+#[cfg(feature = "decimal_float")]
+#[test]
+fn derive_struct_with_rust_decimal_float() {
+    use rust_decimal::Decimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            rating: Decimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""number""#, "Post rating type"
+        "properties.rating.format" = r#""double""#, "Post rating format"
+    }
+}
+
+#[cfg(feature = "decimal_float")]
+#[test]
+fn derive_struct_with_rust_decimal_float_with_type_override() {
+    use rust_decimal::Decimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(value_type = String)]
+            rating: Decimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""string""#, "Post rating type"
+        "properties.rating.format" = r#"null"#, "Post rating format"
+    }
+}
+
 #[cfg(feature = "uuid")]
 #[test]
 fn derive_struct_with_uuid_type() {
@@ -3162,6 +3203,23 @@ fn derive_struct_with_ulid_type() {
     assert_value! {post=>
         "properties.id.type" = r#""string""#, "Post id type"
         "properties.id.format" = r#""ulid""#, "Post id format"
+    }
+}
+
+#[cfg(feature = "url")]
+#[test]
+fn derive_struct_with_url_type() {
+    use url::Url;
+
+    let post = api_doc! {
+        struct Post {
+            id: Url,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""string""#, "Post id type"
+        "properties.id.format" = r#""uri""#, "Post id format"
     }
 }
 
@@ -3561,6 +3619,34 @@ fn derive_component_with_raw_identifier() {
                 }
             },
             "required": ["in"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_component_with_linked_list() {
+    use std::collections::LinkedList;
+
+    let example_schema = api_doc! {
+        struct ExampleSchema {
+            values: LinkedList<f64>
+        }
+    };
+
+    assert_json_eq!(
+        example_schema,
+        json!({
+            "properties": {
+                "values": {
+                    "items": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["values"],
             "type": "object"
         })
     )
