@@ -285,7 +285,9 @@ pub struct Discriminator {
     /// objects.
     pub property_name: String,
 
-    // An object to hold mappings between payload values and schema names or references.
+    /// An object to hold mappings between payload values and schema names or references.
+    /// This field can only be populated manually. There is no macro support and no
+    /// validation.
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub mapping: BTreeMap<String, String>,
 }
@@ -2041,5 +2043,35 @@ mod tests {
         println!("{json_de_str}");
 
         assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn serialize_discriminator_with_mapping() {
+        let mut discriminator = Discriminator::new("type");
+        discriminator.mapping = [("int".to_string(), "#/components/schemas/MyInt".to_string())]
+            .into_iter()
+            .collect::<BTreeMap<_, _>>();
+        let one_of = OneOfBuilder::new()
+            .item(Ref::from_schema_name("MyInt"))
+            .discriminator(Some(discriminator))
+            .build();
+        let json_value = serde_json::to_value(one_of).unwrap();
+
+        assert_json_eq!(
+            json_value,
+            json!({
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/MyInt"
+                    }
+                ],
+                "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                        "int": "#/components/schemas/MyInt"
+                    }
+                }
+            })
+        );
     }
 }
