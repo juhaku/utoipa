@@ -4,10 +4,7 @@ use std::{borrow::Cow, io::Cursor, sync::Arc};
 
 use rocket::{
     http::{Header, Status},
-    response::{
-        status::{self, NotFound},
-        Responder as RocketResponder,
-    },
+    response::{status::NotFound, Responder as RocketResponder},
     route::{Handler, Outcome},
     serde::json::Json,
     Data as RocketData, Request, Response, Route,
@@ -79,18 +76,23 @@ struct ServeSwagger(Cow<'static, str>, Arc<Config<'static>>);
 #[rocket::async_trait]
 impl Handler for ServeSwagger {
     async fn handle<'r>(&self, request: &'r Request<'_>, _: RocketData<'r>) -> Outcome<'r> {
-        let mut path = self.0.as_ref();
+        let mut base_path = self.0.as_ref();
         if let Some(index) = self.0.find('<') {
-            path = &path[..index];
+            base_path = &base_path[..index];
         }
 
-        match super::serve(&request.uri().path().as_str()[path.len()..], self.1.clone()) {
+        let request_path = request.uri().path().as_str();
+        let request_path = match request_path.strip_prefix(base_path) {
+            Some(stripped) => stripped,
+            None => return Outcome::from(request, RedirectResponder(base_path.into())),
+        };
+        match super::serve(request_path, self.1.clone()) {
             Ok(swagger_file) => swagger_file
                 .map(|file| Outcome::from(request, file))
                 .unwrap_or_else(|| Outcome::from(request, NotFound("Swagger UI file not found"))),
             Err(error) => Outcome::from(
                 request,
-                status::Custom(Status::InternalServerError, error.to_string()),
+                rocket::response::status::Custom(Status::InternalServerError, error.to_string()),
             ),
         }
     }
@@ -98,12 +100,20 @@ impl Handler for ServeSwagger {
 
 impl<'r, 'o: 'r> RocketResponder<'r, 'o> for SwaggerFile<'o> {
     fn respond_to(self, _: &'r Request<'_>) -> rocket::response::Result<'o> {
-        rocket::response::Result::Ok(
-            Response::build()
-                .header(Header::new("Content-Type", self.content_type))
-                .sized_body(self.bytes.len(), Cursor::new(self.bytes.to_vec()))
-                .status(Status::Ok)
-                .finalize(),
-        )
+        Ok(Response::build()
+            .header(Header::new("Content-Type", self.content_type))
+            .sized_body(self.bytes.len(), Cursor::new(self.bytes.to_vec()))
+            .status(Status::Ok)
+            .finalize())
+    }
+}
+
+struct RedirectResponder(String);
+impl<'r, 'a: 'r> RocketResponder<'r, 'a> for RedirectResponder {
+    fn respond_to(self, _request: &'r Request<'_>) -> rocket::response::Result<'a> {
+        Response::build()
+            .status(Status::Found)
+            .raw_header("Location", self.0)
+            .ok()
     }
 }
