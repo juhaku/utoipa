@@ -715,7 +715,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///
 /// [derive]: attr.path.html
 pub trait Path {
-    fn path() -> &'static str;
+    fn path() -> String;
 
     fn path_item(default_tag: Option<&str>) -> openapi::path::PathItem;
 }
