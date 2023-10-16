@@ -36,13 +36,13 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
 Use only the raw types without any boilerplate implementation.
 ```toml
 [dependencies]
-utoipa-swagger-ui = "3"
+utoipa-swagger-ui = "4"
 ```
 
 Enable actix-web framework with Swagger UI you could define the dependency as follows.
 ```toml
 [dependencies]
-utoipa-swagger-ui = { version = "3", features = ["actix-web"] }
+utoipa-swagger-ui = { version = "4", features = ["actix-web"] }
 ```
 
 **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`

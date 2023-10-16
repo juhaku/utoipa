@@ -33,12 +33,12 @@ pub struct PathAttr<'p> {
     path_operation: Option<PathOperation>,
     request_body: Option<RequestBody<'p>>,
     responses: Vec<Response<'p>>,
-    pub(super) path: Option<String>,
+    pub(super) path: Option<parse_utils::Value>,
     operation_id: Option<Expr>,
-    tag: Option<String>,
+    tag: Option<parse_utils::Value>,
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementAttr>>,
-    context_path: Option<String>,
+    context_path: Option<parse_utils::Value>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -112,7 +112,7 @@ impl Parse for PathAttr<'_> {
                         Some(parse_utils::parse_next(input, || Expr::parse(input))?);
                 }
                 "path" => {
-                    path_attr.path = Some(parse_utils::parse_next_literal_str(input)?);
+                    path_attr.path = Some(parse_utils::parse_next_literal_str_or_expr(input)?);
                 }
                 "request_body" => {
                     path_attr.request_body =
@@ -133,7 +133,7 @@ impl Parse for PathAttr<'_> {
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Parameter>>())?;
                 }
                 "tag" => {
-                    path_attr.tag = Some(parse_utils::parse_next_literal_str(input)?);
+                    path_attr.tag = Some(parse_utils::parse_next_literal_str_or_expr(input)?);
                 }
                 "security" => {
                     let security;
@@ -141,7 +141,8 @@ impl Parse for PathAttr<'_> {
                     path_attr.security = Some(parse_utils::parse_groups(&security)?)
                 }
                 "context_path" => {
-                    path_attr.context_path = Some(parse_utils::parse_next_literal_str(input)?)
+                    path_attr.context_path =
+                        Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
                 _ => {
                     // any other case it is expected to be path operation
@@ -304,12 +305,12 @@ impl<'p> ToTokens for Path<'p> {
                     help = "Did you define the #[utoipa::path(...)] over function?"
                 }
             });
-        let tag = &*self
+        let tag = self
             .path_attr
             .tag
             .as_ref()
-            .map(ToOwned::to_owned)
-            .unwrap_or_default();
+            .map(ToTokens::to_token_stream)
+            .unwrap_or_else(|| quote!(""));
         let path_operation = self
             .path_attr
             .path_operation
@@ -334,7 +335,8 @@ impl<'p> ToTokens for Path<'p> {
             .path_attr
             .path
             .as_ref()
-            .or(self.path.as_ref())
+            .map(|path| path.to_token_stream())
+            .or(Some(self.path.to_token_stream()))
             .unwrap_or_else(|| {
                 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
                 let help =
@@ -345,7 +347,7 @@ impl<'p> ToTokens for Path<'p> {
 
                 abort! {
                     Span::call_site(), "path is not defined for path";
-                    help = r###"Did you forget to define it in #[utoipa::path(path = "...")]"###;
+                    help = r#"Did you forget to define it in #[utoipa::path(path = "...")]"#;
                     help =? help
                 }
             });
@@ -354,8 +356,21 @@ impl<'p> ToTokens for Path<'p> {
             .path_attr
             .context_path
             .as_ref()
-            .map(|context_path| format!("{context_path}{path}"))
-            .unwrap_or_else(|| path.to_string());
+            .map(|context_path| {
+                let context_path = context_path.to_token_stream();
+                let context_path_tokens = quote! {
+                    format!("{}{}",
+                        #context_path.to_string().replace('"', ""),
+                        #path.to_string().replace('"', "")
+                    )
+                };
+                context_path_tokens
+            })
+            .unwrap_or_else(|| {
+                quote! {
+                    #path.to_string().replace('"', "")
+                }
+            });
 
         let operation: Operation = Operation {
             deprecated: &self.deprecated,
@@ -377,7 +392,7 @@ impl<'p> ToTokens for Path<'p> {
             pub struct #path_struct;
 
             impl utoipa::Path for #path_struct {
-                fn path() -> &'static str {
+                fn path() -> String {
                     #path_with_context_path
                 }
 
