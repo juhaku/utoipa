@@ -3,10 +3,12 @@
 //! Refer to [`SecurityScheme`] for usage and more details.
 //!
 //! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-use std::{collections::BTreeMap, iter};
+use std::{
+    collections::{BTreeMap, HashMap},
+    iter,
+};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use super::builder;
 
@@ -356,7 +358,7 @@ pub struct OAuth2 {
 
     /// Optional extensions "x-something"
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<Value>,
+    pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
 
 impl OAuth2 {
@@ -442,10 +444,6 @@ impl OAuth2 {
             extensions: None,
             description: Some(description.into()),
         }
-    }
-
-    pub fn set_extensions(&mut self, extensions: Option<Value>) {
-        self.extensions = extensions;
     }
 }
 
