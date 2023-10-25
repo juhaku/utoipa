@@ -1,7 +1,7 @@
 //! Implements [OpenApi Responses][responses].
 //!
 //! [responses]: https://spec.openapis.org/oas/latest.html#responses-object
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -118,6 +118,10 @@ builder! {
         /// will create and show default example according to the first entry in `content` map.
         #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
         pub content: IndexMap<String, Content>,
+
+        /// Optional extensions "x-something"
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
 }
 
@@ -151,6 +155,11 @@ impl ResponseBuilder {
         self.headers.insert(name.into(), header);
 
         self
+    }
+
+    /// Add openapi extensions (x-something) to the [`Header`].
+    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 

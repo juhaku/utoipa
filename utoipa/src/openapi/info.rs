@@ -6,6 +6,8 @@
 //! [info]: <https://spec.openapis.org/oas/latest.html#info-object>
 //! [openapi_trait]: ../../trait.OpenApi.html
 //! [derive]: ../../derive.OpenApi.html
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use super::{builder, set_value};
@@ -66,6 +68,10 @@ builder! {
 
         /// Document version typically the API version.
         pub version: String,
+
+        /// Optional extensions "x-something"
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
 }
 
@@ -119,6 +125,11 @@ impl InfoBuilder {
     /// Add license of the API.
     pub fn license(mut self, license: Option<License>) -> Self {
         set_value!(self license license)
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 
