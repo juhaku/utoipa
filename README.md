@@ -306,7 +306,7 @@ This would produce api doc something similar to:
 - More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
 - Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 
-## General Pitfalls
+## FAG
 
 ### Swagger UI returns 404 NotFound from built binary
 
@@ -318,6 +318,16 @@ library **does not** by default embed files on debug builds. To get around this 
    `RustEmbed` as well. Read more about this [here](https://github.com/juhaku/utoipa/issues/527#issuecomment-1474219098) and [here](https://github.com/juhaku/utoipa/issues/268).
 
 Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
+
+
+### How to implement `ToSchema` for external type?
+
+There are few ways around this that are elaborated here in detail [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
+
+### How to use Rust's type aliases?
+
+At the moment that is not possible due to there is no way to evaluate the actual type behind the type token that is visible to the proc macro code generation. 
+This might be possible in future if a global alias registry can be implemented.
 
 ## License
 
