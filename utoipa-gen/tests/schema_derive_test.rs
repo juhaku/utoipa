@@ -4919,6 +4919,66 @@ fn derive_struct_with_rc() {
 }
 
 #[test]
+fn derive_btreeset() {
+    use std::collections::BTreeSet;
+
+    let greeting = api_doc! {
+        struct Greeting {
+            values: BTreeSet<String>,
+        }
+    };
+
+    assert_json_eq!(
+        greeting,
+        json!({
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+            },
+            "required": [
+                "values"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_hashset() {
+    use std::collections::HashSet;
+
+    let greeting = api_doc! {
+        struct Greeting {
+            values: HashSet<String>,
+        }
+    };
+
+    assert_json_eq!(
+        greeting,
+        json!({
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+            },
+            "required": [
+                "values"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 fn derive_doc_hidden() {
     let map = api_doc! {
         #[doc(hidden)]
