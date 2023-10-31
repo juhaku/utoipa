@@ -275,6 +275,7 @@ impl<'t> TypeTree<'t> {
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
             "Vec" => Some(GenericType::Vec),
+            "BTreeSet" | "HashSet" => Some(GenericType::Set),
             "LinkedList" => Some(GenericType::LinkedList),
             #[cfg(feature = "smallvec")]
             "SmallVec" => Some(GenericType::SmallVec),
@@ -393,6 +394,7 @@ pub enum ValueType {
 pub enum GenericType {
     Vec,
     LinkedList,
+    Set,
     #[cfg(feature = "smallvec")]
     SmallVec,
     Map,
@@ -496,6 +498,14 @@ impl<'c> ComponentSchema {
                 deprecated_stream,
             ),
             Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
+                &mut tokens,
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            ),
+            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
                 features,
                 type_tree,
@@ -668,6 +678,8 @@ impl<'c> ComponentSchema {
             child
         };
 
+        let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
+
         // is octet-stream
         let schema = if child
             .path
@@ -689,9 +701,17 @@ impl<'c> ComponentSchema {
                 object_name,
             });
 
+            let unique = match unique {
+                true => quote! {
+                    .unique_items(true)
+                },
+                false => quote! {},
+            };
+
             quote! {
                 utoipa::openapi::schema::ArrayBuilder::new()
                     .items(#component_schema)
+                    #unique
             }
         };
 
