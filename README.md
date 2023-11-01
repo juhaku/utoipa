@@ -306,7 +306,7 @@ This would produce api doc something similar to:
 - More about OpenAPI security in [security documentation](https://docs.rs/utoipa/latest/utoipa/openapi/security/index.html).
 - Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 
-## FAG
+## FAQ
 
 ### Swagger UI returns 404 NotFound from built binary
 
