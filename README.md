@@ -322,7 +322,7 @@ Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/t
 
 ### How to implement `ToSchema` for external type?
 
-There are few ways around this that are elaborated here in detail [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
+There are few ways around this that are elaborated [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
 
 ### How to use Rust's type aliases?
 
