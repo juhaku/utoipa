@@ -327,7 +327,7 @@ There are few ways around this that are elaborated [here in detail](https://gith
 ### How to use Rust's type aliases?
 
 At the moment that is not possible due to there is no way to evaluate the actual type behind the type token that is visible to the proc macro code generation. 
-This might be possible in future if a global alias registry can be implemented.
+This might be possible in future if a global alias registry can be implemented. Here is an issue related to the topic [#766](https://github.com/juhaku/utoipa/issues/766).
 
 ## License
 
