@@ -126,6 +126,50 @@ fn derive_map_free_form_property() {
 }
 
 #[test]
+fn derive_flattened_map_string_property() {
+    let map = api_doc! {
+        #[derive(Serialize)]
+        struct Map {
+            #[serde(flatten)]
+            map: HashMap<String, String>,
+        }
+    };
+
+    assert_json_eq!(
+        map,
+        json!({
+            "additionalProperties": {"type": "string"},
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_flattened_map_ref_property() {
+    #[derive(Serialize, ToSchema)]
+    #[allow(unused)]
+    enum Foo {
+        Variant,
+    }
+
+    let map = api_doc! {
+        #[derive(Serialize)]
+        struct Map {
+            #[serde(flatten)]
+            map: HashMap<String, Foo>,
+        }
+    };
+
+    assert_json_eq!(
+        map,
+        json!({
+            "additionalProperties": {"$ref": "#/components/schemas/Foo"},
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
         #[schema(default = "Mode1", example = "Mode2")]
