@@ -33,7 +33,7 @@ use super::{
         RenameAll, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-    ComponentSchema, FieldRename, TypeTree, ValueType, VariantRename,
+    ComponentSchema, FieldRename, FlattenedMapSchema, TypeTree, ValueType, VariantRename,
 };
 
 mod enum_variant;
@@ -292,6 +292,7 @@ impl NamedStructSchema<'_> {
     fn field_as_schema_property<R>(
         &self,
         field: &Field,
+        flatten: bool,
         container_rules: &Option<SerdeContainer>,
         yield_: impl FnOnce(NamedStructFieldOptions<'_>) -> R,
     ) -> R {
@@ -364,13 +365,18 @@ impl NamedStructSchema<'_> {
             property: if let Some(schema_with) = schema_with {
                 Property::SchemaWith(schema_with)
             } else {
-                Property::Schema(ComponentSchema::new(super::ComponentSchemaProps {
+                let cs = super::ComponentSchemaProps {
                     type_tree,
                     features: field_features,
                     description: Some(&comments),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
-                }))
+                };
+                if flatten && type_tree.is_map() {
+                    Property::FlattenedMap(FlattenedMapSchema::new(cs))
+                } else {
+                    Property::Schema(ComponentSchema::new(cs))
+                }
             },
             rename_field_value: rename_field,
             required,
@@ -383,7 +389,7 @@ impl ToTokens for NamedStructSchema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let container_rules = serde::parse_container(self.attributes);
 
-        let object_tokens = self
+        let mut object_tokens = self
             .fields
             .iter()
             .filter_map(|field| {
@@ -406,6 +412,7 @@ impl ToTokens for NamedStructSchema<'_> {
 
                     self.field_as_schema_property(
                         field,
+                        false,
                         &container_rules,
                         |NamedStructFieldOptions {
                              property,
@@ -467,23 +474,44 @@ impl ToTokens for NamedStructSchema<'_> {
             .collect();
 
         if !flatten_fields.is_empty() {
-            tokens.extend(quote! {
-                utoipa::openapi::AllOfBuilder::new()
-            });
-
+            let mut flattened_tokens = TokenStream::new();
+            let mut flattened_map_field = None;
             for field in flatten_fields {
                 self.field_as_schema_property(
                     field,
+                    true,
                     &container_rules,
-                    |NamedStructFieldOptions { property, .. }| {
-                        tokens.extend(quote! { .item(#property) });
+                    |NamedStructFieldOptions { property, .. }| match property {
+                        Property::Schema(_) | Property::SchemaWith(_) => {
+                            flattened_tokens.extend(quote! { .item(#property) })
+                        }
+                        Property::FlattenedMap(_) => match flattened_map_field {
+                            None => {
+                                object_tokens
+                                    .extend(quote! { .additional_properties(Some(#property)) });
+                                flattened_map_field = Some(field);
+                            }
+                            Some(flattened_map_field) => {
+                                abort!(self.fields,
+                                       "The structure `{}` contains multiple flattened map fields.",
+                                                                             self.struct_name;
+                                       note = flattened_map_field.span() => "first flattened map field was declared here as `{}`", flattened_map_field.ident.as_ref().unwrap();
+                                       note = field.span() => "second flattened map field was declared here as `{}`", field.ident.as_ref().unwrap());
+                            },
+                        },
                     },
                 )
             }
 
-            tokens.extend(quote! {
-                .item(#object_tokens)
-            })
+            if flattened_tokens.is_empty() {
+                tokens.extend(object_tokens)
+            } else {
+                tokens.extend(quote! {
+                    utoipa::openapi::AllOfBuilder::new()
+                        #flattened_tokens
+                    .item(#object_tokens)
+                })
+            }
         } else {
             tokens.extend(object_tokens)
         }
@@ -1448,12 +1476,14 @@ struct TypeTuple<'a, T>(T, &'a Ident);
 enum Property {
     Schema(ComponentSchema),
     SchemaWith(Feature),
+    FlattenedMap(FlattenedMapSchema),
 }
 
 impl ToTokens for Property {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Schema(schema) => schema.to_tokens(tokens),
+            Self::FlattenedMap(schema) => schema.to_tokens(tokens),
             Self::SchemaWith(schema_with) => schema_with.to_tokens(tokens),
         }
     }
