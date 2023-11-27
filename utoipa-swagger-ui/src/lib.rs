@@ -92,19 +92,18 @@
 //! Setup Router to serve Swagger UI with **`axum`** framework. See full implementation of how to serve
 //! Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
 //!```no_run
-//! # use axum::{routing, Router, body::HttpBody};
+//! # use axum::{routing, Router};
 //! # use utoipa_swagger_ui::SwaggerUi;
 //! # use utoipa::OpenApi;
 //!# #[derive(OpenApi)]
 //!# #[openapi()]
 //!# struct ApiDoc;
 //!#
-//!# fn inner<S, B>()
+//!# fn inner<S>()
 //!# where
-//!#     B: HttpBody + Send + 'static,
 //!#     S: Clone + Send + Sync + 'static,
 //!# {
-//! let app = Router::<S, B>::new()
+//! let app = Router::<S>::new()
 //!     .merge(SwaggerUi::new("/swagger-ui")
 //!         .url("/api-docs/openapi.json", ApiDoc::openapi()));
 //!# }
