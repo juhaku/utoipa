@@ -112,20 +112,19 @@
 //!
 //! _**Serve [`RapiDoc`] via `axum` framework.**_
 //!  ```no_run
-//!  use axum::{Router, body::HttpBody};
+//!  use axum::Router;
 //!  use utoipa_rapidoc::RapiDoc;
 //!  # use utoipa::OpenApi;
 //! # #[derive(OpenApi)]
 //! # #[openapi()]
 //! # struct ApiDoc;
 //! #
-//! # fn inner<S, B>()
+//! # fn inner<S>()
 //! # where
-//! #     B: HttpBody + Send + 'static,
 //! #     S: Clone + Send + Sync + 'static,
 //! # {
 //!
-//!  let app = Router::<S, B>::new()
+//!  let app = Router::<S>::new()
 //!      .merge(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
 //! # }
 //! ```
