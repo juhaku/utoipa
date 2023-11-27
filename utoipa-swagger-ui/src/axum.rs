@@ -18,7 +18,7 @@ where
 
         let (router, urls) = swagger_ui.urls.into_iter().fold(
             (
-                Router::<S, B>::new(),
+                Router::<S>::new(),
                 Vec::<Url>::with_capacity(urls_capacity + external_urls_capacity),
             ),
             |router_and_urls, (url, openapi)| {
