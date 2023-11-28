@@ -17,7 +17,7 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 
 * **actix-web** Allows serving `Redoc` via _**`actix-web`**_. `version >= 4`
 * **rocket** Allows serving `Redoc` via _**`rocket`**_. `version >=0.5.0-rc.3`
-* **axum** Allows serving `Redoc` via _**`axum`**_. `version >=0.6`
+* **axum** Allows serving `Redoc` via _**`axum`**_. `version >=0.7`
 
 # Install
 
@@ -111,10 +111,10 @@ rocket::build()
 
 _**Serve `Redoc` via `axum` framework.**_
  ```rust
- use axum::{Router, body::HttpBody};
+ use axum::Router;
  use utoipa_redoc::{Redoc, Servable};
 
- let app = Router::<S, B>::new()
+ let app = Router::<S>::new()
      .merge(Redoc::with_url("/redoc", ApiDoc::openapi()));
 ```
 

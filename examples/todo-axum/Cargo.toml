@@ -11,8 +11,8 @@ authors = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6"
-hyper = { version = "0.14", features = ["full"] }
+axum = "0.7"
+hyper = { version = "1.0.1", features = ["full"] }
 tokio = { version = "1.17", features = ["full"] }
 tower = "0.4"
 utoipa = { path = "../../utoipa", features = ["axum_extras"] }

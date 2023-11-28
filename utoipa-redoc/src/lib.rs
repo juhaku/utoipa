@@ -145,20 +145,19 @@
 //!
 //! _**Serve [`Redoc`] via `axum` framework.**_
 //!  ```no_run
-//!  use axum::{Router, body::HttpBody};
+//!  use axum::Router;
 //!  use utoipa_redoc::{Redoc, Servable};
 //!  # use utoipa::OpenApi;
 //! # #[derive(OpenApi)]
 //! # #[openapi()]
 //! # struct ApiDoc;
 //! #
-//! # fn inner<S, B>()
+//! # fn inner<S>()
 //! # where
-//! #     B: HttpBody + Send + 'static,
 //! #     S: Clone + Send + Sync + 'static,
 //! # {
 //!
-//!  let app = Router::<S, B>::new()
+//!  let app = Router::<S>::new()
 //!      .merge(Redoc::with_url("/redoc", ApiDoc::openapi()));
 //! # }
 //! ```

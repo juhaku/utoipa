@@ -3,16 +3,14 @@
 use std::sync::Arc;
 
 use axum::{
-    body::HttpBody, extract::Path, http::StatusCode, response::IntoResponse, routing, Extension,
-    Json, Router,
+    extract::Path, http::StatusCode, response::IntoResponse, routing, Extension, Json, Router,
 };
 
 use crate::{ApiDoc, Config, SwaggerUi, Url};
 
-impl<S, B> From<SwaggerUi> for Router<S, B>
+impl<S> From<SwaggerUi> for Router<S>
 where
     S: Clone + Send + Sync + 'static,
-    B: HttpBody + Send + 'static,
 {
     fn from(swagger_ui: SwaggerUi) -> Self {
         let urls_capacity = swagger_ui.urls.len();
@@ -20,7 +18,7 @@ where
 
         let (router, urls) = swagger_ui.urls.into_iter().fold(
             (
-                Router::<S, B>::new(),
+                Router::<S>::new(),
                 Vec::<Url>::with_capacity(urls_capacity + external_urls_capacity),
             ),
             |router_and_urls, (url, openapi)| {
@@ -58,13 +56,12 @@ where
     }
 }
 
-fn add_api_doc_to_urls<S, B>(
-    router_and_urls: (Router<S, B>, Vec<Url<'static>>),
+fn add_api_doc_to_urls<S>(
+    router_and_urls: (Router<S>, Vec<Url<'static>>),
     url: (Url<'static>, ApiDoc),
-) -> (Router<S, B>, Vec<Url<'static>>)
+) -> (Router<S>, Vec<Url<'static>>)
 where
     S: Clone + Send + Sync + 'static,
-    B: HttpBody + Send + 'static,
 {
     let (router, mut urls) = router_and_urls;
     let (url, openapi) = url;

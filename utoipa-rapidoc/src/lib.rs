@@ -112,20 +112,19 @@
 //!
 //! _**Serve [`RapiDoc`] via `axum` framework.**_
 //!  ```no_run
-//!  use axum::{Router, body::HttpBody};
+//!  use axum::Router;
 //!  use utoipa_rapidoc::RapiDoc;
 //!  # use utoipa::OpenApi;
 //! # #[derive(OpenApi)]
 //! # #[openapi()]
 //! # struct ApiDoc;
 //! #
-//! # fn inner<S, B>()
+//! # fn inner<S>()
 //! # where
-//! #     B: HttpBody + Send + 'static,
 //! #     S: Clone + Send + Sync + 'static,
 //! # {
 //!
-//!  let app = Router::<S, B>::new()
+//!  let app = Router::<S>::new()
 //!      .merge(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
 //! # }
 //! ```
@@ -304,23 +303,21 @@ mod acitx {
 mod axum {
     #![cfg(feature = "axum")]
 
-    use axum::body::HttpBody;
     use axum::response::Html;
     use axum::{routing, Json, Router};
 
     use crate::RapiDoc;
 
-    impl<R, B> From<RapiDoc<'_, '_, '_>> for Router<R, B>
+    impl<R> From<RapiDoc<'_, '_, '_>> for Router<R>
     where
         R: Clone + Send + Sync + 'static,
-        B: HttpBody + Send + 'static,
     {
         fn from(value: RapiDoc<'_, '_, '_>) -> Self {
             let html = value.to_html();
             let openapi = value.openapi;
 
             let mut router =
-                Router::<R, B>::new().route(value.path, routing::get(move || async { Html(html) }));
+                Router::<R>::new().route(value.path, routing::get(move || async { Html(html) }));
 
             if let Some(openapi) = openapi {
                 router = router.route(

@@ -13,7 +13,7 @@ works as a bridge for serving the OpenAPI documentation created with
 
 * **actix-web** `version >= 4`
 * **rocket** `version >=0.5.0-rc.3`
-* **axum** `version >=0.6`
+* **axum** `version >=0.7`
 
 Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 other frameworks as well. With other frameworks, there is a bit more manual implementation to be done. See
