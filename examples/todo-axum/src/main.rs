@@ -3,8 +3,9 @@ use std::{
     sync::Arc,
 };
 
-use axum::{routing, Router, Server};
-use hyper::Error;
+use axum::{routing, Router};
+use std::io::Error;
+use tokio::net::TcpListener;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
@@ -70,7 +71,8 @@ async fn main() -> Result<(), Error> {
         .with_state(store);
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
-    Server::bind(&address).serve(app.into_make_service()).await
+    let listener = TcpListener::bind(&address).await?;
+    axum::serve(listener, app.into_make_service()).await
 }
 
 mod todo {
