@@ -37,7 +37,7 @@ mod pet_api {
         ),
         security(
             (),
-            ("my_auth" = ["read:items", "edit:items"]),
+            ("my_auth1" = ["read:items", "edit:items"], "my_auth2" = ["read:items"]),
             ("token_jwt" = [])
         )
     )]
