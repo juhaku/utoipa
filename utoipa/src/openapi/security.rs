@@ -45,7 +45,7 @@ impl SecurityRequirement {
     /// Create new security requirement with scopes.
     /// ```rust
     /// # use utoipa::openapi::security::SecurityRequirement;
-    /// SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
+    /// SecurityRequirement::single("api_oauth2_flow", ["edit:items", "read:items"]);
     /// ```
     ///
     /// You can also create an empty security requirement with `Default::default()`.
@@ -53,7 +53,7 @@ impl SecurityRequirement {
     /// # use utoipa::openapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
-    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
+    pub fn single<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         name: N,
         scopes: S,
     ) -> Self {
@@ -68,6 +68,23 @@ impl SecurityRequirement {
                 )
             })),
         }
+    }
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
+        mut self,
+        name: N,
+        scopes: S,
+    ) -> Self {
+        self.value.insert(
+            Into::<String>::into(name),
+            scopes.into_iter().map(Into::<String>::into).collect(),
+        );
+
+        self
     }
 }
 

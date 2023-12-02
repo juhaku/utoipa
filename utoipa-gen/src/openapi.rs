@@ -12,7 +12,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementAttr, Array,
+    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementsAttr, Array,
     ExternalDocs, ResultExt,
 };
 
@@ -27,7 +27,7 @@ pub struct OpenApiAttr<'o> {
     paths: Punctuated<ExprPath, Comma>,
     components: Components,
     modifiers: Punctuated<Modifier, Comma>,
-    security: Option<Array<'static, SecurityRequirementAttr>>,
+    security: Option<Array<'static, SecurityRequirementsAttr>>,
     tags: Option<Array<'static, Tag>>,
     external_docs: Option<ExternalDocs>,
     servers: Punctuated<Server, Comma>,

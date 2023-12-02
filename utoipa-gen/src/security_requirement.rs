@@ -12,48 +12,73 @@ use crate::Array;
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct SecurityRequirementAttr {
-    name: Option<String>,
-    scopes: Option<Vec<String>>,
+pub struct SecurityRequirementsAttrItem {
+    pub name: String,
+    pub scopes: Vec<String>,
 }
 
-impl Parse for SecurityRequirementAttr {
+#[derive(Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct SecurityRequirementsAttr(Vec<SecurityRequirementsAttrItem>);
+
+impl Parse for SecurityRequirementsAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut items = Vec::new();
+
         if input.is_empty() {
-            return Ok(Self {
-                ..Default::default()
-            });
+            return Ok(Self(items));
         }
-        let name = input.parse::<LitStr>()?.value();
-        input.parse::<Token![=]>()?;
 
-        let scopes_stream;
-        bracketed!(scopes_stream in input);
-        let scopes = Punctuated::<LitStr, Comma>::parse_terminated(&scopes_stream)?
-            .iter()
-            .map(LitStr::value)
-            .collect::<Vec<_>>();
+        items.push(input.parse::<SecurityRequirementsAttrItem>()?);
 
-        Ok(Self {
-            name: Some(name),
-            scopes: Some(scopes),
-        })
+        while input.lookahead1().peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+            items.push(input.parse::<SecurityRequirementsAttrItem>()?);
+        }
+
+        Ok(Self(items))
     }
 }
 
-impl ToTokens for SecurityRequirementAttr {
+impl Parse for SecurityRequirementsAttrItem {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let name = input.parse::<LitStr>()?.value();
+
+        if input.lookahead1().peek(Token![=]) {
+            input.parse::<Token![=]>()?;
+
+            let scopes_stream;
+            bracketed!(scopes_stream in input);
+
+            let scopes = Punctuated::<LitStr, Comma>::parse_terminated(&scopes_stream)?
+                .iter()
+                .map(LitStr::value)
+                .collect::<Vec<_>>();
+
+            Ok(Self { name, scopes })
+        } else {
+            Ok(Self {
+                name,
+                scopes: vec![],
+            })
+        }
+    }
+}
+
+impl ToTokens for SecurityRequirementsAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        if let (Some(name), Some(scopes)) = (&self.name, &self.scopes) {
-            let scopes_array = scopes.iter().collect::<Array<&String>>();
+        tokens.extend(quote! {
+            utoipa::openapi::security::SecurityRequirement::new()
+        });
+
+        for requirement in &self.0 {
+            let name = &requirement.name;
+            let scopes = requirement.scopes.iter().collect::<Array<&String>>();
             let scopes_len = scopes.len();
 
             tokens.extend(quote! {
-                utoipa::openapi::security::SecurityRequirement::new::<&str, [&str; #scopes_len], &str>(#name, #scopes_array)
-            })
-        } else {
-            tokens.extend(quote! {
-                utoipa::openapi::security::SecurityRequirement::default()
-            })
+                .add::<&str, [&str; #scopes_len], &str>(#name, #scopes)
+            });
         }
     }
 }
