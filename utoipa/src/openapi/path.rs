@@ -771,9 +771,8 @@ mod tests {
     #[test]
     fn operation_builder_security() {
         let security_requirement1 =
-            SecurityRequirement::single("api_oauth2_flow", ["edit:items", "read:items"]);
-        let security_requirement2 =
-            SecurityRequirement::single("api_oauth2_flow", ["remove:items"]);
+            SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
+        let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
         let operation = OperationBuilder::new()
             .security(security_requirement1.into())
             .security(security_requirement2.into())

@@ -45,7 +45,7 @@ impl SecurityRequirement {
     /// Create new security requirement with scopes.
     /// ```rust
     /// # use utoipa::openapi::security::SecurityRequirement;
-    /// SecurityRequirement::single("api_oauth2_flow", ["edit:items", "read:items"]);
+    /// SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
     /// ```
     ///
     /// You can also create an empty security requirement with `Default::default()`.
@@ -53,7 +53,7 @@ impl SecurityRequirement {
     /// # use utoipa::openapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
-    pub fn single<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
+    pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         name: N,
         scopes: S,
     ) -> Self {
@@ -70,10 +70,21 @@ impl SecurityRequirement {
         }
     }
 
-    pub fn new() -> Self {
-        Self::default()
-    }
-
+    /// Allows to add multiple security requirements.
+    ///
+    /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
+    /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
+    /// Scopes must match to the ones defined in [`SecurityScheme`].
+    ///
+    /// # Examples
+    ///
+    /// Make both API keys required:
+    /// ```rust
+    /// # use utoipa::openapi::security::SecurityRequirement;
+    /// SecurityRequirement::default()
+    ///     .add("refresh_token", ["edit:accounts"])
+    ///     .add("access_token", ["edit:accounts"]);
+    /// ```
     pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         mut self,
         name: N,
