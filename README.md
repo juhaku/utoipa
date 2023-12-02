@@ -84,7 +84,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
   it is interpreted as `String`. If you wish to change the format you need to override the type.
   See the `value_type` in [component derive docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html).
 - **decimal_float** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
-  it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your 
+  it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your
   documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
 - **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
@@ -106,14 +106,14 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.
 - **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
-- **rc_schema** Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow 
+- **rc_schema** Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 
 ## Install
 
-Add minimal dependency declaration to Cargo.toml.
+Add minimal dependency declaration to `Cargo.toml`.
 
 ```toml
 [dependencies]
@@ -173,6 +173,7 @@ mod pet_api {
     }
 }
 ```
+
 Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 
 _This attribute macro will create another struct named with `__path_` prefix + handler function name.
@@ -191,7 +192,7 @@ struct ApiDoc;
 println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 ```
 
-This would produce api doc something similar to:
+This would produce an API doc something similar to:
 
 ```json
 {
@@ -274,29 +275,31 @@ This would produce api doc something similar to:
 }
 ```
 
- ## Modify OpenAPI at runtime
+## Modify OpenAPI at runtime
 
- You can modify generated OpenAPI at runtime either via generated types directly or using
- [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait.
+You can modify generated OpenAPI at runtime either via generated types directly or using
+[Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait.
 
- _Modify generated OpenAPI via types directly._
- ```rust
- #[derive(OpenApi)]
- #[openapi(
-     info(description = "My Api description"),
- )]
- struct ApiDoc;
+_Modify generated OpenAPI via types directly._
 
- let mut doc = ApiDoc::openapi();
- doc.info.title = String::from("My Api");
- ```
+```rust
+#[derive(OpenApi)]
+#[openapi(
+    info(description = "My Api description"),
+)]
+struct ApiDoc;
 
- _You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html)._
- ```rust
- let builder: OpenApiBuilder = ApiDoc::openapi().into();
- ```
+let mut doc = ApiDoc::openapi();
+doc.info.title = String::from("My Api");
+```
 
- See [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for examples on how to modify generated OpenAPI via it.
+_You can even convert the generated [OpenApi](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApi.html) to [OpenApiBuilder](https://docs.rs/utoipa/latest/utoipa/openapi/struct.OpenApiBuilder.html)._
+
+```rust
+let builder: OpenApiBuilder = ApiDoc::openapi().into();
+```
+
+See [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for examples on how to modify generated OpenAPI via it.
 
 ## Go beyond the surface
 
@@ -319,14 +322,13 @@ library **does not** by default embed files on debug builds. To get around this 
 
 Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
 
-
 ### How to implement `ToSchema` for external type?
 
 There are few ways around this that are elaborated [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
 
 ### How to use Rust's type aliases?
 
-At the moment that is not possible due to there is no way to evaluate the actual type behind the type token that is visible to the proc macro code generation. 
+At the moment that is not possible due to there is no way to evaluate the actual type behind the type token that is visible to the proc macro code generation.
 This might be possible in future if a global alias registry can be implemented. Here is an issue related to the topic [#766](https://github.com/juhaku/utoipa/issues/766).
 
 ## License

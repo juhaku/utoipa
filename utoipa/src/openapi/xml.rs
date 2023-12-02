@@ -87,14 +87,14 @@ impl XmlBuilder {
         set_value!(self prefix prefix.map(|prefix| prefix.into()))
     }
 
-    /// Mark [`Xml`] object as attribute. See [`Xml::attribute`]
+    /// Mark [`Xml`] object as attribute. See [`Xml::attribute`].
     ///
     /// Builder style chainable consuming add attribute method.
     pub fn attribute(mut self, attribute: Option<bool>) -> Self {
         set_value!(self attribute attribute)
     }
 
-    /// Mark [`Xml`] object wrapped. See [`Xml::wrapped`]
+    /// Mark [`Xml`] object wrapped. See [`Xml::wrapped`].
     ///
     /// Builder style chainable consuming add wrapped method.
     pub fn wrapped(mut self, wrapped: Option<bool>) -> Self {

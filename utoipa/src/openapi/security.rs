@@ -34,7 +34,7 @@ pub struct SecurityRequirement {
 }
 
 impl SecurityRequirement {
-    /// Construct a new [`SecurityRequirement`]
+    /// Construct a new [`SecurityRequirement`].
     ///
     /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
     /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
@@ -297,7 +297,7 @@ impl Default for HttpAuthScheme {
     }
 }
 
-/// Open id connect [`SecurityScheme`]
+/// Open id connect [`SecurityScheme`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -356,7 +356,7 @@ pub struct OAuth2 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    /// Optional extensions "x-something"
+    /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<HashMap<String, serde_json::Value>>,
 }
@@ -448,7 +448,6 @@ impl OAuth2 {
 }
 
 /// [`OAuth2`] flow configuration object.
-///
 ///
 /// See more details at <https://spec.openapis.org/oas/latest.html#oauth-flows-object>.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]

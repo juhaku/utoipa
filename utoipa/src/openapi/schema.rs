@@ -88,7 +88,7 @@ impl Components {
             ..Default::default()
         }
     }
-    /// Add [`SecurityScheme`] to [`Components`]
+    /// Add [`SecurityScheme`] to [`Components`].
     ///
     /// Accepts two arguments where first is the name of the [`SecurityScheme`]. This is later when
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
@@ -382,7 +382,7 @@ impl OneOf {
 }
 
 impl OneOfBuilder {
-    /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite]
+    /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite].
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
@@ -510,7 +510,7 @@ impl AllOf {
 }
 
 impl AllOfBuilder {
-    /// Adds a given [`Schema`] to [`AllOf`] [Composite Object][composite]
+    /// Adds a given [`Schema`] to [`AllOf`] [Composite Object][composite].
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
@@ -634,7 +634,7 @@ impl AnyOf {
 }
 
 impl AnyOfBuilder {
-    /// Adds a given [`Schema`] to [`AnyOf`] [Composite Object][composite]
+    /// Adds a given [`Schema`] to [`AnyOf`] [Composite Object][composite].
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     pub fn item<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
@@ -725,7 +725,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub default: Option<Value>,
 
-        /// Enum variants of fields that can be represented as `unit` type `enums`
+        /// Enum variants of fields that can be represented as `unit` type `enums`.
         #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
         pub enum_values: Option<Vec<Value>>,
 
@@ -1151,7 +1151,7 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Array {
-        /// Type will always be [`SchemaType::Array`]
+        /// Type will always be [`SchemaType::Array`].
         #[serde(rename = "type")]
         pub schema_type: SchemaType,
 

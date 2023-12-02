@@ -352,7 +352,7 @@ use self::{
 ///
 /// # Generic schemas with aliases
 ///
-/// Schemas can also be generic which allows reusing types. This enables certain behaviour patters
+/// Schemas can also be generic which allows reusing types. This enables certain behaviour patterns
 /// where super type declares common code for type aliases.
 ///
 /// In this example we have common `Status` type which accepts one generic type. It is then defined
@@ -703,7 +703,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
 ///   [`ToSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
 ///   json file for body schema. **Note!** Utoipa does **not** guarantee that free form _`ref`_ is accessbile via
-///   OpenAPI doc or Swagger UI, users are eligible to make these guarantees.
+///   OpenAPI doc or Swagger UI, users are responsible for making these guarantees.
 ///
 /// **Advanced format definition by `request_body(...)`**
 /// * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
@@ -711,8 +711,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
 ///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
 ///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
-///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
-///   to make these guarantees.
+///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
+///   these guarantees.
 ///
 /// * `description = "..."` Define the description for the request body object as str.
 ///
@@ -751,8 +751,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
 ///   [`ToSchema`][to_schema] types. _`ref("./external.json")`_
 ///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
-///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are eligible
-///   to make these guarantees.
+///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
+///   these guarantees.
 ///
 /// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
@@ -1267,7 +1267,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ````
 ///
 /// _**Example with multiple examples on single response.**_
-///```rust
+/// ```rust
 /// # #[derive(serde::Serialize, serde::Deserialize)]
 /// # struct User {
 /// #   name: String
@@ -1288,7 +1288,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// fn get_user() -> User {
 ///   User {name: "John".to_string()}
 /// }
-///```
+/// ```
 ///
 /// [in_enum]: openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
@@ -1458,8 +1458,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     * `enum_values(...)` Define list of possible values for the variable. Values must be
 ///       literal strings.
 ///
-///  _**Example server variable definition.**_
-///  ```text
+/// _**Example server variable definition.**_
+/// ```text
 /// ("username" = (default = "demo", description = "Default username for API")),
 /// ("port" = (enum_values("8080", "5000", "4545")))
 /// ```
@@ -1513,7 +1513,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ```
 ///
 /// _**Define servers to OpenApi.**_
-///```rust
+/// ```rust
 /// # use utoipa::OpenApi;
 /// #[derive(OpenApi)]
 /// #[openapi(
@@ -1528,7 +1528,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     )
 /// )]
 /// struct ApiDoc;
-///```
+/// ```
 ///
 /// _**Define info attribute values used to override auto generated ones from Cargo environment
 /// variables.**_
@@ -1690,9 +1690,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
 ///
-/// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
+/// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*.
 ///
-/// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
+/// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*.
 ///
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
 ///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
@@ -1965,7 +1965,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(response, content, to_schema))]
-/// Generate reusable OpenAPI response what can be used
+/// Generate reusable OpenAPI response that can be used
 /// in [`utoipa::path`][path] or in [`OpenApi`][openapi].
 ///
 /// This is `#[derive]` implementation for [`ToResponse`][to_response] trait.

@@ -35,7 +35,7 @@ builder! {
         /// api endpoints.
         pub paths: PathsMap<String, PathItem>,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
@@ -145,7 +145,7 @@ builder! {
         #[serde(flatten)]
         pub operations: PathsMap<PathItemType, Operation>,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
@@ -314,7 +314,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub servers: Option<Vec<Server>>,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
@@ -513,12 +513,12 @@ builder! {
         ///
         /// With explode _`false`_:
         /// ```text
-        ///color=blue,black,brown
+        /// color=blue,black,brown
         /// ```
         ///
         /// With explode _`true`_:
         /// ```text
-        ///color=blue&color=black&color=brown
+        /// color=blue&color=black&color=brown
         /// ```
         #[serde(skip_serializing_if = "Option::is_none")]
         pub explode: Option<bool>,
@@ -534,7 +534,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         example: Option<Value>,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }

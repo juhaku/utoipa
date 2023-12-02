@@ -124,7 +124,7 @@ use utoipa::openapi::OpenApi;
 #[folder = "$UTOIPA_SWAGGER_DIR/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
 struct SwaggerUiDist;
 
-/// Entry point for serving Swagger UI and api docs in application. It uses provides
+/// Entry point for serving Swagger UI and api docs in application. It provides
 /// builder style chainable configuration methods for configuring api doc urls.
 ///
 /// # Examples
@@ -276,7 +276,7 @@ impl SwaggerUi {
     /// # Examples
     ///
     /// Add external API doc to the [`SwaggerUi`].
-    ///```rust
+    /// ```rust
     /// # use utoipa_swagger_ui::{SwaggerUi, Url};
     /// # use utoipa::OpenApi;
     /// # use serde_json::json;
@@ -284,7 +284,7 @@ impl SwaggerUi {
     ///
     /// let swagger = SwaggerUi::new("/swagger-ui/{_:.*}")
     ///     .external_url_unchecked("/api-docs/openapi.json", external_openapi);
-    ///```
+    /// ```
     pub fn external_url_unchecked<U: Into<Url<'static>>>(
         mut self,
         url: U,
@@ -308,7 +308,7 @@ impl SwaggerUi {
     /// # Examples
     ///
     /// Add external API docs to the [`SwaggerUi`].
-    ///```rust
+    /// ```rust
     /// # use utoipa_swagger_ui::{SwaggerUi, Url};
     /// # use utoipa::OpenApi;
     /// # use serde_json::json;
@@ -320,7 +320,7 @@ impl SwaggerUi {
     ///         ("/api-docs/openapi.json", external_openapi),
     ///         ("/api-docs/openapi2.json", external_openapi2)
     ///     ]);
-    ///```
+    /// ```
     pub fn external_urls_from_iter_unchecked<
         I: IntoIterator<Item = (U, serde_json::Value)>,
         U: Into<Url<'static>>,
@@ -486,13 +486,13 @@ const SWAGGER_BASE_LAYOUT: &str = "BaseLayout";
 ///
 /// # Examples
 ///
-/// In simple case create config directly from url that points to the api doc json.
+/// In simple case, create config directly from url that points to the api doc json.
 /// ```rust
 /// # use utoipa_swagger_ui::Config;
 /// let config = Config::from("/api-doc.json");
 /// ```
 ///
-/// If there is multiple api docs to serve config can be also directly created with [`Config::new`]
+/// If there is multiple api docs to serve config, the [`Config`] can be also be directly created with [`Config::new`]
 /// ```rust
 /// # use utoipa_swagger_ui::Config;
 /// let config = Config::new(["/api-docs/openapi1.json", "/api-docs/openapi2.json"]);
@@ -632,7 +632,7 @@ pub struct Config<'a> {
     #[serde(skip)]
     oauth: Option<oauth::Config>,
 
-    /// The layout of Swagger UI uses, default is `"StandaloneLayout"`
+    /// The layout of Swagger UI uses, default is `"StandaloneLayout"`.
     layout: &'a str,
 }
 

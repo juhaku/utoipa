@@ -119,7 +119,7 @@ builder! {
         #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
         pub content: IndexMap<String, Content>,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
