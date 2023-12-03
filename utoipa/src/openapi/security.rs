@@ -27,7 +27,8 @@ use super::builder;
 /// [path]: ../../attr.path.html
 /// [openapi]: ../../derive.OpenApi.html
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SecurityRequirement {
     #[serde(flatten)]
     value: BTreeMap<String, Vec<String>>,
