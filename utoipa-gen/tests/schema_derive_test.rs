@@ -3772,6 +3772,31 @@ fn derive_schema_with_default_struct() {
 }
 
 #[test]
+fn derive_struct_with_no_additional_properties() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize, Default)]
+        #[serde(deny_unknown_fields)]
+        struct MyValue {
+            field: String
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "field": {
+                    "type": "string",
+                }
+            },
+            "required": ["field"],
+            "additionalProperties": false,
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 #[cfg(feature = "repr")]
 fn derive_schema_for_repr_enum() {
     let value = api_doc! {

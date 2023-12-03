@@ -24,6 +24,7 @@ fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SerdeValue {
     pub skip: bool,
     pub rename: Option<String>,
@@ -89,6 +90,7 @@ impl SerdeValue {
 /// The default case (when no serde attributes are present) is `ExternallyTagged`.
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum SerdeEnumRepr {
     ExternallyTagged,
     InternallyTagged {
@@ -116,10 +118,12 @@ impl Default for SerdeEnumRepr {
 /// Attributes defined within a `#[serde(...)]` container attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SerdeContainer {
     pub rename_all: Option<RenameRule>,
     pub enum_repr: SerdeEnumRepr,
     pub default: bool,
+    pub deny_unknown_fields: bool,
 }
 
 impl SerdeContainer {
@@ -129,6 +133,7 @@ impl SerdeContainer {
     ///     * `content = ...`
     ///     * `untagged = ...`
     ///     * `default = ...`
+    ///     * `deny_unknown_fields`
     fn parse_attribute(&mut self, ident: Ident, next: Cursor) -> syn::Result<()> {
         match ident.to_string().as_str() {
             "rename_all" => {
@@ -187,6 +192,9 @@ impl SerdeContainer {
             }
             "default" => {
                 self.default = true;
+            }
+            "deny_unknown_fields" => {
+                self.deny_unknown_fields = true;
             }
             _ => {}
         }
@@ -262,6 +270,9 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
                 if value.default {
                     acc.default = value.default;
                 }
+                if value.deny_unknown_fields {
+                    acc.deny_unknown_fields = value.deny_unknown_fields;
+                }
                 match value.enum_repr {
                     SerdeEnumRepr::ExternallyTagged => {}
                     SerdeEnumRepr::Untagged
@@ -282,6 +293,7 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum RenameRule {
     Lower,
     Upper,
@@ -395,7 +407,8 @@ impl FromStr for RenameRule {
 
 #[cfg(test)]
 mod tests {
-    use super::{RenameRule, RENAME_RULE_NAME_MAPPING};
+    use super::{parse_container, RenameRule, SerdeContainer, RENAME_RULE_NAME_MAPPING};
+    use syn::{parse_quote, Attribute};
 
     macro_rules! test_rename_rule {
         ( $($case:expr=> $value:literal = $expected:literal)* ) => {
@@ -466,5 +479,36 @@ mod tests {
         for (s, _) in RENAME_RULE_NAME_MAPPING {
             s.parse::<RenameRule>().unwrap();
         }
+    }
+
+    #[test]
+    fn test_serde_parse_container() {
+        let default_attribute_1: syn::Attribute = parse_quote! {
+            #[serde(default)]
+        };
+        let default_attribute_2: syn::Attribute = parse_quote! {
+            #[serde(default)]
+        };
+        let deny_unknown_fields_attribute: syn::Attribute = parse_quote! {
+            #[serde(deny_unknown_fields)]
+        };
+        let unsupported_attribute: syn::Attribute = parse_quote! {
+            #[serde(expecting = "...")]
+        };
+        let attributes: &[Attribute] = &[
+            default_attribute_1,
+            default_attribute_2,
+            deny_unknown_fields_attribute,
+            unsupported_attribute,
+        ];
+
+        let expected = SerdeContainer {
+            default: true,
+            deny_unknown_fields: true,
+            ..Default::default()
+        };
+
+        let result = parse_container(attributes).unwrap();
+        assert_eq!(expected, result);
     }
 }
