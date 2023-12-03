@@ -69,7 +69,7 @@ builder! {
         /// Document version typically the API version.
         pub version: String,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
@@ -197,7 +197,7 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct License {
-        /// Name of the license used e.g MIT or Apache-2.0
+        /// Name of the license used e.g MIT or Apache-2.0.
         pub name: String,
 
         /// Optional url pointing to the license.

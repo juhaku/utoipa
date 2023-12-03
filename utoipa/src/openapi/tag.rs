@@ -31,7 +31,7 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub external_docs: Option<ExternalDocs>,
 
-        /// Optional extensions "x-something"
+        /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
     }

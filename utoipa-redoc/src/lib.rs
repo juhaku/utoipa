@@ -210,7 +210,7 @@ pub trait Servable<'u, 's, S>
 where
     S: Spec,
 {
-    /// Consruct a new [`Servable`] instance of _`openapi`_ with given _`url`_.
+    /// Construct a new [`Servable`] instance of _`openapi`_ with given _`url`_.
     ///
     /// * **url** Must point to location where the [`Servable`] is served.
     /// * **openapi** Is [`Spec`] that is served via this [`Servable`] from the _**url**_.
@@ -218,7 +218,7 @@ where
     where
         'u: 's;
 
-    /// Consruct a new [`Servable`] instance of _`openapi`_ with given _`url`_ and _`config`_.
+    /// Construct a new [`Servable`] instance of _`openapi`_ with given _`url`_ and _`config`_.
     ///
     /// * **url** Must point to location where the [`Servable`] is served.
     /// * **openapi** Is [`Spec`] that is served via this [`Servable`] from the _**url**_.
@@ -303,7 +303,7 @@ impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
         }
     }
 
-    /// Override the [ default HTML template][redoc_html_quickstart] with new one. See
+    /// Override the [default HTML template][redoc_html_quickstart] with new one. See
     /// [customization] for more details.
     ///
     /// [redoc_html_quickstart]: <https://redocly.com/docs/redoc/quickstart/>
@@ -339,7 +339,7 @@ impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
 
 /// Trait defines OpenAPI spec resource types supported by [`Redoc`].
 ///
-/// By deafult this trait is implemented for [`utoipa::openapi::OpenApi`], [`String`], [`&str`] and
+/// By default this trait is implemented for [`utoipa::openapi::OpenApi`], [`String`], [`&str`] and
 /// [`serde_json::Value`].
 ///
 /// * **OpenApi** implementation allows using utoipa's OpenApi struct as a OpenAPI spec resource
@@ -352,7 +352,7 @@ impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
 /// # Examples
 ///
 /// _**Use [`Redoc`] to serve utoipa's OpenApi.**_
-///```no_run
+/// ```no_run
 /// # use utoipa_redoc::Redoc;
 /// # use utoipa::openapi::OpenApiBuilder;
 /// #
@@ -388,7 +388,7 @@ impl Spec for Value {}
 /// config. The [`Config`] must be able to load and serialize valid JSON.
 ///
 /// * **EmptyConfig** is the default config and serializes to empty JSON object _`{}`_.
-/// * **FileConfig** Allows [`Redoc`] to be configred via user defined file which serializes to
+/// * **FileConfig** Allows [`Redoc`] to be configured via user defined file which serializes to
 ///   JSON.
 /// * **FnOnce** closure config allows inlining JSON serializable config directly to [`Redoc`]
 ///   declaration.
@@ -430,7 +430,7 @@ impl Spec for Value {}
 /// [redoc]: <https://redocly.com/>
 /// [redoc_config]: <https://redocly.com/docs/api-reference-docs/configuration/functionality/#configuration-options-for-api-docs>
 pub trait Config {
-    /// Implementor must implement the logic which loads the configuration of choice and coverts it
+    /// Implementor must implement the logic which loads the configuration of choice and converts it
     /// to serde's [`serde_json::Value`].
     fn load(self) -> Value;
 }
@@ -441,11 +441,11 @@ impl<S: Serialize, F: FnOnce() -> S> Config for F {
     }
 }
 
-/// Makes [`Redoc`] to load it's configuration from a user defined file.
+/// Makes [`Redoc`] load it's configuration from a user defined file.
 ///
 /// The config file must be defined via _**`UTOIPA_REDOC_CONFIG_FILE`**_ env variable for your
 /// application. It can either be defined in runtime before the [`Redoc`] declaration or before
-/// application starup or at compile time via `build.rs` file.
+/// application startup or at compile time via `build.rs` file.
 ///
 /// The file must be located relative to your application runtime directory.
 ///

@@ -50,7 +50,7 @@ pub struct Config {
     pub scopes: Option<Vec<String>>,
 
     /// oauth additional_query_string_params the Swagger UI is using for auth flow.
-    /// [`HashMap<String, String>`] of additional query parameters added to authorizationUrl and tokenUrl
+    /// [`HashMap<String, String>`] of additional query parameters added to authorizationUrl and tokenUrl.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_query_string_params: Option<HashMap<String, String>>,
 
@@ -58,14 +58,14 @@ pub struct Config {
     /// Only activated for the accessCode flow. During the authorization_code request to the tokenUrl,
     /// pass the [Client Password](https://tools.ietf.org/html/rfc6749#section-2.3.1) using the HTTP Basic Authentication scheme
     /// (Authorization header with Basic base64encode(client_id + client_secret)).
-    /// The default is false
+    /// The default is false.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_basic_authentication_with_access_code_grant: Option<bool>,
 
     /// oauth use_pkce_with_authorization_code_grant the Swagger UI is using for auth flow.
     /// Only applies to authorizationCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
     /// brings enhanced security for OAuth public clients.
-    /// The default is false
+    /// The default is false.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub use_pkce_with_authorization_code_grant: Option<bool>,
 }
@@ -196,7 +196,7 @@ impl Config {
     /// Add additional_query_string_params into [`Config`].
     ///
     /// Method takes one argument which exposes the additional_query_string_params to the user.
-    /// [`HashMap<String, String>`] of additional query parameters added to authorizationUrl and tokenUrl
+    /// [`HashMap<String, String>`] of additional query parameters added to authorizationUrl and tokenUrl.
     ///
     /// # Examples
     ///
@@ -221,7 +221,7 @@ impl Config {
     /// Only activated for the accessCode flow. During the authorization_code request to the tokenUrl,
     /// pass the [Client Password](https://tools.ietf.org/html/rfc6749#section-2.3.1) using the HTTP Basic Authentication scheme
     /// (Authorization header with Basic base64encode(client_id + client_secret)).
-    /// The default is false
+    /// The default is false.
     ///
     /// # Examples
     ///
@@ -245,7 +245,7 @@ impl Config {
     /// Method takes one argument which exposes the use_pkce_with_authorization_code_grant to the user.
     /// Only applies to authorizationCode flows. [Proof Key for Code Exchange](https://tools.ietf.org/html/rfc7636)
     /// brings enhanced security for OAuth public clients.
-    /// The default is false
+    /// The default is false.
     ///
     /// # Examples
     ///

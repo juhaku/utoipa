@@ -291,7 +291,7 @@ pub use utoipa_gen::*;
 /// implementation will by default use the Cargo environment variables to set defaults for *application name,
 /// version, application description, license, author name & email*.
 ///
-///```rust
+/// ```rust
 /// struct OpenApiDoc;
 ///
 /// impl utoipa::OpenApi for OpenApiDoc {

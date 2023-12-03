@@ -137,7 +137,7 @@ const DEFAULT_HTML: &str = include_str!("../res/rapidoc.html");
 
 /// Is [RapiDoc][rapidoc] UI.
 ///
-/// This is an antry point for serving [RapiDoc][rapidoc] via predefined framework integration or
+/// This is an entry point for serving [RapiDoc][rapidoc] via predefined framework integration or
 /// in standalone fashion by calling [`RapiDoc::to_html`] within custom HTTP handler handles
 /// serving the [RapiDoc][rapidoc] UI. See more at [running standalone][standalone]
 ///
