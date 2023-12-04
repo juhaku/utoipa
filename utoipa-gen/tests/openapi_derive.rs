@@ -17,7 +17,8 @@ fn derive_openapi_with_security_requirement() {
     #[openapi(security(
             (),
             ("my_auth" = ["read:items", "edit:items"]),
-            ("token_jwt" = [])
+            ("token_jwt" = []),
+            ("api_key1" = [], "api_key2" = []),
         ))]
     struct ApiDoc;
 
@@ -28,6 +29,8 @@ fn derive_openapi_with_security_requirement() {
         "security.[1].my_auth.[0]" = r###""read:items""###, "api_oauth first scope"
         "security.[1].my_auth.[1]" = r###""edit:items""###, "api_oauth second scope"
         "security.[2].token_jwt" = "[]", "jwt_token auth scopes"
+        "security.[3].api_key1" = "[]", "api_key1 auth scopes"
+        "security.[3].api_key2" = "[]", "api_key2 auth scopes"
     }
 }
 
