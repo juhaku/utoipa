@@ -53,6 +53,9 @@ impl SecurityRequirement {
     /// # use utoipa::openapi::security::SecurityRequirement;
     /// SecurityRequirement::default();
     /// ```
+    ///
+    /// If you have more than one name in the security requirement you can use
+    /// [`SecurityRequirement::add`].
     pub fn new<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         name: N,
         scopes: S,
@@ -70,7 +73,7 @@ impl SecurityRequirement {
         }
     }
 
-    /// Allows to add multiple security requirements.
+    /// Allows to add multiple names to security requirement.
     ///
     /// Accepts name for the security requirement which must match to the name of available [`SecurityScheme`].
     /// Second parameter is [`IntoIterator`] of [`Into<String>`] scopes needed by the [`SecurityRequirement`].
@@ -80,10 +83,45 @@ impl SecurityRequirement {
     ///
     /// Make both API keys required:
     /// ```rust
-    /// # use utoipa::openapi::security::SecurityRequirement;
-    /// SecurityRequirement::default()
-    ///     .add("refresh_token", ["edit:accounts"])
-    ///     .add("access_token", ["edit:accounts"]);
+    /// # use utoipa::openapi::security::{SecurityRequirement, HttpAuthScheme, HttpBuilder, SecurityScheme};
+    /// # use utoipa::{openapi, Modify, OpenApi};
+    /// # use serde::Serialize;
+    /// #[derive(Debug, Serialize)]
+    /// struct Foo;
+    ///
+    /// impl Modify for Foo {
+    ///     fn modify(&self, openapi: &mut openapi::OpenApi) {
+    ///         if let Some(schema) = openapi.components.as_mut() {
+    ///             schema.add_security_scheme(
+    ///                 "api_key1",
+    ///                 SecurityScheme::Http(
+    ///                     HttpBuilder::new()
+    ///                         .scheme(HttpAuthScheme::Bearer)
+    ///                         .bearer_format("JWT")
+    ///                         .build(),
+    ///                 ),
+    ///             );
+    ///             schema.add_security_scheme(
+    ///                 "api_key2",
+    ///                 SecurityScheme::Http(
+    ///                     HttpBuilder::new()
+    ///                         .scheme(HttpAuthScheme::Bearer)
+    ///                         .bearer_format("JWT")
+    ///                         .build(),
+    ///                 ),
+    ///             );
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// #[derive(Default, OpenApi)]
+    /// #[openapi(
+    ///     modifiers(&Foo),
+    ///     security(
+    ///         ("api_key1" = ["edit:items", "read:items"], "api_key2" = ["edit:items", "read:items"]),
+    ///     )
+    /// )]
+    /// struct ApiDoc;
     /// ```
     pub fn add<N: Into<String>, S: IntoIterator<Item = I>, I: Into<String>>(
         mut self,
