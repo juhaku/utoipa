@@ -19,24 +19,12 @@ pub struct SecurityRequirementsAttrItem {
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct SecurityRequirementsAttr(Vec<SecurityRequirementsAttrItem>);
+pub struct SecurityRequirementsAttr(Punctuated<SecurityRequirementsAttrItem, Comma>);
 
 impl Parse for SecurityRequirementsAttr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut items = Vec::new();
-
-        if input.is_empty() {
-            return Ok(Self(items));
-        }
-
-        items.push(input.parse::<SecurityRequirementsAttrItem>()?);
-
-        while input.lookahead1().peek(Token![,]) {
-            input.parse::<Token![,]>()?;
-            items.push(input.parse::<SecurityRequirementsAttrItem>()?);
-        }
-
-        Ok(Self(items))
+        Punctuated::<SecurityRequirementsAttrItem, Comma>::parse_terminated(input)
+            .map(|o| Self(o.into_iter().collect()))
     }
 }
 
