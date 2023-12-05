@@ -3,6 +3,7 @@
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
 use std::{collections::HashMap, iter};
 
+use crate::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -105,6 +106,11 @@ impl PathsBuilder {
     /// Add extensions to the paths section.
     pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
         set_value!(self extensions extensions)
+    }
+    /// Appends a [`Path`] to map of paths. By calling [`path`](PathsBuilder::path) method.
+    /// None will be passed into [Path::path_item] method.
+    pub fn path_from<P: Path>(self) -> Self {
+        self.path(P::path(), P::path_item(None))
     }
 }
 
