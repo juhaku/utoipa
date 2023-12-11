@@ -255,7 +255,7 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
     }
 }
 
-mod acitx {
+mod actix {
     #![cfg(feature = "actix-web")]
 
     use actix_web::dev::HttpServiceFactory;
