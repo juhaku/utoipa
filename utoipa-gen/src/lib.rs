@@ -674,7 +674,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `path = "..."` Must be OpenAPI format compatible str with arguments within curly braces. E.g _`{id}`_
 ///
-///
 /// * `impl_for = ...` Optional type to implement the [`Path`][path] trait. By default a new type
 ///   is used for the implementation.
 ///
