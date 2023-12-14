@@ -674,6 +674,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `path = "..."` Must be OpenAPI format compatible str with arguments within curly braces. E.g _`{id}`_
 ///
+///
+/// * `impl_for = ...` Optional type to implement the [`Path`][path] trait. By default a new type
+///   is used for the implementation.
+///
 /// * `operation_id = ...` Unique operation id for the endpoint. By default this is mapped to function name.
 ///   The operation_id can be any valid expression (e.g. string literals, macro invocations, variables) so long
 ///   as its result can be converted to a `String` using `String::from`.

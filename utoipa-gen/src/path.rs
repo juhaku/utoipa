@@ -39,6 +39,7 @@ pub struct PathAttr<'p> {
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementsAttr>>,
     context_path: Option<parse_utils::Value>,
+    impl_for: Option<Ident>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -143,6 +144,10 @@ impl Parse for PathAttr<'_> {
                 "context_path" => {
                     path_attr.context_path =
                         Some(parse_utils::parse_next_literal_str_or_expr(input)?)
+                }
+                "impl_for" => {
+                    path_attr.impl_for =
+                        Some(parse_utils::parse_next(input, || input.parse::<Ident>())?);
                 }
                 _ => {
                     // any other case it is expected to be path operation
@@ -289,7 +294,6 @@ impl<'p> Path<'p> {
 
 impl<'p> ToTokens for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
         let operation_id = self
             .path_attr
             .operation_id
@@ -385,13 +389,20 @@ impl<'p> ToTokens for Path<'p> {
             responses: self.path_attr.responses.as_ref(),
             security: self.path_attr.security.as_ref(),
         };
-
+        let impl_for = if let Some(impl_for) = &self.path_attr.impl_for {
+            impl_for.clone()
+        } else {
+            let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
+            tokens.extend(quote! {
+                #[allow(non_camel_case_types)]
+                #[doc(hidden)]
+                pub struct #path_struct;
+            });
+            path_struct
+        };
         tokens.extend(quote! {
-            #[allow(non_camel_case_types)]
-            #[doc(hidden)]
-            pub struct #path_struct;
 
-            impl utoipa::Path for #path_struct {
+            impl utoipa::Path for #impl_for {
                 fn path() -> String {
                     #path_with_context_path
                 }
