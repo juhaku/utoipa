@@ -1010,10 +1010,22 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// (),
 /// ("name" = []),
 /// ("name" = ["scope1", "scope2"]),
+/// ("name" = ["scope1", "scope2"], "name2" = []),
 /// ```
 ///
 /// Leaving empty _`()`_ creates an empty [`SecurityRequirement`][security] this is useful when
 /// security requirement is optional for operation.
+///
+/// You can define multiple security requirements within same parenthesis seperated by comma. This
+/// allows you to define keys that must be simultaneously provided for the endpoint / API.
+///
+/// _**Following could be explained as: Security is optional and if provided it must either contain
+/// `api_key` or `key AND key2`.**_
+/// ```text
+/// (),
+/// ("api_key" = []),
+/// ("key" = [], "key2" = []),
+/// ```
 ///
 /// # actix_extras feature support for actix-web
 ///

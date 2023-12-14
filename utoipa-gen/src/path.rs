@@ -14,7 +14,7 @@ use syn::{Expr, ExprLit, Lit, LitStr, Type};
 use crate::component::{GenericType, TypeTree};
 use crate::path::request_body::RequestBody;
 use crate::{parse_utils, Deprecated};
-use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementAttr, Array};
+use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
 use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
@@ -37,7 +37,7 @@ pub struct PathAttr<'p> {
     operation_id: Option<Expr>,
     tag: Option<parse_utils::Value>,
     params: Vec<Parameter<'p>>,
-    security: Option<Array<'p, SecurityRequirementAttr>>,
+    security: Option<Array<'p, SecurityRequirementsAttr>>,
     context_path: Option<parse_utils::Value>,
 }
 
@@ -421,7 +421,7 @@ struct Operation<'a> {
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBody<'a>>,
     responses: &'a Vec<Response<'a>>,
-    security: Option<&'a Array<'a, SecurityRequirementAttr>>,
+    security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
 }
 
 impl ToTokens for Operation<'_> {

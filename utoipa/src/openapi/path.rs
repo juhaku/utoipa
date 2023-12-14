@@ -10,7 +10,8 @@ use super::{
     builder,
     request_body::RequestBody,
     response::{Response, Responses},
-    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, SecurityRequirement, Server,
+    security::SecurityRequirement,
+    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, Server,
 };
 
 #[cfg(not(feature = "preserve_path_order"))]
@@ -773,8 +774,8 @@ mod tests {
             SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
         let operation = OperationBuilder::new()
-            .security(security_requirement1)
-            .security(security_requirement2)
+            .security(security_requirement1.into())
+            .security(security_requirement2.into())
             .build();
 
         assert!(operation.security.is_some());
