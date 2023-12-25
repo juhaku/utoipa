@@ -48,7 +48,7 @@ web framework which supports decorating functions with macros similarly to the *
 ### Community examples
 
 - **[graphul](https://github.com/graphul-rs/graphul/tree/main/examples/utoipa-swagger-ui)**
-- **[salvo](https://github.com/salvo-rs/salvo/tree/main/examples/todos-openapi)**
+- **[salvo](https://github.com/salvo-rs/salvo/tree/main/examples/todos-utoipa)**
 - **[viz](https://github.com/viz-rs/viz/tree/main/examples/routing/openapi)**
 - **[ntex](https://github.com/leon3s/ntex-rest-api-example)**
 
