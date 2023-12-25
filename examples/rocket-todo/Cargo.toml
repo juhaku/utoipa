@@ -9,7 +9,7 @@ authors = ["Elli Example <example@example.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = { version = "0.5.0-rc.3", features = ["json"] }
+rocket = { version = "0.5", features = ["json"] }
 utoipa = { path = "../../utoipa", features = ["rocket_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["rocket"] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["rocket"] }

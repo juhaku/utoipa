@@ -55,10 +55,7 @@ fn rocket() -> Rocket<Build> {
         )
         // There is no need to create RapiDoc::with_openapi because the OpenApi is served
         // via SwaggerUi instead we only make rapidoc to point to the existing doc.
-        .mount(
-            "/",
-            RapiDoc::new("/api-docs/openapi.json").path("/rapidoc")
-        )
+        .mount("/", RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         // Alternative to above
         // .mount(
         //     "/",
@@ -127,11 +124,11 @@ mod todo {
         async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
             match request.headers().get("todo_apikey").next() {
                 Some(key) if key == "utoipa-rocks" => Outcome::Success(RequireApiKey),
-                None => Outcome::Failure((
+                None => Outcome::Error((
                     Status::Unauthorized,
                     TodoError::Unauthorized(String::from("missing api key")),
                 )),
-                _ => Outcome::Failure((
+                _ => Outcome::Error((
                     Status::Unauthorized,
                     TodoError::Unauthorized(String::from("invalid api key")),
                 )),
@@ -153,7 +150,7 @@ mod todo {
                 }
                 _ => {
                     log::info!("no api key");
-                    Outcome::Forward(())
+                    Outcome::Forward(Status::Unauthorized)
                 }
             }
         }
