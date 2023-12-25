@@ -16,7 +16,7 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 # Crate Features
 
 * **actix-web** Allows serving `RapiDoc` via _**`actix-web`**_. `version >= 4`
-* **rocket** Allows serving `RapiDoc` via _**`rocket`**_. `version >=0.5.0-rc.3`
+* **rocket** Allows serving `RapiDoc` via _**`rocket`**_. `version >=0.5`
 * **axum** Allows serving `RapiDoc` via _**`axum`**_. `version >=0.7`
 
 # Install
