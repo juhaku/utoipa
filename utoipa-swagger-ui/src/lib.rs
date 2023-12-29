@@ -120,9 +120,7 @@ use serde::Serialize;
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 use utoipa::openapi::OpenApi;
 
-#[derive(RustEmbed)]
-#[folder = "$UTOIPA_SWAGGER_DIR/$UTOIPA_SWAGGER_UI_VERSION/dist/"]
-struct SwaggerUiDist;
+include!(concat!(env!("OUT_DIR"), "/embed.rs"));
 
 /// Entry point for serving Swagger UI and api docs in application. It provides
 /// builder style chainable configuration methods for configuring api doc urls.
