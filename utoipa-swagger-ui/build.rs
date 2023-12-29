@@ -13,10 +13,8 @@ const SWAGGER_UI_DIST_ZIP: &str = "swagger-ui-5.3.1";
 
 fn main() {
     println!("cargo:rerun-if-changed=res/{SWAGGER_UI_DIST_ZIP}.zip");
-    println!("cargo:rustc-env=UTOIPA_SWAGGER_UI_VERSION={SWAGGER_UI_DIST_ZIP}");
 
     let target_dir = env::var("OUT_DIR").unwrap();
-    println!("cargo:rustc-env=UTOIPA_SWAGGER_DIR={}", &target_dir);
 
     let swagger_ui_zip = File::open(
         ["res", &format!("{SWAGGER_UI_DIST_ZIP}.zip")]
@@ -29,6 +27,8 @@ fn main() {
     extract_within_path(&mut zip, [SWAGGER_UI_DIST_ZIP, "dist"], &target_dir).unwrap();
 
     replace_default_url_with_config(&target_dir);
+
+    write_embed_code(&target_dir, &SWAGGER_UI_DIST_ZIP);
 }
 
 fn extract_within_path<const N: usize>(
@@ -95,4 +95,18 @@ fn replace_default_url_with_config(target_dir: &str) {
     let replaced_swagger_initializer = regex.replace(&swagger_initializer, "{{config}},");
 
     fs::write(&path, replaced_swagger_initializer.as_ref()).unwrap();
+}
+
+fn write_embed_code(target_dir: &str, swagger_version: &str) {
+    let contents = format!(
+        r#"
+// This file is auto-generated during compilation, do not modify
+#[derive(RustEmbed)]
+#[folder = "{}/{}/dist/"]
+struct SwaggerUiDist;
+"#,
+        target_dir, swagger_version
+    );
+    let path = [target_dir, "embed.rs"].iter().collect::<PathBuf>();
+    fs::write(&path, &contents).unwrap();
 }

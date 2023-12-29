@@ -15,7 +15,7 @@ debug = []
 debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
-rust-embed = { version = "8", features = ["interpolate-folder-path"] }
+rust-embed = { version = "8" }
 mime_guess = { version = "2.0" }
 actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5.0-rc.3", features = ["json"], optional = true }
