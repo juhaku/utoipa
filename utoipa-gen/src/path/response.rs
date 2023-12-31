@@ -168,7 +168,7 @@ impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
 
 pub struct DeriveResponsesAttributes<T> {
     derive_value: T,
-    description: String,
+    description: parse_utils::Value,
 }
 
 impl<'r> From<DeriveResponsesAttributes<DeriveIntoResponsesValue>> for ResponseValue<'r> {
@@ -198,7 +198,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
-    description: String,
+    description: parse_utils::Value,
     response_type: Option<PathType<'r>>,
     content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
@@ -210,7 +210,7 @@ pub struct ResponseValue<'r> {
 impl<'r> ResponseValue<'r> {
     fn from_derive_to_response_value(
         derive_value: DeriveToResponseValue,
-        description: String,
+        description: parse_utils::Value,
     ) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
@@ -228,7 +228,7 @@ impl<'r> ResponseValue<'r> {
 
     fn from_derive_into_responses_value(
         response_value: DeriveIntoResponsesValue,
-        description: String,
+        description: parse_utils::Value,
     ) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
@@ -396,7 +396,7 @@ trait DeriveResponseValue: Parse {
 struct DeriveToResponseValue {
     content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
-    description: String,
+    description: parse_utils::Value,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
@@ -469,7 +469,7 @@ struct DeriveIntoResponsesValue {
     status: ResponseStatus,
     content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
-    description: String,
+    description: parse_utils::Value,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
@@ -878,8 +878,8 @@ mod parse {
     use super::Header;
 
     #[inline]
-    pub(super) fn description(input: ParseStream) -> Result<String> {
-        parse_utils::parse_next_literal_str(input)
+    pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
+        parse_utils::parse_next_literal_str_or_expr(input)
     }
 
     #[inline]
