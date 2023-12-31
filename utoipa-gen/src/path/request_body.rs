@@ -78,7 +78,7 @@ impl ToTokens for RequestBody<'_> {
 pub struct RequestBodyAttr<'r> {
     content: Option<PathType<'r>>,
     content_type: Option<String>,
-    description: Option<String>,
+    description: Option<parse_utils::Value>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
 }
@@ -119,7 +119,7 @@ impl Parse for RequestBodyAttr<'_> {
                     }
                     "description" => {
                         request_body_attr.description =
-                            Some(parse_utils::parse_next_literal_str(&group)?)
+                            Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
                     }
                     "example" => {
                         request_body_attr.example = Some(parse_utils::parse_next(&group, || {
