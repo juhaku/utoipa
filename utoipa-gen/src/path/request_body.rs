@@ -123,7 +123,7 @@ impl Parse for RequestBodyAttr<'_> {
                     }
                     "example" => {
                         request_body_attr.example = Some(parse_utils::parse_next(&group, || {
-                            AnyValue::parse_json(&group)
+                            AnyValue::parse_any(&group)
                         })?)
                     }
                     "examples" => {
