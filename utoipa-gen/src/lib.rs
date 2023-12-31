@@ -2793,6 +2793,16 @@ mod parse_utils {
         Expr(Expr),
     }
 
+    impl Parse for Value {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            if input.peek(LitStr) {
+                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+            } else {
+                Ok(Value::Expr(input.parse::<Expr>()?))
+            }
+        }
+    }
+
     impl ToTokens for Value {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
@@ -2824,11 +2834,7 @@ mod parse_utils {
 
     pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
         parse_next(input, || {
-            if input.peek(LitStr) {
-                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
-            } else {
-                Ok(Value::Expr(input.parse::<Expr>()?))
-            }
+            Value::parse(input)
         })
         .map_err(|error| {
             syn::Error::new(

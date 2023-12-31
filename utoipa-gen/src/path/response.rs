@@ -200,7 +200,7 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
 pub struct ResponseValue<'r> {
     description: String,
     response_type: Option<PathType<'r>>,
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
@@ -394,7 +394,7 @@ trait DeriveResponseValue: Parse {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct DeriveToResponseValue {
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
     description: String,
     example: Option<(AnyValue, Ident)>,
@@ -467,7 +467,7 @@ impl Parse for DeriveToResponseValue {
 #[derive(Default)]
 struct DeriveIntoResponsesValue {
     status: ResponseStatus,
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
     description: String,
     example: Option<(AnyValue, Ident)>,
@@ -870,7 +870,7 @@ mod parse {
     use syn::parse::ParseStream;
     use syn::punctuated::Punctuated;
     use syn::token::{Bracket, Comma};
-    use syn::{bracketed, parenthesized, LitStr, Result};
+    use syn::{bracketed, parenthesized, Result};
 
     use crate::path::example::Example;
     use crate::{parse_utils, AnyValue};
@@ -883,22 +883,19 @@ mod parse {
     }
 
     #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<String>> {
+    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::Value>> {
         parse_utils::parse_next(input, || {
             let look_content_type = input.lookahead1();
-            if look_content_type.peek(LitStr) {
-                Ok(vec![input.parse::<LitStr>()?.value()])
-            } else if look_content_type.peek(Bracket) {
+            if look_content_type.peek(Bracket) {
                 let content_types;
                 bracketed!(content_types in input);
                 Ok(
-                    Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                    Punctuated::<parse_utils::Value, Comma>::parse_terminated(&content_types)?
                         .into_iter()
-                        .map(|lit| lit.value())
                         .collect(),
                 )
             } else {
-                Err(look_content_type.error())
+                Ok(vec![input.parse::<parse_utils::Value>()?])
             }
         })
     }
