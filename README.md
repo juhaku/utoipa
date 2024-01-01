@@ -35,7 +35,7 @@ Refer to the existing [examples](./examples) for building the "todo" app in the 
 - **[axum](https://github.com/tokio-rs/axum)**
 - **[warp](https://github.com/seanmonstar/warp)**
 - **[tide](https://github.com/http-rs/tide)**
-- **[rocket](https://github.com/SergioBenitez/Rocket)** (`0.4` and `0.5.0-rc3`)
+- **[rocket](https://github.com/SergioBenitez/Rocket)** (`0.4` and `0.5`)
 
 All examples include a [Swagger-UI](https://github.com/swagger-api/swagger-ui) unless stated otherwise.
 

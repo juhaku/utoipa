@@ -29,7 +29,7 @@ serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
 axum = "0.7"
 paste = "1"
-rocket = { version = "0.5.0-rc.3", features = ["json"] }
+rocket = { version = "0.5", features = ["json"] }
 smallvec = { version = "1.10", features = ["serde"] }
 rust_decimal = "1"
 chrono = { version = "0.4", features = ["serde"] }
