@@ -2793,6 +2793,28 @@ mod parse_utils {
         Expr(Expr),
     }
 
+    impl Value {
+        pub(crate) fn is_empty(&self) -> bool {
+            matches!(self, Self::LitStr(s) if s.value().is_empty())
+        }
+    }
+
+    impl Default for Value {
+        fn default() -> Self {
+            Self::LitStr(LitStr::new("", proc_macro2::Span::call_site()))
+        }
+    }
+
+    impl Parse for Value {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            if input.peek(LitStr) {
+                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+            } else {
+                Ok(Value::Expr(input.parse::<Expr>()?))
+            }
+        }
+    }
+
     impl ToTokens for Value {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
@@ -2823,14 +2845,7 @@ mod parse_utils {
     }
 
     pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
-        parse_next(input, || {
-            if input.peek(LitStr) {
-                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
-            } else {
-                Ok(Value::Expr(input.parse::<Expr>()?))
-            }
-        })
-        .map_err(|error| {
+        parse_next(input, || Value::parse(input)).map_err(|error| {
             syn::Error::new(
                 error.span(),
                 format!("expected literal string or expression argument: {error}"),

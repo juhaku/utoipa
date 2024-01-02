@@ -77,8 +77,8 @@ impl ToTokens for RequestBody<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr<'r> {
     content: Option<PathType<'r>>,
-    content_type: Option<String>,
-    description: Option<String>,
+    content_type: Option<parse_utils::Value>,
+    description: Option<parse_utils::Value>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
 }
@@ -115,15 +115,15 @@ impl Parse for RequestBodyAttr<'_> {
                     }
                     "content_type" => {
                         request_body_attr.content_type =
-                            Some(parse_utils::parse_next_literal_str(&group)?)
+                            Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
                     }
                     "description" => {
                         request_body_attr.description =
-                            Some(parse_utils::parse_next_literal_str(&group)?)
+                            Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
                     }
                     "example" => {
                         request_body_attr.example = Some(parse_utils::parse_next(&group, || {
-                            AnyValue::parse_json(&group)
+                            AnyValue::parse_any(&group)
                         })?)
                     }
                     "examples" => {
@@ -210,10 +210,13 @@ impl ToTokens for RequestBodyAttr<'_> {
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree();
                     let required: Required = (!type_tree.is_option()).into();
-                    let content_type = self
-                        .content_type
-                        .as_deref()
-                        .unwrap_or_else(|| type_tree.get_default_content_type());
+                    let content_type = match &self.content_type {
+                        Some(content_type) => content_type.to_token_stream(),
+                        None => {
+                            let content_type = type_tree.get_default_content_type();
+                            quote!(#content_type)
+                        }
+                    };
                     tokens.extend(quote! {
                         utoipa::openapi::request_body::RequestBodyBuilder::new()
                             .content(#content_type, #content.build())

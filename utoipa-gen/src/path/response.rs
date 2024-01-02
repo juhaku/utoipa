@@ -168,7 +168,7 @@ impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
 
 pub struct DeriveResponsesAttributes<T> {
     derive_value: T,
-    description: String,
+    description: parse_utils::Value,
 }
 
 impl<'r> From<DeriveResponsesAttributes<DeriveIntoResponsesValue>> for ResponseValue<'r> {
@@ -198,9 +198,9 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
-    description: String,
+    description: parse_utils::Value,
     response_type: Option<PathType<'r>>,
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
@@ -210,7 +210,7 @@ pub struct ResponseValue<'r> {
 impl<'r> ResponseValue<'r> {
     fn from_derive_to_response_value(
         derive_value: DeriveToResponseValue,
-        description: String,
+        description: parse_utils::Value,
     ) -> Self {
         Self {
             description: if derive_value.description.is_empty() && !description.is_empty() {
@@ -228,7 +228,7 @@ impl<'r> ResponseValue<'r> {
 
     fn from_derive_into_responses_value(
         response_value: DeriveIntoResponsesValue,
-        description: String,
+        description: parse_utils::Value,
     ) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty() && !description.is_empty() {
@@ -394,9 +394,9 @@ trait DeriveResponseValue: Parse {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct DeriveToResponseValue {
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
-    description: String,
+    description: parse_utils::Value,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
@@ -467,9 +467,9 @@ impl Parse for DeriveToResponseValue {
 #[derive(Default)]
 struct DeriveIntoResponsesValue {
     status: ResponseStatus,
-    content_type: Option<Vec<String>>,
+    content_type: Option<Vec<parse_utils::Value>>,
     headers: Vec<Header>,
-    description: String,
+    description: parse_utils::Value,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
@@ -870,7 +870,7 @@ mod parse {
     use syn::parse::ParseStream;
     use syn::punctuated::Punctuated;
     use syn::token::{Bracket, Comma};
-    use syn::{bracketed, parenthesized, LitStr, Result};
+    use syn::{bracketed, parenthesized, Result};
 
     use crate::path::example::Example;
     use crate::{parse_utils, AnyValue};
@@ -878,27 +878,24 @@ mod parse {
     use super::Header;
 
     #[inline]
-    pub(super) fn description(input: ParseStream) -> Result<String> {
-        parse_utils::parse_next_literal_str(input)
+    pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
+        parse_utils::parse_next_literal_str_or_expr(input)
     }
 
     #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<String>> {
+    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::Value>> {
         parse_utils::parse_next(input, || {
             let look_content_type = input.lookahead1();
-            if look_content_type.peek(LitStr) {
-                Ok(vec![input.parse::<LitStr>()?.value()])
-            } else if look_content_type.peek(Bracket) {
+            if look_content_type.peek(Bracket) {
                 let content_types;
                 bracketed!(content_types in input);
                 Ok(
-                    Punctuated::<LitStr, Comma>::parse_terminated(&content_types)?
+                    Punctuated::<parse_utils::Value, Comma>::parse_terminated(&content_types)?
                         .into_iter()
-                        .map(|lit| lit.value())
                         .collect(),
                 )
             } else {
-                Err(look_content_type.error())
+                Ok(vec![input.parse::<parse_utils::Value>()?])
             }
         })
     }

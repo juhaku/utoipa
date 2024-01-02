@@ -102,7 +102,7 @@ fn write_embed_code(target_dir: &str, swagger_version: &str) {
         r#"
 // This file is auto-generated during compilation, do not modify
 #[derive(RustEmbed)]
-#[folder = "{}/{}/dist/"]
+#[folder = r"{}/{}/dist/"]
 struct SwaggerUiDist;
 "#,
         target_dir, swagger_version
