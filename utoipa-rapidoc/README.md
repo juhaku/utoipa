@@ -24,13 +24,13 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 Use RapiDoc only without any boiler plate implementation.
 ```toml
 [dependencies]
-utoipa-rapidoc = "2"
+utoipa-rapidoc = "3"
 ```
 
 Enable actix-web integration with RapiDoc.
 ```toml
 [dependencies]
-utoipa-rapidoc = { version = "2", features = ["actix-web"] }
+utoipa-rapidoc = { version = "3", features = ["actix-web"] }
 ```
 
 # Using standalone
