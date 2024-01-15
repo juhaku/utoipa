@@ -63,7 +63,7 @@ The template should contain _**`$specUrl`**_ variable which will be replaced wit
 OpenAPI spec url provided with `RapiDoc::new` function when creating a new `RapiDoc`
 instance. Variable will be replaced during `RapiDoc::to_html` function execution.
 
-_**Overiding the HTML template with a custom one.**_
+_**Overriding the HTML template with a custom one.**_
 ```rust
 let html = "...";
 RapiDoc::new("/api-docs/openapi.json").custom_html(html);

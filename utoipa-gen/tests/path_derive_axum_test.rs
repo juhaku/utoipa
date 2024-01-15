@@ -286,7 +286,7 @@ fn derive_path_params_with_ignored_parameter() {
 }
 
 #[test]
-fn derive_path_params_with_unnamed_struct_desctructed() {
+fn derive_path_params_with_unnamed_struct_destructed() {
     #[derive(Deserialize, IntoParams)]
     #[into_params(names("id", "name"))]
     struct IdAndName(u64, String);

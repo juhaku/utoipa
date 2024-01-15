@@ -148,7 +148,7 @@ fn derive_path_with_reusable_responses() {
 
 macro_rules! test_response_types {
     ( $( $name:ident=> $(body: $expected:expr,)? $( $content_type:literal, )? $( headers: $headers:expr, )?
-        assert: $( $path:literal = $expection:literal, $comment:literal )* )* ) => {
+        assert: $( $path:literal = $expectation:literal, $comment:literal )* )* ) => {
         $(
             paste::paste! {
                 test_fn! {
@@ -171,7 +171,7 @@ macro_rules! test_response_types {
 
                 assert_value! {doc=>
                     "responses.200.description" = r#""success""#, "Response description"
-                    $($path = $expection, $comment)*
+                    $($path = $expectation, $comment)*
                 }
             }
         )*

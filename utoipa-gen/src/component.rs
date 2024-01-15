@@ -540,10 +540,10 @@ impl<'c> ComponentSchema {
                     type_tree: type_tree
                         .children
                         .as_ref()
-                        .expect("CompnentSchema generic container type should have children")
+                        .expect("ComponentSchema generic container type should have children")
                         .iter()
                         .next()
-                        .expect("CompnentSchema generic container type should have 1 child"),
+                        .expect("ComponentSchema generic container type should have 1 child"),
                     features: Some(features),
                     description,
                     deprecated,
@@ -665,10 +665,10 @@ impl<'c> ComponentSchema {
         let child = type_tree
             .children
             .as_ref()
-            .expect("CompnentSchema Vec should have children")
+            .expect("ComponentSchema Vec should have children")
             .iter()
             .next()
-            .expect("CompnentSchema Vec should have 1 child");
+            .expect("ComponentSchema Vec should have 1 child");
 
         #[cfg(feature = "smallvec")]
         let child = if type_tree.generic_type == Some(GenericType::SmallVec) {

@@ -245,7 +245,7 @@ impl Parse for ValueParameter<'_> {
                 });
             }
         } else {
-            return Err(input.error("unparseable parameter name, expected literal string"));
+            return Err(input.error("unparsable parameter name, expected literal string"));
         }
 
         input.parse::<Token![,]>()?;
@@ -377,7 +377,7 @@ pub struct IntoParamsIdentParameter<'i> {
     parameter_in_fn: Option<TokenStream>,
 }
 
-// Compare paths loosly only by segment idents ignoring possible generics
+// Compare paths loosely only by segment idents ignoring possible generics
 impl PartialEq for IntoParamsIdentParameter<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.path

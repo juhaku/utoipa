@@ -81,13 +81,13 @@ impl ToTokens for ToResponse<'_> {
         let name = ident.to_string();
         let response = &self.response;
 
-        let mut to_reponse_generics = self.generics.clone();
-        to_reponse_generics
+        let mut to_response_generics = self.generics.clone();
+        to_response_generics
             .params
             .push(syn::GenericParam::Lifetime(LifetimeParam::new(
                 lifetime.clone(),
             )));
-        let (to_response_impl_generics, _, _) = to_reponse_generics.split_for_impl();
+        let (to_response_impl_generics, _, _) = to_response_generics.split_for_impl();
 
         tokens.extend(quote! {
             impl #to_response_impl_generics utoipa::ToResponse <#lifetime> for #ident #ty_generics #where_clause {

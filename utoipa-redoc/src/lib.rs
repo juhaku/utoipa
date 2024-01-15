@@ -56,7 +56,7 @@
 //!
 //! # Customization
 //!
-//! Utoipa-redoc enables full customizaton support for [Redoc][redoc] according to what can be
+//! Utoipa-redoc enables full customization support for [Redoc][redoc] according to what can be
 //! customized by modifying the HTML template and [configuration options][Self#configuration].
 //!
 //! The default [HTML template][redoc_html_quickstart] can be fully overridden to ones liking with
@@ -66,7 +66,7 @@
 //! * **`$spec`** Will be the [`Spec`] that will be rendered via [Redoc][redoc].
 //! * **`$config`** Will be the current [`Config`]. By default this is [`EmptyConfig`].
 //!
-//! _**Overiding the HTML template with a custom one.**_
+//! _**Overriding the HTML template with a custom one.**_
 //! ```rust
 //! # use utoipa_redoc::Redoc;
 //! # use utoipa::OpenApi;
@@ -284,7 +284,7 @@ impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
         Self::with_config(openapi, EmptyConfig)
     }
 
-    /// Constructs a new [`Redoc`] instance for given _`openapi`_ [`Spec`] and _`config`_ [`Config`] of choise.
+    /// Constructs a new [`Redoc`] instance for given _`openapi`_ [`Spec`] and _`config`_ [`Config`] of choice.
     ///
     /// # Examples
     ///
@@ -399,7 +399,7 @@ impl Spec for Value {}
 ///
 /// **Note!** There is no validity check for configuration options and all options provided are
 /// serialized as is to the [Redoc][redoc]. It is users own responsibility to check for possible
-/// mispelled configuration options against the valid configuration options.
+/// misspelled configuration options against the valid configuration options.
 ///
 /// # Examples
 ///

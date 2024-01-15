@@ -706,7 +706,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
 ///   [`ToSchema`][to_schema] types. _`ref("./external.json")`_ can be used to reference external
-///   json file for body schema. **Note!** Utoipa does **not** guarantee that free form _`ref`_ is accessbile via
+///   json file for body schema. **Note!** Utoipa does **not** guarantee that free form _`ref`_ is accessible via
 ///   OpenAPI doc or Swagger UI, users are responsible for making these guarantees.
 ///
 /// **Advanced format definition by `request_body(...)`**
@@ -766,7 +766,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+///  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -1019,7 +1019,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// Leaving empty _`()`_ creates an empty [`SecurityRequirement`][security] this is useful when
 /// security requirement is optional for operation.
 ///
-/// You can define multiple security requirements within same parenthesis seperated by comma. This
+/// You can define multiple security requirements within same parenthesis separated by comma. This
 /// allows you to define keys that must be simultaneously provided for the endpoint / API.
 ///
 /// _**Following could be explained as: Security is optional and if provided it must either contain
@@ -2083,7 +2083,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+///  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2250,7 +2250,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///  the Swagger UI. Swagger UI wil use the first _`content_type`_ value as a default example.
+///  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///

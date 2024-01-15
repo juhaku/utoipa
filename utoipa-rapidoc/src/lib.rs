@@ -66,7 +66,7 @@
 //! OpenAPI spec url provided with [`RapiDoc::new`] function when creating a new [`RapiDoc`]
 //! instance. Variable will be replaced during [`RapiDoc::to_html`] function execution.
 //!
-//! _**Overiding the HTML template with a custom one.**_
+//! _**Overriding the HTML template with a custom one.**_
 //! ```rust
 //! # use utoipa_rapidoc::RapiDoc;
 //! # use utoipa::OpenApi;
@@ -179,7 +179,7 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
     /// the location where the `openapi` will be served.
     ///
     /// [`RapiDoc`] is only able to create endpoint that serves the `openapi` JSON for predefined
-    /// frameworks. _**For other frameworks such endoint must be created manually.**_
+    /// frameworks. _**For other frameworks such endpoint must be created manually.**_
     ///
     /// # Examples
     ///

@@ -53,7 +53,7 @@ let redoc_handler = move || async {
 
 # Customization
 
-Utoipa-redoc enables full customizaton support for [Redoc][redoc] according to what can be
+Utoipa-redoc enables full customization support for [Redoc][redoc] according to what can be
 customized by modifying the HTML template and [configuration options](#configuration).
 
 The default [HTML template][redoc_html_quickstart] can be fully overridden to ones liking with
@@ -63,7 +63,7 @@ variables which are replaced during `Redoc::to_html` execution.
 * **`$spec`** Will be the `Spec` that will be rendered via [Redoc][redoc].
 * **`$config`** Will be the current `Config`. By default this is `EmptyConfig`.
 
-_**Overiding the HTML template with a custom one.**_
+_**Overriding the HTML template with a custom one.**_
 ```rust
 let html = "...";
 Redoc::new(ApiDoc::openapi()).custom_html(html);
