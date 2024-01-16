@@ -1,4 +1,4 @@
-# warp-mutliple-api-docs ~ utoipa with utoipa-swagger-ui example
+# warp-multiple-api-docs ~ utoipa with utoipa-swagger-ui example
 
 This is a demo `warp` application with multiple API docs to demonstrate splitting APIs with `utoipa` and `utoipa-swagger-ui`.
 

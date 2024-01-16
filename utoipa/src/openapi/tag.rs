@@ -48,7 +48,7 @@ impl Tag {
 }
 
 impl TagBuilder {
-    /// Add name fo the tag.
+    /// Add name of the tag.
     pub fn name<I: Into<String>>(mut self, name: I) -> Self {
         set_value!(self name name.into())
     }

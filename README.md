@@ -157,7 +157,7 @@ mod pet_api {
         get,
         path = "/pets/{id}",
         responses(
-            (status = 200, description = "Pet found succesfully", body = Pet),
+            (status = 200, description = "Pet found successfully", body = Pet),
             (status = NOT_FOUND, description = "Pet was not found")
         ),
         params(
@@ -232,7 +232,7 @@ This would produce an API doc something similar to:
         ],
         "responses": {
           "200": {
-            "description": "Pet found succesfully",
+            "description": "Pet found successfully",
             "content": {
               "application/json": {
                 "schema": {

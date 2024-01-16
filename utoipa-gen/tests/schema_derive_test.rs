@@ -5062,7 +5062,7 @@ fn derive_doc_hidden() {
 }
 
 #[test]
-fn derive_schema_with_docstring_on_unit_varian_of_enum() {
+fn derive_schema_with_docstring_on_unit_variant_of_enum() {
     let value: Value = api_doc! {
         /// top level doc for My enum
         #[derive(Serialize)]

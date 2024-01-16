@@ -27,7 +27,7 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
 * **rocket** Enables rocket integration with pre-configured routes for serving the Swagger UI
   and api doc without a hassle.
 * **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
-  hazzle free.
+  hassle free.
 * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
   builds as well.
 
