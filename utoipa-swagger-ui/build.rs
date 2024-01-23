@@ -18,7 +18,7 @@ use zip::{result::ZipError, ZipArchive};
 /// + absolute path to a folder containing files to overwrite the default swagger-ui files
 
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
-    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.3.1.zip";
+    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.11.0.zip";
 
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
