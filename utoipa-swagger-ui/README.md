@@ -20,7 +20,7 @@ other frameworks as well. With other frameworks, there is a bit more manual impl
 more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/fn.serve.html) or
 [examples](https://github.com/juhaku/utoipa/tree/master/examples).
 
-# Crate Features
+## Crate Features
 
 * **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
   users to use the Swagger UI without a hassle.
@@ -31,15 +31,17 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
 * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
   builds as well.
 
-# Install
+## Install
 
 Use only the raw types without any boilerplate implementation.
+
 ```toml
 [dependencies]
 utoipa-swagger-ui = "6"
 ```
 
 Enable actix-web framework with Swagger UI you could define the dependency as follows.
+
 ```toml
 [dependencies]
 utoipa-swagger-ui = { version = "6", features = ["actix-web"] }
@@ -47,9 +49,25 @@ utoipa-swagger-ui = { version = "6", features = ["actix-web"] }
 
 **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
 
-# Examples
+## Config
+
+The following configuration env variables are available at build time:
+
+* `SWAGGER_UI_DOWNLOAD_URL`:
+
+  * the url from where to download the swagger-ui zip file
+  * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.11.0.zip>
+  * All versions: <https://github.com/swagger-api/swagger-ui/tags>
+
+* `SWAGGER_UI_OVERWRITE_FOLDER`:
+
+  * absolute path to a folder containing files to overwrite the default swagger-ui files
+  * typically you might want to overwrite `index.html`
+
+## Examples
 
 Serve Swagger UI with api doc via **`actix-web`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
+
 ```rust
 HttpServer::new(move || {
     App::new()
@@ -63,6 +81,7 @@ HttpServer::new(move || {
 ```
 
 Serve Swagger UI with api doc via **`rocket`**. See full example from [examples](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
+
 ```rust
 #[rocket::launch]
 fn rocket() -> Rocket<Build> {
@@ -77,13 +96,14 @@ fn rocket() -> Rocket<Build> {
 
 Setup Router to serve Swagger UI with **`axum`** framework. See full implementation of how to serve
 Swagger UI with axum from [examples](https://github.com/juhaku/utoipa/tree/master/examples/todo-axum).
+
 ```rust
 let app = Router::new()
     .merge(SwaggerUi::new("/swagger-ui")
         .url("/api-docs/openapi.json", ApiDoc::openapi()));
 ```
 
-# License
+## License
 
 Licensed under either of [Apache 2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT) license at your option.
 
