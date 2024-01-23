@@ -1,5 +1,6 @@
 use std::{
     env,
+    error::Error,
     fs::{self, File},
     io,
     path::PathBuf,
@@ -158,7 +159,7 @@ struct SwaggerUiDist;
     fs::write(&path, &contents).unwrap();
 }
 
-fn download_file(url: &str, path: PathBuf) -> Result<(), anyhow::Error> {
+fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let mut response = reqwest::blocking::get(url)?;
     let mut file = File::create(path)?;
     io::copy(&mut response, &mut file)?;
