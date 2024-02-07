@@ -1,0 +1,15 @@
+[package]
+name = "simple-axum"
+description = "Very short Axum example that exposes OpenAPI json file"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.17", features = ["full"] }
+utoipa = { path = "../../utoipa", features = ["axum_extras"] }
+
+[workspace]
