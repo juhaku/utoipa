@@ -133,6 +133,8 @@
 //! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
 //! [rapidoc_quickstart]: <https://rapidocweb.com/quickstart.html>
 
+use std::borrow::Cow;
+
 const DEFAULT_HTML: &str = include_str!("../res/rapidoc.html");
 
 /// Is [RapiDoc][rapidoc] UI.
@@ -144,16 +146,16 @@ const DEFAULT_HTML: &str = include_str!("../res/rapidoc.html");
 /// [rapidoc]: <https://rapidocweb.com>
 /// [standalone]: index.html#using-standalone
 #[non_exhaustive]
-pub struct RapiDoc<'u, 's, 'h> {
+pub struct RapiDoc {
     #[allow(unused)]
-    path: &'u str,
-    spec_url: &'s str,
-    html: &'h str,
+    path: Cow<'static, str>,
+    spec_url: Cow<'static, str>,
+    html: Cow<'static, str>,
     #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
     openapi: Option<utoipa::openapi::OpenApi>,
 }
 
-impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
+impl RapiDoc {
     /// Construct a new [`RapiDoc`] that points to given `spec_url`. Spec url must be valid URL and
     /// available for RapiDoc to consume.
     ///
@@ -165,11 +167,11 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
     /// # use utoipa_rapidoc::RapiDoc;
     /// RapiDoc::new("https://petstore3.swagger.io/api/v3/openapi.json");
     /// ```
-    pub fn new(spec_url: &'s str) -> Self {
+    pub fn new<U: Into<Cow<'static, str>>>(spec_url: U) -> Self {
         Self {
-            path: "",
-            spec_url,
-            html: DEFAULT_HTML,
+            path: Cow::Borrowed(""),
+            spec_url: spec_url.into(),
+            html: Cow::Borrowed(DEFAULT_HTML),
             #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
             openapi: None,
         }
@@ -201,11 +203,14 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
         doc_cfg,
         doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
     )]
-    pub fn with_openapi(spec_url: &'s str, openapi: utoipa::openapi::OpenApi) -> Self {
+    pub fn with_openapi<U: Into<Cow<'static, str>>>(
+        spec_url: U,
+        openapi: utoipa::openapi::OpenApi,
+    ) -> Self {
         Self {
-            path: "",
-            spec_url,
-            html: DEFAULT_HTML,
+            path: Cow::Borrowed(""),
+            spec_url: spec_url.into(),
+            html: Cow::Borrowed(DEFAULT_HTML),
             openapi: Some(openapi),
         }
     }
@@ -215,8 +220,8 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
     ///
     /// [rapidoc_quickstart]: <https://rapidocweb.com/quickstart.html>
     /// [customization]: index.html#customization
-    pub fn custom_html(mut self, html: &'h str) -> Self {
-        self.html = html;
+    pub fn custom_html<H: Into<Cow<'static, str>>>(mut self, html: H) -> Self {
+        self.html = html.into();
 
         self
     }
@@ -233,8 +238,8 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
     ///     .path("/rapidoc");
     /// ```
     #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
-    pub fn path(mut self, path: &'u str) -> Self {
-        self.path = path;
+    pub fn path<U: Into<Cow<'static, str>>>(mut self, path: U) -> Self {
+        self.path = path.into();
 
         self
     }
@@ -251,7 +256,7 @@ impl<'u, 's, 'h> RapiDoc<'u, 's, 'h> {
     /// [rapidoc_quickstart]: <https://rapidocweb.com/quickstart.html>
     /// [customization]: index.html#customization
     pub fn to_html(&self) -> String {
-        self.html.replace("$specUrl", self.spec_url)
+        self.html.replace("$specUrl", self.spec_url.as_ref())
     }
 }
 
@@ -265,7 +270,7 @@ mod actix {
 
     use crate::RapiDoc;
 
-    impl HttpServiceFactory for RapiDoc<'_, '_, '_> {
+    impl HttpServiceFactory for RapiDoc {
         fn register(self, config: &mut actix_web::dev::AppService) {
             let html = self.to_html();
 
@@ -275,7 +280,7 @@ mod actix {
                     .body(rapidoc.to_string())
             }
 
-            Resource::new(self.path)
+            Resource::new(self.path.as_ref())
                 .guard(Get())
                 .app_data(Data::new(html))
                 .to(serve_rapidoc)
@@ -288,7 +293,7 @@ mod actix {
                         .body(openapi.into_inner().to_string())
                 }
 
-                Resource::new(self.spec_url)
+                Resource::new(self.spec_url.as_ref())
                     .guard(Get())
                     .app_data(Data::new(
                         openapi.to_json().expect("Should serialize to JSON"),
@@ -308,20 +313,22 @@ mod axum {
 
     use crate::RapiDoc;
 
-    impl<R> From<RapiDoc<'_, '_, '_>> for Router<R>
+    impl<R> From<RapiDoc> for Router<R>
     where
         R: Clone + Send + Sync + 'static,
     {
-        fn from(value: RapiDoc<'_, '_, '_>) -> Self {
+        fn from(value: RapiDoc) -> Self {
             let html = value.to_html();
             let openapi = value.openapi;
 
-            let mut router =
-                Router::<R>::new().route(value.path, routing::get(move || async { Html(html) }));
+            let mut router = Router::<R>::new().route(
+                value.path.as_ref(),
+                routing::get(move || async { Html(html) }),
+            );
 
             if let Some(openapi) = openapi {
                 router = router.route(
-                    value.spec_url,
+                    value.spec_url.as_ref(),
                     routing::get(move || async { Json(openapi) }),
                 );
             }
@@ -342,18 +349,18 @@ mod rocket {
 
     use crate::RapiDoc;
 
-    impl From<RapiDoc<'_, '_, '_>> for Vec<Route> {
-        fn from(value: RapiDoc<'_, '_, '_>) -> Self {
+    impl From<RapiDoc> for Vec<Route> {
+        fn from(value: RapiDoc) -> Self {
             let mut routes = vec![Route::new(
                 Method::Get,
-                value.path,
+                value.path.as_ref(),
                 RapiDocHandler(value.to_html()),
             )];
 
             if let Some(openapi) = value.openapi {
                 routes.push(Route::new(
                     Method::Get,
-                    value.spec_url,
+                    value.spec_url.as_ref(),
                     OpenApiHandler(openapi.to_json().expect("Should serialize to JSON")),
                 ));
             }
