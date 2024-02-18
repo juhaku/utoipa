@@ -59,54 +59,54 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 
 ## Crate Features
 
-- **yaml** Enables **serde_yaml** serialization of OpenAPI objects.
-- **actix_extras** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
+- `yaml`: Enables **serde_yaml** serialization of OpenAPI objects.
+- `actix_extras`: Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
   parse `path`, `path` and `query` parameters from actix web path attribute macros. See
   [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-support-for-actix-web) or [examples](./examples) for more details.
-- **rocket_extras** Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
+- `rocket_extras`: Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
   able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
   or [examples](./examples) for more details.
-- **axum_extras** Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without
+- `axum_extras`: Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without
   defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)
   or [examples](./examples) for more details.
-- **debug** Add extra traits such as debug traits to openapi definitions and elsewhere.
-- **chrono** Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate`, `NaiveDateTime`, `NaiveTime` and `Duration`
+- `debug`: Add extra traits such as debug traits to openapi definitions and elsewhere.
+- `chrono`: Add support for [chrono](https://crates.io/crates/chrono) `DateTime`, `Date`, `NaiveDate`, `NaiveDateTime`, `NaiveTime` and `Duration`
   types. By default these types are parsed to `string` types with additional `format` information.
   `format: date-time` for `DateTime` and `NaiveDateTime` and `format: date` for `Date` and `NaiveDate` according
   [RFC3339](https://www.rfc-editor.org/rfc/rfc3339#section-5.6) as `ISO-8601`. To
   override default `string` representation users have to use `value_type` attribute to override the type.
   See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
-- **time** Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
+- `time`: Add support for [time](https://crates.io/crates/time) `OffsetDateTime`, `PrimitiveDateTime`, `Date`, and `Duration` types.
   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
-- **decimal** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
+- `decimal`: Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `String`. If you wish to change the format you need to override the type.
   See the `value_type` in [component derive docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html).
-- **decimal_float** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
+- `decimal_float`: Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your
   documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
-- **uuid** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
+- `uuid`: Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
-- **ulid** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
+- `ulid`: Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
   format `ulid` in OpenAPI spec.
-- **url** Add support for [url](https://github.com/servo/rust-url). `Url` type will be presented as `String` with
+- `url`: Add support for [url](https://github.com/servo/rust-url). `Url` type will be presented as `String` with
   format `uri` in OpenAPI spec.
-- **smallvec** Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
-- **openapi_extensions** Adds traits and functions that provide extra convenience functions.
+- `smallvec`: Add support for [smallvec](https://crates.io/crates/smallvec). `SmallVec` will be treated as `Vec`.
+- `openapi_extensions`: Adds traits and functions that provide extra convenience functions.
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.
-- **repr** Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
+- `repr`: Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
   C-like enum representation. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
-- **preserve_order** Preserve order of properties when serializing the schema for a component.
+- `preserve_order`: Preserve order of properties when serializing the schema for a component.
   When enabled, the properties are listed in order of fields in the corresponding struct definition.
   When disabled, the properties are listed in alphabetical order.
-- **preserve_path_order** Preserve order of OpenAPI Paths according to order they have been
+- `preserve_path_order`: Preserve order of OpenAPI Paths according to order they have been
   introduced to the `#[openapi(paths(...))]` macro attribute. If disabled the paths will be
   ordered in alphabetical order.
-- **indexmap** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
+- `indexmap`: Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
   `BTreeMap` and `HashMap`.
-- **non_strict_integers** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
-- **rc_schema** Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
+- `non_strict_integers`: Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
+- `rc_schema`: Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
