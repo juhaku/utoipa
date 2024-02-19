@@ -7,7 +7,7 @@ use actix_web::{HttpResponse, Resource, Responder};
 
 use crate::{Redoc, Spec};
 
-impl<'s, 'u, S: Spec> HttpServiceFactory for Redoc<'s, 'u, S> {
+impl<S: Spec> HttpServiceFactory for Redoc<S> {
     fn register(self, config: &mut actix_web::dev::AppService) {
         let html = self.to_html();
 
@@ -17,7 +17,7 @@ impl<'s, 'u, S: Spec> HttpServiceFactory for Redoc<'s, 'u, S> {
                 .body(redoc.to_string())
         }
 
-        Resource::new(self.url)
+        Resource::new(self.url.as_ref())
             .guard(Get())
             .app_data(Data::new(html))
             .to(serve_redoc)

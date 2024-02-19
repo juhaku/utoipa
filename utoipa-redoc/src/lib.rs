@@ -181,8 +181,8 @@
 //! [redoc_config]: <https://redocly.com/docs/api-reference-docs/configuration/functionality/#configuration-options-for-api-docs>
 //! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
 
-use std::env;
 use std::fs::OpenOptions;
+use std::{borrow::Cow, env};
 
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -206,7 +206,7 @@ const DEFAULT_HTML: &str = include_str!("../res/redoc.html");
     doc_cfg,
     doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
 )]
-pub trait Servable<'u, 's, S>
+pub trait Servable<S>
 where
     S: Spec,
 {
@@ -214,36 +214,34 @@ where
     ///
     /// * **url** Must point to location where the [`Servable`] is served.
     /// * **openapi** Is [`Spec`] that is served via this [`Servable`] from the _**url**_.
-    fn with_url(url: &'u str, openapi: S) -> Self
-    where
-        'u: 's;
+    fn with_url<U: Into<Cow<'static, str>>>(url: U, openapi: S) -> Self;
 
     /// Construct a new [`Servable`] instance of _`openapi`_ with given _`url`_ and _`config`_.
     ///
     /// * **url** Must point to location where the [`Servable`] is served.
     /// * **openapi** Is [`Spec`] that is served via this [`Servable`] from the _**url**_.
     /// * **config** Is custom [`Config`] that is used to configure the [`Servable`].
-    fn with_url_and_config<C: Config>(url: &'u str, openapi: S, config: C) -> Self
-    where
-        'u: 's;
+    fn with_url_and_config<U: Into<Cow<'static, str>>, C: Config>(
+        url: U,
+        openapi: S,
+        config: C,
+    ) -> Self;
 }
 
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
-impl<'u, 's, S: Spec> Servable<'u, 's, S> for Redoc<'u, 's, S> {
-    fn with_url(url: &'u str, openapi: S) -> Self
-    where
-        'u: 's,
-    {
+impl<S: Spec> Servable<S> for Redoc<S> {
+    fn with_url<U: Into<Cow<'static, str>>>(url: U, openapi: S) -> Self {
         Self::with_url_and_config(url, openapi, EmptyConfig)
     }
 
-    fn with_url_and_config<C: Config>(url: &'u str, openapi: S, config: C) -> Self
-    where
-        'u: 's,
-    {
+    fn with_url_and_config<U: Into<Cow<'static, str>>, C: Config>(
+        url: U,
+        openapi: S,
+        config: C,
+    ) -> Self {
         Self {
-            url,
-            html: DEFAULT_HTML,
+            url: url.into(),
+            html: Cow::Borrowed(DEFAULT_HTML),
             openapi,
             config: config.load(),
         }
@@ -259,15 +257,15 @@ impl<'u, 's, S: Spec> Servable<'u, 's, S> for Redoc<'u, 's, S> {
 /// [redoc]: <https://redocly.com/>
 #[non_exhaustive]
 #[derive(Clone)]
-pub struct Redoc<'s, 'u, S: Spec> {
+pub struct Redoc<S: Spec> {
     #[allow(unused)]
-    url: &'u str,
-    html: &'s str,
+    url: Cow<'static, str>,
+    html: Cow<'static, str>,
     openapi: S,
     config: Value,
 }
 
-impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
+impl<S: Spec> Redoc<S> {
     /// Constructs a new [`Redoc`] instance for given _`openapi`_ [`Spec`].
     ///
     /// This will create [`Redoc`] with [`EmptyConfig`].
@@ -296,8 +294,8 @@ impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
     /// ```
     pub fn with_config<C: Config>(openapi: S, config: C) -> Self {
         Self {
-            html: DEFAULT_HTML,
-            url: "",
+            html: Cow::Borrowed(DEFAULT_HTML),
+            url: Cow::Borrowed(""),
             openapi,
             config: config.load(),
         }
@@ -308,8 +306,8 @@ impl<'s, 'u, S: Spec> Redoc<'s, 'u, S> {
     ///
     /// [redoc_html_quickstart]: <https://redocly.com/docs/redoc/quickstart/>
     /// [customization]: index.html#customization
-    pub fn custom_html(mut self, html: &'s str) -> Self {
-        self.html = html;
+    pub fn custom_html<H: Into<Cow<'static, str>>>(mut self, html: H) -> Self {
+        self.html = html.into();
 
         self
     }
