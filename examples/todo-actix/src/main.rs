@@ -76,7 +76,7 @@ async fn main() -> Result<(), impl Error> {
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
             // There is no need to create RapiDoc::with_openapi because the OpenApi is served
-            // via SwaggerUi instead we only make rapidoc to point to the existing doc.
+            // via SwaggerUi. Instead we only make rapidoc to point to the existing doc.
             //
             // If we wanted to serve the schema, the following would work:
             // .service(RapiDoc::with_openapi("/api-docs/openapi2.json", openapi.clone()).path("/rapidoc"))
