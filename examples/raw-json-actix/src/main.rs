@@ -1,7 +1,7 @@
 use std::{error::Error, net::Ipv4Addr};
 
 use actix_web::{
-    middleware::Logger, patch, App, HttpResponse, HttpServer, Responder, Result, web::Json,
+    middleware::Logger, patch, web::Json, App, HttpResponse, HttpServer, Responder, Result,
 };
 use serde_json::Value;
 use utoipa::OpenApi;

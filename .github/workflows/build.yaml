@@ -78,3 +78,36 @@ jobs:
           if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
             ./scripts/test.sh ${{ matrix.crate }}
           fi
+  test-examples-compile:
+    name: "test (examples)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: clippy, rustfmt
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            examples/**/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}_examples
+      
+      - name: Test that examples compile
+        run: |
+          ./scripts/validate-examples.sh

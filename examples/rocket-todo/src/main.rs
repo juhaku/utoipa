@@ -123,7 +123,7 @@ mod todo {
 
         async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
             match request.headers().get("todo_apikey").next() {
-                Some(key) if key == "utoipa-rocks" => Outcome::Success(RequireApiKey),
+                Some("utoipa-rocks") => Outcome::Success(RequireApiKey),
                 None => Outcome::Error((
                     Status::Unauthorized,
                     TodoError::Unauthorized(String::from("missing api key")),
@@ -144,7 +144,7 @@ mod todo {
 
         async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
             match request.headers().get("todo_apikey").next() {
-                Some(key) if key == "utoipa-rocks" => {
+                Some("utoipa-rocks") => {
                     log::info!("authenticated");
                     Outcome::Success(LogApiKey)
                 }
