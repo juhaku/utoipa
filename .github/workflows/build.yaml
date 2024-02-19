@@ -78,3 +78,24 @@ jobs:
           if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
             ./scripts/test.sh ${{ matrix.crate }}
           fi
+  test-examples-compile:
+    name: "test (examples)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Test that examples compile
+        run: |
+          ./scripts/validate-examples.sh
