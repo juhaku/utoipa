@@ -7,11 +7,11 @@ use rocket::{Data, Request, Route};
 
 use crate::{Redoc, Spec};
 
-impl<'s, 'u, S: Spec> From<Redoc<'s, 'u, S>> for Vec<Route> {
-    fn from(value: Redoc<'s, 'u, S>) -> Self {
+impl<S: Spec> From<Redoc<S>> for Vec<Route> {
+    fn from(value: Redoc<S>) -> Self {
         vec![Route::new(
             Method::Get,
-            value.url,
+            value.url.as_ref(),
             RedocHandler(value.to_html()),
         )]
     }
