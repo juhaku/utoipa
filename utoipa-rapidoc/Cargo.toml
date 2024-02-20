@@ -20,4 +20,4 @@ serde_json = { version = "1.0" }
 utoipa = { version = "4", path = "../utoipa" }
 actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5", features = ["json"], optional = true }
-axum = { version = "0.7", default-features = false, optional = true }
+axum = { version = "0.7", default-features = false, features = ["json"], optional = true }
