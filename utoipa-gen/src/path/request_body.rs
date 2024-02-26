@@ -117,17 +117,13 @@ impl Parse for RequestBodyAttr<'_> {
                         request_body_attr.content_type = parse::content_type(&group)?;
                     }
                     "description" => {
-                        request_body_attr.description =
-                            Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
+                        request_body_attr.description = Some(parse::description(&group)?);
                     }
                     "example" => {
-                        request_body_attr.example = Some(parse_utils::parse_next(&group, || {
-                            AnyValue::parse_any(&group)
-                        })?)
+                        request_body_attr.example = Some(parse::example(&group)?);
                     }
                     "examples" => {
-                        request_body_attr.examples =
-                            Some(parse_utils::parse_punctuated_within_parenthesis(&group)?)
+                        request_body_attr.examples = Some(parse::examples(&group)?);
                     }
                     _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
