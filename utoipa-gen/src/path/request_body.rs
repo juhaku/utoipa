@@ -9,7 +9,7 @@ use crate::component::ComponentSchema;
 use crate::{impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics, Required};
 
 use super::example::Example;
-use super::{PathType, PathTypeTree};
+use super::{PathType, PathTypeTree, parse};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum RequestBody<'r> {
@@ -77,7 +77,7 @@ impl ToTokens for RequestBody<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr<'r> {
     content: Option<PathType<'r>>,
-    content_type: Option<parse_utils::Value>,
+    content_type: Vec<parse_utils::Value>,
     description: Option<parse_utils::Value>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
@@ -114,8 +114,7 @@ impl Parse for RequestBodyAttr<'_> {
                         );
                     }
                     "content_type" => {
-                        request_body_attr.content_type =
-                            Some(parse_utils::parse_next_literal_str_or_expr(&group)?)
+                        request_body_attr.content_type = parse::content_type(&group)?;
                     }
                     "description" => {
                         request_body_attr.description =
@@ -210,18 +209,27 @@ impl RequestBodyAttr<'_> {
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree()?;
                     let required: Required = (!type_tree.is_option()).into();
-                    let content_type = match &self.content_type {
-                        Some(content_type) => content_type.to_token_stream(),
-                        None => {
-                            let content_type = type_tree.get_default_content_type();
-                            quote!(#content_type)
-                        }
+                    let content_types = if self.content_type.is_empty() {
+                        let content_type = type_tree.get_default_content_type();
+                        vec![
+                            quote!(#content_type),
+                        ]
+                    } else {
+                        self.content_type.iter().map(|content_type| {
+                            content_type.to_token_stream()
+                        }).collect()
                     };
+
                     tokens.extend(quote! {
                         utoipa::openapi::request_body::RequestBodyBuilder::new()
-                            .content(#content_type, #content.build())
                             .required(Some(#required))
                     });
+
+                    for content_type in content_types {
+                        tokens.extend(quote! {
+                            .content(#content_type, #content.build())
+                        });
+                    }
                 }
                 PathType::InlineSchema(_, _) => {
                     unreachable!("PathType::InlineSchema is not implemented for RequestBodyAttr");
