@@ -7,7 +7,7 @@ use std::{
 };
 
 use regex::Regex;
-use zip::{result::ZipError, ZipArchive};
+use zip_next::{result::ZipError, ZipArchive};
 
 /// the following env variables control the build process:
 /// 1. SWAGGER_UI_DOWNLOAD_URL:
