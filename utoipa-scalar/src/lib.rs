@@ -113,10 +113,10 @@
 //!
 //! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
 
-use std::{borrow::Cow};
+use std::borrow::Cow;
 
 use serde::Serialize;
-use serde_json::{Value};
+use serde_json::Value;
 use utoipa::openapi::OpenApi;
 
 mod actix;
@@ -203,13 +203,12 @@ impl<S: Spec> Scalar<S> {
     /// At this point in time, it is not possible to customize the HTML template used by the
     /// [`Scalar`] instance.
     pub fn to_html(&self) -> String {
-        self.html
-            .replace(
-                "$spec",
-                &serde_json::to_string(&self.openapi).expect(
-                    "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
-                ),
-            )
+        self.html.replace(
+            "$spec",
+            &serde_json::to_string(&self.openapi).expect(
+                "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
+            ),
+        )
     }
 }
 
