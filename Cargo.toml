@@ -5,7 +5,7 @@ members = [
     "utoipa-gen",
     "utoipa-swagger-ui",
     "utoipa-redoc",
-    "utoipa-rapidoc",
+    "utoipa-rapidoc", "utoipa-scalar",
 ]
 
 [workspace.metadata.publish]

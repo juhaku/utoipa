@@ -1,0 +1,23 @@
+[package]
+name = "utoipa-scalar"
+description = "Scalar for utoipa"
+version = "3.0.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["scalar", "openapi", "documentation"]
+repository = "https://github.com/juhaku/utoipa"
+categories = ["web-programming"]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
+
+[package.metadata.docs.rs]
+features = ["actix-web", "axum", "rocket"]
+rustdoc-args = ["--cfg", "doc_cfg"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+utoipa = { version = "4", path = "../utoipa" }
+actix-web = { version = "4", optional = true, default-features = false }
+rocket = { version = "0.5", features = ["json"], optional = true }
+axum = { version = "0.7", default-features = false, optional = true }
