@@ -11,6 +11,7 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
+use crate::parse_utils::Str;
 use crate::{
     parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementsAttr, Array,
     ExternalDocs, ResultExt,
@@ -178,7 +179,7 @@ impl Parse for Modifier {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Tag {
     name: String,
-    description: Option<String>,
+    description: Option<Str>,
     external_docs: Option<ExternalDocs>,
 }
 
@@ -198,7 +199,8 @@ impl Parse for Tag {
             match attribute_name {
                 "name" => tag.name = parse_utils::parse_next_literal_str(input)?,
                 "description" => {
-                    tag.description = Some(parse_utils::parse_next_literal_str(input)?)
+                    tag.description =
+                        Some(parse_utils::parse_next_literal_str_or_include_str(input)?)
                 }
                 "external_docs" => {
                     let content;

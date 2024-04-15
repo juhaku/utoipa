@@ -59,6 +59,22 @@ fn derive_openapi_tags() {
 }
 
 #[test]
+fn derive_openapi_tags_include_str() {
+    #[derive(OpenApi)]
+    #[openapi(tags(
+        (name = "random::api", description = include_str!("testdata/openapi-derive-info-description")),
+    ))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    assert_value! {doc=>
+        "tags.[0].name" = r###""random::api""###, "Tags random_api name"
+        "tags.[0].description" = r###""this is include description\n""###, "Tags random_api description"
+    }
+}
+
+#[test]
 fn derive_openapi_with_external_docs() {
     #[derive(OpenApi)]
     #[openapi(external_docs(

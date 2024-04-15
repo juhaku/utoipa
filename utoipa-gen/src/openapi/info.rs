@@ -1,47 +1,14 @@
 use std::borrow::Cow;
 use std::io;
 
-use proc_macro2::{Group, Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::parse::Parse;
 use syn::token::Comma;
-use syn::{parenthesized, Error, LitStr, Token};
+use syn::{parenthesized, Error, LitStr};
 
 use crate::parse_utils;
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub(super) enum Str {
-    String(String),
-    IncludeStr(TokenStream2),
-}
-
-impl Parse for Str {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        if input.peek(LitStr) {
-            Ok(Self::String(input.parse::<LitStr>()?.value()))
-        } else {
-            let include_str = input.parse::<Ident>()?;
-            let bang = input.parse::<Option<Token![!]>>()?;
-            if include_str != "include_str" || bang.is_none() {
-                return Err(Error::new(
-                    include_str.span(),
-                    "unexpected token, expected either literal string or include_str!(...)",
-                ));
-            }
-            Ok(Self::IncludeStr(input.parse::<Group>()?.stream()))
-        }
-    }
-}
-
-impl ToTokens for Str {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        match self {
-            Self::String(str) => str.to_tokens(tokens),
-            Self::IncludeStr(include_str) => tokens.extend(quote! { include_str!(#include_str) }),
-        }
-    }
-}
+use crate::parse_utils::Str;
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
