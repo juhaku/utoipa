@@ -29,5 +29,7 @@ for crate in $crates; do
         $CARGO test -p utoipa-redoc --features actix-web,rocket,axum
     elif [[ "$crate" == "utoipa-rapidoc" ]]; then
         $CARGO test -p utoipa-rapidoc --features actix-web,rocket,axum
+    elif [[ "$crate" == "utoipa-scalar" ]]; then
+        $CARGO test -p utoipa-scalar --features actix-web,rocket,axum
     fi
 done
