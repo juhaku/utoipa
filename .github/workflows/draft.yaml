@@ -18,6 +18,7 @@ jobs:
           - utoipa-swagger-ui
           - utoipa-redoc
           - utoipa-rapidoc
+          - utoipa-scalar
     runs-on: ubuntu-latest
 
     steps:

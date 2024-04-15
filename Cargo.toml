@@ -5,7 +5,8 @@ members = [
     "utoipa-gen",
     "utoipa-swagger-ui",
     "utoipa-redoc",
-    "utoipa-rapidoc", "utoipa-scalar",
+    "utoipa-rapidoc",
+    "utoipa-scalar",
 ]
 
 [workspace.metadata.publish]
@@ -15,4 +16,5 @@ order = [
     "utoipa-swagger-ui",
     "utoipa-redoc",
     "utoipa-rapidoc",
+    "utoipa-scalar",
 ]
