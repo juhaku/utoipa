@@ -32,6 +32,6 @@ features = ["actix-web", "axum", "rocket"]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip_next = { version = "1.0", default-features = false, features = ["deflate"] }
 regex = "1.7"
 reqwest = { version = "0.11", features = ["blocking"] }
