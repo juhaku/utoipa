@@ -17,6 +17,7 @@ use utoipa::{
 };
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
+use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::{ErrorResponse, TodoStore};
@@ -81,6 +82,7 @@ async fn main() -> Result<(), impl Error> {
             // If we wanted to serve the schema, the following would work:
             // .service(RapiDoc::with_openapi("/api-docs/openapi2.json", openapi.clone()).path("/rapidoc"))
             .service(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
+            .service(Scalar::with_url("/scalar", openapi.clone()))
     })
     .bind((Ipv4Addr::UNSPECIFIED, 8080))?
     .run()

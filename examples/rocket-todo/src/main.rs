@@ -7,6 +7,7 @@ use utoipa::{
 };
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
+use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::TodoStore;
@@ -62,6 +63,7 @@ fn rocket() -> Rocket<Build> {
         //     RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc")
         // )
         .mount("/", Redoc::with_url("/redoc", ApiDoc::openapi()))
+        .mount("/", Scalar::with_url("/scalar", ApiDoc::openapi()))
         .mount(
             "/todo",
             routes![

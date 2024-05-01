@@ -1,6 +1,6 @@
 [package]
 name = "todo-axum"
-description = "Simple axum todo example api with utoipa and Swagger UI and Redoc"
+description = "Simple axum todo example api with utoipa and Swagger UI, Rapidoc, Redoc, and Scalar"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
@@ -19,6 +19,7 @@ utoipa = { path = "../../utoipa", features = ["axum_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["axum"] }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["axum"] }
+utoipa-scalar = { path = "../../utoipa-scalar", features = ["axum"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 env_logger = "0.10.0"

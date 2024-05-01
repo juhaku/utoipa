@@ -11,6 +11,8 @@ If you prefer Redoc just head to `http://localhost:8080/redoc` and view the Open
 
 RapiDoc can be found from `http://localhost:8080/rapidoc`.
 
+Scalar can be reached on `http://localhost:8080/scalar`.
+
 ```bash
 cargo run
 ```

@@ -12,6 +12,7 @@ use utoipa::{
 };
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
+use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::todo::Store;
@@ -59,6 +60,7 @@ async fn main() -> Result<(), Error> {
         .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         // Alternative to above
         // .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc"))
+        .merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
         .route(
             "/todo",
             routing::get(todo::list_todos).post(todo::create_todo),
