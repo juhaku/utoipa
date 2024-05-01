@@ -2776,7 +2776,7 @@ mod parse_utils {
     use std::fmt::Display;
 
     use proc_macro2::{Group, Ident, TokenStream};
-    use quote::ToTokens;
+    use quote::{quote, ToTokens};
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
@@ -2844,6 +2844,10 @@ mod parse_utils {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
+    pub fn parse_next_literal_str_or_include_str(input: ParseStream) -> syn::Result<Str> {
+        Ok(parse_next(input, || input.parse::<Str>())?)
+    }
+
     pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
         parse_next(input, || Value::parse(input)).map_err(|error| {
             syn::Error::new(
@@ -2909,6 +2913,42 @@ mod parse_utils {
                 input.span(),
                 "unexpected token, expected json!(...)",
             ))
+        }
+    }
+
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub(super) enum Str {
+        String(String),
+        IncludeStr(TokenStream),
+    }
+
+    impl Parse for Str {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            if input.peek(LitStr) {
+                Ok(Self::String(input.parse::<LitStr>()?.value()))
+            } else {
+                let include_str = input.parse::<Ident>()?;
+                let bang = input.parse::<Option<Token![!]>>()?;
+                if include_str != "include_str" || bang.is_none() {
+                    return Err(Error::new(
+                        include_str.span(),
+                        "unexpected token, expected either literal string or include_str!(...)",
+                    ));
+                }
+                Ok(Self::IncludeStr(input.parse::<Group>()?.stream()))
+            }
+        }
+    }
+
+    impl ToTokens for Str {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                Self::String(str) => str.to_tokens(tokens),
+                Self::IncludeStr(include_str) => {
+                    tokens.extend(quote! { include_str!(#include_str) })
+                }
+            }
         }
     }
 }
