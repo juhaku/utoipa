@@ -158,7 +158,7 @@ fn derive_path_with_all_info_success() {
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 1);
     assert_value! {operation=>
        "deprecated" = r#"true"#, "Api fn deprecated status"
-       "description" = r#""This is test operation description\n\nAdditional info in long description""#, "Api fn description"
+       "description" = r#""Additional info in long description""#, "Api fn description"
        "summary" = r#""This is test operation description""#, "Api fn summary"
        "operationId" = r#""foo_bar_id""#, "Api fn operation_id"
        "tags.[0]" = r#""custom_tag""#, "Api fn tag"
@@ -224,7 +224,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 2);
     assert_value! {operation=>
         "deprecated" = r#"null"#, "Api operation deprecated"
-        "description" = r#""This is test operation\n\nThis is long description for test operation""#, "Api operation description"
+        "description" = r#""This is long description for test operation""#, "Api operation description"
         "operationId" = r#""get_foos_by_id_since""#, "Api operation operation_id"
         "summary" = r#""This is test operation""#, "Api operation summary"
         "tags.[0]" = r#""crate""#, "Api operation tag"
