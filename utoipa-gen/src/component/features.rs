@@ -1247,14 +1247,14 @@ name!(MinItems = "min_items");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct MaxProperties(usize, Ident);
+pub struct MaxProperties(usize, ());
 
 impl Parse for MaxProperties {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    fn parse(input: ParseStream, _ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
-        parse_integer(input).map(|max_properties| Self(max_properties, ident))
+        parse_integer(input).map(|max_properties| Self(max_properties, ()))
     }
 }
 
@@ -1274,14 +1274,14 @@ name!(MaxProperties = "max_properties");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct MinProperties(usize, Ident);
+pub struct MinProperties(usize, ());
 
 impl Parse for MinProperties {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
+    fn parse(input: ParseStream, _ident: Ident) -> syn::Result<Self>
     where
         Self: Sized,
     {
-        parse_integer(input).map(|min_properties| Self(min_properties, ident))
+        parse_integer(input).map(|min_properties| Self(min_properties, ()))
     }
 }
 
