@@ -24,13 +24,13 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 Use Scalar only without any boiler plate implementation.
 ```toml
 [dependencies]
-utoipa-scalar = "3"
+utoipa-scalar = "0.1"
 ```
 
 Enable actix-web integration with Scalar.
 ```toml
 [dependencies]
-utoipa-scalar = { version = "3", features = ["actix-web"] }
+utoipa-scalar = { version = "0.1", features = ["actix-web"] }
 ```
 
 # Using standalone

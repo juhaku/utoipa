@@ -20,13 +20,13 @@
 //! Use RapiDoc only without any boiler plate implementation.
 //! ```toml
 //! [dependencies]
-//! utoipa-rapidoc = "0.1"
+//! utoipa-rapidoc = "4"
 //! ```
 //!
 //! Enable actix-web integration with RapiDoc.
 //! ```toml
 //! [dependencies]
-//! utoipa-rapidoc = { version = "0.1", features = ["actix-web"] }
+//! utoipa-rapidoc = { version = "4", features = ["actix-web"] }
 //! ```
 //!
 //! # Using standalone

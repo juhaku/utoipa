@@ -20,13 +20,13 @@
 //! Use Redoc only without any boiler plate implementation.
 //! ```toml
 //! [dependencies]
-//! utoipa-redoc = "0.1"
+//! utoipa-redoc = "4"
 //! ```
 //!
 //! Enable actix-web integration with Redoc.
 //! ```toml
 //! [dependencies]
-//! utoipa-redoc = { version = "0.1", features = ["actix-web"] }
+//! utoipa-redoc = { version = "4", features = ["actix-web"] }
 //! ```
 //!
 //! # Using standalone
