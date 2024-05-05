@@ -18,7 +18,7 @@ use zip_next::{result::ZipError, ZipArchive};
 /// + absolute path to a folder containing files to overwrite the default swagger-ui files
 
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
-    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.11.0.zip";
+    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip";
 
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
@@ -28,7 +28,7 @@ fn main() {
         env::var("SWAGGER_UI_DOWNLOAD_URL").unwrap_or(SWAGGER_UI_DOWNLOAD_URL_DEFAULT.to_string());
 
     println!("SWAGGER_UI_DOWNLOAD_URL: {}", url);
-    let zip_filename = url.split("/").last().unwrap().to_string();
+    let zip_filename = url.split('/').last().unwrap().to_string();
     let zip_path = [&target_dir, &zip_filename].iter().collect::<PathBuf>();
 
     if !zip_path.exists() {
@@ -156,7 +156,7 @@ struct SwaggerUiDist;
         target_dir, zip_top_level_folder
     );
     let path = [target_dir, "embed.rs"].iter().collect::<PathBuf>();
-    fs::write(&path, &contents).unwrap();
+    fs::write(path, contents).unwrap();
 }
 
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
@@ -178,7 +178,7 @@ fn overwrite_target_file(target_dir: &str, swagger_ui_dist_zip: &str, path_in: P
                 .iter()
                 .collect::<PathBuf>();
 
-            fs::write(&path, &content).unwrap();
+            fs::write(path, content).unwrap();
         }
         Err(_) => {
             println!("cannot read content from file: {:?}", path_in);

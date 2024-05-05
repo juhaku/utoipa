@@ -9,7 +9,7 @@
 //!
 //! * **actix-web** `version >= 4`
 //! * **rocket** `version >=0.5`
-//! * **axum** `version >=0.6`
+//! * **axum** `version >=0.7`
 //!
 //! Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 //! other frameworks as well. With other frameworks there is bit more manual implementation to be done. See
@@ -33,16 +33,31 @@
 //! Use only the raw types without any boiler plate implementation.
 //! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = "3"
+//! utoipa-swagger-ui = "6"
 //! ```
 //!
 //! Enable actix-web framework with Swagger UI you could define the dependency as follows.
 //! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = { version = "3", features = ["actix-web"] }
+//! utoipa-swagger-ui = { version = "6", features = ["actix-web"] }
 //! ```
 //!
 //! **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
+//!
+//! ## Config
+//!
+//! The following configuration env variables are available at build time:
+//!
+//! * `SWAGGER_UI_DOWNLOAD_URL`:
+//!
+//!   * the url from where to download the swagger-ui zip file
+//!   * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip>
+//!   * All versions: <https://github.com/swagger-api/swagger-ui/tags>
+//!
+//! * `SWAGGER_UI_OVERWRITE_FOLDER`:
+//!
+//!   * absolute path to a folder containing files to overwrite the default swagger-ui files
+//!   * typically you might want to overwrite `index.html`
 //!
 //! # Examples
 //!

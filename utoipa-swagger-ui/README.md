@@ -56,7 +56,7 @@ The following configuration env variables are available at build time:
 * `SWAGGER_UI_DOWNLOAD_URL`:
 
   * the url from where to download the swagger-ui zip file
-  * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.11.0.zip>
+  * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip>
   * All versions: <https://github.com/swagger-api/swagger-ui/tags>
 
 * `SWAGGER_UI_OVERWRITE_FOLDER`:
