@@ -270,6 +270,10 @@ impl<'t> TypeTree<'t> {
 
     // TODO should we recognize unknown generic types with `GenericType::Unknown` instead of `None`?
     fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
+        if segment.arguments.is_empty() {
+            return None;
+        }
+
         match &*segment.ident.to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
             #[cfg(feature = "indexmap")]
