@@ -176,11 +176,12 @@ impl OpenApi {
         }
 
         if !other.paths.paths.is_empty() {
-            other
-                .paths
-                .paths
-                .retain(|path, _| self.paths.get_path_item(path).is_none());
-            self.paths.paths.extend(&mut other.paths.paths.into_iter());
+            for (path, that) in &mut other.paths.paths {
+                if let Some(this) = self.paths.get_path_item(path) {
+                    that.operations.extend(this.operations.clone());
+                }
+            }
+            self.paths.paths.extend(other.paths.paths);
         };
 
         if let Some(other_components) = &mut other.components {
@@ -712,6 +713,138 @@ mod tests {
                         "responses": {
                           "200": {
                             "description": "Get user success"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "components": {
+                    "schemas": {
+                      "User2": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+            )
+        )
+    }
+
+    #[test]
+    fn merge_same_path_diff_methods() {
+        let mut api_1 = OpenApi::new(
+            Info::new("Api", "v1"),
+            PathsBuilder::new()
+                .path(
+                    "/api/v1/user",
+                    PathItem::new(
+                        PathItemType::Get,
+                        OperationBuilder::new()
+                            .response("200", Response::new("Get user success 1")),
+                    ),
+                )
+                .build(),
+        );
+
+        let api_2 = OpenApiBuilder::new()
+            .info(Info::new("Api", "v2"))
+            .paths(
+                PathsBuilder::new()
+                    .path(
+                        "/api/v1/user",
+                        PathItem::new(
+                            PathItemType::Get,
+                            OperationBuilder::new()
+                                .response("200", Response::new("This will not get added")),
+                        ),
+                    )
+                    .path(
+                        "/api/v1/user",
+                        PathItem::new(
+                            PathItemType::Post,
+                            OperationBuilder::new()
+                                .response("200", Response::new("Post user success 1")),
+                        ),
+                    )
+                    .path(
+                        "/api/v2/user",
+                        PathItem::new(
+                            PathItemType::Get,
+                            OperationBuilder::new()
+                                .response("200", Response::new("Get user success 2")),
+                        ),
+                    )
+                    .path(
+                        "/api/v2/user",
+                        PathItem::new(
+                            PathItemType::Post,
+                            OperationBuilder::new()
+                                .response("200", Response::new("Post user success 2")),
+                        ),
+                    )
+                    .build(),
+            )
+            .components(Some(
+                ComponentsBuilder::new()
+                    .schema(
+                        "User2",
+                        ObjectBuilder::new()
+                            .schema_type(SchemaType::Object)
+                            .property(
+                                "name",
+                                ObjectBuilder::new().schema_type(SchemaType::String).build(),
+                            ),
+                    )
+                    .build(),
+            ))
+            .build();
+
+        api_1.merge(api_2);
+        let value = serde_json::to_value(&api_1).unwrap();
+
+        assert_eq!(
+            value,
+            json!(
+                {
+                  "openapi": "3.0.3",
+                  "info": {
+                    "title": "Api",
+                    "version": "v1"
+                  },
+                  "paths": {
+                    "/api/v2/user": {
+                      "get": {
+                        "responses": {
+                          "200": {
+                            "description": "Get user success 2"
+                          }
+                        }
+                      },
+                      "post": {
+                        "responses": {
+                          "200": {
+                            "description": "Post user success 2"
+                          }
+                        }
+                      }
+                    },
+                    "/api/v1/user": {
+                      "get": {
+                        "responses": {
+                          "200": {
+                            "description": "Get user success 1"
+                          }
+                        }
+                      },
+                      "post": {
+                        "responses": {
+                          "200": {
+                            "description": "Post user success 1"
                           }
                         }
                       }
