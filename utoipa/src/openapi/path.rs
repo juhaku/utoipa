@@ -336,8 +336,8 @@ impl Operation {
 
 impl OperationBuilder {
     /// Add or change tags of the [`Operation`].
-    pub fn tags<I: IntoIterator<Item = String>>(mut self, tags: Option<I>) -> Self {
-        set_value!(self tags tags.map(|tags| tags.into_iter().collect()))
+    pub fn tags<I: IntoIterator<Item = V>, V: Into<String>>(mut self, tags: Option<I>) -> Self {
+        set_value!(self tags tags.map(|tags| tags.into_iter().map(Into::into).collect()))
     }
 
     /// Append tag to [`Operation`] tags.

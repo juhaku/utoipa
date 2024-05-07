@@ -690,6 +690,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
 ///   then default value _`crate`_ is used instead.
 ///
+/// * `tags = ["tag1", ...]` Can be used to group operations. Operations with same tag are grouped
+///   toghether. Tags attribute can be used to add addtional _tags_ for the operation.
+///
 /// * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
 ///   the performed request.
 ///
@@ -2845,7 +2848,7 @@ mod parse_utils {
     }
 
     pub fn parse_next_literal_str_or_include_str(input: ParseStream) -> syn::Result<Str> {
-        Ok(parse_next(input, || input.parse::<Str>())?)
+        parse_next(input, || input.parse::<Str>())
     }
 
     pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
