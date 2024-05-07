@@ -36,6 +36,7 @@ pub struct PathAttr<'p> {
     pub(super) path: Option<parse_utils::Value>,
     operation_id: Option<Expr>,
     tag: Option<parse_utils::Value>,
+    tags: Vec<parse_utils::Value>,
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementsAttr>>,
     context_path: Option<parse_utils::Value>,
@@ -135,6 +136,15 @@ impl Parse for PathAttr<'_> {
                 }
                 "tag" => {
                     path_attr.tag = Some(parse_utils::parse_next_literal_str_or_expr(input)?);
+                }
+                "tags" => {
+                    path_attr.tags = parse_utils::parse_next(input, || {
+                        let tags;
+                        syn::bracketed!(tags in input);
+                        Punctuated::<parse_utils::Value, Token![,]>::parse_terminated(&tags)
+                    })?
+                    .into_iter()
+                    .collect::<Vec<_>>();
                 }
                 "security" => {
                     let security;
@@ -309,6 +319,14 @@ impl<'p> ToTokens for Path<'p> {
                     help = "Did you define the #[utoipa::path(...)] over function?"
                 }
             });
+        let tags = if !self.path_attr.tags.is_empty() {
+            let tags = self.path_attr.tags.as_slice().iter().collect::<Array<_>>();
+            Some(quote! {
+                .tags(Some(#tags))
+            })
+        } else {
+            None::<TokenStream2>
+        };
         let tag = self
             .path_attr
             .tag
@@ -414,8 +432,8 @@ impl<'p> ToTokens for Path<'p> {
             });
             path_struct
         };
-        tokens.extend(quote! {
 
+        tokens.extend(quote! {
             impl utoipa::Path for #impl_for {
                 fn path() -> String {
                     #path_with_context_path
@@ -426,7 +444,10 @@ impl<'p> ToTokens for Path<'p> {
                     use std::iter::FromIterator;
                     utoipa::openapi::PathItem::new(
                         #path_operation,
-                        #operation.tag(*[Some(#tag), default_tag, Some("crate")].iter()
+                        #operation
+                        #tags
+                            .tag(
+                            *[Some(#tag), default_tag, Some("crate")].iter()
                             .flatten()
                             .find(|t| !t.is_empty()).unwrap()
                         )

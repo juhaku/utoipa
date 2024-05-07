@@ -2038,3 +2038,43 @@ fn derive_path_with_tag_constant() {
         })
     );
 }
+
+#[test]
+fn derive_path_with_multiple_tags() {
+    const TAG: &str = "mytag";
+    const ANOTHER: &str = "another";
+
+    #[utoipa::path(
+        get,
+        tag = TAG,
+        tags = ["one", "two", ANOTHER],
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_ne!(operation, Value::Null);
+    assert_json_eq!(
+        &operation,
+        json!({
+            "operationId": "get_items",
+            "responses": {
+                "200": {
+                    "description": "success response",
+                },
+            },
+            "tags": ["one", "two","another","mytag"]
+        })
+    );
+}
