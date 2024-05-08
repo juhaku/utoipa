@@ -160,9 +160,8 @@ struct SwaggerUiDist;
 }
 
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
-    let mut response = reqwest::blocking::get(url)?;
-    let mut file = File::create(path)?;
-    io::copy(&mut response, &mut file)?;
+    let response = minreq::get(url).send()?;
+    fs::write(path, response.into_bytes())?;
     Ok(())
 }
 
