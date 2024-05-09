@@ -1,7 +1,6 @@
 use std::{borrow::Cow, fmt::Display};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
@@ -20,7 +19,7 @@ use crate::{
         },
         ComponentSchema,
     },
-    parse_utils, Required,
+    impl_to_tokens_diagnostics, parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
 
 use super::InlineType;
@@ -143,8 +142,8 @@ struct ParameterSchema<'p> {
     features: Vec<Feature>,
 }
 
-impl ToTokens for ParameterSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl ToTokensDiagnostics for ParameterSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let mut to_tokens = |param_schema, required| {
             tokens.extend(quote! { .schema(Some(#param_schema)).required(#required) });
         };
@@ -158,7 +157,7 @@ impl ToTokens for ParameterSchema<'_> {
             ParameterType::External(type_tree) => {
                 let required: Required = (!type_tree.is_option()).into();
 
-                to_tokens(
+                Ok(to_tokens(
                     ComponentSchema::new(component::ComponentSchemaProps {
                         type_tree,
                         features: Some(self.features.clone()),
@@ -167,16 +166,16 @@ impl ToTokens for ParameterSchema<'_> {
                         object_name: "",
                     }),
                     required,
-                )
+                ))
             }
             ParameterType::Parsed(inline_type) => {
-                let type_tree = inline_type.as_type_tree();
+                let type_tree = inline_type.as_type_tree()?;
                 let required: Required = (!type_tree.is_option()).into();
                 let mut schema_features = Vec::<Feature>::new();
                 schema_features.clone_from(&self.features);
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
-                to_tokens(
+                Ok(to_tokens(
                     ComponentSchema::new(component::ComponentSchemaProps {
                         type_tree: &type_tree,
                         features: Some(schema_features),
@@ -185,7 +184,7 @@ impl ToTokens for ParameterSchema<'_> {
                         object_name: "",
                     }),
                     required,
-                )
+                ))
             }
         }
     }
@@ -342,8 +341,8 @@ impl ParameterFeatures {
 
 impl_into_inner!(ParameterFeatures);
 
-impl ToTokens for ValueParameter<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl ValueParameter<'_> {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let name = &*self.name;
         tokens.extend(quote! {
             utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name))
@@ -356,16 +355,24 @@ impl ToTokens for ValueParameter<'_> {
         tokens.extend(param_features.to_token_stream());
 
         if !schema_features.is_empty() && self.parameter_schema.is_none() {
-            abort!(
-                Span::call_site(),
-                "Missing `parameter_type` attribute, cannot define schema features without it.";
-                help = "See docs for more details <https://docs.rs/utoipa/latest/utoipa/attr.path.html#parameter-type-attributes>"
-
+            return Err(
+                Diagnostics::new("Missing `parameter_type` attribute, cannot define schema features without it.")
+                .help("See docs for more details <https://docs.rs/utoipa/latest/utoipa/attr.path.html#parameter-type-attributes>")
             );
         }
 
         if let Some(parameter_schema) = &self.parameter_schema {
-            parameter_schema.to_tokens(tokens);
+            parameter_schema.to_tokens(tokens)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for ValueParameter<'_> {
+        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
         }
     }
 }

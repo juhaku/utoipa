@@ -3,11 +3,15 @@ use std::borrow::Cow;
 use regex::Captures;
 use syn::{punctuated::Punctuated, token::Comma};
 
-use crate::component::{TypeTree, ValueType};
+use crate::{
+    component::{TypeTree, ValueType},
+    Diagnostics,
+};
 
 use super::{
     fn_arg::{self, FnArg, FnArgType},
-    ArgValue, ArgumentResolver, MacroArg, MacroPath, PathOperations, PathResolver, ValueArgument,
+    ArgValue, ArgumentResolver, Arguments, MacroArg, MacroPath, PathOperations, PathResolver,
+    ValueArgument,
 };
 
 // axum framework is only able to resolve handler function arguments.
@@ -17,20 +21,16 @@ impl ArgumentResolver for PathOperations {
         args: &'_ Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<super::MacroArg>>,
         _: String,
-    ) -> (
-        Option<Vec<super::ValueArgument<'_>>>,
-        Option<Vec<super::IntoParamsType<'_>>>,
-        Option<super::RequestBody<'_>>,
-    ) {
+    ) -> Result<Arguments<'_>, Diagnostics> {
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
-            fn_arg::get_fn_args(args).partition(fn_arg::is_into_params);
+            fn_arg::get_fn_args(args)?.partition(fn_arg::is_into_params);
 
         let (value_args, body) = split_value_args_and_request_body(value_args);
 
-        (
+        Ok((
             Some(
                 value_args
-                    .zip(macro_args.unwrap_or_default().into_iter())
+                    .zip(macro_args.unwrap_or_default())
                     .map(|(value_arg, macro_arg)| ValueArgument {
                         name: match macro_arg {
                             MacroArg::Path(path) => Some(Cow::Owned(path.name)),
@@ -48,7 +48,7 @@ impl ArgumentResolver for PathOperations {
                     .collect(),
             ),
             body.into_iter().next().map(Into::into),
-        )
+        ))
     }
 }
 

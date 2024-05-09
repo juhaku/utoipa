@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{
-    parse::Parse, punctuated::Punctuated, token::Comma, Attribute, Data, Field, Generics, Ident,
+    parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
+    Generics, Ident,
 };
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    Array, Required, ResultExt,
+    impl_to_tokens_diagnostics, Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -61,8 +61,8 @@ pub struct IntoParams {
     pub ident: Ident,
 }
 
-impl ToTokens for IntoParams {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+impl ToTokensDiagnostics for IntoParams {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
@@ -73,19 +73,21 @@ impl ToTokens for IntoParams {
             .map(|attribute| {
                 attribute
                     .parse_args::<IntoParamsFeatures>()
-                    .unwrap_or_abort()
-                    .into_inner()
+                    .map(IntoParamsFeatures::into_inner)
+                    .map_err(Diagnostics::from)
             })
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
             .reduce(|acc, item| acc.merge(item));
-        let serde_container = serde::parse_container(&self.attrs);
+        let serde_container = serde::parse_container(&self.attrs)?;
 
         // #[param] is only supported over fields
         if self.attrs.iter().any(|attr| attr.path().is_ident("param")) {
-            abort! {
-                ident,
-                "found `param` attribute in unsupported context";
-                help = "Did you mean `into_params`?",
-            }
+            return Err(Diagnostics::with_span(
+                ident.span(),
+                "found `param` attribute in unsupported context",
+            )
+            .help("Did you mean `into_params`?"));
         }
 
         let names = into_params_features.as_mut().and_then(|features| {
@@ -102,10 +104,15 @@ impl ToTokens for IntoParams {
         let rename_all = pop_feature!(into_params_features => Feature::RenameAll(_));
 
         let params = self
-            .get_struct_fields(&names.as_ref())
+            .get_struct_fields(&names.as_ref())?
             .enumerate()
-            .filter_map(|(index, field)| {
-                let field_params = serde::parse_value(&field.attrs);
+            .map(|(index, field)| match serde::parse_value(&field.attrs) {
+                Ok(serde_value) => Ok((index, field, serde_value)),
+                Err(diagnostics) => Err(diagnostics)
+            })
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .filter_map(|(index, field, field_params)| {
                 if matches!(&field_params, Some(params) if !params.skip) {
                     Some((index, field, field_params))
                 } else {
@@ -113,7 +120,16 @@ impl ToTokens for IntoParams {
                 }
             })
             .map(|(index, field, field_serde_params)| {
-                Param {
+                let name = names.as_ref()
+                    .map_try(|names| names.get(index).ok_or_else(|| Diagnostics::with_span(
+                        ident.span(),
+                        format!("There is no name specified in the names(...) container attribute for tuple struct field {}", index),
+                    )));
+                let name = match name {
+                    Ok(name) => name,
+                    Err(diagnostics) => return Err(diagnostics)
+                };
+                let param = Param {
                     field,
                     field_serde_params,
                     container_attributes: FieldParamContainerAttributes {
@@ -125,17 +141,18 @@ impl ToTokens for IntoParams {
                         }),
                         style: &style,
                         parameter_in: &parameter_in,
-                        name: names.as_ref()
-                            .map(|names| names.get(index).unwrap_or_else(|| abort!(
-                                ident,
-                                "There is no name specified in the names(...) container attribute for tuple struct field {}",
-                                index
-                            ))),
+                        name,
                     },
                     serde_container: serde_container.as_ref(),
+                };
+
+                let mut param_tokens = TokenStream::new();
+                match ToTokensDiagnostics::to_tokens(&param, &mut param_tokens) {
+                    Ok(_) => Ok(param_tokens),
+                    Err(diagnostics) => Err(diagnostics)
                 }
             })
-            .collect::<Array<Param>>();
+            .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
@@ -144,6 +161,8 @@ impl ToTokens for IntoParams {
                 }
             }
         });
+
+        Ok(())
     }
 }
 
@@ -151,33 +170,34 @@ impl IntoParams {
     fn get_struct_fields(
         &self,
         field_names: &Option<&Vec<String>>,
-    ) -> impl Iterator<Item = &Field> {
+    ) -> Result<impl Iterator<Item = &Field>, Diagnostics> {
         let ident = &self.ident;
-        let abort = |note: &str| {
-            abort! {
-                ident,
-                "unsupported data type, expected struct with named fields `struct {} {{...}}` or unnamed fields `struct {}(...)`",
-                ident.to_string(),
-                ident.to_string();
-                note = note
-            }
-        };
-
         match &self.data {
             Data::Struct(data_struct) => match &data_struct.fields {
                 syn::Fields::Named(named_fields) => {
                     if field_names.is_some() {
-                        abort! {ident, "`#[into_params(names(...))]` is not supported attribute on a struct with named fields"}
+                        return Err(Diagnostics::with_span(
+                            ident.span(),
+                            "`#[into_params(names(...))]` is not supported attribute on a struct with named fields")
+                        );
                     }
-                    named_fields.named.iter()
+                    Ok(named_fields.named.iter())
                 }
                 syn::Fields::Unnamed(unnamed_fields) => {
-                    self.validate_unnamed_field_names(&unnamed_fields.unnamed, field_names);
-                    unnamed_fields.unnamed.iter()
+                    match self.validate_unnamed_field_names(&unnamed_fields.unnamed, field_names) {
+                        None => Ok(unnamed_fields.unnamed.iter()),
+                        Some(diagnostics) => Err(diagnostics),
+                    }
                 }
-                _ => abort("Unit type struct is not supported"),
+                _ => Err(Diagnostics::with_span(
+                    ident.span(),
+                    "Unit type struct is not supported",
+                )),
             },
-            _ => abort("Only struct type is supported"),
+            _ => Err(Diagnostics::with_span(
+                ident.span(),
+                "Only struct type is supported",
+            )),
         }
     }
 
@@ -185,27 +205,33 @@ impl IntoParams {
         &self,
         unnamed_fields: &Punctuated<Field, Comma>,
         field_names: &Option<&Vec<String>>,
-    ) {
+    ) -> Option<Diagnostics> {
         let ident = &self.ident;
         match field_names {
             Some(names) => {
                 if names.len() != unnamed_fields.len() {
-                    abort! {
-                        ident,
-                        "declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {}",
-                            names.len(), unnamed_fields.len(), ident;
-                        help = r#"Did you forget to add a field name to `#[into_params(names(... , "field_name"))]`"#;
-                        help = "Or have you added extra name but haven't defined a type?"
-                    }
+                    Some(Diagnostics::with_span(
+                        ident.span(),
+                        format!("declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {}", 
+                            names.len(), unnamed_fields.len(), ident)
+                    )
+                        .help(r#"Did you forget to add a field name to `#[into_params(names(... , "field_name"))]`"#)
+                        .help("Or have you added extra name but haven't defined a type?")
+                    )
+                } else {
+                    None
                 }
             }
-            None => {
-                abort! {
-                    ident,
-                    "struct with unnamed fields must have explicit name declarations.";
-                    help = "Try defining `#[into_params(names(...))]` over your type: {}", ident,
-                }
-            }
+            None => Some(
+                Diagnostics::with_span(
+                    ident.span(),
+                    "struct with unnamed fields must have explicit name declarations.",
+                )
+                .help(format!(
+                    "Try defining `#[into_params(names(...))]` over your type: {}",
+                    ident
+                )),
+            ),
         }
     }
 }
@@ -278,7 +304,7 @@ impl Param<'_> {
     /// whether they should be rendered in [`Param`] itself or in [`Param`]s schema.
     ///
     /// Method returns a tuple containing two [`Vec`]s of [`Feature`].
-    fn resolve_field_features(&self) -> (Vec<Feature>, Vec<Feature>) {
+    fn resolve_field_features(&self) -> Result<(Vec<Feature>, Vec<Feature>), syn::Error> {
         let mut field_features = self
             .field
             .attrs
@@ -287,9 +313,10 @@ impl Param<'_> {
             .map(|attribute| {
                 attribute
                     .parse_args::<FieldFeatures>()
-                    .unwrap_or_abort()
-                    .into_inner()
+                    .map(FieldFeatures::into_inner)
             })
+            .collect::<Result<Vec<_>, syn::Error>>()?
+            .into_iter()
             .reduce(|acc, item| acc.merge(item))
             .unwrap_or_default();
 
@@ -302,7 +329,7 @@ impl Param<'_> {
             };
         }
 
-        field_features.into_iter().fold(
+        Ok(field_features.into_iter().fold(
             (Vec::<Feature>::new(), Vec::<Feature>::new()),
             |(mut schema_features, mut param_features), feature| {
                 match feature {
@@ -333,12 +360,10 @@ impl Param<'_> {
 
                 (schema_features, param_features)
             },
-        )
+        ))
     }
-}
 
-impl ToTokens for Param<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let field = self.field;
         let field_serde_params = &self.field_serde_params;
         let ident = &field.ident;
@@ -346,16 +371,17 @@ impl ToTokens for Param<'_> {
             .as_ref()
             .map(|ident| ident.to_string())
             .or_else(|| self.container_attributes.name.cloned())
-            .unwrap_or_else(|| abort!(
-                field, "No name specified for unnamed field.";
-                help = "Try adding #[into_params(names(...))] container attribute to specify the name for this field"
-            ));
+            .ok_or_else(||
+                Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
+                    .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
+            )?;
 
         if name.starts_with("r#") {
             name = &name[2..];
         }
 
-        let (schema_features, mut param_features) = self.resolve_field_features();
+        let (schema_features, mut param_features) =
+            self.resolve_field_features().map_err(Diagnostics::from)?;
 
         let rename = param_features
             .pop_rename_feature()
@@ -375,7 +401,7 @@ impl ToTokens for Param<'_> {
             });
         let name = super::rename::<FieldRename>(name, rename_to, rename_all)
             .unwrap_or(Cow::Borrowed(name));
-        let type_tree = TypeTree::from_type(&field.ty);
+        let type_tree = TypeTree::from_type(&field.ty)?;
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
             .name(#name)
@@ -407,7 +433,7 @@ impl ToTokens for Param<'_> {
             let value_type = param_features.pop_value_type_feature();
             let component = value_type
                 .as_ref()
-                .map(|value_type| value_type.as_type_tree())
+                .map_try(|value_type| value_type.as_type_tree())?
                 .unwrap_or(type_tree);
 
             let required = pop_feature_as_inner!(param_features => Feature::Required(_v))
@@ -433,6 +459,16 @@ impl ToTokens for Param<'_> {
             });
 
             tokens.extend(quote! { .schema(Some(#schema)).build() });
+        }
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for Param<'_> {
+        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
         }
     }
 }

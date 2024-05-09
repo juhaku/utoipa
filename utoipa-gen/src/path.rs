@@ -3,7 +3,6 @@ use std::ops::Deref;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use proc_macro_error::abort;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -13,7 +12,7 @@ use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::path::request_body::RequestBody;
-use crate::{parse_utils, Deprecated};
+use crate::{impl_to_tokens_diagnostics, parse_utils, Deprecated, Diagnostics};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
@@ -209,11 +208,12 @@ impl PathOperation {
     ///
     /// Ident must have value of http request type as lower case string such as `get`.
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-    pub fn from_ident(ident: &Ident) -> Self {
-        match ident.to_string().as_str().parse::<PathOperation>() {
-            Ok(operation) => operation,
-            Err(error) => abort!(ident.span(), format!("{error}")),
-        }
+    pub fn from_ident(ident: &Ident) -> Result<Self, Diagnostics> {
+        ident
+            .to_string()
+            .as_str()
+            .parse::<PathOperation>()
+            .map_err(|error| Diagnostics::with_span(ident.span(), error.to_string()))
     }
 }
 
@@ -300,25 +300,28 @@ impl<'p> Path<'p> {
 
         self
     }
-}
 
-impl<'p> ToTokens for Path<'p> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         let operation_id = self
             .path_attr
             .operation_id
             .clone()
-            .or(Some(ExprLit {
-                attrs: vec![],
-                lit: Lit::Str(LitStr::new(&self.fn_name, Span::call_site()))
-            }.into()))
-            .unwrap_or_else(|| {
-                abort! {
-                    Span::call_site(), "operation id is not defined for path";
-                    help = r###"Try to define it in #[utoipa::path(operation_id = {})]"###, &self.fn_name;
-                    help = "Did you define the #[utoipa::path(...)] over function?"
+            .or(Some(
+                ExprLit {
+                    attrs: vec![],
+                    lit: Lit::Str(LitStr::new(&self.fn_name, Span::call_site())),
                 }
-            });
+                .into(),
+            ))
+            .ok_or_else(|| {
+                Diagnostics::new("operation id is not defined for path")
+                    .help(format!(
+                        "Try to define it in #[utoipa::path(operation_id = {})]",
+                        &self.fn_name
+                    ))
+                    .help("Did you define the #[utoipa::path(...)] over function?")
+            })?;
+
         let tags = if !self.path_attr.tags.is_empty() {
             let tags = self.path_attr.tags.as_slice().iter().collect::<Array<_>>();
             Some(quote! {
@@ -338,20 +341,17 @@ impl<'p> ToTokens for Path<'p> {
             .path_operation
             .as_ref()
             .or(self.path_operation.as_ref())
-            .unwrap_or_else(|| {
+            .ok_or_else(|| {
+                let diagnostics = Diagnostics::new("path operation is not defined for path")
+                    .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]");
+
                 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                let help =
-                    Some("Did you forget to define operation path attribute macro e.g #[get(...)]");
+                let diagnostics = diagnostics.help(
+                    "Did you forget to define operation path attribute macro e.g #[get(...)]",
+                );
 
-                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
-                let help = None::<&str>;
-
-                abort! {
-                    Span::call_site(), "path operation is not defined for path";
-                    help = "Did you forget to define it in #[utoipa::path(get,...)]";
-                    help =? help
-                }
-            });
+                diagnostics
+            })?;
 
         let path = self
             .path_attr
@@ -359,20 +359,17 @@ impl<'p> ToTokens for Path<'p> {
             .as_ref()
             .map(|path| path.to_token_stream())
             .or(Some(self.path.to_token_stream()))
-            .unwrap_or_else(|| {
+            .ok_or_else(|| {
+                let diagnostics = Diagnostics::new("path is not defined for path")
+                    .help(r#"Did you forget to define it in #[utoipa::path(path = "...")]"#);
+
                 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                let help =
-                    Some("Did you forget to define operation path attribute macro e.g #[get(...)]");
+                let diagnostics = diagnostics.help(
+                    "Did you forget to define operation path attribute macro e.g #[get(...)]",
+                );
 
-                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
-                let help = None::<&str>;
-
-                abort! {
-                    Span::call_site(), "path is not defined for path";
-                    help = r#"Did you forget to define it in #[utoipa::path(path = "...")]"#;
-                    help =? help
-                }
-            });
+                diagnostics
+            })?;
 
         let path_with_context_path = self
             .path_attr
@@ -455,6 +452,16 @@ impl<'p> ToTokens for Path<'p> {
                 }
             }
         });
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl<'p> ToTokensDiagnostics for Path<'p> {
+        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }
 
@@ -557,7 +564,7 @@ struct InlineType<'i> {
 
 impl InlineType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    fn as_type_tree(&self) -> TypeTree {
+    fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
         TypeTree::from_type(&self.ty)
     }
 }

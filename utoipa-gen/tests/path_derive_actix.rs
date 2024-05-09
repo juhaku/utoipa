@@ -17,7 +17,6 @@ use utoipa::{
     },
     IntoParams, OpenApi, ToSchema,
 };
-use uuid::Uuid;
 
 mod common;
 
@@ -866,6 +865,7 @@ fn path_with_all_args() {
 }
 
 #[test]
+#[cfg(feature = "uuid")]
 fn path_with_all_args_using_uuid() {
     #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
     struct Item(String);
@@ -926,6 +926,7 @@ fn path_with_all_args_using_uuid() {
 }
 
 #[test]
+#[cfg(feature = "uuid")]
 fn path_with_all_args_using_custom_uuid() {
     #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
     struct Item(String);
@@ -944,7 +945,7 @@ fn path_with_all_args_using_custom_uuid() {
 
     #[derive(Serialize, Deserialize, IntoParams)]
     #[into_params(names("custom_uuid"))]
-    struct Id(Uuid);
+    struct Id(uuid::Uuid);
 
     impl FromRequest for Id {
         type Error = Error;

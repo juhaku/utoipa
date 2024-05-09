@@ -4,13 +4,14 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned};
 use syn::parse_quote;
 use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
 use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
 use crate::path::{PathOperation, PathTypeTree};
+use crate::{impl_to_tokens_diagnostics, Diagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -107,8 +108,8 @@ impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
     }
 }
 
-impl ToTokens for RequestBody<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl RequestBody<'_> {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let mut actual_body = get_actual_body_type(&self.ty).unwrap().clone();
 
         if let Some(option) = find_option_type_tree(&self.ty) {
@@ -150,13 +151,23 @@ impl ToTokens for RequestBody<'_> {
 
         if self.ty.is("Bytes") {
             let bytes_as_bytes_vec = parse_quote!(Vec<u8>);
-            let ty = TypeTree::from_type(&bytes_as_bytes_vec);
+            let ty = TypeTree::from_type(&bytes_as_bytes_vec)?;
             create_body_tokens("application/octet-stream", &ty);
         } else if self.ty.is("Form") {
             create_body_tokens("application/x-www-form-urlencoded", &actual_body);
         } else {
             create_body_tokens(actual_body.get_default_content_type(), &actual_body);
         };
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for RequestBody<'_> {
+        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }
 
@@ -252,17 +263,19 @@ pub struct ResolvedOperation {
     pub body: String,
 }
 
+pub type Arguments<'a> = (
+    Option<Vec<ValueArgument<'a>>>,
+    Option<Vec<IntoParamsType<'a>>>,
+    Option<RequestBody<'a>>,
+);
+
 pub trait ArgumentResolver {
     fn resolve_arguments(
         _: &'_ Punctuated<syn::FnArg, Comma>,
         _: Option<Vec<MacroArg>>,
         _: String,
-    ) -> (
-        Option<Vec<ValueArgument<'_>>>,
-        Option<Vec<IntoParamsType<'_>>>,
-        Option<RequestBody<'_>>,
-    ) {
-        (None, None, None)
+    ) -> Result<Arguments, Diagnostics> {
+        Ok((None, None, None))
     }
 }
 
@@ -273,8 +286,8 @@ pub trait PathResolver {
 }
 
 pub trait PathOperationResolver {
-    fn resolve_operation(_: &ItemFn) -> Option<ResolvedOperation> {
-        None
+    fn resolve_operation(_: &ItemFn) -> Result<Option<ResolvedOperation>, Diagnostics> {
+        Ok(None)
     }
 }
 
@@ -305,15 +318,17 @@ impl PathOperationResolver for PathOperations {}
 pub mod fn_arg {
 
     use proc_macro2::Ident;
-    use proc_macro_error::abort;
+    // use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
+    use syn::spanned::Spanned;
     use syn::PatStruct;
     use syn::{punctuated::Punctuated, token::Comma, Pat, PatType};
 
     use crate::component::TypeTree;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use crate::component::ValueType;
+    use crate::Diagnostics;
 
     /// Http operation handler functions fn argument.
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -358,7 +373,7 @@ pub mod fn_arg {
 
     impl<'a> PartialOrd for FnArg<'a> {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            self.arg_type.partial_cmp(&other.arg_type)
+            Some(self.arg_type.cmp(&other.arg_type))
         }
     }
 
@@ -370,34 +385,47 @@ pub mod fn_arg {
 
     impl<'a> Eq for FnArg<'a> {}
 
-    pub fn get_fn_args(fn_args: &Punctuated<syn::FnArg, Comma>) -> impl Iterator<Item = FnArg<'_>> {
+    pub fn get_fn_args(
+        fn_args: &Punctuated<syn::FnArg, Comma>,
+    ) -> Result<impl Iterator<Item = FnArg>, Diagnostics> {
         fn_args
             .iter()
             .filter_map(|arg| {
-                let pat_type = get_fn_arg_pat_type(arg);
+                let pat_type = match get_fn_arg_pat_type(arg) {
+                    Ok(pat_type) => pat_type,
+                    Err(diagnostics) => return Some(Err(diagnostics)),
+                };
 
                 match pat_type.pat.as_ref() {
                     syn::Pat::Wild(_) => None,
                     _ => {
-                        let arg_name = get_pat_fn_arg_type(pat_type.pat.as_ref());
-                        Some((TypeTree::from_type(&pat_type.ty), arg_name))
+                        let arg_name = match get_pat_fn_arg_type(pat_type.pat.as_ref()) {
+                            Ok(arg_type) => arg_type,
+                            Err(diagnostics) => return Some(Err(diagnostics)),
+                        };
+                        match TypeTree::from_type(&pat_type.ty) {
+                            Ok(type_tree) => Some(Ok((type_tree, arg_name))),
+                            Err(diagnostics) => Some(Err(diagnostics)),
+                        }
                     }
                 }
             })
-            .map(FnArg::from)
+            .map(|value| value.map(FnArg::from))
+            .collect::<Result<Vec<FnArg>, Diagnostics>>()
+            .map(IntoIterator::into_iter)
     }
 
     #[inline]
-    fn get_pat_fn_arg_type(pat: &Pat) -> FnArgType {
+    fn get_pat_fn_arg_type(pat: &Pat) -> Result<FnArgType<'_>, Diagnostics> {
         let arg_name = match pat {
-            syn::Pat::Ident(ident) => FnArgType::Single(&ident.ident),
+            syn::Pat::Ident(ident) => Ok(FnArgType::Single(&ident.ident)),
             syn::Pat::Tuple(tuple) => {
-                FnArgType::Destructed(tuple.elems.iter().map(|item| {
+                tuple.elems.iter().map(|item| {
                     match item {
-                        syn::Pat::Ident(ident) => &ident.ident,
-                        _ => abort!(item, "expected syn::Ident in get_pat_fn_arg_type Pat::Tuple")
+                        syn::Pat::Ident(ident) => Ok(&ident.ident),
+                        _ => Err(Diagnostics::with_span(item.span(), "expected syn::Ident in get_pat_fn_arg_type Pat::Tuple"))
                     }
-                }).collect::<Vec<_>>())
+                }).collect::<Result<Vec<_>, Diagnostics>>().map(FnArgType::Destructed)
             },
             syn::Pat::TupleStruct(tuple_struct) => {
                 get_pat_fn_arg_type(tuple_struct.elems.first().as_ref().expect(
@@ -406,7 +434,10 @@ pub mod fn_arg {
             },
             syn::Pat::Struct(PatStruct { fields, ..}) => {
                 let idents = fields.iter()
-                    .map(|field| get_pat_fn_arg_type(&field.pat))
+                    .flat_map(|field| Ok(match get_pat_fn_arg_type(&field.pat) {
+                        Ok(field_type) => field_type,
+                        Err(diagnostics) => return Err(diagnostics),
+                    }))
                     .fold(Vec::<&'_ Ident>::new(), |mut idents, field_type| {
                         if let FnArgType::Single(ident) = field_type {
                             idents.push(ident)
@@ -414,20 +445,21 @@ pub mod fn_arg {
                         idents
                     });
 
-                FnArgType::Destructed(idents)
+                Ok(FnArgType::Destructed(idents))
             }
-            _ => abort!(pat,
-                "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name"
-            ),
+            _ => Err(Diagnostics::with_span(pat.span(), "unexpected syn::Pat, expected syn::Pat::Ident,in get_fn_args, cannot get fn argument name")),
         };
         arg_name
     }
 
     #[inline]
-    fn get_fn_arg_pat_type(fn_arg: &syn::FnArg) -> &PatType {
+    fn get_fn_arg_pat_type(fn_arg: &syn::FnArg) -> Result<&PatType, Diagnostics> {
         match fn_arg {
-            syn::FnArg::Typed(value) => value,
-            _ => abort!(fn_arg, "unexpected fn argument type, expected FnArg::Typed"),
+            syn::FnArg::Typed(value) => Ok(value),
+            _ => Err(Diagnostics::with_span(
+                fn_arg.span(),
+                "unexpected fn argument type, expected FnArg::Typed",
+            )),
         }
     }
 
@@ -481,7 +513,7 @@ pub mod fn_arg {
                 .map(|children| {
                     children.iter().all(|child| {
                         matches!(child.value_type, ValueType::Object)
-                            && matches!(child.generic_type, None)
+                            && child.generic_type.is_none()
                     })
                 })
                 .unwrap_or(false)

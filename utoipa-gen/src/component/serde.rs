@@ -3,10 +3,9 @@
 use std::str::FromStr;
 
 use proc_macro2::{Ident, Span, TokenTree};
-use proc_macro_error::abort;
 use syn::{buffer::Cursor, Attribute, Error};
 
-use crate::ResultExt;
+use crate::Diagnostics;
 
 #[inline]
 fn parse_next_lit_str(next: Cursor) -> Option<(String, Span)> {
@@ -159,9 +158,11 @@ impl SerdeContainer {
                         }
                         SerdeEnumRepr::InternallyTagged { .. }
                         | SerdeEnumRepr::AdjacentlyTagged { .. } => {
-                            abort!(span, "Duplicate serde tag argument")
+                            return Err(syn::Error::new(span, "Duplicate serde tag argument"));
                         }
-                        SerdeEnumRepr::Untagged => abort!(span, "Untagged enum cannot have tag"),
+                        SerdeEnumRepr::Untagged => {
+                            return Err(syn::Error::new(span, "Untagged enum cannot have tag"))
+                        }
                     };
                 }
             }
@@ -179,10 +180,10 @@ impl SerdeContainer {
                         }
                         SerdeEnumRepr::AdjacentlyTagged { .. }
                         | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                            abort!(span, "Duplicate serde content argument")
+                            return Err(syn::Error::new(span, "Duplicate serde content argument"))
                         }
                         SerdeEnumRepr::Untagged => {
-                            abort!(span, "Untagged enum cannot have content")
+                            return Err(syn::Error::new(span, "Untagged enum cannot have content"))
                         }
                     };
                 }
@@ -221,15 +222,17 @@ impl SerdeContainer {
     }
 }
 
-pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
+pub fn parse_value(attributes: &[Attribute]) -> Result<Option<SerdeValue>, Diagnostics> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| {
             serde_attribute
                 .parse_args_with(SerdeValue::parse)
-                .unwrap_or_abort()
+                .map_err(Diagnostics::from)
         })
+        .collect::<Result<Vec<_>, Diagnostics>>()?
+        .into_iter()
         .fold(Some(SerdeValue::default()), |acc, value| {
             acc.map(|mut acc| {
                 if value.skip {
@@ -254,17 +257,21 @@ pub fn parse_value(attributes: &[Attribute]) -> Option<SerdeValue> {
                 acc
             })
         })
+        .map(Ok)
+        .transpose()
 }
 
-pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
+pub fn parse_container(attributes: &[Attribute]) -> Result<Option<SerdeContainer>, Diagnostics> {
     attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| {
             serde_attribute
                 .parse_args_with(SerdeContainer::parse)
-                .unwrap_or_abort()
+                .map_err(Diagnostics::from)
         })
+        .collect::<Result<Vec<_>, Diagnostics>>()?
+        .into_iter()
         .fold(Some(SerdeContainer::default()), |acc, value| {
             acc.map(|mut acc| {
                 if value.default {
@@ -289,6 +296,8 @@ pub fn parse_container(attributes: &[Attribute]) -> Option<SerdeContainer> {
                 acc
             })
         })
+        .map(Ok)
+        .transpose()
 }
 
 #[derive(Clone)]
@@ -508,7 +517,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = parse_container(attributes).unwrap();
+        let result = parse_container(attributes).expect("parse succes").unwrap();
         assert_eq!(expected, result);
     }
 }

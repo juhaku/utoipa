@@ -1,15 +1,14 @@
 use std::{fmt::Display, mem, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::abort;
 use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
 
 use crate::{
-    parse_utils,
+    impl_to_tokens_diagnostics, parse_utils,
     path::parameter::{self, ParameterStyle},
     schema_type::{SchemaFormat, SchemaType},
-    AnyValue,
+    AnyValue, Diagnostics, OptionExt,
 };
 
 use super::{schema, serde::RenameRule, GenericType, TypeTree};
@@ -72,7 +71,7 @@ pub trait Validatable {
 
 pub trait Validate: Validatable {
     /// Perform validation check against schema type.
-    fn validate(&self, validator: impl Validator);
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics>;
 }
 
 pub trait Parse {
@@ -122,7 +121,7 @@ pub enum Feature {
 }
 
 impl Feature {
-    pub fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) {
+    pub fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> Option<Diagnostics> {
         match self {
             Feature::MultipleOf(multiple_of) => multiple_of.validate(
                 ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)),
@@ -169,86 +168,85 @@ impl Feature {
             }
         }
     }
+
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        let feature = match &self {
+                Feature::Default(default) => quote! { .default(#default) },
+                Feature::Example(example) => quote! { .example(Some(#example)) },
+                Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
+                Feature::Format(format) => quote! { .format(Some(#format)) },
+                Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
+                Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
+                Feature::Title(title) => quote! { .title(Some(#title)) },
+                Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+                Feature::Rename(rename) => rename.to_token_stream(),
+                Feature::Style(style) => quote! { .style(Some(#style)) },
+                Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
+                Feature::MultipleOf(multiple_of) => quote! { .multiple_of(Some(#multiple_of)) },
+                Feature::AllowReserved(allow_reserved) => {
+                    quote! { .allow_reserved(Some(#allow_reserved)) }
+                }
+                Feature::Explode(explode) => quote! { .explode(Some(#explode)) },
+                Feature::Maximum(maximum) => quote! { .maximum(Some(#maximum)) },
+                Feature::Minimum(minimum) => quote! { .minimum(Some(#minimum)) },
+                Feature::ExclusiveMaximum(exclusive_maximum) => {
+                    quote! { .exclusive_maximum(Some(#exclusive_maximum)) }
+                }
+                Feature::ExclusiveMinimum(exclusive_minimum) => {
+                    quote! { .exclusive_minimum(Some(#exclusive_minimum)) }
+                }
+                Feature::MaxLength(max_length) => quote! { .max_length(Some(#max_length)) },
+                Feature::MinLength(min_length) => quote! { .min_length(Some(#min_length)) },
+                Feature::Pattern(pattern) => quote! { .pattern(Some(#pattern)) },
+                Feature::MaxItems(max_items) => quote! { .max_items(Some(#max_items)) },
+                Feature::MinItems(min_items) => quote! { .min_items(Some(#min_items)) },
+                Feature::MaxProperties(max_properties) => {
+                    quote! { .max_properties(Some(#max_properties)) }
+                }
+                Feature::MinProperties(min_properties) => {
+                    quote! { .max_properties(Some(#min_properties)) }
+                }
+                Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
+                Feature::Description(description) => quote! { .description(Some(#description)) },
+                Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
+                Feature::AdditionalProperties(additional_properties) => {
+                    quote! { .additional_properties(Some(#additional_properties)) }
+                }
+                Feature::RenameAll(_) => {
+                    return Err(Diagnostics::new("RenameAll feature does not support `ToTokens`"))
+                }
+                Feature::ValueType(_) => {
+                    return Err(Diagnostics::new("ValueType feature does not support `ToTokens`")
+                        .help("ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type."))
+                }
+                Feature::Inline(_) => {
+                    // inline feature is ignored by `ToTokens`
+                    TokenStream::new()
+                }
+                Feature::IntoParamsNames(_) => {
+                    return Err(Diagnostics::new("Names feature does not support `ToTokens`")
+                        .help("Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."))
+                }
+                Feature::As(_) => {
+                    return Err(Diagnostics::new("As does not support `ToTokens`"))
+                }
+                Feature::Required(required) => {
+                    let name = <Required as Name>::get_name();
+                    quote! { .#name(#required) }
+                }
+            };
+
+        tokens.extend(feature);
+
+        Ok(())
+    }
 }
 
-impl ToTokens for Feature {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let feature = match &self {
-            Feature::Default(default) => quote! { .default(#default) },
-            Feature::Example(example) => quote! { .example(Some(#example)) },
-            Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
-            Feature::Format(format) => quote! { .format(Some(#format)) },
-            Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
-            Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
-            Feature::Title(title) => quote! { .title(Some(#title)) },
-            Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
-            Feature::Rename(rename) => rename.to_token_stream(),
-            Feature::Style(style) => quote! { .style(Some(#style)) },
-            Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
-            Feature::MultipleOf(multiple_of) => quote! { .multiple_of(Some(#multiple_of)) },
-            Feature::AllowReserved(allow_reserved) => {
-                quote! { .allow_reserved(Some(#allow_reserved)) }
-            }
-            Feature::Explode(explode) => quote! { .explode(Some(#explode)) },
-            Feature::Maximum(maximum) => quote! { .maximum(Some(#maximum)) },
-            Feature::Minimum(minimum) => quote! { .minimum(Some(#minimum)) },
-            Feature::ExclusiveMaximum(exclusive_maximum) => {
-                quote! { .exclusive_maximum(Some(#exclusive_maximum)) }
-            }
-            Feature::ExclusiveMinimum(exclusive_minimum) => {
-                quote! { .exclusive_minimum(Some(#exclusive_minimum)) }
-            }
-            Feature::MaxLength(max_length) => quote! { .max_length(Some(#max_length)) },
-            Feature::MinLength(min_length) => quote! { .min_length(Some(#min_length)) },
-            Feature::Pattern(pattern) => quote! { .pattern(Some(#pattern)) },
-            Feature::MaxItems(max_items) => quote! { .max_items(Some(#max_items)) },
-            Feature::MinItems(min_items) => quote! { .min_items(Some(#min_items)) },
-            Feature::MaxProperties(max_properties) => {
-                quote! { .max_properties(Some(#max_properties)) }
-            }
-            Feature::MinProperties(min_properties) => {
-                quote! { .max_properties(Some(#min_properties)) }
-            }
-            Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
-            Feature::Description(description) => quote! { .description(Some(#description)) },
-            Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
-            Feature::AdditionalProperties(additional_properties) => {
-                quote! { .additional_properties(Some(#additional_properties)) }
-            }
-            Feature::RenameAll(_) => {
-                abort! {
-                    Span::call_site(),
-                    "RenameAll feature does not support `ToTokens`"
-                }
-            }
-            Feature::ValueType(_) => {
-                abort! {
-                    Span::call_site(),
-                    "ValueType feature does not support `ToTokens`";
-                    help = "ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type.";
-                }
-            }
-            Feature::Inline(_) => {
-                // inline feature is ignored by `ToTokens`
-                TokenStream::new()
-            }
-            Feature::IntoParamsNames(_) => {
-                abort! {
-                    Span::call_site(),
-                    "Names feature does not support `ToTokens`";
-                    help = "Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."
-                }
-            }
-            Feature::As(_) => {
-                abort!(Span::call_site(), "As does not support `ToTokens`")
-            }
-            Feature::Required(required) => {
-                let name = <Required as Name>::get_name();
-                quote! { .#name(#required) }
-            }
-        };
-
-        tokens.extend(feature)
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for Feature {
+        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }
 
@@ -480,7 +478,10 @@ pub struct XmlAttr(schema::xml::XmlAttr);
 impl XmlAttr {
     /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
     /// one is for a vec and second one is for object field.
-    pub fn split_for_vec(&mut self, type_tree: &TypeTree) -> (Option<XmlAttr>, Option<XmlAttr>) {
+    pub fn split_for_vec(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Result<(Option<XmlAttr>, Option<XmlAttr>), Diagnostics> {
         if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
             let mut value_xml = mem::take(self);
             let vec_xml = schema::xml::XmlAttr::with_wrapped(
@@ -488,20 +489,24 @@ impl XmlAttr {
                 mem::take(&mut value_xml.0.wrap_name),
             );
 
-            (Some(XmlAttr(vec_xml)), Some(value_xml))
+            Ok((Some(XmlAttr(vec_xml)), Some(value_xml)))
         } else {
-            self.validate_xml(&self.0);
+            self.validate_xml(&self.0)?;
 
-            (None, Some(mem::take(self)))
+            Ok((None, Some(mem::take(self))))
         }
     }
 
     #[inline]
-    fn validate_xml(&self, xml: &schema::xml::XmlAttr) {
+    fn validate_xml(&self, xml: &schema::xml::XmlAttr) -> Result<(), Diagnostics> {
         if let Some(wrapped_ident) = xml.is_wrapped.as_ref() {
-            abort! {wrapped_ident, "cannot use `wrapped` attribute in non slice field type";
-                help = "Try removing `wrapped` attribute or make your field `Vec`"
-            }
+            Err(Diagnostics::with_span(
+                wrapped_ident.span(),
+                "cannot use `wrapped` attribute in non slice field type",
+            )
+            .help("Try removing `wrapped` attribute or make your field `Vec`"))
+        } else {
+            Ok(())
         }
     }
 }
@@ -558,7 +563,7 @@ pub struct ValueType(syn::Type);
 
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
-    pub fn as_type_tree(&self) -> TypeTree {
+    pub fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
         TypeTree::from_type(&self.0)
     }
 }
@@ -876,12 +881,12 @@ name!(Names = "names");
 pub struct MultipleOf(f64, Ident);
 
 impl Validate for MultipleOf {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`multiple_of` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`"
-            }
-        };
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!( "`multiple_of` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`")),
+            _ => None
+        }
     }
 }
 
@@ -910,11 +915,11 @@ name!(MultipleOf = "multiple_of");
 pub struct Maximum(f64, Ident);
 
 impl Validate for Maximum {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`maximum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`maximum` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`")),
+            _ => None,
         }
     }
 }
@@ -953,11 +958,13 @@ impl Minimum {
 }
 
 impl Validate for Minimum {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`minimum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(
+                Diagnostics::with_span(self.1.span(), format!("`minimum` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`")
+            ),
+            _ => None,
         }
     }
 }
@@ -990,11 +997,11 @@ name!(Minimum = "minimum");
 pub struct ExclusiveMaximum(f64, Ident);
 
 impl Validate for ExclusiveMaximum {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`exclusive_maximum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_maximum` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`")),
+            _ => None,
         }
     }
 }
@@ -1027,11 +1034,11 @@ name!(ExclusiveMaximum = "exclusive_maximum");
 pub struct ExclusiveMinimum(f64, Ident);
 
 impl Validate for ExclusiveMinimum {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`exclusive_minimum` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_minimum` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`")),
+            _ => None,
         }
     }
 }
@@ -1064,11 +1071,11 @@ name!(ExclusiveMinimum = "exclusive_minimum");
 pub struct MaxLength(usize, Ident);
 
 impl Validate for MaxLength {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`max_length` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_length` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`")),
+            _ => None,
         }
     }
 }
@@ -1101,11 +1108,11 @@ name!(MaxLength = "max_length");
 pub struct MinLength(usize, Ident);
 
 impl Validate for MinLength {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`min_length` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_length` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`")),
+            _ => None,
         }
     }
 }
@@ -1138,11 +1145,12 @@ name!(MinLength = "min_length");
 pub struct Pattern(String, Ident);
 
 impl Validate for Pattern {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`pattern` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`pattern` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`")
+            ),
+            _ => None,
         }
     }
 }
@@ -1176,11 +1184,11 @@ name!(Pattern = "pattern");
 pub struct MaxItems(usize, Ident);
 
 impl Validate for MaxItems {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`max_items` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_items` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems")),
+            _ => None,
         }
     }
 }
@@ -1213,11 +1221,11 @@ name!(MaxItems = "max_items");
 pub struct MinItems(usize, Ident);
 
 impl Validate for MinItems {
-    fn validate(&self, validator: impl Validator) {
-        if let Err(error) = validator.is_valid() {
-            abort! {self.1, "`min_items` error: {}", error;
-                help = "See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems"
-            }
+    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
+        match validator.is_valid() {
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_items` error: {}", error))
+                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems")),
+            _ => None,
         }
     }
 }
@@ -1689,7 +1697,10 @@ pub trait FeaturesExt {
     fn pop_rename_all_feature(&mut self) -> Option<RenameAll>;
 
     /// Extract [`XmlAttr`] feature for given `type_tree` if it has generic type [`GenericType::Vec`]
-    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature>;
+    fn extract_vec_xml_feature(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Result<Option<Feature>, Diagnostics>;
 }
 
 impl FeaturesExt for Vec<Feature> {
@@ -1723,20 +1734,28 @@ impl FeaturesExt for Vec<Feature> {
             })
     }
 
-    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
-        self.iter_mut().find_map(|feature| match feature {
-            Feature::XmlAttr(xml_feature) => {
-                let (vec_xml, value_xml) = xml_feature.split_for_vec(type_tree);
+    fn extract_vec_xml_feature(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Result<Option<Feature>, Diagnostics> {
+        self.iter_mut()
+            .find_map(|feature| match feature {
+                Feature::XmlAttr(xml_feature) => {
+                    match xml_feature.split_for_vec(type_tree) {
+                        Ok((vec_xml, value_xml)) => {
+                            // replace the original xml attribute with split value xml
+                            if let Some(mut xml) = value_xml {
+                                mem::swap(xml_feature, &mut xml)
+                            }
 
-                // replace the original xml attribute with split value xml
-                if let Some(mut xml) = value_xml {
-                    mem::swap(xml_feature, &mut xml)
+                            Some(Ok(vec_xml.map(Feature::XmlAttr)))
+                        }
+                        Err(diagnostics) => Some(Err(diagnostics)),
+                    }
                 }
-
-                vec_xml.map(Feature::XmlAttr)
-            }
-            _ => None,
-        })
+                _ => None,
+            })
+            .and_then_try(|value| value)
     }
 }
 
@@ -1760,9 +1779,12 @@ impl FeaturesExt for Option<Vec<Feature>> {
             .and_then(|features| features.pop_rename_all_feature())
     }
 
-    fn extract_vec_xml_feature(&mut self, type_tree: &TypeTree) -> Option<Feature> {
+    fn extract_vec_xml_feature(
+        &mut self,
+        type_tree: &TypeTree,
+    ) -> Result<Option<Feature>, Diagnostics> {
         self.as_mut()
-            .and_then(|features| features.extract_vec_xml_feature(type_tree))
+            .and_then_try(|features| features.extract_vec_xml_feature(type_tree))
     }
 }
 
