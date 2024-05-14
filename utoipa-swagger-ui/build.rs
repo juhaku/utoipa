@@ -1,3 +1,4 @@
+use reqwest::Url;
 use std::{
     env,
     error::Error,
@@ -37,7 +38,7 @@ fn main() {
             println!("start download to : {:?}", zip_path);
             download_file(&url, zip_path.clone()).unwrap();
         } else if url.starts_with("file://") {
-            let file_path = url.replace("file://", "");
+            let file_path = Url::parse(&url).unwrap().to_file_path().unwrap();
             println!("start copy to : {:?}", zip_path);
             fs::copy(file_path, zip_path.clone()).unwrap();
         } else {
