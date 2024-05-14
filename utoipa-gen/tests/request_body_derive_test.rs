@@ -194,6 +194,42 @@ fn derive_request_body_complex_success() {
 }
 
 test_fn! {
+    module: derive_request_body_complex_multi_content_type,
+    body: (content = Foo, description = "Create new Foo", content_type = ["text/xml", "application/json"])
+}
+
+#[test]
+fn derive_request_body_complex_multi_content_type_success() {
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(derive_request_body_complex_multi_content_type::post_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+
+    let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
+
+    assert_json_eq!(
+        request_body,
+        json!({
+            "content": {
+                "text/xml": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Foo"
+                    }
+                },
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Foo"
+                    }
+                }
+            },
+            "description": "Create new Foo",
+            "required": true
+        })
+    );
+}
+
+test_fn! {
     module: derive_request_body_complex_inline,
     body: (content = inline(Foo), description = "Create new Foo", content_type = "text/xml")
 }

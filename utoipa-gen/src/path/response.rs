@@ -18,7 +18,7 @@ use crate::{
     impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics,
 };
 
-use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
+use super::{example::Example, parse, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
 
 pub mod derive;
 
@@ -117,7 +117,7 @@ impl Parse for ResponseTuple<'_> {
                         Some(parse::content_type(input)?);
                 }
                 "headers" => {
-                    response.as_value(input.span())?.headers = parse::headers(input)?;
+                    response.as_value(input.span())?.headers = headers(input)?;
                 }
                 "example" => {
                     response.as_value(input.span())?.example = Some(parse::example(input)?);
@@ -458,7 +458,7 @@ impl Parse for DeriveToResponseValue {
                     response.content_type = Some(parse::content_type(input)?);
                 }
                 "headers" => {
-                    response.headers = parse::headers(input)?;
+                    response.headers = headers(input)?;
                 }
                 "example" => {
                     response.example = Some((parse::example(input)?, ident));
@@ -553,7 +553,7 @@ impl Parse for DeriveIntoResponsesValue {
                     response.content_type = Some(parse::content_type(input)?);
                 }
                 "headers" => {
-                    response.headers = parse::headers(input)?;
+                    response.headers = headers(input)?;
                 }
                 "example" => {
                     response.example = Some((parse::example(input)?, ident));
@@ -895,55 +895,10 @@ impl_to_tokens_diagnostics! {
     }
 }
 
-mod parse {
-    use syn::parse::ParseStream;
-    use syn::punctuated::Punctuated;
-    use syn::token::{Bracket, Comma};
-    use syn::{bracketed, parenthesized, Result};
+#[inline]
+fn headers(input: ParseStream) -> syn::Result<Vec<Header>> {
+    let headers;
+    syn::parenthesized!(headers in input);
 
-    use crate::path::example::Example;
-    use crate::{parse_utils, AnyValue};
-
-    use super::Header;
-
-    #[inline]
-    pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
-        parse_utils::parse_next_literal_str_or_expr(input)
-    }
-
-    #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::Value>> {
-        parse_utils::parse_next(input, || {
-            let look_content_type = input.lookahead1();
-            if look_content_type.peek(Bracket) {
-                let content_types;
-                bracketed!(content_types in input);
-                Ok(
-                    Punctuated::<parse_utils::Value, Comma>::parse_terminated(&content_types)?
-                        .into_iter()
-                        .collect(),
-                )
-            } else {
-                Ok(vec![input.parse::<parse_utils::Value>()?])
-            }
-        })
-    }
-
-    #[inline]
-    pub(super) fn headers(input: ParseStream) -> Result<Vec<Header>> {
-        let headers;
-        parenthesized!(headers in input);
-
-        parse_utils::parse_groups(&headers)
-    }
-
-    #[inline]
-    pub(super) fn example(input: ParseStream) -> Result<AnyValue> {
-        parse_utils::parse_next(input, || AnyValue::parse_lit_str_or_json(input))
-    }
-
-    #[inline]
-    pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Comma>> {
-        parse_utils::parse_punctuated_within_parenthesis(input)
-    }
+    parse_utils::parse_groups(&headers)
 }
