@@ -362,7 +362,7 @@ use self::{
 /// where super type declares common code for type aliases.
 ///
 /// In this example we have common `Status` type which accepts one generic type. It is then defined
-/// with `#[aliases(...)]` that it is going to be used with [`String`](std::string::String) and [`i32`] values.
+/// with `#[aliases(...)]` that it is going to be used with [`String`] and [`i32`] values.
 /// The generic argument could also be another [`ToSchema`][to_schema] as well.
 /// ```rust
 /// # use utoipa::{ToSchema, OpenApi};
@@ -728,11 +728,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `description = "..."` Define the description for the request body object as str.
 ///
-/// * `content_type = "..."` Can be used to override the default behavior of auto resolving the content type
-///   from the `content` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
+/// * `content_type = "..."` or `content_type = [...]` Can be used to override the default behavior
+///   of auto resolving the content type from the `content` attribute. If defined the value should be valid
+///   content type such as _`application/json`_  or a slice of content types within brackets e.g.
+///   _`content_type = ["application/json", "text/html"]`_. By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and complex enum types.
 ///
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
@@ -766,7 +767,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
 ///   these guarantees.
 ///
-/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
+/// * `content_type = "..."` or `content_type = [...]` Can be used to override the default behavior of auto resolving the content type
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
@@ -905,7 +906,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
 ///   [`ToSchema`][to_schema] types. Parameter type is placed after `name` with
-///   equals sign E.g. _`"id" = String`_
+///   equals sign E.g. _`"id" = string`_
 ///
 /// * `in` _**Must be placed after name or parameter_type**_. Define the place of the parameter.
 ///   This must be one of the variants of [`openapi::path::ParameterIn`][in_enum].
@@ -1643,7 +1644,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// Typically path parameters need to be defined within [`#[utoipa::path(...params(...))]`][path_params] section
 /// for the endpoint. But this trait eliminates the need for that when [`struct`][struct]s are used to define parameters.
-/// Still [`std::primitive`] and [`String`](std::string::String) path parameters or [`tuple`] style path parameters need to be defined
+/// Still [`std::primitive`] and [`String`] path parameters or [`tuple`] style path parameters need to be defined
 /// within `params(...)` section if description or other than default configuration need to be given.
 ///
 /// You can use the Rust's own `#[deprecated]` attribute on field to mark it as

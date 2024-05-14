@@ -229,7 +229,6 @@ fn derive_request_body_complex_multi_content_type_success() {
     );
 }
 
-
 test_fn! {
     module: derive_request_body_complex_inline,
     body: (content = inline(Foo), description = "Create new Foo", content_type = "text/xml")

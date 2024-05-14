@@ -18,7 +18,7 @@ use crate::{
     impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics,
 };
 
-use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree, parse};
+use super::{example::Example, parse, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
 
 pub mod derive;
 

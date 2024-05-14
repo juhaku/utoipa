@@ -9,7 +9,7 @@ use crate::component::ComponentSchema;
 use crate::{impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics, Required};
 
 use super::example::Example;
-use super::{PathType, PathTypeTree, parse};
+use super::{parse, PathType, PathTypeTree};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum RequestBody<'r> {
@@ -207,13 +207,12 @@ impl RequestBodyAttr<'_> {
                     let required: Required = (!type_tree.is_option()).into();
                     let content_types = if self.content_type.is_empty() {
                         let content_type = type_tree.get_default_content_type();
-                        vec![
-                            quote!(#content_type),
-                        ]
+                        vec![quote!(#content_type)]
                     } else {
-                        self.content_type.iter().map(|content_type| {
-                            content_type.to_token_stream()
-                        }).collect()
+                        self.content_type
+                            .iter()
+                            .map(|content_type| content_type.to_token_stream())
+                            .collect()
                     };
 
                     tokens.extend(quote! {
