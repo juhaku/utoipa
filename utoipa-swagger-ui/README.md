@@ -55,13 +55,14 @@ The following configuration env variables are available at build time:
 
 * `SWAGGER_UI_DOWNLOAD_URL`:
 
-  * the url from where to download the swagger-ui zip file
+  * the url from where to download the swagger-ui zip file if starts with `http://` or `https://`
+  * the file path from where to copy the swagger-ui zip file if starts with `file://`
   * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip>
-  * All versions: <https://github.com/swagger-api/swagger-ui/tags>
+    * all versions: <https://github.com/swagger-api/swagger-ui/tags>
 
 * `SWAGGER_UI_OVERWRITE_FOLDER`:
 
-  * absolute path to a folder containing files to overwrite the default swagger-ui files
+  * absolute path to a folder containing files to overwrite the swagger-ui files extracted from the `.zip` file
   * typically you might want to overwrite `index.html`
 
 ## Examples
