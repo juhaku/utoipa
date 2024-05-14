@@ -154,6 +154,15 @@ impl OpenApi {
         serde_yaml::to_string(self)
     }
 
+    /// Merge `other` [`OpenApi`] moving `self` and returning combined [`OpenApi`].
+    ///
+    /// In functionality wise this is exactly same as calling [`OpenApi::merge`] but but provides
+    /// leaner API for chaining method calls.
+    pub fn merge_from(mut self, other: OpenApi) -> OpenApi {
+        self.merge(other);
+        self
+    }
+
     /// Merge `other` [`OpenApi`] consuming it and resuming it's content.
     ///
     /// Merge function will take all `self` nonexistent _`servers`, `paths`, `schemas`, `responses`,
