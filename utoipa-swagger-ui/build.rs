@@ -11,7 +11,8 @@ use zip::{result::ZipError, ZipArchive};
 
 /// the following env variables control the build process:
 /// 1. SWAGGER_UI_DOWNLOAD_URL:
-/// + the url from where to download the swagger-ui zip file
+/// + the url from where to download the swagger-ui zip file if starts with http:// or https://
+/// + the file path from where to copy the swagger-ui zip file if starts with file://
 /// + default value is SWAGGER_UI_DOWNLOAD_URL_DEFAULT
 /// + for other versions, check https://github.com/swagger-api/swagger-ui/tags
 /// 2. SWAGGER_UI_OVERWRITE_FOLDER
@@ -32,10 +33,18 @@ fn main() {
     let zip_path = [&target_dir, &zip_filename].iter().collect::<PathBuf>();
 
     if !zip_path.exists() {
-        println!("start download to : {:?}", zip_path);
-        download_file(&url, zip_path.clone()).unwrap();
+        if url.starts_with("http://") || url.starts_with("https://") {
+            println!("start download to : {:?}", zip_path);
+            download_file(&url, zip_path.clone()).unwrap();
+        } else if url.starts_with("file://") {
+            let file_path = url.replace("file://", "");
+            println!("start copy to : {:?}", zip_path);
+            fs::copy(file_path, zip_path.clone()).unwrap();
+        } else {
+            panic!("invalid SWAGGER_UI_DOWNLOAD_URL: {} -> must start with http:// | https:// | file://", url);
+        }
     } else {
-        println!("already downloaded: {:?}", zip_path);
+        println!("already downloaded or copied: {:?}", zip_path);
     }
 
     println!("cargo:rerun-if-changed={:?}", zip_path.clone());
