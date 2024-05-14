@@ -11,8 +11,11 @@ use syn::{
 };
 
 use crate::{
-    component::{features::Inline, ComponentSchema, TypeTree},
-    parse_utils, AnyValue, Array, ResultExt,
+    component::{
+        features::{impl_merge, Inline},
+        ComponentSchema, TypeTree,
+    },
+    impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics,
 };
 
 use super::{example::Example, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
@@ -251,8 +254,8 @@ impl<'r> ResponseValue<'r> {
     }
 }
 
-impl ToTokens for ResponseTuple<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+impl ResponseTuple<'_> {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
@@ -275,14 +278,14 @@ impl ToTokens for ResponseTuple<'_> {
                 let create_content = |path_type: &PathType,
                                       example: &Option<AnyValue>,
                                       examples: &Option<Punctuated<Example, Comma>>|
-                 -> TokenStream2 {
+                 -> Result<TokenStream2, Diagnostics> {
                     let content_schema = match path_type {
                         PathType::Ref(ref_type) => quote! {
                             utoipa::openapi::schema::Ref::new(#ref_type)
                         }
                         .to_token_stream(),
                         PathType::MediaType(ref path_type) => {
-                            let type_tree = path_type.as_type_tree();
+                            let type_tree = path_type.as_type_tree()?;
 
                             ComponentSchema::new(crate::component::ComponentSchemaProps {
                                 type_tree: &type_tree,
@@ -317,13 +320,13 @@ impl ToTokens for ResponseTuple<'_> {
                         ))
                     }
 
-                    quote! {
+                    Ok(quote! {
                         #content.build()
-                    }
+                    })
                 };
 
                 if let Some(response_type) = &val.response_type {
-                    let content = create_content(response_type, &val.example, &val.examples);
+                    let content = create_content(response_type, &val.example, &val.examples)?;
 
                     if let Some(content_types) = val.content_type.as_ref() {
                         content_types.iter().for_each(|content_type| {
@@ -339,14 +342,14 @@ impl ToTokens for ResponseTuple<'_> {
                                 });
                             }
                             PathType::MediaType(path_type) => {
-                                let type_tree = path_type.as_type_tree();
+                                let type_tree = path_type.as_type_tree()?;
                                 let default_type = type_tree.get_default_content_type();
                                 tokens.extend(quote! {
                                     .content(#default_type, #content)
                                 })
                             }
                             PathType::InlineSchema(_, ty) => {
-                                let type_tree = TypeTree::from_type(ty);
+                                let type_tree = TypeTree::from_type(ty)?;
                                 let default_type = type_tree.get_default_content_type();
                                 tokens.extend(quote! {
                                     .content(#default_type, #content)
@@ -359,9 +362,13 @@ impl ToTokens for ResponseTuple<'_> {
                 val.content
                     .iter()
                     .map(|Content(content_type, body, example, examples)| {
-                        let content = create_content(body, example, examples);
-                        (Cow::Borrowed(&**content_type), content)
+                        match create_content(body, example, examples) {
+                            Ok(content) => Ok((Cow::Borrowed(&**content_type), content)),
+                            Err(diagnostics) => Err(diagnostics),
+                        }
                     })
+                    .collect::<Result<Vec<_>, Diagnostics>>()?
+                    .into_iter()
                     .for_each(|(content_type, content)| {
                         tokens.extend(quote! { .content(#content_type, #content) })
                     });
@@ -376,18 +383,30 @@ impl ToTokens for ResponseTuple<'_> {
                 tokens.extend(quote! { .build() });
             }
         }
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for ResponseTuple<'_> {
+        fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }
 
 trait DeriveResponseValue: Parse {
     fn merge_from(self, other: Self) -> Self;
 
-    fn from_attributes(attributes: &[Attribute]) -> Option<Self> {
-        attributes
+    fn from_attributes(attributes: &[Attribute]) -> Result<Option<Self>, Diagnostics> {
+        Ok(attributes
             .iter()
             .filter(|attribute| attribute.path().get_ident().unwrap() == "response")
-            .map(|attribute| attribute.parse_args::<Self>().unwrap_or_abort())
-            .reduce(|acc, item| acc.merge_from(item))
+            .map(|attribute| attribute.parse_args::<Self>().map_err(Diagnostics::from))
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .reduce(|acc, item| acc.merge_from(item)))
     }
 }
 
@@ -831,11 +850,11 @@ impl Parse for Header {
     }
 }
 
-impl ToTokens for Header {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+impl Header {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         if let Some(header_type) = &self.value_type {
             // header property with custom type
-            let type_tree = header_type.as_type_tree();
+            let type_tree = header_type.as_type_tree()?;
 
             let media_type_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
                 type_tree: &type_tree,
@@ -862,7 +881,17 @@ impl ToTokens for Header {
             })
         }
 
-        tokens.extend(quote! { .build() })
+        tokens.extend(quote! { .build() });
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for Header {
+        fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }
 

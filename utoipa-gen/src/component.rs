@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, abort_call_site};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
@@ -9,6 +8,7 @@ use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, Ty
 use crate::doc_comment::CommentAttributes;
 use crate::schema_type::SchemaFormat;
 use crate::{schema_type::SchemaType, Deprecated};
+use crate::{Diagnostics, OptionExt};
 
 use self::features::{
     pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable,
@@ -104,27 +104,31 @@ pub struct TypeTree<'t> {
 }
 
 impl<'t> TypeTree<'t> {
-    pub fn from_type(ty: &'t Type) -> TypeTree<'t> {
-        Self::convert_types(Self::get_type_tree_values(ty))
-            .next()
-            .expect("TypeTree from type should have one TypeTree parent")
+    pub fn from_type(ty: &'t Type) -> Result<TypeTree<'t>, Diagnostics> {
+        Self::convert_types(Self::get_type_tree_values(ty)?).map(|mut type_tree| {
+            type_tree
+                .next()
+                .expect("TypeTree from type should have one TypeTree parent")
+        })
     }
 
-    fn get_type_tree_values(ty: &'t Type) -> Vec<TypeTreeValue> {
-        match ty {
+    fn get_type_tree_values(ty: &'t Type) -> Result<Vec<TypeTreeValue>, Diagnostics> {
+        let type_tree_values = match ty {
             Type::Path(path) => {
                 vec![TypeTreeValue::TypePath(path)]
             },
-            Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref()),
+            Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref())?,
             Type::Tuple(tuple) => {
                 // Detect unit type ()
-                if tuple.elems.is_empty() { return vec![TypeTreeValue::UnitType] }
-
-                vec![TypeTreeValue::Tuple(tuple.elems.iter().flat_map(Self::get_type_tree_values).collect(), tuple.span())]
+                if tuple.elems.is_empty() { return Ok(vec![TypeTreeValue::UnitType]) }
+                vec![TypeTreeValue::Tuple(
+                    tuple.elems.iter().map(Self::get_type_tree_values).collect::<Result<Vec<_>, Diagnostics>>()?.into_iter().flatten().collect(),
+                    tuple.span()
+                )]
             },
-            Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref()),
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem), slice.bracket_token.span.join())],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&array.elem), array.bracket_token.span.join())],
+            Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref())?,
+            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem)?, slice.bracket_token.span.join())],
+            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&array.elem)?, array.bracket_token.span.join())],
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -139,68 +143,83 @@ impl<'t> TypeTree<'t> {
                     })
                     .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
             }
-            _ => abort_call_site!(
-                "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject"
-            ),
-        }
+            unexpected => return Err(Diagnostics::with_span(unexpected.span(), "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject")),
+        };
+
+        Ok(type_tree_values)
     }
 
-    fn convert_types(paths: Vec<TypeTreeValue<'t>>) -> impl Iterator<Item = TypeTree<'t>> {
-        paths.into_iter().map(|value| {
-            let path = match value {
-                TypeTreeValue::TypePath(type_path) => &type_path.path,
-                TypeTreeValue::Path(path) => path,
-                TypeTreeValue::Array(value, span) => {
-                    let array: Path = Ident::new("Array", span).into();
-                    return TypeTree {
-                        path: Some(Cow::Owned(array)),
-                        span: Some(span),
-                        value_type: ValueType::Object,
-                        generic_type: Some(GenericType::Vec),
-                        children: Some(Self::convert_types(value).collect()),
-                    };
-                }
-                TypeTreeValue::Tuple(tuple, span) => {
-                    return TypeTree {
-                        path: None,
-                        span: Some(span),
-                        children: Some(Self::convert_types(tuple).collect()),
-                        generic_type: None,
-                        value_type: ValueType::Tuple,
+    fn convert_types(
+        paths: Vec<TypeTreeValue<'t>>,
+    ) -> Result<impl Iterator<Item = TypeTree<'t>>, Diagnostics> {
+        paths
+            .into_iter()
+            .map(|value| {
+                let path = match value {
+                    TypeTreeValue::TypePath(type_path) => &type_path.path,
+                    TypeTreeValue::Path(path) => path,
+                    TypeTreeValue::Array(value, span) => {
+                        let array: Path = Ident::new("Array", span).into();
+                        return Ok(TypeTree {
+                            path: Some(Cow::Owned(array)),
+                            span: Some(span),
+                            value_type: ValueType::Object,
+                            generic_type: Some(GenericType::Vec),
+                            children: Some(match Self::convert_types(value) {
+                                Ok(converted_values) => converted_values.collect(),
+                                Err(diagnostics) => return Err(diagnostics),
+                            }),
+                        });
                     }
-                }
-                TypeTreeValue::UnitType => {
-                    return TypeTree {
-                        path: None,
-                        span: None,
-                        value_type: ValueType::Tuple,
-                        generic_type: None,
-                        children: None,
+                    TypeTreeValue::Tuple(tuple, span) => {
+                        return Ok(TypeTree {
+                            path: None,
+                            span: Some(span),
+                            children: Some(match Self::convert_types(tuple) {
+                                Ok(converted_values) => converted_values.collect(),
+                                Err(diagnostics) => return Err(diagnostics),
+                            }),
+                            generic_type: None,
+                            value_type: ValueType::Tuple,
+                        })
                     }
+                    TypeTreeValue::UnitType => {
+                        return Ok(TypeTree {
+                            path: None,
+                            span: None,
+                            value_type: ValueType::Tuple,
+                            generic_type: None,
+                            children: None,
+                        })
+                    }
+                };
+
+                // there will always be one segment at least
+                let last_segment = path
+                    .segments
+                    .last()
+                    .expect("at least one segment within path in TypeTree::convert_types");
+
+                if last_segment.arguments.is_empty() {
+                    Ok(Self::convert(path, last_segment))
+                } else {
+                    Self::resolve_schema_type(path, last_segment)
                 }
-            };
-
-            // there will always be one segment at least
-            let last_segment = path
-                .segments
-                .last()
-                .expect("at least one segment within path in TypeTree::convert_types");
-
-            if last_segment.arguments.is_empty() {
-                Self::convert(path, last_segment)
-            } else {
-                Self::resolve_schema_type(path, last_segment)
-            }
-        })
+            })
+            .collect::<Result<Vec<TypeTree<'t>>, Diagnostics>>()
+            .map(IntoIterator::into_iter)
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_schema_type(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
+    fn resolve_schema_type(
+        path: &'t Path,
+        last_segment: &'t PathSegment,
+    ) -> Result<TypeTree<'t>, Diagnostics> {
         if last_segment.arguments.is_empty() {
-            abort!(
-                last_segment.ident,
-                "expected at least one angle bracket argument but was 0"
-            );
+            return Err(Diagnostics::with_span(
+                last_segment.ident.span(),
+                "expected at least one angle bracket argument but was 0",
+            ));
         };
 
         let mut generic_schema_type = Self::convert(path, last_segment);
@@ -227,26 +246,32 @@ impl<'t> TypeTree<'t> {
                                 )
                             })
                             .map(|arg| match arg {
-                                GenericArgument::Type(arg) => arg,
-                                _ => abort!(
-                                    arg,
-                                    "expected generic argument type or generic argument lifetime"
-                                ),
-                            }),
+                                GenericArgument::Type(arg) => Ok(arg),
+                                unexpected => Err(Diagnostics::with_span(
+                                    unexpected.span(),
+                                    "expected generic argument type or generic argument lifetime",
+                                )),
+                            })
+                            .collect::<Result<Vec<_>, Diagnostics>>()?
+                            .into_iter(),
                     )
                 }
             }
-            _ => abort!(
-                last_segment.ident,
-                "unexpected path argument, expected angle bracketed path argument"
-            ),
+            _ => {
+                return Err(Diagnostics::with_span(
+                    last_segment.ident.span(),
+                    "unexpected path argument, expected angle bracketed path argument",
+                ))
+            }
         };
 
-        generic_schema_type.children = generic_types
-            .as_mut()
-            .map(|generic_type| generic_type.map(Self::from_type).collect());
+        generic_schema_type.children = generic_types.as_mut().map_try(|generic_type| {
+            generic_type
+                .map(Self::from_type)
+                .collect::<Result<Vec<_>, Diagnostics>>()
+        })?;
 
-        generic_schema_type
+        Ok(generic_schema_type)
     }
 
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
@@ -489,6 +514,12 @@ impl<'c> ComponentSchema {
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
         let description_stream = ComponentSchema::get_description(description);
 
+        let match_diagnostics =
+            |result: Result<(), Diagnostics>, tokens: &mut TokenStream| match result {
+                Err(diagnostics) => diagnostics.to_tokens(tokens),
+                _ => (),
+            };
+
         match type_tree.generic_type {
             Some(GenericType::Map) => ComponentSchema::map_to_tokens(
                 &mut tokens,
@@ -498,38 +529,50 @@ impl<'c> ComponentSchema {
                 description_stream,
                 deprecated_stream,
             ),
-            Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::Vec) => match_diagnostics(
+                ComponentSchema::vec_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description_stream,
+                    deprecated_stream,
+                ),
                 &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description_stream,
-                deprecated_stream,
             ),
-            Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::LinkedList) => match_diagnostics(
+                ComponentSchema::vec_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description_stream,
+                    deprecated_stream,
+                ),
                 &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description_stream,
-                deprecated_stream,
             ),
-            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::Set) => match_diagnostics(
+                ComponentSchema::vec_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description_stream,
+                    deprecated_stream,
+                ),
                 &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description_stream,
-                deprecated_stream,
             ),
             #[cfg(feature = "smallvec")]
-            Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
+            Some(GenericType::SmallVec) => match_diagnostics(
+                ComponentSchema::vec_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description_stream,
+                    deprecated_stream,
+                ),
                 &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description_stream,
-                deprecated_stream,
             ),
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -658,9 +701,9 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
-    ) {
+    ) -> Result<(), Diagnostics> {
         let example = pop_feature!(features => Feature::Example(_));
-        let xml = features.extract_vec_xml_feature(type_tree);
+        let xml = features.extract_vec_xml_feature(type_tree)?;
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
@@ -753,6 +796,8 @@ impl<'c> ComponentSchema {
         example.to_tokens(tokens);
         xml.to_tokens(tokens);
         nullable.to_tokens(tokens);
+
+        Ok(())
     }
 
     fn non_generic_to_tokens(

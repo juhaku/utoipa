@@ -6,7 +6,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::features::Inline;
 use crate::component::ComponentSchema;
-use crate::{parse_utils, AnyValue, Array, Required};
+use crate::{impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics, Required};
 
 use super::example::Example;
 use super::{PathType, PathTypeTree};
@@ -25,13 +25,13 @@ pub enum RequestBody<'r> {
 impl ToTokens for RequestBody<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
-            Self::Parsed(parsed) => parsed.to_tokens(tokens),
+            Self::Parsed(parsed) => ToTokens::to_tokens(parsed, tokens),
             #[cfg(any(
                 feature = "actix_extras",
                 feature = "rocket_extras",
                 feature = "axum_extras"
             ))]
-            Self::Ext(ext) => ext.to_tokens(tokens),
+            Self::Ext(ext) => ToTokens::to_tokens(ext, tokens),
         }
     }
 }
@@ -157,15 +157,15 @@ impl Parse for RequestBodyAttr<'_> {
     }
 }
 
-impl ToTokens for RequestBodyAttr<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+impl RequestBodyAttr<'_> {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
                 PathType::Ref(ref_type) => quote! {
                     utoipa::openapi::schema::Ref::new(#ref_type)
                 },
                 PathType::MediaType(body_type) => {
-                    let type_tree = body_type.as_type_tree();
+                    let type_tree = body_type.as_type_tree()?;
                     ComponentSchema::new(crate::component::ComponentSchemaProps {
                         type_tree: &type_tree,
                         features: Some(vec![Inline::from(body_type.is_inline).into()]),
@@ -208,7 +208,7 @@ impl ToTokens for RequestBodyAttr<'_> {
                     });
                 }
                 PathType::MediaType(body_type) => {
-                    let type_tree = body_type.as_type_tree();
+                    let type_tree = body_type.as_type_tree()?;
                     let required: Required = (!type_tree.is_option()).into();
                     let content_type = match &self.content_type {
                         Some(content_type) => content_type.to_token_stream(),
@@ -235,6 +235,16 @@ impl ToTokens for RequestBodyAttr<'_> {
             })
         }
 
-        tokens.extend(quote! { .build() })
+        tokens.extend(quote! { .build() });
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for RequestBodyAttr<'_> {
+        fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }

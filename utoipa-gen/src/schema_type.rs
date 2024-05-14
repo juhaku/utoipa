@@ -1,7 +1,9 @@
 use proc_macro2::TokenStream;
-use proc_macro_error::abort_call_site;
 use quote::{quote, ToTokens};
+use syn::spanned::Spanned;
 use syn::{parse::Parse, Error, Ident, LitStr, Path};
+
+use crate::{impl_to_tokens_diagnostics, Diagnostics, ToTokensDiagnostics};
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
 pub struct SchemaType<'a>(pub &'a syn::Path);
@@ -137,53 +139,14 @@ impl SchemaType<'_> {
     pub fn is_byte(&self) -> bool {
         matches!(&*self.last_segment_to_string(), "u8")
     }
-}
 
-#[inline]
-fn is_primitive(name: &str) -> bool {
-    matches!(
-        name,
-        "String"
-            | "str"
-            | "char"
-            | "bool"
-            | "usize"
-            | "u8"
-            | "u16"
-            | "u32"
-            | "u64"
-            | "u128"
-            | "isize"
-            | "i8"
-            | "i16"
-            | "i32"
-            | "i64"
-            | "i128"
-            | "f32"
-            | "f64"
-    )
-}
-
-#[inline]
-#[cfg(feature = "chrono")]
-fn is_primitive_chrono(name: &str) -> bool {
-    matches!(
-        name,
-        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime"
-    )
-}
-
-#[inline]
-#[cfg(any(feature = "decimal", feature = "decimal_float"))]
-fn is_primitive_rust_decimal(name: &str) -> bool {
-    matches!(name, "Decimal")
-}
-
-impl ToTokens for SchemaType<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let last_segment = self.0.segments.last().unwrap_or_else(|| {
-            abort_call_site!("expected there to be at least one segment in the path")
-        });
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        let last_segment = self.0.segments.last().ok_or_else(|| {
+            Diagnostics::with_span(
+                self.0.span(),
+                "schema type should have at least one segment in the path",
+            )
+        })?;
         let name = &*last_segment.ident.to_string();
 
         match name {
@@ -228,6 +191,56 @@ impl ToTokens for SchemaType<'_> {
                 tokens.extend(quote! { utoipa::openapi::SchemaType::String })
             }
             _ => tokens.extend(quote! { utoipa::openapi::SchemaType::Object }),
+        };
+
+        Ok(())
+    }
+}
+
+#[inline]
+fn is_primitive(name: &str) -> bool {
+    matches!(
+        name,
+        "String"
+            | "str"
+            | "char"
+            | "bool"
+            | "usize"
+            | "u8"
+            | "u16"
+            | "u32"
+            | "u64"
+            | "u128"
+            | "isize"
+            | "i8"
+            | "i16"
+            | "i32"
+            | "i64"
+            | "i128"
+            | "f32"
+            | "f64"
+    )
+}
+
+#[inline]
+#[cfg(feature = "chrono")]
+fn is_primitive_chrono(name: &str) -> bool {
+    matches!(
+        name,
+        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime"
+    )
+}
+
+#[inline]
+#[cfg(any(feature = "decimal", feature = "decimal_float"))]
+fn is_primitive_rust_decimal(name: &str) -> bool {
+    matches!(name, "Decimal")
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for SchemaType<'_> {
+        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
         }
     }
 }
@@ -266,7 +279,11 @@ impl Parse for SchemaFormat<'_> {
 impl ToTokens for SchemaFormat<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Type(ty) => ty.to_tokens(tokens),
+            Self::Type(ty) => {
+                if let Err(diagnostics) = ty.to_tokens(tokens) {
+                    diagnostics.to_tokens(tokens)
+                }
+            }
             Self::Variant(variant) => variant.to_tokens(tokens),
         }
     }
@@ -352,11 +369,14 @@ fn is_known_format(name: &str) -> bool {
     )
 }
 
-impl ToTokens for Type<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let last_segment = self.0.segments.last().unwrap_or_else(|| {
-            abort_call_site!("expected there to be at least one segment in the path")
-        });
+impl ToTokensDiagnostics for Type<'_> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+        let last_segment = self.0.segments.last().ok_or_else(|| {
+            Diagnostics::with_span(
+                self.0.span(),
+                "type should have at least one segment in the path",
+            )
+        })?;
         let name = &*last_segment.ident.to_string();
 
         match name {
@@ -416,7 +436,9 @@ impl ToTokens for Type<'_> {
                 tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) })
             }
             _ => (),
-        }
+        };
+
+        Ok(())
     }
 }
 

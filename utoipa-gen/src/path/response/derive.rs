@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::{iter, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, emit_error};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
@@ -16,7 +15,7 @@ use syn::{
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::path::{InlineType, PathType};
-use crate::{parse_utils, Array, ResultExt};
+use crate::{impl_to_tokens_diagnostics, parse_utils, Array, Diagnostics, OptionExt};
 
 use super::{
     Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
@@ -38,11 +37,11 @@ impl<'r> ToResponse<'r> {
         data: &'r Data,
         generics: Generics,
         ident: Ident,
-    ) -> ToResponse<'r> {
+    ) -> Result<ToResponse<'r>, Diagnostics> {
         let response = match &data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
-                    ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named).0
+                    ToResponseNamedStructResponse::new(&attributes, &ident, &fields.named)?.0
                 }
                 Fields::Unnamed(fields) => {
                     let field = fields
@@ -51,24 +50,29 @@ impl<'r> ToResponse<'r> {
                         .next()
                         .expect("Unnamed struct must have 1 field");
 
-                    ToResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs).0
+                    ToResponseUnnamedStructResponse::new(&attributes, &field.ty, &field.attrs)?.0
                 }
-                Fields::Unit => ToResponseUnitStructResponse::new(&attributes).0,
+                Fields::Unit => ToResponseUnitStructResponse::new(&attributes)?.0,
             },
             Data::Enum(enum_value) => {
-                EnumResponse::new(&ident, &enum_value.variants, &attributes).0
+                EnumResponse::new(&ident, &enum_value.variants, &attributes)?.0
             }
-            Data::Union(_) => abort!(ident, "`ToResponse` does not support `Union` type"),
+            Data::Union(_) => {
+                return Err(Diagnostics::with_span(
+                    ident.span(),
+                    "`ToResponse` does not support `Union` type",
+                ))
+            }
         };
 
         let lifetime = Lifetime::new(ToResponse::LIFETIME, Span::call_site());
 
-        Self {
+        Ok(Self {
             ident,
             lifetime,
             generics,
             response,
-        }
+        })
     }
 }
 
@@ -106,13 +110,13 @@ pub struct IntoResponses {
     pub ident: Ident,
 }
 
-impl ToTokens for IntoResponses {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+impl IntoResponses {
+    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
                     let response =
-                        NamedStructResponse::new(&self.attributes, &self.ident, &fields.named).0;
+                        NamedStructResponse::new(&self.attributes, &self.ident, &fields.named)?.0;
                     let status = &response.status_code;
 
                     Array::from_iter(iter::once(quote!((#status, #response))))
@@ -125,13 +129,13 @@ impl ToTokens for IntoResponses {
                         .expect("Unnamed struct must have 1 field");
 
                     let response =
-                        UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs).0;
+                        UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)?.0;
                     let status = &response.status_code;
 
                     Array::from_iter(iter::once(quote!((#status, #response))))
                 }
                 Fields::Unit => {
-                    let response = UnitStructResponse::new(&self.attributes).0;
+                    let response = UnitStructResponse::new(&self.attributes)?.0;
                     let status = &response.status_code;
 
                     Array::from_iter(iter::once(quote!((#status, #response))))
@@ -141,25 +145,38 @@ impl ToTokens for IntoResponses {
                 .variants
                 .iter()
                 .map(|variant| match &variant.fields {
-                    Fields::Named(fields) => {
-                        NamedStructResponse::new(&variant.attrs, &variant.ident, &fields.named).0
-                    }
+                    Fields::Named(fields) => Ok(NamedStructResponse::new(
+                        &variant.attrs,
+                        &variant.ident,
+                        &fields.named,
+                    )?
+                    .0),
                     Fields::Unnamed(fields) => {
                         let field = fields
                             .unnamed
                             .iter()
                             .next()
                             .expect("Unnamed enum variant must have 1 field");
-                        UnnamedStructResponse::new(&variant.attrs, &field.ty, &field.attrs).0
+                        match UnnamedStructResponse::new(&variant.attrs, &field.ty, &field.attrs) {
+                            Ok(response) => Ok(response.0),
+                            Err(diagnostics) => Err(diagnostics),
+                        }
                     }
-                    Fields::Unit => UnitStructResponse::new(&variant.attrs).0,
+                    Fields::Unit => Ok(UnitStructResponse::new(&variant.attrs)?.0),
                 })
+                .collect::<Result<Array<ResponseTuple>, Diagnostics>>()?
+                .iter()
                 .map(|response| {
                     let status = &response.status_code;
                     quote!((#status, utoipa::openapi::RefOr::from(#response)))
                 })
-                .collect::<Array<TokenStream>>(),
-            Data::Union(_) => abort!(self.ident, "`IntoResponses` does not support `Union` type"),
+                .collect(),
+            Data::Union(_) => {
+                return Err(Diagnostics::with_span(
+                    self.ident.span(),
+                    "`IntoResponses` does not support `Union` type",
+                ))
+            }
         };
 
         let ident = &self.ident;
@@ -171,15 +188,25 @@ impl ToTokens for IntoResponses {
             None
         };
         tokens.extend(quote!{
-            impl #impl_generics utoipa::IntoResponses for #ident #ty_generics #where_clause {
-                fn responses() -> std::collections::BTreeMap<String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>> {
-                    utoipa::openapi::response::ResponsesBuilder::new()
-                        #responses
-                        .build()
-                        .into()
+                impl #impl_generics utoipa::IntoResponses for #ident #ty_generics #where_clause {
+                    fn responses() -> std::collections::BTreeMap<String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>> {
+                        utoipa::openapi::response::ResponsesBuilder::new()
+                            #responses
+                            .build()
+                            .into()
+                    }
                 }
-            }
-        })
+            });
+
+        Ok(())
+    }
+}
+
+impl_to_tokens_diagnostics! {
+    impl ToTokensDiagnostics for IntoResponses {
+        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+            self.tokens_or_diagnostics(tokens)
+        }
     }
 }
 
@@ -206,14 +233,16 @@ trait Response {
 
     fn validate_attributes<'a, I: IntoIterator<Item = &'a Attribute>>(
         attributes: I,
-        validate: impl Fn(&Attribute) -> (bool, &'static str),
-    ) {
-        for attribute in attributes {
-            let (valid, message) = validate(attribute);
+        validate: impl Fn(&Attribute) -> (bool, &'static str) + 'a,
+    ) -> impl Iterator<Item = Diagnostics> {
+        attributes.into_iter().filter_map(move |attribute| {
+            let (valid, error_message) = validate(attribute);
             if !valid {
-                emit_error!(attribute, message)
+                Some(Diagnostics::with_span(attribute.span(), error_message))
+            } else {
+                None
             }
-        }
+        })
     }
 }
 
@@ -222,7 +251,11 @@ struct UnnamedStructResponse<'u>(ResponseTuple<'u>);
 impl Response for UnnamedStructResponse<'_> {}
 
 impl<'u> UnnamedStructResponse<'u> {
-    fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
+    fn new(
+        attributes: &[Attribute],
+        ty: &'u Type,
+        inner_attributes: &[Attribute],
+    ) -> Result<Self, Diagnostics> {
         let is_inline = inner_attributes
             .iter()
             .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
@@ -234,12 +267,9 @@ impl<'u> UnnamedStructResponse<'u> {
             .any(|attribute| attribute.path().get_ident().unwrap() == "to_response");
 
         if is_inline && (ref_response || to_response) {
-            abort!(
-                ty.span(),
-                "Attribute `to_schema` cannot be used with `ref_response` and `to_response` attribute"
-            )
+            return Err(Diagnostics::with_span(ty.span(), "Attribute `to_schema` cannot be used with `ref_response` and `to_response` attribute"));
         }
-        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)
+        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)?
             .expect("`IntoResponses` must have `#[response(...)]` attribute");
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
@@ -247,7 +277,7 @@ impl<'u> UnnamedStructResponse<'u> {
         };
         let status_code = mem::take(&mut derive_value.status);
 
-        match (ref_response, to_response) {
+        let response = match (ref_response, to_response) {
             (false, false) => Self(
                 (
                     status_code,
@@ -274,12 +304,14 @@ impl<'u> UnnamedStructResponse<'u> {
                 status_code,
             }),
             (true, true) => {
-                abort!(
+                return Err(Diagnostics::with_span(
                     ty.span(),
-                    "Cannot define `ref_response` and `to_response` attribute simultaneously"
-                );
+                    "Cannot define `ref_response` and `to_response` attribute simultaneously",
+                ))
             }
-        }
+        };
+
+        Ok(response)
     }
 }
 
@@ -288,21 +320,29 @@ struct NamedStructResponse<'n>(ResponseTuple<'n>);
 impl Response for NamedStructResponse<'_> {}
 
 impl NamedStructResponse<'_> {
-    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Comma>) -> Self {
-        Self::validate_attributes(attributes, Self::has_no_field_attributes);
-        Self::validate_attributes(
-            fields.iter().flat_map(|field| &field.attrs),
-            Self::has_no_field_attributes,
-        );
+    fn new(
+        attributes: &[Attribute],
+        ident: &Ident,
+        fields: &Punctuated<Field, Comma>,
+    ) -> Result<Self, Diagnostics> {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes)
+                .chain(Self::validate_attributes(
+                    fields.iter().flat_map(|field| &field.attrs),
+                    Self::has_no_field_attributes,
+                ))
+                .collect::<Option<Diagnostics>>()
+        {
+            return Err(diagnostics);
+        }
 
-        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)
+        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)?
             .expect("`IntoResponses` must have `#[response(...)]` attribute");
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let status_code = mem::take(&mut derive_value.status);
-
         let inline_schema = NamedStructSchema {
             attributes,
             fields,
@@ -316,7 +356,7 @@ impl NamedStructResponse<'_> {
 
         let ty = Self::to_type(ident);
 
-        Self(
+        Ok(Self(
             (
                 status_code,
                 ResponseValue::from_derive_into_responses_value(derive_value, description)
@@ -326,7 +366,7 @@ impl NamedStructResponse<'_> {
                     ))),
             )
                 .into(),
-        )
+        ))
     }
 }
 
@@ -335,10 +375,15 @@ struct UnitStructResponse<'u>(ResponseTuple<'u>);
 impl Response for UnitStructResponse<'_> {}
 
 impl UnitStructResponse<'_> {
-    fn new(attributes: &[Attribute]) -> Self {
-        Self::validate_attributes(attributes, Self::has_no_field_attributes);
+    fn new(attributes: &[Attribute]) -> Result<Self, Diagnostics> {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes)
+                .collect::<Option<Diagnostics>>()
+        {
+            return Err(diagnostics);
+        }
 
-        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)
+        let mut derive_value = DeriveIntoResponsesValue::from_attributes(attributes)?
             .expect("`IntoResponses` must have `#[response(...)]` attribute");
         let status_code = mem::take(&mut derive_value.status);
         let description = {
@@ -346,13 +391,13 @@ impl UnitStructResponse<'_> {
             parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
         };
 
-        Self(
+        Ok(Self(
             (
                 status_code,
                 ResponseValue::from_derive_into_responses_value(derive_value, description),
             )
                 .into(),
-        )
+        ))
     }
 }
 
@@ -361,14 +406,23 @@ struct ToResponseNamedStructResponse<'p>(ResponseTuple<'p>);
 impl Response for ToResponseNamedStructResponse<'_> {}
 
 impl<'p> ToResponseNamedStructResponse<'p> {
-    fn new(attributes: &[Attribute], ident: &Ident, fields: &Punctuated<Field, Comma>) -> Self {
-        Self::validate_attributes(attributes, Self::has_no_field_attributes);
-        Self::validate_attributes(
-            fields.iter().flat_map(|field| &field.attrs),
-            Self::has_no_field_attributes,
-        );
+    fn new(
+        attributes: &[Attribute],
+        ident: &Ident,
+        fields: &Punctuated<Field, Comma>,
+    ) -> Result<Self, Diagnostics> {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes)
+                .chain(Self::validate_attributes(
+                    fields.iter().flat_map(|field| &field.attrs),
+                    Self::has_no_field_attributes,
+                ))
+                .collect::<Option<Diagnostics>>()
+        {
+            return Err(diagnostics);
+        }
 
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
@@ -393,7 +447,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         });
         response_value.response_type = Some(response_type);
 
-        Self(response_value.into())
+        Ok(Self(response_value.into()))
     }
 }
 
@@ -402,18 +456,27 @@ struct ToResponseUnnamedStructResponse<'c>(ResponseTuple<'c>);
 impl Response for ToResponseUnnamedStructResponse<'_> {}
 
 impl<'u> ToResponseUnnamedStructResponse<'u> {
-    fn new(attributes: &[Attribute], ty: &'u Type, inner_attributes: &[Attribute]) -> Self {
-        Self::validate_attributes(attributes, Self::has_no_field_attributes);
-        Self::validate_attributes(inner_attributes, |attribute| {
-            const ERROR: &str =
+    fn new(
+        attributes: &[Attribute],
+        ty: &'u Type,
+        inner_attributes: &[Attribute],
+    ) -> Result<Self, Diagnostics> {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes)
+                .chain(Self::validate_attributes(inner_attributes, |attribute| {
+                    const ERROR: &str =
                 "Unexpected attribute, `content` is only supported on unnamed field enum variant";
-            if attribute.path().get_ident().unwrap() == "content" {
-                (false, ERROR)
-            } else {
-                (true, ERROR)
-            }
-        });
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+                    if attribute.path().get_ident().unwrap() == "content" {
+                        (false, ERROR)
+                    } else {
+                        (true, ERROR)
+                    }
+                }))
+                .collect::<Option<Diagnostics>>()
+        {
+            return Err(diagnostics);
+        }
+        let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
@@ -432,7 +495,7 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
             is_inline,
         }));
 
-        Self(response_value.into())
+        Ok(Self(response_value.into()))
     }
 }
 
@@ -451,12 +514,17 @@ impl<'r> EnumResponse<'r> {
         ident: &Ident,
         variants: &'r Punctuated<Variant, Comma>,
         attributes: &[Attribute],
-    ) -> Self {
-        Self::validate_attributes(attributes, Self::has_no_field_attributes);
-        Self::validate_attributes(
-            variants.iter().flat_map(|variant| &variant.attrs),
-            Self::has_no_field_attributes,
-        );
+    ) -> Result<Self, Diagnostics> {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes)
+                .chain(Self::validate_attributes(
+                    variants.iter().flat_map(|variant| &variant.attrs),
+                    Self::has_no_field_attributes,
+                ))
+                .collect::<Option<Diagnostics>>()
+        {
+            return Err(diagnostics);
+        }
 
         let ty = Self::to_type(ident);
         let description = {
@@ -467,10 +535,12 @@ impl<'r> EnumResponse<'r> {
         let variants_content = variants
             .into_iter()
             .map(Self::parse_variant_attributes)
+            .collect::<Result<Vec<VariantAttributes>, Diagnostics>>()?
+            .into_iter()
             .filter_map(Self::to_content);
         let content: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
 
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         if let Some(derive_value) = &derive_value {
             if (!content.is_empty() && derive_value.example.is_some())
                 || (!content.is_empty() && derive_value.examples.is_some())
@@ -481,11 +551,11 @@ impl<'r> EnumResponse<'r> {
                     .map(|(_, ident)| ident)
                     .or_else(|| derive_value.examples.as_ref().map(|(_, ident)| ident))
                     .expect("Expected `example` or `examples` to be present");
-                abort! {
-                    ident,
-                    "Enum with `#[content]` attribute in variant cannot have enum level `example` or `examples` defined";
-                    help = "Try defining `{}` on the enum variant", ident.to_string(),
-                }
+                return Err(
+                    Diagnostics::with_span(ident.span(),
+                        "Enum with `#[content]` attribute in variant cannot have enum level `example` or `examples` defined")
+                    .help(format!("Try defining `{}` on the enum variant", ident))
+                );
             }
         }
 
@@ -495,7 +565,7 @@ impl<'r> EnumResponse<'r> {
         });
         response_value.response_type = if content.is_empty() {
             let inline_schema =
-                EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes);
+                EnumSchema::new(Cow::Owned(ident.to_string()), variants, attributes)?;
 
             Some(PathType::InlineSchema(
                 inline_schema.into_token_stream(),
@@ -506,34 +576,38 @@ impl<'r> EnumResponse<'r> {
         };
         response_value.content = content;
 
-        Self(response_value.into())
+        Ok(Self(response_value.into()))
     }
 
-    fn parse_variant_attributes(variant: &Variant) -> VariantAttributes {
+    fn parse_variant_attributes(variant: &Variant) -> Result<VariantAttributes, Diagnostics> {
         let variant_derive_response_value =
-            DeriveToResponseValue::from_attributes(variant.attrs.as_slice());
+            DeriveToResponseValue::from_attributes(variant.attrs.as_slice())?;
         // named enum variant should not have field attributes
         if let Fields::Named(named_fields) = &variant.fields {
-            Self::validate_attributes(
+            if let Some(diagnostics) = Self::validate_attributes(
                 named_fields.named.iter().flat_map(|field| &field.attrs),
                 Self::has_no_field_attributes,
             )
+            .collect::<Option<Diagnostics>>()
+            {
+                return Err(diagnostics);
+            }
         };
 
         let field = variant.fields.iter().next();
 
-        let content_type = field.and_then(|field| {
+        let content_type = field.and_then_try(|field| {
             field
                 .attrs
                 .iter()
                 .find(|attribute| attribute.path().get_ident().unwrap() == "content")
-                .map(|attribute| {
+                .map_try(|attribute| {
                     attribute
                         .parse_args_with(|input: ParseStream| input.parse::<LitStr>())
-                        .unwrap_or_abort()
+                        .map(|content| content.value())
+                        .map_err(Diagnostics::from)
                 })
-                .map(|content| content.value())
-        });
+        })?;
 
         let is_inline = field
             .map(|field| {
@@ -544,11 +618,11 @@ impl<'r> EnumResponse<'r> {
             })
             .unwrap_or(false);
 
-        VariantAttributes {
+        Ok(VariantAttributes {
             type_and_content: field.map(|field| &field.ty).zip(content_type),
             derive_value: variant_derive_response_value,
             is_inline,
-        }
+        })
     }
 
     fn to_content(
@@ -586,10 +660,15 @@ struct ToResponseUnitStructResponse<'u>(ResponseTuple<'u>);
 impl Response for ToResponseUnitStructResponse<'_> {}
 
 impl ToResponseUnitStructResponse<'_> {
-    fn new(attributes: &[Attribute]) -> Self {
-        Self::validate_attributes(attributes, Self::has_no_field_attributes);
+    fn new(attributes: &[Attribute]) -> Result<Self, Diagnostics> {
+        if let Some(diagnostics) =
+            Self::validate_attributes(attributes, Self::has_no_field_attributes)
+                .collect::<Option<Diagnostics>>()
+        {
+            return Err(diagnostics);
+        }
 
-        let derive_value = DeriveToResponseValue::from_attributes(attributes);
+        let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         let description = {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
@@ -599,6 +678,6 @@ impl ToResponseUnitStructResponse<'_> {
             description,
         });
 
-        Self(response_value.into())
+        Ok(Self(response_value.into()))
     }
 }

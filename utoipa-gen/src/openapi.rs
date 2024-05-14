@@ -14,7 +14,7 @@ use quote::{format_ident, quote, quote_spanned, ToTokens};
 use crate::parse_utils::Str;
 use crate::{
     parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementsAttr, Array,
-    ExternalDocs, ResultExt,
+    ExternalDocs,
 };
 
 use self::info::Info;
@@ -65,12 +65,13 @@ impl<'o> OpenApiAttr<'o> {
     }
 }
 
-pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Option<OpenApiAttr> {
+pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr>, Error> {
     attrs
         .iter()
         .filter(|attribute| attribute.path().is_ident("openapi"))
-        .map(|attribute| attribute.parse_args::<OpenApiAttr>().unwrap_or_abort())
-        .reduce(|acc, item| acc.merge(item))
+        .map(|attribute| attribute.parse_args::<OpenApiAttr>())
+        .collect::<Result<Vec<_>, _>>()
+        .map(|attrs| attrs.into_iter().reduce(|acc, item| acc.merge(item)))
 }
 
 impl Parse for OpenApiAttr<'_> {

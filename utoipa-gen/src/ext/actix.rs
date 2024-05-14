@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use proc_macro2::Ident;
-use proc_macro_error::abort;
 use regex::{Captures, Regex};
 use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
 
@@ -9,6 +8,7 @@ use crate::{
     component::{TypeTree, ValueType},
     ext::ArgValue,
     path::PathOperation,
+    Diagnostics,
 };
 
 use super::{
@@ -22,18 +22,21 @@ impl ArgumentResolver for PathOperations {
         fn_args: &Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<MacroArg>>,
         _: String,
-    ) -> (
-        Option<Vec<super::ValueArgument<'_>>>,
-        Option<Vec<super::IntoParamsType<'_>>>,
-        Option<super::RequestBody<'_>>,
-    ) {
+    ) -> Result<
+        (
+            Option<Vec<super::ValueArgument<'_>>>,
+            Option<Vec<super::IntoParamsType<'_>>>,
+            Option<super::RequestBody<'_>>,
+        ),
+        Diagnostics,
+    > {
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
-            fn_arg::get_fn_args(fn_args).partition(fn_arg::is_into_params);
+            fn_arg::get_fn_args(fn_args)?.partition(fn_arg::is_into_params);
 
         if let Some(macro_args) = macro_args {
             let (primitive_args, body) = split_path_args_and_request(value_args);
 
-            (
+            Ok((
                 Some(
                     macro_args
                         .into_iter()
@@ -49,10 +52,10 @@ impl ArgumentResolver for PathOperations {
                         .collect(),
                 ),
                 body.into_iter().next().map(Into::into),
-            )
+            ))
         } else {
             let (_, body) = split_path_args_and_request(value_args);
-            (
+            Ok((
                 None,
                 Some(
                     into_params_args
@@ -62,7 +65,7 @@ impl ArgumentResolver for PathOperations {
                         .collect(),
                 ),
                 body.into_iter().next().map(Into::into),
-            )
+            ))
         }
     }
 }
@@ -113,27 +116,39 @@ fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> Valu
 }
 
 impl PathOperationResolver for PathOperations {
-    fn resolve_operation(item_fn: &ItemFn) -> Option<ResolvedOperation> {
-        item_fn.attrs.iter().find_map(|attribute| {
-            if is_valid_request_type(attribute.path().get_ident()) {
-                match attribute.parse_args::<Path>() {
-                    Ok(path) => Some(ResolvedOperation {
-                        path: path.0,
-                        path_operation: PathOperation::from_ident(
-                            attribute.path().get_ident().unwrap(),
-                        ),
-                        body: String::new(),
-                    }),
-                    Err(error) => abort!(
-                        error.span(),
-                        "parse path of path operation attribute: {}",
-                        error
-                    ),
+    fn resolve_operation(item_fn: &ItemFn) -> Result<Option<ResolvedOperation>, Diagnostics> {
+        item_fn
+            .attrs
+            .iter()
+            .find_map(|attribute| {
+                if is_valid_request_type(attribute.path().get_ident()) {
+                    match attribute.parse_args::<Path>() {
+                        Ok(path) => {
+                            let path_operation = match PathOperation::from_ident(
+                                attribute.path().get_ident().unwrap(),
+                            ) {
+                                Ok(path_operation) => path_operation,
+                                Err(diagnostics) => return Some(Err(diagnostics)),
+                            };
+
+                            Some(Ok(ResolvedOperation {
+                                path: path.0,
+                                path_operation,
+                                body: String::new(),
+                            }))
+                        }
+                        Err(error) => Some(Err(Into::<Diagnostics>::into(error))),
+                        // Err(error) => abort!(
+                        //     error.span(),
+                        //     "parse path of path operation attribute: {}",
+                        //     error
+                        // ),
+                    }
+                } else {
+                    None
                 }
-            } else {
-                None
-            }
-        })
+            })
+            .transpose()
     }
 }
 

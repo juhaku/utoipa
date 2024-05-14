@@ -1,20 +1,20 @@
 use std::{borrow::Cow, str::FromStr};
 
 use proc_macro2::{Ident, TokenStream};
-use proc_macro_error::abort;
 use quote::quote;
 use regex::{Captures, Regex};
 use syn::{parse::Parse, LitStr, Token};
 
 use crate::{
     component::ValueType,
-    ext::{ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument},
+    ext::{ArgValue, ArgumentIn, MacroArg, ValueArgument},
     path::PathOperation,
+    Diagnostics, OptionExt,
 };
 
 use super::{
     fn_arg::{self, FnArg},
-    ArgumentResolver, MacroPath, PathOperationResolver, PathOperations, PathResolver, RequestBody,
+    ArgumentResolver, Arguments, MacroPath, PathOperationResolver, PathOperations, PathResolver,
     ResolvedOperation,
 };
 
@@ -25,17 +25,13 @@ impl ArgumentResolver for PathOperations {
         fn_args: &syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma>,
         macro_args: Option<Vec<MacroArg>>,
         body: String,
-    ) -> (
-        Option<Vec<ValueArgument<'_>>>,
-        Option<Vec<IntoParamsType<'_>>>,
-        Option<RequestBody<'_>>,
-    ) {
-        let mut args = fn_arg::get_fn_args(fn_args).collect::<Vec<_>>();
+    ) -> Result<Arguments<'_>, Diagnostics> {
+        let mut args = fn_arg::get_fn_args(fn_args)?.collect::<Vec<_>>();
         args.sort_unstable();
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
             args.into_iter().partition(is_into_params);
 
-        macro_args
+        Ok(macro_args
             .map(|args| {
                 let (anonymous_args, named_args): (Vec<MacroArg>, Vec<MacroArg>) =
                     args.into_iter().partition(is_anonymous_arg);
@@ -65,7 +61,7 @@ impl ArgumentResolver for PathOperations {
                     body,
                 )
             })
-            .unwrap_or_else(|| (None, None, None))
+            .unwrap_or_else(|| (None, None, None)))
     }
 }
 
@@ -140,7 +136,7 @@ fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg,
 
 #[inline]
 fn is_into_params(fn_arg: &FnArg) -> bool {
-    matches!(fn_arg.ty.value_type, ValueType::Object) && matches!(fn_arg.ty.generic_type, None)
+    matches!(fn_arg.ty.value_type, ValueType::Object) && fn_arg.ty.generic_type.is_none()
 }
 
 #[inline]
@@ -150,41 +146,45 @@ fn is_anonymous_arg(arg: &MacroArg) -> bool {
 }
 
 impl PathOperationResolver for PathOperations {
-    fn resolve_operation(ast_fn: &syn::ItemFn) -> Option<super::ResolvedOperation> {
-        ast_fn.attrs.iter().find_map(|attribute| {
-            if is_valid_route_type(attribute.path().get_ident()) {
-                let Path {
-                    path,
-                    operation,
-                    body,
-                } = match attribute.parse_args::<Path>() {
-                    Ok(path) => path,
-                    Err(error) => abort!(
-                        error.span(),
-                        "parse path of path operation attribute: {}",
-                        error
-                    ),
-                };
-
-                if !operation.is_empty() {
-                    Some(ResolvedOperation {
-                        path_operation: PathOperation::from_str(&operation).unwrap(),
+    fn resolve_operation(
+        ast_fn: &syn::ItemFn,
+    ) -> Result<Option<super::ResolvedOperation>, Diagnostics> {
+        ast_fn
+            .attrs
+            .iter()
+            .find(|attribute| is_valid_route_type(attribute.path().get_ident()))
+            .map_try(
+                |attribute| match attribute.parse_args::<Path>().map_err(Diagnostics::from) {
+                    Ok(path) => Ok((path, attribute)),
+                    Err(diagnostics) => Err(diagnostics),
+                },
+            )?
+            .map_try(
+                |(
+                    Path {
                         path,
+                        operation,
                         body,
-                    })
-                } else {
-                    Some(ResolvedOperation {
-                        path_operation: PathOperation::from_ident(
-                            attribute.path().get_ident().unwrap(),
-                        ),
-                        path,
-                        body,
-                    })
-                }
-            } else {
-                None
-            }
-        })
+                    },
+                    attribute,
+                )| {
+                    if !operation.is_empty() {
+                        Ok(ResolvedOperation {
+                            path_operation: PathOperation::from_str(&operation).unwrap(),
+                            path,
+                            body,
+                        })
+                    } else {
+                        Ok(ResolvedOperation {
+                            path_operation: PathOperation::from_ident(
+                                attribute.path().get_ident().unwrap(),
+                            )?,
+                            path,
+                            body,
+                        })
+                    }
+                },
+            )
     }
 }
 

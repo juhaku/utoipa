@@ -10,7 +10,13 @@
 #[cfg(all(feature = "decimal", feature = "decimal_float"))]
 compile_error!("`decimal` and `decimal_float` are mutually exclusive feature flags");
 
-use std::{mem, ops::Deref};
+use std::{
+    borrow::{Borrow, Cow},
+    error::Error,
+    fmt::Display,
+    mem,
+    ops::Deref,
+};
 
 use component::schema::Schema;
 use doc_comment::CommentAttributes;
@@ -19,8 +25,7 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use proc_macro_error::{abort, proc_macro_error};
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
@@ -46,10 +51,10 @@ use self::{
         features::{self, Feature},
         ComponentSchema, ComponentSchemaProps, TypeTree,
     },
+    openapi::parse_openapi_attrs,
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[proc_macro_error]
 #[proc_macro_derive(ToSchema, attributes(schema, aliases))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].
@@ -637,12 +642,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
         vis,
     } = syn::parse_macro_input!(input);
 
-    let schema = Schema::new(&data, &attrs, &ident, &generics, &vis);
-
-    schema.to_token_stream().into()
+    Schema::new(&data, &attrs, &ident, &generics, &vis)
+        .as_ref()
+        .map_or_else(Diagnostics::to_token_stream, Schema::to_token_stream)
+        .into()
 }
 
-#[proc_macro_error]
 #[proc_macro_attribute]
 /// Path attribute macro implements OpenAPI path for the decorated function.
 ///
@@ -1335,7 +1340,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     ))]
     let mut path_attribute = path_attribute;
 
-    let ast_fn = syn::parse::<ItemFn>(item).unwrap_or_abort();
+    let ast_fn = match syn::parse::<ItemFn>(item) {
+        Ok(ast_fn) => ast_fn,
+        Err(error) => return error.into_compile_error().into_token_stream().into(),
+    };
     let fn_name = &*ast_fn.sig.ident.to_string();
 
     #[cfg(feature = "auto_into_responses")]
@@ -1345,7 +1353,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
     }
 
-    let mut resolved_operation = PathOperations::resolve_operation(&ast_fn);
+    let mut resolved_operation = match PathOperations::resolve_operation(&ast_fn) {
+        Ok(operation) => operation,
+        Err(diagnostics) => return diagnostics.into_token_stream().into(),
+    };
     let resolved_path = PathOperations::resolve_path(
         &resolved_operation
             .as_mut()
@@ -1375,7 +1386,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             .unwrap_or_default();
 
         let (arguments, into_params_types, body) =
-            PathOperations::resolve_arguments(&ast_fn.sig.inputs, args, body);
+            match PathOperations::resolve_arguments(&ast_fn.sig.inputs, args, body) {
+                Ok(args) => args,
+                Err(diagnostics) => return diagnostics.into_token_stream().into(),
+            };
 
         let parameters = arguments
             .into_iter()
@@ -1408,7 +1422,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_error]
 #[proc_macro_derive(OpenApi, attributes(openapi))]
 /// Generate OpenApi base object with defaults from
 /// project settings.
@@ -1608,16 +1621,20 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
-    let openapi_attributes = openapi::parse_openapi_attrs(&attrs).expect_or_abort(
-        "expected #[openapi(...)] attribute to be present when used with OpenApi derive trait",
-    );
-
-    let openapi = OpenApi(openapi_attributes, ident);
-
-    openapi.to_token_stream().into()
+    parse_openapi_attrs(&attrs)
+        .and_then(|openapi_attr| {
+            openapi_attr.ok_or(
+                syn::Error::new(
+                ident.span(),
+                "expected #[openapi(...)] attribute to be present when used with OpenApi derive trait")
+            )
+        })
+        .map_or_else(syn::Error::into_compile_error, |attrs| {
+            OpenApi(attrs, ident).into_token_stream()
+        })
+        .into()
 }
 
-#[proc_macro_error]
 #[proc_macro_derive(IntoParams, attributes(param, into_params))]
 /// Generate [path parameters][path_params] from struct's
 /// fields.
@@ -1982,7 +1999,6 @@ pub fn into_params(input: TokenStream) -> TokenStream {
     into_params.to_token_stream().into()
 }
 
-#[proc_macro_error]
 #[proc_macro_derive(ToResponse, attributes(response, content, to_schema))]
 /// Generate reusable OpenAPI response that can be used
 /// in [`utoipa::path`][path] or in [`OpenApi`][openapi].
@@ -2189,12 +2205,12 @@ pub fn to_response(input: TokenStream) -> TokenStream {
         ..
     } = syn::parse_macro_input!(input);
 
-    let response = ToResponse::new(attrs, &data, generics, ident);
-
-    response.to_token_stream().into()
+    ToResponse::new(attrs, &data, generics, ident)
+        .as_ref()
+        .map_or_else(Diagnostics::to_token_stream, ToResponse::to_token_stream)
+        .into()
 }
 
-#[proc_macro_error]
 #[proc_macro_derive(
     IntoResponses,
     attributes(response, to_schema, ref_response, to_response)
@@ -2385,7 +2401,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
         data,
     };
 
-    into_responses.to_token_stream().into()
+    ToTokens::into_token_stream(into_responses).into()
 }
 
 /// Create OpenAPI Schema from arbitrary type.
@@ -2465,7 +2481,10 @@ pub fn schema(input: TokenStream) -> TokenStream {
     }
 
     let schema = syn::parse_macro_input!(input as Schema);
-    let type_tree = TypeTree::from_type(&schema.ty);
+    let type_tree = match TypeTree::from_type(&schema.ty) {
+        Ok(type_tree) => type_tree,
+        Err(diagnostics) => return diagnostics.into_token_stream().into(),
+    };
 
     let schema = ComponentSchema::new(ComponentSchemaProps {
         features: Some(vec![Feature::Inline(schema.inline.into())]),
@@ -2656,7 +2675,7 @@ impl ToTokens for ExternalDocs {
 /// Represents OpenAPI Any value used in example and default fields.
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub(self) enum AnyValue {
+enum AnyValue {
     String(TokenStream2),
     Json(TokenStream2),
     DefaultTrait {
@@ -2743,36 +2762,80 @@ impl ToTokens for AnyValue {
     }
 }
 
-trait ResultExt<T> {
-    fn unwrap_or_abort(self) -> T;
-    fn expect_or_abort(self, message: &str) -> T;
-}
-
-impl<T> ResultExt<T> for Result<T, syn::Error> {
-    fn unwrap_or_abort(self) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => abort!(error.span(), format!("{error}")),
-        }
-    }
-
-    fn expect_or_abort(self, message: &str) -> T {
-        match self {
-            Ok(value) => value,
-            Err(error) => abort!(error.span(), format!("{error}: {message}")),
-        }
-    }
-}
-
 trait OptionExt<T> {
-    fn expect_or_abort(self, message: &str) -> T;
+    fn map_try<F, U, E>(self, f: F) -> Result<Option<U>, E>
+    where
+        F: FnOnce(T) -> Result<U, E>;
+    fn and_then_try<F, U, E>(self, f: F) -> Result<Option<U>, E>
+    where
+        F: FnOnce(T) -> Result<Option<U>, E>;
 }
 
 impl<T> OptionExt<T> for Option<T> {
-    fn expect_or_abort(self, message: &str) -> T {
-        self.unwrap_or_else(|| abort!(Span::call_site(), message))
+    fn map_try<F, U, E>(self, f: F) -> Result<Option<U>, E>
+    where
+        F: FnOnce(T) -> Result<U, E>,
+    {
+        if let Some(v) = self {
+            f(v).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn and_then_try<F, U, E>(self, f: F) -> Result<Option<U>, E>
+    where
+        F: FnOnce(T) -> Result<Option<U>, E>,
+    {
+        if let Some(v) = self {
+            match f(v) {
+                Ok(inner) => Ok(inner),
+                Err(error) => Err(error),
+            }
+        } else {
+            Ok(None)
+        }
     }
 }
+
+trait ToTokensDiagnostics {
+    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics>;
+
+    #[allow(unused)]
+    fn into_token_stream(self) -> TokenStream2
+    where
+        Self: std::marker::Sized,
+    {
+        ToTokensDiagnostics::to_token_stream(&self)
+    }
+
+    fn to_token_stream(&self) -> TokenStream2 {
+        let mut tokens = TokenStream2::new();
+        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
+            Ok(_) => tokens,
+            Err(error_stream) => Into::<Diagnostics>::into(error_stream).into_token_stream(),
+        }
+    }
+}
+
+macro_rules! impl_to_tokens_diagnostics {
+    ( impl $(< $life:lifetime >)? ToTokensDiagnostics for $e:path { $($tt:tt)* } ) => {
+        impl $(< $life >)? quote::ToTokens for $e
+        where
+            Self: crate::ToTokensDiagnostics,
+        {
+            fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+                tokens.extend(crate::ToTokensDiagnostics::to_token_stream(self));
+            }
+        }
+
+        impl $(< $life >)? crate::ToTokensDiagnostics for $e {
+            $($tt)*
+        }
+    };
+}
+
+use impl_to_tokens_diagnostics;
 
 /// Parsing utils
 mod parse_utils {
@@ -2787,8 +2850,6 @@ mod parse_utils {
         token::Comma,
         Error, Expr, LitBool, LitStr, Token,
     };
-
-    use crate::ResultExt;
 
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub enum Value {
@@ -2836,10 +2897,11 @@ mod parse_utils {
         }
     }
 
-    pub fn parse_next<T: Sized>(input: ParseStream, next: impl FnOnce() -> T) -> T {
-        input
-            .parse::<Token![=]>()
-            .expect_or_abort("expected equals token before value assignment");
+    pub fn parse_next<T: FnOnce() -> Result<R, syn::Error>, R: Sized>(
+        input: ParseStream,
+        next: T,
+    ) -> Result<R, syn::Error> {
+        input.parse::<Token![=]>()?;
         next()
     }
 
@@ -2953,5 +3015,127 @@ mod parse_utils {
                 }
             }
         }
+    }
+}
+
+#[derive(Debug)]
+struct Diagnostics {
+    diagnostics: Vec<DiangosticsInner>,
+}
+
+#[derive(Debug)]
+struct DiangosticsInner {
+    span: Span,
+    message: Cow<'static, str>,
+    suggestions: Vec<Suggestion>,
+}
+
+#[derive(Debug)]
+enum Suggestion {
+    Help(Cow<'static, str>),
+    Note(Cow<'static, str>),
+}
+
+impl Display for Diagnostics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message())
+    }
+}
+
+impl Display for Suggestion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Help(help) => {
+                let s: &str = help.borrow();
+                write!(f, "help = {}", s)
+            }
+            Self::Note(note) => {
+                let s: &str = note.borrow();
+                write!(f, "note = {}", s)
+            }
+        }
+    }
+}
+
+impl Diagnostics {
+    fn message(&self) -> Cow<'static, str> {
+        self.diagnostics
+            .first()
+            .as_ref()
+            .map(|diagnostics| diagnostics.message.clone())
+            .unwrap_or_else(|| Cow::Borrowed(""))
+    }
+
+    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
+        Self::with_span(Span::call_site(), message)
+    }
+
+    pub fn with_span<S: Into<Cow<'static, str>>>(span: Span, message: S) -> Self {
+        Self {
+            diagnostics: vec![DiangosticsInner {
+                span,
+                message: message.into(),
+                suggestions: Vec::new(),
+            }],
+        }
+    }
+
+    pub fn help<S: Into<Cow<'static, str>>>(mut self, help: S) -> Self {
+        if let Some(diagnostics) = self.diagnostics.first_mut() {
+            diagnostics.suggestions.push(Suggestion::Help(help.into()));
+        }
+
+        self
+    }
+
+    pub fn note<S: Into<Cow<'static, str>>>(mut self, note: S) -> Self {
+        if let Some(diagnostics) = self.diagnostics.first_mut() {
+            diagnostics.suggestions.push(Suggestion::Note(note.into()));
+        }
+
+        self
+    }
+}
+
+impl From<syn::Error> for Diagnostics {
+    fn from(value: syn::Error) -> Self {
+        Self::with_span(value.span(), value.to_string())
+    }
+}
+
+impl ToTokens for Diagnostics {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        for diagnostics in &self.diagnostics {
+            let span = diagnostics.span;
+            let message: &str = diagnostics.message.borrow();
+
+            let suggestions = diagnostics
+                .suggestions
+                .iter()
+                .map(Suggestion::to_string)
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            let diagnostics = if !suggestions.is_empty() {
+                Cow::Owned(format!("{message}\n\n{suggestions}"))
+            } else {
+                Cow::Borrowed(message)
+            };
+
+            tokens.extend(quote_spanned! {span=>
+                ::core::compile_error!(#diagnostics);
+            })
+        }
+    }
+}
+
+impl Error for Diagnostics {}
+
+impl FromIterator<Diagnostics> for Option<Diagnostics> {
+    fn from_iter<T: IntoIterator<Item = Diagnostics>>(iter: T) -> Self {
+        iter.into_iter().reduce(|mut acc, diagnostics| {
+            acc.diagnostics.extend(diagnostics.diagnostics);
+            acc
+        })
     }
 }
