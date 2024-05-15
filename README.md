@@ -3,9 +3,9 @@
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/crates/v/utoipa.svg?label=crates.io&color=orange&logo=rust)](https://crates.io/crates/utoipa)
 [![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa/latest/utoipa/)
-![MSRV](https://img.shields.io/static/v1?label=MSRV&message=1.60%2B&color=orange&logo=rust)
+![MSRV](https://img.shields.io/static/v1?label=MSRV&message=1.75%2B&color=orange&logo=rust)
 
-Pronounced **_/ju:ˈtoʊ:i.pɑ/_** or **_/ju:ˈtoʊˌaɪ.piˈeɪ/_** whatever works better for you.
+Pronounced **_/u:ˈtoʊ:i.pɑ/_** or **_/u:ˈtoʊˌaɪ.piˈeɪ/_** whatever works better for you.
 
 Want to have your API documented with OpenAPI? But don't want to be bothered
 with manual YAML or JSON tweaking? Would like it to be so easy that it would almost
@@ -214,7 +214,7 @@ This would produce an API doc something similar to:
       "get": {
         "tags": ["pet_api"],
         "summary": "Get pet by id",
-        "description": "Get pet by id\n\nGet pet from database by pet id\n",
+        "description": "Get pet from database by pet id\n",
         "operationId": "get_pet_by_id",
         "parameters": [
           {
@@ -226,7 +226,7 @@ This would produce an API doc something similar to:
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0.0,
+              "minimum": 0,
             }
           }
         ],
@@ -258,7 +258,7 @@ This would produce an API doc something similar to:
           "id": {
             "type": "integer",
             "format": "int64",
-            "minimum": 0.0,
+            "minimum": 0,
           },
           "name": {
             "type": "string"
@@ -330,6 +330,11 @@ There are few ways around this that are elaborated [here in detail](https://gith
 
 At the moment that is not possible due to there is no way to evaluate the actual type behind the type token that is visible to the proc macro code generation.
 This might be possible in future if a global alias registry can be implemented. Here is an issue related to the topic [#766](https://github.com/juhaku/utoipa/issues/766).
+
+### Auto discover for OpenAPI schemas and paths?
+
+Currently there is no build in solution to automatically discover the OpenAPI types but for your luck there is a pretty neat crate that 
+just does this for you called [utoipauto](https://github.com/ProbablyClem/utoipauto).
 
 ## License
 
