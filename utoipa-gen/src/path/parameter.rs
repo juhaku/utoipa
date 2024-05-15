@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::Display};
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,

@@ -11,10 +11,7 @@ use syn::{
 };
 
 use crate::{
-    component::{
-        features::{impl_merge, Inline},
-        ComponentSchema, TypeTree,
-    },
+    component::{features::Inline, ComponentSchema, TypeTree},
     impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics,
 };
 

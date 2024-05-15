@@ -263,12 +263,14 @@ pub struct ResolvedOperation {
     pub body: String,
 }
 
+#[allow(unused)]
 pub type Arguments<'a> = (
     Option<Vec<ValueArgument<'a>>>,
     Option<Vec<IntoParamsType<'a>>>,
     Option<RequestBody<'a>>,
 );
 
+#[allow(unused)]
 pub trait ArgumentResolver {
     fn resolve_arguments(
         _: &'_ Punctuated<syn::FnArg, Comma>,

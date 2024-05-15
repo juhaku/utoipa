@@ -13,8 +13,8 @@ use crate::{
 
 use super::{
     fn_arg::{self, FnArg},
-    ArgumentIn, ArgumentResolver, MacroArg, MacroPath, PathOperationResolver, PathOperations,
-    PathResolver, ResolvedOperation, ValueArgument,
+    ArgumentIn, ArgumentResolver, Arguments, MacroArg, MacroPath, PathOperationResolver,
+    PathOperations, PathResolver, ResolvedOperation, ValueArgument,
 };
 
 impl ArgumentResolver for PathOperations {
@@ -22,14 +22,7 @@ impl ArgumentResolver for PathOperations {
         fn_args: &Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<MacroArg>>,
         _: String,
-    ) -> Result<
-        (
-            Option<Vec<super::ValueArgument<'_>>>,
-            Option<Vec<super::IntoParamsType<'_>>>,
-            Option<super::RequestBody<'_>>,
-        ),
-        Diagnostics,
-    > {
+    ) -> Result<Arguments, Diagnostics> {
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
             fn_arg::get_fn_args(fn_args)?.partition(fn_arg::is_into_params);
 
