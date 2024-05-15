@@ -6,7 +6,7 @@ use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::features::Inline;
 use crate::component::ComponentSchema;
-use crate::{impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics, Required};
+use crate::{parse_utils, AnyValue, Array, Diagnostics, Required, ToTokensDiagnostics};
 
 use super::example::Example;
 use super::{parse, PathType, PathTypeTree};
@@ -22,17 +22,19 @@ pub enum RequestBody<'r> {
     Ext(crate::ext::RequestBody<'r>),
 }
 
-impl ToTokens for RequestBody<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+impl ToTokensDiagnostics for RequestBody<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         match self {
-            Self::Parsed(parsed) => ToTokens::to_tokens(parsed, tokens),
+            Self::Parsed(parsed) => ToTokensDiagnostics::to_tokens(parsed, tokens)?,
             #[cfg(any(
                 feature = "actix_extras",
                 feature = "rocket_extras",
                 feature = "axum_extras"
             ))]
-            Self::Ext(ext) => ToTokens::to_tokens(ext, tokens),
-        }
+            Self::Ext(ext) => ToTokensDiagnostics::to_tokens(ext, tokens)?,
+        };
+
+        Ok(())
     }
 }
 
@@ -152,8 +154,8 @@ impl Parse for RequestBodyAttr<'_> {
     }
 }
 
-impl RequestBodyAttr<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for RequestBodyAttr<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         if let Some(body_type) = &self.content {
             let media_type_schema = match body_type {
                 PathType::Ref(ref_type) => quote! {
@@ -167,7 +169,7 @@ impl RequestBodyAttr<'_> {
                         description: None,
                         deprecated: None,
                         object_name: "",
-                    })
+                    })?
                     .to_token_stream()
                 }
                 PathType::InlineSchema(schema, _) => schema.to_token_stream(),
@@ -241,13 +243,5 @@ impl RequestBodyAttr<'_> {
         tokens.extend(quote! { .build() });
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for RequestBodyAttr<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }

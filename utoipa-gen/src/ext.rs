@@ -11,7 +11,7 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
 use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
 use crate::path::{PathOperation, PathTypeTree};
-use crate::{impl_to_tokens_diagnostics, Diagnostics};
+use crate::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -108,8 +108,8 @@ impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
     }
 }
 
-impl RequestBody<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for RequestBody<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let mut actual_body = get_actual_body_type(&self.ty).unwrap().clone();
 
         if let Some(option) = find_option_type_tree(&self.ty) {
@@ -129,14 +129,16 @@ impl RequestBody<'_> {
             quote!(utoipa::openapi::Required::True)
         };
 
-        let mut create_body_tokens = |content_type: &str, actual_body: &TypeTree| {
-            let schema = ComponentSchema::new(ComponentSchemaProps {
+        let mut create_body_tokens = |content_type: &str,
+                                      actual_body: &TypeTree|
+         -> Result<(), Diagnostics> {
+            let schema = as_tokens_or_diagnostics!(&ComponentSchema::new(ComponentSchemaProps {
                 type_tree: actual_body,
                 features: None,
                 description: None,
                 deprecated: None,
                 object_name: "",
-            });
+            })?);
 
             tokens.extend(quote_spanned! {actual_body.span.unwrap()=>
                 utoipa::openapi::request_body::RequestBodyBuilder::new()
@@ -146,28 +148,21 @@ impl RequestBody<'_> {
                     .required(Some(#required))
                     .description(Some(""))
                     .build()
-            })
+            });
+            Ok(())
         };
 
         if self.ty.is("Bytes") {
             let bytes_as_bytes_vec = parse_quote!(Vec<u8>);
             let ty = TypeTree::from_type(&bytes_as_bytes_vec)?;
-            create_body_tokens("application/octet-stream", &ty);
+            create_body_tokens("application/octet-stream", &ty)?;
         } else if self.ty.is("Form") {
-            create_body_tokens("application/x-www-form-urlencoded", &actual_body);
+            create_body_tokens("application/x-www-form-urlencoded", &actual_body)?;
         } else {
-            create_body_tokens(actual_body.get_default_content_type(), &actual_body);
+            create_body_tokens(actual_body.get_default_content_type(), &actual_body)?;
         };
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for RequestBody<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 

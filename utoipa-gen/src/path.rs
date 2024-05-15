@@ -12,7 +12,7 @@ use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::path::request_body::RequestBody;
-use crate::{impl_to_tokens_diagnostics, parse_utils, Deprecated, Diagnostics};
+use crate::{as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, ToTokensDiagnostics};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
@@ -300,8 +300,10 @@ impl<'p> Path<'p> {
 
         self
     }
+}
 
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+impl<'p> ToTokensDiagnostics for Path<'p> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let operation_id = self
             .path_attr
             .operation_id
@@ -418,6 +420,8 @@ impl<'p> Path<'p> {
             responses: self.path_attr.responses.as_ref(),
             security: self.path_attr.security.as_ref(),
         };
+        let operation = as_tokens_or_diagnostics!(&operation);
+
         let impl_for = if let Some(impl_for) = &self.path_attr.impl_for {
             impl_for.clone()
         } else {
@@ -457,14 +461,6 @@ impl<'p> Path<'p> {
     }
 }
 
-impl_to_tokens_diagnostics! {
-    impl<'p> ToTokensDiagnostics for Path<'p> {
-        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
-    }
-}
-
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Operation<'a> {
     operation_id: Expr,
@@ -477,17 +473,19 @@ struct Operation<'a> {
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
 }
 
-impl ToTokens for Operation<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
+impl ToTokensDiagnostics for Operation<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         tokens.extend(quote! { utoipa::openapi::path::OperationBuilder::new() });
 
         if let Some(request_body) = self.request_body {
+            let request_body = as_tokens_or_diagnostics!(request_body);
             tokens.extend(quote! {
                 .request_body(Some(#request_body))
             })
         }
 
         let responses = Responses(self.responses);
+        let responses = as_tokens_or_diagnostics!(&responses);
         tokens.extend(quote! {
             .responses(#responses)
         });
@@ -521,9 +519,11 @@ impl ToTokens for Operation<'_> {
             }
         }
 
-        self.parameters
-            .iter()
-            .for_each(|parameter| parameter.to_tokens(tokens));
+        for parameter in self.parameters {
+            parameter.to_tokens(tokens)?;
+        }
+
+        Ok(())
     }
 }
 

@@ -2013,6 +2013,7 @@ fn derive_complex_enum_with_title() {
 #[test]
 fn derive_complex_enum_serde_tag() {
     #[derive(Serialize)]
+    #[allow(dead_code)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -2634,6 +2635,7 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all(
 #[test]
 fn derive_complex_enum_serde_tag_title() {
     #[derive(Serialize)]
+    #[allow(dead_code)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -3511,6 +3513,7 @@ fn derive_component_with_primitive_aliases() {
 #[test]
 fn derive_component_with_to_schema_value_type() {
     #[derive(ToSchema)]
+    #[allow(dead_code)]
     struct Foo {
         #[allow(unused)]
         value: String,

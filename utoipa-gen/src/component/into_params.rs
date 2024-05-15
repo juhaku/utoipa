@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
     Generics, Ident,
@@ -19,7 +19,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    impl_to_tokens_diagnostics, Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
+    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -362,8 +362,10 @@ impl Param<'_> {
             },
         ))
     }
+}
 
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for Param<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let field = self.field;
         let field_serde_params = &self.field_serde_params;
         let ident = &field.ident;
@@ -408,7 +410,7 @@ impl Param<'_> {
         });
         tokens.extend(
             if let Some(ref parameter_in) = self.container_attributes.parameter_in {
-                parameter_in.into_token_stream()
+                parameter_in.to_token_stream()
             } else {
                 quote! {
                     .parameter_in(parameter_in_provider().unwrap_or_default())
@@ -422,6 +424,7 @@ impl Param<'_> {
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
+            let schema_with = crate::as_tokens_or_diagnostics!(&schema_with);
             tokens.extend(quote! { .schema(Some(#schema_with)).build() });
         } else {
             let description =
@@ -448,7 +451,7 @@ impl Param<'_> {
             tokens.extend(quote! {
                 .required(#required)
             });
-            tokens.extend(param_features.to_token_stream());
+            tokens.extend(param_features.to_token_stream()?);
 
             let schema = ComponentSchema::new(component::ComponentSchemaProps {
                 type_tree: &component,
@@ -456,19 +459,12 @@ impl Param<'_> {
                 description: None,
                 deprecated: None,
                 object_name: "",
-            });
+            })?;
+            let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
 
-            tokens.extend(quote! { .schema(Some(#schema)).build() });
+            tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
         }
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for Param<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }

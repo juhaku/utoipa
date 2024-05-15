@@ -7,8 +7,8 @@ use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, Ty
 
 use crate::doc_comment::CommentAttributes;
 use crate::schema_type::SchemaFormat;
+use crate::{as_tokens_or_diagnostics, Diagnostics, OptionExt, ToTokensDiagnostics};
 use crate::{schema_type::SchemaType, Deprecated};
-use crate::{Diagnostics, OptionExt};
 
 use self::features::{
     pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable,
@@ -508,17 +508,11 @@ impl<'c> ComponentSchema {
             deprecated,
             object_name,
         }: ComponentSchemaProps,
-    ) -> Self {
+    ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
         let description_stream = ComponentSchema::get_description(description);
-
-        let match_diagnostics =
-            |result: Result<(), Diagnostics>, tokens: &mut TokenStream| match result {
-                Err(diagnostics) => diagnostics.to_tokens(tokens),
-                _ => (),
-            };
 
         match type_tree.generic_type {
             Some(GenericType::Map) => ComponentSchema::map_to_tokens(
@@ -528,52 +522,40 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-            ),
-            Some(GenericType::Vec) => match_diagnostics(
-                ComponentSchema::vec_to_tokens(
-                    &mut tokens,
-                    features,
-                    type_tree,
-                    object_name,
-                    description_stream,
-                    deprecated_stream,
-                ),
+            )?,
+            Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
-            ),
-            Some(GenericType::LinkedList) => match_diagnostics(
-                ComponentSchema::vec_to_tokens(
-                    &mut tokens,
-                    features,
-                    type_tree,
-                    object_name,
-                    description_stream,
-                    deprecated_stream,
-                ),
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            )?,
+            Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
-            ),
-            Some(GenericType::Set) => match_diagnostics(
-                ComponentSchema::vec_to_tokens(
-                    &mut tokens,
-                    features,
-                    type_tree,
-                    object_name,
-                    description_stream,
-                    deprecated_stream,
-                ),
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            )?,
+            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
-            ),
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            )?,
             #[cfg(feature = "smallvec")]
-            Some(GenericType::SmallVec) => match_diagnostics(
-                ComponentSchema::vec_to_tokens(
-                    &mut tokens,
-                    features,
-                    type_tree,
-                    object_name,
-                    description_stream,
-                    deprecated_stream,
-                ),
+            Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
-            ),
+                features,
+                type_tree,
+                object_name,
+                description_stream,
+                deprecated_stream,
+            )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
                 if !features
@@ -595,8 +577,8 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
-                })
-                .to_tokens(&mut tokens);
+                })?
+                .to_tokens(&mut tokens)?;
             }
             Some(GenericType::Cow) | Some(GenericType::Box) | Some(GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
@@ -611,8 +593,8 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
-                })
-                .to_tokens(&mut tokens);
+                })?
+                .to_tokens(&mut tokens)?;
             }
             #[cfg(feature = "rc_schema")]
             Some(GenericType::Arc) | Some(GenericType::Rc) => {
@@ -628,8 +610,8 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
-                })
-                .to_tokens(&mut tokens);
+                })?
+                .to_tokens(&mut tokens)?;
             }
             None => ComponentSchema::non_generic_to_tokens(
                 &mut tokens,
@@ -638,10 +620,10 @@ impl<'c> ComponentSchema {
                 object_name,
                 description_stream,
                 deprecated_stream,
-            ),
-        }
+            )?,
+        };
 
-        Self { tokens }
+        Ok(Self { tokens })
     }
 
     fn map_to_tokens(
@@ -651,16 +633,17 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
-    ) {
+    ) -> Result<(), Diagnostics> {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
+        let default_tokens = as_tokens_or_diagnostics!(&default);
 
         let additional_properties = additional_properties
             .as_ref()
-            .map(ToTokens::to_token_stream)
-            .unwrap_or_else(|| {
+            .map_try(|feature| Ok(as_tokens_or_diagnostics!(feature)))?
+            .or_else_try(|| {
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
@@ -677,20 +660,23 @@ impl<'c> ComponentSchema {
                     description: None,
                     deprecated: None,
                     object_name,
-                });
+                })?;
+                let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
-                quote! { .additional_properties(Some(#schema_property)) }
-            });
+                Ok(Some(
+                    quote! { .additional_properties(Some(#schema_tokens)) },
+                ))
+            })?;
 
         tokens.extend(quote! {
             utoipa::openapi::ObjectBuilder::new()
                 #additional_properties
                 #description_stream
                 #deprecated_stream
-                #default
+                #default_tokens
         });
 
-        example.to_tokens(tokens);
+        example.to_tokens(tokens)?;
         nullable.to_tokens(tokens)
     }
 
@@ -751,7 +737,8 @@ impl<'c> ComponentSchema {
                 description: None,
                 deprecated: None,
                 object_name,
-            });
+            })?;
+            let component_schema_tokens = as_tokens_or_diagnostics!(&component_schema);
 
             let unique = match unique {
                 true => quote! {
@@ -762,7 +749,7 @@ impl<'c> ComponentSchema {
 
             quote! {
                 utoipa::openapi::schema::ArrayBuilder::new()
-                    .items(#component_schema)
+                    .items(#component_schema_tokens)
                     #unique
             }
         };
@@ -793,9 +780,9 @@ impl<'c> ComponentSchema {
             tokens.extend(default.to_token_stream())
         }
 
-        example.to_tokens(tokens);
-        xml.to_tokens(tokens);
-        nullable.to_tokens(tokens);
+        example.to_tokens(tokens)?;
+        xml.to_tokens(tokens)?;
+        nullable.to_tokens(tokens)?;
 
         Ok(())
     }
@@ -807,8 +794,9 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<TokenStream>,
         deprecated_stream: Option<TokenStream>,
-    ) {
+    ) -> Result<(), Diagnostics> {
         let nullable = pop_feature!(features => Feature::Nullable(_));
+        let nullable_tokens = as_tokens_or_diagnostics!(&nullable);
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -825,8 +813,9 @@ impl<'c> ComponentSchema {
                     }
                 }
 
+                let schema_type_tokens = as_tokens_or_diagnostics!(&schema_type);
                 tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type)
+                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type_tokens)
                 });
 
                 let format: SchemaFormat = (type_path).into();
@@ -841,15 +830,15 @@ impl<'c> ComponentSchema {
                 for feature in features.iter().filter(|feature| feature.is_validatable()) {
                     feature.validate(&schema_type, type_tree);
                 }
-                tokens.extend(features.to_token_stream());
-                nullable.to_tokens(tokens);
+                tokens.extend(features.to_token_stream()?);
+                nullable.to_tokens(tokens)?;
             }
             ValueType::Value => {
                 if type_tree.is_value() {
                     tokens.extend(quote! {
                         utoipa::openapi::ObjectBuilder::new()
                             .schema_type(utoipa::openapi::schema::SchemaType::Value)
-                            #description_stream #deprecated_stream #nullable
+                            #description_stream #deprecated_stream #nullable_tokens
                     })
                 }
             }
@@ -859,18 +848,19 @@ impl<'c> ComponentSchema {
                 if type_tree.is_object() {
                     tokens.extend(quote! {
                         utoipa::openapi::ObjectBuilder::new()
-                            #description_stream #deprecated_stream #nullable
+                            #description_stream #deprecated_stream #nullable_tokens
                     })
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
+                        let default_tokens = as_tokens_or_diagnostics!(&default);
                         let schema = if default.is_some() || nullable.is_some() {
                             quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::AllOfBuilder::new()
-                                    #nullable
+                                    #nullable_tokens
                                     .item(<#type_path as utoipa::ToSchema>::schema().1)
-                                    #default
+                                    #default_tokens
                             }
                         } else {
                             quote_spanned! {type_path.span() =>
@@ -886,13 +876,14 @@ impl<'c> ComponentSchema {
                         }
 
                         let default = pop_feature!(features => Feature::Default(_));
+                        let default_tokens = as_tokens_or_diagnostics!(&default);
 
                         let schema = if default.is_some() || nullable.is_some() {
                             quote! {
                                 utoipa::openapi::schema::AllOfBuilder::new()
-                                    #nullable
+                                    #nullable_tokens
                                     .item(utoipa::openapi::Ref::from_schema_name(#name))
-                                    #default
+                                    #default_tokens
                             }
                         } else {
                             quote! {
@@ -908,41 +899,52 @@ impl<'c> ComponentSchema {
                 type_tree
                     .children
                     .as_ref()
-                    .map(|children| {
-                        let all_of = children.iter().fold(
-                            quote! { utoipa::openapi::schema::AllOfBuilder::new() },
-                            |mut all_of, child| {
+                    .map_try(|children| {
+                        let all_of = children
+                            .iter()
+                            .map(|child| {
                                 let features = if child.is_option() {
                                     Some(vec![Feature::Nullable(Nullable::new())])
                                 } else {
                                     None
                                 };
 
-                                let item = ComponentSchema::new(ComponentSchemaProps {
+                                match ComponentSchema::new(ComponentSchemaProps {
                                     type_tree: child,
                                     features,
                                     description: None,
                                     deprecated: None,
                                     object_name,
-                                });
-                                all_of.extend(quote!( .item(#item) ));
+                                }) {
+                                    Ok(child) => Ok(as_tokens_or_diagnostics!(&child)),
+                                    Err(diagnostics) => Err(diagnostics),
+                                }
+                            })
+                            .collect::<Result<Vec<_>, Diagnostics>>()?
+                            .into_iter()
+                            .fold(
+                                quote! { utoipa::openapi::schema::AllOfBuilder::new() },
+                                |mut all_of, child_tokens| {
+                                    all_of.extend(quote!( .item(#child_tokens) ));
 
-                                all_of
-                            },
-                        );
-                        quote! {
+                                    all_of
+                                },
+                            );
+
+                        Result::<TokenStream, Diagnostics>::Ok(quote! {
                             utoipa::openapi::schema::ArrayBuilder::new()
                                 .items(#all_of)
-                                #nullable
-                                #description_stream
-                                #deprecated_stream
-                        }
-                    })
+                            #nullable_tokens
+                            #description_stream
+                            #deprecated_stream
+                        })
+                    })?
                     .unwrap_or_else(|| quote!(utoipa::openapi::schema::empty()))
                     .to_tokens(tokens);
                 tokens.extend(features.to_token_stream());
             }
         }
+        Ok(())
     }
 
     fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
@@ -963,9 +965,10 @@ impl<'c> ComponentSchema {
     }
 }
 
-impl ToTokens for ComponentSchema {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.tokens.to_tokens(tokens)
+impl ToTokensDiagnostics for ComponentSchema {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        self.tokens.to_tokens(tokens);
+        Ok(())
     }
 }
 
@@ -974,7 +977,7 @@ pub struct FlattenedMapSchema {
     tokens: TokenStream,
 }
 
-impl<'c> FlattenedMapSchema {
+impl FlattenedMapSchema {
     pub fn new(
         ComponentSchemaProps {
             type_tree,
@@ -983,7 +986,7 @@ impl<'c> FlattenedMapSchema {
             deprecated,
             object_name,
         }: ComponentSchemaProps,
-    ) -> Self {
+    ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
@@ -992,6 +995,7 @@ impl<'c> FlattenedMapSchema {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
+        let default_tokens = as_tokens_or_diagnostics!(&default);
 
         // Maps are treated as generic objects with no named properties and
         // additionalProperties denoting the type
@@ -1009,24 +1013,26 @@ impl<'c> FlattenedMapSchema {
             description: None,
             deprecated: None,
             object_name,
-        });
+        })?;
+        let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
         tokens.extend(quote! {
-            #schema_property
+            #schema_tokens
                 #description_stream
                 #deprecated_stream
-                #default
+                #default_tokens
         });
 
-        example.to_tokens(&mut tokens);
-        nullable.to_tokens(&mut tokens);
+        example.to_tokens(&mut tokens)?;
+        nullable.to_tokens(&mut tokens)?;
 
-        Self { tokens }
+        Ok(Self { tokens })
     }
 }
 
-impl ToTokens for FlattenedMapSchema {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.tokens.to_tokens(tokens)
+impl ToTokensDiagnostics for FlattenedMapSchema {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        self.tokens.to_tokens(tokens);
+        Ok(())
     }
 }

@@ -1233,6 +1233,7 @@ fn derive_path_params_into_params_with_value_type() {
     use utoipa::OpenApi;
 
     #[derive(ToSchema)]
+    #[allow(dead_code)]
     struct Foo {
         #[allow(unused)]
         value: String,

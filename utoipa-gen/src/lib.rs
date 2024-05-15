@@ -1416,8 +1416,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }));
 
+    let path_tokens = path.to_token_stream();
+
     quote! {
-        #path
+        #path_tokens
         #ast_fn
     }
     .into()
@@ -2402,7 +2404,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
         data,
     };
 
-    ToTokens::into_token_stream(into_responses).into()
+    into_responses.to_token_stream().into()
 }
 
 /// Create OpenAPI Schema from arbitrary type.
@@ -2495,7 +2497,10 @@ pub fn schema(input: TokenStream) -> TokenStream {
         object_name: "",
     });
 
-    schema.to_token_stream().into()
+    match schema {
+        Ok(schema) => schema.to_token_stream().into(),
+        Err(diagnostics) => diagnostics.to_token_stream().into(),
+    }
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
@@ -2770,6 +2775,9 @@ trait OptionExt<T> {
     fn and_then_try<F, U, E>(self, f: F) -> Result<Option<U>, E>
     where
         F: FnOnce(T) -> Result<Option<U>, E>;
+    fn or_else_try<F, U>(self, f: F) -> Result<Option<T>, U>
+    where
+        F: FnOnce() -> Result<Option<T>, U>;
 }
 
 impl<T> OptionExt<T> for Option<T> {
@@ -2797,6 +2805,17 @@ impl<T> OptionExt<T> for Option<T> {
             Ok(None)
         }
     }
+
+    fn or_else_try<F, U>(self, f: F) -> Result<Option<T>, U>
+    where
+        F: FnOnce() -> Result<Option<T>, U>,
+    {
+        if self.is_none() {
+            f()
+        } else {
+            Ok(self)
+        }
+    }
 }
 
 trait ToTokensDiagnostics {
@@ -2819,24 +2838,17 @@ trait ToTokensDiagnostics {
     }
 }
 
-macro_rules! impl_to_tokens_diagnostics {
-    ( impl $(< $life:lifetime >)? ToTokensDiagnostics for $e:path { $($tt:tt)* } ) => {
-        impl $(< $life >)? quote::ToTokens for $e
-        where
-            Self: crate::ToTokensDiagnostics,
-        {
-            fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-                tokens.extend(crate::ToTokensDiagnostics::to_token_stream(self));
-            }
+macro_rules! as_tokens_or_diagnostics {
+    ( $type:expr ) => {{
+        let mut _tokens = proc_macro2::TokenStream::new();
+        match crate::ToTokensDiagnostics::to_tokens($type, &mut _tokens) {
+            Ok(_) => _tokens,
+            Err(diagnostics) => return Err(diagnostics),
         }
-
-        impl $(< $life >)? crate::ToTokensDiagnostics for $e {
-            $($tt)*
-        }
-    };
+    }};
 }
 
-use impl_to_tokens_diagnostics;
+use as_tokens_or_diagnostics;
 
 /// Parsing utils
 mod parse_utils {

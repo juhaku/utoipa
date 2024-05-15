@@ -7,7 +7,7 @@ use syn::{parse_quote, TypePath};
 
 use crate::component::features::Feature;
 use crate::schema_type::SchemaType;
-use crate::Array;
+use crate::{Array, Diagnostics, ToTokensDiagnostics};
 
 pub trait Variant {
     /// Implement `ToTokens` conversion for the [`Variant`]
@@ -249,16 +249,17 @@ impl UntaggedEnum {
     }
 }
 
-impl ToTokens for UntaggedEnum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let title = &self.title;
+impl ToTokensDiagnostics for UntaggedEnum {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        let title = &self.title.to_token_stream();
 
         tokens.extend(quote! {
             utoipa::openapi::schema::ObjectBuilder::new()
                 .nullable(true)
                 .default(Some(serde_json::Value::Null))
                 #title
-        })
+        });
+        Ok(())
     }
 }
 

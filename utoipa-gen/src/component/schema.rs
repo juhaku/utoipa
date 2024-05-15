@@ -9,9 +9,10 @@ use syn::{
 };
 
 use crate::{
+    as_tokens_or_diagnostics,
     component::features::{Example, Rename},
     doc_comment::CommentAttributes,
-    impl_to_tokens_diagnostics, Array, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
+    Array, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use self::{
@@ -261,12 +262,9 @@ impl<'a> SchemaVariant<'a> {
 impl ToTokensDiagnostics for SchemaVariant<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
-            Self::Enum(schema) => {
-                schema.to_tokens(tokens);
-                Ok(())
-            }
-            Self::Named(schema) => ToTokensDiagnostics::to_tokens(schema, tokens),
-            Self::Unnamed(schema) => ToTokensDiagnostics::to_tokens(schema, tokens),
+            Self::Enum(schema) => schema.to_tokens(tokens),
+            Self::Named(schema) => schema.to_tokens(tokens),
+            Self::Unnamed(schema) => schema.to_tokens(tokens),
             Self::Unit(unit) => {
                 unit.to_tokens(tokens);
                 Ok(())
@@ -390,9 +388,9 @@ impl NamedStructSchema<'_> {
                     object_name: self.struct_name.as_ref(),
                 };
                 if is_flatten(field_rules) && type_tree.is_map() {
-                    Property::FlattenedMap(FlattenedMapSchema::new(cs))
+                    Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
                 } else {
-                    Property::Schema(ComponentSchema::new(cs))
+                    Property::Schema(ComponentSchema::new(cs)?)
                 }
             },
             rename_field_value: rename_field,
@@ -400,8 +398,10 @@ impl NamedStructSchema<'_> {
             is_option,
         })
     }
+}
 
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for NamedStructSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let container_rules = serde::parse_container(self.attributes)?;
 
         let fields = self
@@ -437,19 +437,31 @@ impl NamedStructSchema<'_> {
             .filter(|(_, field_rules, ..)| {
                 is_not_skipped(field_rules) && !is_flatten(field_rules.as_ref())
             })
+            .map(|(property, field_rules, field_name, field)| {
+                Ok((
+                    property,
+                    field_rules,
+                    field_name,
+                    field,
+                    as_tokens_or_diagnostics!(&property.property),
+                ))
+            })
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
             .fold(
                 quote! { utoipa::openapi::ObjectBuilder::new() },
                 |mut object_tokens,
                  (
                     NamedStructFieldOptions {
-                        property,
                         rename_field_value,
                         required,
                         is_option,
+                        ..
                     },
                     field_rules,
                     field_name,
                     _field,
+                    field_schema,
                 )| {
                     let rename_to = field_rules
                         .as_ref()
@@ -469,7 +481,7 @@ impl NamedStructSchema<'_> {
                             .unwrap_or(Cow::Borrowed(field_name.borrow()));
 
                     object_tokens.extend(quote! {
-                        .property(#name, #property)
+                        .property(#name, #field_schema)
                     });
 
                     if (!is_option
@@ -499,16 +511,18 @@ impl NamedStructSchema<'_> {
 
             for (options, _, _, field) in flatten_fields {
                 let NamedStructFieldOptions { property, .. } = options;
+                let property_schema = as_tokens_or_diagnostics!(property);
 
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
-                        flattened_tokens.extend(quote! { .item(#property) })
+                        flattened_tokens.extend(quote! { .item(#property_schema) })
                     }
                     Property::FlattenedMap(_) => {
                         match flattened_map_field {
                             None => {
-                                object_tokens
-                                    .extend(quote! { .additional_properties(Some(#property)) });
+                                object_tokens.extend(
+                                    quote! { .additional_properties(Some(#property_schema)) },
+                                );
                                 flattened_map_field = Some(field);
                             }
                             Some(flattened_map_field) => {
@@ -558,7 +572,7 @@ impl NamedStructSchema<'_> {
         }
 
         if let Some(struct_features) = self.features.as_ref() {
-            tokens.extend(struct_features.to_token_stream())
+            tokens.extend(struct_features.to_token_stream()?)
         }
 
         let description = CommentAttributes::from_attributes(self.attributes).as_formatted_string();
@@ -572,14 +586,6 @@ impl NamedStructSchema<'_> {
     }
 }
 
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for NamedStructSchema<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
-    }
-}
-
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct UnnamedStructSchema<'a> {
     struct_name: Cow<'a, str>,
@@ -589,8 +595,8 @@ struct UnnamedStructSchema<'a> {
     schema_as: Option<As>,
 }
 
-impl UnnamedStructSchema<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let fields_len = self.fields.len();
         let first_field = self.fields.first().unwrap();
         let first_part = &TypeTree::from_type(&first_field.ty)?;
@@ -636,7 +642,7 @@ impl UnnamedStructSchema<'_> {
                     description: Some(&CommentAttributes::from_attributes(self.attributes)),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
-                })
+                })?
                 .to_token_stream(),
             );
         } else {
@@ -653,7 +659,7 @@ impl UnnamedStructSchema<'_> {
             }
 
             if let Some(ref attrs) = self.features {
-                tokens.extend(attrs.to_token_stream())
+                tokens.extend(attrs.to_token_stream()?)
             }
         }
 
@@ -666,14 +672,6 @@ impl UnnamedStructSchema<'_> {
         }
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 
@@ -794,9 +792,9 @@ impl<'e> EnumSchema<'e> {
     }
 }
 
-impl ToTokens for EnumSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.schema_type.to_tokens(tokens);
+impl ToTokensDiagnostics for EnumSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        self.schema_type.to_tokens(tokens)
     }
 }
 
@@ -808,20 +806,20 @@ enum EnumSchemaType<'e> {
     Complex(ComplexEnum<'e>),
 }
 
-impl ToTokens for EnumSchemaType<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl ToTokensDiagnostics for EnumSchemaType<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let attributes = match self {
             Self::Simple(simple) => {
-                ToTokens::to_tokens(simple, tokens);
+                ToTokensDiagnostics::to_tokens(simple, tokens)?;
                 simple.attributes
             }
             #[cfg(feature = "repr")]
             Self::Repr(repr) => {
-                ToTokens::to_tokens(repr, tokens);
+                ToTokensDiagnostics::to_tokens(repr, tokens)?;
                 repr.attributes
             }
             Self::Complex(complex) => {
-                ToTokens::to_tokens(complex, tokens);
+                ToTokensDiagnostics::to_tokens(complex, tokens)?;
                 complex.attributes
             }
         };
@@ -836,6 +834,8 @@ impl ToTokens for EnumSchemaType<'_> {
                 .description(Some(#description))
             })
         }
+
+        Ok(())
     }
 }
 
@@ -849,8 +849,8 @@ struct ReprEnum<'a> {
 }
 
 #[cfg(feature = "repr")]
-impl ReprEnum<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for ReprEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let container_rules = serde::parse_container(self.attributes)?;
         let enum_variants = self
             .variants
@@ -876,20 +876,14 @@ impl ReprEnum<'_> {
             })
             .collect::<Vec<enum_variant::ReprVariant<TokenStream>>>();
 
-        regular_enum_to_tokens(tokens, &container_rules, &self.enum_features, || {
-            enum_variants
-        });
+        regular_enum_to_tokens(
+            tokens,
+            &container_rules,
+            self.enum_features.to_token_stream()?,
+            || enum_variants,
+        );
 
         Ok(())
-    }
-}
-
-#[cfg(feature = "repr")]
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for ReprEnum<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 
@@ -928,8 +922,8 @@ struct SimpleEnum<'a> {
     rename_all: Option<RenameAll>,
 }
 
-impl SimpleEnum<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for SimpleEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let container_rules = serde::parse_container(self.attributes)?;
         let simple_enum_variant = self
             .variants
@@ -984,26 +978,21 @@ impl SimpleEnum<'_> {
             })
             .collect::<Vec<SimpleEnumVariant<TokenStream>>>();
 
-        regular_enum_to_tokens(tokens, &container_rules, &self.enum_features, || {
-            simple_enum_variant
-        });
+        regular_enum_to_tokens(
+            tokens,
+            &container_rules,
+            self.enum_features.to_token_stream()?,
+            || simple_enum_variant,
+        );
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for SimpleEnum<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics>  {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 
 fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
     tokens: &mut TokenStream,
     container_rules: &Option<SerdeContainer>,
-    enum_variant_features: &Vec<Feature>,
+    enum_variant_features: TokenStream,
     get_variants_tokens_vec: impl FnOnce() -> Vec<T>,
 ) {
     let enum_values = get_variants_tokens_vec();
@@ -1034,7 +1023,7 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
         _ => Enum::new(enum_values).to_token_stream(),
     });
 
-    tokens.extend(enum_variant_features.to_token_stream());
+    tokens.extend(enum_variant_features);
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -1077,9 +1066,11 @@ impl ComplexEnum<'_> {
 
                 Ok(self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
-                    title: title_features.first().map(ToTokens::to_token_stream),
-                    example: example.as_ref().map(ToTokens::to_token_stream),
-                    item: NamedStructSchema {
+                    title: title_features
+                        .first()
+                        .map(ToTokensDiagnostics::to_token_stream),
+                    example: example.as_ref().map(ToTokensDiagnostics::to_token_stream),
+                    item: as_tokens_or_diagnostics!(&NamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
                         rename_all: named_struct_features.pop_rename_all_feature(),
@@ -1088,7 +1079,7 @@ impl ComplexEnum<'_> {
                         generics: None,
                         aliases: None,
                         schema_as: None,
-                    },
+                    }),
                 }))
             }
             Fields::Unnamed(unnamed_fields) => {
@@ -1110,15 +1101,17 @@ impl ComplexEnum<'_> {
 
                 Ok(self::enum_variant::Variant::to_tokens(&ObjectVariant {
                     name: variant_name.unwrap_or(Cow::Borrowed(&name)),
-                    title: title_features.first().map(ToTokens::to_token_stream),
-                    example: example.as_ref().map(ToTokens::to_token_stream),
-                    item: UnnamedStructSchema {
+                    title: title_features
+                        .first()
+                        .map(ToTokensDiagnostics::to_token_stream),
+                    example: example.as_ref().map(ToTokensDiagnostics::to_token_stream),
+                    item: as_tokens_or_diagnostics!(&UnnamedStructSchema {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         schema_as: None,
-                    },
+                    }),
                 }))
             }
             Fields::Unit => {
@@ -1154,9 +1147,13 @@ impl ComplexEnum<'_> {
                         .unwrap_or(Cow::Borrowed(&name))
                         .to_token_stream(),
                 }])
-                .with_title(title.as_ref().map(ToTokens::to_token_stream))
-                .with_example(example.as_ref().map(ToTokens::to_token_stream))
-                .with_description(description.as_ref().map(ToTokens::to_token_stream))
+                .with_title(title.as_ref().map(ToTokensDiagnostics::to_token_stream))
+                .with_example(example.as_ref().map(ToTokensDiagnostics::to_token_stream))
+                .with_description(
+                    description
+                        .as_ref()
+                        .map(ToTokensDiagnostics::to_token_stream),
+                )
                 .to_token_stream())
             }
         }
@@ -1173,7 +1170,7 @@ impl ComplexEnum<'_> {
                     .into_inner()
                     .unwrap_or_default();
 
-                Ok(ToTokens::to_token_stream(&NamedStructSchema {
+                Ok(as_tokens_or_diagnostics!(&NamedStructSchema {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     rename_all: named_struct_features.pop_rename_all_feature(),
@@ -1191,7 +1188,7 @@ impl ComplexEnum<'_> {
                     .into_inner()
                     .unwrap_or_default();
 
-                Ok(ToTokens::to_token_stream(&UnnamedStructSchema {
+                Ok(as_tokens_or_diagnostics!(&UnnamedStructSchema {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     features: Some(unnamed_struct_features),
@@ -1207,7 +1204,7 @@ impl ComplexEnum<'_> {
                     .unwrap_or_default();
                 let title = pop_feature!(unit_features => Feature::Title(_));
 
-                Ok(UntaggedEnum::with_title(title).to_token_stream())
+                Ok(as_tokens_or_diagnostics!(&UntaggedEnum::with_title(title)))
             }
         }
     }
@@ -1249,7 +1246,10 @@ impl ComplexEnum<'_> {
                     aliases: None,
                     schema_as: None,
                 };
-                let title = title_features.first().map(ToTokens::to_token_stream);
+                let named_enum_tokens = as_tokens_or_diagnostics!(&named_enum);
+                let title = title_features
+                    .first()
+                    .map(ToTokensDiagnostics::to_token_stream);
 
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name
@@ -1257,7 +1257,7 @@ impl ComplexEnum<'_> {
                         .to_token_stream(),
                 }]);
                 Ok(quote! {
-                    #named_enum
+                    #named_enum_tokens
                         #title
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
@@ -1286,8 +1286,11 @@ impl ComplexEnum<'_> {
                         fields: &unnamed_fields.unnamed,
                         schema_as: None,
                     };
+                    let unnamed_enum_tokens = as_tokens_or_diagnostics!(&unnamed_enum);
 
-                    let title = title_features.first().map(ToTokens::to_token_stream);
+                    let title = title_features
+                        .first()
+                        .map(ToTokensDiagnostics::to_token_stream);
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name
                             .unwrap_or(Cow::Borrowed(&name))
@@ -1306,7 +1309,7 @@ impl ComplexEnum<'_> {
                         Ok(quote! {
                             utoipa::openapi::schema::AllOfBuilder::new()
                                 #title
-                                .item(#unnamed_enum)
+                                .item(#unnamed_enum_tokens)
                                 .item(utoipa::openapi::schema::ObjectBuilder::new()
                                     .schema_type(utoipa::openapi::schema::SchemaType::Object)
                                     .property(#tag, #variant_name_tokens)
@@ -1315,7 +1318,7 @@ impl ComplexEnum<'_> {
                         })
                     } else {
                         Ok(quote! {
-                            #unnamed_enum
+                            #unnamed_enum_tokens
                                 #title
                                 .schema_type(utoipa::openapi::schema::SchemaType::Object)
                                 .property(#tag, #variant_name_tokens)
@@ -1337,6 +1340,7 @@ impl ComplexEnum<'_> {
                     })?
                     .unwrap_or_default();
                 let title = pop_feature!(unit_features => Feature::Title(_));
+                let title_tokens = as_tokens_or_diagnostics!(&title);
 
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -1355,7 +1359,7 @@ impl ComplexEnum<'_> {
 
                 Ok(quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
-                        #title
+                        #title_tokens
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 })
@@ -1401,7 +1405,10 @@ impl ComplexEnum<'_> {
                     aliases: None,
                     schema_as: None,
                 };
-                let title = title_features.first().map(ToTokens::to_token_stream);
+                let named_enum_tokens = as_tokens_or_diagnostics!(&named_enum);
+                let title = title_features
+                    .first()
+                    .map(ToTokensDiagnostics::to_token_stream);
 
                 let variant_name_tokens = Enum::new([SimpleEnumVariant {
                     value: variant_name
@@ -1414,7 +1421,7 @@ impl ComplexEnum<'_> {
                         .schema_type(utoipa::openapi::schema::SchemaType::Object)
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
-                        .property(#content, #named_enum)
+                        .property(#content, #named_enum_tokens)
                         .required(#content)
                 })
             }
@@ -1441,8 +1448,11 @@ impl ComplexEnum<'_> {
                         fields: &unnamed_fields.unnamed,
                         schema_as: None,
                     };
+                    let unnamed_enum_tokens = as_tokens_or_diagnostics!(&unnamed_enum);
 
-                    let title = title_features.first().map(ToTokens::to_token_stream);
+                    let title = title_features
+                        .first()
+                        .map(ToTokensDiagnostics::to_token_stream);
                     let variant_name_tokens = Enum::new([SimpleEnumVariant {
                         value: variant_name
                             .unwrap_or(Cow::Borrowed(&name))
@@ -1455,7 +1465,7 @@ impl ComplexEnum<'_> {
                             .schema_type(utoipa::openapi::schema::SchemaType::Object)
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)
-                            .property(#content, #unnamed_enum)
+                            .property(#content, #unnamed_enum_tokens)
                             .required(#content)
                     })
                 } else {
@@ -1476,6 +1486,7 @@ impl ComplexEnum<'_> {
                     })?
                     .unwrap_or_default();
                 let title = pop_feature!(unit_features => Feature::Title(_));
+                let title_tokens = as_tokens_or_diagnostics!(&title);
 
                 let variant_name = rename_enum_variant(
                     name.as_ref(),
@@ -1494,15 +1505,17 @@ impl ComplexEnum<'_> {
 
                 Ok(quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
-                        #title
+                        #title_tokens
                         .property(#tag, #variant_tokens)
                         .required(#tag)
                 })
             }
         }
     }
+}
 
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for ComplexEnum<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let attributes = &self.attributes;
         let container_rules = serde::parse_container(attributes)?;
 
@@ -1572,16 +1585,8 @@ impl ComplexEnum<'_> {
             .with_discriminator(tag.map(|t| Cow::Borrowed(t.as_str())))
             .to_tokens(tokens);
 
-        tokens.extend(self.enum_features.to_token_stream());
+        tokens.extend(self.enum_features.to_token_stream()?);
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for ComplexEnum<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 
@@ -1592,13 +1597,14 @@ enum Property {
     FlattenedMap(FlattenedMapSchema),
 }
 
-impl ToTokens for Property {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl ToTokensDiagnostics for Property {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
-            Self::Schema(schema) => schema.to_tokens(tokens),
-            Self::FlattenedMap(schema) => schema.to_tokens(tokens),
-            Self::SchemaWith(schema_with) => ToTokens::to_tokens(schema_with, tokens),
+            Self::Schema(schema) => schema.to_tokens(tokens)?,
+            Self::FlattenedMap(schema) => schema.to_tokens(tokens)?,
+            Self::SchemaWith(schema_with) => schema_with.to_tokens(tokens)?,
         }
+        Ok(())
     }
 }
 
