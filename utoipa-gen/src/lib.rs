@@ -2918,7 +2918,7 @@ mod parse_utils {
 
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub(super) enum Str {
+    pub enum Str {
         String(String),
         IncludeStr(TokenStream),
     }
