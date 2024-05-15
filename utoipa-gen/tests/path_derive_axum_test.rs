@@ -180,6 +180,7 @@ fn get_todo_with_extension() {
 fn derive_path_params_into_params_unnamed() {
     #[derive(Deserialize, IntoParams)]
     #[into_params(names("id", "name"))]
+    #[allow(dead_code)]
     struct IdAndName(u64, String);
 
     #[utoipa::path(
@@ -235,6 +236,7 @@ fn derive_path_params_with_ignored_parameter() {
     struct Auth;
     #[derive(Deserialize, IntoParams)]
     #[into_params(names("id", "name"))]
+    #[allow(dead_code)]
     struct IdAndName(u64, String);
 
     #[utoipa::path(
@@ -537,6 +539,7 @@ fn path_param_single_arg_primitive_type() {
 #[test]
 fn path_param_single_arg_non_primitive_type() {
     #[derive(utoipa::ToSchema)]
+    #[allow(dead_code)]
     struct Id(String);
 
     #[utoipa::path(
@@ -577,6 +580,7 @@ fn path_param_single_arg_non_primitive_type() {
 fn path_param_single_arg_non_primitive_type_into_params() {
     #[derive(utoipa::ToSchema, utoipa::IntoParams)]
     #[into_params(names("id"))]
+    #[allow(dead_code)]
     struct Id(String);
 
     #[utoipa::path(
@@ -610,4 +614,144 @@ fn path_param_single_arg_non_primitive_type_into_params() {
             }
         ])
     )
+}
+
+#[test]
+fn derive_path_with_validation_attributes_axum() {
+    #[derive(IntoParams)]
+    #[allow(dead_code)]
+    struct Params {
+        #[param(maximum = 10, minimum = 5, multiple_of = 2.5)]
+        id: i32,
+
+        #[param(max_length = 10, min_length = 5, pattern = "[a-z]*")]
+        value: String,
+
+        #[param(max_items = 5, min_items = 1)]
+        items: Vec<String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "foo/{foo_id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("foo_id" = String, Path, min_length = 1, description = "Id of Foo to get"),
+            Params,
+            ("name" = Option<String>, description = "Foo name", min_length = 3),
+            ("nonnullable" = String, description = "Foo nonnullable", min_length = 3, max_length = 10),
+            ("namequery" = Option<String>, Query, description = "Foo name", min_length = 3),
+            ("nonnullablequery" = String, Query, description = "Foo nonnullable", min_length = 3, max_length = 10),
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(path: Path<String>, query: Query<Params>) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo~1{foo_id}/get/parameters").unwrap();
+
+    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
+
+    assert_json_matches!(
+        parameters,
+        json!([
+            {
+                "schema": {
+                    "type": "string",
+                    "minLength": 1,
+                },
+                "required": true,
+                "name": "foo_id",
+                "in": "path",
+                "description": "Id of Foo to get"
+            },
+            {
+                "schema": {
+                    "format": "int32",
+                    "type": "integer",
+                    "maximum": 10.0,
+                    "minimum": 5.0,
+                    "multipleOf": 2.5,
+                },
+                "required": true,
+                "name": "id",
+                "in": "query"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 5,
+                    "pattern": "[a-z]*"
+                },
+                "required": true,
+                "name": "value",
+                "in": "query"
+            },
+            {
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                    },
+                    "maxItems": 5,
+                    "minItems": 1,
+                },
+                "required": true,
+                "name": "items",
+                "in": "query"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 3,
+                },
+                "required": true,
+                "name": "name",
+                "in": "path",
+                "description": "Foo name"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 10,
+                },
+                "required": true,
+                "name": "nonnullable",
+                "in": "path",
+                "description": "Foo nonnullable"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 3,
+                },
+                "required": false,
+                "name": "namequery",
+                "in": "query",
+                "description": "Foo name"
+            },
+            {
+                "schema": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 10,
+                },
+                "required": true,
+                "name": "nonnullablequery",
+                "in": "query",
+                "description": "Foo nonnullable"
+            }
+        ]),
+        config
+    );
 }
