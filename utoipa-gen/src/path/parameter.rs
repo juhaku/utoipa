@@ -52,7 +52,12 @@ impl<'p> Parameter<'p> {
     pub fn merge(&mut self, other: Parameter<'p>) {
         match (self, other) {
             (Self::Value(value), Parameter::Value(other)) => {
+                let (schema_features, _) = &value.features;
                 value.parameter_schema = other.parameter_schema;
+
+                if let Some(parameter_schema) = &mut value.parameter_schema {
+                    parameter_schema.features.clone_from(schema_features);
+                }
             }
             (Self::IntoParamsIdent(into_params), Parameter::IntoParamsIdent(other)) => {
                 *into_params = other;
@@ -157,7 +162,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
             ParameterType::External(type_tree) => {
                 let required: Required = (!type_tree.is_option()).into();
 
-                Ok(to_tokens(
+                to_tokens(
                     ComponentSchema::new(component::ComponentSchemaProps {
                         type_tree,
                         features: Some(self.features.clone()),
@@ -166,7 +171,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                         object_name: "",
                     }),
                     required,
-                ))
+                );
+                Ok(())
             }
             ParameterType::Parsed(inline_type) => {
                 let type_tree = inline_type.as_type_tree()?;
@@ -175,7 +181,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 schema_features.clone_from(&self.features);
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
-                Ok(to_tokens(
+                to_tokens(
                     ComponentSchema::new(component::ComponentSchemaProps {
                         type_tree: &type_tree,
                         features: Some(schema_features),
@@ -184,7 +190,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                         object_name: "",
                     }),
                     required,
-                ))
+                );
+                Ok(())
             }
         }
     }

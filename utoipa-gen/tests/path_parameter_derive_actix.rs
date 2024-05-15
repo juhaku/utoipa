@@ -166,7 +166,8 @@ fn derive_params_from_method_args_actix_success() {
 }
 
 #[test]
-fn derive_path_with_date_params_implicit() {
+#[cfg(feature = "chrono")]
+fn derive_path_with_date_params_chrono_implicit() {
     mod mod_derive_path_with_date_params {
         use actix_web::{get, web, HttpResponse, Responder};
         use chrono::{DateTime, Utc};
@@ -221,7 +222,8 @@ fn derive_path_with_date_params_implicit() {
 }
 
 #[test]
-fn derive_path_with_date_params_explicit_ignored() {
+#[cfg(feature = "time")]
+fn derive_path_with_date_params_explicit_ignored_time() {
     mod mod_derive_path_with_date_params {
         use actix_web::{get, web, HttpResponse, Responder};
         use serde_json::json;
@@ -270,6 +272,6 @@ fn derive_path_with_date_params_explicit_ignored() {
         "[1].required" = r#"true"#, "Parameter required"
         "[1].deprecated" = r#"null"#, "Parameter deprecated"
         "[1].schema.type" = r#""string""#, "Parameter schema type"
-        "[1].schema.format" = r#"null"#, "Parameter schema format"
+        "[1].schema.format" = r#""date-time""#, "Parameter schema format"
     };
 }

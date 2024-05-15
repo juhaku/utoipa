@@ -76,12 +76,12 @@ impl<'p> PathAttr<'p> {
     ) {
         let ext_params = ext_parameters.into_iter();
 
-        let (existing_params, new_params): (Vec<Parameter>, Vec<Parameter>) =
+        let (existing_incoming_params, new_params): (Vec<Parameter>, Vec<Parameter>) =
             ext_params.partition(|param| self.params.iter().any(|p| p == param));
 
-        for existing in existing_params {
-            if let Some(param) = self.params.iter_mut().find(|p| **p == existing) {
-                param.merge(existing);
+        for existing_incoming in existing_incoming_params {
+            if let Some(param) = self.params.iter_mut().find(|p| **p == existing_incoming) {
+                param.merge(existing_incoming);
             }
         }
 
