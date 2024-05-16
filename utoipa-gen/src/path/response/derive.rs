@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::{iter, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -15,7 +15,9 @@ use syn::{
 use crate::component::schema::{EnumSchema, NamedStructSchema};
 use crate::doc_comment::CommentAttributes;
 use crate::path::{InlineType, PathType};
-use crate::{impl_to_tokens_diagnostics, parse_utils, Array, Diagnostics, OptionExt};
+use crate::{
+    as_tokens_or_diagnostics, parse_utils, Array, Diagnostics, OptionExt, ToTokensDiagnostics,
+};
 
 use super::{
     Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
@@ -76,14 +78,14 @@ impl<'r> ToResponse<'r> {
     }
 }
 
-impl ToTokens for ToResponse<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl ToTokensDiagnostics for ToResponse<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let (_, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let lifetime = &self.lifetime;
         let ident = &self.ident;
         let name = ident.to_string();
-        let response = &self.response;
+        let response = as_tokens_or_diagnostics!(&self.response);
 
         let mut to_response_generics = self.generics.clone();
         to_response_generics
@@ -100,6 +102,8 @@ impl ToTokens for ToResponse<'_> {
                 }
             }
         });
+
+        Ok(())
     }
 }
 
@@ -110,16 +114,17 @@ pub struct IntoResponses {
     pub ident: Ident,
 }
 
-impl IntoResponses {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for IntoResponses {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
                     let response =
                         NamedStructResponse::new(&self.attributes, &self.ident, &fields.named)?.0;
                     let status = &response.status_code;
+                    let response_tokens = as_tokens_or_diagnostics!(&response);
 
-                    Array::from_iter(iter::once(quote!((#status, #response))))
+                    Array::from_iter(iter::once(quote!((#status, #response_tokens))))
                 }
                 Fields::Unnamed(fields) => {
                     let field = fields
@@ -131,14 +136,16 @@ impl IntoResponses {
                     let response =
                         UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)?.0;
                     let status = &response.status_code;
+                    let response_tokens = as_tokens_or_diagnostics!(&response);
 
-                    Array::from_iter(iter::once(quote!((#status, #response))))
+                    Array::from_iter(iter::once(quote!((#status, #response_tokens))))
                 }
                 Fields::Unit => {
                     let response = UnitStructResponse::new(&self.attributes)?.0;
                     let status = &response.status_code;
+                    let response_tokens = as_tokens_or_diagnostics!(&response);
 
-                    Array::from_iter(iter::once(quote!((#status, #response))))
+                    Array::from_iter(iter::once(quote!((#status, #response_tokens))))
                 }
             },
             Data::Enum(enum_value) => enum_value
@@ -164,13 +171,14 @@ impl IntoResponses {
                     }
                     Fields::Unit => Ok(UnitStructResponse::new(&variant.attrs)?.0),
                 })
-                .collect::<Result<Array<ResponseTuple>, Diagnostics>>()?
+                .collect::<Result<Vec<ResponseTuple>, Diagnostics>>()?
                 .iter()
                 .map(|response| {
                     let status = &response.status_code;
-                    quote!((#status, utoipa::openapi::RefOr::from(#response)))
+                    let response_tokens = as_tokens_or_diagnostics!(response);
+                    Ok(quote!((#status, utoipa::openapi::RefOr::from(#response_tokens))))
                 })
-                .collect(),
+                .collect::<Result<Array<TokenStream>, Diagnostics>>()?,
             Data::Union(_) => {
                 return Err(Diagnostics::with_span(
                     self.ident.span(),
@@ -199,14 +207,6 @@ impl IntoResponses {
             });
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for IntoResponses {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 

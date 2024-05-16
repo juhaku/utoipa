@@ -12,7 +12,7 @@ use syn::{
 
 use crate::{
     component::{features::Inline, ComponentSchema, TypeTree},
-    impl_to_tokens_diagnostics, parse_utils, AnyValue, Array, Diagnostics,
+    parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics,
 };
 
 use super::{example::Example, parse, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
@@ -251,8 +251,8 @@ impl<'r> ResponseValue<'r> {
     }
 }
 
-impl ResponseTuple<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for ResponseTuple<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         match self.inner.as_ref().unwrap() {
             ResponseTupleInner::Ref(res) => {
                 let path = &res.ty;
@@ -290,7 +290,7 @@ impl ResponseTuple<'_> {
                                 description: None,
                                 deprecated: None,
                                 object_name: "",
-                            })
+                            })?
                             .to_token_stream()
                         }
                         PathType::InlineSchema(schema, _) => schema.to_token_stream(),
@@ -370,26 +370,19 @@ impl ResponseTuple<'_> {
                         tokens.extend(quote! { .content(#content_type, #content) })
                     });
 
-                val.headers.iter().for_each(|header| {
+                for header in &val.headers {
                     let name = &header.name;
+                    let header = crate::as_tokens_or_diagnostics!(header);
                     tokens.extend(quote! {
                         .header(#name, #header)
                     })
-                });
+                }
 
                 tokens.extend(quote! { .build() });
             }
         }
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for ResponseTuple<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 
@@ -711,29 +704,39 @@ impl Parse for Content<'_> {
 
 pub struct Responses<'a>(pub &'a [Response<'a>]);
 
-impl ToTokens for Responses<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.iter().fold(
-            quote! { utoipa::openapi::ResponsesBuilder::new() },
-            |mut acc, response| {
-                match response {
+impl ToTokensDiagnostics for Responses<'_> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+        tokens.extend(
+            self.0
+                .iter()
+                .map(|response| match response {
                     Response::IntoResponses(path) => {
                         let span = path.span();
-                        acc.extend(quote_spanned! {span =>
+                        Ok(quote_spanned! {span =>
                             .responses_from_into_responses::<#path>()
                         })
                     }
                     Response::Tuple(response) => {
                         let code = &response.status_code;
-                        acc.extend(quote! { .response(#code, #response) });
+                        let response = crate::as_tokens_or_diagnostics!(response);
+                        Ok(quote! { .response(#code, #response) })
                     }
-                }
+                })
+                .collect::<Result<Vec<_>, Diagnostics>>()?
+                .into_iter()
+                .fold(
+                    quote! { utoipa::openapi::ResponsesBuilder::new() },
+                    |mut acc, response| {
+                        response.to_tokens(&mut acc);
 
-                acc
-            },
-        ));
+                        acc
+                    },
+                ),
+        );
 
         tokens.extend(quote! { .build() });
+
+        Ok(())
     }
 }
 
@@ -847,8 +850,8 @@ impl Parse for Header {
     }
 }
 
-impl Header {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for Header {
+    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
         if let Some(header_type) = &self.value_type {
             // header property with custom type
             let type_tree = header_type.as_type_tree()?;
@@ -859,7 +862,7 @@ impl Header {
                 description: None,
                 deprecated: None,
                 object_name: "",
-            })
+            })?
             .to_token_stream();
 
             tokens.extend(quote! {
@@ -881,14 +884,6 @@ impl Header {
         tokens.extend(quote! { .build() });
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for Header {
-        fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 

@@ -9,6 +9,7 @@ use syn::{
 };
 
 use crate::{
+    as_tokens_or_diagnostics,
     component::{
         self,
         features::{
@@ -19,7 +20,7 @@ use crate::{
         },
         ComponentSchema,
     },
-    impl_to_tokens_diagnostics, parse_utils, Diagnostics, Required, ToTokensDiagnostics,
+    parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
 
 use super::InlineType;
@@ -80,10 +81,13 @@ impl Parse for Parameter<'_> {
     }
 }
 
-impl ToTokens for Parameter<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl ToTokensDiagnostics for Parameter<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
-            Parameter::Value(parameter) => tokens.extend(quote! { .parameter(#parameter) }),
+            Parameter::Value(parameter) => {
+                let parameter = as_tokens_or_diagnostics!(parameter);
+                tokens.extend(quote! { .parameter(#parameter) });
+            }
             Parameter::IntoParamsIdent(IntoParamsIdentParameter {
                 path,
                 parameter_in_fn,
@@ -101,6 +105,8 @@ impl ToTokens for Parameter<'_> {
                 })
             }
         }
+
+        Ok(())
     }
 }
 
@@ -163,13 +169,15 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 let required: Required = (!type_tree.is_option()).into();
 
                 to_tokens(
-                    ComponentSchema::new(component::ComponentSchemaProps {
-                        type_tree,
-                        features: Some(self.features.clone()),
-                        description: None,
-                        deprecated: None,
-                        object_name: "",
-                    }),
+                    as_tokens_or_diagnostics!(&ComponentSchema::new(
+                        component::ComponentSchemaProps {
+                            type_tree,
+                            features: Some(self.features.clone()),
+                            description: None,
+                            deprecated: None,
+                            object_name: "",
+                        }
+                    )?),
                     required,
                 );
                 Ok(())
@@ -182,13 +190,15 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
                 to_tokens(
-                    ComponentSchema::new(component::ComponentSchemaProps {
-                        type_tree: &type_tree,
-                        features: Some(schema_features),
-                        description: None,
-                        deprecated: None,
-                        object_name: "",
-                    }),
+                    as_tokens_or_diagnostics!(&ComponentSchema::new(
+                        component::ComponentSchemaProps {
+                            type_tree: &type_tree,
+                            features: Some(schema_features),
+                            description: None,
+                            deprecated: None,
+                            object_name: "",
+                        }
+                    )?),
                     required,
                 );
                 Ok(())
@@ -348,8 +358,8 @@ impl ParameterFeatures {
 
 impl_into_inner!(ParameterFeatures);
 
-impl ValueParameter<'_> {
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for ValueParameter<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let name = &*self.name;
         tokens.extend(quote! {
             utoipa::openapi::path::ParameterBuilder::from(utoipa::openapi::path::Parameter::new(#name))
@@ -359,7 +369,7 @@ impl ValueParameter<'_> {
 
         let (schema_features, param_features) = &self.features;
 
-        tokens.extend(param_features.to_token_stream());
+        tokens.extend(param_features.to_token_stream()?);
 
         if !schema_features.is_empty() && self.parameter_schema.is_none() {
             return Err(
@@ -373,14 +383,6 @@ impl ValueParameter<'_> {
         }
 
         Ok(())
-    }
-}
-
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for ValueParameter<'_> {
-        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
-        }
     }
 }
 

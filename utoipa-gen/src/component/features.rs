@@ -5,10 +5,10 @@ use quote::{quote, ToTokens};
 use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
 
 use crate::{
-    impl_to_tokens_diagnostics, parse_utils,
+    as_tokens_or_diagnostics, parse_utils,
     path::parameter::{self, ParameterStyle},
     schema_type::{SchemaFormat, SchemaType},
-    AnyValue, Diagnostics, OptionExt,
+    AnyValue, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use super::{schema, serde::RenameRule, GenericType, TypeTree};
@@ -168,8 +168,10 @@ impl Feature {
             }
         }
     }
+}
 
-    fn tokens_or_diagnostics(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokensDiagnostics for Feature {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let feature = match &self {
                 Feature::Default(default) => quote! { .default(#default) },
                 Feature::Example(example) => quote! { .example(Some(#example)) },
@@ -242,10 +244,12 @@ impl Feature {
     }
 }
 
-impl_to_tokens_diagnostics! {
-    impl ToTokensDiagnostics for Feature {
-        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-            self.tokens_or_diagnostics(tokens)
+impl ToTokensDiagnostics for Option<Feature> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        if let Some(this) = self {
+            this.to_tokens(tokens)
+        } else {
+            Ok(())
         }
     }
 }
@@ -1673,15 +1677,20 @@ impl IsInline for Vec<Feature> {
 }
 
 pub trait ToTokensExt {
-    fn to_token_stream(&self) -> TokenStream;
+    fn to_token_stream(&self) -> Result<TokenStream, Diagnostics>;
 }
 
 impl ToTokensExt for Vec<Feature> {
-    fn to_token_stream(&self) -> TokenStream {
-        self.iter().fold(TokenStream::new(), |mut tokens, item| {
-            item.to_tokens(&mut tokens);
-            tokens
-        })
+    fn to_token_stream(&self) -> Result<TokenStream, Diagnostics> {
+        Ok(self
+            .iter()
+            .map(|feature| Ok(as_tokens_or_diagnostics!(feature)))
+            .collect::<Result<Vec<TokenStream>, Diagnostics>>()?
+            .into_iter()
+            .fold(TokenStream::new(), |mut tokens, item| {
+                item.to_tokens(&mut tokens);
+                tokens
+            }))
     }
 }
 

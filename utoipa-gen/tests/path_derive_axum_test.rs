@@ -638,7 +638,7 @@ fn derive_path_with_validation_attributes_axum() {
             (status = 200, description = "success response")
         ),
         params(
-            ("foo_id" = String, Path, min_length = 1, description = "Id of Foo to get"),
+            ("foo_id" = String, min_length = 1, description = "Id of Foo to get"),
             Params,
             ("name" = Option<String>, description = "Foo name", min_length = 3),
             ("nonnullable" = String, description = "Foo nonnullable", min_length = 3, max_length = 10),
