@@ -98,7 +98,7 @@ use self::{
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
 ///   OpenAPI spec as _`path.to.Pet`_.
 /// * `default` Can be used to populate default values on all fields using the struct's
-///   [`Default`](std::default::Default) implementation.
+///   [`Default`] implementation.
 /// * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the fields as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
@@ -131,7 +131,7 @@ use self::{
 /// * `example = ...` Can be method reference or _`json!(...)`_.
 /// * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
 ///   only one field, the field's default value in the schema will be set from the struct's
-///   [`Default`](std::default::Default) implementation.
+///   [`Default`] implementation.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -1456,6 +1456,18 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   whole attribute from generated values of Cargo environment variables. E.g. defining
 ///   `contact(name = ...)` will ultimately override whole contact of info and not just partially
 ///   the name.
+/// * `nest(...)` Allows nesting [`OpenApi`][openapi_struct]s to this _`OpenApi`_ instance. Nest
+///   takes comma separated list of tuples that define comma separated key values of nest path and
+///   _`OpenApi`_ instance to nest. _`OpenApi`_ instance must implement [`OpenApi`][openapi] trait.
+///
+///     _**Nest syntax example.**_
+///
+///     ```text
+///     nest(
+///         ("/path/to/nest", ApiToNest),
+///         ("/another", AnotherApi)
+///     )
+///     ```
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -1608,6 +1620,32 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     )
 /// )]
 /// struct ApiDoc;
+/// ```
+///
+/// _**Nest _`UserApi`_ to the current api doc instance.**_
+/// ```rust
+/// # use utoipa::OpenApi;
+/// #
+///  #[utoipa::path(get, path = "/api/v1/status")]
+///  fn test_path_status() {}
+///
+///  #[utoipa::path(get, path = "/test")]
+///  fn user_test_path() {}
+///
+///  #[derive(OpenApi)]
+///  #[openapi(paths(user_test_path))]
+///  struct UserApi;
+///
+///  #[derive(OpenApi)]
+///  #[openapi(
+///      paths(
+///          test_path_status
+///      ),
+///      nest(
+///          ("/api/v1/user", UserApi),
+///      )
+///  )]
+///  struct ApiDoc;
 /// ```
 ///
 /// [openapi]: trait.OpenApi.html

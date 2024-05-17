@@ -3,6 +3,7 @@
 use serde::{de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Formatter;
 
+use self::path::PathsMap;
 pub use self::{
     content::{Content, ContentBuilder},
     external_docs::ExternalDocs,
@@ -226,6 +227,66 @@ impl OpenApi {
             tags.append(other_tags);
         }
     }
+
+    /// Nest `other` [`OpenApi`] to this [`OpenApi`].
+    ///
+    /// Nesting performs custom [`OpenApi::merge`] where `other` [`OpenApi`] paths are prepended with given
+    /// `path` and then appended to _`paths`_ of this [`OpenApi`] instance. Rest of the  `other`
+    /// [`OpenApi`] instance is merged to this [`OpenApi`] with [`OpenApi::merge_from`] method.
+    ///
+    /// Method accpets two arguments, first is the path to prepend .e.g. _`/user`_. Second argument
+    /// is the [`OpenApi`] to prepend paths for.
+    ///
+    /// # Examples
+    ///
+    /// _**Merge `user_api` to `api` nesting `user_api` paths under `/api/v1/user`**_
+    /// ```rust
+    ///  # use utoipa::openapi::{OpenApi, OpenApiBuilder};
+    ///  # use utoipa::openapi::path::{PathsBuilder, PathItemBuilder, PathItem,
+    ///  # PathItemType, OperationBuilder};
+    ///  let api = OpenApiBuilder::new()
+    ///      .paths(
+    ///          PathsBuilder::new().path(
+    ///              "/api/v1/status",
+    ///              PathItem::new(
+    ///                  PathItemType::Get,
+    ///                  OperationBuilder::new()
+    ///                      .description(Some("Get status"))
+    ///                      .build(),
+    ///              ),
+    ///          ),
+    ///      )
+    ///      .build();
+    ///  let user_api = OpenApiBuilder::new()
+    ///     .paths(
+    ///         PathsBuilder::new().path(
+    ///             "/",
+    ///             PathItem::new(PathItemType::Post, OperationBuilder::new().build()),
+    ///         )
+    ///     )
+    ///     .build();
+    ///  let nested = api.nest("/api/v1/user", user_api);
+    /// ```
+    pub fn nest<P: Into<String>, O: Into<OpenApi>>(mut self, path: P, other: O) -> Self {
+        let path: String = path.into();
+        let mut other_api: OpenApi = other.into();
+
+        let nested_paths = other_api
+            .paths
+            .paths
+            .into_iter()
+            .map(|(item_path, item)| {
+                let path = format!("{path}{item_path}");
+                (path, item)
+            })
+            .collect::<PathsMap<_, _>>();
+
+        self.paths.paths.extend(nested_paths);
+
+        // paths are already merged, thus we can ignore them
+        other_api.paths.paths = PathsMap::new();
+        self.merge_from(other_api)
+    }
 }
 
 impl OpenApiBuilder {
@@ -332,10 +393,11 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
 /// Value used to indicate whether reusable schema, parameter or operation is deprecated.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Deprecated {
     True,
+    #[default]
     False,
 }
 
@@ -375,19 +437,14 @@ impl<'de> Deserialize<'de> for Deprecated {
     }
 }
 
-impl Default for Deprecated {
-    fn default() -> Self {
-        Deprecated::False
-    }
-}
-
 /// Value used to indicate whether parameter or property is required.
 ///
 /// The value will serialize to boolean.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Required {
     True,
+    #[default]
     False,
 }
 
@@ -424,12 +481,6 @@ impl<'de> Deserialize<'de> for Required {
             }
         }
         deserializer.deserialize_bool(BoolVisitor)
-    }
-}
-
-impl Default for Required {
-    fn default() -> Self {
-        Required::False
     }
 }
 
@@ -547,6 +598,7 @@ pub(crate) use builder;
 
 #[cfg(test)]
 mod tests {
+    use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
     use crate::openapi::{
@@ -886,5 +938,70 @@ mod tests {
                     OpenApiVersion::Version3,
                 ));
             });
+    }
+
+    #[test]
+    fn test_nest_open_apis() {
+        let api = OpenApiBuilder::new()
+            .paths(
+                PathsBuilder::new().path(
+                    "/api/v1/status",
+                    PathItem::new(
+                        PathItemType::Get,
+                        OperationBuilder::new()
+                            .description(Some("Get status"))
+                            .build(),
+                    ),
+                ),
+            )
+            .build();
+
+        let user_api = OpenApiBuilder::new()
+            .paths(
+                PathsBuilder::new()
+                    .path(
+                        "/",
+                        PathItem::new(
+                            PathItemType::Get,
+                            OperationBuilder::new()
+                                .description(Some("Get user details"))
+                                .build(),
+                        ),
+                    )
+                    .path(
+                        "/foo",
+                        PathItem::new(PathItemType::Post, OperationBuilder::new().build()),
+                    ),
+            )
+            .build();
+
+        let nest_merged = api.nest("/api/v1/user", user_api);
+        let value = serde_json::to_value(nest_merged).expect("should serialize as json");
+        let paths = value
+            .pointer("/paths")
+            .expect("paths should exits in openapi");
+
+        assert_json_eq!(
+            paths,
+            json!({
+                "/api/v1/status": {
+                        "get": {
+                        "description": "Get status",
+                        "responses": {}
+                    }
+                },
+                "/api/v1/user/": {
+                    "get": {
+                        "description": "Get user details",
+                        "responses": {}
+                    }
+                },
+                "/api/v1/user/foo": {
+                    "post": {
+                        "responses": {}
+                    }
+                }
+            })
+        )
     }
 }

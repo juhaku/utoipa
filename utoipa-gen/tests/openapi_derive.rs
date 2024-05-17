@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::{
     openapi::{RefOr, Response, ResponseBuilder},
-    OpenApi, ToResponse,
+    Modify, OpenApi, ToResponse,
 };
 use utoipa_gen::ToSchema;
 
@@ -375,6 +375,79 @@ fn derive_openapi_with_generic_schema_with_as() {
             },
             "required": ["value"],
             "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_nest_openapi_with_modifier() {
+    struct MyModifier;
+    impl Modify for MyModifier {
+        fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+            openapi.info.description = Some("this is description".to_string())
+        }
+    }
+
+    #[utoipa::path(get, path = "/api/v1/status")]
+    #[allow(dead_code)]
+    fn test_path_status() {}
+
+    #[utoipa::path(get, path = "/test")]
+    #[allow(dead_code)]
+    fn user_test_path() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(user_test_path))]
+    struct UserApi;
+
+    #[utoipa::path(get, path = "/")]
+    #[allow(dead_code)]
+    fn foobar() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(foobar))]
+    struct FooBarApi;
+
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            test_path_status
+        ),
+        modifiers(&MyModifier),
+        nest(
+            ("/api/v1/user", UserApi),
+            ("/api/v1/foobar", FooBarApi)
+        )
+    )]
+    struct ApiDoc;
+
+    let api = serde_json::to_value(&ApiDoc::openapi()).expect("should serialize to value");
+    let paths = api.pointer("/paths");
+
+    assert_json_eq!(
+        paths,
+        json!({
+            "/api/v1/foobar/": {
+                "get": {
+                    "operationId": "foobar",
+                    "responses": {},
+                    "tags": [ "crate" ]
+                }
+            },
+            "/api/v1/status": {
+                "get": {
+                    "operationId": "test_path_status",
+                    "responses": {},
+                    "tags": [ "crate" ]
+                }
+            },
+            "/api/v1/user/test": {
+                "get": {
+                    "operationId": "user_test_path",
+                    "responses": {},
+                    "tags": [ "crate" ]
+                }
+            }
         })
     )
 }

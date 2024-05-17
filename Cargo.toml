@@ -1,3 +1,6 @@
+[workspace.package]
+rust-version = "1.75"
+
 [workspace]
 resolver = "2"
 members = [

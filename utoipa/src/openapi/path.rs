@@ -16,9 +16,9 @@ use super::{
 };
 
 #[cfg(not(feature = "preserve_path_order"))]
-type PathsMap<K, V> = std::collections::BTreeMap<K, V>;
+pub(super) type PathsMap<K, V> = std::collections::BTreeMap<K, V>;
 #[cfg(feature = "preserve_path_order")]
-type PathsMap<K, V> = indexmap::IndexMap<K, V>;
+pub(super) type PathsMap<K, V> = indexmap::IndexMap<K, V>;
 
 builder! {
     PathsBuilder;

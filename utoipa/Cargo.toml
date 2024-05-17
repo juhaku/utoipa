@@ -17,6 +17,7 @@ keywords = [
 repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
+rust-version.workspace = true
 
 [features]
 # See README.md for list and explanations of features
