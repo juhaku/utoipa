@@ -32,6 +32,7 @@ pub struct OpenApiAttr<'o> {
     tags: Option<Array<'static, Tag>>,
     external_docs: Option<ExternalDocs>,
     servers: Punctuated<Server, Comma>,
+    nested: Vec<NestOpenApi>,
 }
 
 impl<'o> OpenApiAttr<'o> {
@@ -77,7 +78,7 @@ pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr>, E
 impl Parse for OpenApiAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
-            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers";
+            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers, nest";
         let mut openapi = OpenApiAttr::default();
 
         while !input.is_empty() {
@@ -118,6 +119,11 @@ impl Parse for OpenApiAttr<'_> {
                 }
                 "servers" => {
                     openapi.servers = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                }
+                "nest" => {
+                    let nest;
+                    parenthesized!(nest in input);
+                    openapi.nested = parse_utils::parse_groups(&nest)?;
                 }
                 _ => {
                     return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE));
@@ -387,6 +393,31 @@ impl Parse for ServerVariable {
 
 pub(crate) struct OpenApi<'o>(pub OpenApiAttr<'o>, pub Ident);
 
+impl OpenApi<'_> {
+    fn nested_tokens(&self) -> Option<TokenStream> {
+        if self.0.nested.is_empty() {
+            None
+        } else {
+            let nest_tokens = self
+                .0
+                .nested
+                .iter()
+                .map(|item| {
+                    let path = &item.path;
+                    let nest_api = &item.open_api;
+
+                    let span = nest_api.span();
+                    quote_spanned! {span=>
+                        .nest(#path, <#nest_api as utoipa::OpenApi>::openapi())
+                    }
+                })
+                .collect::<TokenStream>();
+
+            Some(nest_tokens)
+        }
+    }
+}
+
 impl ToTokens for OpenApi<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let OpenApi(attributes, ident) = self;
@@ -428,6 +459,9 @@ impl ToTokens for OpenApi<'_> {
             None
         };
 
+        let nested_tokens = self
+            .nested_tokens()
+            .map(|tokens| quote! {openapi = openapi #tokens;});
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
@@ -441,6 +475,7 @@ impl ToTokens for OpenApi<'_> {
                         #servers
                         #external_docs
                         .build();
+                    #nested_tokens
 
                     let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
                     _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
@@ -569,4 +604,22 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
             paths
         },
     )
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct NestOpenApi {
+    path: String,
+    open_api: TypePath,
+}
+
+impl Parse for NestOpenApi {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let path = input.parse::<LitStr>()?;
+        input.parse::<Comma>()?;
+        let api = input.parse::<TypePath>()?;
+        Ok(Self {
+            path: path.value(),
+            open_api: api,
+        })
+    }
 }

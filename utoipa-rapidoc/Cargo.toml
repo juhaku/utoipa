@@ -9,6 +9,7 @@ keywords = ["rapidoc", "openapi", "documentation"]
 repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 features = ["actix-web", "axum", "rocket"]
