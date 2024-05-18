@@ -112,9 +112,9 @@ impl ToTokensDiagnostics for IntoParams {
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?
             .into_iter()
-            .filter_map(|(index, field, field_params)| {
-                if matches!(&field_params, Some(params) if !params.skip) {
-                    Some((index, field, field_params))
+            .filter_map(|(index, field, field_serde_params)| {
+                if !field_serde_params.skip {
+                    Some((index, field, field_serde_params))
                 } else {
                     None
                 }
@@ -143,7 +143,7 @@ impl ToTokensDiagnostics for IntoParams {
                         parameter_in: &parameter_in,
                         name,
                     },
-                    serde_container: serde_container.as_ref(),
+                    serde_container: &serde_container,
                 };
 
                 let mut param_tokens = TokenStream::new();
@@ -292,11 +292,11 @@ struct Param<'a> {
     /// Field in the container used to create a single parameter.
     field: &'a Field,
     //// Field serde params parsed from field attributes.
-    field_serde_params: Option<SerdeValue>,
+    field_serde_params: SerdeValue,
     /// Attributes on the container which are relevant for this macro.
     container_attributes: FieldParamContainerAttributes<'a>,
     /// Either serde rename all rule or into_params rename all rule if provided.
-    serde_container: Option<&'a SerdeContainer>,
+    serde_container: &'a SerdeContainer,
 }
 
 impl Param<'_> {
@@ -389,18 +389,14 @@ impl ToTokensDiagnostics for Param<'_> {
             .pop_rename_feature()
             .map(|rename| rename.into_value());
         let rename_to = field_serde_params
-            .as_ref()
-            .and_then(|field_param_serde| field_param_serde.rename.as_deref().map(Cow::Borrowed))
-            .or_else(|| rename.map(Cow::Owned));
-        let rename_all = self
-            .serde_container
-            .as_ref()
-            .and_then(|serde_container| serde_container.rename_all.as_ref())
-            .or_else(|| {
-                self.container_attributes
-                    .rename_all
-                    .map(|rename_all| rename_all.as_rename_rule())
-            });
+            .rename
+            .as_deref()
+            .map(Cow::Borrowed)
+            .or(rename.map(Cow::Owned));
+        let rename_all = self.serde_container.rename_all.as_ref().or(self
+            .container_attributes
+            .rename_all
+            .map(|rename_all| rename_all.as_rename_rule()));
         let name = super::rename::<FieldRename>(name, rename_to, rename_all)
             .unwrap_or(Cow::Borrowed(name));
         let type_tree = TypeTree::from_type(&field.ty)?;
@@ -445,7 +441,7 @@ impl ToTokensDiagnostics for Param<'_> {
                 .unwrap_or(false);
 
             let non_required = (component.is_option() && !required)
-                || !component::is_required(field_serde_params.as_ref(), self.serde_container);
+                || !component::is_required(field_serde_params, self.serde_container);
             let required: Required = (!non_required).into();
 
             tokens.extend(quote! {

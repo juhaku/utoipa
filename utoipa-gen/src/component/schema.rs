@@ -308,8 +308,8 @@ impl NamedStructSchema<'_> {
     fn get_named_struct_field_options(
         &self,
         field: &Field,
-        field_rules: Option<&SerdeValue>,
-        container_rules: &Option<SerdeContainer>,
+        field_rules: &SerdeValue,
+        container_rules: &SerdeContainer,
     ) -> Result<NamedStructFieldOptions<'_>, Diagnostics> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
         if let Some(aliases) = &self.aliases {
@@ -330,10 +330,7 @@ impl NamedStructSchema<'_> {
             .as_ref()
             .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
             .unwrap_or(false);
-        let serde_default = container_rules
-            .as_ref()
-            .map(|rules| rules.default)
-            .unwrap_or(false);
+        let serde_default = container_rules.default;
 
         if schema_default || serde_default {
             let features_inner = field_features.get_or_insert(vec![]);
@@ -419,11 +416,8 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                     Ok(field_rules) => field_rules,
                     Err(diagnostics) => return Err(diagnostics),
                 };
-                let field_options = self.get_named_struct_field_options(
-                    field,
-                    field_rules.as_ref(),
-                    &container_rules,
-                );
+                let field_options =
+                    self.get_named_struct_field_options(field, &field_rules, &container_rules);
 
                 match field_options {
                     Ok(field_options) => Ok((field_options, field_rules, field_name, field)),
@@ -434,9 +428,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
 
         let mut object_tokens = fields
             .iter()
-            .filter(|(_, field_rules, ..)| {
-                is_not_skipped(field_rules) && !is_flatten(field_rules.as_ref())
-            })
+            .filter(|(_, field_rules, ..)| is_not_skipped(field_rules) && !is_flatten(field_rules))
             .map(|(property, field_rules, field_name, field)| {
                 Ok((
                     property,
@@ -464,17 +456,14 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                     field_schema,
                 )| {
                     let rename_to = field_rules
-                        .as_ref()
-                        .and_then(|field_rule| field_rule.rename.as_deref().map(Cow::Borrowed))
+                        .rename
+                        .as_deref()
+                        .map(Cow::Borrowed)
                         .or(rename_field_value.as_ref().cloned());
-                    let rename_all = container_rules
+                    let rename_all = container_rules.rename_all.as_ref().or(self
+                        .rename_all
                         .as_ref()
-                        .and_then(|container_rule| container_rule.rename_all.as_ref())
-                        .or_else(|| {
-                            self.rename_all
-                                .as_ref()
-                                .map(|rename_all| rename_all.as_rename_rule())
-                        });
+                        .map(|rename_all| rename_all.as_rename_rule()));
 
                     let name =
                         super::rename::<FieldRename>(field_name.borrow(), rename_to, rename_all)
@@ -484,8 +473,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                         .property(#name, #field_schema)
                     });
 
-                    if (!is_option
-                        && super::is_required(field_rules.as_ref(), container_rules.as_ref()))
+                    if (!is_option && super::is_required(field_rules, &container_rules))
                         || required
                             .as_ref()
                             .map(super::features::Required::is_true)
@@ -502,7 +490,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
 
         let flatten_fields = fields
             .iter()
-            .filter(|(_, field_rules, ..)| is_flatten(field_rules.as_ref()))
+            .filter(|(_, field_rules, ..)| is_flatten(field_rules))
             .collect::<Vec<_>>();
 
         let all_of = if !flatten_fields.is_empty() {
@@ -556,12 +544,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
             false
         };
 
-        if !all_of
-            && container_rules
-                .as_ref()
-                .map(|container_rule| container_rule.deny_unknown_fields)
-                .unwrap_or(false)
-        {
+        if !all_of && container_rules.deny_unknown_fields {
             tokens.extend(quote! {
                 .additional_properties(Some(utoipa::openapi::schema::AdditionalProperties::FreeForm(false)))
             });
@@ -890,26 +873,22 @@ impl ToTokensDiagnostics for ReprEnum<'_> {
 fn rename_enum_variant<'a>(
     name: &'a str,
     features: &mut Vec<Feature>,
-    variant_rules: &'a Option<SerdeValue>,
-    container_rules: &'a Option<SerdeContainer>,
+    variant_rules: &'a SerdeValue,
+    container_rules: &'a SerdeContainer,
     rename_all: &'a Option<RenameAll>,
 ) -> Option<Cow<'a, str>> {
     let rename = features
         .pop_rename_feature()
         .map(|rename| rename.into_value());
     let rename_to = variant_rules
-        .as_ref()
-        .and_then(|variant_rules| variant_rules.rename.as_deref().map(Cow::Borrowed))
-        .or_else(|| rename.map(Cow::Owned));
+        .rename
+        .as_deref()
+        .map(Cow::Borrowed)
+        .or(rename.map(Cow::Owned));
 
-    let rename_all = container_rules
+    let rename_all = container_rules.rename_all.as_ref().or(rename_all
         .as_ref()
-        .and_then(|container_rules| container_rules.rename_all.as_ref())
-        .or_else(|| {
-            rename_all
-                .as_ref()
-                .map(|rename_all| rename_all.as_rename_rule())
-        });
+        .map(|rename_all| rename_all.as_rename_rule()));
 
     super::rename::<VariantRename>(name, rename_to, rename_all)
 }
@@ -991,36 +970,33 @@ impl ToTokensDiagnostics for SimpleEnum<'_> {
 
 fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
     tokens: &mut TokenStream,
-    container_rules: &Option<SerdeContainer>,
+    container_rules: &SerdeContainer,
     enum_variant_features: TokenStream,
     get_variants_tokens_vec: impl FnOnce() -> Vec<T>,
 ) {
     let enum_values = get_variants_tokens_vec();
 
-    tokens.extend(match container_rules {
-        Some(serde_container) => match &serde_container.enum_repr {
-            SerdeEnumRepr::ExternallyTagged => Enum::new(enum_values).to_token_stream(),
-            SerdeEnumRepr::InternallyTagged { tag } => TaggedEnum::new(
-                enum_values
-                    .into_iter()
-                    .map(|variant| (Cow::Borrowed(tag.as_str()), variant)),
-            )
-            .to_token_stream(),
-            SerdeEnumRepr::Untagged => UntaggedEnum::new().to_token_stream(),
-            SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
-                AdjacentlyTaggedEnum::new(enum_values.into_iter().map(|variant| {
-                    (
-                        Cow::Borrowed(tag.as_str()),
-                        Cow::Borrowed(content.as_str()),
-                        variant,
-                    )
-                }))
-                .to_token_stream()
-            }
-            // This should not be possible as serde should not let that happen
-            SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => panic!("Invalid serde enum repr"),
-        },
-        _ => Enum::new(enum_values).to_token_stream(),
+    tokens.extend(match &container_rules.enum_repr {
+        SerdeEnumRepr::ExternallyTagged => Enum::new(enum_values).to_token_stream(),
+        SerdeEnumRepr::InternallyTagged { tag } => TaggedEnum::new(
+            enum_values
+                .into_iter()
+                .map(|variant| (Cow::Borrowed(tag.as_str()), variant)),
+        )
+        .to_token_stream(),
+        SerdeEnumRepr::Untagged => UntaggedEnum::new().to_token_stream(),
+        SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
+            AdjacentlyTaggedEnum::new(enum_values.into_iter().map(|variant| {
+                (
+                    Cow::Borrowed(tag.as_str()),
+                    Cow::Borrowed(content.as_str()),
+                    variant,
+                )
+            }))
+            .to_token_stream()
+        }
+        // This should not be possible as serde should not let that happen
+        SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => panic!("Invalid serde enum repr"),
     });
 
     tokens.extend(enum_variant_features);
@@ -1041,8 +1017,8 @@ impl ComplexEnum<'_> {
         &self,
         name: Cow<'_, str>,
         variant: &Variant,
-        variant_rules: &Option<SerdeValue>,
-        container_rules: &Option<SerdeContainer>,
+        variant_rules: &SerdeValue,
+        container_rules: &SerdeContainer,
         rename_all: &Option<RenameAll>,
     ) -> Result<TokenStream, Diagnostics> {
         // TODO need to be able to split variant.attrs for variant and the struct representation!
@@ -1216,8 +1192,8 @@ impl ComplexEnum<'_> {
         tag: &str,
         name: Cow<'_, str>,
         variant: &Variant,
-        variant_rules: &Option<SerdeValue>,
-        container_rules: &Option<SerdeContainer>,
+        variant_rules: &SerdeValue,
+        container_rules: &SerdeContainer,
         rename_all: &Option<RenameAll>,
     ) -> Result<TokenStream, Diagnostics> {
         match &variant.fields {
@@ -1375,8 +1351,8 @@ impl ComplexEnum<'_> {
         content: &str,
         name: Cow<'_, str>,
         variant: &Variant,
-        variant_rules: &Option<SerdeValue>,
-        container_rules: &Option<SerdeContainer>,
+        variant_rules: &SerdeValue,
+        container_rules: &SerdeContainer,
         rename_all: &Option<RenameAll>,
     ) -> Result<TokenStream, Diagnostics> {
         match &variant.fields {
@@ -1519,10 +1495,7 @@ impl ToTokensDiagnostics for ComplexEnum<'_> {
         let attributes = &self.attributes;
         let container_rules = serde::parse_container(attributes)?;
 
-        let enum_repr = container_rules
-            .as_ref()
-            .map(|rules| rules.enum_repr.clone())
-            .unwrap_or_default();
+        let enum_repr = &container_rules.enum_repr;
         let tag = match &enum_repr {
             SerdeEnumRepr::AdjacentlyTagged { tag, .. }
             | SerdeEnumRepr::InternallyTagged { tag } => Some(tag),
@@ -1634,13 +1607,13 @@ pub(crate) fn format_path_ref(path: &Path) -> String {
 }
 
 #[inline]
-fn is_not_skipped(rule: &Option<SerdeValue>) -> bool {
-    rule.as_ref().map(|value| !value.skip).unwrap_or(true)
+fn is_not_skipped(rule: &SerdeValue) -> bool {
+    !rule.skip
 }
 
 #[inline]
-fn is_flatten(rule: Option<&SerdeValue>) -> bool {
-    rule.as_ref().map(|value| value.flatten).unwrap_or(false)
+fn is_flatten(rule: &SerdeValue) -> bool {
+    rule.flatten
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
