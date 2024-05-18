@@ -24,15 +24,8 @@ pub mod serde;
 
 /// Check whether either serde `container_rule` or `field_rule` has _`default`_ attribute set.
 #[inline]
-fn is_default(container_rules: &Option<&SerdeContainer>, field_rule: &Option<&SerdeValue>) -> bool {
-    container_rules
-        .as_ref()
-        .map(|rule| rule.default)
-        .unwrap_or(false)
-        || field_rule
-            .as_ref()
-            .map(|rule| rule.default)
-            .unwrap_or(false)
+fn is_default(container_rules: &SerdeContainer, field_rule: &SerdeValue) -> bool {
+    container_rules.default || field_rule.default
 }
 
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
@@ -57,15 +50,10 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 /// * If field has not serde's `skip_serializing_if`
 /// * Field has not `serde_with` double option
 /// * Field is not default
-pub fn is_required(
-    field_rule: Option<&SerdeValue>,
-    container_rules: Option<&SerdeContainer>,
-) -> bool {
-    !field_rule
-        .map(|rule| rule.skip_serializing_if)
-        .unwrap_or(false)
-        && !field_rule.map(|rule| rule.double_option).unwrap_or(false)
-        && !is_default(&container_rules, &field_rule)
+pub fn is_required(field_rule: &SerdeValue, container_rules: &SerdeContainer) -> bool {
+    !field_rule.skip_serializing_if
+        && !field_rule.double_option
+        && !is_default(container_rules, field_rule)
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

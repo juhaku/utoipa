@@ -413,7 +413,7 @@ impl ToTokensDiagnostics for Type<'_> {
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
 
-            #[cfg(any(feature = "decimal_float"))]
+            #[cfg(feature = "decimal_float")]
             "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
 
             #[cfg(feature = "uuid")]
@@ -474,7 +474,7 @@ impl Parse for Variant {
         ];
         let known_formats = FORMATS
             .into_iter()
-            .filter(|_format| !excluded_format.contains(&_format))
+            .filter(|format| !excluded_format.contains(format))
             .collect::<Vec<_>>();
 
         let lookahead = input.lookahead1();

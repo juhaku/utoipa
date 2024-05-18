@@ -344,15 +344,20 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .as_ref()
             .or(self.path_operation.as_ref())
             .ok_or_else(|| {
-                let diagnostics = Diagnostics::new("path operation is not defined for path")
-                    .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]");
+                let diagnostics = || {
+                    Diagnostics::new("path operation is not defined for path")
+                        .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]")
+                };
 
                 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                let diagnostics = diagnostics.help(
-                    "Did you forget to define operation path attribute macro e.g #[get(...)]",
-                );
+                {
+                    diagnostics().help(
+                        "Did you forget to define operation path attribute macro e.g #[get(...)]",
+                    )
+                }
 
-                diagnostics
+                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+                diagnostics()
             })?;
 
         let path = self
@@ -362,15 +367,20 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .map(|path| path.to_token_stream())
             .or(Some(self.path.to_token_stream()))
             .ok_or_else(|| {
-                let diagnostics = Diagnostics::new("path is not defined for path")
-                    .help(r#"Did you forget to define it in #[utoipa::path(path = "...")]"#);
+                let diagnostics = || {
+                    Diagnostics::new("path is not defined for path")
+                        .help(r#"Did you forget to define it in #[utoipa::path(path = "...")]"#)
+                };
 
                 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                let diagnostics = diagnostics.help(
-                    "Did you forget to define operation path attribute macro e.g #[get(...)]",
-                );
+                {
+                    diagnostics().help(
+                        "Did you forget to define operation path attribute macro e.g #[get(...)]",
+                    )
+                }
 
-                diagnostics
+                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+                diagnostics()
             })?;
 
         let path_with_context_path = self

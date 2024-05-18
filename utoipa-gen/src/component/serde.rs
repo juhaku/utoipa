@@ -217,8 +217,8 @@ impl SerdeContainer {
     }
 }
 
-pub fn parse_value(attributes: &[Attribute]) -> Result<Option<SerdeValue>, Diagnostics> {
-    attributes
+pub fn parse_value(attributes: &[Attribute]) -> Result<SerdeValue, Diagnostics> {
+    Ok(attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| {
@@ -228,36 +228,32 @@ pub fn parse_value(attributes: &[Attribute]) -> Result<Option<SerdeValue>, Diagn
         })
         .collect::<Result<Vec<_>, Diagnostics>>()?
         .into_iter()
-        .fold(Some(SerdeValue::default()), |acc, value| {
-            acc.map(|mut acc| {
-                if value.skip {
-                    acc.skip = value.skip;
-                }
-                if value.skip_serializing_if {
-                    acc.skip_serializing_if = value.skip_serializing_if;
-                }
-                if value.rename.is_some() {
-                    acc.rename = value.rename;
-                }
-                if value.flatten {
-                    acc.flatten = value.flatten;
-                }
-                if value.default {
-                    acc.default = value.default;
-                }
-                if value.double_option {
-                    acc.double_option = value.double_option;
-                }
+        .fold(SerdeValue::default(), |mut acc, value| {
+            if value.skip {
+                acc.skip = value.skip;
+            }
+            if value.skip_serializing_if {
+                acc.skip_serializing_if = value.skip_serializing_if;
+            }
+            if value.rename.is_some() {
+                acc.rename = value.rename;
+            }
+            if value.flatten {
+                acc.flatten = value.flatten;
+            }
+            if value.default {
+                acc.default = value.default;
+            }
+            if value.double_option {
+                acc.double_option = value.double_option;
+            }
 
-                acc
-            })
-        })
-        .map(Ok)
-        .transpose()
+            acc
+        }))
 }
 
-pub fn parse_container(attributes: &[Attribute]) -> Result<Option<SerdeContainer>, Diagnostics> {
-    attributes
+pub fn parse_container(attributes: &[Attribute]) -> Result<SerdeContainer, Diagnostics> {
+    Ok(attributes
         .iter()
         .filter(|attribute| attribute.path().is_ident("serde"))
         .map(|serde_attribute| {
@@ -267,32 +263,28 @@ pub fn parse_container(attributes: &[Attribute]) -> Result<Option<SerdeContainer
         })
         .collect::<Result<Vec<_>, Diagnostics>>()?
         .into_iter()
-        .fold(Some(SerdeContainer::default()), |acc, value| {
-            acc.map(|mut acc| {
-                if value.default {
-                    acc.default = value.default;
+        .fold(SerdeContainer::default(), |mut acc, value| {
+            if value.default {
+                acc.default = value.default;
+            }
+            if value.deny_unknown_fields {
+                acc.deny_unknown_fields = value.deny_unknown_fields;
+            }
+            match value.enum_repr {
+                SerdeEnumRepr::ExternallyTagged => {}
+                SerdeEnumRepr::Untagged
+                | SerdeEnumRepr::InternallyTagged { .. }
+                | SerdeEnumRepr::AdjacentlyTagged { .. }
+                | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
+                    acc.enum_repr = value.enum_repr;
                 }
-                if value.deny_unknown_fields {
-                    acc.deny_unknown_fields = value.deny_unknown_fields;
-                }
-                match value.enum_repr {
-                    SerdeEnumRepr::ExternallyTagged => {}
-                    SerdeEnumRepr::Untagged
-                    | SerdeEnumRepr::InternallyTagged { .. }
-                    | SerdeEnumRepr::AdjacentlyTagged { .. }
-                    | SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                        acc.enum_repr = value.enum_repr;
-                    }
-                }
-                if value.rename_all.is_some() {
-                    acc.rename_all = value.rename_all;
-                }
+            }
+            if value.rename_all.is_some() {
+                acc.rename_all = value.rename_all;
+            }
 
-                acc
-            })
-        })
-        .map(Ok)
-        .transpose()
+            acc
+        }))
 }
 
 #[derive(Clone)]
@@ -512,7 +504,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = parse_container(attributes).expect("parse succes").unwrap();
+        let result = parse_container(attributes).expect("parse succes");
         assert_eq!(expected, result);
     }
 }
