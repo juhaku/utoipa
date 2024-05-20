@@ -1457,17 +1457,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   `contact(name = ...)` will ultimately override whole contact of info and not just partially
 ///   the name.
 /// * `nest(...)` Allows nesting [`OpenApi`][openapi_struct]s to this _`OpenApi`_ instance. Nest
-///   takes comma separated list of tuples that define comma separated key values of nest path and
-///   _`OpenApi`_ instance to nest. _`OpenApi`_ instance must implement [`OpenApi`][openapi] trait.
+///   takes comma separated list of tuples of nested `OpenApi`s. _`OpenApi`_ instance must
+///   implement [`OpenApi`][openapi] trait. Nesting allows defining one `OpenApi` per defined path.
+///   If more instances is defined only latest one will be rentained.
+///   See the _[nest(...) attribute syntax below]( #nest-attribute-syntax )_
 ///
-///     _**Nest syntax example.**_
-///
-///     ```text
-///     nest(
-///         ("/path/to/nest", ApiToNest),
-///         ("/another", AnotherApi)
-///     )
-///     ```
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
 /// environment variables.
@@ -1510,6 +1504,20 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// ("username" = (default = "demo", description = "Default username for API")),
 /// ("port" = (enum_values("8080", "5000", "4545")))
 /// ```
+///
+/// # `nest(...)` attribute syntax
+///
+/// * `path = ...` Define mandatory path for nesting the [`OpenApi`][openapi_struct].
+/// * `api = ...` Define mandatory path to struct that implements [`OpenApi`][openapi] trait.
+///    The fully qualified path (_`path::to`_) will become the default _`tag`_ for the nested
+///    `OpenApi` enpoints if provided.
+/// * `tags = [...]` Define optional tags what are appended to the existing list of tags.
+///
+///  _**Example of nest definition**_
+///  ```text
+///  (path = "path/to/nest", api = path::to::NestableApi),
+///  (path = "path/to/nest", api = path::to::NestableApi, tags = ["nestableapi", ...])
+///  ```
 ///
 /// # Examples
 ///
@@ -1642,7 +1650,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///          test_path_status
 ///      ),
 ///      nest(
-///          ("/api/v1/user", UserApi),
+///          (path = "/api/v1/user", api = UserApi),
 ///      )
 ///  )]
 ///  struct ApiDoc;
@@ -2903,13 +2911,14 @@ mod parse_utils {
     };
 
     #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
     pub enum Value {
         LitStr(LitStr),
         Expr(Expr),
     }
 
     impl Value {
-        pub(crate) fn is_empty(&self) -> bool {
+        pub(crate) fn is_empty_litstr(&self) -> bool {
             matches!(self, Self::LitStr(s) if s.value().is_empty())
         }
     }

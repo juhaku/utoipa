@@ -324,20 +324,6 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                     .help("Did you define the #[utoipa::path(...)] over function?")
             })?;
 
-        let tags = if !self.path_attr.tags.is_empty() {
-            let tags = self.path_attr.tags.as_slice().iter().collect::<Array<_>>();
-            Some(quote! {
-                .tags(Some(#tags))
-            })
-        } else {
-            None::<TokenStream2>
-        };
-        let tag = self
-            .path_attr
-            .tag
-            .as_ref()
-            .map(ToTokens::to_token_stream)
-            .unwrap_or_else(|| quote!(""));
         let path_operation = self
             .path_attr
             .path_operation
@@ -432,6 +418,15 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
+        let mut tags = self.path_attr.tags.clone();
+        match self.path_attr.tag.as_ref() {
+            Some(tag) if tags.is_empty() => {
+                tags.push(tag.clone());
+            }
+            _ => (),
+        }
+        let tags_list = tags.into_iter().collect::<Array<_>>();
+
         let impl_for = if let Some(impl_for) = &self.path_attr.impl_for {
             impl_for.clone()
         } else {
@@ -445,23 +440,22 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
 
         tokens.extend(quote! {
+            impl<'t> utoipa::__dev::Tags<'t> for #impl_for {
+                fn tags() -> Vec<&'t str> {
+                    #tags_list.into()
+                }
+            }
             impl utoipa::Path for #impl_for {
                 fn path() -> String {
                     #path_with_context_path
                 }
 
-                fn path_item(default_tag: Option<&str>) -> utoipa::openapi::path::PathItem {
+                fn path_item() -> utoipa::openapi::path::PathItem {
                     use utoipa::openapi::ToArray;
                     use std::iter::FromIterator;
                     utoipa::openapi::PathItem::new(
                         #path_operation,
                         #operation
-                        #tags
-                            .tag(
-                            *[Some(#tag), default_tag, Some("crate")].iter()
-                            .flatten()
-                            .find(|t| !t.is_empty()).unwrap()
-                        )
                     )
                 }
             }

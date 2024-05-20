@@ -213,7 +213,9 @@ impl<'r> ResponseValue<'r> {
         description: parse_utils::Value,
     ) -> Self {
         Self {
-            description: if derive_value.description.is_empty() && !description.is_empty() {
+            description: if derive_value.description.is_empty_litstr()
+                && !description.is_empty_litstr()
+            {
                 description
             } else {
                 derive_value.description
@@ -231,7 +233,9 @@ impl<'r> ResponseValue<'r> {
         description: parse_utils::Value,
     ) -> Self {
         ResponseValue {
-            description: if response_value.description.is_empty() && !description.is_empty() {
+            description: if response_value.description.is_empty_litstr()
+                && !description.is_empty_litstr()
+            {
                 description
             } else {
                 response_value.description
@@ -418,7 +422,7 @@ impl DeriveResponseValue for DeriveToResponseValue {
         if !other.headers.is_empty() {
             self.headers = other.headers;
         }
-        if !other.description.is_empty() {
+        if !other.description.is_empty_litstr() {
             self.description = other.description;
         }
         if other.example.is_some() {
@@ -493,7 +497,7 @@ impl DeriveResponseValue for DeriveIntoResponsesValue {
         if !other.headers.is_empty() {
             self.headers = other.headers;
         }
-        if !other.description.is_empty() {
+        if !other.description.is_empty_litstr() {
             self.description = other.description;
         }
         if other.example.is_some() {

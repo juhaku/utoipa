@@ -2042,6 +2042,7 @@ fn derive_path_with_tag_constant() {
 
 #[test]
 fn derive_path_with_multiple_tags() {
+    #[allow(dead_code)]
     const TAG: &str = "mytag";
     const ANOTHER: &str = "another";
 
@@ -2075,7 +2076,7 @@ fn derive_path_with_multiple_tags() {
                     "description": "success response",
                 },
             },
-            "tags": ["one", "two","another","mytag"]
+            "tags": ["one", "two","another"]
         })
     );
 }

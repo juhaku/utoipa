@@ -234,6 +234,8 @@ impl OpenApi {
     /// `path` and then appended to _`paths`_ of this [`OpenApi`] instance. Rest of the  `other`
     /// [`OpenApi`] instance is merged to this [`OpenApi`] with [`OpenApi::merge_from`] method.
     ///
+    /// **If multiple** APIs are being nested with same `path` only the **last** one will be retained.
+    ///
     /// Method accpets two arguments, first is the path to prepend .e.g. _`/user`_. Second argument
     /// is the [`OpenApi`] to prepend paths for.
     ///

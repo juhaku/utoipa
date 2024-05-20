@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::{
     openapi::{RefOr, Response, ResponseBuilder},
-    Modify, OpenApi, ToResponse,
+    OpenApi, ToResponse,
 };
 use utoipa_gen::ToSchema;
 
@@ -380,43 +380,60 @@ fn derive_openapi_with_generic_schema_with_as() {
 }
 
 #[test]
-fn derive_nest_openapi_with_modifier() {
-    struct MyModifier;
-    impl Modify for MyModifier {
-        fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-            openapi.info.description = Some("this is description".to_string())
-        }
-    }
-
+fn derive_nest_openapi_with_tags() {
     #[utoipa::path(get, path = "/api/v1/status")]
     #[allow(dead_code)]
     fn test_path_status() {}
 
-    #[utoipa::path(get, path = "/test")]
-    #[allow(dead_code)]
-    fn user_test_path() {}
+    mod random {
+        #[utoipa::path(get, path = "/random")]
+        #[allow(dead_code)]
+        fn random() {}
+    }
 
-    #[derive(OpenApi)]
-    #[openapi(paths(user_test_path))]
-    struct UserApi;
+    mod user_api {
+        #[utoipa::path(get, path = "/test")]
+        #[allow(dead_code)]
+        fn user_test_path() {}
 
-    #[utoipa::path(get, path = "/")]
+        #[derive(super::OpenApi)]
+        #[openapi(paths(user_test_path))]
+        pub(super) struct UserApi;
+    }
+
+    #[utoipa::path(get, path = "/", tag = "mytag", tags = ["yeah", "wowow"])]
     #[allow(dead_code)]
     fn foobar() {}
 
+    #[utoipa::path(get, path = "/another", tag = "mytaganother")]
+    #[allow(dead_code)]
+    fn foobaranother() {}
+
+    #[utoipa::path(get, path = "/", tags = ["yeah", "wowow"])]
+    #[allow(dead_code)]
+    fn foobar2() {}
+
     #[derive(OpenApi)]
-    #[openapi(paths(foobar))]
+    #[openapi(paths(foobar, foobaranother), nest(
+        (path = "/nest2", api = FooBarNestedApi)
+    ))]
     struct FooBarApi;
+
+    #[derive(OpenApi)]
+    #[openapi(paths(foobar2))]
+    struct FooBarNestedApi;
+
+    const TAG: &str = "tag1";
 
     #[derive(OpenApi)]
     #[openapi(
         paths(
-            test_path_status
+            test_path_status,
+            random::random
         ),
-        modifiers(&MyModifier),
         nest(
-            ("/api/v1/user", UserApi),
-            ("/api/v1/foobar", FooBarApi)
+            (path = "/api/v1/user", api = user_api::UserApi, tags = ["user", TAG]),
+            (path = "/api/v1/foobar", api = FooBarApi, tags = ["foobarapi"])
         )
     )]
     struct ApiDoc;
@@ -431,7 +448,21 @@ fn derive_nest_openapi_with_modifier() {
                 "get": {
                     "operationId": "foobar",
                     "responses": {},
-                    "tags": [ "crate" ]
+                    "tags": [ "yeah", "wowow", "foobarapi" ]
+                }
+            },
+            "/api/v1/foobar/another": {
+                "get": {
+                    "operationId": "foobaranother",
+                    "responses": {},
+                    "tags": [ "mytaganother", "foobarapi" ]
+                }
+            },
+            "/api/v1/foobar/nest2/": {
+                "get": {
+                    "operationId": "foobar2",
+                    "responses": {},
+                    "tags": [ "yeah", "wowow", "foobarapi" ]
                 }
             },
             "/api/v1/status": {
@@ -445,7 +476,14 @@ fn derive_nest_openapi_with_modifier() {
                 "get": {
                     "operationId": "user_test_path",
                     "responses": {},
-                    "tags": [ "crate" ]
+                    "tags": [ "user", TAG, "user_api" ]
+                }
+            },
+            "/random": {
+                "get": {
+                    "operationId": "random",
+                    "responses": {},
+                    "tags": [ "random" ]
                 }
             }
         })
