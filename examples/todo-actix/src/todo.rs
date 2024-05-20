@@ -6,9 +6,23 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToSchema};
 
 use crate::{LogApiKey, RequireApiKey};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        get_todos,
+        create_todo,
+        delete_todo,
+        get_todo_by_id,
+        update_todo,
+        search_todos
+    ),
+    components(schemas(Todo, TodoUpdateRequest, ErrorResponse))
+)]
+pub(super) struct TodoApi;
 
 #[derive(Default)]
 pub(super) struct TodoStore {
@@ -30,7 +44,7 @@ pub(super) fn configure(store: Data<TodoStore>) -> impl FnOnce(&mut ServiceConfi
 
 /// Task to do.
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub(super) struct Todo {
+struct Todo {
     /// Unique id for the todo item.
     #[schema(example = 1)]
     id: i32,
@@ -43,7 +57,7 @@ pub(super) struct Todo {
 
 /// Request to update existing `Todo` item.
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub(super) struct TodoUpdateRequest {
+struct TodoUpdateRequest {
     /// Optional new value for the `Todo` task.
     #[schema(example = "Dentist at 14.00")]
     value: Option<String>,
@@ -76,7 +90,7 @@ pub(super) enum ErrorResponse {
     )
 )]
 #[get("/todo")]
-pub(super) async fn get_todos(todo_store: Data<TodoStore>) -> impl Responder {
+async fn get_todos(todo_store: Data<TodoStore>) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
 
     HttpResponse::Ok().json(todos.clone())
@@ -99,7 +113,7 @@ pub(super) async fn get_todos(todo_store: Data<TodoStore>) -> impl Responder {
     )
 )]
 #[post("/todo")]
-pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -> impl Responder {
+async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -> impl Responder {
     let mut todos = todo_store.todos.lock().unwrap();
     let todo = &todo.into_inner();
 
@@ -136,7 +150,7 @@ pub(super) async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -
     )
 )]
 #[delete("/todo/{id}", wrap = "RequireApiKey")]
-pub(super) async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
+async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
     let mut todos = todo_store.todos.lock().unwrap();
     let id = id.into_inner();
 
@@ -167,7 +181,7 @@ pub(super) async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> i
     )
 )]
 #[get("/todo/{id}")]
-pub(super) async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
+async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
     let id = id.into_inner();
 
@@ -202,7 +216,7 @@ pub(super) async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -
     )
 )]
 #[put("/todo/{id}", wrap = "LogApiKey")]
-pub(super) async fn update_todo(
+async fn update_todo(
     id: Path<i32>,
     todo: Json<TodoUpdateRequest>,
     todo_store: Data<TodoStore>,
@@ -231,7 +245,7 @@ pub(super) async fn update_todo(
 
 /// Search todos Query
 #[derive(Deserialize, Debug, IntoParams)]
-pub(super) struct SearchTodos {
+struct SearchTodos {
     /// Content that should be found from Todo's value field
     value: String,
 }
@@ -249,10 +263,7 @@ pub(super) struct SearchTodos {
     )
 )]
 #[get("/todo/search")]
-pub(super) async fn search_todos(
-    query: Query<SearchTodos>,
-    todo_store: Data<TodoStore>,
-) -> impl Responder {
+async fn search_todos(query: Query<SearchTodos>, todo_store: Data<TodoStore>) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
 
     HttpResponse::Ok().json(

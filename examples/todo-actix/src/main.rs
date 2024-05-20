@@ -7,7 +7,7 @@ use std::{
 use actix_web::{
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     middleware::Logger,
-    web::Data,
+    web::{self, Data},
     App, HttpResponse, HttpServer,
 };
 use futures::future::LocalBoxFuture;
@@ -20,7 +20,9 @@ use utoipa_redoc::{Redoc, Servable};
 use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::todo::{ErrorResponse, TodoStore};
+use crate::todo::TodoStore;
+
+use self::todo::ErrorResponse;
 
 mod todo;
 
@@ -33,16 +35,8 @@ async fn main() -> Result<(), impl Error> {
 
     #[derive(OpenApi)]
     #[openapi(
-        paths(
-            todo::get_todos,
-            todo::create_todo,
-            todo::delete_todo,
-            todo::get_todo_by_id,
-            todo::update_todo,
-            todo::search_todos
-        ),
-        components(
-            schemas(todo::Todo, todo::TodoUpdateRequest, todo::ErrorResponse)
+        nest(
+            (path = "/api", api = todo::TodoApi)
         ),
         tags(
             (name = "todo", description = "Todo management endpoints.")
@@ -71,7 +65,7 @@ async fn main() -> Result<(), impl Error> {
         // This factory closure is called on each worker thread independently.
         App::new()
             .wrap(Logger::default())
-            .configure(todo::configure(store.clone()))
+            .service(web::scope("/api").configure(todo::configure(store.clone())))
             .service(Redoc::with_url("/redoc", openapi.clone()))
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
