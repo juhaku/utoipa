@@ -1,6 +1,6 @@
 use proc_macro2::Ident;
 use syn::{
-    parenthesized,
+    bracketed, parenthesized,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     spanned::Spanned,
@@ -404,11 +404,45 @@ impl OpenApi<'_> {
                 .iter()
                 .map(|item| {
                     let path = &item.path;
-                    let nest_api = &item.open_api;
+                    let nest_api = &item
+                        .open_api
+                        .as_ref()
+                        .expect("type path of nested api is mandatory");
+                    let nest_api_ident = &nest_api
+                        .path
+                        .segments
+                        .last()
+                        .expect("nest api must have at least one segment")
+                        .ident;
+                    let nest_api_config = format_ident!("{}Config", nest_api_ident.to_string());
+
+                    let module_path = nest_api
+                        .path
+                        .segments
+                        .iter()
+                        .take(nest_api.path.segments.len() - 1)
+                        .map(|segment| segment.ident.to_string())
+                        .collect::<Vec<_>>()
+                        .join("::");
+                    let tags = &item.tags.iter().collect::<Array<_>>();
 
                     let span = nest_api.span();
                     quote_spanned! {span=>
-                        .nest(#path, <#nest_api as utoipa::OpenApi>::openapi())
+                        .nest(#path, {
+                            struct #nest_api_config;
+                            impl utoipa::__dev::NestedApiConfig for #nest_api_config {
+                                fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>) {
+                                    let api = <#nest_api as utoipa::OpenApi>::openapi();
+                                    let mut tags: Vec<_> = #tags.into();
+                                    if !#module_path.is_empty() {
+                                        tags.push(#module_path);
+                                    }
+
+                                    (api, tags)
+                                }
+                            }
+                            <#nest_api_config as utoipa::OpenApi>::openapi()
+                        })
                     }
                 })
                 .collect::<TokenStream>();
@@ -468,7 +502,9 @@ impl ToTokens for OpenApi<'_> {
                     use utoipa::{ToSchema, Path};
                     let mut openapi = utoipa::openapi::OpenApiBuilder::new()
                         .info(#info)
-                        .paths(#path_items)
+                        .paths({
+                            #path_items
+                        })
                         #components
                         #securities
                         #tags
@@ -569,11 +605,14 @@ impl ToTokens for Components {
 }
 
 fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
-    handler_paths.iter().fold(
-        quote! { utoipa::openapi::path::PathsBuilder::new() },
-        |mut paths, handler| {
+    let handlers = handler_paths
+        .iter()
+        .map(|handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn_name = &*segments.last().unwrap().ident.to_string();
+            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+            let handler_ident_name = &*handler_ident.to_string();
+            let handler_ident_nested = format_ident!("__{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
 
             let tag = &*segments
                 .iter()
@@ -581,9 +620,6 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
                 .map(|part| part.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::");
-
-            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
-            let handler_ident_name = &*handler_ident.to_string();
 
             let usage = syn::parse_str::<ExprPath>(
                 &vec![
@@ -597,8 +633,34 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
             )
             .unwrap();
 
+            quote! {
+                struct #handler_ident_nested;
+                #[allow(non_camel_case_types)]
+                impl utoipa::__dev::PathConfig for #handler_ident_nested {
+                    fn config() -> (String, Vec<&'static str>, utoipa::openapi::path::PathItem) {
+                        let item = #usage::path_item();
+                        let path = #usage::path();
+                        let mut tags = <#usage as utoipa::__dev::Tags>::tags();
+                        if !#tag.is_empty() {
+                            tags.push(#tag);
+                        }
+
+                        (path, tags, item)
+                    }
+                }
+            }
+        })
+        .collect::<TokenStream>();
+
+    handler_paths.iter().fold(
+        quote! { #handlers utoipa::openapi::path::PathsBuilder::new() },
+        |mut paths, handler| {
+            let segments = handler.path.segments.iter().collect::<Vec<_>>();
+            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
+            let handler_ident_nested = format_ident!("__{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+
             paths.extend(quote! {
-                .path(#usage::path(), #usage::path_item(Some(#tag)))
+                .path_from::<#handler_ident_nested>()
             });
 
             paths
@@ -606,20 +668,55 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
     )
 }
 
+/// (path = "/nest/path", api = NestApi, tags = ["tag1", "tag2"])
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default)]
 struct NestOpenApi {
-    path: String,
-    open_api: TypePath,
+    path: parse_utils::Value,
+    open_api: Option<TypePath>,
+    tags: Punctuated<parse_utils::Value, Comma>,
 }
 
 impl Parse for NestOpenApi {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let path = input.parse::<LitStr>()?;
-        input.parse::<Comma>()?;
-        let api = input.parse::<TypePath>()?;
-        Ok(Self {
-            path: path.value(),
-            open_api: api,
-        })
+        const ERROR_MESSAGE: &str = "unexpected identifier, expected any of: path, api, tags";
+        let mut nest = NestOpenApi::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(error.span(), format!("{ERROR_MESSAGE}: {error}"))
+            })?;
+
+            match &*ident.to_string() {
+                "path" => nest.path = parse_utils::parse_next_literal_str_or_expr(input)?,
+                "api" => nest.open_api = Some(parse_utils::parse_next(input, || input.parse())?),
+                "tags" => {
+                    nest.tags = parse_utils::parse_next(input, || {
+                        let tags;
+                        bracketed!(tags in input);
+                        Punctuated::parse_terminated(&tags)
+                    })?;
+                }
+                _ => return Err(syn::Error::new(ident.span(), ERROR_MESSAGE)),
+            }
+
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
+            }
+        }
+        if nest.path.is_empty_litstr() {
+            return Err(syn::Error::new(
+                input.span(),
+                "`path = ...` argument is mandatory for nest(...) statement",
+            ));
+        }
+        if nest.open_api.is_none() {
+            return Err(syn::Error::new(
+                input.span(),
+                "`api = ...` argument is mandatory for nest(...) statement",
+            ));
+        }
+
+        Ok(nest)
     }
 }
