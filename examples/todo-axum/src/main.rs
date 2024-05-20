@@ -1,9 +1,6 @@
-use std::{
-    net::{Ipv4Addr, SocketAddr},
-    sync::Arc,
-};
+use std::net::{Ipv4Addr, SocketAddr};
 
-use axum::{routing, Router};
+use axum::Router;
 use std::io::Error;
 use tokio::net::TcpListener;
 use utoipa::{
@@ -15,23 +12,14 @@ use utoipa_redoc::{Redoc, Servable};
 use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::todo::Store;
-
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
-        paths(
-            todo::list_todos,
-            todo::search_todos,
-            todo::create_todo,
-            todo::mark_done,
-            todo::delete_todo,
-        ),
-        components(
-            schemas(todo::Todo, todo::TodoError)
-        ),
         modifiers(&SecurityAddon),
+        nest(
+            (path = "/api/v1/todos", api = todo::TodoApi)
+        ),
         tags(
             (name = "todo", description = "Todo items management API")
         )
@@ -51,7 +39,6 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let store = Arc::new(Store::default());
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
@@ -61,16 +48,7 @@ async fn main() -> Result<(), Error> {
         // Alternative to above
         // .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc"))
         .merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
-        .route(
-            "/todo",
-            routing::get(todo::list_todos).post(todo::create_todo),
-        )
-        .route("/todo/search", routing::get(todo::search_todos))
-        .route(
-            "/todo/:id",
-            routing::put(todo::mark_done).delete(todo::delete_todo),
-        )
-        .with_state(store);
+        .nest("/api/v1/todos", todo::router());
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
     let listener = TcpListener::bind(&address).await?;
@@ -83,19 +61,26 @@ mod todo {
     use axum::{
         extract::{Path, Query, State},
         response::IntoResponse,
-        Json,
+        routing, Json, Router,
     };
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::{IntoParams, ToSchema};
+    use utoipa::{IntoParams, OpenApi, ToSchema};
+
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(list_todos, search_todos, create_todo, mark_done, delete_todo,),
+        components(schemas(Todo, TodoError))
+    )]
+    pub(super) struct TodoApi;
 
     /// In-memory todo store
-    pub(super) type Store = Mutex<Vec<Todo>>;
+    type Store = Mutex<Vec<Todo>>;
 
     /// Item to do.
     #[derive(Serialize, Deserialize, ToSchema, Clone)]
-    pub(super) struct Todo {
+    struct Todo {
         id: i32,
         #[schema(example = "Buy groceries")]
         value: String,
@@ -104,7 +89,7 @@ mod todo {
 
     /// Todo operation errors
     #[derive(Serialize, Deserialize, ToSchema)]
-    pub(super) enum TodoError {
+    enum TodoError {
         /// Todo already exists conflict.
         #[schema(example = "Todo already exists")]
         Conflict(String),
@@ -116,17 +101,26 @@ mod todo {
         Unauthorized(String),
     }
 
+    pub(super) fn router() -> Router {
+        let store = Arc::new(Store::default());
+        Router::new()
+            .route("/", routing::get(list_todos).post(create_todo))
+            .route("/search", routing::get(search_todos))
+            .route("/:id", routing::put(mark_done).delete(delete_todo))
+            .with_state(store)
+    }
+
     /// List all Todo items
     ///
     /// List all Todo items from in-memory storage.
     #[utoipa::path(
         get,
-        path = "/todo",
+        path = "",
         responses(
             (status = 200, description = "List all todos successfully", body = [Todo])
         )
     )]
-    pub(super) async fn list_todos(State(store): State<Arc<Store>>) -> Json<Vec<Todo>> {
+    async fn list_todos(State(store): State<Arc<Store>>) -> Json<Vec<Todo>> {
         let todos = store.lock().await.clone();
 
         Json(todos)
@@ -134,7 +128,7 @@ mod todo {
 
     /// Todo search query
     #[derive(Deserialize, IntoParams)]
-    pub(super) struct TodoSearchQuery {
+    struct TodoSearchQuery {
         /// Search by value. Search is incase sensitive.
         value: String,
         /// Search by `done` status.
@@ -146,7 +140,7 @@ mod todo {
     /// Search `Todo`s by query params and return matching `Todo`s.
     #[utoipa::path(
         get,
-        path = "/todo/search",
+        path = "/search",
         params(
             TodoSearchQuery
         ),
@@ -154,7 +148,7 @@ mod todo {
             (status = 200, description = "List matching todos by query", body = [Todo])
         )
     )]
-    pub(super) async fn search_todos(
+    async fn search_todos(
         State(store): State<Arc<Store>>,
         query: Query<TodoSearchQuery>,
     ) -> Json<Vec<Todo>> {
@@ -177,14 +171,14 @@ mod todo {
     /// Tries to create a new Todo item to in-memory storage or fails with 409 conflict if already exists.
     #[utoipa::path(
         post,
-        path = "/todo",
+        path = "",
         request_body = Todo,
         responses(
             (status = 201, description = "Todo item created successfully", body = Todo),
             (status = 409, description = "Todo already exists", body = TodoError)
         )
     )]
-    pub(super) async fn create_todo(
+    async fn create_todo(
         State(store): State<Arc<Store>>,
         Json(todo): Json<Todo>,
     ) -> impl IntoResponse {
@@ -215,7 +209,7 @@ mod todo {
     /// Mark Todo item done by given id. Return only status 200 on success or 404 if Todo is not found.
     #[utoipa::path(
         put,
-        path = "/todo/{id}",
+        path = "/{id}",
         responses(
             (status = 200, description = "Todo marked done successfully"),
             (status = 404, description = "Todo not found")
@@ -228,7 +222,7 @@ mod todo {
             ("api_key" = [])
         )
     )]
-    pub(super) async fn mark_done(
+    async fn mark_done(
         Path(id): Path<i32>,
         State(store): State<Arc<Store>>,
         headers: HeaderMap,
@@ -255,7 +249,7 @@ mod todo {
     /// Delete Todo item from in-memory storage by id. Returns either 200 success of 404 with TodoError if Todo is not found.
     #[utoipa::path(
         delete,
-        path = "/todo/{id}",
+        path = "/{id}",
         responses(
             (status = 200, description = "Todo marked done successfully"),
             (status = 401, description = "Unauthorized to delete Todo", body = TodoError, example = json!(TodoError::Unauthorized(String::from("missing api key")))),
@@ -268,7 +262,7 @@ mod todo {
             ("api_key" = [])
         )
     )]
-    pub(super) async fn delete_todo(
+    async fn delete_todo(
         Path(id): Path<i32>,
         State(store): State<Arc<Store>>,
         headers: HeaderMap,
