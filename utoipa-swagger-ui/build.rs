@@ -3,7 +3,7 @@ use std::{
     env,
     error::Error,
     fs::{self, File},
-    io,
+    io::{self, Read},
     path::PathBuf,
 };
 
@@ -170,10 +170,30 @@ struct SwaggerUiDist;
 }
 
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
-    let mut response = reqwest::blocking::get(url)?;
+    let mut client_builder = reqwest::blocking::Client::builder();
+
+    if let Ok(cainfo) = env::var("CARGO_HTTP_CAINFO") {
+        match parse_ca_file(&cainfo) {
+            Ok(cert) => client_builder = client_builder.add_root_certificate(cert),
+            Err(e) => println!(
+                "failed to load certificate from CARGO_HTTP_CAINFO `{cainfo}`, attempting to download without it. Error: {e:?}",
+            ),
+        }
+    }
+
+    let client = client_builder.build()?;
+
+    let mut response = client.get(url).send()?;
     let mut file = File::create(path)?;
     io::copy(&mut response, &mut file)?;
     Ok(())
+}
+
+fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
+    let mut buf = Vec::new();
+    File::open(path)?.read_to_end(&mut buf)?;
+    let cert = reqwest::Certificate::from_pem(&buf)?;
+    Ok(cert)
 }
 
 fn overwrite_target_file(target_dir: &str, swagger_ui_dist_zip: &str, path_in: PathBuf) {
