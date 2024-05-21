@@ -26,6 +26,10 @@ const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
 
 fn main() {
+    if env::var("DOCS_RS").is_ok() {
+        println!("running docs.rs build, skip Swagger UI download, sandboxed environment");
+        return;
+    }
     let target_dir = env::var("OUT_DIR").unwrap();
     println!("OUT_DIR: {target_dir}");
 
