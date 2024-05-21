@@ -175,7 +175,11 @@ struct SwaggerUiDist;
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let reqwest_feature = env::var("CARGO_FEATURE_REQWEST");
     println!("reqwest feature: {reqwest_feature:?}");
-    if reqwest_feature.is_ok() {
+    if reqwest_feature.is_ok()
+        || env::var("CARGO_CFG_TARGET_OS")
+            .map(|os| os == "windows")
+            .unwrap_or_default()
+    {
         #[cfg(any(feature = "reqwest", target_os = "windows"))]
         {
             download_file_reqwest(url, path)?;
