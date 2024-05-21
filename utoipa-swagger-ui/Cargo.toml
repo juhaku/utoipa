@@ -12,15 +12,20 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 
 [features]
+default = ["url"]
 debug = []
 debug-embed = ["rust-embed/debug-embed"]
+reqwest = ["dep:reqwest"]
+url = ["dep:url"]
 
 [dependencies]
 rust-embed = { version = "8" }
 mime_guess = { version = "2.0" }
 actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5", features = ["json"], optional = true }
-axum = { version = "0.7", default-features = false, features = ["json"], optional = true }
+axum = { version = "0.7", default-features = false, features = [
+    "json",
+], optional = true }
 utoipa = { version = "4", path = "../utoipa" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
@@ -35,4 +40,18 @@ rustdoc-args = ["--cfg", "doc_cfg"]
 [build-dependencies]
 zip = { version = "1", default-features = false, features = ["deflate"] }
 regex = "1.7"
-reqwest = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
+
+# enabled optionally to allow rust only build with expense of bigger dependency tree and platform
+# independant build. By default `curl` system package is tried for downloading the Swagger UI.
+reqwest = { version = "0.12", features = [
+    "blocking",
+    "rustls-tls",
+], default-features = false, optional = true }
+url = { version = "2.5", optional = true }
+
+# Windows is forced to use reqwest to download the Swagger UI.
+[target.'cfg(windows)'.build-dependencies]
+reqwest = { version = "0.12", features = [
+    "blocking",
+    "rustls-tls",
+], default-features = false }

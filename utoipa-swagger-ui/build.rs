@@ -1,10 +1,10 @@
-use reqwest::Url;
 use std::{
     env,
     error::Error,
     fs::{self, File},
-    io::{self, Read},
-    path::PathBuf,
+    io,
+    path::{Path, PathBuf},
+    process::Command,
 };
 
 use regex::Regex;
@@ -22,33 +22,39 @@ use zip::{result::ZipError, ZipArchive};
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
     "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip";
 
+const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
+const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
+
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
-    println!("OUT_DIR: {}", target_dir);
+    println!("OUT_DIR: {target_dir}");
 
     let url =
-        env::var("SWAGGER_UI_DOWNLOAD_URL").unwrap_or(SWAGGER_UI_DOWNLOAD_URL_DEFAULT.to_string());
+        env::var(SWAGGER_UI_DOWNLOAD_URL).unwrap_or(SWAGGER_UI_DOWNLOAD_URL_DEFAULT.to_string());
 
-    println!("SWAGGER_UI_DOWNLOAD_URL: {}", url);
+    println!("{SWAGGER_UI_DOWNLOAD_URL}: {url}");
     let zip_filename = url.split('/').last().unwrap().to_string();
     let zip_path = [&target_dir, &zip_filename].iter().collect::<PathBuf>();
 
-    if !zip_path.exists() {
-        if url.starts_with("http://") || url.starts_with("https://") {
-            println!("start download to : {:?}", zip_path);
-            download_file(&url, zip_path.clone()).unwrap();
-        } else if url.starts_with("file://") {
-            let file_path = Url::parse(&url).unwrap().to_file_path().unwrap();
-            println!("start copy to : {:?}", zip_path);
-            fs::copy(file_path, zip_path.clone()).unwrap();
-        } else {
-            panic!("invalid SWAGGER_UI_DOWNLOAD_URL: {} -> must start with http:// | https:// | file://", url);
-        }
-    } else {
-        println!("already downloaded or copied: {:?}", zip_path);
-    }
+    if url.starts_with("file:") {
+        let mut file_path = url::Url::parse(&url).unwrap().to_file_path().unwrap();
+        file_path = fs::canonicalize(file_path).expect("swagger ui download path should exists");
 
-    println!("cargo:rerun-if-changed={:?}", zip_path.clone());
+        // with file protocol utoipa swagger ui should compile when file changes
+        println!("cargo:rerun-if-changed={:?}", file_path);
+
+        println!("start copy to : {:?}", zip_path);
+        fs::copy(file_path, zip_path.clone()).unwrap();
+    } else if url.starts_with("http://") || url.starts_with("https://") {
+        println!("start download to : {:?}", zip_path);
+
+        // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
+        println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
+
+        download_file(&url, zip_path.clone()).unwrap();
+    } else {
+        panic!("invalid {SWAGGER_UI_DOWNLOAD_URL}: {url} -> must start with http:// | https:// | file:");
+    }
 
     let swagger_ui_zip =
         File::open([&target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
@@ -63,10 +69,10 @@ fn main() {
     write_embed_code(&target_dir, &zip_top_level_folder);
 
     let overwrite_folder =
-        PathBuf::from(env::var("SWAGGER_UI_OVERWRITE_FOLDER").unwrap_or("overwrite".to_string()));
+        PathBuf::from(env::var(SWAGGER_UI_OVERWRITE_FOLDER).unwrap_or("overwrite".to_string()));
 
     if overwrite_folder.exists() {
-        println!("SWAGGER_UI_OVERWRITE_FOLDER: {:?}", overwrite_folder);
+        println!("{SWAGGER_UI_OVERWRITE_FOLDER}: {overwrite_folder:?}");
 
         for entry in fs::read_dir(overwrite_folder).unwrap() {
             let entry = entry.unwrap();
@@ -75,10 +81,7 @@ fn main() {
             overwrite_target_file(&target_dir, &zip_top_level_folder, path_in);
         }
     } else {
-        println!(
-            "SWAGGER_UI_OVERWRITE_FOLDER not found: {:?}",
-            overwrite_folder
-        );
+        println!("{SWAGGER_UI_OVERWRITE_FOLDER} not found: {overwrite_folder:?}");
     }
 }
 
@@ -170,6 +173,22 @@ struct SwaggerUiDist;
 }
 
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
+    let reqwest_feature = env::var("CARGO_FEATURE_REQWEST");
+    println!("reqwest feature: {reqwest_feature:?}");
+    if reqwest_feature.is_ok() {
+        #[cfg(any(feature = "reqwest", target_os = "windows"))]
+        {
+            download_file_reqwest(url, path)?;
+        }
+        Ok(())
+    } else {
+        println!("trying to download using `curl` system package");
+        download_file_curl(url, path.as_path())
+    }
+}
+
+#[cfg(any(feature = "reqwest", target_os = "windows"))]
+fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let mut client_builder = reqwest::blocking::Client::builder();
 
     if let Ok(cainfo) = env::var("CARGO_HTTP_CAINFO") {
@@ -189,11 +208,51 @@ fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(any(feature = "reqwest", target_os = "windows"))]
 fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
     let mut buf = Vec::new();
+    use io::Read;
     File::open(path)?.read_to_end(&mut buf)?;
     let cert = reqwest::Certificate::from_pem(&buf)?;
     Ok(cert)
+}
+
+fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Box<dyn Error>> {
+    let url = url::Url::parse(url)?;
+
+    let mut args = Vec::with_capacity(6);
+    args.extend([
+        "-sSL",
+        "-o",
+        target_dir
+            .as_ref()
+            .as_os_str()
+            .to_str()
+            .expect("target dir should be valid utf-8"),
+        url.as_str(),
+    ]);
+    let cacert = env::var("CARGO_HTTP_CAINFO").unwrap_or_default();
+    if !cacert.is_empty() {
+        args.extend(["--cacert", &cacert]);
+    }
+
+    let download = Command::new("curl")
+        .args(args)
+        .spawn()
+        .and_then(|mut child| child.wait());
+
+    Ok(download
+        .and_then(|status| {
+            if status.success() {
+                Ok(())
+            } else {
+                Err(std::io::Error::new(
+                    io::ErrorKind::Other,
+                    format!("curl download file exited with error status: {status}"),
+                ))
+            }
+        })
+        .map_err(Box::new)?)
 }
 
 fn overwrite_target_file(target_dir: &str, swagger_ui_dist_zip: &str, path_in: PathBuf) {
