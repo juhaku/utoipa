@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-swagger-ui"
 description = "Swagger UI for utoipa"
-version = "7.0.3"
+version = "7.0.4"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -17,6 +17,7 @@ debug = []
 debug-embed = ["rust-embed/debug-embed"]
 reqwest = ["dep:reqwest"]
 url = ["dep:url"]
+vendored = ["dep:utoipa-swagger-ui-vendored"]
 
 [dependencies]
 rust-embed = { version = "8" }
@@ -34,7 +35,8 @@ serde_json = { version = "1.0" }
 similar = "2.5"
 
 [package.metadata.docs.rs]
-features = ["actix-web", "axum", "rocket"]
+features = ["actix-web", "axum", "rocket", "vendored"]
+no-default-features = true
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
@@ -48,6 +50,7 @@ reqwest = { version = "0.12", features = [
     "rustls-tls",
 ], default-features = false, optional = true }
 url = { version = "2.5", optional = true }
+utoipa-swagger-ui-vendored = { version = "*", path = "../utoipa-swagger-ui-vendored", optional = true }
 
 # Windows is forced to use reqwest to download the Swagger UI.
 [target.'cfg(windows)'.build-dependencies]
@@ -55,3 +58,4 @@ reqwest = { version = "0.12", features = [
     "blocking",
     "rustls-tls",
 ], default-features = false }
+utoipa-swagger-ui-vendored = { version = "*", path = "../utoipa-swagger-ui-vendored", optional = true }

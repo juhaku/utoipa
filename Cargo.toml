@@ -6,6 +6,7 @@ resolver = "2"
 members = [
     "utoipa",
     "utoipa-gen",
+    "utoipa-swagger-ui-vendored",
     "utoipa-swagger-ui",
     "utoipa-redoc",
     "utoipa-rapidoc",
@@ -16,6 +17,7 @@ members = [
 order = [
     "utoipa-gen",
     "utoipa",
+    "utoipa-swagger-ui-vendored",
     "utoipa-swagger-ui",
     "utoipa-redoc",
     "utoipa-rapidoc",
