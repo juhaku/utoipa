@@ -3,7 +3,7 @@
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/crates/v/utoipa-swagger-ui.svg?label=crates.io&color=orange&logo=rust)](https://crates.io/crates/utoipa-swagger-ui)
 [![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa-swagger-ui&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/)
-![rustc](https://img.shields.io/static/v1?label=rustc&message=1.60%2B&color=orange&logo=rust)
+![rustc](https://img.shields.io/static/v1?label=rustc&message=1.75&color=orange&logo=rust)
 
 This crate implements necessary boilerplate code to serve Swagger UI via web server. It
 works as a bridge for serving the OpenAPI documentation created with
@@ -33,6 +33,7 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
 * **reqwest** Use `reqwest` for downloading Swagger UI accoring to the `SWAGGER_UI_DOWNLOAD_URL` environment
   variable. This is only enabled by default on _Windows_.
 * **url** Enabled by default for parsing and encoding the download URL.
+* **vendored** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
 
 ## Install
 
@@ -66,7 +67,7 @@ The following configuration env variables are available at build time:
 
   * the url from where to download the swagger-ui zip file if starts with `http://` or `https://`
   * the file path from where to copy the swagger-ui zip file if starts with `file://`
-  * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip>
+  * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip>
     * all versions: <https://github.com/swagger-api/swagger-ui/tags>
 
 * `SWAGGER_UI_OVERWRITE_FOLDER`:

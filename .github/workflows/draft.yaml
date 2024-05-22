@@ -15,6 +15,7 @@ jobs:
         crate:
           - utoipa
           - utoipa-gen
+          - utoipa-swagger-ui-vendored
           - utoipa-swagger-ui
           - utoipa-redoc
           - utoipa-rapidoc

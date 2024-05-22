@@ -2,9 +2,8 @@ use std::{
     env,
     error::Error,
     fs::{self, File},
-    io,
+    io::{self, Cursor},
     path::{Path, PathBuf},
-    process::Command,
 };
 
 use regex::Regex;
@@ -20,16 +19,12 @@ use zip::{result::ZipError, ZipArchive};
 /// + absolute path to a folder containing files to overwrite the default swagger-ui files
 
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
-    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip";
+    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip";
 
 const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
 
 fn main() {
-    if env::var("DOCS_RS").is_ok() {
-        println!("running docs.rs build, skip Swagger UI download, sandboxed environment");
-        return;
-    }
     let target_dir = env::var("OUT_DIR").unwrap();
     println!("OUT_DIR: {target_dir}");
 
@@ -37,35 +32,11 @@ fn main() {
         env::var(SWAGGER_UI_DOWNLOAD_URL).unwrap_or(SWAGGER_UI_DOWNLOAD_URL_DEFAULT.to_string());
 
     println!("{SWAGGER_UI_DOWNLOAD_URL}: {url}");
-    let zip_filename = url.split('/').last().unwrap().to_string();
-    let zip_path = [&target_dir, &zip_filename].iter().collect::<PathBuf>();
 
-    if url.starts_with("file:") {
-        let mut file_path = url::Url::parse(&url).unwrap().to_file_path().unwrap();
-        file_path = fs::canonicalize(file_path).expect("swagger ui download path should exists");
-
-        // with file protocol utoipa swagger ui should compile when file changes
-        println!("cargo:rerun-if-changed={:?}", file_path);
-
-        println!("start copy to : {:?}", zip_path);
-        fs::copy(file_path, zip_path.clone()).unwrap();
-    } else if url.starts_with("http://") || url.starts_with("https://") {
-        println!("start download to : {:?}", zip_path);
-
-        // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
-        println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
-
-        download_file(&url, zip_path.clone()).unwrap();
-    } else {
-        panic!("invalid {SWAGGER_UI_DOWNLOAD_URL}: {url} -> must start with http:// | https:// | file:");
-    }
-
-    let swagger_ui_zip =
-        File::open([&target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
-
-    let mut zip = ZipArchive::new(swagger_ui_zip).unwrap();
-
-    let zip_top_level_folder = extract_within_path(&mut zip, &target_dir).unwrap();
+    let mut swagger_zip = get_zip_archive(&url, &target_dir);
+    let zip_top_level_folder = swagger_zip
+        .extract_dist(&target_dir)
+        .expect("should extract dist");
     println!("zip_top_level_folder: {:?}", zip_top_level_folder);
 
     replace_default_url_with_config(&target_dir, &zip_top_level_folder);
@@ -89,57 +60,132 @@ fn main() {
     }
 }
 
-fn extract_within_path(zip: &mut ZipArchive<File>, target_dir: &str) -> Result<String, ZipError> {
-    let mut zip_top_level_folder = String::new();
+enum SwaggerZip {
+    #[allow(unused)]
+    Bytes(ZipArchive<Cursor<&'static [u8]>>),
+    File(ZipArchive<File>),
+}
 
-    for index in 0..zip.len() {
-        let mut file = zip.by_index(index)?;
-        let filepath = file
-            .enclosed_name()
-            .ok_or(ZipError::InvalidArchive("invalid path file"))?;
-
-        if index == 0 {
-            zip_top_level_folder = filepath
-                .iter()
-                .take(1)
-                .map(|x| x.to_str().unwrap_or_default())
-                .collect::<String>();
-        }
-
-        let folder = filepath
-            .iter()
-            .skip(1)
-            .take(1)
-            .map(|x| x.to_str().unwrap_or_default())
-            .collect::<String>();
-
-        if folder == "dist" {
-            let directory = [&target_dir].iter().collect::<PathBuf>();
-            let out_path = directory.join(filepath);
-
-            if file.name().ends_with('/') {
-                fs::create_dir_all(&out_path)?;
-            } else {
-                if let Some(p) = out_path.parent() {
-                    if !p.exists() {
-                        fs::create_dir_all(p)?;
-                    }
-                }
-                let mut out_file = fs::File::create(&out_path)?;
-                io::copy(&mut file, &mut out_file)?;
-            }
-            // Get and Set permissions
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if let Some(mode) = file.unix_mode() {
-                    fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
-                }
-            }
+impl SwaggerZip {
+    fn len(&self) -> usize {
+        match self {
+            Self::File(file) => file.len(),
+            Self::Bytes(bytes) => bytes.len(),
         }
     }
 
-    Ok(zip_top_level_folder)
+    fn by_index(&mut self, index: usize) -> Result<zip::read::ZipFile, ZipError> {
+        match self {
+            Self::File(file) => file.by_index(index),
+            Self::Bytes(bytes) => bytes.by_index(index),
+        }
+    }
+
+    fn extract_dist(&mut self, target_dir: &str) -> Result<String, ZipError> {
+        let mut zip_top_level_folder = String::new();
+
+        for index in 0..self.len() {
+            let mut file = self.by_index(index)?;
+            let filepath = file
+                .enclosed_name()
+                .ok_or(ZipError::InvalidArchive("invalid path file"))?;
+
+            if index == 0 {
+                zip_top_level_folder = filepath
+                    .iter()
+                    .take(1)
+                    .map(|x| x.to_str().unwrap_or_default())
+                    .collect::<String>();
+            }
+
+            let next_folder = filepath
+                .iter()
+                .skip(1)
+                .take(1)
+                .map(|x| x.to_str().unwrap_or_default())
+                .collect::<String>();
+
+            if next_folder == "dist" {
+                let directory = [&target_dir].iter().collect::<PathBuf>();
+                let out_path = directory.join(filepath);
+
+                if file.name().ends_with('/') {
+                    fs::create_dir_all(&out_path)?;
+                } else {
+                    if let Some(p) = out_path.parent() {
+                        if !p.exists() {
+                            fs::create_dir_all(p)?;
+                        }
+                    }
+                    let mut out_file = fs::File::create(&out_path)?;
+                    io::copy(&mut file, &mut out_file)?;
+                }
+                // Get and Set permissions
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Some(mode) = file.unix_mode() {
+                        fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
+                    }
+                }
+            }
+        }
+
+        Ok(zip_top_level_folder)
+    }
+}
+
+fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
+    let zip_filename = url.split('/').last().unwrap().to_string();
+    let zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
+
+    if env::var("CARGO_FEATURE_VENDORED").is_ok() {
+        #[cfg(not(feature = "vendored"))]
+        unreachable!("Cannot get vendored Swagger UI without `vendored` flag");
+
+        #[cfg(feature = "vendored")]
+        {
+            println!("using vendored Swagger UI");
+            let vendred_bytes = utoipa_swagger_ui_vendored::SWAGGER_UI_VENDORED;
+            let zip = ZipArchive::new(io::Cursor::new(vendred_bytes))
+                .expect("failed to open vendored Swagger UI");
+            SwaggerZip::Bytes(zip)
+        }
+    } else if url.starts_with("file:") {
+        #[cfg(feature = "url")]
+        let mut file_path = url::Url::parse(url).unwrap().to_file_path().unwrap();
+        #[cfg(not(feature = "url"))]
+        let mut file_path = {
+            use std::str::FromStr;
+            PathBuf::from_str(url).unwrap()
+        };
+        file_path = fs::canonicalize(file_path).expect("swagger ui download path should exists");
+
+        // with file protocol utoipa swagger ui should compile when file changes
+        println!("cargo:rerun-if-changed={:?}", file_path);
+
+        println!("start copy to : {:?}", zip_path);
+        fs::copy(file_path, zip_path.clone()).unwrap();
+
+        let swagger_ui_zip =
+            File::open([target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
+        let zip = ZipArchive::new(swagger_ui_zip)
+            .expect("failed to open file protocol copied Swagger UI");
+        SwaggerZip::File(zip)
+    } else if url.starts_with("http://") || url.starts_with("https://") {
+        println!("start download to : {:?}", zip_path);
+
+        // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
+        println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
+
+        download_file(url, zip_path.clone()).unwrap();
+        let swagger_ui_zip =
+            File::open([target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
+        let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
+        SwaggerZip::File(zip)
+    } else {
+        panic!("`vendored` feature not enabled and invalid {SWAGGER_UI_DOWNLOAD_URL}: {url} -> must start with http:// | https:// | file:");
+    }
 }
 
 fn replace_default_url_with_config(target_dir: &str, zip_top_level_folder: &str) {
@@ -226,6 +272,7 @@ fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
 }
 
 fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "url")]
     let url = url::Url::parse(url)?;
 
     let mut args = Vec::with_capacity(6);
@@ -237,14 +284,19 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
             .as_os_str()
             .to_str()
             .expect("target dir should be valid utf-8"),
-        url.as_str(),
+        #[cfg(feature = "url")]
+        {
+            url.as_str()
+        },
+        #[cfg(not(feature = "url"))]
+        url,
     ]);
     let cacert = env::var("CARGO_HTTP_CAINFO").unwrap_or_default();
     if !cacert.is_empty() {
         args.extend(["--cacert", &cacert]);
     }
 
-    let download = Command::new("curl")
+    let download = std::process::Command::new("curl")
         .args(args)
         .spawn()
         .and_then(|mut child| child.wait());

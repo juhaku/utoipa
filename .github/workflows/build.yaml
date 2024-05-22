@@ -20,6 +20,7 @@ jobs:
         crate:
           - utoipa
           - utoipa-gen
+          - utoipa-swagger-ui-vendored
           - utoipa-swagger-ui
           - utoipa-redoc
           - utoipa-rapidoc
@@ -48,6 +49,8 @@ jobs:
           changes=false
           while read -r change; do
             if [[ "$change" == "utoipa-gen" && "${{ matrix.crate }}" == "utoipa-gen" && $changes == false ]]; then
+              changes=true
+            elif [[ "$change" == "utoipa-swagger-ui-vendored" && "${{ matrix.crate }}" == "utoipa-swagger-ui-vendored" && $changes == false ]]; then
               changes=true
             elif [[ "$change" == "utoipa-swagger-ui" && "${{ matrix.crate }}" == "utoipa-swagger-ui" && $changes == false ]]; then
               changes=true

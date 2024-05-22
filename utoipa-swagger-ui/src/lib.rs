@@ -27,6 +27,10 @@
 //!   hassle free.
 //! * **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
 //!   builds as well.
+//! * **reqwest** Use `reqwest` for downloading Swagger UI accoring to the `SWAGGER_UI_DOWNLOAD_URL` environment
+//!   variable. This is only enabled by default on _Windows_.
+//! * **url** Enabled by default for parsing and encoding the download URL.
+//! * **vendored** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
 //!
 //! # Install
 //!
@@ -44,14 +48,20 @@
 //!
 //! **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
 //!
-//! ## Config
+//! ## Build Config
+//!
+//! _`utoipa-swagger-ui` crate will by default try to use system `curl` package for downloading the Swagger UI. It
+//! can optionally be downloaded with `reqwest` by enabling `reqwest` feature. On Windows the `reqwest` feature
+//! is enabled by default. Reqwest can be useful for platform independent builds however bringing quite a few
+//! unnecessary dependencies just to download a file. If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no
+//! downloading will happen._
 //!
 //! The following configuration env variables are available at build time:
 //!
 //! * `SWAGGER_UI_DOWNLOAD_URL`:
 //!
 //!   * the url from where to download the swagger-ui zip file
-//!   * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.3.zip>
+//!   * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip>
 //!   * All versions: <https://github.com/swagger-api/swagger-ui/tags>
 //!
 //! * `SWAGGER_UI_OVERWRITE_FOLDER`:
