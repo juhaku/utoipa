@@ -1,4 +1,4 @@
-# axum-nesting ~ utoipa with utoipa-swagger-ui example
+# axum-nesting-vendored ~ utoipa with utoipa-swagger-ui example
 
 This example demonstrates `axum` with programmatic and macro based nesting of OpenApis
 using `utoipa-swagger-ui` for visualization.
