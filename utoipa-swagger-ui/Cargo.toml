@@ -50,7 +50,7 @@ reqwest = { version = "0.12", features = [
     "rustls-tls",
 ], default-features = false, optional = true }
 url = { version = "2.5", optional = true }
-utoipa-swagger-ui-vendored = { version = "*", path = "../utoipa-swagger-ui-vendored", optional = true }
+utoipa-swagger-ui-vendored = { version = "0.1", path = "../utoipa-swagger-ui-vendored", optional = true }
 
 # Windows is forced to use reqwest to download the Swagger UI.
 [target.'cfg(windows)'.build-dependencies]
@@ -58,4 +58,4 @@ reqwest = { version = "0.12", features = [
     "blocking",
     "rustls-tls",
 ], default-features = false }
-utoipa-swagger-ui-vendored = { version = "*", path = "../utoipa-swagger-ui-vendored", optional = true }
+utoipa-swagger-ui-vendored = { version = "0.1", path = "../utoipa-swagger-ui-vendored", optional = true }
