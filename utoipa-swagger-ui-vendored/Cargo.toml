@@ -11,6 +11,4 @@ categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 
-exclude = ["res"]
-
 [dependencies]
