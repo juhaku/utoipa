@@ -101,20 +101,6 @@ test_path_operation! {
     derive_path_connect: connect
 }
 
-test_api_fn! {
-    name: test_operation2,
-    module: derive_path_with_all_info,
-    operation: post,
-    path: "/foo/bar/{id}",
-    params: (("id", description = "Foo bar id")),
-    operation_id: "foo_bar_id",
-    tag: "custom_tag";
-    /// This is test operation description
-    ///
-    /// Additional info in long description
-    #[deprecated]
-}
-
 macro_rules! api_fn_doc_with_params {
     ( $method:ident: $path:literal => $( #[$attr:meta] )* $key:ident $name:ident $body:tt ) => {{
         #[allow(dead_code)]
@@ -147,6 +133,26 @@ macro_rules! api_fn_doc_with_params {
     }};
 }
 
+test_api_fn! {
+    name: test_operation2,
+    module: derive_path_with_all_info,
+    operation: post,
+    path: "/foo/bar/{id}",
+    params: (("id", description = "Foo bar id")),
+    operation_id: "foo_bar_id",
+    tag: "custom_tag";
+    /// This is test operation long multiline
+    /// summary. That need to be correctly split.
+    ///
+    /// Additional info in long description
+    ///
+    /// With more info on separate lines
+    /// containing text.
+    ///
+    /// Yeah
+    #[deprecated]
+}
+
 #[test]
 fn derive_path_with_all_info_success() {
     let operation = test_api_fn_doc! {
@@ -158,8 +164,8 @@ fn derive_path_with_all_info_success() {
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 1);
     assert_value! {operation=>
        "deprecated" = r#"true"#, "Api fn deprecated status"
-       "description" = r#""Additional info in long description""#, "Api fn description"
-       "summary" = r#""This is test operation description""#, "Api fn summary"
+       "description" = r#""Additional info in long description\n\nWith more info on separate lines\ncontaining text.\n\nYeah""#, "Api fn description"
+       "summary" = r#""This is test operation long multiline\nsummary. That need to be correctly split.""#, "Api fn summary"
        "operationId" = r#""foo_bar_id""#, "Api fn operation_id"
        "tags.[0]" = r#""custom_tag""#, "Api fn tag"
 
