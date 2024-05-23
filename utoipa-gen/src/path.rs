@@ -389,28 +389,31 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 }
             });
 
-        let split_comment = self
-            .doc_comments
-            .as_ref()
-            .and_then(|comments| comments.split_first())
-            .map(|(summary, description)| {
-                // Skip all whitespace lines
-                let start_pos = description
-                    .iter()
-                    .position(|s| !s.chars().all(char::is_whitespace));
+        let split_comment = self.doc_comments.as_ref().map(|comments| {
+            let mut split = comments.split(|comment| comment.trim().is_empty());
+            let summary = split
+                .by_ref()
+                .next()
+                .map(|summary| summary.join("\n"))
+                .unwrap_or_default();
+            let description = split.map(|lines| lines.join("\n")).collect::<Vec<_>>();
 
-                let trimmed = start_pos
-                    .and_then(|pos| description.get(pos..))
-                    .unwrap_or(description);
-
-                (summary, trimmed)
-            });
+            (summary, description)
+        });
 
         let operation: Operation = Operation {
             deprecated: &self.deprecated,
             operation_id,
-            summary: split_comment.map(|(summary, _)| summary),
-            description: split_comment.map(|(_, description)| description),
+            summary: split_comment.as_ref().and_then(|(summary, _)| {
+                if summary.is_empty() {
+                    None
+                } else {
+                    Some(summary)
+                }
+            }),
+            description: split_comment
+                .as_ref()
+                .map(|(_, description)| description.as_ref()),
             parameters: self.path_attr.params.as_ref(),
             request_body: self.path_attr.request_body.as_ref(),
             responses: self.path_attr.responses.as_ref(),
@@ -514,7 +517,7 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         if let Some(description) = self.description {
-            let description = description.join("\n");
+            let description = description.join("\n\n");
 
             if !description.is_empty() {
                 tokens.extend(quote! {
@@ -603,6 +606,7 @@ pub trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> &str;
 
+    #[allow(unused)]
     /// Check whether [`TypeTree`] an option
     fn is_option(&self) -> bool;
 
