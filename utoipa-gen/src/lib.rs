@@ -85,6 +85,9 @@ use self::{
 /// ```
 ///
 /// # Struct Optional Configuration Options for `#[schema(...)]`
+/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
@@ -104,6 +107,9 @@ use self::{
 ///   Rust's own `#[deprecated]` attribute instead.
 
 /// # Enum Optional Configuration Options for `#[schema(...)]`
+/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
 /// * `example = ...` Can be method reference or _`json!(...)`_.
 /// * `default = ...` Can be method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
@@ -128,6 +134,9 @@ use self::{
 /// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
 ///
 /// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
+/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
 /// * `example = ...` Can be method reference or _`json!(...)`_.
 /// * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
 ///   only one field, the field's default value in the schema will be set from the struct's
@@ -2915,6 +2924,12 @@ mod parse_utils {
     pub enum Value {
         LitStr(LitStr),
         Expr(Expr),
+    }
+
+    impl From<String> for Value {
+        fn from(value: String) -> Self {
+            Self::LitStr(LitStr::new(&value, proc_macro2::Span::call_site()))
+        }
     }
 
     impl Value {

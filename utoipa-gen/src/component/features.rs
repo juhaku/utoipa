@@ -99,7 +99,7 @@ pub enum Feature {
     AllowReserved(AllowReserved),
     Explode(Explode),
     ParameterIn(ParameterIn),
-    IntoParamsNames(Names),
+    IntoParamsNames(IntoParamsNames),
     MultipleOf(MultipleOf),
     Maximum(Maximum),
     Minimum(Minimum),
@@ -369,7 +369,7 @@ is_validatable! {
     RenameAll => false,
     ValueType => false,
     Inline => false,
-    Names => false,
+    IntoParamsNames => false,
     MultipleOf => true,
     Maximum => true,
     Minimum => true,
@@ -853,15 +853,15 @@ name!(ParameterIn = "parameter_in");
 /// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct Names(Vec<String>);
+pub struct IntoParamsNames(Vec<String>);
 
-impl Names {
+impl IntoParamsNames {
     pub fn into_values(self) -> Vec<String> {
         self.0
     }
 }
 
-impl Parse for Names {
+impl Parse for IntoParamsNames {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
             parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
@@ -872,13 +872,13 @@ impl Parse for Names {
     }
 }
 
-impl From<Names> for Feature {
-    fn from(value: Names) -> Self {
+impl From<IntoParamsNames> for Feature {
+    fn from(value: IntoParamsNames) -> Self {
         Feature::IntoParamsNames(value)
     }
 }
 
-name!(Names = "names");
+name!(IntoParamsNames = "names");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
@@ -1340,14 +1340,14 @@ name!(SchemaWith = "schema_with");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
-pub struct Description(String);
+pub struct Description(parse_utils::Value);
 
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where
         Self: std::marker::Sized,
     {
-        parse_utils::parse_next_literal_str(input).map(Self)
+        parse_utils::parse_next_literal_str_or_expr(input).map(Self)
     }
 }
 
@@ -1359,7 +1359,7 @@ impl ToTokens for Description {
 
 impl From<String> for Description {
     fn from(value: String) -> Self {
-        Self(value)
+        Self(value.into())
     }
 }
 
@@ -1824,6 +1824,59 @@ pub(crate) use pop_feature_as_inner;
 
 pub trait IntoInner<T> {
     fn into_inner(self) -> T;
+}
+
+macro_rules! impl_feature_into_inner {
+    ( $( $feat:ident , )* ) => {
+        $(
+            impl IntoInner<Option<$feat>> for Option<Feature> {
+                fn into_inner(self) -> Option<$feat> {
+                    self.and_then(|feature| match feature {
+                        Feature::$feat(value) => Some(value),
+                        _ => None,
+                    })
+                }
+            }
+        )*
+    };
+}
+
+impl_feature_into_inner! {
+    Example,
+    Default,
+    Inline,
+    XmlAttr,
+    Format,
+    ValueType,
+    WriteOnly,
+    ReadOnly,
+    Title,
+    Nullable,
+    Rename,
+    RenameAll,
+    Style,
+    AllowReserved,
+    Explode,
+    ParameterIn,
+    IntoParamsNames,
+    MultipleOf,
+    Maximum,
+    Minimum,
+    ExclusiveMaximum,
+    ExclusiveMinimum,
+    MaxLength,
+    MinLength,
+    Pattern,
+    MaxItems,
+    MinItems,
+    MaxProperties,
+    MinProperties,
+    SchemaWith,
+    Description,
+    Deprecated,
+    As,
+    AdditionalProperties,
+    Required,
 }
 
 macro_rules! impl_into_inner {

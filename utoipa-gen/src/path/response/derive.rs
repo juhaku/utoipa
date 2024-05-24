@@ -347,6 +347,7 @@ impl NamedStructResponse<'_> {
             attributes,
             fields,
             aliases: None,
+            description: None,
             features: None,
             generics: None,
             rename_all: None,
@@ -431,6 +432,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
 
         let inline_schema = NamedStructSchema {
             aliases: None,
+            description: None,
             fields,
             features: None,
             generics: None,

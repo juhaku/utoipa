@@ -5209,3 +5209,111 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
         })
     );
 }
+
+#[test]
+fn derive_struct_with_description_override() {
+    let value = api_doc! {
+        /// Normal description
+        #[schema(
+            description = "This is overridden description"
+        )]
+        struct SchemaDescOverride {
+            field1: &'static str
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "field1": {
+                    "type": "string"
+                }
+            },
+            "required": ["field1"],
+            "description": "This is overridden description",
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_unnamed_struct_with_description_override() {
+    let value = api_doc! {
+        /// Normal description
+        #[schema(
+            description = include_str!("./testdata/description_override")
+        )]
+        struct SchemaDescOverride(&'static str);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "description": "This is description from include_str!\n",
+            "type": "string"
+        })
+    )
+}
+
+#[test]
+fn derive_simple_enum_description_override() {
+    let value = api_doc! {
+        /// Normal description
+        #[schema(
+            description = include_str!("./testdata/description_override")
+        )]
+        enum SimpleEnum {
+            Value1
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "description": "This is description from include_str!\n",
+            "type": "string",
+            "enum": [ "Value1" ]
+        })
+    )
+}
+
+#[test]
+fn derive_complex_enum_description_override() {
+    #[allow(unused)]
+    struct User {
+        name: &'static str,
+    }
+    let value = api_doc! {
+        /// Normal description
+        #[schema(
+            description = include_str!("./testdata/description_override")
+        )]
+        enum UserEnumComplex {
+            Value1,
+            User(User)
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "description": "This is description from include_str!\n",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": [ "Value1" ]
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "User": {
+                            "$ref": "#/components/schemas/User"
+                        }
+                    },
+                    "required": [ "User" ]
+                }
+            ]
+        })
+    )
+}

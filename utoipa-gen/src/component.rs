@@ -11,7 +11,8 @@ use crate::{as_tokens_or_diagnostics, Diagnostics, OptionExt, ToTokensDiagnostic
 use crate::{schema_type::SchemaType, Deprecated};
 
 use self::features::{
-    pop_feature, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt, Validatable,
+    pop_feature, Description, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt,
+    Validatable,
 };
 use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};
@@ -477,9 +478,36 @@ impl Rename for FieldRename {
 pub struct ComponentSchemaProps<'c> {
     pub type_tree: &'c TypeTree<'c>,
     pub features: Option<Vec<Feature>>,
-    pub(crate) description: Option<&'c CommentAttributes>,
+    pub(crate) description: Option<&'c ComponentDescription<'c>>,
     pub(crate) deprecated: Option<&'c Deprecated>,
     pub object_name: &'c str,
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub enum ComponentDescription<'c> {
+    CommentAttributes(&'c CommentAttributes),
+    Description(&'c Description),
+}
+
+impl ToTokens for ComponentDescription<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let description = match self {
+            Self::CommentAttributes(attributes) => {
+                if attributes.is_empty() {
+                    TokenStream::new()
+                } else {
+                    attributes.as_formatted_string().to_token_stream()
+                }
+            }
+            Self::Description(description) => description.to_token_stream(),
+        };
+
+        if !description.is_empty() {
+            tokens.extend(quote! {
+                .description(Some(#description))
+            });
+        }
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -500,7 +528,6 @@ impl<'c> ComponentSchema {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
-        let description_stream = ComponentSchema::get_description(description);
 
         match type_tree.generic_type {
             Some(GenericType::Map) => ComponentSchema::map_to_tokens(
@@ -508,7 +535,7 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 object_name,
-                description_stream,
+                description,
                 deprecated_stream,
             )?,
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
@@ -516,7 +543,7 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 object_name,
-                description_stream,
+                description,
                 deprecated_stream,
             )?,
             Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
@@ -524,7 +551,7 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 object_name,
-                description_stream,
+                description,
                 deprecated_stream,
             )?,
             Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
@@ -532,7 +559,7 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 object_name,
-                description_stream,
+                description,
                 deprecated_stream,
             )?,
             #[cfg(feature = "smallvec")]
@@ -541,7 +568,7 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 object_name,
-                description_stream,
+                description,
                 deprecated_stream,
             )?,
             Some(GenericType::Option) => {
@@ -606,7 +633,7 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 object_name,
-                description_stream,
+                description,
                 deprecated_stream,
             )?,
         };
@@ -619,7 +646,7 @@ impl<'c> ComponentSchema {
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
         object_name: &str,
-        description_stream: Option<TokenStream>,
+        description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
     ) -> Result<(), Diagnostics> {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
@@ -673,7 +700,7 @@ impl<'c> ComponentSchema {
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
         object_name: &str,
-        description_stream: Option<TokenStream>,
+        description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
     ) -> Result<(), Diagnostics> {
         let example = pop_feature!(features => Feature::Example(_));
@@ -780,7 +807,7 @@ impl<'c> ComponentSchema {
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
         object_name: &str,
-        description_stream: Option<TokenStream>,
+        description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
     ) -> Result<(), Diagnostics> {
         let nullable = pop_feature!(features => Feature::Nullable(_));
@@ -813,7 +840,7 @@ impl<'c> ComponentSchema {
                     })
                 }
 
-                tokens.extend(description_stream);
+                description_stream.to_tokens(tokens);
                 tokens.extend(deprecated_stream);
                 for feature in features.iter().filter(|feature| feature.is_validatable()) {
                     feature.validate(&schema_type, type_tree);
@@ -935,19 +962,6 @@ impl<'c> ComponentSchema {
         Ok(())
     }
 
-    fn get_description(comments: Option<&'c CommentAttributes>) -> Option<TokenStream> {
-        comments
-            .and_then(|comments| {
-                let comment = CommentAttributes::as_formatted_string(comments);
-                if comment.is_empty() {
-                    None
-                } else {
-                    Some(comment)
-                }
-            })
-            .map(|description| quote! { .description(Some(#description)) })
-    }
-
     fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
         deprecated.map(|deprecated| quote! { .deprecated(Some(#deprecated)) })
     }
@@ -978,7 +992,6 @@ impl FlattenedMapSchema {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
-        let description_stream = ComponentSchema::get_description(description);
 
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let nullable = pop_feature!(features => Feature::Nullable(_));
@@ -1006,7 +1019,7 @@ impl FlattenedMapSchema {
 
         tokens.extend(quote! {
             #schema_tokens
-                #description_stream
+                #description
                 #deprecated_stream
                 #default_tokens
         });

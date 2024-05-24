@@ -12,9 +12,9 @@ use crate::{
         self,
         features::{
             self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
-            Explode, Format, Inline, MaxItems, MaxLength, Maximum, MinItems, MinLength, Minimum,
-            MultipleOf, Names, Nullable, Pattern, ReadOnly, Rename, RenameAll, SchemaWith, Style,
-            WriteOnly, XmlAttr,
+            Explode, Format, Inline, IntoParamsNames, MaxItems, MaxLength, Maximum, MinItems,
+            MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
+            SchemaWith, Style, WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -41,7 +41,7 @@ impl Parse for IntoParamsFeatures {
         Ok(Self(parse_features!(
             input as Style,
             features::ParameterIn,
-            Names,
+            IntoParamsNames,
             RenameAll
         )))
     }
@@ -91,12 +91,9 @@ impl ToTokensDiagnostics for IntoParams {
         }
 
         let names = into_params_features.as_mut().and_then(|features| {
-            features
-                .pop_by(|feature| matches!(feature, Feature::IntoParamsNames(_)))
-                .and_then(|feature| match feature {
-                    Feature::IntoParamsNames(names) => Some(names.into_values()),
-                    _ => None,
-                })
+            let into_params_names = pop_feature!(features => Feature::IntoParamsNames(_));
+            IntoInner::<Option<IntoParamsNames>>::into_inner(into_params_names)
+                .map(|names| names.into_values())
         });
 
         let style = pop_feature!(into_params_features => Feature::Style(_));
