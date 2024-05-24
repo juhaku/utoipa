@@ -40,6 +40,8 @@ pub struct PathAttr<'p> {
     security: Option<Array<'p, SecurityRequirementsAttr>>,
     context_path: Option<parse_utils::Value>,
     impl_for: Option<Ident>,
+    description: Option<parse_utils::Value>,
+    summary: Option<parse_utils::Value>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -95,7 +97,7 @@ impl<'p> PathAttr<'p> {
 
 impl Parse for PathAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security, context_path";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security, context_path, description, summary";
         let mut path_attr = PathAttr::default();
 
         while !input.is_empty() {
@@ -157,6 +159,13 @@ impl Parse for PathAttr<'_> {
                 "impl_for" => {
                     path_attr.impl_for =
                         Some(parse_utils::parse_next(input, || input.parse::<Ident>())?);
+                }
+                "description" => {
+                    path_attr.description =
+                        Some(parse_utils::parse_next_literal_str_or_expr(input)?)
+                }
+                "summary" => {
+                    path_attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
                 _ => {
                     // any other case it is expected to be path operation
@@ -401,19 +410,33 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             (summary, description)
         });
 
+        let summary = self
+            .path_attr
+            .summary
+            .as_ref()
+            .map(Summary::Value)
+            .or_else(|| {
+                split_comment
+                    .as_ref()
+                    .map(|(summary, _)| Summary::Str(summary))
+            });
+
+        let description = self
+            .path_attr
+            .description
+            .as_ref()
+            .map(Description::Value)
+            .or_else(|| {
+                split_comment
+                    .as_ref()
+                    .map(|(_, description)| Description::Vec(description))
+            });
+
         let operation: Operation = Operation {
             deprecated: &self.deprecated,
             operation_id,
-            summary: split_comment.as_ref().and_then(|(summary, _)| {
-                if summary.is_empty() {
-                    None
-                } else {
-                    Some(summary)
-                }
-            }),
-            description: split_comment
-                .as_ref()
-                .map(|(_, description)| description.as_ref()),
+            summary,
+            description,
             parameters: self.path_attr.params.as_ref(),
             request_body: self.path_attr.request_body.as_ref(),
             responses: self.path_attr.responses.as_ref(),
@@ -471,8 +494,8 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Operation<'a> {
     operation_id: Expr,
-    summary: Option<&'a String>,
-    description: Option<&'a [String]>,
+    summary: Option<Summary<'a>>,
+    description: Option<Description<'a>>,
     deprecated: &'a Option<bool>,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBody<'a>>,
@@ -510,20 +533,12 @@ impl ToTokensDiagnostics for Operation<'_> {
             tokens.extend(quote!( .deprecated(Some(#deprecated))))
         }
 
-        if let Some(summary) = self.summary {
-            tokens.extend(quote! {
-                .summary(Some(#summary))
-            })
+        if let Some(summary) = &self.summary {
+            summary.to_tokens(tokens);
         }
 
-        if let Some(description) = self.description {
-            let description = description.join("\n\n");
-
-            if !description.is_empty() {
-                tokens.extend(quote! {
-                    .description(Some(#description))
-                })
-            }
+        if let Some(description) = &self.description {
+            description.to_tokens(tokens);
         }
 
         for parameter in self.parameters {
@@ -531,6 +546,51 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         Ok(())
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum Description<'a> {
+    Value(&'a parse_utils::Value),
+    Vec(&'a [String]),
+}
+
+impl ToTokens for Description<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self {
+            Self::Value(value) => tokens.extend(quote! {
+                .description(Some(#value))
+            }),
+            Self::Vec(vec) => {
+                let description = vec.join("\n\n");
+
+                if !description.is_empty() {
+                    tokens.extend(quote! {
+                        .description(Some(#description))
+                    })
+                }
+            }
+        }
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+enum Summary<'a> {
+    Value(&'a parse_utils::Value),
+    Str(&'a str),
+}
+
+impl ToTokens for Summary<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        match self {
+            Self::Value(value) => tokens.extend(quote! {
+                .summary(Some(#value))
+            }),
+            Self::Str(str) if !str.is_empty() => tokens.extend(quote! {
+                .summary(Some(#str))
+            }),
+            _ => (),
+        }
     }
 }
 
