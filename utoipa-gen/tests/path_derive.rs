@@ -2139,7 +2139,7 @@ fn derive_path_include_str_description() {
     #[utoipa::path(
         get,
         path = "/test-description",
-        description = include_str!("./testdata/path_derive_description_override"),
+        description = include_str!("./testdata/description_override"),
         responses(
             (status = 200, description = "success response")
         ),
