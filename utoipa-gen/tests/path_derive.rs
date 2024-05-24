@@ -2086,3 +2086,86 @@ fn derive_path_with_multiple_tags() {
         })
     );
 }
+
+#[test]
+fn derive_path_with_description_and_summary_override() {
+    const SUMMARY: &str = "This is summary override that is
+split to multiple lines";
+    /// This is long summary
+    /// split to multiple lines
+    ///
+    /// This is description
+    /// split to multiple lines
+    #[allow(dead_code)]
+    #[utoipa::path(
+        get,
+        path = "/test-description",
+        summary = SUMMARY,
+        description = "This is description override",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn test_description_summary() -> &'static str {
+        ""
+    }
+
+    let operation = test_api_fn_doc! {
+        test_description_summary,
+        operation: get,
+        path: "/test-description"
+    };
+
+    assert_json_eq!(
+        &operation,
+        json!({
+            "description": "This is description override",
+            "operationId": "test_description_summary",
+            "responses": {
+                "200": {
+                    "description": "success response",
+                },
+            },
+            "summary": "This is summary override that is\nsplit to multiple lines",
+            "tags": ["crate"]
+        })
+    );
+}
+
+#[test]
+fn derive_path_include_str_description() {
+    #[allow(dead_code)]
+    #[utoipa::path(
+        get,
+        path = "/test-description",
+        description = include_str!("./testdata/path_derive_description_override"),
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    fn test_description_summary() -> &'static str {
+        ""
+    }
+
+    let operation = test_api_fn_doc! {
+        test_description_summary,
+        operation: get,
+        path: "/test-description"
+    };
+
+    assert_json_eq!(
+        &operation,
+        json!({
+            "description": "This is description from include_str!\n",
+            "operationId": "test_description_summary",
+            "responses": {
+                "200": {
+                    "description": "success response",
+                },
+            },
+            "tags": ["crate"]
+        })
+    );
+}
