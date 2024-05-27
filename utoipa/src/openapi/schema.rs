@@ -37,8 +37,7 @@ macro_rules! to_array_builder {
 pub fn empty() -> Schema {
     Schema::Object(
         ObjectBuilder::new()
-            .schema_type(SchemaType::Value)
-            .nullable(true)
+            .schema_type(SchemaType::AnyValue)
             .default(Some(serde_json::Value::Null))
             .into(),
     )
@@ -326,6 +325,10 @@ builder! {
         #[serde(rename = "oneOf")]
         pub items: Vec<RefOr<Schema>>,
 
+        /// Type of [`OneOf`] e.g. `SchemaType::new(Type::Object)` for `object`.
+        #[serde(rename = "type", skip_serializing_if="OneOf::not_a_schema")]
+        pub schema_type: Option<SchemaType>,
+
         /// Changes the [`OneOf`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub title: Option<String>,
@@ -340,16 +343,13 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[deprecated]
         pub example: Option<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
     }
 }
 
@@ -358,6 +358,14 @@ impl OneOf {
     pub fn new() -> Self {
         Self {
             ..Default::default()
+        }
+    }
+
+    fn not_a_schema(&self) -> bool {
+        match self.schema_type {
+            None => true,
+            Some(SchemaType::AnyValue) => true,
+            _ => false,
         }
     }
 
@@ -391,6 +399,11 @@ impl OneOfBuilder {
         self
     }
 
+    /// Add or change type of the oneof e.g `SchemaType::new(Type::String)`.
+    pub fn schema_type(mut self, schema_type: Option<SchemaType>) -> Self {
+        set_value!(self schema_type schema_type)
+    }
+
     /// Add or change the title of the [`OneOf`].
     pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
         set_value!(self title title.map(|title| title.into()))
@@ -407,6 +420,7 @@ impl OneOfBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[deprecated]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -414,11 +428,6 @@ impl OneOfBuilder {
     /// Add or change discriminator field of the composite [`OneOf`] type.
     pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
         set_value!(self discriminator discriminator)
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     to_array_builder!();
@@ -468,16 +477,13 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[deprecated]
         pub example: Option<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
     }
 }
 
@@ -535,6 +541,7 @@ impl AllOfBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[deprecated]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -542,11 +549,6 @@ impl AllOfBuilder {
     /// Add or change discriminator field of the composite [`AllOf`] type.
     pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
         set_value!(self discriminator discriminator)
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     to_array_builder!();
@@ -592,16 +594,13 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[deprecated]
         pub example: Option<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
     }
 }
 
@@ -654,6 +653,7 @@ impl AnyOfBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[deprecated]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -661,11 +661,6 @@ impl AnyOfBuilder {
     /// Add or change discriminator field of the composite [`AnyOf`] type.
     pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
         set_value!(self discriminator discriminator)
-    }
-
-    /// Add or change nullable flag for [`AnyOf`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     to_array_builder!();
@@ -706,7 +701,7 @@ builder! {
     pub struct Object {
         /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
         /// `string` types.
-        #[serde(rename = "type", skip_serializing_if="SchemaType::is_value")]
+        #[serde(rename = "type", skip_serializing_if="SchemaType::is_any_value")]
         pub schema_type: SchemaType,
 
         /// Changes the [`Object`] title.
@@ -753,7 +748,12 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[deprecated]
         pub example: Option<Value>,
+
+        /// Vec of examples of [`Object`] shown in UI for richer documentation.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        pub examples: Vec<Value>,
 
         /// Write only property will be only sent in _write_ requests like _POST, PUT_.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -766,10 +766,6 @@ builder! {
         /// Additional [`Xml`] formatting of the [`Object`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
 
         /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
         /// divided by the _`multiple_of`_ value results an integer.
@@ -928,8 +924,14 @@ impl ObjectBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[deprecated]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Vec of examples of [`Object`] shown in UI for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        set_value!(self examples examples.into_iter().map(Into::into).collect())
     }
 
     /// Add or change write only flag for [`Object`].
@@ -945,11 +947,6 @@ impl ObjectBuilder {
     /// Add or change additional [`Xml`] formatting of the [`Object`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         set_value!(self xml xml)
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
@@ -1172,6 +1169,7 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
+        #[deprecated]
         pub example: Option<Value>,
 
         /// Default value which is provided when user has not provided the input in Swagger UI.
@@ -1194,10 +1192,6 @@ builder! {
         /// Xml format of the array.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
     }
 }
 
@@ -1205,7 +1199,7 @@ impl Default for Array {
     fn default() -> Self {
         Self {
             title: Default::default(),
-            schema_type: SchemaType::Array,
+            schema_type: SchemaType::new(Type::Array),
             unique_items: bool::default(),
             items: Default::default(),
             description: Default::default(),
@@ -1215,7 +1209,6 @@ impl Default for Array {
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
-            nullable: Default::default(),
         }
     }
 }
@@ -1260,6 +1253,7 @@ impl ArrayBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    #[deprecated]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -1287,11 +1281,6 @@ impl ArrayBuilder {
     /// Set [`Xml`] formatting for [`Array`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         set_value!(self xml xml)
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     to_array_builder!();
@@ -1323,17 +1312,75 @@ where
     }
 }
 
-/// Represents data type of [`Schema`].
+/// Represents type of [`Schema`].
+///
+/// This is a collection type for [`Type`] that can be represented as a single value
+/// or as [`slice`] of [`Type`]s.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum SchemaType {
+    /// Single type known from OpenAPI spec 3.0
+    Type(Type),
+    /// Multiple types rendered as [`slice`]
+    Array(Vec<Type>),
+    /// Type that is considred typeless. _`AnyValue`_ will omit the type definition from the schema
+    /// making it to accept any type possible.
+    AnyValue,
+}
+
+impl Default for SchemaType {
+    fn default() -> Self {
+        Self::Type(Type::default())
+    }
+}
+
+impl SchemaType {
+    /// Instantiate new [`SchemaType`] of given [`Type`]
+    ///
+    /// Method accpets one argument `type` to create [`SchemaType`] for.
+    ///
+    /// # Examples
+    ///
+    /// _**Create string [`SchemaType`]**_
+    /// ```rust
+    /// # use utoipa::openapi::schema{SchemaType, Type};
+    /// let ty = SchemaType::new(Type::String);
+    /// ```
+    pub fn new(r#type: Type) -> Self {
+        Self::Type(r#type)
+    }
+
+    /// Instantiate new [`SchemaType`] from interator of [`Type`]s. This will create multi type
+    /// [`SchemaType`] from iterator of types.
+    ///
+    /// Method accepts one argument `types` an iterator of [`Type`]s to create _SchemaType_ for.
+    ///
+    /// # Examples
+    ///
+    /// _**Create nullable string [`SchemaType`]**_
+    /// ```rust
+    /// # use utoipa::openapi::schema{SchemaType, Type};
+    /// let ty = SchemaType::from_iter([Type::String, Type::Null]);
+    /// ```
+    pub fn from_iter<I: IntoIterator<Item = Type>>(types: I) -> Self {
+        Self::Array(types.into_iter().collect())
+    }
+
+    pub fn is_any_value(&self) -> bool {
+        matches!(self, Self::AnyValue)
+    }
+}
+
+/// Represents data type of [`Schema`].
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(rename_all = "lowercase")]
+pub enum Type {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
     /// _schema_type_ [`SchemaType::Object`].
+    #[default]
     Object,
-    /// Indicates generic JSON content. Used with [`Object`] and [`ObjectBuilder`] on a field
-    /// of any valid JSON type.
-    Value,
     /// Indicates string type of content. Used with [`Object`] and [`ObjectBuilder`] on a `string`
     /// field.
     String,
@@ -1348,17 +1395,8 @@ pub enum SchemaType {
     Boolean,
     /// Used with [`Array`] and [`ArrayBuilder`]. Indicates array type of content.
     Array,
-}
-impl SchemaType {
-    fn is_value(type_: &SchemaType) -> bool {
-        *type_ == SchemaType::Value
-    }
-}
-
-impl Default for SchemaType {
-    fn default() -> Self {
-        Self::Object
-    }
+    /// Null type. Used together with other type to indicate nullable values.
+    Null,
 }
 
 /// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
@@ -1467,7 +1505,7 @@ mod tests {
                                 .property(
                                     "id",
                                     ObjectBuilder::new()
-                                        .schema_type(SchemaType::Integer)
+                                        .schema_type(SchemaType::new(Type::Integer))
                                         .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                                         .description(Some("Id of credential"))
                                         .default(Some(json!(1i32))),
@@ -1475,13 +1513,13 @@ mod tests {
                                 .property(
                                     "name",
                                     ObjectBuilder::new()
-                                        .schema_type(SchemaType::String)
+                                        .schema_type(SchemaType::new(Type::String))
                                         .description(Some("Name of credential")),
                                 )
                                 .property(
                                     "status",
                                     ObjectBuilder::new()
-                                        .schema_type(SchemaType::String)
+                                        .schema_type(SchemaType::new(Type::String))
                                         .default(Some(json!("Active")))
                                         .description(Some("Credential status"))
                                         .enum_values(Some([
@@ -1495,7 +1533,10 @@ mod tests {
                                     "history",
                                     Array::new(Ref::from_schema_name("UpdateHistory")),
                                 )
-                                .property("tags", Object::with_type(SchemaType::String).to_array()),
+                                .property(
+                                    "tags",
+                                    Object::with_type(SchemaType::new(Type::String)).to_array(),
+                                ),
                         ),
                     )
                     .build(),
@@ -1573,7 +1614,7 @@ mod tests {
             .property(
                 "id",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(SchemaType::new(Type::Integer))
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
                     .default(Some(json!(1i32))),
@@ -1581,13 +1622,13 @@ mod tests {
             .property(
                 "name",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::String)
+                    .schema_type(SchemaType::new(Type::String))
                     .description(Some("Name of credential")),
             )
             .property(
                 "status",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::String)
+                    .schema_type(SchemaType::new(Type::String))
                     .default(Some(json!("Active")))
                     .description(Some("Credential status"))
                     .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
@@ -1596,7 +1637,10 @@ mod tests {
                 "history",
                 Array::new(Ref::from_schema_name("UpdateHistory")),
             )
-            .property("tags", Object::with_type(SchemaType::String).to_array())
+            .property(
+                "tags",
+                Object::with_type(SchemaType::new(Type::String)).to_array(),
+            )
             .build();
 
         #[cfg(not(feature = "preserve_order"))]
@@ -1616,7 +1660,9 @@ mod tests {
     #[test]
     fn test_additional_properties() {
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(ObjectBuilder::new().schema_type(SchemaType::String)))
+            .additional_properties(Some(
+                ObjectBuilder::new().schema_type(SchemaType::new(Type::String)),
+            ))
             .build();
         assert_json_eq!(
             json_value,
@@ -1630,7 +1676,8 @@ mod tests {
 
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(
-                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(SchemaType::Number)),
+                ArrayBuilder::new()
+                    .items(ObjectBuilder::new().schema_type(SchemaType::new(Type::Number))),
             ))
             .build();
         assert_json_eq!(
@@ -1698,14 +1745,14 @@ mod tests {
             ObjectBuilder::new().property(
                 "id",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(SchemaType::new(Type::Integer))
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
                     .default(Some(json!(1i32))),
             ),
         );
 
-        assert!(matches!(array.schema_type, SchemaType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Type(Type::Array)));
     }
 
     #[test]
@@ -1715,7 +1762,7 @@ mod tests {
                 ObjectBuilder::new().property(
                     "id",
                     ObjectBuilder::new()
-                        .schema_type(SchemaType::Integer)
+                        .schema_type(SchemaType::new(Type::Integer))
                         .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                         .description(Some("Id of credential"))
                         .default(Some(json!(1i32))),
@@ -1723,7 +1770,7 @@ mod tests {
             )
             .build();
 
-        assert!(matches!(array.schema_type, SchemaType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Type(Type::Array)));
     }
 
     #[test]
@@ -1733,7 +1780,10 @@ mod tests {
                 "Comp",
                 Schema::from(
                     ObjectBuilder::new()
-                        .property("name", ObjectBuilder::new().schema_type(SchemaType::String))
+                        .property(
+                            "name",
+                            ObjectBuilder::new().schema_type(SchemaType::new(Type::String)),
+                        )
                         .required("name"),
                 ),
             )])
@@ -1758,7 +1808,10 @@ mod tests {
     #[test]
     fn reserialize_deserialized_object_component() {
         let prop = ObjectBuilder::new()
-            .property("name", ObjectBuilder::new().schema_type(SchemaType::String))
+            .property(
+                "name",
+                ObjectBuilder::new().schema_type(SchemaType::new(Type::String)),
+            )
             .required("name")
             .build();
 
@@ -1774,7 +1827,9 @@ mod tests {
 
     #[test]
     fn reserialize_deserialized_property() {
-        let prop = ObjectBuilder::new().schema_type(SchemaType::String).build();
+        let prop = ObjectBuilder::new()
+            .schema_type(SchemaType::new(Type::String))
+            .build();
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
         let deserialized_components: Object =
@@ -2026,7 +2081,7 @@ mod tests {
                     "map",
                     ObjectBuilder::new().additional_properties(Some(
                         ObjectBuilder::new()
-                            .property("name", Object::with_type(SchemaType::String)),
+                            .property("name", Object::with_type(SchemaType::new(Type::String))),
                     )),
                 )
                 .build(),
@@ -2073,5 +2128,15 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn foobar() {
+        let a = ObjectBuilder::new()
+            .schema_type(SchemaType::from_iter([Type::Object, Type::Null]))
+            .build();
+
+        println!("foobar", &a);
+        dbg!(&a);
     }
 }

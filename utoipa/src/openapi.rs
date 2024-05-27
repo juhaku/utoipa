@@ -1,6 +1,9 @@
 //! Rust implementation of Openapi Spec V3.
 
-use serde::{de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+    de::{Error, Expected, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use std::fmt::Formatter;
 
 use self::path::PathsMap;
@@ -14,7 +17,7 @@ pub use self::{
     schema::{
         AllOf, AllOfBuilder, Array, ArrayBuilder, Components, ComponentsBuilder, Discriminator,
         KnownFormat, Object, ObjectBuilder, OneOf, OneOfBuilder, Ref, Schema, SchemaFormat,
-        SchemaType, ToArray,
+        ToArray, Type,
     },
     security::SecurityRequirement,
     server::{Server, ServerBuilder, ServerVariable, ServerVariableBuilder},
@@ -337,14 +340,14 @@ impl OpenApiBuilder {
 #[derive(Serialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.0.3` the latest from 3.0 serde.
-    #[serde(rename = "3.0.3")]
-    Version3,
+    /// Serliazlizes to 3.1.0
+    #[serde(rename = "3.1.0")]
+    Version31,
 }
 
 impl Default for OpenApiVersion {
     fn default() -> Self {
-        Self::Version3
+        Self::Version31
     }
 }
 
@@ -359,7 +362,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             type Value = OpenApiVersion;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-                formatter.write_str("a version string in 3, 3.0, or 3.0.x format")
+                formatter.write_str("a version string in 3.1.x format")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -373,18 +376,21 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             where
                 E: Error,
             {
-                let parts = v.split('.').collect::<Vec<_>>();
-                if parts.len() > 3 || parts.is_empty() {
-                    return Err(E::custom(format!(
-                        "Invalid format of OpenAPI version: {}",
-                        v,
-                    )));
+                let version = v
+                    .split(".")
+                    .into_iter()
+                    .map(|digit| digit.parse::<i8>())
+                    .flatten()
+                    .collect::<Vec<_>>();
+                if version.len() == 3 && version.get(0) == Some(&3) && version.get(1) == Some(&1) {
+                    Ok(OpenApiVersion::Version31)
+                } else {
+                    let expected: &dyn Expected = &"3.1.0";
+                    Err(Error::invalid_value(
+                        serde::de::Unexpected::Str(&v),
+                        expected,
+                    ))
                 }
-
-                Ok(match (parts[0], parts.get(1).copied().unwrap_or("0")) {
-                    ("3", "0") => OpenApiVersion::Version3,
-                    _ => return Err(E::custom(format!("Unsupported version: {}", &v))),
-                })
             }
         }
 
@@ -608,11 +614,13 @@ mod tests {
         path::{OperationBuilder, PathsBuilder},
     };
 
+    use self::tests::schema::SchemaType;
+
     use super::{response::Response, *};
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
-        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3)?, "3.0.3");
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version31)?, "3.1.0");
         Ok(())
     }
 
@@ -730,10 +738,12 @@ mod tests {
                     .schema(
                         "User2",
                         ObjectBuilder::new()
-                            .schema_type(SchemaType::Object)
+                            .schema_type(SchemaType::new(Type::Object))
                             .property(
                                 "name",
-                                ObjectBuilder::new().schema_type(SchemaType::String).build(),
+                                ObjectBuilder::new()
+                                    .schema_type(SchemaType::new(Type::String))
+                                    .build(),
                             ),
                     )
                     .build(),
@@ -857,10 +867,12 @@ mod tests {
                     .schema(
                         "User2",
                         ObjectBuilder::new()
-                            .schema_type(SchemaType::Object)
+                            .schema_type(SchemaType::new(Type::Object))
                             .property(
                                 "name",
-                                ObjectBuilder::new().schema_type(SchemaType::String).build(),
+                                ObjectBuilder::new()
+                                    .schema_type(SchemaType::new(Type::String))
+                                    .build(),
                             ),
                     )
                     .build(),
@@ -928,18 +940,6 @@ mod tests {
                 }
             )
         )
-    }
-
-    #[test]
-    fn deserialize_other_versions() {
-        [r#""3.0.3""#, r#""3.0.0""#, r#""3.0""#, r#""3""#]
-            .iter()
-            .for_each(|v| {
-                assert!(matches!(
-                    serde_json::from_str::<OpenApiVersion>(v).unwrap(),
-                    OpenApiVersion::Version3,
-                ));
-            });
     }
 
     #[test]

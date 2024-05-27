@@ -4,7 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value, Object, RefOr, Schema, SchemaType};
+use super::schema::SchemaType;
+use super::{builder, set_value, Object, RefOr, Schema, Type};
 
 builder! {
     HeaderBuilder;
@@ -55,7 +56,7 @@ impl Default for Header {
     fn default() -> Self {
         Self {
             description: Default::default(),
-            schema: Object::with_type(SchemaType::String).into(),
+            schema: Object::with_type(SchemaType::new(Type::String)).into(),
         }
     }
 }

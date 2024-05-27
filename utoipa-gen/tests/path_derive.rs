@@ -1679,7 +1679,7 @@ fn derive_path_with_ulid() {
 fn derive_path_with_into_params_custom_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
-            .schema_type(utoipa::openapi::SchemaType::String)
+            .schema_type(utoipa::openapi::Type::String)
             .format(Some(utoipa::openapi::SchemaFormat::Custom(
                 "email".to_string(),
             )))

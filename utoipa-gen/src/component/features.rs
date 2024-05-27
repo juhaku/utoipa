@@ -92,7 +92,6 @@ pub enum Feature {
     WriteOnly(WriteOnly),
     ReadOnly(ReadOnly),
     Title(Title),
-    Nullable(Nullable),
     Rename(Rename),
     RenameAll(RenameAll),
     Style(Style),
@@ -180,7 +179,6 @@ impl ToTokensDiagnostics for Feature {
                 Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
                 Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
                 Feature::Title(title) => quote! { .title(Some(#title)) },
-                Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
                 Feature::Rename(rename) => rename.to_token_stream(),
                 Feature::Style(style) => quote! { .style(Some(#style)) },
                 Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
@@ -264,7 +262,6 @@ impl Display for Feature {
             Feature::WriteOnly(write_only) => write_only.fmt(f),
             Feature::ReadOnly(read_only) => read_only.fmt(f),
             Feature::Title(title) => title.fmt(f),
-            Feature::Nullable(nullable) => nullable.fmt(f),
             Feature::Rename(rename) => rename.fmt(f),
             Feature::Style(style) => style.fmt(f),
             Feature::ParameterIn(parameter_in) => parameter_in.fmt(f),
@@ -306,7 +303,6 @@ impl Validatable for Feature {
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
             Feature::ReadOnly(read_only) => read_only.is_validatable(),
             Feature::Title(title) => title.is_validatable(),
-            Feature::Nullable(nullable) => nullable.is_validatable(),
             Feature::Rename(rename) => rename.is_validatable(),
             Feature::Style(style) => style.is_validatable(),
             Feature::ParameterIn(parameter_in) => parameter_in.is_validatable(),
@@ -360,7 +356,6 @@ is_validatable! {
     WriteOnly => false,
     ReadOnly => false,
     Title => false,
-    Nullable => false,
     Rename => false,
     Style => false,
     ParameterIn => false,
@@ -657,36 +652,6 @@ impl From<Title> for Feature {
 }
 
 name!(Title = "title");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Nullable(bool);
-
-impl Nullable {
-    pub fn new() -> Self {
-        Self(true)
-    }
-}
-
-impl Parse for Nullable {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for Nullable {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<Nullable> for Feature {
-    fn from(value: Nullable) -> Self {
-        Feature::Nullable(value)
-    }
-}
-
-name!(Nullable = "nullable");
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
@@ -1851,7 +1816,6 @@ impl_feature_into_inner! {
     WriteOnly,
     ReadOnly,
     Title,
-    Nullable,
     Rename,
     RenameAll,
     Style,

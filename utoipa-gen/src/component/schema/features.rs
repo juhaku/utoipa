@@ -8,8 +8,8 @@ use crate::{
         impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Deprecated,
         Description, Example, ExclusiveMaximum, ExclusiveMinimum, Feature, Format, Inline,
         IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength,
-        MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-        Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+        MinProperties, Minimum, MultipleOf, Pattern, ReadOnly, Rename, RenameAll, Required,
+        SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
     },
     Diagnostics,
 };
@@ -104,7 +104,6 @@ impl Parse for NamedFieldFeatures {
             ReadOnly,
             XmlAttr,
             Inline,
-            Nullable,
             Rename,
             MultipleOf,
             Maximum,

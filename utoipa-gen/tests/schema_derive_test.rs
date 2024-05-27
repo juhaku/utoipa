@@ -4321,7 +4321,7 @@ fn derive_schema_multiple_serde_definitions() {
 fn derive_schema_with_custom_field_with_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
-            .schema_type(utoipa::openapi::SchemaType::String)
+            .schema_type(utoipa::openapi::Type::String)
             .format(Some(utoipa::openapi::SchemaFormat::Custom(
                 "email".to_string(),
             )))
@@ -5210,8 +5210,8 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
     );
 }
 
-#[test]
 fn derive_struct_with_description_override() {
+#[test]
     let value = api_doc! {
         /// Normal description
         #[schema(

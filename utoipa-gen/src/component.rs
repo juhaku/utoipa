@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::Display;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
@@ -6,13 +7,13 @@ use syn::spanned::Spanned;
 use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
 use crate::doc_comment::CommentAttributes;
-use crate::schema_type::SchemaFormat;
+use crate::path::PathTypeTree;
+use crate::schema_type::{SchemaFormat, SchemaTypeInner};
 use crate::{as_tokens_or_diagnostics, Diagnostics, OptionExt, ToTokensDiagnostics};
 use crate::{schema_type::SchemaType, Deprecated};
 
 use self::features::{
-    pop_feature, Description, Feature, FeaturesExt, IsInline, Minimum, Nullable, ToTokensExt,
-    Validatable,
+    pop_feature, Description, Feature, FeaturesExt, IsInline, Minimum, ToTokensExt, Validatable,
 };
 use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};
@@ -265,7 +266,7 @@ impl<'t> TypeTree<'t> {
 
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
-        let schema_type = SchemaType(path);
+        let schema_type = SchemaType::new(path, false);
 
         Self {
             path: Some(Cow::Borrowed(path)),
@@ -481,6 +482,7 @@ pub struct ComponentSchemaProps<'c> {
     pub(crate) description: Option<&'c ComponentDescription<'c>>,
     pub(crate) deprecated: Option<&'c Deprecated>,
     pub object_name: &'c str,
+    pub nullable: bool,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -523,10 +525,11 @@ impl<'c> ComponentSchema {
             description,
             deprecated,
             object_name,
+            nullable,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
-        let mut features = features.unwrap_or(Vec::new());
+        let features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
 
         match type_tree.generic_type {
@@ -537,6 +540,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                nullable,
             )?,
             Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -545,6 +549,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                nullable,
             )?,
             Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -553,6 +558,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                nullable,
             )?,
             Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -561,6 +567,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                nullable,
             )?,
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
@@ -570,15 +577,10 @@ impl<'c> ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                nullable,
             )?,
             Some(GenericType::Option) => {
-                // Add nullable feature if not already exists. Option is always nullable
-                if !features
-                    .iter()
-                    .any(|feature| matches!(feature, Feature::Nullable(_)))
-                {
-                    features.push(Nullable::new().into());
-                }
+                // Option is always nullable
 
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
@@ -592,6 +594,7 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
+                    nullable: true, // set nullable
                 })?
                 .to_tokens(&mut tokens)?;
             }
@@ -608,6 +611,7 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
+                    nullable,
                 })?
                 .to_tokens(&mut tokens)?;
             }
@@ -635,6 +639,7 @@ impl<'c> ComponentSchema {
                 object_name,
                 description,
                 deprecated_stream,
+                nullable,
             )?,
         };
 
@@ -648,10 +653,10 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
+        nullable: bool,
     ) -> Result<(), Diagnostics> {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
-        let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
         let default_tokens = as_tokens_or_diagnostics!(&default);
 
@@ -675,6 +680,7 @@ impl<'c> ComponentSchema {
                     description: None,
                     deprecated: None,
                     object_name,
+                    nullable,
                 })?;
                 let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
@@ -683,16 +689,20 @@ impl<'c> ComponentSchema {
                 ))
             })?;
 
+        let nullable_type_tokens =
+            ComponentSchema::nullable_schema_type(nullable, SchemaTypeInner::Object);
+
         tokens.extend(quote! {
             utoipa::openapi::ObjectBuilder::new()
+                #nullable_type_tokens
                 #additional_properties
                 #description_stream
                 #deprecated_stream
                 #default_tokens
         });
 
-        example.to_tokens(tokens)?;
-        nullable.to_tokens(tokens)
+        example.to_tokens(tokens)
+        // nullable.to_tokens(tokens)
     }
 
     fn vec_to_tokens(
@@ -702,12 +712,13 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
+        nullable: bool,
     ) -> Result<(), Diagnostics> {
         let example = pop_feature!(features => Feature::Example(_));
         let xml = features.extract_vec_xml_feature(type_tree)?;
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
-        let nullable = pop_feature!(features => Feature::Nullable(_));
+        // let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
 
         let child = type_tree
@@ -737,14 +748,16 @@ impl<'c> ComponentSchema {
         let schema = if child
             .path
             .as_ref()
-            .map(|path| SchemaType(path).is_byte())
+            .map(|path| SchemaType::new(path, child.is_option()).is_byte())
             .unwrap_or(false)
         {
-            quote! {
-                utoipa::openapi::ObjectBuilder::new()
-                    .schema_type(utoipa::openapi::schema::SchemaType::String)
-                    .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Binary)))
-            }
+            // OpenAPI 3.1 does not need schema for octet stream
+            quote! {}
+            // quote! {
+            //     utoipa::openapi::ObjectBuilder::new()
+            //         .schema_type(utoipa::openapi::schema::SchemaType::String)
+            //         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Binary)))
+            // }
         } else {
             let component_schema = ComponentSchema::new(ComponentSchemaProps {
                 type_tree: child,
@@ -752,6 +765,7 @@ impl<'c> ComponentSchema {
                 description: None,
                 deprecated: None,
                 object_name,
+                nullable: child.is_option(),
             })?;
             let component_schema_tokens = as_tokens_or_diagnostics!(&component_schema);
 
@@ -761,9 +775,12 @@ impl<'c> ComponentSchema {
                 },
                 false => quote! {},
             };
+            let nullable_schema_type_tokens =
+                ComponentSchema::nullable_schema_type(nullable, SchemaTypeInner::Array);
 
             quote! {
                 utoipa::openapi::schema::ArrayBuilder::new()
+                    #nullable_schema_type_tokens
                     .items(#component_schema_tokens)
                     #unique
             }
@@ -771,8 +788,8 @@ impl<'c> ComponentSchema {
 
         let validate = |feature: &Feature| {
             let type_path = &**type_tree.path.as_ref().unwrap();
-            let schema_type = SchemaType(type_path);
-            feature.validate(&schema_type, type_tree);
+            let schema_type = SchemaType::new(type_path, nullable);
+            feature.validate(&schema_type, type_tree)
         };
 
         tokens.extend(quote! {
@@ -782,12 +799,16 @@ impl<'c> ComponentSchema {
         });
 
         if let Some(max_items) = max_items {
-            validate(&max_items);
+            if let Some(diagnostics) = validate(&max_items) {
+                return Err(diagnostics);
+            }
             tokens.extend(max_items.to_token_stream())
         }
 
         if let Some(min_items) = min_items {
-            validate(&min_items);
+            if let Some(diagnostics) = validate(&min_items) {
+                return Err(diagnostics);
+            }
             tokens.extend(min_items.to_token_stream())
         }
 
@@ -797,7 +818,7 @@ impl<'c> ComponentSchema {
 
         example.to_tokens(tokens)?;
         xml.to_tokens(tokens)?;
-        nullable.to_tokens(tokens)?;
+        // nullable.to_tokens(tokens)?;
 
         Ok(())
     }
@@ -809,14 +830,15 @@ impl<'c> ComponentSchema {
         object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
+        nullable: bool,
     ) -> Result<(), Diagnostics> {
-        let nullable = pop_feature!(features => Feature::Nullable(_));
-        let nullable_tokens = as_tokens_or_diagnostics!(&nullable);
+        // let nullable = pop_feature!(features => Feature::Nullable(_));
+        // let nullable_tokens = as_tokens_or_diagnostics!(&nullable);
 
         match type_tree.value_type {
             ValueType::Primitive => {
                 let type_path = &**type_tree.path.as_ref().unwrap();
-                let schema_type = SchemaType(type_path);
+                let schema_type = SchemaType::new(type_path, nullable);
                 if schema_type.is_unsigned_integer() {
                     // add default minimum feature only when there is no explicit minimum
                     // provided
@@ -827,33 +849,38 @@ impl<'c> ComponentSchema {
                         features.push(Minimum::new(0f64, type_path.span()).into());
                     }
                 }
-
                 let schema_type_tokens = as_tokens_or_diagnostics!(&schema_type);
-                tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type_tokens)
-                });
+                schema_type_tokens.to_tokens(tokens);
 
-                let format: SchemaFormat = (type_path).into();
-                if format.is_known_format() {
-                    tokens.extend(quote! {
-                        .format(Some(#format))
-                    })
-                }
+                // tokens.extend(quote! {
+                //     utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type_tokens)
+                // });
+                //
+                // let format: SchemaFormat = (type_path).into();
+                // if format.is_known_format() {
+                //     tokens.extend(quote! {
+                //         .format(Some(#format))
+                //     })
+                // }
 
                 description_stream.to_tokens(tokens);
                 tokens.extend(deprecated_stream);
                 for feature in features.iter().filter(|feature| feature.is_validatable()) {
-                    feature.validate(&schema_type, type_tree);
+                    if let Some(diagnostics) = feature.validate(&schema_type, type_tree) {
+                        return Err(diagnostics);
+                    }
                 }
                 tokens.extend(features.to_token_stream()?);
-                nullable.to_tokens(tokens)?;
+                // nullable.to_tokens(tokens)?;
             }
             ValueType::Value => {
+                // renders as "any value" in OpenAPI schema. This does not need know nullability
+                // because "AnyValue" will not render type at all.
                 if type_tree.is_value() {
                     tokens.extend(quote! {
                         utoipa::openapi::ObjectBuilder::new()
-                            .schema_type(utoipa::openapi::schema::SchemaType::Value)
-                            #description_stream #deprecated_stream #nullable_tokens
+                            .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
+                            #description_stream #deprecated_stream
                     })
                 }
             }
@@ -861,18 +888,26 @@ impl<'c> ComponentSchema {
                 let is_inline = features.is_inline();
 
                 if type_tree.is_object() {
+                    // TODO should object recognized nullability? Maybe just remove this.
+                    let nullable_object_tokens =
+                        ComponentSchema::nullable_schema_type(nullable, SchemaTypeInner::Object);
                     tokens.extend(quote! {
                         utoipa::openapi::ObjectBuilder::new()
-                            #description_stream #deprecated_stream #nullable_tokens
+                            #nullable_object_tokens
+                            #description_stream #deprecated_stream
                     })
                 } else {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
-                        let schema = if default.is_some() || nullable.is_some() {
+                        let nullable_tokens = ComponentSchema::nullable_schema_type(
+                            nullable,
+                            SchemaTypeInner::Object,
+                        );
+                        let schema = if default.is_some() || nullable {
                             quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::AllOfBuilder::new()
+                                utoipa::openapi::schema::OneOf::new()
                                     #nullable_tokens
                                     .item(<#type_path as utoipa::ToSchema>::schema().1)
                                     #default_tokens
@@ -886,16 +921,21 @@ impl<'c> ComponentSchema {
                         schema.to_tokens(tokens);
                     } else {
                         let mut name = Cow::Owned(format_path_ref(type_path));
+                        // replace self referencing field schemas with actual type name
                         if name == "Self" && !object_name.is_empty() {
                             name = Cow::Borrowed(object_name);
                         }
 
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
+                        let nullable_tokens = ComponentSchema::nullable_schema_type(
+                            nullable,
+                            SchemaTypeInner::Object,
+                        );
 
-                        let schema = if default.is_some() || nullable.is_some() {
+                        let schema = if default.is_some() || nullable {
                             quote! {
-                                utoipa::openapi::schema::AllOfBuilder::new()
+                                utoipa::openapi::schema::OneOf::new()
                                     #nullable_tokens
                                     .item(utoipa::openapi::Ref::from_schema_name(#name))
                                     #default_tokens
@@ -918,18 +958,19 @@ impl<'c> ComponentSchema {
                         let all_of = children
                             .iter()
                             .map(|child| {
-                                let features = if child.is_option() {
-                                    Some(vec![Feature::Nullable(Nullable::new())])
-                                } else {
-                                    None
-                                };
+                                // let features = if child.is_option() {
+                                //     Some(vec![Feature::Nullable(Nullable::new())])
+                                // } else {
+                                //     None
+                                // };
 
                                 match ComponentSchema::new(ComponentSchemaProps {
                                     type_tree: child,
-                                    features,
+                                    features: None,
                                     description: None,
                                     deprecated: None,
                                     object_name,
+                                    nullable: child.is_option(),
                                 }) {
                                     Ok(child) => Ok(as_tokens_or_diagnostics!(&child)),
                                     Err(diagnostics) => Err(diagnostics),
@@ -946,12 +987,15 @@ impl<'c> ComponentSchema {
                                 },
                             );
 
+                        let nullable_tokens =
+                            ComponentSchema::nullable_schema_type(nullable, SchemaTypeInner::Array);
+
                         Result::<TokenStream, Diagnostics>::Ok(quote! {
                             utoipa::openapi::schema::ArrayBuilder::new()
+                                #nullable_tokens
                                 .items(#all_of)
-                            #nullable_tokens
-                            #description_stream
-                            #deprecated_stream
+                                #description_stream
+                                #deprecated_stream
                         })
                     })?
                     .unwrap_or_else(|| quote!(utoipa::openapi::schema::empty()))
@@ -964,6 +1008,16 @@ impl<'c> ComponentSchema {
 
     fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
         deprecated.map(|deprecated| quote! { .deprecated(Some(#deprecated)) })
+    }
+
+    fn nullable_schema_type(nullable: bool, r#type: SchemaTypeInner) -> Option<TokenStream> {
+        if nullable {
+            Some(quote! {
+                .schema_type(utoipa::openapi::schema::SchemaType::from_iter([#r#type, utoipa::openapi::schema::Type::Null]))
+            })
+        } else {
+            None
+        }
     }
 }
 
@@ -987,6 +1041,7 @@ impl FlattenedMapSchema {
             description,
             deprecated,
             object_name,
+            nullable,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
@@ -994,7 +1049,7 @@ impl FlattenedMapSchema {
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
 
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
-        let nullable = pop_feature!(features => Feature::Nullable(_));
+        // let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
         let default_tokens = as_tokens_or_diagnostics!(&default);
 
@@ -1002,18 +1057,20 @@ impl FlattenedMapSchema {
         // additionalProperties denoting the type
         // maps have 2 child schemas and we are interested the second one of them
         // which is used to determine the additional properties
+        let child = type_tree
+            .children
+            .as_ref()
+            .expect("ComponentSchema Map type should have children")
+            .iter()
+            .nth(1)
+            .expect("ComponentSchema Map type should have 2 child");
         let schema_property = ComponentSchema::new(ComponentSchemaProps {
-            type_tree: type_tree
-                .children
-                .as_ref()
-                .expect("ComponentSchema Map type should have children")
-                .iter()
-                .nth(1)
-                .expect("ComponentSchema Map type should have 2 child"),
+            type_tree: child,
             features: Some(features),
             description: None,
             deprecated: None,
             object_name,
+            nullable: child.is_option() || nullable,
         })?;
         let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
@@ -1025,7 +1082,7 @@ impl FlattenedMapSchema {
         });
 
         example.to_tokens(&mut tokens)?;
-        nullable.to_tokens(&mut tokens)?;
+        // nullable.to_tokens(&mut tokens)?;
 
         Ok(Self { tokens })
     }
