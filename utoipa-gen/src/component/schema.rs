@@ -619,6 +619,14 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
 
             if fields_len == 1 {
                 if let Some(ref mut features) = unnamed_struct_features {
+                    let inline =
+                        features::parse_schema_features_with(&first_field.attrs, |input| {
+                            Ok(parse_features!(input as super::features::Inline))
+                        })?
+                        .unwrap_or_default();
+
+                    features.extend(inline);
+
                     if pop_feature!(features => Feature::Default(crate::features::Default(None)))
                         .is_some()
                     {
