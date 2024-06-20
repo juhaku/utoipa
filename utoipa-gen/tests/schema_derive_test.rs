@@ -2789,6 +2789,86 @@ fn derive_struct_with_nullable_and_required() {
 }
 
 #[test]
+fn derive_enum_with_inline_variant() {
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    enum Number {
+        One,
+        Two,
+        Three,
+        Four,
+        Five,
+        Six,
+        Seven,
+        Height,
+        Nine,
+    }
+
+    #[allow(dead_code)]
+    #[derive(ToSchema)]
+    enum Color {
+        Spade,
+        Heart,
+        Club,
+        Diamond,
+    }
+
+    let card = api_doc! {
+        enum Card {
+            Number(#[schema(inline)] Number),
+            Color(#[schema(inline)] Color),
+        }
+    };
+
+    assert_json_eq!(
+        card,
+        json!({
+            "oneOf": [
+                {
+                    "properties": {
+                        "Number": {
+                            "enum": [
+                                "One",
+                                "Two",
+                                "Three",
+                                "Four",
+                                "Five",
+                                "Six",
+                                "Seven",
+                                "Height",
+                                "Nine",
+                            ],
+                            "type": "string",
+                        },
+                    },
+                    "required": [
+                        "Number",
+                    ],
+                    "type": "object",
+                },
+                {
+                    "properties": {
+                        "Color": {
+                            "enum": [
+                                "Spade",
+                                "Heart",
+                                "Club",
+                                "Diamond",
+                            ],
+                            "type": "string",
+                        },
+                    },
+                    "required": [
+                        "Color",
+                    ],
+                    "type": "object",
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_struct_xml() {
     let user = api_doc! {
         #[schema(xml(name = "user", prefix = "u", namespace = "https://mynamespace.test"))]
