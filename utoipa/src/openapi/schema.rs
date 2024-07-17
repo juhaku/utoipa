@@ -154,14 +154,14 @@ impl ComponentsBuilder {
     /// # Examples
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
-    /// #    SchemaType, Schema};
+    /// #    Type, Schema};
     /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
     ///     Schema::from(
     ///         ObjectBuilder::new()
     ///             .property(
     ///                 "name",
-    ///                 ObjectBuilder::new().schema_type(SchemaType::String),
+    ///                 ObjectBuilder::new().schema_type(Type::String.into()),
     ///             )
     ///             .required("name")
     ///     ),
@@ -318,7 +318,7 @@ builder! {
     /// See [`Schema::OneOf`] for more details.
     ///
     /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct OneOf {
         /// Components of _OneOf_ component.
@@ -326,8 +326,8 @@ builder! {
         pub items: Vec<RefOr<Schema>>,
 
         /// Type of [`OneOf`] e.g. `SchemaType::new(Type::Object)` for `object`.
-        #[serde(rename = "type", skip_serializing_if="OneOf::not_a_schema")]
-        pub schema_type: Option<SchemaType>,
+        #[serde(rename = "type", default = "SchemaType::any", skip_serializing_if = "OneOf::is_any_value")]
+        pub schema_type: SchemaType,
 
         /// Changes the [`OneOf`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -343,7 +343,7 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[deprecated]
+        // #[deprecated]
         pub example: Option<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
@@ -361,12 +361,8 @@ impl OneOf {
         }
     }
 
-    fn not_a_schema(&self) -> bool {
-        match self.schema_type {
-            None => true,
-            Some(SchemaType::AnyValue) => true,
-            _ => false,
-        }
+    fn is_any_value(schema_type: &SchemaType) -> bool {
+        matches!(schema_type, SchemaType::AnyValue)
     }
 
     /// Construct a new [`OneOf`] component with given capacity.
@@ -389,6 +385,20 @@ impl OneOf {
     }
 }
 
+impl Default for OneOf {
+    fn default() -> Self {
+        Self {
+            items: Default::default(),
+            schema_type: SchemaType::AnyValue,
+            title: Default::default(),
+            description: Default::default(),
+            default: Default::default(),
+            example: Default::default(),
+            discriminator: Default::default(),
+        }
+    }
+}
+
 impl OneOfBuilder {
     /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite].
     ///
@@ -400,7 +410,7 @@ impl OneOfBuilder {
     }
 
     /// Add or change type of the oneof e.g `SchemaType::new(Type::String)`.
-    pub fn schema_type(mut self, schema_type: Option<SchemaType>) -> Self {
+    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
         set_value!(self schema_type schema_type)
     }
 
@@ -436,6 +446,12 @@ impl OneOfBuilder {
 impl From<OneOf> for Schema {
     fn from(one_of: OneOf) -> Self {
         Self::OneOf(one_of)
+    }
+}
+
+impl From<OneOf> for RefOr<Schema> {
+    fn from(value: OneOf) -> Self {
+        RefOr::T(Schema::OneOf(value))
     }
 }
 
@@ -748,11 +764,11 @@ builder! {
 
         /// Example shown in UI of the value for richer documentation.
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[deprecated]
+        // #[deprecated]
         pub example: Option<Value>,
 
         /// Vec of examples of [`Object`] shown in UI for richer documentation.
-        #[serde(skip_serializing_if = "Vec::is_empty")]
+        #[serde(skip_serializing_if = "Vec::is_empty", default = "Vec::new")]
         pub examples: Vec<Value>,
 
         /// Write only property will be only sent in _write_ requests like _POST, PUT_.
@@ -836,8 +852,8 @@ impl Object {
     ///
     /// Create [`std::string`] object type which can be used to define `string` field of an object.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Object, SchemaType};
-    /// let object = Object::with_type(SchemaType::String);
+    /// # use utoipa::openapi::schema::{Object, Type};
+    /// let object = Object::with_type(Type::String.into());
     /// ```
     pub fn with_type(schema_type: SchemaType) -> Self {
         Self {
@@ -1053,6 +1069,12 @@ impl From<Schema> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<OneOf> for AdditionalProperties<Schema> {
+    fn from(value: OneOf) -> Self {
+        Self::RefOr(RefOr::T(Schema::OneOf(value)))
+    }
+}
+
 /// Implements [OpenAPI Reference Object][reference] that can be used to reference
 /// reusable components such as [`Schema`]s or [`Response`]s.
 ///
@@ -1220,8 +1242,8 @@ impl Array {
     ///
     /// Create a `String` array component.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Object};
-    /// let string_array = Array::new(Object::with_type(SchemaType::String));
+    /// # use utoipa::openapi::schema::{Schema, Array, Type, Object};
+    /// let string_array = Array::new(Object::with_type(Type::String.into()));
     /// ```
     pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
@@ -1235,6 +1257,11 @@ impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
+    }
+
+    /// Add or change type of the array e.g [`SchemaType::Type`].
+    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
+        set_value!(self schema_type schema_type)
     }
 
     /// Add or change the title of the [`Array`].
@@ -1335,6 +1362,12 @@ impl Default for SchemaType {
     }
 }
 
+impl From<Type> for SchemaType {
+    fn from(value: Type) -> Self {
+        SchemaType::new(value)
+    }
+}
+
 impl SchemaType {
     /// Instantiate new [`SchemaType`] of given [`Type`]
     ///
@@ -1344,11 +1377,19 @@ impl SchemaType {
     ///
     /// _**Create string [`SchemaType`]**_
     /// ```rust
-    /// # use utoipa::openapi::schema{SchemaType, Type};
+    /// # use utoipa::openapi::schema::{SchemaType, Type};
     /// let ty = SchemaType::new(Type::String);
     /// ```
     pub fn new(r#type: Type) -> Self {
         Self::Type(r#type)
+    }
+
+    //// Instantiate new [`SchemaType::AnyValue`].
+    ///
+    /// This is same as calling [`SchemaType::AnyValue`] but in a function form `() -> SchemaType`
+    /// allowing it to be used as argument for _serde's_ _`default = "..."`_.
+    pub fn any() -> Self {
+        SchemaType::AnyValue
     }
 
     /// Instantiate new [`SchemaType`] from interator of [`Type`]s. This will create multi type
@@ -1360,7 +1401,7 @@ impl SchemaType {
     ///
     /// _**Create nullable string [`SchemaType`]**_
     /// ```rust
-    /// # use utoipa::openapi::schema{SchemaType, Type};
+    /// # use utoipa::openapi::schema::{SchemaType, Type};
     /// let ty = SchemaType::from_iter([Type::String, Type::Null]);
     /// ```
     pub fn from_iter<I: IntoIterator<Item = Type>>(types: I) -> Self {
@@ -1816,6 +1857,7 @@ mod tests {
             .build();
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
+        dbg!(&prop, &serialized_components);
         let deserialized_components: Object =
             serde_json::from_str(serialized_components.as_str()).unwrap();
 
@@ -1916,6 +1958,38 @@ mod tests {
         println!("{json_de_str}");
 
         assert_eq!(json_str, json_de_str);
+    }
+
+    #[test]
+    fn deserialize_reserialize_one_of_default_type() {
+        let a = OneOfBuilder::new()
+            .item(Schema::Array(
+                ArrayBuilder::new()
+                    .items(RefOr::T(Schema::Object(
+                        ObjectBuilder::new()
+                            .property("element", RefOr::Ref(Ref::new("#/test")))
+                            .build(),
+                    )))
+                    .build(),
+            ))
+            .item(Schema::Array(
+                ArrayBuilder::new()
+                    .items(RefOr::T(Schema::Object(
+                        ObjectBuilder::new()
+                            .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
+                            .build(),
+                    )))
+                    .build(),
+            ))
+            .build();
+
+        let serialized_json = serde_json::to_string(&a).expect("should serialize to json");
+        let b: OneOf = serde_json::from_str(&serialized_json).expect("should deserialize OneOf");
+        let reserialized_json = serde_json::to_string(&b).expect("reserialized json");
+
+        println!("{serialized_json}");
+        println!("{reserialized_json}",);
+        assert_eq!(serialized_json, reserialized_json);
     }
 
     #[test]
@@ -2131,12 +2205,21 @@ mod tests {
     }
 
     #[test]
-    fn foobar() {
+    fn serialize_deserialize_object_with_multiple_schema_types() {
         let a = ObjectBuilder::new()
             .schema_type(SchemaType::from_iter([Type::Object, Type::Null]))
             .build();
 
-        println!("foobar", &a);
-        dbg!(&a);
+        let json_str = serde_json::to_string(&a).unwrap();
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: Object = serde_json::from_str(&json_str).unwrap();
+
+        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
     }
 }

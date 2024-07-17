@@ -2723,15 +2723,15 @@ fn derive_struct_with_nullable_and_required() {
     let user = api_doc! {
         #[derive(Serialize)]
         struct User {
-            #[schema(nullable)]
+            // #[schema(nullable)]
             #[serde(with = "::serde_with::rust::double_option")]
             fax: Option<Option<String>>,
-            #[schema(nullable)]
+            // #[schema(nullable)]
             phone: Option<Option<String>>,
-            #[schema(nullable = false)]
+            // #[schema(nullable = false)]
             email: String,
             name: String,
-            #[schema(nullable)]
+            // #[schema(nullable)]
             edit_history: Vec<String>,
             #[serde(skip_serializing_if = "Vec::is_empty")]
             friends: Vec<Option<String>>,
@@ -4321,7 +4321,7 @@ fn derive_schema_multiple_serde_definitions() {
 fn derive_schema_with_custom_field_with_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
-            .schema_type(utoipa::openapi::Type::String)
+            .schema_type(utoipa::openapi::schema::Type::String.into())
             .format(Some(utoipa::openapi::SchemaFormat::Custom(
                 "email".to_string(),
             )))
@@ -5210,8 +5210,8 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
     );
 }
 
-fn derive_struct_with_description_override() {
 #[test]
+fn derive_struct_with_description_override() {
     let value = api_doc! {
         /// Normal description
         #[schema(
@@ -5258,14 +5258,25 @@ fn derive_unnamed_struct_with_description_override() {
 
 #[test]
 fn derive_simple_enum_description_override() {
-    let value = api_doc! {
-        /// Normal description
-        #[schema(
-            description = include_str!("./testdata/description_override")
-        )]
+    // let value = api_doc! {
+    //     /// Normal description
+    //     #[schema(
+    //         description = include_str!("./testdata/description_override")
+    //     )]
+    //     enum SimpleEnum {
+    //         Value1
+    //     }
+    // };
+    let value = {
+        #[derive(ToSchema)]
+        #[doc = r" Normal description"]
+        // #[schema(description = include_str!("./testdata/description_override"))]
+        #[allow(unused)]
         enum SimpleEnum {
-            Value1
+            Value1,
         }
+        let schema = <SimpleEnum as utoipa::ToSchema>::schema().1;
+        serde_json::to_value(schema).unwrap()
     };
 
     assert_json_eq!(

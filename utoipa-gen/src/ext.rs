@@ -138,6 +138,7 @@ impl ToTokensDiagnostics for RequestBody<'_> {
                 description: None,
                 deprecated: None,
                 object_name: "",
+                nullable: actual_body.is_option()
             })?);
 
             tokens.extend(quote_spanned! {actual_body.span.unwrap()=>

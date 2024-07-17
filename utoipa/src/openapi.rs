@@ -757,7 +757,7 @@ mod tests {
             value,
             json!(
                 {
-                  "openapi": "3.0.3",
+                  "openapi": "3.1.0",
                   "info": {
                     "title": "Api",
                     "version": "v1"
@@ -886,7 +886,7 @@ mod tests {
             value,
             json!(
                 {
-                  "openapi": "3.0.3",
+                  "openapi": "3.1.0",
                   "info": {
                     "title": "Api",
                     "version": "v1"

@@ -15,8 +15,8 @@ use crate::{
         features::{
             impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum,
             ExclusiveMinimum, Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems,
-            MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Style, ToTokensExt,
-            WriteOnly, XmlAttr,
+            MinLength, Minimum, MultipleOf, Pattern, ReadOnly, Style, ToTokensExt, WriteOnly,
+            XmlAttr,
         },
         ComponentSchema,
     },
@@ -176,6 +176,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             description: None,
                             deprecated: None,
                             object_name: "",
+                            nullable: type_tree.is_option()
                         }
                     )?),
                     required,
@@ -197,6 +198,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             description: None,
                             deprecated: None,
                             object_name: "",
+                            nullable: type_tree.is_option()
                         }
                     )?),
                     required,
@@ -302,7 +304,6 @@ impl Parse for ParameterFeatures {
             Format,
             WriteOnly,
             ReadOnly,
-            Nullable,
             XmlAttr,
             MultipleOf,
             Maximum,
@@ -331,7 +332,6 @@ impl ParameterFeatures {
                     Feature::Format(_)
                     | Feature::WriteOnly(_)
                     | Feature::ReadOnly(_)
-                    | Feature::Nullable(_)
                     | Feature::XmlAttr(_)
                     | Feature::MultipleOf(_)
                     | Feature::Maximum(_)

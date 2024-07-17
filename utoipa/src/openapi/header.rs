@@ -35,8 +35,8 @@ impl Header {
     /// Create new [`Header`] with integer type.
     /// ```rust
     /// # use utoipa::openapi::header::Header;
-    /// # use utoipa::openapi::{Object, SchemaType};
-    /// let header = Header::new(Object::with_type(SchemaType::Integer));
+    /// # use utoipa::openapi::{Object, schema::Type};
+    /// let header = Header::new(Object::with_type(Type::Integer.into()));
     /// ```
     ///
     /// Create a new [`Header`] with default type `String`

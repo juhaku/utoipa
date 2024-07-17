@@ -3,9 +3,10 @@ use std::marker::PhantomData;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_quote, TypePath};
+use syn::parse_quote;
 
 use crate::component::features::Feature;
+use crate::component::TypeTree;
 use crate::schema_type::SchemaType;
 use crate::{Array, Diagnostics, ToTokensDiagnostics};
 
@@ -16,7 +17,7 @@ pub trait Variant {
     /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
-            SchemaType(&parse_quote!(str)).to_token_stream(),
+            SchemaType::new(&parse_quote!(str), false).to_token_stream(),
             quote! {&str},
         )
     }
@@ -37,7 +38,7 @@ where
 
 pub struct ReprVariant<'r, T: ToTokens> {
     pub value: T,
-    pub type_path: &'r TypePath,
+    pub type_tree: &'r TypeTree<'r>,
 }
 
 impl<'r, T> Variant for ReprVariant<'r, T>
@@ -50,8 +51,17 @@ where
 
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
-            SchemaType(&self.type_path.path).to_token_stream(),
-            self.type_path.to_token_stream(),
+            // TODO how to get the nullable value here???????
+            SchemaType::new(
+                &self
+                    .type_tree
+                    .path
+                    .as_deref()
+                    .expect("repr enum variant must have TypeTree with syn::Path"),
+                self.type_tree.is_option(),
+            )
+            .to_token_stream(),
+            self.type_tree.path.to_token_stream(),
         )
     }
 }
@@ -136,7 +146,7 @@ where
                 #title
                 #description
                 #example
-                .schema_type(#schema_type)
+                #schema_type
                 .enum_values::<[#enum_type; #len], #enum_type>(Some(#items))
         })
     }

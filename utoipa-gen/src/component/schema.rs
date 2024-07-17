@@ -112,13 +112,13 @@ impl ToTokensDiagnostics for Schema<'_> {
                             .children
                             .map(|children| children.into_iter().zip(schema_children)),
                     )
-                        .and_then(|variant| {
-                            let mut alias_tokens = TokenStream::new();
-                            match variant.to_tokens(&mut alias_tokens) {
-                                Ok(_) => Ok(quote! { (#name, #alias_tokens.into()) }),
-                                Err(diagnostics) => Err(diagnostics),
-                            }
-                        })
+                    .and_then(|variant| {
+                        let mut alias_tokens = TokenStream::new();
+                        match variant.to_tokens(&mut alias_tokens) {
+                            Ok(_) => Ok(quote! { (#name, #alias_tokens.into()) }),
+                            Err(diagnostics) => Err(diagnostics),
+                        }
+                    })
                 })
                 .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
@@ -211,7 +211,7 @@ impl<'a> SchemaVariant<'a> {
 
                     let schema_as = pop_feature_as_inner!(unnamed_features => Feature::As(_v));
                     let description =
-                    pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
+                        pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
                     Ok(Self::Unnamed(UnnamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
@@ -228,7 +228,7 @@ impl<'a> SchemaVariant<'a> {
                         .into_inner();
                     let schema_as = pop_feature_as_inner!(named_features => Feature::As(_v));
                     let description =
-                    pop_feature!(named_features => Feature::Description(_)).into_inner();
+                        pop_feature!(named_features => Feature::Description(_)).into_inner();
 
                     Ok(Self::Named(NamedStructSchema {
                         struct_name: Cow::Owned(ident.to_string()),
@@ -357,17 +357,17 @@ impl NamedStructSchema<'_> {
         // check for Rust's `#[deprecated]` attribute first, then check for `deprecated` feature
         let deprecated = super::get_deprecated(&field.attrs).or_else(|| {
             pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature
-                {
-                    Feature::Deprecated(_) => Some(Deprecated::True),
-                    _ => None,
-                })
+            {
+                Feature::Deprecated(_) => Some(Deprecated::True),
+                _ => None,
+            })
         });
 
         let rename_field =
-        pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
-            Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
-            _ => None,
-        });
+            pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
+                Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
+                _ => None,
+            });
 
         let value_type = field_features
             .as_mut()
@@ -393,6 +393,7 @@ impl NamedStructSchema<'_> {
                     description: Some(description),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
+                    nullable: type_tree.is_option(),
                 };
                 if is_flatten(field_rules) && type_tree.is_map() {
                     Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
@@ -427,7 +428,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                     Err(diagnostics) => return Err(diagnostics),
                 };
                 let field_options =
-                self.get_named_struct_field_options(field, &field_rules, &container_rules);
+                    self.get_named_struct_field_options(field, &field_rules, &container_rules);
 
                 match field_options {
                     Ok(field_options) => Ok((field_options, field_rules, field_name, field)),
@@ -453,7 +454,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
             .fold(
                 quote! { utoipa::openapi::ObjectBuilder::new() },
                 |mut object_tokens,
-                (
+                 (
                     NamedStructFieldOptions {
                         rename_field_value,
                         required,
@@ -476,18 +477,18 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                         .map(|rename_all| rename_all.as_rename_rule()));
 
                     let name =
-                    super::rename::<FieldRename>(field_name.borrow(), rename_to, rename_all)
-                        .unwrap_or(Cow::Borrowed(field_name.borrow()));
+                        super::rename::<FieldRename>(field_name.borrow(), rename_to, rename_all)
+                            .unwrap_or(Cow::Borrowed(field_name.borrow()));
 
                     object_tokens.extend(quote! {
                         .property(#name, #field_schema)
                     });
 
                     if (!is_option && super::is_required(field_rules, &container_rules))
-                    || required
-                        .as_ref()
-                        .map(super::features::Required::is_true)
-                        .unwrap_or(false)
+                        || required
+                            .as_ref()
+                            .map(super::features::Required::is_true)
+                            .unwrap_or(false)
                     {
                         object_tokens.extend(quote! {
                             .required(#name)
@@ -598,14 +599,14 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
         let first_part = &TypeTree::from_type(&first_field.ty)?;
 
         let all_fields_are_same = fields_len == 1
-        || self
-            .fields
-            .iter()
-            .skip(1)
-            .map(|field| TypeTree::from_type(&field.ty))
-            .collect::<Result<Vec<TypeTree>, Diagnostics>>()?
-            .iter()
-            .all(|schema_part| first_part == schema_part);
+            || self
+                .fields
+                .iter()
+                .skip(1)
+                .map(|field| TypeTree::from_type(&field.ty))
+                .collect::<Result<Vec<TypeTree>, Diagnostics>>()?
+                .iter()
+                .all(|schema_part| first_part == schema_part);
 
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
@@ -637,16 +638,18 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                 .as_ref()
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
+            let type_tree = override_type_tree.as_ref().unwrap_or(first_part);
 
             tokens.extend(
                 ComponentSchema::new(super::ComponentSchemaProps {
-                    type_tree: override_type_tree.as_ref().unwrap_or(first_part),
+                    type_tree,
                     features: unnamed_struct_features,
                     description: description.as_ref(),
                     deprecated: deprecated.as_ref(),
                     object_name: self.struct_name.as_ref(),
+                    nullable: type_tree.is_option(),
                 })?
-                    .to_token_stream(),
+                .to_token_stream(),
             );
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.
@@ -707,28 +710,28 @@ impl<'e> EnumSchema<'e> {
                     .iter()
                     .find_map(|attribute| {
                         if attribute.path().is_ident("repr") {
-                            attribute.parse_args::<syn::TypePath>().ok()
+                            attribute.parse_args::<syn::Type>().ok()
                         } else {
                             None
                         }
                     })
                     .map_try(|enum_type| {
                         let mut repr_enum_features =
-                        features::parse_schema_features_with(attributes, |input| {
-                            Ok(parse_features!(
-                                input as super::features::Example,
-                                super::features::Default,
-                                super::features::Title,
-                                As
-                            ))
-                        })?
+                            features::parse_schema_features_with(attributes, |input| {
+                                Ok(parse_features!(
+                                    input as super::features::Example,
+                                    super::features::Default,
+                                    super::features::Title,
+                                    As
+                                ))
+                            })?
                             .unwrap_or_default();
 
                         let schema_as =
-                        pop_feature_as_inner!(repr_enum_features => Feature::As(_v));
+                            pop_feature_as_inner!(repr_enum_features => Feature::As(_v));
                         let description =
-                        pop_feature!(repr_enum_features => Feature::Description(_))
-                            .into_inner();
+                            pop_feature!(repr_enum_features => Feature::Description(_))
+                                .into_inner();
 
                         Result::<EnumSchema, Diagnostics>::Ok(Self {
                             schema_type: EnumSchemaType::Repr(ReprEnum {
@@ -750,11 +753,11 @@ impl<'e> EnumSchema<'e> {
                             .into_inner()
                             .unwrap_or_default();
                         let schema_as =
-                        pop_feature_as_inner!(simple_enum_features => Feature::As(_v));
+                            pop_feature_as_inner!(simple_enum_features => Feature::As(_v));
                         let rename_all = simple_enum_features.pop_rename_all_feature();
                         let description =
-                        pop_feature!(simple_enum_features => Feature::Description(_))
-                            .into_inner();
+                            pop_feature!(simple_enum_features => Feature::Description(_))
+                                .into_inner();
 
                         Ok(Self {
                             schema_type: EnumSchemaType::Simple(SimpleEnum {
@@ -779,7 +782,7 @@ impl<'e> EnumSchema<'e> {
                 let schema_as = pop_feature_as_inner!(simple_enum_features => Feature::As(_v));
                 let rename_all = simple_enum_features.pop_rename_all_feature();
                 let description =
-                pop_feature!(simple_enum_features => Feature::Description(_)).into_inner();
+                    pop_feature!(simple_enum_features => Feature::Description(_)).into_inner();
 
                 Ok(Self {
                     schema_type: EnumSchemaType::Simple(SimpleEnum {
@@ -869,13 +872,14 @@ struct ReprEnum<'a> {
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
     description: Option<Description>,
-    enum_type: syn::TypePath,
+    enum_type: syn::Type,
     enum_features: Vec<Feature>,
 }
 
 #[cfg(feature = "repr")]
 impl ToTokensDiagnostics for ReprEnum<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        let type_tree = TypeTree::from_type(&self.enum_type)?;
         let container_rules = serde::parse_container(self.attributes)?;
         let enum_variants = self
             .variants
@@ -890,10 +894,13 @@ impl ToTokensDiagnostics for ReprEnum<'_> {
                 let variant_type = &variant.ident;
 
                 if is_not_skipped(&variant_rules) {
-                    let repr_type = &self.enum_type;
+                    let path = &type_tree
+                        .path
+                        .as_ref()
+                        .expect("repr enum must path TypeTree with syn::Path");
                     Some(enum_variant::ReprVariant {
-                        value: quote! { Self::#variant_type as #repr_type },
-                        type_path: repr_type,
+                        value: quote! { Self::#variant_type as #path },
+                        type_tree: &type_tree,
                     })
                 } else {
                     None
@@ -1337,7 +1344,7 @@ impl ComplexEnum<'_> {
                                 #title
                                 .item(#unnamed_enum_tokens)
                                 .item(utoipa::openapi::schema::ObjectBuilder::new()
-                                    .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                                    .schema_type(utoipa::openapi::schema::Type::Object.into())
                                     .property(#tag, #variant_name_tokens)
                                     .required(#tag)
                                 )
@@ -1346,7 +1353,7 @@ impl ComplexEnum<'_> {
                         Ok(quote! {
                             #unnamed_enum_tokens
                                 #title
-                                .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                                .schema_type(utoipa::openapi::schema::Type::Object.into())
                                 .property(#tag, #variant_name_tokens)
                                 .required(#tag)
                         })
@@ -1445,7 +1452,7 @@ impl ComplexEnum<'_> {
                 Ok(quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
                         #title
-                        .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                        .schema_type(utoipa::openapi::schema::Type::Object.into())
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                         .property(#content, #named_enum_tokens)
@@ -1490,7 +1497,7 @@ impl ComplexEnum<'_> {
                     Ok(quote! {
                         utoipa::openapi::schema::ObjectBuilder::new()
                             #title
-                            .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                            .schema_type(utoipa::openapi::schema::Type::Object.into())
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)
                             .property(#content, #unnamed_enum_tokens)

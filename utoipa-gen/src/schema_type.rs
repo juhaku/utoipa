@@ -44,7 +44,16 @@ impl Display for SchemaTypeInner {
 
 impl ToTokens for SchemaTypeInner {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.to_string().to_tokens(tokens);
+        let ty = match self {
+            Self::Object => quote! { utoipa::openapi::schema::Type::Object },
+            Self::String => quote! { utoipa::openapi::schema::Type::String },
+            Self::Integer => quote! { utoipa::openapi::schema::Type::Integer },
+            Self::Number => quote! { utoipa::openapi::schema::Type::Number },
+            Self::Boolean => quote! { utoipa::openapi::schema::Type::Boolean },
+            Self::Array => quote! { utoipa::openapi::schema::Type::Array },
+            Self::Null => quote! { utoipa::openapi::schema::Type::Null },
+        };
+        tokens.extend(ty)
     }
 }
 /// Tokenizes OpenAPI data type correctly according to the Rust type
@@ -274,11 +283,11 @@ impl ToTokensDiagnostics for SchemaType<'_> {
 
         let schema_type = if self.nullable {
             quote! {
-                .schema_type(utoipa::openapi::schema::SchemaType::from_iter([#inner_type, utoipa::openapi::schema::Type::Null]));
+                .schema_type(utoipa::openapi::schema::SchemaType::from_iter([#inner_type, utoipa::openapi::schema::Type::Null]))
             }
         } else {
             quote! {
-                .schema_type(utoipa::openapi::schema::SchemaType::new(#inner_type));
+                .schema_type(utoipa::openapi::schema::SchemaType::new(#inner_type))
             }
         };
         let format = if self.format.is_known_format() {
@@ -291,7 +300,6 @@ impl ToTokensDiagnostics for SchemaType<'_> {
         };
 
         tokens.extend(quote! {
-            utoipa::openapi::schema::ObjectBuilder::new()
                 #schema_type
                 #format
         });

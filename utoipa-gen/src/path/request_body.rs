@@ -169,6 +169,7 @@ impl ToTokensDiagnostics for RequestBodyAttr<'_> {
                         description: None,
                         deprecated: None,
                         object_name: "",
+                        nullable: type_tree.is_option(),
                     })?
                     .to_token_stream()
                 }

@@ -13,8 +13,8 @@ use crate::{
         features::{
             self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
             Explode, Format, Inline, IntoParamsNames, MaxItems, MaxLength, Maximum, MinItems,
-            MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-            SchemaWith, Style, WriteOnly, XmlAttr,
+            MinLength, Minimum, MultipleOf, Pattern, ReadOnly, Rename, RenameAll, SchemaWith,
+            Style, WriteOnly, XmlAttr,
         },
         FieldRename,
     },
@@ -267,7 +267,6 @@ impl Parse for FieldFeatures {
             component::features::Default,
             WriteOnly,
             ReadOnly,
-            Nullable,
             XmlAttr,
             MultipleOf,
             Maximum,
@@ -335,7 +334,6 @@ impl Param<'_> {
                     | Feature::Default(_)
                     | Feature::WriteOnly(_)
                     | Feature::ReadOnly(_)
-                    | Feature::Nullable(_)
                     | Feature::XmlAttr(_)
                     | Feature::MultipleOf(_)
                     | Feature::Maximum(_)
@@ -452,6 +450,7 @@ impl ToTokensDiagnostics for Param<'_> {
                 description: None,
                 deprecated: None,
                 object_name: "",
+                nullable: component.is_option(),
             })?;
             let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
 

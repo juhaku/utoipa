@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::fmt::Display;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
@@ -7,8 +6,7 @@ use syn::spanned::Spanned;
 use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
 
 use crate::doc_comment::CommentAttributes;
-use crate::path::PathTypeTree;
-use crate::schema_type::{SchemaFormat, SchemaTypeInner};
+use crate::schema_type::SchemaTypeInner;
 use crate::{as_tokens_or_diagnostics, Diagnostics, OptionExt, ToTokensDiagnostics};
 use crate::{schema_type::SchemaType, Deprecated};
 
@@ -581,7 +579,6 @@ impl<'c> ComponentSchema {
             )?,
             Some(GenericType::Option) => {
                 // Option is always nullable
-
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
@@ -629,6 +626,7 @@ impl<'c> ComponentSchema {
                     description,
                     deprecated,
                     object_name,
+                    nullable,
                 })?
                 .to_tokens(&mut tokens)?;
             }
@@ -849,6 +847,7 @@ impl<'c> ComponentSchema {
                         features.push(Minimum::new(0f64, type_path.span()).into());
                     }
                 }
+                tokens.extend(quote! { utoipa::openapi::schema::ObjectBuilder::new() });
                 let schema_type_tokens = as_tokens_or_diagnostics!(&schema_type);
                 schema_type_tokens.to_tokens(tokens);
 
@@ -907,10 +906,11 @@ impl<'c> ComponentSchema {
                         );
                         let schema = if default.is_some() || nullable {
                             quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::OneOf::new()
+                                utoipa::openapi::schema::OneOfBuilder::new()
                                     #nullable_tokens
                                     .item(<#type_path as utoipa::ToSchema>::schema().1)
                                     #default_tokens
+                                    .build()
                             }
                         } else {
                             quote_spanned! {type_path.span() =>
@@ -935,10 +935,11 @@ impl<'c> ComponentSchema {
 
                         let schema = if default.is_some() || nullable {
                             quote! {
-                                utoipa::openapi::schema::OneOf::new()
+                                utoipa::openapi::schema::OneOfBuilder::new()
                                     #nullable_tokens
                                     .item(utoipa::openapi::Ref::from_schema_name(#name))
                                     #default_tokens
+                                    .build()
                             }
                         } else {
                             quote! {

@@ -2550,6 +2550,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         object_name: "",
+        nullable: type_tree.is_option(),
     });
 
     match schema {
