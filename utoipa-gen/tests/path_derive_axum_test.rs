@@ -86,8 +86,7 @@ fn derive_path_params_into_params_axum() {
                     "items": {
                         "type": "string",
                     },
-                    "nullable": true,
-                    "type": "array",
+                    "type": ["array", "null"],
                 }
             },
         ])
@@ -709,8 +708,7 @@ fn derive_path_with_validation_attributes_axum() {
             },
             {
                 "schema": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "minLength": 3,
                 },
                 "required": true,
@@ -731,8 +729,7 @@ fn derive_path_with_validation_attributes_axum() {
             },
             {
                 "schema": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                     "minLength": 3,
                 },
                 "required": false,

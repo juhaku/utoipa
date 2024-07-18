@@ -360,13 +360,15 @@ fn derive_struct_with_default_attr_field() {
                 "authored": {
                     "allOf": [
                         {
+                            "type": "null"
+                        },
+                        {
                             "$ref": "#/components/schemas/Book",
                         },
                     ],
                     "default": {
                         "name": "My Book",
-                    },
-                    "nullable": true,
+                    }
                 },
             },
             "required": [
@@ -436,26 +438,25 @@ fn derive_struct_with_optional_properties() {
                     "default": 1,
                 },
                 "enabled": {
-                    "type": "boolean",
-                    "nullable": true,
+                    "type": ["boolean", "null"],
                 },
                 "books": {
                     "items": {
                         "$ref": "#/components/schemas/Book",
                     },
-                    "nullable": true,
-                    "type": "array"
+                    "type": ["array", "null"]
                 },
                 "metadata": {
-                    "type": "object",
-                    "nullable": true,
+                    "type": ["object", "null"],
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
                 "optional_book": {
-                    "nullable": true,
                     "allOf": [
+                        {
+                            "type": "null"
+                        },
                         {
                             "$ref": "#/components/schemas/Book"
                         }
@@ -608,7 +609,7 @@ fn derive_struct_unnamed_field_with_generic_types_success() {
     };
 
     assert_value! {point=>
-        "type" = r#""string""#, "Wrapper type"
+        "type" = r#"["string","null"]"#, "Wrapper type"
     }
 }
 
@@ -620,7 +621,7 @@ fn derive_struct_unnamed_field_with_nested_generic_type_success() {
     };
 
     assert_value! {point=>
-        "type" = r#""array""#, "Wrapper type"
+        "type" = r#"["array","null"]"#, "Wrapper type"
         "items.type" = r#""integer""#, "Wrapper items type"
         "items.format" = r#""int32""#, "Wrapper items format"
         "description" = r#""Some description""#, "Wrapper description"
@@ -961,8 +962,10 @@ fn derive_struct_with_inline() {
                     "type": "object"
                 },
                 "foo2": {
-                    "nullable": true,
                     "allOf": [
+                    {
+                        "type": "null"
+                    },
                      {
                          "properties": {
                              "name": {
@@ -977,8 +980,10 @@ fn derive_struct_with_inline() {
                     ]
                 },
                 "foo3": {
-                    "nullable": true,
                     "allOf": [
+                    {
+                        "type": "null"
+                    },
                     {
                         "properties": {
                             "name": {
@@ -1117,8 +1122,7 @@ fn derive_simple_enum_serde_untagged() {
     assert_json_eq!(
         value,
         json!({
-            "type": "object",
-            "nullable": true,
+            "type": "null",
             "default": null,
         })
     );
@@ -1133,14 +1137,15 @@ fn derive_struct_unnamed_field_reference_with_comment() {
 
     let value = api_doc! {
         #[derive(Serialize)]
-        /// Description should not apply to $ref that is created for inner type Bar
+        /// Since OpenAPI 3.1 the description can be applied to Ref types
         struct Foo(Bar);
     };
 
     assert_json_eq!(
         value,
         json!({
-          "$ref": "#/components/schemas/Bar"
+            "$ref": "#/components/schemas/Bar",
+            "description": "Since OpenAPI 3.1 the description can be applied to Ref types"
         })
     );
 }
@@ -1154,8 +1159,7 @@ fn derive_complex_unnamed_field_reference_with_comment() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
         enum EnumWithReference {
-            /// This is comment which will not be added to the document
-            /// since $ref cannot have comments
+            /// Since OpenAPI 3.1 the comments can be added to the Ref types as well
             UnnamedFieldWithCommentReference(CommentedReference),
         }
     };
@@ -1169,6 +1173,7 @@ fn derive_complex_unnamed_field_reference_with_comment() {
                     "properties": {
                         "UnnamedFieldWithCommentReference": {
                             "$ref": "#/components/schemas/CommentedReference",
+                            "description": "Since OpenAPI 3.1 the comments can be added to the Ref types as well"
                         },
                     },
                     "required": ["UnnamedFieldWithCommentReference"],
@@ -1443,8 +1448,7 @@ fn derive_complex_enum() {
                                     "type": "string",
                                 },
                                 "names": {
-                                    "type": "array",
-                                    "nullable": true,
+                                    "type": ["array", "null"],
                                     "items": {
                                         "type": "string",
                                     },
@@ -1637,8 +1641,7 @@ fn derive_complex_enum_serde_rename_all() {
                                     "type": "string",
                                 },
                                 "names": {
-                                    "type": "array",
-                                    "nullable": true,
+                                    "type": ["array", "null"],
                                     "items": {
                                         "type": "string",
                                     },
@@ -1707,8 +1710,7 @@ fn derive_complex_enum_serde_rename_variant() {
                                     "type": "string",
                                 },
                                 "renamed_names": {
-                                    "type": "array",
-                                    "nullable": true,
+                                    "type": [ "array", "null" ],
                                     "items": {
                                         "type": "string",
                                     },
@@ -2053,8 +2055,7 @@ fn derive_complex_enum_serde_tag() {
                             "type": "string",
                         },
                         "names": {
-                            "type": "array",
-                            "nullable": true,
+                            "type": ["array", "null"],
                             "items": {
                                 "type": "string",
                             },
@@ -2745,12 +2746,10 @@ fn derive_struct_with_nullable_and_required() {
         json!({
             "properties": {
                 "fax": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                 },
                 "phone": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                 },
                 "email": {
                     "type": "string",
@@ -2759,22 +2758,19 @@ fn derive_struct_with_nullable_and_required() {
                     "type": "string",
                 },
                 "edit_history": {
-                    "type": "array",
+                    "type": ["array", "null"],
                     "items": {
                         "type": "string"
                     },
-                    "nullable": true,
                 },
                 "friends": {
                     "type": "array",
                     "items": {
-                        "type": "string",
-                        "nullable": true,
+                        "type": ["string", "null"],
                     },
                 },
                 "updated": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                 }
             },
             "required": [
@@ -2945,14 +2941,13 @@ fn derive_struct_xml_with_optional_vec() {
                     }
                 },
                 "links": {
-                    "type": "array",
+                    "type": ["array", "null"],
                     "items": {
                         "type": "string",
                         "xml": {
                             "name": "link"
                         }
                     },
-                    "nullable": true,
                     "xml": {
                         "name": "linkList",
                         "wrapped": true,
@@ -3431,7 +3426,7 @@ fn derive_parse_serde_complex_enum() {
         "oneOf.[0].type" = r#""string""#, "Unit value type"
 
         "oneOf.[1].properties.namedFields.properties.id.type" = r#""string""#, "Named fields id type"
-        "oneOf.[1].properties.namedFields.properties.nameList.type" = r#""array""#, "Named fields nameList type"
+        "oneOf.[1].properties.namedFields.properties.nameList.type" = r#"["array","null"]"#, "Named fields nameList type"
         "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
         "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
 
@@ -3648,12 +3643,10 @@ fn derive_component_with_to_schema_value_type() {
                     "type": "array"
                 },
                 "value3": {
-                    "type": "string",
-                    "nullable": true,
+                    "type": ["string", "null"],
                 },
                 "value4": {
-                    "type": "object",
-                    "nullable": true,
+                    "type": ["object", "null"],
                 },
                 "value5": {
                     "items": {
@@ -4401,7 +4394,7 @@ fn derive_schema_multiple_serde_definitions() {
 fn derive_schema_with_custom_field_with_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
-            .schema_type(utoipa::openapi::SchemaType::String)
+            .schema_type(utoipa::openapi::Type::String)
             .format(Some(utoipa::openapi::SchemaFormat::Custom(
                 "email".to_string(),
             )))
@@ -4447,7 +4440,6 @@ fn derive_unit_type() {
             "properties": {
                 "unit_type": {
                     "default": null,
-                    "nullable": true
                 }
             }
         })
@@ -4463,7 +4455,6 @@ fn derive_unit_struct_schema() {
     assert_json_eq!(
         value,
         json!({
-            "nullable": true,
             "default": null,
         })
     )
@@ -4525,12 +4516,10 @@ fn derive_schema_with_generics_and_lifetimes() {
                             }
                     },
                     "next": {
-                        "type": "string",
-                        "nullable": true,
+                        "type": ["string", "null"],
                     },
                     "prev": {
-                        "type": "string",
-                        "nullable": true,
+                        "type": ["string", "null"],
                     },
                     "total": {
                         "type": "integer",
@@ -4555,12 +4544,10 @@ fn derive_schema_with_generics_and_lifetimes() {
                             }
                         },
                         "next": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": ["string", "null"],
                         },
                         "prev": {
-                            "type": "string",
-                            "nullable": true,
+                            "type": ["string", "null"],
                         },
                         "total": {
                             "type": "integer",
@@ -4622,7 +4609,6 @@ fn derive_struct_with_unit_alias() {
         unit,
         json!({
             "default": null,
-            "nullable": true,
         })
     );
 }
@@ -4885,8 +4871,7 @@ fn derive_nullable_tuple() {
                             },
                         ]
                     },
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                     "deprecated": true,
                     "description": "This is description",
                 }
@@ -4918,8 +4903,7 @@ fn derive_unit_type_untagged_enum() {
                     "$ref": "#/components/schemas/AggregationRequest"
                 },
                 {
-                    "type": "object",
-                    "nullable": true,
+                    "type": "null",
                     "default": null,
                 }
             ]
@@ -4943,7 +4927,6 @@ fn derive_schema_with_unit_hashmap() {
                     "additionalProperties": {
                         "additionalProperties": {
                             "default": null,
-                            "nullable": true,
                         },
                         "type": "object"
                     },
@@ -5211,8 +5194,7 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
                       ],
                       "properties": {
                         "TupleVariantWithOptionFirst": {
-                          "type": "string",
-                          "nullable": true,
+                          "type": ["string", "null"],
                           "description": "doc for tuple variant with Option as first element - I now produce a description"
                         }
                       }

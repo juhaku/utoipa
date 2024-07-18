@@ -37,8 +37,7 @@ macro_rules! to_array_builder {
 pub fn empty() -> Schema {
     Schema::Object(
         ObjectBuilder::new()
-            .schema_type(SchemaType::Value)
-            .nullable(true)
+            .schema_type(SchemaType::AnyValue)
             .default(Some(serde_json::Value::Null))
             .into(),
     )
@@ -155,14 +154,14 @@ impl ComponentsBuilder {
     /// # Examples
     /// ```rust
     /// # use utoipa::openapi::schema::{ComponentsBuilder, ObjectBuilder,
-    /// #    SchemaType, Schema};
+    /// #    Type, Schema};
     /// ComponentsBuilder::new().schemas_from_iter([(
     ///     "Pet",
     ///     Schema::from(
     ///         ObjectBuilder::new()
     ///             .property(
     ///                 "name",
-    ///                 ObjectBuilder::new().schema_type(SchemaType::String),
+    ///                 ObjectBuilder::new().schema_type(Type::String),
     ///             )
     ///             .required("name")
     ///     ),
@@ -319,12 +318,19 @@ builder! {
     /// See [`Schema::OneOf`] for more details.
     ///
     /// [oneof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct OneOf {
         /// Components of _OneOf_ component.
         #[serde(rename = "oneOf")]
         pub items: Vec<RefOr<Schema>>,
+
+        /// Type of [`OneOf`] e.g. `SchemaType::new(Type::Object)` for `object`.
+        ///
+        /// By default this is [`SchemaType::AnyValue`] as the type is defined by items
+        /// themselves.
+        #[serde(rename = "type", default = "SchemaType::any", skip_serializing_if = "SchemaType::is_any_value")]
+        pub schema_type: SchemaType,
 
         /// Changes the [`OneOf`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -346,10 +352,6 @@ builder! {
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -385,6 +387,21 @@ impl OneOf {
     }
 }
 
+impl Default for OneOf {
+    fn default() -> Self {
+        Self {
+            items: Default::default(),
+            schema_type: SchemaType::AnyValue,
+            title: Default::default(),
+            description: Default::default(),
+            default: Default::default(),
+            example: Default::default(),
+            discriminator: Default::default(),
+            extensions: Default::default(),
+        }
+    }
+}
+
 impl OneOfBuilder {
     /// Adds a given [`Schema`] to [`OneOf`] [Composite Object][composite].
     ///
@@ -393,6 +410,12 @@ impl OneOfBuilder {
         self.items.push(component.into());
 
         self
+    }
+
+    /// Add or change type of the object e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        set_value!(self schema_type schema_type.into())
     }
 
     /// Add or change the title of the [`OneOf`].
@@ -418,11 +441,6 @@ impl OneOfBuilder {
     /// Add or change discriminator field of the composite [`OneOf`] type.
     pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
         set_value!(self discriminator discriminator)
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     /// Add openapi extensions (`x-something`) for [`OneOf`].
@@ -456,12 +474,19 @@ builder! {
     /// See [`Schema::AllOf`] for more details.
     ///
     /// [allof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct AllOf {
         /// Components of _AllOf_ component.
         #[serde(rename = "allOf")]
         pub items: Vec<RefOr<Schema>>,
+
+        /// Type of [`AllOf`] e.g. `SchemaType::new(Type::Object)` for `object`.
+        ///
+        /// By default this is [`SchemaType::AnyValue`] as the type is defined by items
+        /// themselves.
+        #[serde(rename = "type", default = "SchemaType::any", skip_serializing_if = "SchemaType::is_any_value")]
+        pub schema_type: SchemaType,
 
         /// Changes the [`AllOf`] title.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -483,10 +508,6 @@ builder! {
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -522,6 +543,21 @@ impl AllOf {
     }
 }
 
+impl Default for AllOf {
+    fn default() -> Self {
+        Self {
+            items: Default::default(),
+            schema_type: SchemaType::AnyValue,
+            title: Default::default(),
+            description: Default::default(),
+            default: Default::default(),
+            example: Default::default(),
+            discriminator: Default::default(),
+            extensions: Default::default(),
+        }
+    }
+}
+
 impl AllOfBuilder {
     /// Adds a given [`Schema`] to [`AllOf`] [Composite Object][composite].
     ///
@@ -530,6 +566,12 @@ impl AllOfBuilder {
         self.items.push(component.into());
 
         self
+    }
+
+    /// Add or change type of the object e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        set_value!(self schema_type schema_type.into())
     }
 
     /// Add or change the title of the [`AllOf`].
@@ -555,11 +597,6 @@ impl AllOfBuilder {
     /// Add or change discriminator field of the composite [`AllOf`] type.
     pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
         set_value!(self discriminator discriminator)
-    }
-
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     /// Add openapi extensions (`x-something`) for [`AllOf`].
@@ -593,12 +630,19 @@ builder! {
     /// See [`Schema::AnyOf`] for more details.
     ///
     /// [anyof]: https://spec.openapis.org/oas/latest.html#components-object
-    #[derive(Serialize, Deserialize, Clone, Default, PartialEq)]
+    #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct AnyOf {
         /// Components of _AnyOf component.
         #[serde(rename = "anyOf")]
         pub items: Vec<RefOr<Schema>>,
+
+        /// Type of [`AnyOf`] e.g. `SchemaType::new(Type::Object)` for `object`.
+        ///
+        /// By default this is [`SchemaType::AnyValue`] as the type is defined by items
+        /// themselves.
+        #[serde(rename = "type", default = "SchemaType::any", skip_serializing_if = "SchemaType::is_any_value")]
+        pub schema_type: SchemaType,
 
         /// Description of the [`AnyOf`]. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -616,10 +660,6 @@ builder! {
         /// specific schema.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub discriminator: Option<Discriminator>,
-
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -655,6 +695,20 @@ impl AnyOf {
     }
 }
 
+impl Default for AnyOf {
+    fn default() -> Self {
+        Self {
+            items: Default::default(),
+            schema_type: SchemaType::AnyValue,
+            description: Default::default(),
+            default: Default::default(),
+            example: Default::default(),
+            discriminator: Default::default(),
+            extensions: Default::default(),
+        }
+    }
+}
+
 impl AnyOfBuilder {
     /// Adds a given [`Schema`] to [`AnyOf`] [Composite Object][composite].
     ///
@@ -663,6 +717,12 @@ impl AnyOfBuilder {
         self.items.push(component.into());
 
         self
+    }
+
+    /// Add or change type of the object e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        set_value!(self schema_type schema_type.into())
     }
 
     /// Add or change optional description for `AnyOf` component.
@@ -683,11 +743,6 @@ impl AnyOfBuilder {
     /// Add or change discriminator field of the composite [`AnyOf`] type.
     pub fn discriminator(mut self, discriminator: Option<Discriminator>) -> Self {
         set_value!(self discriminator discriminator)
-    }
-
-    /// Add or change nullable flag for [`AnyOf`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
     }
 
     /// Add openapi extensions (`x-something`) for [`AnyOf`].
@@ -731,9 +786,9 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Object {
-        /// Type of [`Object`] e.g. [`SchemaType::Object`] for `object` and [`SchemaType::String`] for
+        /// Type of [`Object`] e.g. [`Type::Object`] for `object` and [`Type::String`] for
         /// `string` types.
-        #[serde(rename = "type", skip_serializing_if="SchemaType::is_value")]
+        #[serde(rename = "type", skip_serializing_if="SchemaType::is_any_value")]
         pub schema_type: SchemaType,
 
         /// Changes the [`Object`] title.
@@ -794,10 +849,6 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
 
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
-
         /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
         /// divided by the _`multiple_of`_ value results an integer.
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
@@ -851,6 +902,24 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
+
+        /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
+        /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
+        ///
+        /// Typically this is either unset for _`string`_ content types which then uses the content
+        /// encoding of the underying JSON document. If the content is in _`binary`_ format such as an image or an audio
+        /// set it to `base64` to encode it as _`Base64`_.
+        ///
+        /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub content_encoding: String,
+
+        /// The _`content_media_type`_ keyword specifies the MIME type of the contents of a string,
+        /// as described in [RFC 2046](https://tools.ietf.org/html/rfc2046).
+        ///
+        /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub content_media_type: String,
     }
 }
 
@@ -871,12 +940,12 @@ impl Object {
     ///
     /// Create [`std::string`] object type which can be used to define `string` field of an object.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Object, SchemaType};
-    /// let object = Object::with_type(SchemaType::String);
+    /// # use utoipa::openapi::schema::{Object, Type};
+    /// let object = Object::with_type(Type::String);
     /// ```
-    pub fn with_type(schema_type: SchemaType) -> Self {
+    pub fn with_type<T: Into<SchemaType>>(schema_type: T) -> Self {
         Self {
-            schema_type,
+            schema_type: schema_type.into(),
             ..Default::default()
         }
     }
@@ -891,9 +960,10 @@ impl From<Object> for Schema {
 impl ToArray for Object {}
 
 impl ObjectBuilder {
-    /// Add or change type of the object e.g [`SchemaType::String`].
-    pub fn schema_type(mut self, schema_type: SchemaType) -> Self {
-        set_value!(self schema_type schema_type)
+    /// Add or change type of the object e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        set_value!(self schema_type schema_type.into())
     }
 
     /// Add or change additional format for detailing the schema type.
@@ -978,11 +1048,6 @@ impl ObjectBuilder {
         set_value!(self xml xml)
     }
 
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
-    }
-
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
     pub fn multiple_of(mut self, multiple_of: Option<f64>) -> Self {
         set_value!(self multiple_of multiple_of)
@@ -1038,6 +1103,18 @@ impl ObjectBuilder {
         set_value!(self extensions extensions)
     }
 
+    /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
+    /// example.
+    pub fn content_encoding(mut self, content_encoding: String) -> Self {
+        set_value!(self content_encoding content_encoding)
+    }
+
+    /// Set of change [`Object::content_media_type`]. Value must be valid MIME type e.g.
+    /// `application/json`.
+    pub fn content_media_type(mut self, content_media_type: String) -> Self {
+        set_value!(self content_media_type content_media_type)
+    }
+
     to_array_builder!();
 }
 
@@ -1086,23 +1163,44 @@ impl From<Ref> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<RefBuilder> for AdditionalProperties<Schema> {
+    fn from(value: RefBuilder) -> Self {
+        Self::RefOr(RefOr::Ref(value.build()))
+    }
+}
+
 impl From<Schema> for AdditionalProperties<Schema> {
     fn from(value: Schema) -> Self {
         Self::RefOr(RefOr::T(value))
     }
 }
 
-/// Implements [OpenAPI Reference Object][reference] that can be used to reference
-/// reusable components such as [`Schema`]s or [`Response`]s.
-///
-/// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Ref {
-    /// Reference location of the actual component.
-    #[serde(rename = "$ref")]
-    pub ref_location: String,
+builder! {
+    RefBuilder;
+
+    /// Implements [OpenAPI Reference Object][reference] that can be used to reference
+    /// reusable components such as [`Schema`]s or [`Response`]s.
+    ///
+    /// [reference]: https://spec.openapis.org/oas/latest.html#reference-object
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Ref {
+        /// Reference location of the actual component.
+        #[serde(rename = "$ref")]
+        pub ref_location: String,
+
+        /// A description which by default should override that of the referenced component.
+        /// Description supports markdown syntax. If referenced object type does not support
+        /// description this field does not have effect.
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub description: String,
+
+        /// A short summary which by default should override that of the referenced component. If
+        /// referenced component does not support summary field this does not have effect.
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub summary: String,
+    }
 }
 
 impl Ref {
@@ -1111,6 +1209,7 @@ impl Ref {
     pub fn new<I: Into<String>>(ref_location: I) -> Self {
         Self {
             ref_location: ref_location.into(),
+            ..Default::default()
         }
     }
 
@@ -1127,6 +1226,40 @@ impl Ref {
     }
 
     to_array_builder!();
+}
+
+impl RefBuilder {
+    /// Add or change reference location of the actual component.
+    pub fn ref_location(mut self, ref_location: String) -> Self {
+        set_value!(self ref_location ref_location)
+    }
+
+    /// Add or change reference location of the actual component automatically formatting the $ref
+    /// to `#/components/schemas/...` format.
+    pub fn ref_location_from_schema_name<S: Into<String>>(mut self, schema_name: S) -> Self {
+        set_value!(self ref_location format!("#/components/schemas/{}", schema_name.into()))
+    }
+
+    // TODO: REMOVE THE unnecesary description Option wrapping.
+
+    /// Add or change description which by default should override that of the referenced component.
+    /// Description supports markdown syntax. If referenced object type does not support
+    /// description this field does not have effect.
+    pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
+        set_value!(self description description.map(Into::into).unwrap_or_default())
+    }
+
+    /// Add or change short summary which by default should override that of the referenced component. If
+    /// referenced component does not support summary field this does not have effect.
+    pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
+        set_value!(self summary summary.into())
+    }
+}
+
+impl From<RefBuilder> for RefOr<Schema> {
+    fn from(builder: RefBuilder) -> Self {
+        Self::Ref(builder.build())
+    }
 }
 
 impl From<Ref> for RefOr<Schema> {
@@ -1231,10 +1364,6 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
 
-        /// Set `true` to allow `"null"` to be used as value for given type.
-        #[serde(default, skip_serializing_if = "is_false")]
-        pub nullable: bool,
-
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
@@ -1245,7 +1374,7 @@ impl Default for Array {
     fn default() -> Self {
         Self {
             title: Default::default(),
-            schema_type: SchemaType::Array,
+            schema_type: Type::Array.into(),
             unique_items: bool::default(),
             items: Default::default(),
             description: Default::default(),
@@ -1255,7 +1384,6 @@ impl Default for Array {
             max_items: Default::default(),
             min_items: Default::default(),
             xml: Default::default(),
-            nullable: Default::default(),
             extensions: Default::default(),
         }
     }
@@ -1266,14 +1394,31 @@ impl Array {
     ///
     /// # Examples
     ///
-    /// Create a `String` array component.
+    /// _**Create a `String` array component**_.
     /// ```rust
-    /// # use utoipa::openapi::schema::{Schema, Array, SchemaType, Object};
-    /// let string_array = Array::new(Object::with_type(SchemaType::String));
+    /// # use utoipa::openapi::schema::{Schema, Array, Type, Object};
+    /// let string_array = Array::new(Object::with_type(Type::String));
     /// ```
     pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
             items: Box::new(component.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Construct a new nullable [`Array`] component from given [`Schema`].
+    ///
+    /// # Examples
+    ///
+    /// _**Create a nullable `String` array component**_.
+    /// ```rust
+    /// # use utoipa::openapi::schema::{Schema, Array, Type, Object};
+    /// let string_array = Array::new_nullable(Object::with_type(Type::String));
+    /// ```
+    pub fn new_nullable<I: Into<RefOr<Schema>>>(component: I) -> Self {
+        Self {
+            items: Box::new(component.into()),
+            schema_type: SchemaType::from_iter([Type::Array, Type::Null]),
             ..Default::default()
         }
     }
@@ -1283,6 +1428,23 @@ impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
     pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
         set_value!(self items Box::new(component.into()))
+    }
+
+    /// Change type of the array e.g. to change type to _`string`_
+    /// use value `SchemaType::Type(Type::String)`.
+    ///
+    /// # Examples
+    ///
+    /// _**Make nullable string array.**_
+    /// ```rust
+    /// # use utoipa::openapi::schema::{ArrayBuilder, SchemaType, Type, Object};
+    /// let _ = ArrayBuilder::new()
+    ///     .schema_type(SchemaType::from_iter([Type::Array, Type::Null]))
+    ///     .items(Object::with_type(Type::String))
+    ///     .build();
+    /// ```
+    pub fn schema_type<T: Into<SchemaType>>(mut self, schema_type: T) -> Self {
+        set_value!(self schema_type schema_type.into())
     }
 
     /// Add or change the title of the [`Array`].
@@ -1330,11 +1492,6 @@ impl ArrayBuilder {
         set_value!(self xml xml)
     }
 
-    /// Add or change nullable flag for [`Object`].
-    pub fn nullable(mut self, nullable: bool) -> Self {
-        set_value!(self nullable nullable)
-    }
-
     /// Add openapi extensions (`x-something`) for [`Array`].
     pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
         set_value!(self extensions extensions)
@@ -1369,17 +1526,97 @@ where
     }
 }
 
-/// Represents data type of [`Schema`].
+/// Represents type of [`Schema`].
+///
+/// This is a collection type for [`Type`] that can be represented as a single value
+/// or as [`slice`] of [`Type`]s.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum SchemaType {
+    /// Single type known from OpenAPI spec 3.0
+    Type(Type),
+    /// Multiple types rendered as [`slice`]
+    Array(Vec<Type>),
+    /// Type that is considred typeless. _`AnyValue`_ will omit the type definition from the schema
+    /// making it to accept any type possible.
+    AnyValue,
+}
+
+impl Default for SchemaType {
+    fn default() -> Self {
+        Self::Type(Type::default())
+    }
+}
+
+impl From<Type> for SchemaType {
+    fn from(value: Type) -> Self {
+        SchemaType::new(value)
+    }
+}
+
+impl FromIterator<Type> for SchemaType {
+    fn from_iter<T: IntoIterator<Item = Type>>(iter: T) -> Self {
+        Self::Array(iter.into_iter().collect())
+    }
+}
+
+impl SchemaType {
+    /// Instantiate new [`SchemaType`] of given [`Type`]
+    ///
+    /// Method accpets one argument `type` to create [`SchemaType`] for.
+    ///
+    /// # Examples
+    ///
+    /// _**Create string [`SchemaType`]**_
+    /// ```rust
+    /// # use utoipa::openapi::schema::{SchemaType, Type};
+    /// let ty = SchemaType::new(Type::String);
+    /// ```
+    pub fn new(r#type: Type) -> Self {
+        Self::Type(r#type)
+    }
+
+    //// Instantiate new [`SchemaType::AnyValue`].
+    ///
+    /// This is same as calling [`SchemaType::AnyValue`] but in a function form `() -> SchemaType`
+    /// allowing it to be used as argument for _serde's_ _`default = "..."`_.
+    pub fn any() -> Self {
+        SchemaType::AnyValue
+    }
+
+    // /// Instantiate new [`SchemaType`] from interator of [`Type`]s. This will create multi type
+    // /// [`SchemaType`] from iterator of types.
+    // ///
+    // /// Method accepts one argument `types` an iterator of [`Type`]s to create _SchemaType_ for.
+    // ///
+    // /// # Examples
+    // ///
+    // /// _**Create nullable string [`SchemaType`]**_
+    // /// ```rust
+    // /// # use utoipa::openapi::schema::{SchemaType, Type};
+    // /// let ty = SchemaType::from_iter([Type::String, Type::Null]);
+    // /// ```
+    // pub fn from_iter<I: IntoIterator<Item = Type>>(types: I) -> Self {
+    //     Self::Array(types.into_iter().collect())
+    // }
+
+    /// Check whether this [`SchemaType`] is any value _(typeless)_ returning true on any value
+    /// schema type.
+    pub fn is_any_value(&self) -> bool {
+        matches!(self, Self::AnyValue)
+    }
+}
+
+/// Represents data type of [`Schema`].
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(rename_all = "lowercase")]
+pub enum Type {
     /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
     /// _schema_type_ [`SchemaType::Object`].
+    #[default]
     Object,
-    /// Indicates generic JSON content. Used with [`Object`] and [`ObjectBuilder`] on a field
-    /// of any valid JSON type.
-    Value,
     /// Indicates string type of content. Used with [`Object`] and [`ObjectBuilder`] on a `string`
     /// field.
     String,
@@ -1394,17 +1631,8 @@ pub enum SchemaType {
     Boolean,
     /// Used with [`Array`] and [`ArrayBuilder`]. Indicates array type of content.
     Array,
-}
-impl SchemaType {
-    fn is_value(type_: &SchemaType) -> bool {
-        *type_ == SchemaType::Value
-    }
-}
-
-impl Default for SchemaType {
-    fn default() -> Self {
-        Self::Object
-    }
+    /// Null type. Used together with other type to indicate nullable values.
+    Null,
 }
 
 /// Additional format for [`SchemaType`] to fine tune the data type used. If the **format** is not
@@ -1513,7 +1741,7 @@ mod tests {
                                 .property(
                                     "id",
                                     ObjectBuilder::new()
-                                        .schema_type(SchemaType::Integer)
+                                        .schema_type(Type::Integer)
                                         .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                                         .description(Some("Id of credential"))
                                         .default(Some(json!(1i32))),
@@ -1521,13 +1749,13 @@ mod tests {
                                 .property(
                                     "name",
                                     ObjectBuilder::new()
-                                        .schema_type(SchemaType::String)
+                                        .schema_type(Type::String)
                                         .description(Some("Name of credential")),
                                 )
                                 .property(
                                     "status",
                                     ObjectBuilder::new()
-                                        .schema_type(SchemaType::String)
+                                        .schema_type(Type::String)
                                         .default(Some(json!("Active")))
                                         .description(Some("Credential status"))
                                         .enum_values(Some([
@@ -1541,7 +1769,7 @@ mod tests {
                                     "history",
                                     Array::new(Ref::from_schema_name("UpdateHistory")),
                                 )
-                                .property("tags", Object::with_type(SchemaType::String).to_array()),
+                                .property("tags", Object::with_type(Type::String).to_array()),
                         ),
                     )
                     .build(),
@@ -1619,7 +1847,7 @@ mod tests {
             .property(
                 "id",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(Type::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
                     .default(Some(json!(1i32))),
@@ -1627,13 +1855,13 @@ mod tests {
             .property(
                 "name",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::String)
+                    .schema_type(Type::String)
                     .description(Some("Name of credential")),
             )
             .property(
                 "status",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::String)
+                    .schema_type(Type::String)
                     .default(Some(json!("Active")))
                     .description(Some("Credential status"))
                     .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
@@ -1642,7 +1870,7 @@ mod tests {
                 "history",
                 Array::new(Ref::from_schema_name("UpdateHistory")),
             )
-            .property("tags", Object::with_type(SchemaType::String).to_array())
+            .property("tags", Object::with_type(Type::String).to_array())
             .build();
 
         #[cfg(not(feature = "preserve_order"))]
@@ -1662,7 +1890,7 @@ mod tests {
     #[test]
     fn test_additional_properties() {
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(ObjectBuilder::new().schema_type(SchemaType::String)))
+            .additional_properties(Some(ObjectBuilder::new().schema_type(Type::String)))
             .build();
         assert_json_eq!(
             json_value,
@@ -1676,7 +1904,7 @@ mod tests {
 
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(
-                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(SchemaType::Number)),
+                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(Type::Number)),
             ))
             .build();
         assert_json_eq!(
@@ -1744,14 +1972,14 @@ mod tests {
             ObjectBuilder::new().property(
                 "id",
                 ObjectBuilder::new()
-                    .schema_type(SchemaType::Integer)
+                    .schema_type(Type::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
                     .default(Some(json!(1i32))),
             ),
         );
 
-        assert!(matches!(array.schema_type, SchemaType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Type(Type::Array)));
     }
 
     #[test]
@@ -1761,7 +1989,7 @@ mod tests {
                 ObjectBuilder::new().property(
                     "id",
                     ObjectBuilder::new()
-                        .schema_type(SchemaType::Integer)
+                        .schema_type(Type::Integer)
                         .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                         .description(Some("Id of credential"))
                         .default(Some(json!(1i32))),
@@ -1769,7 +1997,7 @@ mod tests {
             )
             .build();
 
-        assert!(matches!(array.schema_type, SchemaType::Array));
+        assert!(matches!(array.schema_type, SchemaType::Type(Type::Array)));
     }
 
     #[test]
@@ -1779,7 +2007,7 @@ mod tests {
                 "Comp",
                 Schema::from(
                     ObjectBuilder::new()
-                        .property("name", ObjectBuilder::new().schema_type(SchemaType::String))
+                        .property("name", ObjectBuilder::new().schema_type(Type::String))
                         .required("name"),
                 ),
             )])
@@ -1804,7 +2032,7 @@ mod tests {
     #[test]
     fn reserialize_deserialized_object_component() {
         let prop = ObjectBuilder::new()
-            .property("name", ObjectBuilder::new().schema_type(SchemaType::String))
+            .property("name", ObjectBuilder::new().schema_type(Type::String))
             .required("name")
             .build();
 
@@ -1820,7 +2048,7 @@ mod tests {
 
     #[test]
     fn reserialize_deserialized_property() {
-        let prop = ObjectBuilder::new().schema_type(SchemaType::String).build();
+        let prop = ObjectBuilder::new().schema_type(Type::String).build();
 
         let serialized_components = serde_json::to_string(&prop).unwrap();
         let deserialized_components: Object =
@@ -1951,6 +2179,38 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_reserialize_one_of_default_type() {
+        let a = OneOfBuilder::new()
+            .item(Schema::Array(
+                ArrayBuilder::new()
+                    .items(RefOr::T(Schema::Object(
+                        ObjectBuilder::new()
+                            .property("element", RefOr::Ref(Ref::new("#/test")))
+                            .build(),
+                    )))
+                    .build(),
+            ))
+            .item(Schema::Array(
+                ArrayBuilder::new()
+                    .items(RefOr::T(Schema::Object(
+                        ObjectBuilder::new()
+                            .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
+                            .build(),
+                    )))
+                    .build(),
+            ))
+            .build();
+
+        let serialized_json = serde_json::to_string(&a).expect("should serialize to json");
+        let b: OneOf = serde_json::from_str(&serialized_json).expect("should deserialize OneOf");
+        let reserialized_json = serde_json::to_string(&b).expect("reserialized json");
+
+        println!("{serialized_json}");
+        println!("{reserialized_json}",);
+        assert_eq!(serialized_json, reserialized_json);
+    }
+
+    #[test]
     fn serialize_deserialize_any_of_of_within_ref_or_t_object_builder() {
         let ref_or_schema = RefOr::T(Schema::Object(
             ObjectBuilder::new()
@@ -2071,8 +2331,7 @@ mod tests {
                 .property(
                     "map",
                     ObjectBuilder::new().additional_properties(Some(
-                        ObjectBuilder::new()
-                            .property("name", Object::with_type(SchemaType::String)),
+                        ObjectBuilder::new().property("name", Object::with_type(Type::String)),
                     )),
                 )
                 .build(),
@@ -2119,6 +2378,25 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn serialize_deserialize_object_with_multiple_schema_types() {
+        let object = ObjectBuilder::new()
+            .schema_type(SchemaType::from_iter([Type::Object, Type::Null]))
+            .build();
+
+        let json_str = serde_json::to_string(&object).unwrap();
+        println!("----------------------------");
+        println!("{json_str}");
+
+        let deserialized: Object = serde_json::from_str(&json_str).unwrap();
+
+        let json_de_str = serde_json::to_string(&deserialized).unwrap();
+        println!("----------------------------");
+        println!("{json_de_str}");
+
+        assert_eq!(json_str, json_de_str);
     }
 
     #[test]

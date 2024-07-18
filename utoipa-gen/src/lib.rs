@@ -628,7 +628,7 @@ use self::{
 /// # use utoipa::openapi::schema::{Object, ObjectBuilder};
 /// fn custom_type() -> Object {
 ///     ObjectBuilder::new()
-///         .schema_type(utoipa::openapi::SchemaType::String)
+///         .schema_type(utoipa::openapi::schema::Type::String)
 ///         .format(Some(utoipa::openapi::SchemaFormat::Custom(
 ///             "email".to_string(),
 ///         )))
@@ -2035,7 +2035,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// # use utoipa::openapi::schema::{Object, ObjectBuilder};
 /// fn custom_type() -> Object {
 ///     ObjectBuilder::new()
-///         .schema_type(utoipa::openapi::SchemaType::String)
+///         .schema_type(utoipa::openapi::schema::Type::String)
 ///         .format(Some(utoipa::openapi::SchemaFormat::Custom(
 ///             "email".to_string(),
 ///         )))
@@ -2511,7 +2511,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 /// _**Create vec of pets schema.**_
 /// ```rust
 /// # use utoipa::openapi::schema::{Schema, Array, Object, ObjectBuilder, SchemaFormat,
-/// # KnownFormat, SchemaType};
+/// # KnownFormat, Type};
 /// # use utoipa::openapi::RefOr;
 /// #[derive(utoipa::ToSchema)]
 /// struct Pet {
@@ -2525,11 +2525,11 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 ///     Array::new(
 ///         ObjectBuilder::new()
 ///             .property("id", ObjectBuilder::new()
-///                 .schema_type(SchemaType::Integer)
+///                 .schema_type(Type::Integer)
 ///                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
 ///                 .build())
 ///             .required("id")
-///             .property("name", Object::with_type(SchemaType::String))
+///             .property("name", Object::with_type(Type::String))
 ///             .required("name")
 ///     )
 /// ));
