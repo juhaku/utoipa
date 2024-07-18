@@ -478,10 +478,12 @@ fn derive_path_with_parameter_schema() {
                 "schema": {
                     "allOf": [
                         {
+                            "type": "null"
+                        },
+                        {
                             "$ref": "#/components/schemas/Since"
                         }
                     ],
-                    "nullable": true,
                 }
             }
         ])
@@ -548,6 +550,9 @@ fn derive_path_with_parameter_inline_schema() {
                 "schema": {
                     "allOf": [
                         {
+                            "type": "null"
+                        },
+                        {
                             "properties": {
                                 "date": {
                                     "description": "Some date",
@@ -565,7 +570,6 @@ fn derive_path_with_parameter_inline_schema() {
                             "type": "object"
                         }
                     ],
-                    "nullable": true,
                 }
             }
         ])
@@ -733,10 +737,9 @@ fn derive_path_query_params_with_schema_features() {
             "required": false,
             "schema": {
                 "default": "value",
-                "type": "string",
+                "type": ["string", "null"],
                 "readOnly": true,
                 "writeOnly": true,
-                "nullable": true,
                 "xml": {
                     "name": "xml_value"
                 }
@@ -818,8 +821,7 @@ fn derive_required_path_params() {
                 "name": "vec_default",
                 "required": false,
                 "schema": {
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                     "items": {
                         "type": "string"
                     }
@@ -830,8 +832,7 @@ fn derive_required_path_params() {
                 "name": "string_default",
                 "required": false,
                 "schema": {
-                    "nullable": true,
-                    "type": "string"
+                    "type": ["string", "null"]
                 }
             },
             {
@@ -858,11 +859,10 @@ fn derive_required_path_params() {
                 "name": "vec_option",
                 "required": false,
                 "schema": {
-                    "nullable": true,
                     "items": {
                         "type": "string"
                     },
-                    "type": "array",
+                    "type": ["array", "null"],
                 },
             },
             {
@@ -870,8 +870,7 @@ fn derive_required_path_params() {
                 "name": "string_option",
                 "required": false,
                 "schema": {
-                    "nullable": true,
-                    "type": "string"
+                    "type": ["string", "null"]
                 }
             },
             {
@@ -929,8 +928,7 @@ fn derive_path_params_with_serde_and_custom_rename() {
                 "name": "vecDefault",
                 "required": false,
                 "schema": {
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                     "items": {
                         "type": "string"
                     }
@@ -941,8 +939,7 @@ fn derive_path_params_with_serde_and_custom_rename() {
                 "name": "STRING",
                 "required": false,
                 "schema": {
-                    "nullable": true,
-                    "type": "string"
+                    "type": ["string", "null"]
                 }
             },
             {
@@ -994,8 +991,7 @@ fn derive_path_params_custom_rename_all() {
                 "name": "vecDefault",
                 "required": false,
                 "schema": {
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                     "items": {
                         "type": "string"
                     }
@@ -1024,8 +1020,7 @@ fn derive_path_params_custom_rename_all_serde_will_override() {
                 "name": "VEC_DEFAULT",
                 "required": false,
                 "schema": {
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                     "items": {
                         "type": "string"
                     }
@@ -1158,8 +1153,7 @@ fn derive_path_params_intoparams() {
                 "name": "since",
                 "required": false,
                 "schema": {
-                    "nullable": true,
-                    "type": "string"
+                    "type": ["string", "null"]
                 },
                 "style": "form"
             },
@@ -1194,13 +1188,15 @@ fn derive_path_params_intoparams() {
                 "schema": {
                     "allOf": [
                         {
+                            "type": "null",
+                        },
+                        {
                             "default": "foo1",
                             "example": "foo1",
                             "enum": ["foo1", "foo2"],
                             "type": "string",
                         }
                     ],
-                    "nullable": true,
                 },
                 "style": "form"
             },
@@ -1337,8 +1333,7 @@ fn derive_path_params_into_params_with_value_type() {
             "name": "value3",
             "required": false,
             "schema": {
-                "nullable": true,
-                "type": "string"
+                "type": ["string", "null"]
             }
         },
         {
@@ -1346,8 +1341,7 @@ fn derive_path_params_into_params_with_value_type() {
             "name": "value4",
             "required": false,
             "schema": {
-                "nullable": true,
-                "type": "object"
+                "type": ["object", "null"]
             }
         },
         {
@@ -1454,7 +1448,6 @@ fn derive_path_params_into_params_with_unit_type() {
             "required": true,
             "schema": {
                 "default": null,
-                "nullable": true
             }
         }])
     )
@@ -1679,7 +1672,7 @@ fn derive_path_with_ulid() {
 fn derive_path_with_into_params_custom_schema() {
     fn custom_type() -> Object {
         ObjectBuilder::new()
-            .schema_type(utoipa::openapi::SchemaType::String)
+            .schema_type(utoipa::openapi::Type::String)
             .format(Some(utoipa::openapi::SchemaFormat::Custom(
                 "email".to_string(),
             )))
@@ -1773,8 +1766,7 @@ fn derive_into_params_required() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
               },
           },
           {
@@ -1782,8 +1774,7 @@ fn derive_into_params_required() {
               "name": "name3",
               "required": true,
               "schema": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
               },
           },
         ])
@@ -1829,13 +1820,14 @@ fn derive_into_params_with_serde_skip() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
               },
           },
         ])
     )
 }
+
+// TODO: IntoParams seems not to follow Option<T> is automatically nullable rule!
 
 #[test]
 fn derive_into_params_with_serde_skip_deserializing() {
@@ -1876,8 +1868,7 @@ fn derive_into_params_with_serde_skip_deserializing() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
               },
           },
         ])
@@ -1923,8 +1914,7 @@ fn derive_into_params_with_serde_skip_serializing() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": ["string", "null"],
               },
           },
         ])

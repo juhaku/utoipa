@@ -1337,7 +1337,7 @@ impl ComplexEnum<'_> {
                                 #title
                                 .item(#unnamed_enum_tokens)
                                 .item(utoipa::openapi::schema::ObjectBuilder::new()
-                                    .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                                    .schema_type(utoipa::openapi::schema::Type::Object)
                                     .property(#tag, #variant_name_tokens)
                                     .required(#tag)
                                 )
@@ -1346,7 +1346,7 @@ impl ComplexEnum<'_> {
                         Ok(quote! {
                             #unnamed_enum_tokens
                                 #title
-                                .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                                .schema_type(utoipa::openapi::schema::Type::Object)
                                 .property(#tag, #variant_name_tokens)
                                 .required(#tag)
                         })
@@ -1445,7 +1445,7 @@ impl ComplexEnum<'_> {
                 Ok(quote! {
                     utoipa::openapi::schema::ObjectBuilder::new()
                         #title
-                        .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                        .schema_type(utoipa::openapi::schema::Type::Object)
                         .property(#tag, #variant_name_tokens)
                         .required(#tag)
                         .property(#content, #named_enum_tokens)
@@ -1490,7 +1490,7 @@ impl ComplexEnum<'_> {
                     Ok(quote! {
                         utoipa::openapi::schema::ObjectBuilder::new()
                             #title
-                            .schema_type(utoipa::openapi::schema::SchemaType::Object)
+                            .schema_type(utoipa::openapi::schema::Type::Object)
                             .property(#tag, #variant_name_tokens)
                             .required(#tag)
                             .property(#content, #unnamed_enum_tokens)

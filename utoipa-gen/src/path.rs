@@ -684,8 +684,8 @@ impl PathTypeTree for TypeTree<'_> {
                 .map(|children| {
                     children
                         .iter()
-                        .flat_map(|child| &child.path)
-                        .any(|path| SchemaType(path).is_byte())
+                        .flat_map(|child| child.path.as_ref().zip(Some(child.is_option())))
+                        .any(|(path, nullable)| SchemaType { path, nullable }.is_byte())
                 })
                 .unwrap_or(false)
         {
@@ -693,7 +693,10 @@ impl PathTypeTree for TypeTree<'_> {
         } else if self
             .path
             .as_ref()
-            .map(|path| SchemaType(path.deref()))
+            .map(|path| SchemaType {
+                path: path.deref(),
+                nullable: self.is_option(),
+            })
             .map(|schema_type| schema_type.is_primitive())
             .unwrap_or(false)
         {

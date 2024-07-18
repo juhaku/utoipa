@@ -180,7 +180,7 @@ impl ToTokensDiagnostics for Feature {
                 Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
                 Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
                 Feature::Title(title) => quote! { .title(Some(#title)) },
-                Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+                Feature::Nullable(_nullable) => return Err(Diagnostics::new("Nullable does not support `ToTokens`")),
                 Feature::Rename(rename) => rename.to_token_stream(),
                 Feature::Style(style) => quote! { .style(Some(#style)) },
                 Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
@@ -665,6 +665,18 @@ pub struct Nullable(bool);
 impl Nullable {
     pub fn new() -> Self {
         Self(true)
+    }
+
+    pub fn value(&self) -> bool {
+        self.0
+    }
+
+    pub fn into_schema_type_token_stream(self) -> proc_macro2::TokenStream {
+        if self.0 {
+            quote! {utoipa::openapi::schema::Type::Null}
+        } else {
+            proc_macro2::TokenStream::new()
+        }
     }
 }
 
