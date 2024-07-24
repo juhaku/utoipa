@@ -110,7 +110,9 @@ impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
 
 impl ToTokensDiagnostics for RequestBody<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let mut actual_body = get_actual_body_type(&self.ty).unwrap().clone();
+        let mut actual_body = get_actual_body_type(&self.ty)
+            .expect("should have found actual requst body TypeTree")
+            .clone();
 
         if let Some(option) = find_option_type_tree(&self.ty) {
             let path = option.path.clone();
@@ -195,7 +197,12 @@ fn get_actual_body_type<'t>(ty: &'t TypeTree<'t>) -> Option<&'t TypeTree<'t>> {
                     .expect("Option must have one child"),
             ),
             "Bytes" => Some(ty),
-            _ => None,
+            _ => match ty.children {
+                Some(ref children) => get_actual_body_type(children.first().expect(
+                    "Must have first child when children has been defined in get_actual_body_type",
+                )),
+                None => None,
+            },
         })
 }
 
