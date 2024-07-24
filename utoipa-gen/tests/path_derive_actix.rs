@@ -1040,6 +1040,56 @@ macro_rules! test_derive_path_operations {
     };
 }
 
+#[test]
+fn path_derive_custom_generic_wrapper() {
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Validated<T>(T);
+
+    impl<T> FromRequest for Validated<T> {
+        type Error = actix_web::Error;
+
+        type Future = Ready<Result<Self, Self::Error>>;
+
+        fn from_request(
+            _req: &actix_web::HttpRequest,
+            _payload: &mut actix_web::dev::Payload,
+        ) -> Self::Future {
+            todo!()
+        }
+    }
+
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Item(String);
+
+    #[utoipa::path()]
+    #[post("/item")]
+    async fn post_item(_body: Validated<Json<Item>>) -> Json<Item> {
+        Json(Item(String::new()))
+    }
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(post_item))]
+    struct Doc;
+
+    let doc = serde_json::to_value(Doc::openapi()).unwrap();
+    let operation = doc.pointer("/paths/~1item/post").unwrap();
+
+    assert_json_eq!(
+        &operation.pointer("/requestBody"),
+        json!({
+            "description": "",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/Item"
+                    }
+                }
+            },
+            "required": true,
+        })
+    )
+}
+
 test_derive_path_operations! {
     derive_path_operation_post, mod_test_post: post
     derive_path_operation_get, mod_test_get: get
