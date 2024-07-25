@@ -4124,6 +4124,72 @@ fn derive_struct_field_with_example() {
 }
 
 #[test]
+fn derive_unnamed_structs_with_examples() {
+    let doc = api_doc! {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[schema(examples(json!("kim"), json!("jim")))]
+        struct UsernameRequestWrapper(String);
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "type": "string",
+            "examples": ["kim", "jim"]
+        })
+    );
+
+    #[derive(ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Username(String);
+
+    // Refs cannot have examples
+    let doc = api_doc! {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[schema(examples(json!("kim"), json!("jim")))]
+        struct UsernameRequestWrapper(Username);
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "$ref": "#/components/schemas/Username",
+        })
+    )
+}
+
+#[test]
+fn derive_struct_with_examples() {
+    let doc = api_doc! {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        #[schema(examples(json!({"username": "kim"}), json!(UsernameRequest {username: "jim".to_string()})))]
+        struct UsernameRequest {
+            #[schema(examples(json!("foobar"), "barfoo"))]
+            username: String,
+        }
+    };
+
+    assert_json_eq!(
+        doc,
+        json!({
+            "properties": {
+                "username": {
+                    "type": "string",
+                    "examples": ["foobar", "barfoo"]
+                },
+            },
+            "required": [
+                "username",
+            ],
+            "type": "object",
+            "examples": [
+                {"username": "kim"},
+                {"username": "jim"}
+            ]
+        })
+    )
+}
+
+#[test]
 fn derive_struct_with_self_reference() {
     let value = api_doc! {
         struct Item {

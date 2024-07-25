@@ -2777,15 +2777,9 @@ impl AnyValue {
 
     fn parse_any(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Lit) {
-            if input.peek(LitStr) {
-                let lit_str = input.parse::<LitStr>().unwrap().to_token_stream();
+            let lit = input.parse::<Lit>().unwrap().to_token_stream();
 
-                Ok(AnyValue::Json(lit_str))
-            } else {
-                let lit = input.parse::<Lit>().unwrap().to_token_stream();
-
-                Ok(AnyValue::Json(lit))
-            }
+            Ok(AnyValue::Json(lit))
         } else {
             let fork = input.fork();
             let is_json = if fork.peek(syn::Ident) && fork.peek2(Token![!]) {

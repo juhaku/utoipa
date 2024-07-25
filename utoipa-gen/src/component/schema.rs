@@ -725,6 +725,7 @@ impl<'e> EnumSchema<'e> {
                             features::parse_schema_features_with(attributes, |input| {
                                 Ok(parse_features!(
                                     input as super::features::Example,
+                                    super::features::Examples,
                                     super::features::Default,
                                     super::features::Title,
                                     As

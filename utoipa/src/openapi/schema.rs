@@ -345,8 +345,14 @@ builder! {
         pub default: Option<Value>,
 
         /// Example shown in UI of the value for richer documentation.
+        ///
+        /// **Deprecated since 3.0.x. Prefer [`OneOf::examples`] instead**
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
+
+        /// Examples shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub examples: Vec<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
         /// specific schema.
@@ -396,6 +402,7 @@ impl Default for OneOf {
             description: Default::default(),
             default: Default::default(),
             example: Default::default(),
+            examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
         }
@@ -434,8 +441,15 @@ impl OneOfBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`OneOfBuilder::examples`] instead**
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        set_value!(self examples examples.into_iter().map(Into::into).collect())
     }
 
     /// Add or change discriminator field of the composite [`OneOf`] type.
@@ -501,8 +515,14 @@ builder! {
         pub default: Option<Value>,
 
         /// Example shown in UI of the value for richer documentation.
+        ///
+        /// **Deprecated since 3.0.x. Prefer [`AllOf::examples`] instead**
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
+
+        /// Examples shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub examples: Vec<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
         /// specific schema.
@@ -552,6 +572,7 @@ impl Default for AllOf {
             description: Default::default(),
             default: Default::default(),
             example: Default::default(),
+            examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
         }
@@ -590,8 +611,15 @@ impl AllOfBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`AllOfBuilder::examples`] instead**
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        set_value!(self examples examples.into_iter().map(Into::into).collect())
     }
 
     /// Add or change discriminator field of the composite [`AllOf`] type.
@@ -653,8 +681,14 @@ builder! {
         pub default: Option<Value>,
 
         /// Example shown in UI of the value for richer documentation.
+        ///
+        /// **Deprecated since 3.0.x. Prefer [`AnyOf::examples`] instead**
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
+
+        /// Examples shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub examples: Vec<Value>,
 
         /// Optional discriminator field can be used to aid deserialization, serialization and validation of a
         /// specific schema.
@@ -703,6 +737,7 @@ impl Default for AnyOf {
             description: Default::default(),
             default: Default::default(),
             example: Default::default(),
+            examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
         }
@@ -736,8 +771,15 @@ impl AnyOfBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`AllOfBuilder::examples`] instead**
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        set_value!(self examples examples.into_iter().map(Into::into).collect())
     }
 
     /// Add or change discriminator field of the composite [`AnyOf`] type.
@@ -834,8 +876,14 @@ builder! {
         pub deprecated: Option<Deprecated>,
 
         /// Example shown in UI of the value for richer documentation.
+        ///
+        /// **Deprecated since 3.0.x. Prefer [`Object::examples`] instead**
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
+
+        /// Examples shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub examples: Vec<Value>,
 
         /// Write only property will be only sent in _write_ requests like _POST, PUT_.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1029,8 +1077,15 @@ impl ObjectBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`Object::examples`] instead**
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        set_value!(self examples examples.into_iter().map(Into::into).collect())
     }
 
     /// Add or change write only flag for [`Object`].
@@ -1340,8 +1395,14 @@ builder! {
         pub deprecated: Option<Deprecated>,
 
         /// Example shown in UI of the value for richer documentation.
+        ///
+        /// **Deprecated since 3.0.x. Prefer [`Array::examples`] instead**
         #[serde(skip_serializing_if = "Option::is_none")]
         pub example: Option<Value>,
+
+        /// Examples shown in UI of the value for richer documentation.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub examples: Vec<Value>,
 
         /// Default value which is provided when user has not provided the input in Swagger UI.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1380,6 +1441,7 @@ impl Default for Array {
             description: Default::default(),
             deprecated: Default::default(),
             example: Default::default(),
+            examples: Default::default(),
             default: Default::default(),
             max_items: Default::default(),
             min_items: Default::default(),
@@ -1463,8 +1525,15 @@ impl ArrayBuilder {
     }
 
     /// Add or change example shown in UI of the value for richer documentation.
+    ///
+    /// **Deprecated since 3.0.x. Prefer [`Array::examples`] instead**
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
+    }
+
+    /// Add or change examples shown in UI of the value for richer documentation.
+    pub fn examples<I: IntoIterator<Item = V>, V: Into<Value>>(mut self, examples: I) -> Self {
+        set_value!(self examples examples.into_iter().map(Into::into).collect())
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.

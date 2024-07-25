@@ -2,13 +2,16 @@ use std::{fmt::Display, mem, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
+use syn::{
+    parenthesized, parse::ParseStream, punctuated::Punctuated, LitFloat, LitInt, LitStr, Token,
+    TypePath,
+};
 
 use crate::{
     as_tokens_or_diagnostics, parse_utils,
     path::parameter::{self, ParameterStyle},
     schema_type::{SchemaFormat, SchemaType},
-    AnyValue, Diagnostics, OptionExt, ToTokensDiagnostics,
+    AnyValue, Array, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use super::{schema, serde::RenameRule, GenericType, TypeTree};
@@ -84,6 +87,7 @@ pub trait Parse {
 #[derive(Clone)]
 pub enum Feature {
     Example(Example),
+    Examples(Examples),
     Default(Default),
     Inline(Inline),
     XmlAttr(XmlAttr),
@@ -175,6 +179,7 @@ impl ToTokensDiagnostics for Feature {
         let feature = match &self {
                 Feature::Default(default) => quote! { .default(#default) },
                 Feature::Example(example) => quote! { .example(Some(#example)) },
+                Feature::Examples(examples) => quote! { .examples(#examples) },
                 Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
                 Feature::Format(format) => quote! { .format(Some(#format)) },
                 Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
@@ -259,6 +264,7 @@ impl Display for Feature {
         match self {
             Feature::Default(default) => default.fmt(f),
             Feature::Example(example) => example.fmt(f),
+            Feature::Examples(examples) => examples.fmt(f),
             Feature::XmlAttr(xml) => xml.fmt(f),
             Feature::Format(format) => format.fmt(f),
             Feature::WriteOnly(write_only) => write_only.fmt(f),
@@ -301,6 +307,7 @@ impl Validatable for Feature {
         match &self {
             Feature::Default(default) => default.is_validatable(),
             Feature::Example(example) => example.is_validatable(),
+            Feature::Examples(examples) => examples.is_validatable(),
             Feature::XmlAttr(xml) => xml.is_validatable(),
             Feature::Format(format) => format.is_validatable(),
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
@@ -355,6 +362,7 @@ macro_rules! is_validatable {
 is_validatable! {
     Default => false,
     Example => false,
+    Examples => false,
     XmlAttr => false,
     Format => false,
     WriteOnly => false,
@@ -413,6 +421,46 @@ impl From<Example> for Feature {
 }
 
 name!(Example = "example");
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Examples(Vec<AnyValue>);
+
+impl Parse for Examples {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        let examples;
+        parenthesized!(examples in input);
+
+        Ok(Self(
+            Punctuated::<AnyValue, Token![,]>::parse_terminated_with(
+                &examples,
+                AnyValue::parse_any,
+            )?
+            .into_iter()
+            .collect(),
+        ))
+    }
+}
+
+impl ToTokens for Examples {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if !self.0.is_empty() {
+            let examples = Array::Borrowed(&self.0).to_token_stream();
+            examples.to_tokens(tokens);
+        }
+    }
+}
+
+impl From<Examples> for Feature {
+    fn from(value: Examples) -> Self {
+        Feature::Examples(value)
+    }
+}
+
+name!(Examples = "examples");
 
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -1855,6 +1903,7 @@ macro_rules! impl_feature_into_inner {
 
 impl_feature_into_inner! {
     Example,
+    Examples,
     Default,
     Inline,
     XmlAttr,
