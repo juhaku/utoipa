@@ -541,30 +541,16 @@ impl<'c> ComponentSchema {
                 description,
                 deprecated_stream,
             )?,
-            Some(GenericType::Vec) => ComponentSchema::vec_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description,
-                deprecated_stream,
-            )?,
-            Some(GenericType::LinkedList) => ComponentSchema::vec_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description,
-                deprecated_stream,
-            )?,
-            Some(GenericType::Set) => ComponentSchema::vec_to_tokens(
-                &mut tokens,
-                features,
-                type_tree,
-                object_name,
-                description,
-                deprecated_stream,
-            )?,
+            Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
+                ComponentSchema::vec_to_tokens(
+                    &mut tokens,
+                    features,
+                    type_tree,
+                    object_name,
+                    description,
+                    deprecated_stream,
+                )?
+            }
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
@@ -598,7 +584,7 @@ impl<'c> ComponentSchema {
                 })?
                 .to_tokens(&mut tokens)?;
             }
-            Some(GenericType::Cow) | Some(GenericType::Box) | Some(GenericType::RefCell) => {
+            Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
                     type_tree: type_tree
                         .children
