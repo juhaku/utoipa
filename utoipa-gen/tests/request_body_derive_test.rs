@@ -630,13 +630,18 @@ fn request_body_with_binary() {
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
         .unwrap();
+
     assert_json_eq!(
         content,
         json!(
             {"application/octet-stream": {
                 "schema": {
-                    "type": "string",
-                    "format": "binary"
+                    "type": "array",
+                    "items": {
+                        "format": "int32",
+                        "minimum": 0,
+                        "type": "integer"
+                    }
                 }
             }
         })
