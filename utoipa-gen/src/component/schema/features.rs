@@ -5,11 +5,11 @@ use syn::{
 
 use crate::{
     component::features::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, Default, Deprecated,
-        Description, Example, Examples, ExclusiveMaximum, ExclusiveMinimum, Feature, Format,
-        Inline, IntoInner, MaxItems, MaxLength, MaxProperties, Maximum, Merge, MinItems, MinLength,
-        MinProperties, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-        Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, ContentEncoding,
+        ContentMediaType, Default, Deprecated, Description, Example, Examples, ExclusiveMaximum,
+        ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
+        Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern,
+        ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
     },
     Diagnostics,
 };
@@ -124,7 +124,9 @@ impl Parse for NamedFieldFeatures {
             SchemaWith,
             AdditionalProperties,
             Required,
-            Deprecated
+            Deprecated,
+            ContentEncoding,
+            ContentMediaType
         )))
     }
 }

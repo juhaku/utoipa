@@ -5445,3 +5445,55 @@ fn derive_complex_enum_description_override() {
         })
     )
 }
+
+#[test]
+fn content_encofing_named_field() {
+    let item = api_doc! {
+        struct PersonRequest {
+            #[schema(content_encoding = "bas64", value_type = String)]
+            picture: Vec<u8>
+        }
+    };
+
+    assert_json_eq!(
+        item,
+        json!({
+            "properties": {
+                "picture": {
+                    "type": "string",
+                    "contentEncoding": "bas64"
+                }
+            },
+            "required": [
+                "picture"
+            ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn content_media_type_named_field() {
+    let item = api_doc! {
+        struct PersonRequest {
+            #[schema(content_media_type = "application/octet-stream", value_type = String)]
+            doc: Vec<u8>
+        }
+    };
+
+    assert_json_eq!(
+        item,
+        json!({
+            "properties": {
+                "doc": {
+                    "type": "string",
+                    "contentMediaType": "application/octet-stream"
+                }
+            },
+            "required": [
+                "doc"
+            ],
+            "type": "object"
+        })
+    )
+}

@@ -1160,14 +1160,14 @@ impl ObjectBuilder {
 
     /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
     /// example.
-    pub fn content_encoding(mut self, content_encoding: String) -> Self {
-        set_value!(self content_encoding content_encoding)
+    pub fn content_encoding<S: Into<String>>(mut self, content_encoding: S) -> Self {
+        set_value!(self content_encoding content_encoding.into())
     }
 
     /// Set of change [`Object::content_media_type`]. Value must be valid MIME type e.g.
     /// `application/json`.
-    pub fn content_media_type(mut self, content_media_type: String) -> Self {
-        set_value!(self content_media_type content_media_type)
+    pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
+        set_value!(self content_media_type content_media_type.into())
     }
 
     to_array_builder!();

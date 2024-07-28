@@ -122,6 +122,8 @@ pub enum Feature {
     As(As),
     AdditionalProperties(AdditionalProperties),
     Required(Required),
+    ContentEncoding(ContentEncoding),
+    ContentMediaType(ContentMediaType),
 }
 
 impl Feature {
@@ -219,6 +221,8 @@ impl ToTokensDiagnostics for Feature {
                 Feature::AdditionalProperties(additional_properties) => {
                     quote! { .additional_properties(Some(#additional_properties)) }
                 }
+                Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
+                Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
                 Feature::RenameAll(_) => {
                     return Err(Diagnostics::new("RenameAll feature does not support `ToTokens`"))
                 }
@@ -298,6 +302,8 @@ impl Display for Feature {
             Feature::As(as_feature) => as_feature.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
             Feature::Required(required) => required.fmt(f),
+            Feature::ContentEncoding(content_encoding) => content_encoding.fmt(f),
+            Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
         }
     }
 }
@@ -343,6 +349,8 @@ impl Validatable for Feature {
                 additional_properties.is_validatable()
             }
             Feature::Required(required) => required.is_validatable(),
+            Feature::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
+            Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
         }
     }
 }
@@ -395,7 +403,9 @@ is_validatable! {
     Deprecated => false,
     As => false,
     AdditionalProperties => false,
-    Required => false
+    Required => false,
+    ContentEncoding => false,
+    ContentMediaType => false
 }
 
 #[derive(Clone)]
@@ -1564,6 +1574,60 @@ impl From<Required> for Feature {
 }
 
 name!(Required = "required");
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ContentEncoding(String);
+
+impl Parse for ContentEncoding {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentEncoding {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+name!(ContentEncoding = "content_encoding");
+
+impl From<ContentEncoding> for Feature {
+    fn from(value: ContentEncoding) -> Self {
+        Self::ContentEncoding(value)
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ContentMediaType(String);
+
+impl Parse for ContentMediaType {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentMediaType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ContentMediaType> for Feature {
+    fn from(value: ContentMediaType) -> Self {
+        Self::ContentMediaType(value)
+    }
+}
+
+name!(ContentMediaType = "content_media_type");
 
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
