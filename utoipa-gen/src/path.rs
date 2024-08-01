@@ -386,8 +386,8 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 let context_path = context_path.to_token_stream();
                 let context_path_tokens = quote! {
                     format!("{}{}",
-                        #context_path.to_owned().replace('"', ""),
-                        #path.to_owned().replace('"', "")
+                        #context_path.replace('"', ""),
+                        #path.replace('"', "")
                     )
                 };
                 context_path_tokens
