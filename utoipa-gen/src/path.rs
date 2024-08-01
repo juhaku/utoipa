@@ -394,7 +394,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             })
             .unwrap_or_else(|| {
                 quote! {
-                    #path.to_owned().replace('"', "")
+                    #path.replace('"', "")
                 }
             });
 
