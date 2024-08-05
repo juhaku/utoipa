@@ -386,15 +386,15 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 let context_path = context_path.to_token_stream();
                 let context_path_tokens = quote! {
                     format!("{}{}",
-                        #context_path.to_string().replace('"', ""),
-                        #path.to_string().replace('"', "")
+                        #context_path.replace('"', ""),
+                        #path.replace('"', "")
                     )
                 };
                 context_path_tokens
             })
             .unwrap_or_else(|| {
                 quote! {
-                    #path.to_string().replace('"', "")
+                    #path.replace('"', "")
                 }
             });
 
