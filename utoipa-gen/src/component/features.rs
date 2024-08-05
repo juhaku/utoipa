@@ -2,13 +2,16 @@ use std::{fmt::Display, mem, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parenthesized, parse::ParseStream, LitFloat, LitInt, LitStr, TypePath};
+use syn::{
+    parenthesized, parse::ParseStream, punctuated::Punctuated, LitFloat, LitInt, LitStr, Token,
+    TypePath,
+};
 
 use crate::{
     as_tokens_or_diagnostics, parse_utils,
     path::parameter::{self, ParameterStyle},
     schema_type::{SchemaFormat, SchemaType},
-    AnyValue, Diagnostics, OptionExt, ToTokensDiagnostics,
+    AnyValue, Array, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use super::{schema, serde::RenameRule, GenericType, TypeTree};
@@ -84,6 +87,7 @@ pub trait Parse {
 #[derive(Clone)]
 pub enum Feature {
     Example(Example),
+    Examples(Examples),
     Default(Default),
     Inline(Inline),
     XmlAttr(XmlAttr),
@@ -118,6 +122,8 @@ pub enum Feature {
     As(As),
     AdditionalProperties(AdditionalProperties),
     Required(Required),
+    ContentEncoding(ContentEncoding),
+    ContentMediaType(ContentMediaType),
 }
 
 impl Feature {
@@ -175,12 +181,13 @@ impl ToTokensDiagnostics for Feature {
         let feature = match &self {
                 Feature::Default(default) => quote! { .default(#default) },
                 Feature::Example(example) => quote! { .example(Some(#example)) },
+                Feature::Examples(examples) => quote! { .examples(#examples) },
                 Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
                 Feature::Format(format) => quote! { .format(Some(#format)) },
                 Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
                 Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
                 Feature::Title(title) => quote! { .title(Some(#title)) },
-                Feature::Nullable(nullable) => quote! { .nullable(#nullable) },
+                Feature::Nullable(_nullable) => return Err(Diagnostics::new("Nullable does not support `ToTokens`")),
                 Feature::Rename(rename) => rename.to_token_stream(),
                 Feature::Style(style) => quote! { .style(Some(#style)) },
                 Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
@@ -214,6 +221,8 @@ impl ToTokensDiagnostics for Feature {
                 Feature::AdditionalProperties(additional_properties) => {
                     quote! { .additional_properties(Some(#additional_properties)) }
                 }
+                Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
+                Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
                 Feature::RenameAll(_) => {
                     return Err(Diagnostics::new("RenameAll feature does not support `ToTokens`"))
                 }
@@ -259,6 +268,7 @@ impl Display for Feature {
         match self {
             Feature::Default(default) => default.fmt(f),
             Feature::Example(example) => example.fmt(f),
+            Feature::Examples(examples) => examples.fmt(f),
             Feature::XmlAttr(xml) => xml.fmt(f),
             Feature::Format(format) => format.fmt(f),
             Feature::WriteOnly(write_only) => write_only.fmt(f),
@@ -292,6 +302,8 @@ impl Display for Feature {
             Feature::As(as_feature) => as_feature.fmt(f),
             Feature::AdditionalProperties(additional_properties) => additional_properties.fmt(f),
             Feature::Required(required) => required.fmt(f),
+            Feature::ContentEncoding(content_encoding) => content_encoding.fmt(f),
+            Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
         }
     }
 }
@@ -301,6 +313,7 @@ impl Validatable for Feature {
         match &self {
             Feature::Default(default) => default.is_validatable(),
             Feature::Example(example) => example.is_validatable(),
+            Feature::Examples(examples) => examples.is_validatable(),
             Feature::XmlAttr(xml) => xml.is_validatable(),
             Feature::Format(format) => format.is_validatable(),
             Feature::WriteOnly(write_only) => write_only.is_validatable(),
@@ -336,6 +349,8 @@ impl Validatable for Feature {
                 additional_properties.is_validatable()
             }
             Feature::Required(required) => required.is_validatable(),
+            Feature::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
+            Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
         }
     }
 }
@@ -355,6 +370,7 @@ macro_rules! is_validatable {
 is_validatable! {
     Default => false,
     Example => false,
+    Examples => false,
     XmlAttr => false,
     Format => false,
     WriteOnly => false,
@@ -387,7 +403,9 @@ is_validatable! {
     Deprecated => false,
     As => false,
     AdditionalProperties => false,
-    Required => false
+    Required => false,
+    ContentEncoding => false,
+    ContentMediaType => false
 }
 
 #[derive(Clone)]
@@ -413,6 +431,46 @@ impl From<Example> for Feature {
 }
 
 name!(Example = "example");
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Examples(Vec<AnyValue>);
+
+impl Parse for Examples {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        let examples;
+        parenthesized!(examples in input);
+
+        Ok(Self(
+            Punctuated::<AnyValue, Token![,]>::parse_terminated_with(
+                &examples,
+                AnyValue::parse_any,
+            )?
+            .into_iter()
+            .collect(),
+        ))
+    }
+}
+
+impl ToTokens for Examples {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if !self.0.is_empty() {
+            let examples = Array::Borrowed(&self.0).to_token_stream();
+            examples.to_tokens(tokens);
+        }
+    }
+}
+
+impl From<Examples> for Feature {
+    fn from(value: Examples) -> Self {
+        Feature::Examples(value)
+    }
+}
+
+name!(Examples = "examples");
 
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -665,6 +723,18 @@ pub struct Nullable(bool);
 impl Nullable {
     pub fn new() -> Self {
         Self(true)
+    }
+
+    pub fn value(&self) -> bool {
+        self.0
+    }
+
+    pub fn into_schema_type_token_stream(self) -> proc_macro2::TokenStream {
+        if self.0 {
+            quote! {utoipa::openapi::schema::Type::Null}
+        } else {
+            proc_macro2::TokenStream::new()
+        }
     }
 }
 
@@ -1505,6 +1575,60 @@ impl From<Required> for Feature {
 
 name!(Required = "required");
 
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ContentEncoding(String);
+
+impl Parse for ContentEncoding {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentEncoding {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+name!(ContentEncoding = "content_encoding");
+
+impl From<ContentEncoding> for Feature {
+    fn from(value: ContentEncoding) -> Self {
+        Self::ContentEncoding(value)
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct ContentMediaType(String);
+
+impl Parse for ContentMediaType {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentMediaType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ContentMediaType> for Feature {
+    fn from(value: ContentMediaType) -> Self {
+        Self::ContentMediaType(value)
+    }
+}
+
+name!(ContentMediaType = "content_media_type");
+
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
 }
@@ -1843,6 +1967,7 @@ macro_rules! impl_feature_into_inner {
 
 impl_feature_into_inner! {
     Example,
+    Examples,
     Default,
     Inline,
     XmlAttr,

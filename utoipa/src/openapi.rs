@@ -1,6 +1,9 @@
 //! Rust implementation of Openapi Spec V3.
 
-use serde::{de::Error, de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+    de::{Error, Expected, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use std::fmt::Formatter;
 
 use self::path::PathsMap;
@@ -14,7 +17,7 @@ pub use self::{
     schema::{
         AllOf, AllOfBuilder, Array, ArrayBuilder, Components, ComponentsBuilder, Discriminator,
         KnownFormat, Object, ObjectBuilder, OneOf, OneOfBuilder, Ref, Schema, SchemaFormat,
-        SchemaType, ToArray,
+        ToArray, Type,
     },
     security::SecurityRequirement,
     server::{Server, ServerBuilder, ServerVariable, ServerVariableBuilder},
@@ -114,6 +117,13 @@ builder! {
         /// See more details at <https://spec.openapis.org/oas/latest.html#external-documentation-object>.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub external_docs: Option<ExternalDocs>,
+
+        /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
+        /// “https://spec.openapis.org/oas/3.1/dialect/base”.
+        ///
+        /// All the references and invidual files could use their own schema dialect.
+        #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
+        pub schema: String,
     }
 }
 
@@ -177,7 +187,7 @@ impl OpenApi {
     /// For _`servers`_, _`tags`_ and _`security_requirements`_ the whole item will be used for
     /// comparison. Items not found from `self` will be appended to `self`.
     ///
-    /// **Note!** `info`, `openapi` and `external_docs` will not be merged.
+    /// **Note!** `info`, `openapi`, `external_docs` and `schema` will not be merged.
     pub fn merge(&mut self, mut other: OpenApi) {
         if let Some(other_servers) = &mut other.servers {
             let servers = self.servers.get_or_insert(Vec::new());
@@ -329,23 +339,33 @@ impl OpenApiBuilder {
     pub fn external_docs(mut self, external_docs: Option<ExternalDocs>) -> Self {
         set_value!(self external_docs external_docs)
     }
+
+    /// Override default `$schema` dialect for the Open API doc.
+    ///
+    /// # Examples
+    ///
+    /// _**Override default schema dialect.**_
+    /// ```rust
+    /// # use utoipa::openapi::OpenApiBuilder;
+    /// let _ = OpenApiBuilder::new()
+    ///     .schema("http://json-schema.org/draft-07/schema#")
+    ///     .build();
+    /// ```
+    pub fn schema<S: Into<String>>(mut self, schema: S) -> Self {
+        set_value!(self schema schema.into())
+    }
 }
 
 /// Represents available [OpenAPI versions][version].
 ///
 /// [version]: <https://spec.openapis.org/oas/latest.html#versions>
-#[derive(Serialize, Clone, PartialEq, Eq)]
+#[derive(Serialize, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.0.3` the latest from 3.0 serde.
-    #[serde(rename = "3.0.3")]
-    Version3,
-}
-
-impl Default for OpenApiVersion {
-    fn default() -> Self {
-        Self::Version3
-    }
+    /// Will serialize to `3.1.0` the latest released OpenAPI version.
+    #[serde(rename = "3.1.0")]
+    #[default]
+    Version31,
 }
 
 impl<'de> Deserialize<'de> for OpenApiVersion {
@@ -359,7 +379,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             type Value = OpenApiVersion;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-                formatter.write_str("a version string in 3, 3.0, or 3.0.x format")
+                formatter.write_str("a version string in 3.1.x format")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -373,18 +393,20 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             where
                 E: Error,
             {
-                let parts = v.split('.').collect::<Vec<_>>();
-                if parts.len() > 3 || parts.is_empty() {
-                    return Err(E::custom(format!(
-                        "Invalid format of OpenAPI version: {}",
-                        v,
-                    )));
-                }
+                let version = v
+                    .split('.')
+                    .flat_map(|digit| digit.parse::<i8>())
+                    .collect::<Vec<_>>();
 
-                Ok(match (parts[0], parts.get(1).copied().unwrap_or("0")) {
-                    ("3", "0") => OpenApiVersion::Version3,
-                    _ => return Err(E::custom(format!("Unsupported version: {}", &v))),
-                })
+                if version.len() == 3 && version.first() == Some(&3) && version.get(1) == Some(&1) {
+                    Ok(OpenApiVersion::Version31)
+                } else {
+                    let expected: &dyn Expected = &"3.1.0";
+                    Err(Error::invalid_value(
+                        serde::de::Unexpected::Str(&v),
+                        expected,
+                    ))
+                }
             }
         }
 
@@ -612,7 +634,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
-        assert_eq!(serde_json::to_value(&OpenApiVersion::Version3)?, "3.0.3");
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version31)?, "3.1.0");
         Ok(())
     }
 
@@ -635,6 +657,7 @@ mod tests {
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;
 
+        dbg!(&raw_json);
         assert_eq!(
             serialized, raw_json,
             "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"
@@ -729,12 +752,10 @@ mod tests {
                 ComponentsBuilder::new()
                     .schema(
                         "User2",
-                        ObjectBuilder::new()
-                            .schema_type(SchemaType::Object)
-                            .property(
-                                "name",
-                                ObjectBuilder::new().schema_type(SchemaType::String).build(),
-                            ),
+                        ObjectBuilder::new().schema_type(Type::Object).property(
+                            "name",
+                            ObjectBuilder::new().schema_type(Type::String).build(),
+                        ),
                     )
                     .build(),
             ))
@@ -747,7 +768,7 @@ mod tests {
             value,
             json!(
                 {
-                  "openapi": "3.0.3",
+                  "openapi": "3.1.0",
                   "info": {
                     "title": "Api",
                     "version": "v1"
@@ -856,12 +877,10 @@ mod tests {
                 ComponentsBuilder::new()
                     .schema(
                         "User2",
-                        ObjectBuilder::new()
-                            .schema_type(SchemaType::Object)
-                            .property(
-                                "name",
-                                ObjectBuilder::new().schema_type(SchemaType::String).build(),
-                            ),
+                        ObjectBuilder::new().schema_type(Type::Object).property(
+                            "name",
+                            ObjectBuilder::new().schema_type(Type::String).build(),
+                        ),
                     )
                     .build(),
             ))
@@ -874,7 +893,7 @@ mod tests {
             value,
             json!(
                 {
-                  "openapi": "3.0.3",
+                  "openapi": "3.1.0",
                   "info": {
                     "title": "Api",
                     "version": "v1"
@@ -928,18 +947,6 @@ mod tests {
                 }
             )
         )
-    }
-
-    #[test]
-    fn deserialize_other_versions() {
-        [r#""3.0.3""#, r#""3.0.0""#, r#""3.0""#, r#""3""#]
-            .iter()
-            .for_each(|v| {
-                assert!(matches!(
-                    serde_json::from_str::<OpenApiVersion>(v).unwrap(),
-                    OpenApiVersion::Version3,
-                ));
-            });
     }
 
     #[test]

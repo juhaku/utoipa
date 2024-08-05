@@ -16,7 +16,11 @@ pub trait Variant {
     /// Get enum variant type. By default enum variant is `string`
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
-            SchemaType(&parse_quote!(str)).to_token_stream(),
+            SchemaType {
+                path: &parse_quote!(str),
+                nullable: false,
+            }
+            .to_token_stream(),
             quote! {&str},
         )
     }
@@ -50,7 +54,11 @@ where
 
     fn get_type(&self) -> (TokenStream, TokenStream) {
         (
-            SchemaType(&self.type_path.path).to_token_stream(),
+            SchemaType {
+                path: &self.type_path.path,
+                nullable: false,
+            }
+            .to_token_stream(),
             self.type_path.to_token_stream(),
         )
     }
@@ -255,7 +263,7 @@ impl ToTokensDiagnostics for UntaggedEnum {
 
         tokens.extend(quote! {
             utoipa::openapi::schema::ObjectBuilder::new()
-                .nullable(true)
+                .schema_type(utoipa::openapi::schema::Type::Null)
                 .default(Some(serde_json::Value::Null))
                 #title
         });

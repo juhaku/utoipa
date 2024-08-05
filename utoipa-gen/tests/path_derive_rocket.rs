@@ -137,8 +137,7 @@ fn resolve_get_with_optional_query_args() {
                     "items": {
                         "type": "string",
                     },
-                    "type": "array",
-                    "nullable": true,
+                    "type": ["array", "null"],
                 }
             }
         ])
