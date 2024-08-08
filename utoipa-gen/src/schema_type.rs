@@ -7,6 +7,7 @@ use crate::{Diagnostics, ToTokensDiagnostics};
 
 /// Represents data type of [`Schema`].
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[allow(dead_code)]
 pub enum SchemaTypeInner {
     /// Generic schema type allows "properties" with custom types
     Object,

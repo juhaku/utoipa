@@ -5447,7 +5447,7 @@ fn derive_complex_enum_description_override() {
 }
 
 #[test]
-fn content_encofing_named_field() {
+fn content_encoding_named_field() {
     let item = api_doc! {
         struct PersonRequest {
             #[schema(content_encoding = "bas64", value_type = String)]

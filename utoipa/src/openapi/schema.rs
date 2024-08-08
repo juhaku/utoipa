@@ -1654,22 +1654,6 @@ impl SchemaType {
         SchemaType::AnyValue
     }
 
-    // /// Instantiate new [`SchemaType`] from interator of [`Type`]s. This will create multi type
-    // /// [`SchemaType`] from iterator of types.
-    // ///
-    // /// Method accepts one argument `types` an iterator of [`Type`]s to create _SchemaType_ for.
-    // ///
-    // /// # Examples
-    // ///
-    // /// _**Create nullable string [`SchemaType`]**_
-    // /// ```rust
-    // /// # use utoipa::openapi::schema::{SchemaType, Type};
-    // /// let ty = SchemaType::from_iter([Type::String, Type::Null]);
-    // /// ```
-    // pub fn from_iter<I: IntoIterator<Item = Type>>(types: I) -> Self {
-    //     Self::Array(types.into_iter().collect())
-    // }
-
     /// Check whether this [`SchemaType`] is any value _(typeless)_ returning true on any value
     /// schema type.
     pub fn is_any_value(&self) -> bool {
@@ -1677,13 +1661,31 @@ impl SchemaType {
     }
 }
 
-/// Represents data type of [`Schema`].
+/// Represents data type fragment of [`Schema`].
+///
+/// [`Type`] is used to create a [`SchemaType`] that defines the type of the [`Schema`].
+/// [`SchemaType`] can be created from a single [`Type`] or multiple [`Type`]s according to the
+/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definiton of
+/// the _**type**_ property comes from [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type).
+///
+/// # Examples
+/// _**Create nullable string [`SchemaType`]**_
+/// ```rust
+/// # use std::iter::FromIterator;
+/// # use utoipa::openapi::schema::{Type, SchemaType};
+/// let _: SchemaType = [Type::String, Type::Null].into_iter().collect();
+/// ```
+/// _**Create string [`SchemaType`]**_
+/// ```rust
+/// # use utoipa::openapi::schema::{Type, SchemaType};
+/// let _ = SchemaType::new(Type::String);
+/// ```
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
-    /// Used with [`Object`] and [`ObjectBuilder`]. Objects always have
-    /// _schema_type_ [`SchemaType::Object`].
+    /// Used with [`Object`] and [`ObjectBuilder`] to describe schema that has _properties_
+    /// describing fields.
     #[default]
     Object,
     /// Indicates string type of content. Used with [`Object`] and [`ObjectBuilder`] on a `string`
@@ -1720,9 +1722,13 @@ pub enum SchemaFormat {
 }
 
 /// Known schema format modifier property to provide fine detail of the primitive type.
+///
+/// Known format is defined in <https://spec.openapis.org/oas/latest.html#data-types> and
+/// <https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-validation-00#section-7.3> as
+/// well as by few known data types that are enabled by specific feature flag e.g. _`uuid`_.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum KnownFormat {
     /// 8 bit integer.
     #[cfg(feature = "non_strict_integers")]
@@ -1760,11 +1766,14 @@ pub enum KnownFormat {
     Byte,
     /// binary data (octet).
     Binary,
+    /// ISO-8601 full time format [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
+    Time,
     /// ISO-8601 full date [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
     Date,
     /// ISO-8601 full date time [FRC3339](https://xml2rfc.ietf.org/public/rfc/html/rfc3339.html#anchor14).
-    #[serde(rename = "date-time")]
     DateTime,
+    /// duration format from [RFC3339 Appendix-A](https://datatracker.ietf.org/doc/html/rfc3339#appendix-A).
+    Duration,
     /// Hint to UI to obscure input.
     Password,
     /// Used with [`String`] values to indicate value is in UUID format.
@@ -1774,17 +1783,58 @@ pub enum KnownFormat {
     #[cfg_attr(doc_cfg, doc(cfg(feature = "uuid")))]
     Uuid,
     /// Used with [`String`] values to indicate value is in ULID format.
-    ///
-    /// **ulid** feature need to be enabled.
     #[cfg(feature = "ulid")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "ulid")))]
     Ulid,
-    /// Used with [`String`] values to indicate value is in Url format.
-    ///
-    /// **url** feature need to be enabled.
+    /// Used with [`String`] values to indicate value is in Url format according to
+    /// [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986).
     #[cfg(feature = "url")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
     Uri,
+    /// A string instance is valid against this attribute if it is a valid URI Reference
+    /// (either a URI or a relative-reference) according to
+    /// [RFC3986](https://datatracker.ietf.org/doc/html/rfc3986).
+    #[cfg(feature = "url")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    UriReference,
+    /// A string instance is valid against this attribute if it is a
+    /// valid IRI, according to [RFC3987](https://datatracker.ietf.org/doc/html/rfc3987).
+    #[cfg(feature = "url")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    Iri,
+    /// A string instance is valid against this attribute if it is a valid IRI Reference
+    /// (either an IRI or a relative-reference)
+    /// according to [RFC3987](https://datatracker.ietf.org/doc/html/rfc3987).
+    #[cfg(feature = "url")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "url")))]
+    IriReference,
+    /// As defined in "Mailbox" rule [RFC5321](https://datatracker.ietf.org/doc/html/rfc5321#section-4.1.2).
+    Email,
+    /// As defined by extended "Mailbox" rule [RFC6531](https://datatracker.ietf.org/doc/html/rfc6531#section-3.3).
+    IdnEmail,
+    /// As defined by [RFC1123](https://datatracker.ietf.org/doc/html/rfc1123#section-2.1), including host names
+    /// produced using the Punycode algorithm
+    /// specified in [RFC5891](https://datatracker.ietf.org/doc/html/rfc5891#section-4.4).
+    Hostname,
+    /// As defined by either [RFC1123](https://datatracker.ietf.org/doc/html/rfc1123#section-2.1) as for hostname,
+    /// or an internationalized hostname as defined by [RFC5890](https://datatracker.ietf.org/doc/html/rfc5890#section-2.3.2.3).
+    IdnHostname,
+    /// An IPv4 address according to [RFC2673](https://datatracker.ietf.org/doc/html/rfc2673#section-3.2).
+    Ipv4,
+    /// An IPv6 address according to [RFC4291](https://datatracker.ietf.org/doc/html/rfc4291#section-2.2).
+    Ipv6,
+    /// A string instance is a valid URI Template if it is according to
+    /// [RFC6570](https://datatracker.ietf.org/doc/html/rfc6570).
+    ///
+    /// _**Note!**_ There are no separate IRL template.
+    UriTemplate,
+    /// A valid JSON string representation of a JSON Pointer according to [RFC6901](https://datatracker.ietf.org/doc/html/rfc6901#section-5).
+    JsonPointer,
+    /// A valid relative JSON Pointer according to [draft-handrews-relative-json-pointer-01](https://datatracker.ietf.org/doc/html/draft-handrews-relative-json-pointer-01).
+    RelativeJsonPointer,
+    /// Regular expression, which SHOULD be valid according to the
+    /// [ECMA-262](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-validation-00#ref-ecma262).
+    Regex,
 }
 
 #[cfg(test)]
