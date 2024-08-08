@@ -1,4 +1,4 @@
-//! Rust implementation of Openapi Spec V3.
+//! Rust implementation of Openapi Spec V3.1.
 
 use serde::{
     de::{Error, Expected, Visitor},
@@ -119,7 +119,7 @@ builder! {
         pub external_docs: Option<ExternalDocs>,
 
         /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
-        /// “https://spec.openapis.org/oas/3.1/dialect/base”.
+        /// “<https://spec.openapis.org/oas/3.1/dialect/base>”.
         ///
         /// All the references and invidual files could use their own schema dialect.
         #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
