@@ -361,7 +361,7 @@ mod rocket {
                 routes.push(Route::new(
                     Method::Get,
                     value.spec_url.as_ref(),
-                    OpenApiHandler(openapi.to_json().expect("Should serialize to JSON")),
+                    OpenApiHandler(openapi),
                 ));
             }
 
@@ -380,7 +380,7 @@ mod rocket {
     }
 
     #[derive(Clone)]
-    struct OpenApiHandler(String);
+    struct OpenApiHandler(utoipa::openapi::OpenApi);
 
     #[rocket::async_trait]
     impl Handler for OpenApiHandler {
