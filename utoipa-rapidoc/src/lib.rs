@@ -91,7 +91,10 @@
 //! # #[derive(OpenApi)]
 //! # #[openapi()]
 //! # struct ApiDoc;
-//! App::new().service(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
+//! App::new()
+//!     .service(
+//!         RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/rapidoc")
+//!     );
 //! ```
 //!
 //! _**Serve [`RapiDoc`] via `rocket` framework.**_
@@ -106,15 +109,15 @@
 //! rocket::build()
 //!     .mount(
 //!         "/",
-//!         RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()),
+//!         RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/rapidoc"),
 //!     );
 //! ```
 //!
 //! _**Serve [`RapiDoc`] via `axum` framework.**_
-//!  ```no_run
-//!  use axum::Router;
-//!  use utoipa_rapidoc::RapiDoc;
-//!  # use utoipa::OpenApi;
+//! ```no_run
+//! use axum::Router;
+//! use utoipa_rapidoc::RapiDoc;
+//! # use utoipa::OpenApi;
 //! # #[derive(OpenApi)]
 //! # #[openapi()]
 //! # struct ApiDoc;
@@ -124,8 +127,10 @@
 //! #     S: Clone + Send + Sync + 'static,
 //! # {
 //!
-//!  let app = Router::<S>::new()
-//!      .merge(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
+//! let app = Router::<S>::new()
+//!     .merge(
+//!         RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/rapidoc")
+//!     );
 //! # }
 //! ```
 //!

@@ -76,7 +76,10 @@ _**Serve `RapiDoc` via `actix-web` framework.**_
 use actix_web::App;
 use utoipa_rapidoc::RapiDoc;
 
-App::new().service(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
+App::new()
+    .service(
+        RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/rapidoc")
+    );
 ```
 
 _**Serve `RapiDoc` via `rocket` framework.**_
@@ -86,16 +89,19 @@ use utoipa_rapidoc::RapiDoc;
 rocket::build()
     .mount(
         "/",
-        RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()),
+        RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/rapidoc"),
     );
 ```
 
 _**Serve `RapiDoc` via `axum` framework.**_
- ```rust
- use axum::Router;
- use utoipa_rapidoc::RapiDoc;
- let app = Router::<S>::new()
-     .merge(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
+```rust
+use axum::Router;
+use utoipa_rapidoc::RapiDoc;
+
+let app = Router::<S>::new()
+    .merge(
+        RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/rapidoc")
+    );
 ```
 
 # License
