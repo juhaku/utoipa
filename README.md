@@ -196,7 +196,7 @@ This would produce an API doc something similar to:
 
 ```json
 {
-  "openapi": "3.0.3",
+  "openapi": "3.1.0",
   "info": {
     "title": "application name from Cargo.toml",
     "description": "description from Cargo.toml",
@@ -212,9 +212,11 @@ This would produce an API doc something similar to:
   "paths": {
     "/pets/{id}": {
       "get": {
-        "tags": ["pet_api"],
+        "tags": [
+          "pet_api"
+        ],
         "summary": "Get pet by id",
-        "description": "Get pet from database by pet id\n",
+        "description": "Get pet from database by pet id",
         "operationId": "get_pet_by_id",
         "parameters": [
           {
@@ -222,11 +224,10 @@ This would produce an API doc something similar to:
             "in": "path",
             "description": "Pet database id to get Pet for",
             "required": true,
-            "deprecated": false,
             "schema": {
               "type": "integer",
               "format": "int64",
-              "minimum": 0,
+              "minimum": 0
             }
           }
         ],
@@ -244,8 +245,7 @@ This would produce an API doc something similar to:
           "404": {
             "description": "Pet was not found"
           }
-        },
-        "deprecated": false
+        }
       }
     }
   },
@@ -253,20 +253,25 @@ This would produce an API doc something similar to:
     "schemas": {
       "Pet": {
         "type": "object",
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "properties": {
+          "age": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
           "id": {
             "type": "integer",
             "format": "int64",
-            "minimum": 0,
+            "minimum": 0
           },
           "name": {
             "type": "string"
-          },
-          "age": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true,
           }
         }
       }
