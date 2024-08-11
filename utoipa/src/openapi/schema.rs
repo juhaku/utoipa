@@ -443,6 +443,7 @@ impl OneOfBuilder {
     /// Add or change example shown in UI of the value for richer documentation.
     ///
     /// **Deprecated since 3.0.x. Prefer [`OneOfBuilder::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -613,6 +614,7 @@ impl AllOfBuilder {
     /// Add or change example shown in UI of the value for richer documentation.
     ///
     /// **Deprecated since 3.0.x. Prefer [`AllOfBuilder::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -773,6 +775,7 @@ impl AnyOfBuilder {
     /// Add or change example shown in UI of the value for richer documentation.
     ///
     /// **Deprecated since 3.0.x. Prefer [`AllOfBuilder::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -1079,6 +1082,7 @@ impl ObjectBuilder {
     /// Add or change example shown in UI of the value for richer documentation.
     ///
     /// **Deprecated since 3.0.x. Prefer [`Object::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -1527,6 +1531,7 @@ impl ArrayBuilder {
     /// Add or change example shown in UI of the value for richer documentation.
     ///
     /// **Deprecated since 3.0.x. Prefer [`Array::examples`] instead**
+    #[deprecated = "Since OpenAPI 3.1 prefer using `examples`"]
     pub fn example(mut self, example: Option<Value>) -> Self {
         set_value!(self example example)
     }
@@ -2066,10 +2071,10 @@ mod tests {
     }
 
     #[test]
-    fn derive_object_with_example() {
-        let expected = r#"{"type":"object","example":{"age":20,"name":"bob the cat"}}"#;
+    fn derive_object_with_examples() {
+        let expected = r#"{"type":"object","examples":[{"age":20,"name":"bob the cat"}]}"#;
         let json_value = ObjectBuilder::new()
-            .example(Some(json!({"age": 20, "name": "bob the cat"})))
+            .examples([Some(json!({"age": 20, "name": "bob the cat"}))])
             .build();
 
         let value_string = serde_json::to_string(&json_value).unwrap();

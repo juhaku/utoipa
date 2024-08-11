@@ -734,6 +734,7 @@ fn derive_into_params_in_another_module() {
 
         #[derive(Deserialize, IntoParams)]
         pub struct FooParams {
+            #[allow(unused)]
             pub id: String,
         }
     }
