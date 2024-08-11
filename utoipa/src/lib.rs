@@ -358,7 +358,7 @@ pub trait OpenApi {
 ///                 .property(
 ///                     "id",
 ///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .schema_type(utoipa::openapi::schema::Type::Integer)
 ///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
 ///                             utoipa::openapi::KnownFormat::Int64,
 ///                         ))),
@@ -367,13 +367,13 @@ pub trait OpenApi {
 ///                 .property(
 ///                     "name",
 ///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::SchemaType::String),
+///                         .schema_type(utoipa::openapi::schema::Type::String),
 ///                 )
 ///                 .required("name")
 ///                 .property(
 ///                     "age",
 ///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .schema_type(utoipa::openapi::schema::Type::Integer)
 ///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
 ///                             utoipa::openapi::KnownFormat::Int32,
 ///                         ))),
@@ -475,16 +475,16 @@ mod utoipa {
 /// _**Create number schema from u64.**_
 /// ```rust
 /// # use utoipa::PartialSchema;
-/// # use utoipa::openapi::schema::{SchemaType, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
+/// # use utoipa::openapi::schema::{Type, KnownFormat, SchemaFormat, ObjectBuilder, Schema};
 /// # use utoipa::openapi::RefOr;
 /// #
 /// let number: RefOr<Schema> = i64::schema().into();
 ///
-/// // would be equal to manual implementation
+// // would be equal to manual implementation
 /// let number2 = RefOr::T(
 ///     Schema::Object(
 ///         ObjectBuilder::new()
-///             .schema_type(SchemaType::Integer)
+///             .schema_type(Type::Integer)
 ///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
 ///             .build()
 ///         )
@@ -704,7 +704,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///                         .description(Some("Pet database id to get Pet for"))
 ///                         .schema(
 ///                             Some(utoipa::openapi::ObjectBuilder::new()
-///                                 .schema_type(utoipa::openapi::SchemaType::Integer)
+///                                 .schema_type(utoipa::openapi::schema::Type::Integer)
 ///                                 .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64)))),
 ///                         ),
 ///                 )
@@ -829,7 +829,7 @@ pub trait Modify {
 ///                 .description(Some("Id of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::SchemaType::Integer)
+///                         .schema_type(utoipa::openapi::schema::Type::Integer)
 ///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64))),
 ///                 ))
 ///                 .build(),
@@ -840,7 +840,7 @@ pub trait Modify {
 ///                 .description(Some("Name of pet"))
 ///                 .schema(Some(
 ///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::SchemaType::String),
+///                         .schema_type(utoipa::openapi::schema::Type::String),
 ///                 ))
 ///                 .build(),
 ///         ]

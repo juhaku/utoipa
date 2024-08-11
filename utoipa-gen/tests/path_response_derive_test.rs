@@ -245,8 +245,8 @@ response_no_body_with_complex_header_with_description => headers: (
     "responses.200.headers.random-digits.schema.items.type" = r###""integer""###, "random-digits header items type"
     "responses.200.headers.random-digits.schema.items.format" = r###""int64""###, "random-digits header items format"
 binary_octet_stream => body: [u8], assert:
-    "responses.200.content.application~1octet-stream.schema.type" = r#""string""#, "Response content type"
-    "responses.200.content.application~1octet-stream.schema.format" = r#""binary""#, "Response content format"
+    "responses.200.content.application~1octet-stream.schema.type" = r#""array""#, "Response content type"
+    "responses.200.content.application~1octet-stream.schema.format" = r#"null"#, "Response content format"
     "responses.200.headers" = r###"null"###, "Response headers"
 }
 

@@ -95,8 +95,7 @@ fn derive_request_body_option_array_success() {
                         "items": {
                             "$ref": "#/components/schemas/Foo"
                         },
-                        "nullable": true,
-                        "type": "array",
+                        "type": ["array", "null"],
                     },
                 }
             },
@@ -408,11 +407,13 @@ fn derive_request_body_complex_required_explicit_false_success() {
                 "text/xml": {
                     "schema": {
                         "allOf": [
-                        {
-                            "$ref": "#/components/schemas/Foo"
-                        }
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Foo"
+                            }
                         ],
-                        "nullable": true,
                     }
                 }
             },
@@ -516,7 +517,6 @@ fn unit_type_request_body() {
                 "application/json": {
                     "schema": {
                         "default": null,
-                        "nullable": true,
                     }
                 }
             },
@@ -630,13 +630,18 @@ fn request_body_with_binary() {
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
         .unwrap();
+
     assert_json_eq!(
         content,
         json!(
             {"application/octet-stream": {
                 "schema": {
-                    "type": "string",
-                    "format": "binary"
+                    "type": "array",
+                    "items": {
+                        "format": "int32",
+                        "minimum": 0,
+                        "type": "integer"
+                    }
                 }
             }
         })

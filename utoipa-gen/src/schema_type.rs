@@ -5,12 +5,50 @@ use syn::{parse::Parse, Error, Ident, LitStr, Path};
 
 use crate::{Diagnostics, ToTokensDiagnostics};
 
+/// Represents data type of [`Schema`].
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[allow(dead_code)]
+pub enum SchemaTypeInner {
+    /// Generic schema type allows "properties" with custom types
+    Object,
+    /// Indicates string type of content.
+    String,
+    /// Indicates integer type of content.    
+    Integer,
+    /// Indicates floating point number type of content.
+    Number,
+    /// Indicates boolean type of content.
+    Boolean,
+    /// Indicates array type of content.
+    Array,
+    /// Null type. Used together with other type to indicate nullable values.
+    Null,
+}
+
+impl ToTokens for SchemaTypeInner {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ty = match self {
+            Self::Object => quote! { utoipa::openapi::schema::Type::Object },
+            Self::String => quote! { utoipa::openapi::schema::Type::String },
+            Self::Integer => quote! { utoipa::openapi::schema::Type::Integer },
+            Self::Number => quote! { utoipa::openapi::schema::Type::Number },
+            Self::Boolean => quote! { utoipa::openapi::schema::Type::Boolean },
+            Self::Array => quote! { utoipa::openapi::schema::Type::Array },
+            Self::Null => quote! { utoipa::openapi::schema::Type::Null },
+        };
+        tokens.extend(ty)
+    }
+}
+
 /// Tokenizes OpenAPI data type correctly according to the Rust type
-pub struct SchemaType<'a>(pub &'a syn::Path);
+pub struct SchemaType<'a> {
+    pub path: &'a syn::Path,
+    pub nullable: bool,
+}
 
 impl SchemaType<'_> {
     fn last_segment_to_string(&self) -> String {
-        self.0
+        self.path
             .segments
             .last()
             .expect("Expected at least one segment is_integer")
@@ -24,7 +62,7 @@ impl SchemaType<'_> {
 
     /// Check whether type is known to be primitive in which case returns true.
     pub fn is_primitive(&self) -> bool {
-        let SchemaType(path) = self;
+        let SchemaType { path, .. } = self;
         let last_segment = match path.segments.last() {
             Some(segment) => segment,
             None => return false,
@@ -183,56 +221,75 @@ fn is_primitive_rust_decimal(name: &str) -> bool {
 
 impl ToTokensDiagnostics for SchemaType<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-        let last_segment = self.0.segments.last().ok_or_else(|| {
+        let last_segment = self.path.segments.last().ok_or_else(|| {
             Diagnostics::with_span(
-                self.0.span(),
+                self.path.span(),
                 "schema type should have at least one segment in the path",
             )
         })?;
         let name = &*last_segment.ident.to_string();
 
+        fn schema_type_tokens(
+            tokens: &mut TokenStream,
+            schema_type: SchemaTypeInner,
+            nullable: bool,
+        ) {
+            if nullable {
+                tokens.extend(quote! { utoipa::openapi::schema::SchemaType::from_iter([
+                    #schema_type,
+                    utoipa::openapi::schema::Type::Null
+                ])})
+            } else {
+                tokens.extend(quote! { utoipa::openapi::schema::SchemaType::new(#schema_type)});
+            }
+        }
+
         match name {
             "String" | "str" | "char" => {
-                tokens.extend(quote! {utoipa::openapi::SchemaType::String})
+                schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
 
-            "bool" => tokens.extend(quote! { utoipa::openapi::SchemaType::Boolean }),
+            "bool" => schema_type_tokens(tokens, SchemaTypeInner::Boolean, self.nullable),
 
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => tokens.extend(quote! { utoipa::openapi::SchemaType::Integer }),
-            "f32" | "f64" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
+            | "u128" | "usize" => {
+                schema_type_tokens(tokens, SchemaTypeInner::Integer, self.nullable)
+            }
+            "f32" | "f64" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
 
             #[cfg(feature = "chrono")]
             "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaType::String })
+                schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
 
             #[cfg(any(feature = "chrono", feature = "time"))]
-            "Date" | "Duration" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "Date" | "Duration" => {
+                schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
+            }
 
             #[cfg(feature = "decimal")]
-            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "Decimal" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
             #[cfg(feature = "decimal_float")]
-            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaType::Number }),
+            "Decimal" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
 
             #[cfg(feature = "rocket_extras")]
-            "PathBuf" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "PathBuf" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
             #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "Uuid" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
             #[cfg(feature = "ulid")]
-            "Ulid" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "Ulid" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
             #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { utoipa::openapi::SchemaType::String }),
+            "Url" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaType::String })
+                schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
-            _ => tokens.extend(quote! { utoipa::openapi::SchemaType::Object }),
+            _ => schema_type_tokens(tokens, SchemaTypeInner::Object, self.nullable),
         };
 
         Ok(())
