@@ -221,6 +221,7 @@ fn find_option_type_tree<'t>(ty: &'t TypeTree) -> Option<&'t TypeTree<'t>> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct MacroPath {
     pub path: String,
+    #[allow(unused)] // this is needed only if axum, actix or rocket
     pub args: Vec<MacroArg>,
 }
 
@@ -262,6 +263,7 @@ pub struct ArgValue {
 pub struct ResolvedOperation {
     pub path_operation: PathOperation,
     pub path: String,
+    #[allow(unused)] // this is needed only if axum, actix or rocket
     pub body: String,
 }
 

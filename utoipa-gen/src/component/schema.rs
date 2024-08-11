@@ -83,7 +83,6 @@ impl ToTokensDiagnostics for Schema<'_> {
             self.data,
             self.attributes,
             ident,
-            self.generics,
             None::<Vec<(TypeTree, &TypeTree)>>,
         )?;
 
@@ -107,7 +106,6 @@ impl ToTokensDiagnostics for Schema<'_> {
                         self.data,
                         self.attributes,
                         ident,
-                        self.generics,
                         alias_type_tree?
                             .children
                             .map(|children| children.into_iter().zip(schema_children)),
@@ -198,7 +196,6 @@ impl<'a> SchemaVariant<'a> {
         data: &'a Data,
         attributes: &'a [Attribute],
         ident: &'a Ident,
-        generics: &'a Generics,
         aliases: Option<I>,
     ) -> Result<SchemaVariant<'a>, Diagnostics> {
         match data {
@@ -237,7 +234,6 @@ impl<'a> SchemaVariant<'a> {
                         rename_all: named_features.pop_rename_all_feature(),
                         features: named_features,
                         fields: named,
-                        generics: Some(generics),
                         schema_as,
                         aliases: aliases.map(|aliases| aliases.into_iter().collect()),
                     }))
@@ -299,7 +295,6 @@ pub struct NamedStructSchema<'a> {
     pub description: Option<Description>,
     pub features: Option<Vec<Feature>>,
     pub rename_all: Option<RenameAll>,
-    pub generics: Option<&'a Generics>,
     pub aliases: Option<Vec<(TypeTree<'a>, &'a TypeTree<'a>)>>,
     pub schema_as: Option<As>,
 }
@@ -1106,7 +1101,6 @@ impl ComplexEnum<'_> {
                         rename_all: named_struct_features.pop_rename_all_feature(),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
-                        generics: None,
                         aliases: None,
                         schema_as: None,
                     }),
@@ -1208,7 +1202,6 @@ impl ComplexEnum<'_> {
                     rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
-                    generics: None,
                     aliases: None,
                     schema_as: None,
                 }))
@@ -1276,7 +1269,6 @@ impl ComplexEnum<'_> {
                     rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
-                    generics: None,
                     aliases: None,
                     schema_as: None,
                 };
@@ -1437,7 +1429,6 @@ impl ComplexEnum<'_> {
                     rename_all: named_struct_features.pop_rename_all_feature(),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
-                    generics: None,
                     aliases: None,
                     schema_as: None,
                 };
