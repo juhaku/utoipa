@@ -477,13 +477,14 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                     object_tokens.extend(quote! {
                         .property(#name, #field_schema)
                     });
+                    let component_required =
+                        !is_option && super::is_required(field_rules, &container_rules);
+                    let required = match (required, component_required) {
+                        (Some(required), _) => required.is_true(),
+                        (None, component_required) => component_required,
+                    };
 
-                    if (!is_option && super::is_required(field_rules, &container_rules))
-                        || required
-                            .as_ref()
-                            .map(super::features::Required::is_true)
-                            .unwrap_or(false)
-                    {
+                    if required {
                         object_tokens.extend(quote! {
                             .required(#name)
                         })
