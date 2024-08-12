@@ -24,8 +24,8 @@ use crate::{
 
 use super::{
     features::{
-        impl_into_inner, impl_merge, parse_features, pop_feature, pop_feature_as_inner, Feature,
-        FeaturesExt, IntoInner, Merge, ToTokensExt,
+        impl_into_inner, impl_merge, parse_features, pop_feature, Feature, FeaturesExt, IntoInner,
+        Merge, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
     ComponentSchema, TypeTree,
@@ -432,14 +432,15 @@ impl ToTokensDiagnostics for Param<'_> {
                 .map_try(|value_type| value_type.as_type_tree())?
                 .unwrap_or(type_tree);
 
-            let required = pop_feature_as_inner!(param_features => Feature::Required(_v))
-                .as_ref()
-                .map(super::features::Required::is_true)
-                .unwrap_or(false);
+            let required: Option<features::Required> =
+                pop_feature!(param_features => Feature::Required(_)).into_inner();
+            let component_required = !component.is_option()
+                && super::is_required(field_serde_params, self.serde_container);
 
-            let non_required = (component.is_option() && !required)
-                || !component::is_required(field_serde_params, self.serde_container);
-            let required: Required = (!non_required).into();
+            let required = match (required, component_required) {
+                (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
+                (None, component_required) => Into::<Required>::into(component_required),
+            };
 
             tokens.extend(quote! {
                 .required(#required)

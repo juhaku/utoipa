@@ -1,6 +1,6 @@
 use assert_json_diff::assert_json_eq;
 use serde_json::json;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, Path};
 
 mod common;
 
@@ -342,6 +342,109 @@ fn derive_path_params_with_parameter_type_args() {
                   "allowReserved": true,
                   "explode": true
               }
+        ])
+    );
+}
+
+macro_rules! into_params {
+    ( $( #[$me:meta] )* $key:ident $name:ident $( $tt:tt )*) => {
+        {
+            #[derive(utoipa::IntoParams)]
+            $(#[$me])*
+            $key $name $( $tt )*
+
+            #[utoipa::path(get, path = "/handler", params($name))]
+            #[allow(unused)]
+            fn handler() {}
+
+            let value = serde_json::to_value(&__path_handler::path_item())
+                .expect("path item should serialize to json");
+            value.pointer("/get/parameters").expect("should have get/handler").clone()
+        }
+    };
+}
+
+#[test]
+fn derive_into_params_required_custom_query_parameter_required() {
+    #[allow(unused)]
+    struct Param<T>(T);
+
+    let value = into_params! {
+        #[into_params(parameter_in = Query)]
+        #[allow(unused)]
+        struct TasksFilterQuery {
+            /// Maximum number of results to return.
+            #[param(required = false, value_type = u32, example = 12)]
+            pub limit: Param<u32>,
+            /// Maximum number of results to return.
+            #[param(required = true, value_type = u32, example = 12)]
+            pub limit_explisit_required: Param<u32>,
+            /// Maximum number of results to return.
+            #[param(value_type = Option<u32>, example = 12)]
+            pub not_required: Param<u32>,
+            /// Maximum number of results to return.
+            #[param(required = true, value_type = Option<u32>, example = 12)]
+            pub option_required: Param<u32>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!([
+            {
+                "description": "Maximum number of results to return.",
+                "example": 12,
+                "in": "query",
+                "name": "limit",
+                "required": false,
+                "schema": {
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": "integer"
+                }
+            },
+            {
+                "description": "Maximum number of results to return.",
+                "example": 12,
+                "in": "query",
+                "name": "limit_explisit_required",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": "integer"
+                }
+            },
+            {
+                "description": "Maximum number of results to return.",
+                "example": 12,
+                "in": "query",
+                "name": "not_required",
+                "required": false,
+                "schema": {
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            {
+                "description": "Maximum number of results to return.",
+                "example": 12,
+                "in": "query",
+                "name": "option_required",
+                "required": true,
+                "schema": {
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            }
         ])
     );
 }

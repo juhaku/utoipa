@@ -657,7 +657,6 @@ mod tests {
         );
         let serialized = serde_json::to_string_pretty(&openapi)?;
 
-        dbg!(&raw_json);
         assert_eq!(
             serialized, raw_json,
             "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"

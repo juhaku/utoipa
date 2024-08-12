@@ -5497,3 +5497,74 @@ fn content_media_type_named_field() {
         })
     )
 }
+
+#[test]
+fn derive_schema_required_custom_type_required() {
+    #[allow(unused)]
+    struct Param<T>(T);
+
+    let value = api_doc! {
+        #[allow(unused)]
+        struct Params {
+            /// Maximum number of results to return.
+            #[schema(required = false, value_type = u32, example = 12)]
+            limit: Param<u32>,
+            /// Maximum number of results to return.
+            #[schema(required = true, value_type = u32, example = 12)]
+            limit_explisit_required: Param<u32>,
+            /// Maximum number of results to return.
+            #[schema(value_type = Option<u32>, example = 12)]
+            not_required: Param<u32>,
+            /// Maximum number of results to return.
+            #[schema(required = true, value_type = Option<u32>, example = 12)]
+            option_required: Param<u32>,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "limit": {
+                    "description": "Maximum number of results to return.",
+                    "example": 12,
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": "integer"
+                },
+                "limit_explisit_required": {
+                    "description": "Maximum number of results to return.",
+                    "example": 12,
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": "integer"
+                },
+                "not_required": {
+                    "description": "Maximum number of results to return.",
+                    "example": 12,
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "option_required": {
+                    "description": "Maximum number of results to return.",
+                    "example": 12,
+                    "format": "int32",
+                    "minimum": 0,
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "type": "object",
+            "required": [
+                "limit_explisit_required",
+                "option_required"
+            ]
+        })
+    );
+}
