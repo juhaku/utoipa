@@ -1,0 +1,23 @@
+[package]
+name = "utoipa-axum"
+description = "Compile time generated OpenAPI documentation for Rust"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["utoipa", "axum", "bindings"]
+repository = "https://github.com/juhaku/utoipa"
+categories = ["web-programming"]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
+rust-version.workspace = true
+
+[dependencies]
+axum = { version = "0.7", default-features = false }
+once_cell = "1"
+utoipa = { version = "5.0.0-alpha.1", path = "../utoipa", default-features = false }
+async-trait = "0.1"
+
+
+[package.metadata.docs.rs]
+features = []
+rustdoc-args = ["--cfg", "doc_cfg"]

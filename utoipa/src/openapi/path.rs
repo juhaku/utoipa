@@ -86,6 +86,21 @@ impl Paths {
             .get(path.as_ref())
             .and_then(|path| path.operations.get(&item_type))
     }
+
+    /// Append [`PathItem`] with path to map of paths. If path already exists it will merge [`Operation`]s of
+    /// [`PathItem`] with already found path item operations.
+    ///
+    /// This is same operation as [`PathsBuilder::path`] but does not move.
+    pub fn add_path<I: Into<String>>(&mut self, path: I, item: PathItem) {
+        let path_string = path.into();
+        if let Some(existing_item) = self.paths.get_mut(&path_string) {
+            existing_item
+                .operations
+                .extend(&mut item.operations.into_iter());
+        } else {
+            self.paths.insert(path_string, item);
+        }
+    }
 }
 
 impl PathsBuilder {
