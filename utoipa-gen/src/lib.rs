@@ -25,7 +25,7 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{format_ident, quote, quote_spanned, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
@@ -1419,11 +1419,13 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             .map(|path| mem::take(&mut path.body))
             .unwrap_or_default();
 
+        // TODO where to get the state type??????
         let (arguments, into_params_types, body) =
             match PathOperations::resolve_arguments(&ast_fn.sig.inputs, args, body) {
                 Ok(args) => args,
                 Err(diagnostics) => return diagnostics.into_token_stream().into(),
             };
+        dbg!(&arguments, &into_params_types, &body);
 
         let parameters = arguments
             .into_iter()
@@ -1451,11 +1453,43 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let path_tokens = path.to_token_stream();
 
-    quote! {
-        #path_tokens
-        #ast_fn
+    #[cfg(not(feature = "axum_handler"))]
+    {
+        quote! {
+            #path_tokens
+            #ast_fn
+        }
+        .into()
     }
-    .into()
+
+    // TODO resolve the `S` state type from handler function args for axum
+    // find function argument with type `State<T>`.
+    #[cfg(feature = "axum_handler")]
+    {
+        let fn_name = format_ident!("{}", fn_name);
+        quote! {
+            #path_tokens
+
+            impl<S> axum::handler::Handler<std::convert::Infallible, S> for #fn_name
+            where
+                S: Clone + Send + Sync + 'static,
+            {
+                type Future = std::pin::Pin<
+                    std::boxed::Box<
+                        (dyn std::future::Future<Output = axum::http::Response<axum::body::Body>>
+                             + std::marker::Send
+                             + 'static),
+                    >,
+                >;
+
+                fn call(self, req: axum::extract::Request, state: S) -> Self::Future {
+                    #ast_fn
+                    #fn_name.call(req, state)
+                }
+            }
+        }
+        .into()
+    }
 }
 
 #[proc_macro_derive(OpenApi, attributes(openapi))]

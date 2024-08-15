@@ -454,10 +454,15 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         let impl_for = if let Some(impl_for) = &self.path_attr.impl_for {
             impl_for.clone()
         } else {
+            #[cfg(not(feature = "axum_handler"))]
             let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
+            #[cfg(feature = "axum_handler")]
+            let path_struct = format_ident!("{}", &self.fn_name);
+
             tokens.extend(quote! {
                 #[allow(non_camel_case_types)]
                 #[doc(hidden)]
+                #[derive(Clone)]
                 pub struct #path_struct;
             });
             path_struct

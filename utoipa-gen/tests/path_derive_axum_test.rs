@@ -752,3 +752,17 @@ fn derive_path_with_validation_attributes_axum() {
         config
     );
 }
+
+#[test]
+#[cfg(feature = "axum_handler")]
+fn test_axum_handler_derive_state() {
+    use axum::extract::State;
+
+    
+    #[utoipa::path(get, path = "/search")]
+    async fn search_customer(State(json): State<String>) {}
+
+
+
+
+}
