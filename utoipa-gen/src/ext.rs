@@ -339,8 +339,8 @@ pub mod fn_arg {
     /// Http operation handler functions fn argument.
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct FnArg<'a> {
-        pub(super) ty: TypeTree<'a>,
-        pub(super) arg_type: FnArgType<'a>,
+        pub ty: TypeTree<'a>,
+        pub arg_type: FnArgType<'a>,
     }
 
     #[cfg_attr(feature = "debug", derive(Debug))]

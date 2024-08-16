@@ -33,7 +33,34 @@ impl<S> OpenApiRouter<S>
 where
     S: Send + Sync + Clone + 'static,
 {
+    /// Instantiate a new [`OpenApiRouter`] with new empty [`utoipa::openapi::OpenApi`]. This is
+    /// essentially same as calling
+    /// _`OpenApiRouter::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())`_.
     pub fn new() -> OpenApiRouter<S> {
+        Self::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())
+    }
+
+    /// Instantiates a new [`OpenApiRouter`] with given _`openapi`_ instance. 
+    ///
+    /// This function allows using existing [`utoipa::openapi::OpenApi`] as source for this router.
+    ///
+    /// # Examples
+    ///
+    /// _**Use derived [`utoipa::openapi::OpenApi`] as source for [`OpenApiRouter`].**_
+    /// ```rust
+    /// # use utoipa_axum::OpenApiRouter;
+    /// #[derive(utoipa::ToSchema)]
+    /// #[allow(unused)]
+    /// struct Todo {
+    ///     id: i32,
+    /// }
+    /// #[derive(utoipa::OpenApi)]
+    /// #[openapi(components(schemas(Todo)))]
+    /// struct Api;
+    /// 
+    /// let mut router: OpenApiRouter = OpenApiRouter::with_openapi(Api::openapi())
+    /// ```
+    pub fn with_openapi(openapi: utoipa::openapi::OpenApi) -> Self {
         let mut paths = CURRENT_PATHS
             .write()
             .expect("write CURRENT_PATHS lock poisoned");
@@ -41,10 +68,7 @@ where
             paths.paths = BTreeMap::new();
         }
 
-        Self(
-            Router::new(),
-            utoipa::openapi::OpenApiBuilder::new().build(),
-        )
+        Self(Router::new(), openapi)
     }
 
     /// Passthrough method for [`axum::Router::as_service`].
@@ -96,6 +120,7 @@ where
             let Some(path) = path else {
                 unreachable!("Whoopsie, I thought there was one Path entry");
             };
+            let path = if path.is_empty() { "/" } else { path };
 
             self.0.route(&colonized_params(path), method_router)
         } else {
@@ -176,6 +201,7 @@ where
 
         self.1.paths.paths.extend(nested_paths);
 
+        let path = if path.is_empty() { "/" } else { path };
         let router = self.0.nest(&colonized_params(path), router.0);
         Self(router, self.1)
     }

@@ -1413,19 +1413,17 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         use ext::ArgumentResolver;
         use path::parameter::Parameter;
-        let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
+        let path_args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
         let body = resolved_operation
             .as_mut()
             .map(|path| mem::take(&mut path.body))
             .unwrap_or_default();
 
-        // TODO where to get the state type??????
         let (arguments, into_params_types, body) =
-            match PathOperations::resolve_arguments(&ast_fn.sig.inputs, args, body) {
+            match PathOperations::resolve_arguments(&ast_fn.sig.inputs, path_args, body) {
                 Ok(args) => args,
                 Err(diagnostics) => return diagnostics.into_token_stream().into(),
             };
-        dbg!(&arguments, &into_params_types, &body);
 
         let parameters = arguments
             .into_iter()
@@ -1451,45 +1449,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }));
 
-    let path_tokens = path.to_token_stream();
-
-    #[cfg(not(feature = "axum_handler"))]
-    {
-        quote! {
-            #path_tokens
-            #ast_fn
-        }
-        .into()
-    }
-
-    // TODO resolve the `S` state type from handler function args for axum
-    // find function argument with type `State<T>`.
-    #[cfg(feature = "axum_handler")]
-    {
-        let fn_name = format_ident!("{}", fn_name);
-        quote! {
-            #path_tokens
-
-            impl<S> axum::handler::Handler<std::convert::Infallible, S> for #fn_name
-            where
-                S: Clone + Send + Sync + 'static,
-            {
-                type Future = std::pin::Pin<
-                    std::boxed::Box<
-                        (dyn std::future::Future<Output = axum::http::Response<axum::body::Body>>
-                             + std::marker::Send
-                             + 'static),
-                    >,
-                >;
-
-                fn call(self, req: axum::extract::Request, state: S) -> Self::Future {
-                    #ast_fn
-                    #fn_name.call(req, state)
-                }
-            }
-        }
-        .into()
-    }
+    let handler = path::handler::Handler {
+        path,
+        handler_fn: &ast_fn,
+    };
+    handler.to_token_stream().into()
 }
 
 #[proc_macro_derive(OpenApi, attributes(openapi))]
