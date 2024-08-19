@@ -1,3 +1,4 @@
+//! Implements Router for composing handlers and collecting OpenAPI information.
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::sync::RwLock;
@@ -26,6 +27,13 @@ where
     String::from(path).replace('}', "").replace('{', ":")
 }
 
+/// A wrapper struct for [`axum::Router`] and [`utoipa::openapi::OpenApi`] for composing handlers
+/// and services with collecting OpenAPI information from the handlers.
+///
+/// This struct provides passthrough implementation for most of the [`axum::Router`] methods and
+/// extends capabilities for few to collect the OpenAPI information. Methods that are not
+/// implemented can be easily called after converting this router to [`axum::Router`] by
+/// [`Into::into`].
 #[derive(Clone)]
 pub struct OpenApiRouter<S = ()>(Router<S>, utoipa::openapi::OpenApi);
 
@@ -33,14 +41,15 @@ impl<S> OpenApiRouter<S>
 where
     S: Send + Sync + Clone + 'static,
 {
-    /// Instantiate a new [`OpenApiRouter`] with new empty [`utoipa::openapi::OpenApi`]. This is
-    /// essentially same as calling
+    /// Instantiate a new [`OpenApiRouter`] with new empty [`utoipa::openapi::OpenApi`].
+    ///
+    /// This is essentially same as calling
     /// _`OpenApiRouter::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())`_.
     pub fn new() -> OpenApiRouter<S> {
         Self::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())
     }
 
-    /// Instantiates a new [`OpenApiRouter`] with given _`openapi`_ instance. 
+    /// Instantiates a new [`OpenApiRouter`] with given _`openapi`_ instance.
     ///
     /// This function allows using existing [`utoipa::openapi::OpenApi`] as source for this router.
     ///
@@ -48,16 +57,15 @@ where
     ///
     /// _**Use derived [`utoipa::openapi::OpenApi`] as source for [`OpenApiRouter`].**_
     /// ```rust
-    /// # use utoipa_axum::OpenApiRouter;
+    /// # use utoipa_axum::router::OpenApiRouter;
     /// #[derive(utoipa::ToSchema)]
-    /// #[allow(unused)]
     /// struct Todo {
     ///     id: i32,
     /// }
     /// #[derive(utoipa::OpenApi)]
     /// #[openapi(components(schemas(Todo)))]
     /// struct Api;
-    /// 
+    ///
     /// let mut router: OpenApiRouter = OpenApiRouter::with_openapi(Api::openapi())
     /// ```
     pub fn with_openapi(openapi: utoipa::openapi::OpenApi) -> Self {
@@ -176,7 +184,7 @@ where
     ///
     /// _**Nest two routers.**_
     /// ```rust
-    /// # use utiopa_axum::OpenApiRouter;
+    /// # use utiopa_axum::router::OpenApiRouter;
     /// #
     /// #[utoipa::path(get, path = "/search")]
     /// async fn search() {}
@@ -227,7 +235,7 @@ where
     ///
     /// _**Merge two routers.**_
     /// ```rust
-    /// # use utiopa_axum::OpenApiRouter;
+    /// # use utiopa_axum::router::OpenApiRouter;
     /// #
     /// #[utoipa::path(get, path = "/search")]
     /// async fn search() {}
