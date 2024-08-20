@@ -151,8 +151,8 @@ fn get_todo_with_extension() {
     }
     /// In-memory todo store
     type Store = Mutex<Vec<Todo>>;
-    /// List all Todo items
 
+    /// List all Todo items
     ///
     /// List all Todo items from in-memory storage.
     #[utoipa::path(
@@ -163,7 +163,7 @@ fn get_todo_with_extension() {
         )
     )]
     #[allow(unused)]
-    fn list_todos(Extension(store): Extension<Arc<Store>>) {}
+    async fn list_todos(Extension(store): Extension<Arc<Store>>) {}
 
     #[derive(OpenApi)]
     #[openapi(paths(list_todos))]
@@ -646,7 +646,7 @@ fn derive_path_with_validation_attributes_axum() {
         )
     )]
     #[allow(unused)]
-    fn get_foo(path: Path<String>, query: Query<Params>) {}
+    async fn get_foo(path: Path<String>, query: Query<Params>) {}
 
     #[derive(OpenApi, Default)]
     #[openapi(paths(get_foo))]
@@ -763,4 +763,7 @@ fn test_axum_handler_derive_state_compile() {
 
     #[utoipa::path(get, path = "/search-no-state")]
     async fn search_no_state() {}
+
+    #[utoipa::path(get, path = "/get/{id}")]
+    async fn get_item_by_id(Path(_id): Path<String>) {}
 }

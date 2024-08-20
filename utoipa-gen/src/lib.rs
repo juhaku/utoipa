@@ -1378,7 +1378,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         Ok(ast_fn) => ast_fn,
         Err(error) => return error.into_compile_error().into_token_stream().into(),
     };
-    let fn_name = &*ast_fn.sig.ident.to_string();
 
     #[cfg(feature = "auto_into_responses")]
     {
@@ -1435,7 +1434,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         path_attribute.update_request_body(body);
     }
 
-    let path = Path::new(path_attribute, fn_name)
+    let path = Path::new(path_attribute, &ast_fn.sig.ident)
         .path_operation(resolved_operation.map(|operation| operation.path_operation))
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
