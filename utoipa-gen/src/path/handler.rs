@@ -1,25 +1,20 @@
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::ItemFn;
 
-use crate::{as_tokens_or_diagnostics, ext, ToTokensDiagnostics};
+use crate::{as_tokens_or_diagnostics, ToTokensDiagnostics};
 
 use super::Path;
 
-pub struct Handler<
-    'p,
-    // F: FnOnce() -> I + Copy,
-    // I: IntoIterator<Item = crate::ext::fn_arg::FnArg<'p>>,
-> {
+pub struct Handler<'p> {
     pub path: Path<'p>,
     pub handler_fn: &'p ItemFn,
-    // pub fn_args_provider: F,
 }
 
 #[cfg(not(feature = "axum_handler"))]
-impl ToTokensDiagnostics for Handler {
+impl<'p> ToTokensDiagnostics for Handler<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), crate::Diagnostics> {
         let ast_fn = &self.handler_fn;
-        let path = self.path.to_token_stream()?;
+        let path = as_tokens_or_diagnostics!(&self.path);
         tokens.extend(quote! {
             #path
             #ast_fn
@@ -29,12 +24,14 @@ impl ToTokensDiagnostics for Handler {
     }
 }
 
-enum State {
+#[cfg(feature = "axum_handler")]
+enum HandlerState {
     Arg(proc_macro2::TokenStream),
     Default,
 }
 
-impl State {
+#[cfg(feature = "axum_handler")]
+impl HandlerState {
     fn into_state_tokens(self) -> (Option<proc_macro2::TokenStream>, proc_macro2::TokenStream) {
         match self {
             Self::Arg(tokens) => (None, tokens),
@@ -47,11 +44,7 @@ impl State {
 }
 
 #[cfg(feature = "axum_handler")]
-impl<'p> ToTokensDiagnostics for Handler<'p>
-// where
-//     F: FnOnce() -> I + Copy,
-//     I: IntoIterator<Item = crate::ext::fn_arg::FnArg<'a>>,
-{
+impl<'p> ToTokensDiagnostics for Handler<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), crate::Diagnostics> {
         let ast_fn = &self.handler_fn;
         let path = as_tokens_or_diagnostics!(&self.path);
@@ -59,7 +52,7 @@ impl<'p> ToTokensDiagnostics for Handler<'p>
         // TODO refactor the extension FnArg processing, now it is done twice for axum, is there a
         // way to just do it once???
         // See lib.rs and ext/axum.rs
-        let fn_args = ext::fn_arg::get_fn_args(&ast_fn.sig.inputs)?;
+        let fn_args = crate::ext::fn_arg::get_fn_args(&ast_fn.sig.inputs)?;
 
         let state = if let Some(arg) = fn_args
             .into_iter()
@@ -75,9 +68,10 @@ impl<'p> ToTokensDiagnostics for Handler<'p>
                     _ => None,
                 });
 
-            State::Arg(args.to_token_stream())
+            use quote::ToTokens;
+            HandlerState::Arg(args.to_token_stream())
         } else {
-            State::Default
+            HandlerState::Default
         };
         let (generic, state) = state.into_state_tokens();
 

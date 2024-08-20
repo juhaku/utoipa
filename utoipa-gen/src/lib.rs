@@ -25,7 +25,7 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 
 use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
 use syn::{
@@ -274,7 +274,7 @@ use self::{
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
 /// * `untagged` Supported at the container level. Allows [untagged
-///   enum representation](https://serde.rs/enum-representations.html#untagged).
+///    enum representation](https://serde.rs/enum-representations.html#untagged).
 /// * `default` Supported at the container level and field level according to [serde attributes].
 /// * `deny_unknown_fields` Supported at the container level.
 /// * `flatten` Supported at the field level.
@@ -806,9 +806,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -1141,7 +1141,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///    _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///     _`Path<...>`_ or _`Query<...>`_ handler function arguments.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
@@ -2179,9 +2179,9 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2346,9 +2346,9 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
