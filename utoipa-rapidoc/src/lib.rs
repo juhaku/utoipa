@@ -220,6 +220,47 @@ impl RapiDoc {
         }
     }
 
+    /// Construct a new [`RapiDoc`] with given `url`, `spec_url` and `openapi`. The `url` defines
+    /// the location where the RapiDoc UI will be served. The spec url must point to the location
+    /// where the `openapi` will be served.
+    ///
+    /// [`RapiDoc`] is only able to create an endpoint that serves the `openapi` JSON for predefined
+    /// frameworks. _**For other frameworks such an endpoint must be created manually.**_
+    ///
+    /// # Examples
+    ///
+    /// _**Create new [`RapiDoc`] with custom location.**_
+    ///
+    /// ```
+    /// # use utoipa_rapidoc::RapiDoc;
+    /// # use utoipa::OpenApi;
+    /// # #[derive(OpenApi)]
+    /// # #[openapi()]
+    /// # struct ApiDoc;
+    /// RapiDoc::with_url(
+    ///     "/rapidoc",
+    ///     "/api-docs/openapi.json",
+    ///     ApiDoc::openapi()
+    /// );
+    /// ```
+    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg_attr(
+        doc_cfg,
+        doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+    )]
+    pub fn with_url<U: Into<Cow<'static, str>>, S: Into<Cow<'static, str>>>(
+        url: U,
+        spec_url: S,
+        openapi: utoipa::openapi::OpenApi,
+    ) -> Self {
+        Self {
+            path: url.into(),
+            spec_url: spec_url.into(),
+            html: Cow::Borrowed(DEFAULT_HTML),
+            openapi: Some(openapi),
+        }
+    }
+
     /// Override the [default HTML template][rapidoc_quickstart] with new one. See
     /// [customization] for more details.
     ///
@@ -326,10 +367,10 @@ mod axum {
             let html = value.to_html();
             let openapi = value.openapi;
 
-            let mut router = Router::<R>::new().route(
-                value.path.as_ref(),
-                routing::get(move || async { Html(html) }),
-            );
+            let path = value.path.as_ref();
+            let path = if path.is_empty() { "/" } else { path };
+            let mut router =
+                Router::<R>::new().route(path, routing::get(move || async { Html(html) }));
 
             if let Some(openapi) = openapi {
                 router = router.route(
@@ -392,5 +433,23 @@ mod rocket {
         async fn handle<'r>(&self, request: &'r Request<'_>, _: Data<'r>) -> Outcome<'r> {
             Outcome::from(request, Json(self.0.clone()))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "axum")]
+    fn test_axum_with_empty_path() {
+        use ::axum::Router;
+        use utoipa::OpenApi;
+
+        #[derive(utoipa::OpenApi)]
+        #[openapi()]
+        struct ApiDoc;
+
+        let _: Router = Router::new().merge(RapiDoc::with_openapi("/rapidoc", ApiDoc::openapi()));
     }
 }
