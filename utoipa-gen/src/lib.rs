@@ -274,7 +274,7 @@ use self::{
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
 /// * `untagged` Supported at the container level. Allows [untagged
-/// enum representation](https://serde.rs/enum-representations.html#untagged).
+///   enum representation](https://serde.rs/enum-representations.html#untagged).
 /// * `default` Supported at the container level and field level according to [serde attributes].
 /// * `deny_unknown_fields` Supported at the container level.
 /// * `flatten` Supported at the field level.
@@ -725,11 +725,11 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   **context_path** can become handy to alter the path.
 ///
 /// * `tag = "..."` Can be used to group operations. Operations with same tag are grouped together. By default
-///   this is derived from the handler that is given to [`OpenApi`][openapi]. If derive results empty str
-///   then default value _`crate`_ is used instead.
+///   this is derived from the module path of the handler that is given to [`OpenApi`][openapi].
 ///
 /// * `tags = ["tag1", ...]` Can be used to group operations. Operations with same tag are grouped
-///   toghether. Tags attribute can be used to add addtional _tags_ for the operation.
+///   toghether. Tags attribute can be used to add addtional _tags_ for the operation. If both
+///   _`tag`_ and _`tags`_ are provided then they will be combined to a single _`tags`_ array.
 ///
 /// * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
 ///   the performed request.
@@ -806,9 +806,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -1141,7 +1141,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///   _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///    _`Path<...>`_ or _`Query<...>`_ handler function arguments.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
@@ -1470,8 +1470,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `components(schemas(...), responses(...))` Takes available _`component`_ configurations. Currently only
 ///    _`schema`_ and _`response`_ components are supported.
 ///    * `schemas(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
-///    * `responses(...)` List of types that implement
-/// [`ToResponse`][to_response_trait].
+///    * `responses(...)` List of types that implement [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
 /// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
@@ -2182,9 +2181,9 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2349,9 +2348,9 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///  response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///  _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///  the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///

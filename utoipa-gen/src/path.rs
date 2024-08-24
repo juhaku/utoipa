@@ -445,11 +445,9 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         let operation = as_tokens_or_diagnostics!(&operation);
 
         let mut tags = self.path_attr.tags.clone();
-        match self.path_attr.tag.as_ref() {
-            Some(tag) if tags.is_empty() => {
-                tags.push(tag.clone());
-            }
-            _ => (),
+        if let Some(tag) = self.path_attr.tag.as_ref() {
+            // if defined tag is the first before the additional tags
+            tags.insert(0, tag.clone());
         }
         let tags_list = tags.into_iter().collect::<Array<_>>();
 
