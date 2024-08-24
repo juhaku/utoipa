@@ -22,18 +22,18 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
 
 ## Crate Features
 
-* **actix-web** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
+* **`actix-web`** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
   users to use the Swagger UI without a hassle.
-* **rocket** Enables rocket integration with pre-configured routes for serving the Swagger UI
+* **`rocket`** Enables rocket integration with pre-configured routes for serving the Swagger UI
   and api doc without a hassle.
-* **axum** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
+* **`axum`** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
   hassle free.
-* **debug-embed** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
+* **`debug-embed`** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
   builds as well.
-* **reqwest** Use `reqwest` for downloading Swagger UI accoring to the `SWAGGER_UI_DOWNLOAD_URL` environment
+* **`reqwest`** Use `reqwest` for downloading Swagger UI accoring to the `SWAGGER_UI_DOWNLOAD_URL` environment
   variable. This is only enabled by default on _Windows_.
-* **url** Enabled by default for parsing and encoding the download URL.
-* **vendored** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
+* **`url`** Enabled by default for parsing and encoding the download URL.
+* **`vendored`** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
 
 ## Install
 
@@ -55,25 +55,26 @@ utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
 
 ## Build Config
 
-_`utoipa-swagger-ui` crate will by default try to use system `curl` package for downloading the Swagger UI. It
-can optionally be downloaded with `reqwest` by enabling `reqwest` feature. On Windows the `reqwest` feature
-is enabled by default. Reqwest can be useful for platform independent builds however bringing quite a few 
-unnecessary dependencies just to download a file. If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no 
-downloading will happen._
+> [!IMPORTANT]
+> _`utoipa-swagger-ui` crate will by default try to use system `curl` package for downloading the Swagger UI. It
+> can optionally be downloaded with `reqwest` by enabling `reqwest` feature. On Windows the `reqwest` feature
+> is enabled by default. Reqwest can be useful for platform independent builds however bringing quite a few 
+> unnecessary dependencies just to download a file. If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no 
+> downloading will happen._
 
-The following configuration env variables are available at build time:
+> [!TIP]
+> Use **`vendored`** feature flag to use vendored Swagger UI. This is especially useful for no network 
+> environments.
 
-* `SWAGGER_UI_DOWNLOAD_URL`:
+**The following configuration env variables are available at build time:**
 
-  * the url from where to download the swagger-ui zip file if starts with `http://` or `https://`
-  * the file path from where to copy the swagger-ui zip file if starts with `file://`
-  * default value: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip>
-    * all versions: <https://github.com/swagger-api/swagger-ui/tags>
+ * `SWAGGER_UI_DOWNLOAD_URL`: Defines the url from where to download the swagger-ui zip file.
 
-* `SWAGGER_UI_OVERWRITE_FOLDER`:
+   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip>
+   * [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 
-  * absolute path to a folder containing files to overwrite the swagger-ui files extracted from the `.zip` file
-  * typically you might want to overwrite `index.html`
+ * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files 
+    to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
 
 ## Examples
 
