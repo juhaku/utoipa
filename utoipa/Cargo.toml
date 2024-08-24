@@ -59,3 +59,6 @@ assert-json-diff = "2"
 [package.metadata.docs.rs]
 features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "ulid", "url", "yaml"]
 rustdoc-args = ["--cfg", "doc_cfg"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }

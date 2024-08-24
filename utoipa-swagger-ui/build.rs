@@ -178,7 +178,8 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
         // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
         println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
 
-        download_file(url, zip_path.clone()).unwrap();
+        download_file(url, zip_path.clone())
+            .unwrap_or_else(|error| panic!("failed to download Swagger UI: {error}"));
         let swagger_ui_zip =
             File::open([target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
         let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
@@ -310,6 +311,13 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
                     io::ErrorKind::Other,
                     format!("curl download file exited with error status: {status}"),
                 ))
+            }
+        })
+        .map_err(|error| {
+            if error.kind() == io::ErrorKind::NotFound {
+                io::Error::new(error.kind(), "`curl` command not found".to_string())
+            } else {
+                error
             }
         })
         .map_err(Box::new)?)
