@@ -429,16 +429,13 @@ impl OpenApi<'_> {
                     let span = nest_api.span();
                     quote_spanned! {span=>
                         .nest(#path, {
+                            #[allow(non_camel_case_types)]
                             struct #nest_api_config;
                             impl utoipa::__dev::NestedApiConfig for #nest_api_config {
-                                fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>) {
+                                fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>, &'static str) {
                                     let api = <#nest_api as utoipa::OpenApi>::openapi();
-                                    let mut tags: Vec<_> = #tags.into();
-                                    if !#module_path.is_empty() {
-                                        tags.push(#module_path);
-                                    }
 
-                                    (api, tags)
+                                    (api, #tags.into(), #module_path)
                                 }
                             }
                             <#nest_api_config as utoipa::OpenApi>::openapi()
@@ -641,7 +638,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
                         let item = #usage::path_item();
                         let path = #usage::path();
                         let mut tags = <#usage as utoipa::__dev::Tags>::tags();
-                        if !#tag.is_empty() {
+                        if !#tag.is_empty() && tags.is_empty() {
                             tags.push(#tag);
                         }
 

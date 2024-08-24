@@ -950,8 +950,6 @@ pub mod __dev {
         fn tags() -> Vec<&'t str>;
     }
 
-    const DEFAULT_TAG: &str = "crate";
-
     impl<T: PathConfig> utoipa::Path for T {
         fn path() -> String {
             <Self as PathConfig>::config().0.to_string()
@@ -963,10 +961,6 @@ pub mod __dev {
             for (_, operation) in item.operations.iter_mut() {
                 let operation_tags = operation.tags.get_or_insert(Vec::new());
                 operation_tags.extend(tags.iter().map(ToString::to_string));
-                // add deault tag if no tags is defined
-                if operation_tags.is_empty() {
-                    operation_tags.push(DEFAULT_TAG.to_string());
-                }
             }
 
             item
@@ -974,12 +968,12 @@ pub mod __dev {
     }
 
     pub trait NestedApiConfig {
-        fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>);
+        fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>, &'static str);
     }
 
     impl<T: NestedApiConfig> OpenApi for T {
         fn openapi() -> crate::openapi::OpenApi {
-            let (mut api, tags) = T::config();
+            let (mut api, tags, module_path) = T::config();
 
             api.paths
                 .paths
@@ -988,18 +982,8 @@ pub mod __dev {
                 .for_each(|(_, operation)| {
                     let operation_tags = operation.tags.get_or_insert(Vec::new());
                     operation_tags.extend(tags.iter().map(ToString::to_string));
-                    // remove defualt tag if found and there are more than 1 tag
-                    if operation_tags.len() > 1 {
-                        let index = operation_tags.iter().enumerate().find_map(|(index, tag)| {
-                            if tag == DEFAULT_TAG {
-                                Some(index)
-                            } else {
-                                None
-                            }
-                        });
-                        if let Some(index) = index {
-                            operation_tags.remove(index);
-                        };
+                    if operation_tags.is_empty() && !module_path.is_empty() {
+                        operation_tags.push(module_path.to_string());
                     }
                 });
 
