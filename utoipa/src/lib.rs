@@ -940,6 +940,7 @@ pub trait ToResponse<'__r> {
 #[doc(hidden)]
 pub mod __dev {
 
+    use crate::openapi::PathItemType;
     use crate::{utoipa, OpenApi};
 
     pub trait PathConfig {
@@ -989,6 +990,10 @@ pub mod __dev {
 
             api
         }
+    }
+
+    pub trait PathItemTypes {
+        fn path_item_types() -> Vec<PathItemType>;
     }
 }
 

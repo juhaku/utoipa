@@ -25,6 +25,7 @@ jobs:
           - utoipa-redoc
           - utoipa-rapidoc
           - utoipa-scalar
+          - utoipa-axum
       fail-fast: true
     runs-on: ubuntu-latest
 
@@ -61,6 +62,8 @@ jobs:
             elif [[ "$change" == "utoipa-rapidoc" && "${{ matrix.crate }}" == "utoipa-rapidoc" && $changes == false ]]; then
               changes=true
             elif [[ "$change" == "utoipa-scalar" && "${{ matrix.crate }}" == "utoipa-scalar" && $changes == false ]]; then
+              changes=true
+            elif [[ "$change" == "utoipa-axum" && "${{ matrix.crate }}" == "utoipa-axum" && $changes == false ]]; then
               changes=true
             fi
           done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')

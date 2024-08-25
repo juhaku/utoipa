@@ -22,7 +22,6 @@ for crate in $crates; do
         $CARGO test -p utoipa-gen --test path_derive_rocket --features rocket_extras
 
         $CARGO test -p utoipa-gen --test path_derive_axum_test --features axum_extras
-        $CARGO test -p utoipa-gen --test path_derive_axum_test --features axum_extras,axum_handler
         $CARGO test -p utoipa-gen --test path_derive_auto_into_responses_axum --features axum_extras,utoipa/auto_into_responses
     elif [[ "$crate" == "utoipa-swagger-ui" ]]; then
         $CARGO test -p utoipa-swagger-ui --features actix-web,rocket,axum
@@ -33,6 +32,6 @@ for crate in $crates; do
     elif [[ "$crate" == "utoipa-scalar" ]]; then
         $CARGO test -p utoipa-scalar --features actix-web,rocket,axum
     elif [[ "$crate" == "utoipa-axum" ]]; then
-        $CARGO test -p utoipa-axum 
+        $CARGO test -p utoipa-axum --features debug,utoipa/debug
     fi
 done

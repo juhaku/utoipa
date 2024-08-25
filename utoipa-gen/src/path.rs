@@ -25,22 +25,15 @@ mod request_body;
 pub mod response;
 mod status;
 
-#[cfg(not(feature = "axum_handler"))]
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
 #[inline]
 pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
-    #[cfg(not(feature = "axum_handler"))]
     {
         Cow::Owned(quote::format_ident!(
             "{PATH_STRUCT_PREFIX}{}",
             fn_name.as_ref()
         ))
-    }
-
-    #[cfg(feature = "axum_handler")]
-    {
-        fn_name
     }
 }
 
@@ -488,6 +481,11 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             impl<'t> utoipa::__dev::Tags<'t> for #impl_for {
                 fn tags() -> Vec<&'t str> {
                     #tags_list.into()
+                }
+            }
+            impl utoipa::__dev::PathItemTypes for #impl_for {
+                fn path_item_types() -> Vec<utoipa::openapi::path::PathItemType> {
+                    [#path_operation].into()
                 }
             }
             impl utoipa::Path for #impl_for {

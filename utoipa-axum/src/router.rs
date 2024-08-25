@@ -1,23 +1,14 @@
 //! Implements Router for composing handlers and collecting OpenAPI information.
 use std::collections::BTreeMap;
 use std::convert::Infallible;
-use std::sync::RwLock;
 
 use axum::extract::Request;
+use axum::handler::Handler;
 use axum::response::IntoResponse;
 use axum::routing::{MethodRouter, Route, RouterAsService};
 use axum::Router;
-use once_cell::sync::Lazy;
 use tower_layer::Layer;
 use tower_service::Service;
-
-use crate::UtoipaHandler;
-
-/// Cache for current routes that will be register to the [`OpenApiRouter`] once the
-/// [`OpenApiRouter::routes`] method is called.
-#[doc(hidden)]
-pub(crate) static CURRENT_PATHS: Lazy<RwLock<utoipa::openapi::path::Paths>> =
-    once_cell::sync::Lazy::new(|| RwLock::new(utoipa::openapi::path::Paths::new()));
 
 #[inline]
 fn colonized_params<S: AsRef<str>>(path: S) -> String
@@ -27,6 +18,17 @@ where
     String::from(path).replace('}', "").replace('{', ":")
 }
 
+/// Wrapper type for [`utoipa::openapi::path::Paths`] and [`axum::routing::MethodRouter`].
+///
+/// This is used with [`OpenApiRouter::routes`] method to register current _`paths`_ to the
+/// [`utoipa::openapi::OpenApi`] of [`OpenApiRouter`] instance.
+///
+/// See [`routes`][routes] for usage.
+///
+/// [routes]: ../macro.routes.html
+pub type UtoipaMethodRouter<S = ()> =
+    (utoipa::openapi::path::Paths, axum::routing::MethodRouter<S>);
+
 /// A wrapper struct for [`axum::Router`] and [`utoipa::openapi::OpenApi`] for composing handlers
 /// and services with collecting OpenAPI information from the handlers.
 ///
@@ -35,6 +37,7 @@ where
 /// implemented can be easily called after converting this router to [`axum::Router`] by
 /// [`Into::into`].
 #[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiRouter<S = ()>(Router<S>, utoipa::openapi::OpenApi);
 
 impl<S> OpenApiRouter<S>
@@ -57,6 +60,7 @@ where
     ///
     /// _**Use derived [`utoipa::openapi::OpenApi`] as source for [`OpenApiRouter`].**_
     /// ```rust
+    /// # use utoipa::OpenApi;
     /// # use utoipa_axum::router::OpenApiRouter;
     /// #[derive(utoipa::ToSchema)]
     /// struct Todo {
@@ -66,16 +70,9 @@ where
     /// #[openapi(components(schemas(Todo)))]
     /// struct Api;
     ///
-    /// let mut router: OpenApiRouter = OpenApiRouter::with_openapi(Api::openapi())
+    /// let mut router: OpenApiRouter = OpenApiRouter::with_openapi(Api::openapi());
     /// ```
     pub fn with_openapi(openapi: utoipa::openapi::OpenApi) -> Self {
-        let mut paths = CURRENT_PATHS
-            .write()
-            .expect("write CURRENT_PATHS lock poisoned");
-        if !paths.paths.is_empty() {
-            paths.paths = BTreeMap::new();
-        }
-
         Self(Router::new(), openapi)
     }
 
@@ -87,7 +84,7 @@ where
     /// Passthrough method for [`axum::Router::fallback`].
     pub fn fallback<H, T>(self, handler: H) -> Self
     where
-        H: UtoipaHandler<T, S>,
+        H: Handler<T, S>,
         T: 'static,
     {
         Self(self.0.fallback(handler), self.1)
@@ -115,13 +112,13 @@ where
         Self(self.0.layer(layer), self.1)
     }
 
-    /// Register paths with [`utoipa::path`] attribute macro to `self`. Paths will be extended to
-    /// [`utoipa::openapi::OpenApi`] and routes will be added to the [`axum::Router`].
-    pub fn routes(mut self, method_router: MethodRouter<S>) -> Self {
-        let mut paths = CURRENT_PATHS
-            .write()
-            .expect("write CURRENT_PATHS lock poisoned");
-
+    /// Register [`UtoipaMethodRouter`] content created with [`routes`][routes] macro to `self`.
+    ///
+    /// Paths of the [`UtoipaMethodRouter`] will be extended to [`utoipa::openapi::OpenApi`] and
+    /// [`axum::router::MethodRouter`] will be added to the [`axum::Router`].
+    ///
+    /// [routes]: ../macro.routes.html
+    pub fn routes(mut self, (mut paths, method_router): UtoipaMethodRouter<S>) -> Self {
         let router = if paths.paths.len() == 1 {
             let first_entry = &paths.paths.first_entry();
             let path = first_entry.as_ref().map(|path| path.key());
@@ -133,15 +130,13 @@ where
             self.0.route(&colonized_params(path), method_router)
         } else {
             paths.paths.iter().fold(self.0, |this, (path, _)| {
+                let path = if path.is_empty() { "/" } else { path };
                 this.route(&colonized_params(path), method_router.clone())
             })
         };
 
         // add current paths to the OpenApi
         self.1.paths.paths.extend(paths.paths.clone());
-
-        // clear the already added routes
-        paths.paths = BTreeMap::new();
 
         Self(router, self.1)
     }
@@ -184,15 +179,14 @@ where
     ///
     /// _**Nest two routers.**_
     /// ```rust
-    /// # use utiopa_axum::router::OpenApiRouter;
-    /// #
+    /// # use utoipa_axum::{routes, PathItemExt, router::OpenApiRouter};
     /// #[utoipa::path(get, path = "/search")]
     /// async fn search() {}
     ///
     /// let search_router = OpenApiRouter::new()
-    ///     .routes(utoipa_axum::get(search))
+    ///     .routes(utoipa_axum::routes!(search));
     ///
-    /// let router: OpenApiRouter::new()
+    /// let router: OpenApiRouter = OpenApiRouter::new()
     ///     .nest("/api", search_router);
     /// ```
     pub fn nest(mut self, path: &str, router: OpenApiRouter<S>) -> Self {
@@ -235,15 +229,14 @@ where
     ///
     /// _**Merge two routers.**_
     /// ```rust
-    /// # use utiopa_axum::router::OpenApiRouter;
-    /// #
+    /// # use utoipa_axum::{routes, PathItemExt, router::OpenApiRouter};
     /// #[utoipa::path(get, path = "/search")]
     /// async fn search() {}
     ///
     /// let search_router = OpenApiRouter::new()
-    ///     .routes(utoipa_axum::get(search))
+    ///     .routes(utoipa_axum::routes!(search));
     ///
-    /// let router: OpenApiRouter::new()
+    /// let router: OpenApiRouter = OpenApiRouter::new()
     ///     .merge(search_router);
     /// ```
     pub fn merge(mut self, router: OpenApiRouter<S>) -> Self {
