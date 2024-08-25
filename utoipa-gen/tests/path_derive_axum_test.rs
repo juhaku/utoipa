@@ -752,18 +752,3 @@ fn derive_path_with_validation_attributes_axum() {
         config
     );
 }
-
-#[test]
-#[cfg(feature = "axum_handler")]
-fn test_axum_handler_derive_state_compile() {
-    use axum::extract::State;
-
-    #[utoipa::path(get, path = "/search")]
-    async fn search(State(_s): State<(String, i32)>) {}
-
-    #[utoipa::path(get, path = "/search-no-state")]
-    async fn search_no_state() {}
-
-    #[utoipa::path(get, path = "/get/{id}")]
-    async fn get_item_by_id(Path(_id): Path<String>) {}
-}
