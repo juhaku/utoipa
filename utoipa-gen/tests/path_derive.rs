@@ -119,7 +119,7 @@ macro_rules! api_fn_doc_with_params {
                 )
             )]
         #[allow(unused)]
-        fn my_operation(params: MyParams) -> String {
+        async fn my_operation(params: MyParams) -> String {
             "".to_string()
         }
 
@@ -2052,7 +2052,7 @@ fn derive_path_with_multiple_tags() {
         ),
     )]
     #[allow(unused)]
-    fn get_items() -> String {
+    async fn get_items() -> String {
         "".to_string()
     }
 
@@ -2097,7 +2097,7 @@ split to multiple lines";
         ),
     )]
     #[allow(unused)]
-    fn test_description_summary() -> &'static str {
+    async fn test_description_summary() -> &'static str {
         ""
     }
 
@@ -2135,7 +2135,7 @@ fn derive_path_include_str_description() {
         ),
     )]
     #[allow(unused)]
-    fn test_description_summary() -> &'static str {
+    async fn test_description_summary() -> &'static str {
         ""
     }
 

@@ -274,7 +274,7 @@ use self::{
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
 /// * `untagged` Supported at the container level. Allows [untagged
-///   enum representation](https://serde.rs/enum-representations.html#untagged).
+///    enum representation](https://serde.rs/enum-representations.html#untagged).
 /// * `default` Supported at the container level and field level according to [serde attributes].
 /// * `deny_unknown_fields` Supported at the container level.
 /// * `flatten` Supported at the field level.
@@ -806,9 +806,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -1141,7 +1141,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///    _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///     _`Path<...>`_ or _`Query<...>`_ handler function arguments.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
@@ -1378,7 +1378,6 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         Ok(ast_fn) => ast_fn,
         Err(error) => return error.into_compile_error().into_token_stream().into(),
     };
-    let fn_name = &*ast_fn.sig.ident.to_string();
 
     #[cfg(feature = "auto_into_responses")]
     {
@@ -1413,14 +1412,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     {
         use ext::ArgumentResolver;
         use path::parameter::Parameter;
-        let args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
+        let path_args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
         let body = resolved_operation
             .as_mut()
             .map(|path| mem::take(&mut path.body))
             .unwrap_or_default();
 
         let (arguments, into_params_types, body) =
-            match PathOperations::resolve_arguments(&ast_fn.sig.inputs, args, body) {
+            match PathOperations::resolve_arguments(&ast_fn.sig.inputs, path_args, body) {
                 Ok(args) => args,
                 Err(diagnostics) => return diagnostics.into_token_stream().into(),
             };
@@ -1435,7 +1434,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         path_attribute.update_request_body(body);
     }
 
-    let path = Path::new(path_attribute, fn_name)
+    let path = Path::new(path_attribute, &ast_fn.sig.ident)
         .path_operation(resolved_operation.map(|operation| operation.path_operation))
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
@@ -1449,13 +1448,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }));
 
-    let path_tokens = path.to_token_stream();
-
-    quote! {
-        #path_tokens
-        #ast_fn
-    }
-    .into()
+    let handler = path::handler::Handler {
+        path,
+        handler_fn: &ast_fn,
+    };
+    handler.to_token_stream().into()
 }
 
 #[proc_macro_derive(OpenApi, attributes(openapi))]
@@ -2181,9 +2178,9 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2348,9 +2345,9 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
 ///   _`application/json`_ for struct and complex enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
+///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
+///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///

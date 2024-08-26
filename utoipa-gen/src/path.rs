@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::{io::Error, str::FromStr};
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Paren;
@@ -19,12 +19,23 @@ use self::response::Response;
 use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Responses};
 
 pub mod example;
+pub mod handler;
 pub mod parameter;
 mod request_body;
 pub mod response;
 mod status;
 
-pub(crate) const PATH_STRUCT_PREFIX: &str = "__path_";
+const PATH_STRUCT_PREFIX: &str = "__path_";
+
+#[inline]
+pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
+    {
+        Cow::Owned(quote::format_ident!(
+            "{PATH_STRUCT_PREFIX}{}",
+            fn_name.as_ref()
+        ))
+    }
+}
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -267,7 +278,7 @@ impl ToTokens for PathOperation {
 }
 pub struct Path<'p> {
     path_attr: PathAttr<'p>,
-    fn_name: String,
+    fn_ident: &'p Ident,
     path_operation: Option<PathOperation>,
     path: Option<String>,
     doc_comments: Option<Vec<String>>,
@@ -275,10 +286,10 @@ pub struct Path<'p> {
 }
 
 impl<'p> Path<'p> {
-    pub fn new(path_attr: PathAttr<'p>, fn_name: &str) -> Self {
+    pub fn new(path_attr: PathAttr<'p>, fn_ident: &'p Ident) -> Self {
         Self {
             path_attr,
-            fn_name: fn_name.to_string(),
+            fn_ident,
             path_operation: None,
             path: None,
             doc_comments: None,
@@ -313,6 +324,7 @@ impl<'p> Path<'p> {
 
 impl<'p> ToTokensDiagnostics for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+        let fn_name = &*self.fn_ident.to_string();
         let operation_id = self
             .path_attr
             .operation_id
@@ -320,7 +332,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .or(Some(
                 ExprLit {
                     attrs: vec![],
-                    lit: Lit::Str(LitStr::new(&self.fn_name, Span::call_site())),
+                    lit: Lit::Str(LitStr::new(&fn_name, Span::call_site())),
                 }
                 .into(),
             ))
@@ -328,7 +340,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 Diagnostics::new("operation id is not defined for path")
                     .help(format!(
                         "Try to define it in #[utoipa::path(operation_id = {})]",
-                        &self.fn_name
+                        &fn_name
                     ))
                     .help("Did you define the #[utoipa::path(...)] over function?")
             })?;
@@ -452,12 +464,14 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         let tags_list = tags.into_iter().collect::<Array<_>>();
 
         let impl_for = if let Some(impl_for) = &self.path_attr.impl_for {
-            impl_for.clone()
+            Cow::Borrowed(impl_for)
         } else {
-            let path_struct = format_ident!("{}{}", PATH_STRUCT_PREFIX, self.fn_name);
+            let path_struct = format_path_ident(Cow::Borrowed(self.fn_ident));
+
             tokens.extend(quote! {
                 #[allow(non_camel_case_types)]
                 #[doc(hidden)]
+                #[derive(Clone)]
                 pub struct #path_struct;
             });
             path_struct
@@ -467,6 +481,11 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             impl<'t> utoipa::__dev::Tags<'t> for #impl_for {
                 fn tags() -> Vec<&'t str> {
                     #tags_list.into()
+                }
+            }
+            impl utoipa::__dev::PathItemTypes for #impl_for {
+                fn path_item_types() -> Vec<utoipa::openapi::path::PathItemType> {
+                    [#path_operation].into()
                 }
             }
             impl utoipa::Path for #impl_for {

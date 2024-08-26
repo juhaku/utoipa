@@ -11,6 +11,7 @@ members = [
     "utoipa-redoc",
     "utoipa-rapidoc",
     "utoipa-scalar",
+    "utoipa-axum",
 ]
 
 [workspace.metadata.publish]
@@ -22,4 +23,5 @@ order = [
     "utoipa-redoc",
     "utoipa-rapidoc",
     "utoipa-scalar",
+    "utoipa-axum",
 ]

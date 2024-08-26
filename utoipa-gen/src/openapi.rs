@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use proc_macro2::Ident;
 use syn::{
     bracketed, parenthesized,
@@ -11,11 +13,8 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use crate::parse_utils::Str;
-use crate::{
-    parse_utils, path::PATH_STRUCT_PREFIX, security_requirement::SecurityRequirementsAttr, Array,
-    ExternalDocs,
-};
+use crate::{parse_utils, security_requirement::SecurityRequirementsAttr, Array, ExternalDocs};
+use crate::{parse_utils::Str, path};
 
 use self::info::Info;
 
@@ -606,10 +605,9 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
         .iter()
         .map(|handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
-            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
-            let handler_ident = format_ident!("{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
-            let handler_ident_name = &*handler_ident.to_string();
-            let handler_ident_nested = format_ident!("__{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+            let handler_fn = &segments.last().unwrap().ident;
+            let handler_ident = path::format_path_ident(Cow::Borrowed(handler_fn));
+            let handler_ident_nested = format_ident!("_{}", handler_ident.as_ref());
 
             let tag = &*segments
                 .iter()
@@ -621,7 +619,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
             let usage = syn::parse_str::<ExprPath>(
                 &vec![
                     if tag.is_empty() { None } else { Some(tag) },
-                    Some(handler_ident_name),
+                    Some(&*handler_ident.as_ref().to_string()),
                 ]
                 .into_iter()
                 .flatten()
@@ -631,6 +629,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
             .unwrap();
 
             quote! {
+                #[allow(non_camel_case_types)]
                 struct #handler_ident_nested;
                 #[allow(non_camel_case_types)]
                 impl utoipa::__dev::PathConfig for #handler_ident_nested {
@@ -653,8 +652,9 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
         quote! { #handlers utoipa::openapi::path::PathsBuilder::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
-            let handler_fn_name = &*segments.last().unwrap().ident.to_string();
-            let handler_ident_nested = format_ident!("__{}{}", PATH_STRUCT_PREFIX, handler_fn_name);
+            let handler_fn = &segments.last().unwrap().ident;
+            let handler_ident_nested =
+                format_ident!("_{}", path::format_path_ident(Cow::Borrowed(handler_fn)));
 
             paths.extend(quote! {
                 .path_from::<#handler_ident_nested>()

@@ -4,7 +4,7 @@ set -e
 
 : "${CARGO:=cargo}"
 
-crates="${1:-utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc}"
+crates="${1:-utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc utoipa-scalar utoipa-axum}"
 
 for crate in $crates; do
     echo "Testing crate: $crate..."
@@ -31,5 +31,7 @@ for crate in $crates; do
         $CARGO test -p utoipa-rapidoc --features actix-web,rocket,axum
     elif [[ "$crate" == "utoipa-scalar" ]]; then
         $CARGO test -p utoipa-scalar --features actix-web,rocket,axum
+    elif [[ "$crate" == "utoipa-axum" ]]; then
+        $CARGO test -p utoipa-axum --features debug,utoipa/debug
     fi
 done
