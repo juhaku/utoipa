@@ -91,14 +91,14 @@ impl Paths {
     /// [`PathItem`] with already found path item operations.
     ///
     /// This is same operation as [`PathsBuilder::path`] but does not move.
-    pub fn add_path<I: Into<String>>(&mut self, path: I, item: PathItem) {
-        let path_string = path.into();
-        if let Some(existing_item) = self.paths.get_mut(&path_string) {
+    pub fn add_path<I: AsRef<str>>(&mut self, path: I, item: PathItem) {
+        let path = path.as_ref();
+        if let Some(existing_item) = self.paths.get_mut(path) {
             existing_item
                 .operations
                 .extend(&mut item.operations.into_iter());
         } else {
-            self.paths.insert(path_string, item);
+            self.paths.insert(String::from(path), item);
         }
     }
 }
@@ -126,7 +126,28 @@ impl PathsBuilder {
     /// Appends a [`Path`] to map of paths. By calling [`path`](PathsBuilder::path) method.
     /// None will be passed into [Path::path_item] method.
     pub fn path_from<P: Path>(self) -> Self {
-        self.path(P::path(), P::path_item())
+        let methods = P::methods();
+        let operation = P::operation();
+
+        // for one operation method avoid clone
+        let path_item = if methods.len() == 1 {
+            PathItem::new(
+                methods
+                    .into_iter()
+                    .next()
+                    .expect("must have one operation method"),
+                operation,
+            )
+        } else {
+            methods
+                .into_iter()
+                .fold(PathItemBuilder::new(), |path_item, method| {
+                    path_item.operation(method, operation.clone())
+                })
+                .build()
+        };
+
+        self.path(P::path(), path_item)
     }
 }
 
@@ -795,8 +816,8 @@ mod tests {
             SecurityRequirement::new("api_oauth2_flow", ["edit:items", "read:items"]);
         let security_requirement2 = SecurityRequirement::new("api_oauth2_flow", ["remove:items"]);
         let operation = OperationBuilder::new()
-            .security(security_requirement1.into())
-            .security(security_requirement2.into())
+            .security(security_requirement1)
+            .security(security_requirement2)
             .build();
 
         assert!(operation.security.is_some());

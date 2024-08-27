@@ -7,7 +7,7 @@ use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, Ty
 
 use crate::doc_comment::CommentAttributes;
 use crate::schema_type::{SchemaFormat, SchemaTypeInner};
-use crate::{as_tokens_or_diagnostics, Diagnostics, OptionExt, ToTokensDiagnostics};
+use crate::{as_tokens_or_diagnostics, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics};
 use crate::{schema_type::SchemaType, Deprecated};
 
 use self::features::{
@@ -32,18 +32,11 @@ fn is_default(container_rules: &SerdeContainer, field_rule: &SerdeValue) -> bool
 /// Find `#[deprecated]` attribute from given attributes. Typically derive type attributes
 /// or field attributes of struct.
 fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
-    attributes.iter().find_map(|attribute| {
-        if attribute
-            .path()
-            .get_ident()
-            .map(|ident| *ident == "deprecated")
-            .unwrap_or(false)
-        {
-            Some(Deprecated::True)
-        } else {
-            None
-        }
-    })
+    if attributes.has_deprecated() {
+        Some(Deprecated::True)
+    } else {
+        None
+    }
 }
 
 /// Check whether field is required based on following rules.

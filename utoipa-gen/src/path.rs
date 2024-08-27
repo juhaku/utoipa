@@ -6,9 +6,9 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::Paren;
+use syn::token::{Comma, Paren};
+use syn::{bracketed, Expr, ExprLit, Lit, LitStr, Type};
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::path::request_body::RequestBody;
@@ -40,7 +40,7 @@ pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
-    path_operation: Option<PathOperation>,
+    methods: Vec<OperationMethod>,
     request_body: Option<RequestBody<'p>>,
     responses: Vec<Response<'p>>,
     pub(super) path: Option<parse_utils::Value>,
@@ -108,8 +108,36 @@ impl<'p> PathAttr<'p> {
 
 impl Parse for PathAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, get, post, put, delete, options, head, patch, trace, connect, request_body, responses, params, tag, security, context_path, description, summary";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, request_body, responses, params, tag, security, context_path, description, summary";
         let mut path_attr = PathAttr::default();
+
+        // TODO fis this
+        // #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+        {
+            const EXPECTED_OPERATION_METHOD: &str = "unexected identifier, expected either one of: get, post, put, delete, options, head, patch, trace, connect or method = [get, post, ...]";
+            let fork = input.fork();
+            let is_method = fork
+                .parse::<Ident>()
+                .map(|ident| &*ident.to_string() == "method")
+                .unwrap_or_default();
+            if is_method {
+                input.parse::<Ident>()?;
+                path_attr.methods = parse_utils::parse_next(input, || {
+                    let bracketed;
+                    bracketed!(bracketed in input);
+
+                    bracketed.parse_terminated(OperationMethod::parse, Comma)
+                })
+                .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?
+                .into_iter()
+                .collect();
+            } else {
+                path_attr.methods = vec![input
+                    .parse::<OperationMethod>()
+                    .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?];
+            }
+            input.parse::<Token![,]>()?;
+        }
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
@@ -179,14 +207,7 @@ impl Parse for PathAttr<'_> {
                     path_attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
                 _ => {
-                    // any other case it is expected to be path operation
-                    if let Some(path_operation) =
-                        attribute_name.parse::<PathOperation>().into_iter().next()
-                    {
-                        path_attr.path_operation = Some(path_operation)
-                    } else {
-                        return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
-                    }
+                    return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
                 }
             }
 
@@ -211,7 +232,7 @@ impl Parse for PathAttr<'_> {
 ///   * "patch"
 ///   * "trace"
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum PathOperation {
+pub enum OperationMethod {
     Get,
     Post,
     Put,
@@ -223,7 +244,31 @@ pub enum PathOperation {
     Connect,
 }
 
-impl PathOperation {
+impl Parse for OperationMethod {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        const ERROR_MESSAGE: &str = "unexpected operation method, expected one of: get, post, put, delete, options, head, patch, trace, connect";
+
+        let method = input
+            .parse::<Ident>()
+            .map_err(|error| syn::Error::new(error.span(), &format!("{ERROR_MESSAGE}, {error}")))?;
+        let operation_method = match &*method.to_string() {
+            "get" => OperationMethod::Get,
+            "post" => OperationMethod::Post,
+            "put" => OperationMethod::Put,
+            "delete" => OperationMethod::Delete,
+            "options" => OperationMethod::Options,
+            "head" => OperationMethod::Head,
+            "patch" => OperationMethod::Patch,
+            "trace" => OperationMethod::Trace,
+            "connect" => OperationMethod::Connect,
+            _ => return Err(syn::Error::new(method.span(), ERROR_MESSAGE)),
+        };
+
+        Ok(operation_method)
+    }
+}
+
+impl OperationMethod {
     /// Create path operation from ident
     ///
     /// Ident must have value of http request type as lower case string such as `get`.
@@ -232,12 +277,12 @@ impl PathOperation {
         ident
             .to_string()
             .as_str()
-            .parse::<PathOperation>()
+            .parse::<OperationMethod>()
             .map_err(|error| Diagnostics::with_span(ident.span(), error.to_string()))
     }
 }
 
-impl FromStr for PathOperation {
+impl FromStr for OperationMethod {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -259,7 +304,7 @@ impl FromStr for PathOperation {
     }
 }
 
-impl ToTokens for PathOperation {
+impl ToTokens for OperationMethod {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let path_item_type = match self {
             Self::Get => quote! { utoipa::openapi::PathItemType::Get },
@@ -279,10 +324,10 @@ impl ToTokens for PathOperation {
 pub struct Path<'p> {
     path_attr: PathAttr<'p>,
     fn_ident: &'p Ident,
-    path_operation: Option<PathOperation>,
+    ext_method_operations: Vec<OperationMethod>,
     path: Option<String>,
     doc_comments: Option<Vec<String>>,
-    deprecated: Option<bool>,
+    deprecated: bool,
 }
 
 impl<'p> Path<'p> {
@@ -290,15 +335,18 @@ impl<'p> Path<'p> {
         Self {
             path_attr,
             fn_ident,
-            path_operation: None,
+            ext_method_operations: Vec::new(),
             path: None,
             doc_comments: None,
-            deprecated: None,
+            deprecated: false,
         }
     }
 
-    pub fn path_operation(mut self, path_operation: Option<PathOperation>) -> Self {
-        self.path_operation = path_operation;
+    pub fn ext_method_operations(
+        mut self,
+        operation_methods: Option<Vec<OperationMethod>>,
+    ) -> Self {
+        self.ext_method_operations = operation_methods.unwrap_or_default();
 
         self
     }
@@ -315,7 +363,7 @@ impl<'p> Path<'p> {
         self
     }
 
-    pub fn deprecated(mut self, deprecated: Option<bool>) -> Self {
+    pub fn deprecated(mut self, deprecated: bool) -> Self {
         self.deprecated = deprecated;
 
         self
@@ -332,7 +380,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .or(Some(
                 ExprLit {
                     attrs: vec![],
-                    lit: Lit::Str(LitStr::new(&fn_name, Span::call_site())),
+                    lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
                 }
                 .into(),
             ))
@@ -345,27 +393,52 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                     .help("Did you define the #[utoipa::path(...)] over function?")
             })?;
 
-        let path_operation = self
-            .path_attr
-            .path_operation
-            .as_ref()
-            .or(self.path_operation.as_ref())
-            .ok_or_else(|| {
-                let diagnostics = || {
-                    Diagnostics::new("path operation is not defined for path")
-                        .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]")
-                };
+        let methods = if !self.path_attr.methods.is_empty() {
+            &self.path_attr.methods
+        } else {
+            &self.ext_method_operations
+        };
+        if methods.is_empty() {
+            let diagnostics = || {
+                Diagnostics::new("path operation(s) is not defined for path")
+                    .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]")
+                    .help("Or perhaps #[utoipa::path(method = [head, get], ...)]")
+            };
 
-                #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-                {
-                    diagnostics().help(
-                        "Did you forget to define operation path attribute macro e.g #[get(...)]",
-                    )
-                }
+            #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+            {
+                return Err(diagnostics().help(
+                    "Did you forget to define operation path attribute macro e.g #[get(...)]",
+                ));
+            }
 
-                #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
-                diagnostics()
-            })?;
+            #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+            return Err(diagnostics());
+        }
+
+        let method_operations = methods.iter().collect::<Array<_>>();
+
+        // let path_operation = self
+        //     .path_attr
+        //     .methods
+        //     .as_ref()
+        //     .or(self.ext_method_operations.as_ref())
+        //     .ok_or_else(|| {
+        //         let diagnostics = || {
+        //             Diagnostics::new("path operation is not defined for path")
+        //                 .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]")
+        //         };
+        //
+        //         #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
+        //         {
+        //             diagnostics().help(
+        //                 "Did you forget to define operation path attribute macro e.g #[get(...)]",
+        //             )
+        //         }
+        //
+        //         #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+        //         diagnostics()
+        //     })?;
 
         let path = self
             .path_attr
@@ -445,7 +518,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             });
 
         let operation: Operation = Operation {
-            deprecated: &self.deprecated,
+            deprecated: self.deprecated,
             operation_id,
             summary,
             description,
@@ -483,23 +556,19 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                     #tags_list.into()
                 }
             }
-            impl utoipa::__dev::PathItemTypes for #impl_for {
-                fn path_item_types() -> Vec<utoipa::openapi::path::PathItemType> {
-                    [#path_operation].into()
-                }
-            }
             impl utoipa::Path for #impl_for {
                 fn path() -> String {
                     #path_with_context_path
                 }
 
-                fn path_item() -> utoipa::openapi::path::PathItem {
+                fn methods() -> Vec<utoipa::openapi::path::PathItemType> {
+                    #method_operations.into()
+                }
+
+                fn operation() -> utoipa::openapi::path::Operation {
                     use utoipa::openapi::ToArray;
                     use std::iter::FromIterator;
-                    utoipa::openapi::PathItem::new(
-                        #path_operation,
-                        #operation
-                    )
+                    #operation.into()
                 }
             }
         });
@@ -513,7 +582,7 @@ struct Operation<'a> {
     operation_id: Expr,
     summary: Option<Summary<'a>>,
     description: Option<Description<'a>>,
-    deprecated: &'a Option<bool>,
+    deprecated: bool,
     parameters: &'a Vec<Parameter<'a>>,
     request_body: Option<&'a RequestBody<'a>>,
     responses: &'a Vec<Response<'a>>,
@@ -546,7 +615,8 @@ impl ToTokensDiagnostics for Operation<'_> {
             .operation_id(Some(#operation_id))
         });
 
-        if let Some(deprecated) = self.deprecated.map(Into::<Deprecated>::into) {
+        if self.deprecated {
+            let deprecated: Deprecated = self.deprecated.into();
             tokens.extend(quote!( .deprecated(Some(#deprecated))))
         }
 

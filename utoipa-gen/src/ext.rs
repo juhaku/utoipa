@@ -10,7 +10,7 @@ use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
 use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
-use crate::path::{PathOperation, PathTypeTree};
+use crate::path::{OperationMethod, PathTypeTree};
 use crate::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
@@ -261,7 +261,7 @@ pub struct ArgValue {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResolvedOperation {
-    pub path_operation: PathOperation,
+    pub operation_method: Vec<OperationMethod>,
     pub path: String,
     #[allow(unused)] // this is needed only if axum, actix or rocket
     pub body: String,
@@ -324,7 +324,6 @@ impl PathOperationResolver for PathOperations {}
 pub mod fn_arg {
 
     use proc_macro2::Ident;
-    // use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
     use syn::spanned::Spanned;

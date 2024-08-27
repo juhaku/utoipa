@@ -143,11 +143,13 @@ macro_rules! routes {
             use $crate::PathItemExt;
             let mut paths = utoipa::openapi::path::Paths::new();
             let (path, item, types) = routes!(@resolve_types $handler);
-            paths.add_path(path, item);
             #[allow(unused_mut)]
-            let mut method_router = types.into_iter().fold(axum::routing::MethodRouter::new(), |router, path_type| {
+            let mut method_router = types.iter().by_ref().fold(axum::routing::MethodRouter::new(), |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
             });
+            for method_type in types {
+                paths.add_path(&path, utoipa::openapi::path::PathItem::new(method_type, item.clone()));
+            }
             $( method_router = routes!( method_router: paths: $tail ); )*
             (paths, method_router)
         }
@@ -155,27 +157,28 @@ macro_rules! routes {
     ( $router:ident: $paths:ident: $handler:ident $(, $tail:tt)* ) => {
         {
             let (path, item, types) = routes!(@resolve_types $handler);
-            $paths.add_path(path, item);
-            types.into_iter().fold($router, |router, path_type| {
+            let router = types.iter().by_ref().fold($router, |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
-            })
+            });
+            for method_type in types {
+                $paths.add_path(&path, utoipa::openapi::path::PathItem::new(method_type, item.clone()));
+            }
+            router
         }
     };
     ( @resolve_types $handler:ident ) => {
         {
-            use utoipa::{Path, __dev::{PathItemTypes, Tags}};
+            use utoipa::{Path, __dev::Tags};
             $crate::paste! {
                 let path = [<__path_ $handler>]::path();
-                let mut path_item = [<__path_ $handler>]::path_item();
-                let types = [<__path_ $handler>]::path_item_types();
+                let mut operation = [<__path_ $handler>]::operation();
+                let types = [<__path_ $handler>]::methods();
                 let tags = [< __path_ $handler>]::tags();
                 if !tags.is_empty() {
-                    for (_, operation) in path_item.operations.iter_mut() {
-                        let operation_tags = operation.tags.get_or_insert(Vec::new());
-                        operation_tags.extend(tags.iter().map(ToString::to_string));
-                    }
+                    let operation_tags = operation.tags.get_or_insert(Vec::new());
+                    operation_tags.extend(tags.iter().map(ToString::to_string));
                 }
-                (path, path_item, types)
+                (path, operation, types)
             }
         }
     };

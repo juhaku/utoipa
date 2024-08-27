@@ -8,7 +8,7 @@ use syn::{parse::Parse, LitStr, Token};
 use crate::{
     component::ValueType,
     ext::{ArgValue, ArgumentIn, MacroArg, ValueArgument},
-    path::PathOperation,
+    path::OperationMethod,
     Diagnostics, OptionExt,
 };
 
@@ -170,15 +170,15 @@ impl PathOperationResolver for PathOperations {
                 )| {
                     if !operation.is_empty() {
                         Ok(ResolvedOperation {
-                            path_operation: PathOperation::from_str(&operation).unwrap(),
+                            operation_method: vec![OperationMethod::from_str(&operation).unwrap()],
                             path,
                             body,
                         })
                     } else {
                         Ok(ResolvedOperation {
-                            path_operation: PathOperation::from_ident(
+                            operation_method: vec![OperationMethod::from_ident(
                                 attribute.path().get_ident().unwrap(),
-                            )?,
+                            )?],
                             path,
                             body,
                         })

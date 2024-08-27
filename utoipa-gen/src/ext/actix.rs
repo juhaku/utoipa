@@ -7,7 +7,7 @@ use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
 use crate::{
     component::{TypeTree, ValueType},
     ext::ArgValue,
-    path::PathOperation,
+    path::OperationMethod,
     Diagnostics,
 };
 
@@ -117,7 +117,7 @@ impl PathOperationResolver for PathOperations {
                 if is_valid_request_type(attribute.path().get_ident()) {
                     match attribute.parse_args::<Path>() {
                         Ok(path) => {
-                            let path_operation = match PathOperation::from_ident(
+                            let operation_method = match OperationMethod::from_ident(
                                 attribute.path().get_ident().unwrap(),
                             ) {
                                 Ok(path_operation) => path_operation,
@@ -126,16 +126,11 @@ impl PathOperationResolver for PathOperations {
 
                             Some(Ok(ResolvedOperation {
                                 path: path.0,
-                                path_operation,
+                                operation_method: vec![operation_method],
                                 body: String::new(),
                             }))
                         }
                         Err(error) => Some(Err(Into::<Diagnostics>::into(error))),
-                        // Err(error) => abort!(
-                        //     error.span(),
-                        //     "parse path of path operation attribute: {}",
-                        //     error
-                        // ),
                     }
                 } else {
                     None
