@@ -675,7 +675,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// utoipa::openapi::PathsBuilder::new().path(
 ///         "/pets/{id}",
 ///         utoipa::openapi::PathItem::new(
-///             utoipa::openapi::PathItemType::Get,
+///             utoipa::openapi::HttpMethod::Get,
 ///             utoipa::openapi::path::OperationBuilder::new()
 ///                 .responses(
 ///                     utoipa::openapi::ResponsesBuilder::new()
@@ -715,9 +715,11 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///
 /// [derive]: attr.path.html
 pub trait Path {
+    fn methods() -> Vec<openapi::path::HttpMethod>;
+
     fn path() -> String;
 
-    fn path_item() -> openapi::path::PathItem;
+    fn operation() -> openapi::path::Operation;
 }
 
 /// Trait that allows OpenApi modification at runtime.
@@ -939,12 +941,14 @@ pub trait ToResponse<'__r> {
 /// Internal dev module used internally by utoipa-gen
 #[doc(hidden)]
 pub mod __dev {
-
-    use crate::openapi::PathItemType;
     use crate::{utoipa, OpenApi};
 
     pub trait PathConfig {
-        fn config() -> (String, Vec<&'static str>, utoipa::openapi::path::PathItem);
+        fn path() -> String;
+
+        fn methods() -> Vec<crate::openapi::path::HttpMethod>;
+
+        fn tags_and_operation() -> (Vec<&'static str>, utoipa::openapi::path::Operation);
     }
 
     pub trait Tags<'t> {
@@ -953,18 +957,20 @@ pub mod __dev {
 
     impl<T: PathConfig> utoipa::Path for T {
         fn path() -> String {
-            <Self as PathConfig>::config().0.to_string()
+            <Self as PathConfig>::path()
         }
 
-        fn path_item() -> crate::openapi::path::PathItem {
-            let (_, tags, mut item) = <Self as PathConfig>::config();
+        fn methods() -> Vec<crate::openapi::path::HttpMethod> {
+            <Self as PathConfig>::methods()
+        }
 
-            for (_, operation) in item.operations.iter_mut() {
-                let operation_tags = operation.tags.get_or_insert(Vec::new());
-                operation_tags.extend(tags.iter().map(ToString::to_string));
-            }
+        fn operation() -> crate::openapi::path::Operation {
+            let (tags, mut operation) = <Self as PathConfig>::tags_and_operation();
 
-            item
+            let operation_tags = operation.tags.get_or_insert(Vec::new());
+            operation_tags.extend(tags.iter().map(ToString::to_string));
+
+            operation
         }
     }
 
@@ -990,10 +996,6 @@ pub mod __dev {
 
             api
         }
-    }
-
-    pub trait PathItemTypes {
-        fn path_item_types() -> Vec<PathItemType>;
     }
 }
 

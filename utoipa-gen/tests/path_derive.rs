@@ -98,7 +98,6 @@ test_path_operation! {
     derive_path_head: head
     derive_path_patch: patch
     derive_path_trace: trace
-    derive_path_connect: connect
 }
 
 macro_rules! api_fn_doc_with_params {
@@ -1926,8 +1925,8 @@ fn derive_path_with_const_expression_context_path() {
     const FOOBAR: &str = "/api/v1/prefix";
 
     #[utoipa::path(
-        context_path = FOOBAR,
         get,
+        context_path = FOOBAR,
         path = "/items",
         responses(
             (status = 200, description = "success response")
@@ -1952,8 +1951,8 @@ fn derive_path_with_const_expression_reference_context_path() {
     const FOOBAR: &str = "/api/v1/prefix";
 
     #[utoipa::path(
-        context_path = &FOOBAR,
         get,
+        context_path = &FOOBAR,
         path = "/items",
         responses(
             (status = 200, description = "success response")
@@ -2331,6 +2330,55 @@ fn path_nest_without_any_tags() {
                     "responses": {},
                     "tags": []
                 },
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_path_with_multiple_methods() {
+    #[allow(dead_code)]
+    #[utoipa::path(
+        method(head, get),
+        path = "/test-multiple",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    #[allow(unused)]
+    async fn test_multiple() -> &'static str {
+        ""
+    }
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(test_multiple))]
+    struct ApiDoc;
+
+    let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let paths = doc.pointer("/paths").expect("OpenApi must have paths");
+
+    assert_json_eq!(
+        &paths,
+        json!({
+            "/test-multiple": {
+                "get": {
+                    "operationId": "test_multiple",
+                    "responses": {
+                        "200": {
+                            "description": "success response",
+                        },
+                    },
+                    "tags": []
+                },
+                "head": {
+                    "operationId": "test_multiple",
+                    "responses": {
+                        "200": {
+                            "description": "success response",
+                        },
+                    },
+                    "tags": []
+                }
             }
         })
     );

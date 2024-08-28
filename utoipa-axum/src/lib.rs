@@ -51,10 +51,8 @@
 
 pub mod router;
 
-use core::panic;
-
 use axum::routing::MethodFilter;
-use utoipa::openapi::PathItemType;
+use utoipa::openapi::HttpMethod;
 
 /// Extends [`utoipa::openapi::path::PathItem`] by providing conversion methods to convert this
 /// path item type to a [`axum::routing::MethodFilter`].
@@ -62,28 +60,20 @@ pub trait PathItemExt {
     /// Convert this path item type ot a [`axum::routing::MethodFilter`].
     ///
     /// Method filter is used with handler registration on [`axum::routing::MethodRouter`].
-    ///
-    /// # Panics
-    ///
-    /// [`utoipa::openapi::path::PathItemType::Connect`] will panic because _`axum`_ does not have
-    /// `CONNECT` type [`axum::routing::MethodFilter`].
     fn to_method_filter(&self) -> MethodFilter;
 }
 
-impl PathItemExt for PathItemType {
+impl PathItemExt for HttpMethod {
     fn to_method_filter(&self) -> MethodFilter {
         match self {
-            PathItemType::Get => MethodFilter::GET,
-            PathItemType::Put => MethodFilter::PUT,
-            PathItemType::Post => MethodFilter::POST,
-            PathItemType::Head => MethodFilter::HEAD,
-            PathItemType::Patch => MethodFilter::PATCH,
-            PathItemType::Trace => MethodFilter::TRACE,
-            PathItemType::Delete => MethodFilter::DELETE,
-            PathItemType::Options => MethodFilter::OPTIONS,
-            PathItemType::Connect => panic!(
-                "`CONNECT` not supported, axum does not have `MethodFilter` for connect requests"
-            ),
+            HttpMethod::Get => MethodFilter::GET,
+            HttpMethod::Put => MethodFilter::PUT,
+            HttpMethod::Post => MethodFilter::POST,
+            HttpMethod::Head => MethodFilter::HEAD,
+            HttpMethod::Patch => MethodFilter::PATCH,
+            HttpMethod::Trace => MethodFilter::TRACE,
+            HttpMethod::Delete => MethodFilter::DELETE,
+            HttpMethod::Options => MethodFilter::OPTIONS,
         }
     }
 }
@@ -143,11 +133,13 @@ macro_rules! routes {
             use $crate::PathItemExt;
             let mut paths = utoipa::openapi::path::Paths::new();
             let (path, item, types) = routes!(@resolve_types $handler);
-            paths.add_path(path, item);
             #[allow(unused_mut)]
-            let mut method_router = types.into_iter().fold(axum::routing::MethodRouter::new(), |router, path_type| {
+            let mut method_router = types.iter().by_ref().fold(axum::routing::MethodRouter::new(), |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
             });
+            for method_type in types {
+                paths.add_path(&path, utoipa::openapi::path::PathItem::new(method_type, item.clone()));
+            }
             $( method_router = routes!( method_router: paths: $tail ); )*
             (paths, method_router)
         }
@@ -155,27 +147,28 @@ macro_rules! routes {
     ( $router:ident: $paths:ident: $handler:ident $(, $tail:tt)* ) => {
         {
             let (path, item, types) = routes!(@resolve_types $handler);
-            $paths.add_path(path, item);
-            types.into_iter().fold($router, |router, path_type| {
+            let router = types.iter().by_ref().fold($router, |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
-            })
+            });
+            for method_type in types {
+                $paths.add_path(&path, utoipa::openapi::path::PathItem::new(method_type, item.clone()));
+            }
+            router
         }
     };
     ( @resolve_types $handler:ident ) => {
         {
-            use utoipa::{Path, __dev::{PathItemTypes, Tags}};
+            use utoipa::{Path, __dev::Tags};
             $crate::paste! {
                 let path = [<__path_ $handler>]::path();
-                let mut path_item = [<__path_ $handler>]::path_item();
-                let types = [<__path_ $handler>]::path_item_types();
+                let mut operation = [<__path_ $handler>]::operation();
+                let types = [<__path_ $handler>]::methods();
                 let tags = [< __path_ $handler>]::tags();
                 if !tags.is_empty() {
-                    for (_, operation) in path_item.operations.iter_mut() {
-                        let operation_tags = operation.tags.get_or_insert(Vec::new());
-                        operation_tags.extend(tags.iter().map(ToString::to_string));
-                    }
+                    let operation_tags = operation.tags.get_or_insert(Vec::new());
+                    operation_tags.extend(tags.iter().map(ToString::to_string));
                 }
-                (path, path_item, types)
+                (path, operation, types)
             }
         }
     };
@@ -261,14 +254,14 @@ mod tests {
             .path(
                 "/",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new().operation_id(Some("get_user")),
                 ),
             )
             .path(
                 "/search",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("search_user")),
                 ),
@@ -302,7 +295,7 @@ mod tests {
             .path(
                 "/api/customer/",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("get_customer")),
                 ),
@@ -310,7 +303,7 @@ mod tests {
             .path(
                 "/search",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("search_user")),
                 ),

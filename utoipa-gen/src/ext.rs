@@ -1,8 +1,5 @@
 use std::borrow::Cow;
 
-#[cfg(feature = "rocket_extras")]
-use std::cmp::Ordering;
-
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::parse_quote;
@@ -10,7 +7,7 @@ use syn::spanned::Spanned;
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
 use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
-use crate::path::{PathOperation, PathTypeTree};
+use crate::path::{HttpMethod, PathTypeTree};
 use crate::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
@@ -239,7 +236,7 @@ pub enum MacroArg {
 impl MacroArg {
     /// Get ordering by name
     #[cfg(feature = "rocket_extras")]
-    fn by_name(a: &MacroArg, b: &MacroArg) -> Ordering {
+    fn by_name(a: &MacroArg, b: &MacroArg) -> std::cmp::Ordering {
         a.get_value().name.cmp(&b.get_value().name)
     }
 
@@ -261,7 +258,7 @@ pub struct ArgValue {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResolvedOperation {
-    pub path_operation: PathOperation,
+    pub methods: Vec<HttpMethod>,
     pub path: String,
     #[allow(unused)] // this is needed only if axum, actix or rocket
     pub body: String,
@@ -324,7 +321,6 @@ impl PathOperationResolver for PathOperations {}
 pub mod fn_arg {
 
     use proc_macro2::Ident;
-    // use proc_macro_error::abort;
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     use quote::quote;
     use syn::spanned::Spanned;
@@ -350,10 +346,10 @@ pub mod fn_arg {
         Destructed(Vec<&'t Ident>),
     }
 
+    #[cfg(feature = "rocket_extras")]
     impl FnArgType<'_> {
         /// Get best effort name `Ident` for the type. For `FnArgType::Tuple` types it will take the first one
         /// from `Vec`.
-        #[cfg(feature = "rocket_extras")]
         pub(super) fn get_name(&self) -> &Ident {
             match self {
                 Self::Single(ident) => ident,

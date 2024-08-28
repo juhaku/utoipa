@@ -10,6 +10,15 @@
 #[cfg(all(feature = "decimal", feature = "decimal_float"))]
 compile_error!("`decimal` and `decimal_float` are mutually exclusive feature flags");
 
+#[cfg(all(
+    feature = "actix_extras",
+    feature = "axum_extras",
+    feature = "rocket_extras"
+))]
+compile_error!(
+    "`actix_extras`, `axum_extras` and `rocket_extras` are mutually exclusive feature flags"
+);
+
 use std::{
     borrow::{Borrow, Cow},
     error::Error,
@@ -1386,12 +1395,12 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         };
     }
 
-    let mut resolved_operation = match PathOperations::resolve_operation(&ast_fn) {
+    let mut resolved_methods = match PathOperations::resolve_operation(&ast_fn) {
         Ok(operation) => operation,
         Err(diagnostics) => return diagnostics.into_token_stream().into(),
     };
     let resolved_path = PathOperations::resolve_path(
-        &resolved_operation
+        &resolved_methods
             .as_mut()
             .map(|operation| mem::take(&mut operation.path).to_string())
             .or_else(|| path_attribute.path.as_ref().map(|path| path.to_string())), // cannot use mem take because we need this later
@@ -1413,7 +1422,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
         use ext::ArgumentResolver;
         use path::parameter::Parameter;
         let path_args = resolved_path.as_mut().map(|path| mem::take(&mut path.args));
-        let body = resolved_operation
+        let body = resolved_methods
             .as_mut()
             .map(|path| mem::take(&mut path.body))
             .unwrap_or_default();
@@ -1435,18 +1444,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let path = Path::new(path_attribute, &ast_fn.sig.ident)
-        .path_operation(resolved_operation.map(|operation| operation.path_operation))
+        .ext_methods(resolved_methods.map(|operation| operation.methods))
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
-        .deprecated(ast_fn.attrs.iter().find_map(|attr| {
-
-            if !matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
-            {
-                None
-            } else {
-                Some(true)
-            }
-        }));
+        .deprecated(ast_fn.attrs.has_deprecated());
 
     let handler = path::handler::Handler {
         path,
@@ -2919,6 +2920,170 @@ macro_rules! as_tokens_or_diagnostics {
 
 use as_tokens_or_diagnostics;
 
+#[derive(Debug)]
+struct Diagnostics {
+    diagnostics: Vec<DiangosticsInner>,
+}
+
+#[derive(Debug)]
+struct DiangosticsInner {
+    span: Span,
+    message: Cow<'static, str>,
+    suggestions: Vec<Suggestion>,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Suggestion {
+    Help(Cow<'static, str>),
+    Note(Cow<'static, str>),
+}
+
+impl Display for Diagnostics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message())
+    }
+}
+
+impl Display for Suggestion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Help(help) => {
+                let s: &str = help.borrow();
+                write!(f, "help = {}", s)
+            }
+            Self::Note(note) => {
+                let s: &str = note.borrow();
+                write!(f, "note = {}", s)
+            }
+        }
+    }
+}
+
+impl Diagnostics {
+    fn message(&self) -> Cow<'static, str> {
+        self.diagnostics
+            .first()
+            .as_ref()
+            .map(|diagnostics| diagnostics.message.clone())
+            .unwrap_or_else(|| Cow::Borrowed(""))
+    }
+
+    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
+        Self::with_span(Span::call_site(), message)
+    }
+
+    pub fn with_span<S: Into<Cow<'static, str>>>(span: Span, message: S) -> Self {
+        Self {
+            diagnostics: vec![DiangosticsInner {
+                span,
+                message: message.into(),
+                suggestions: Vec::new(),
+            }],
+        }
+    }
+
+    pub fn help<S: Into<Cow<'static, str>>>(mut self, help: S) -> Self {
+        if let Some(diagnostics) = self.diagnostics.first_mut() {
+            diagnostics.suggestions.push(Suggestion::Help(help.into()));
+            diagnostics.suggestions.sort();
+        }
+
+        self
+    }
+
+    pub fn note<S: Into<Cow<'static, str>>>(mut self, note: S) -> Self {
+        if let Some(diagnostics) = self.diagnostics.first_mut() {
+            diagnostics.suggestions.push(Suggestion::Note(note.into()));
+            diagnostics.suggestions.sort();
+        }
+
+        self
+    }
+}
+
+impl From<syn::Error> for Diagnostics {
+    fn from(value: syn::Error) -> Self {
+        Self::with_span(value.span(), value.to_string())
+    }
+}
+
+impl ToTokens for Diagnostics {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        for diagnostics in &self.diagnostics {
+            let span = diagnostics.span;
+            let message: &str = diagnostics.message.borrow();
+
+            let suggestions = diagnostics
+                .suggestions
+                .iter()
+                .map(Suggestion::to_string)
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            let diagnostics = if !suggestions.is_empty() {
+                Cow::Owned(format!("{message}\n\n{suggestions}"))
+            } else {
+                Cow::Borrowed(message)
+            };
+
+            tokens.extend(quote_spanned! {span=>
+                ::core::compile_error!(#diagnostics);
+            })
+        }
+    }
+}
+
+impl Error for Diagnostics {}
+
+impl FromIterator<Diagnostics> for Option<Diagnostics> {
+    fn from_iter<T: IntoIterator<Item = Diagnostics>>(iter: T) -> Self {
+        iter.into_iter().reduce(|mut acc, diagnostics| {
+            acc.diagnostics.extend(diagnostics.diagnostics);
+            acc
+        })
+    }
+}
+
+trait AttributesExt {
+    fn has_deprecated(&self) -> bool;
+}
+
+impl AttributesExt for Vec<syn::Attribute> {
+    fn has_deprecated(&self) -> bool {
+        self.iter().any(|attr| {
+            matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
+        })
+    }
+}
+
+impl<'a> AttributesExt for &'a [syn::Attribute] {
+    fn has_deprecated(&self) -> bool {
+        self.iter().any(|attr| {
+            matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diagnostics_ordering_help_comes_before_note() {
+        let diagnostics = Diagnostics::new("this an error")
+            .note("you could do this to solve the error")
+            .help("try this thing");
+
+        let tokens = diagnostics.into_token_stream();
+
+        let expected_tokens = quote::quote!(::core::compile_error!(
+            "this an error\n\nhelp = try this thing\nnote = you could do this to solve the error"
+        ););
+
+        assert_eq!(tokens.to_string(), expected_tokens.to_string());
+    }
+}
+
 /// Parsing utils
 mod parse_utils {
     use std::fmt::Display;
@@ -3025,6 +3190,14 @@ mod parse_utils {
         })
     }
 
+    pub fn parse_parethesized_terminated<T: Parse, S: Parse>(
+        input: ParseStream,
+    ) -> syn::Result<Punctuated<T, S>> {
+        let group;
+        syn::parenthesized!(group in input);
+        Punctuated::parse_terminated(&group)
+    }
+
     pub fn parse_punctuated_within_parenthesis<T>(
         input: ParseStream,
     ) -> syn::Result<Punctuated<T, Comma>>
@@ -3104,127 +3277,5 @@ mod parse_utils {
                 }
             }
         }
-    }
-}
-
-#[derive(Debug)]
-struct Diagnostics {
-    diagnostics: Vec<DiangosticsInner>,
-}
-
-#[derive(Debug)]
-struct DiangosticsInner {
-    span: Span,
-    message: Cow<'static, str>,
-    suggestions: Vec<Suggestion>,
-}
-
-#[derive(Debug)]
-enum Suggestion {
-    Help(Cow<'static, str>),
-    Note(Cow<'static, str>),
-}
-
-impl Display for Diagnostics {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message())
-    }
-}
-
-impl Display for Suggestion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Help(help) => {
-                let s: &str = help.borrow();
-                write!(f, "help = {}", s)
-            }
-            Self::Note(note) => {
-                let s: &str = note.borrow();
-                write!(f, "note = {}", s)
-            }
-        }
-    }
-}
-
-impl Diagnostics {
-    fn message(&self) -> Cow<'static, str> {
-        self.diagnostics
-            .first()
-            .as_ref()
-            .map(|diagnostics| diagnostics.message.clone())
-            .unwrap_or_else(|| Cow::Borrowed(""))
-    }
-
-    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
-        Self::with_span(Span::call_site(), message)
-    }
-
-    pub fn with_span<S: Into<Cow<'static, str>>>(span: Span, message: S) -> Self {
-        Self {
-            diagnostics: vec![DiangosticsInner {
-                span,
-                message: message.into(),
-                suggestions: Vec::new(),
-            }],
-        }
-    }
-
-    pub fn help<S: Into<Cow<'static, str>>>(mut self, help: S) -> Self {
-        if let Some(diagnostics) = self.diagnostics.first_mut() {
-            diagnostics.suggestions.push(Suggestion::Help(help.into()));
-        }
-
-        self
-    }
-
-    pub fn note<S: Into<Cow<'static, str>>>(mut self, note: S) -> Self {
-        if let Some(diagnostics) = self.diagnostics.first_mut() {
-            diagnostics.suggestions.push(Suggestion::Note(note.into()));
-        }
-
-        self
-    }
-}
-
-impl From<syn::Error> for Diagnostics {
-    fn from(value: syn::Error) -> Self {
-        Self::with_span(value.span(), value.to_string())
-    }
-}
-
-impl ToTokens for Diagnostics {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        for diagnostics in &self.diagnostics {
-            let span = diagnostics.span;
-            let message: &str = diagnostics.message.borrow();
-
-            let suggestions = diagnostics
-                .suggestions
-                .iter()
-                .map(Suggestion::to_string)
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            let diagnostics = if !suggestions.is_empty() {
-                Cow::Owned(format!("{message}\n\n{suggestions}"))
-            } else {
-                Cow::Borrowed(message)
-            };
-
-            tokens.extend(quote_spanned! {span=>
-                ::core::compile_error!(#diagnostics);
-            })
-        }
-    }
-}
-
-impl Error for Diagnostics {}
-
-impl FromIterator<Diagnostics> for Option<Diagnostics> {
-    fn from_iter<T: IntoIterator<Item = Diagnostics>>(iter: T) -> Self {
-        iter.into_iter().reduce(|mut acc, diagnostics| {
-            acc.diagnostics.extend(diagnostics.diagnostics);
-            acc
-        })
     }
 }

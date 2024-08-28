@@ -357,9 +357,9 @@ macro_rules! into_params {
             #[allow(unused)]
             fn handler() {}
 
-            let value = serde_json::to_value(&__path_handler::path_item())
+            let value = serde_json::to_value(__path_handler::operation())
                 .expect("path item should serialize to json");
-            value.pointer("/get/parameters").expect("should have get/handler").clone()
+            value.pointer("/parameters").expect("operation should have parameters").clone()
         }
     };
 }

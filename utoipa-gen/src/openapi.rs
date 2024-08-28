@@ -633,15 +633,20 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
                 struct #handler_ident_nested;
                 #[allow(non_camel_case_types)]
                 impl utoipa::__dev::PathConfig for #handler_ident_nested {
-                    fn config() -> (String, Vec<&'static str>, utoipa::openapi::path::PathItem) {
-                        let item = #usage::path_item();
-                        let path = #usage::path();
+                    fn path() -> String {
+                        #usage::path()
+                    }
+                    fn methods() -> Vec<utoipa::openapi::path::HttpMethod> {
+                        #usage::methods()
+                    }
+                    fn tags_and_operation() -> (Vec<&'static str>, utoipa::openapi::path::Operation) {
+                        let item = #usage::operation();
                         let mut tags = <#usage as utoipa::__dev::Tags>::tags();
                         if !#tag.is_empty() && tags.is_empty() {
                             tags.push(#tag);
                         }
 
-                        (path, tags, item)
+                        (tags, item)
                     }
                 }
             }
