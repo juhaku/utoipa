@@ -1444,7 +1444,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 
     let path = Path::new(path_attribute, &ast_fn.sig.ident)
-        .ext_method_operations(resolved_methods.map(|operation| operation.operation_method))
+        .ext_methods(resolved_methods.map(|operation| operation.methods))
         .path(|| resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.has_deprecated());
@@ -2932,7 +2932,7 @@ struct DiangosticsInner {
     suggestions: Vec<Suggestion>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Suggestion {
     Help(Cow<'static, str>),
     Note(Cow<'static, str>),
@@ -2985,6 +2985,7 @@ impl Diagnostics {
     pub fn help<S: Into<Cow<'static, str>>>(mut self, help: S) -> Self {
         if let Some(diagnostics) = self.diagnostics.first_mut() {
             diagnostics.suggestions.push(Suggestion::Help(help.into()));
+            diagnostics.suggestions.sort();
         }
 
         self
@@ -2993,6 +2994,7 @@ impl Diagnostics {
     pub fn note<S: Into<Cow<'static, str>>>(mut self, note: S) -> Self {
         if let Some(diagnostics) = self.diagnostics.first_mut() {
             diagnostics.suggestions.push(Suggestion::Note(note.into()));
+            diagnostics.suggestions.sort();
         }
 
         self
@@ -3059,6 +3061,26 @@ impl<'a> AttributesExt for &'a [syn::Attribute] {
         self.iter().any(|attr| {
             matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diagnostics_ordering_help_comes_before_note() {
+        let diagnostics = Diagnostics::new("this an error")
+            .note("you could do this to solve the error")
+            .help("try this thing");
+
+        let tokens = diagnostics.into_token_stream();
+
+        let expected_tokens = quote::quote!(::core::compile_error!(
+            "this an error\n\nhelp = try this thing\nnote = you could do this to solve the error"
+        ););
+
+        assert_eq!(tokens.to_string(), expected_tokens.to_string());
     }
 }
 
@@ -3166,6 +3188,14 @@ mod parse_utils {
                 .map(|group| syn::parse2::<T>(group.stream()))
                 .collect::<syn::Result<R>>()
         })
+    }
+
+    pub fn parse_parethesized_terminated<T: Parse, S: Parse>(
+        input: ParseStream,
+    ) -> syn::Result<Punctuated<T, S>> {
+        let group;
+        syn::parenthesized!(group in input);
+        Punctuated::parse_terminated(&group)
     }
 
     pub fn parse_punctuated_within_parenthesis<T>(

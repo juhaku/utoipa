@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::Ident;
+use proc_macro2::{Ident, TokenTree};
 use regex::{Captures, Regex};
 use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
 
@@ -114,19 +114,32 @@ impl PathOperationResolver for PathOperations {
             .attrs
             .iter()
             .find_map(|attribute| {
-                if is_valid_request_type(attribute.path().get_ident()) {
-                    match attribute.parse_args::<Path>() {
-                        Ok(path) => {
-                            let operation_method =
-                                match HttpMethod::from_ident(attribute.path().get_ident().unwrap())
-                                {
-                                    Ok(path_operation) => path_operation,
-                                    Err(diagnostics) => return Some(Err(diagnostics)),
-                                };
-
+                if is_valid_actix_route_attribute(attribute.path().get_ident()) {
+                    match attribute.parse_args::<Route>() {
+                        Ok(route) => {
+                            let attribute_path = attribute.path().get_ident()
+                                .expect("actix-web route macro must have ident");
+                            let methods: Vec<HttpMethod> = if *attribute_path == "route" {
+                                route.methods.into_iter().map(|method| {
+                                    method.to_lowercase().parse::<HttpMethod>()
+                                        .expect("Should never fail, validity of HTTP method is checked before parsing")
+                                }).collect()
+                            } else {
+                                // if user used #[connect(...)] macro, return error
+                                match HttpMethod::from_ident(attribute_path) {
+                                    Ok(http_method) => { vec![http_method]},
+                                    Err(error) => return Some(
+                                        Err(
+                                            error.help(
+                                                format!(r#"If you want operation to be documented and executed on `{method}` try using `#[route(...)]` e.g. `#[route("/path", method = "GET", method = "{method}")]`"#, method = attribute_path.to_string().to_uppercase())
+                                            )
+                                        )
+                                    )
+                                }
+                            };
                             Some(Ok(ResolvedOperation {
-                                path: path.0,
-                                operation_method: vec![operation_method],
+                                path: route.path,
+                                methods,
                                 body: String::new(),
                             }))
                         }
@@ -140,22 +153,67 @@ impl PathOperationResolver for PathOperations {
     }
 }
 
-struct Path(String);
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct Route {
+    path: String,
+    methods: Vec<String>,
+}
 
-impl Parse for Path {
+impl Parse for Route {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let path = input.parse::<LitStr>()?.value();
+        const ALLOWED_METHODS: [&str; 8] = [
+            "GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "TRACE", "PATCH",
+        ];
+        // OpenAPI spec does not support CONNECT thus we do not resolve it
 
-        // ignore rest of the tokens from actix-web path attribute macro
+        enum PrevToken {
+            Method,
+            Equals,
+        }
+
+        let path = input.parse::<LitStr>()?.value();
+        let mut parsed_methods: Vec<String> = Vec::new();
+
         input.step(|cursor| {
             let mut rest = *cursor;
-            while let Some((_, next)) = rest.token_tree() {
-                rest = next;
+
+            let mut prev_token: Option<PrevToken> = None;
+            while let Some((tt, next)) = rest.token_tree() {
+                match &tt {
+                    TokenTree::Ident(ident) if *ident == "method" => {
+                        prev_token = Some(PrevToken::Method);
+                        rest = next
+                    }
+                    TokenTree::Punct(punct)
+                        if punct.as_char() == '='
+                            && matches!(prev_token, Some(PrevToken::Method)) =>
+                    {
+                        prev_token = Some(PrevToken::Equals);
+                        rest = next
+                    }
+                    TokenTree::Literal(literal)
+                        if matches!(prev_token, Some(PrevToken::Equals)) =>
+                    {
+                        let value = literal.to_string();
+                        let method = &value[1..value.len() - 1];
+
+                        if ALLOWED_METHODS.contains(&method) {
+                            parsed_methods.push(String::from(method));
+                        }
+
+                        prev_token = None;
+                        rest = next;
+                    }
+                    _ => rest = next,
+                }
             }
             Ok(((), rest))
         })?;
 
-        Ok(Self(path))
+        Ok(Route {
+            path,
+            methods: parsed_methods,
+        })
     }
 }
 
@@ -205,7 +263,7 @@ impl PathResolver for PathOperations {
 }
 
 #[inline]
-fn is_valid_request_type(ident: Option<&Ident>) -> bool {
-    matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch"]
+fn is_valid_actix_route_attribute(ident: Option<&Ident>) -> bool {
+    matches!(ident, Some(operation) if ["get", "post", "put", "delete", "head", "connect", "options", "trace", "patch", "route"]
         .iter().any(|expected_operation| operation == expected_operation))
 }

@@ -2339,7 +2339,7 @@ fn path_nest_without_any_tags() {
 fn derive_path_with_multiple_methods() {
     #[allow(dead_code)]
     #[utoipa::path(
-        method = [head, get],
+        method(head, get),
         path = "/test-multiple",
         responses(
             (status = 200, description = "success response")

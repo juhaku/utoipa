@@ -1,8 +1,5 @@
 use std::borrow::Cow;
 
-#[cfg(feature = "rocket_extras")]
-use std::cmp::Ordering;
-
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::parse_quote;
@@ -239,7 +236,7 @@ pub enum MacroArg {
 impl MacroArg {
     /// Get ordering by name
     #[cfg(feature = "rocket_extras")]
-    fn by_name(a: &MacroArg, b: &MacroArg) -> Ordering {
+    fn by_name(a: &MacroArg, b: &MacroArg) -> std::cmp::Ordering {
         a.get_value().name.cmp(&b.get_value().name)
     }
 
@@ -261,7 +258,7 @@ pub struct ArgValue {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResolvedOperation {
-    pub operation_method: Vec<HttpMethod>,
+    pub methods: Vec<HttpMethod>,
     pub path: String,
     #[allow(unused)] // this is needed only if axum, actix or rocket
     pub body: String,
@@ -349,10 +346,10 @@ pub mod fn_arg {
         Destructed(Vec<&'t Ident>),
     }
 
+    #[cfg(feature = "rocket_extras")]
     impl FnArgType<'_> {
         /// Get best effort name `Ident` for the type. For `FnArgType::Tuple` types it will take the first one
         /// from `Vec`.
-        #[cfg(feature = "rocket_extras")]
         pub(super) fn get_name(&self) -> &Ident {
             match self {
                 Self::Single(ident) => ident,

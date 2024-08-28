@@ -170,13 +170,13 @@ impl PathOperationResolver for PathOperations {
                 )| {
                     if !operation.is_empty() {
                         Ok(ResolvedOperation {
-                            operation_method: vec![HttpMethod::from_str(&operation).unwrap()],
+                            methods: vec![HttpMethod::from_str(&operation).unwrap()],
                             path,
                             body,
                         })
                     } else {
                         Ok(ResolvedOperation {
-                            operation_method: vec![HttpMethod::from_ident(
+                            methods: vec![HttpMethod::from_ident(
                                 attribute.path().get_ident().unwrap(),
                             )?],
                             path,

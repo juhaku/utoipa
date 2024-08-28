@@ -7,8 +7,8 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::{Comma, Paren};
-use syn::{bracketed, Expr, ExprLit, Lit, LitStr, Type};
 use syn::{parenthesized, parse::Parse, Token};
+use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::path::request_body::RequestBody;
@@ -111,34 +111,6 @@ impl Parse for PathAttr<'_> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: method, get, post, put, delete, options, head, patch, trace, operation_id, path, request_body, responses, params, tag, security, context_path, description, summary";
         let mut path_attr = PathAttr::default();
 
-        // // TODO fis this
-        // // #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
-        // {
-        //     const EXPECTED_OPERATION_METHOD: &str = "unexected identifier, expected either one of: get, post, put, delete, options, head, patch, trace, connect or method = [get, post, ...]";
-        //     let fork = input.fork();
-        //     let is_method = fork
-        //         .parse::<Ident>()
-        //         .map(|ident| &*ident.to_string() == "method")
-        //         .unwrap_or_default();
-        //     if is_method {
-        //         input.parse::<Ident>()?;
-        //         path_attr.methods = parse_utils::parse_next(input, || {
-        //             let bracketed;
-        //             bracketed!(bracketed in input);
-        //
-        //             bracketed.parse_terminated(HttpMethod::parse, Comma)
-        //         })
-        //         .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?
-        //         .into_iter()
-        //         .collect();
-        //     } else {
-        //         path_attr.methods = vec![input
-        //             .parse::<HttpMethod>()
-        //             .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?];
-        //     }
-        //     input.parse::<Token![,]>()?;
-        // }
-
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
                 syn::Error::new(
@@ -150,14 +122,10 @@ impl Parse for PathAttr<'_> {
 
             match attribute_name {
                 "method" => {
-                    path_attr.methods = parse_utils::parse_next(input, || {
-                        let bracketed;
-                        bracketed!(bracketed in input);
-
-                        bracketed.parse_terminated(HttpMethod::parse, Comma)
-                    })?
-                    .into_iter()
-                    .collect();
+                    path_attr.methods =
+                        parse_utils::parse_parethesized_terminated::<HttpMethod, Comma>(input)?
+                            .into_iter()
+                            .collect()
                 }
                 "operation_id" => {
                     path_attr.operation_id =
@@ -323,7 +291,7 @@ impl ToTokens for HttpMethod {
 pub struct Path<'p> {
     path_attr: PathAttr<'p>,
     fn_ident: &'p Ident,
-    ext_method_operations: Vec<HttpMethod>,
+    ext_methods: Vec<HttpMethod>,
     path: Option<String>,
     doc_comments: Option<Vec<String>>,
     deprecated: bool,
@@ -334,15 +302,15 @@ impl<'p> Path<'p> {
         Self {
             path_attr,
             fn_ident,
-            ext_method_operations: Vec::new(),
+            ext_methods: Vec::new(),
             path: None,
             doc_comments: None,
             deprecated: false,
         }
     }
 
-    pub fn ext_method_operations(mut self, operation_methods: Option<Vec<HttpMethod>>) -> Self {
-        self.ext_method_operations = operation_methods.unwrap_or_default();
+    pub fn ext_methods(mut self, methods: Option<Vec<HttpMethod>>) -> Self {
+        self.ext_methods = methods.unwrap_or_default();
 
         self
     }
@@ -392,13 +360,13 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         let methods = if !self.path_attr.methods.is_empty() {
             &self.path_attr.methods
         } else {
-            &self.ext_method_operations
+            &self.ext_methods
         };
         if methods.is_empty() {
             let diagnostics = || {
                 Diagnostics::new("path operation(s) is not defined for path")
                     .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]")
-                    .help("Or perhaps #[utoipa::path(method = [head, get], ...)]")
+                    .help("Or perhaps #[utoipa::path(method(head, get), ...)]")
             };
 
             #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
@@ -413,28 +381,6 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         }
 
         let method_operations = methods.iter().collect::<Array<_>>();
-
-        // let path_operation = self
-        //     .path_attr
-        //     .methods
-        //     .as_ref()
-        //     .or(self.ext_method_operations.as_ref())
-        //     .ok_or_else(|| {
-        //         let diagnostics = || {
-        //             Diagnostics::new("path operation is not defined for path")
-        //                 .help("Did you forget to define it, e.g. #[utoipa::path(get, ...)]")
-        //         };
-        //
-        //         #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
-        //         {
-        //             diagnostics().help(
-        //                 "Did you forget to define operation path attribute macro e.g #[get(...)]",
-        //             )
-        //         }
-        //
-        //         #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
-        //         diagnostics()
-        //     })?;
 
         let path = self
             .path_attr
