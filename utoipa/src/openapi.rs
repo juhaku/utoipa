@@ -12,7 +12,7 @@ pub use self::{
     external_docs::ExternalDocs,
     header::{Header, HeaderBuilder},
     info::{Contact, ContactBuilder, Info, InfoBuilder, License, LicenseBuilder},
-    path::{PathItem, PathItemType, Paths, PathsBuilder},
+    path::{HttpMethod, PathItem, Paths, PathsBuilder},
     response::{Response, ResponseBuilder, Responses, ResponsesBuilder},
     schema::{
         AllOf, AllOfBuilder, Array, ArrayBuilder, Components, ComponentsBuilder, Discriminator,
@@ -255,13 +255,13 @@ impl OpenApi {
     /// ```rust
     ///  # use utoipa::openapi::{OpenApi, OpenApiBuilder};
     ///  # use utoipa::openapi::path::{PathsBuilder, PathItemBuilder, PathItem,
-    ///  # PathItemType, OperationBuilder};
+    ///  # HttpMethod, OperationBuilder};
     ///  let api = OpenApiBuilder::new()
     ///      .paths(
     ///          PathsBuilder::new().path(
     ///              "/api/v1/status",
     ///              PathItem::new(
-    ///                  PathItemType::Get,
+    ///                  HttpMethod::Get,
     ///                  OperationBuilder::new()
     ///                      .description(Some("Get status"))
     ///                      .build(),
@@ -273,7 +273,7 @@ impl OpenApi {
     ///     .paths(
     ///         PathsBuilder::new().path(
     ///             "/",
-    ///             PathItem::new(PathItemType::Post, OperationBuilder::new().build()),
+    ///             PathItem::new(HttpMethod::Post, OperationBuilder::new().build()),
     ///         )
     ///     )
     ///     .build();
@@ -672,21 +672,21 @@ mod tests {
                 .path(
                     "/api/v1/users",
                     PathItem::new(
-                        PathItemType::Get,
+                        HttpMethod::Get,
                         OperationBuilder::new().response("200", Response::new("Get users list")),
                     ),
                 )
                 .path(
                     "/api/v1/users",
                     PathItem::new(
-                        PathItemType::Post,
+                        HttpMethod::Post,
                         OperationBuilder::new().response("200", Response::new("Post new user")),
                     ),
                 )
                 .path(
                     "/api/v1/users/{id}",
                     PathItem::new(
-                        PathItemType::Get,
+                        HttpMethod::Get,
                         OperationBuilder::new().response("200", Response::new("Get user by id")),
                     ),
                 ),
@@ -710,7 +710,7 @@ mod tests {
                 .path(
                     "/api/v1/user",
                     PathItem::new(
-                        PathItemType::Get,
+                        HttpMethod::Get,
                         OperationBuilder::new().response("200", Response::new("Get user success")),
                     ),
                 )
@@ -724,7 +724,7 @@ mod tests {
                     .path(
                         "/api/v1/user",
                         PathItem::new(
-                            PathItemType::Get,
+                            HttpMethod::Get,
                             OperationBuilder::new()
                                 .response("200", Response::new("This will not get added")),
                         ),
@@ -732,7 +732,7 @@ mod tests {
                     .path(
                         "/ap/v2/user",
                         PathItem::new(
-                            PathItemType::Get,
+                            HttpMethod::Get,
                             OperationBuilder::new()
                                 .response("200", Response::new("Get user success 2")),
                         ),
@@ -740,7 +740,7 @@ mod tests {
                     .path(
                         "/api/v2/user",
                         PathItem::new(
-                            PathItemType::Post,
+                            HttpMethod::Post,
                             OperationBuilder::new()
                                 .response("200", Response::new("Get user success")),
                         ),
@@ -826,7 +826,7 @@ mod tests {
                 .path(
                     "/api/v1/user",
                     PathItem::new(
-                        PathItemType::Get,
+                        HttpMethod::Get,
                         OperationBuilder::new()
                             .response("200", Response::new("Get user success 1")),
                     ),
@@ -841,7 +841,7 @@ mod tests {
                     .path(
                         "/api/v1/user",
                         PathItem::new(
-                            PathItemType::Get,
+                            HttpMethod::Get,
                             OperationBuilder::new()
                                 .response("200", Response::new("This will not get added")),
                         ),
@@ -849,7 +849,7 @@ mod tests {
                     .path(
                         "/api/v1/user",
                         PathItem::new(
-                            PathItemType::Post,
+                            HttpMethod::Post,
                             OperationBuilder::new()
                                 .response("200", Response::new("Post user success 1")),
                         ),
@@ -857,7 +857,7 @@ mod tests {
                     .path(
                         "/api/v2/user",
                         PathItem::new(
-                            PathItemType::Get,
+                            HttpMethod::Get,
                             OperationBuilder::new()
                                 .response("200", Response::new("Get user success 2")),
                         ),
@@ -865,7 +865,7 @@ mod tests {
                     .path(
                         "/api/v2/user",
                         PathItem::new(
-                            PathItemType::Post,
+                            HttpMethod::Post,
                             OperationBuilder::new()
                                 .response("200", Response::new("Post user success 2")),
                         ),
@@ -955,7 +955,7 @@ mod tests {
                 PathsBuilder::new().path(
                     "/api/v1/status",
                     PathItem::new(
-                        PathItemType::Get,
+                        HttpMethod::Get,
                         OperationBuilder::new()
                             .description(Some("Get status"))
                             .build(),
@@ -970,7 +970,7 @@ mod tests {
                     .path(
                         "/",
                         PathItem::new(
-                            PathItemType::Get,
+                            HttpMethod::Get,
                             OperationBuilder::new()
                                 .description(Some("Get user details"))
                                 .build(),
@@ -978,7 +978,7 @@ mod tests {
                     )
                     .path(
                         "/foo",
-                        PathItem::new(PathItemType::Post, OperationBuilder::new().build()),
+                        PathItem::new(HttpMethod::Post, OperationBuilder::new().build()),
                     ),
             )
             .build();

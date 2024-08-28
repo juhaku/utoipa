@@ -675,7 +675,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 /// utoipa::openapi::PathsBuilder::new().path(
 ///         "/pets/{id}",
 ///         utoipa::openapi::PathItem::new(
-///             utoipa::openapi::PathItemType::Get,
+///             utoipa::openapi::HttpMethod::Get,
 ///             utoipa::openapi::path::OperationBuilder::new()
 ///                 .responses(
 ///                     utoipa::openapi::ResponsesBuilder::new()
@@ -715,7 +715,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap
 ///
 /// [derive]: attr.path.html
 pub trait Path {
-    fn methods() -> Vec<openapi::path::PathItemType>;
+    fn methods() -> Vec<openapi::path::HttpMethod>;
 
     fn path() -> String;
 
@@ -946,7 +946,7 @@ pub mod __dev {
     pub trait PathConfig {
         fn path() -> String;
 
-        fn methods() -> Vec<crate::openapi::path::PathItemType>;
+        fn methods() -> Vec<crate::openapi::path::HttpMethod>;
 
         fn tags_and_operation() -> (Vec<&'static str>, utoipa::openapi::path::Operation);
     }
@@ -960,7 +960,7 @@ pub mod __dev {
             <Self as PathConfig>::path()
         }
 
-        fn methods() -> Vec<crate::openapi::path::PathItemType> {
+        fn methods() -> Vec<crate::openapi::path::HttpMethod> {
             <Self as PathConfig>::methods()
         }
 

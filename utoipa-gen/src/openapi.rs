@@ -636,7 +636,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
                     fn path() -> String {
                         #usage::path()
                     }
-                    fn methods() -> Vec<utoipa::openapi::path::PathItemType> {
+                    fn methods() -> Vec<utoipa::openapi::path::HttpMethod> {
                         #usage::methods()
                     }
                     fn tags_and_operation() -> (Vec<&'static str>, utoipa::openapi::path::Operation) {

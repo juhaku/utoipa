@@ -51,10 +51,8 @@
 
 pub mod router;
 
-use core::panic;
-
 use axum::routing::MethodFilter;
-use utoipa::openapi::PathItemType;
+use utoipa::openapi::HttpMethod;
 
 /// Extends [`utoipa::openapi::path::PathItem`] by providing conversion methods to convert this
 /// path item type to a [`axum::routing::MethodFilter`].
@@ -62,28 +60,20 @@ pub trait PathItemExt {
     /// Convert this path item type ot a [`axum::routing::MethodFilter`].
     ///
     /// Method filter is used with handler registration on [`axum::routing::MethodRouter`].
-    ///
-    /// # Panics
-    ///
-    /// [`utoipa::openapi::path::PathItemType::Connect`] will panic because _`axum`_ does not have
-    /// `CONNECT` type [`axum::routing::MethodFilter`].
     fn to_method_filter(&self) -> MethodFilter;
 }
 
-impl PathItemExt for PathItemType {
+impl PathItemExt for HttpMethod {
     fn to_method_filter(&self) -> MethodFilter {
         match self {
-            PathItemType::Get => MethodFilter::GET,
-            PathItemType::Put => MethodFilter::PUT,
-            PathItemType::Post => MethodFilter::POST,
-            PathItemType::Head => MethodFilter::HEAD,
-            PathItemType::Patch => MethodFilter::PATCH,
-            PathItemType::Trace => MethodFilter::TRACE,
-            PathItemType::Delete => MethodFilter::DELETE,
-            PathItemType::Options => MethodFilter::OPTIONS,
-            PathItemType::Connect => panic!(
-                "`CONNECT` not supported, axum does not have `MethodFilter` for connect requests"
-            ),
+            HttpMethod::Get => MethodFilter::GET,
+            HttpMethod::Put => MethodFilter::PUT,
+            HttpMethod::Post => MethodFilter::POST,
+            HttpMethod::Head => MethodFilter::HEAD,
+            HttpMethod::Patch => MethodFilter::PATCH,
+            HttpMethod::Trace => MethodFilter::TRACE,
+            HttpMethod::Delete => MethodFilter::DELETE,
+            HttpMethod::Options => MethodFilter::OPTIONS,
         }
     }
 }
@@ -264,14 +254,14 @@ mod tests {
             .path(
                 "/",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new().operation_id(Some("get_user")),
                 ),
             )
             .path(
                 "/search",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("search_user")),
                 ),
@@ -305,7 +295,7 @@ mod tests {
             .path(
                 "/api/customer/",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("get_customer")),
                 ),
@@ -313,7 +303,7 @@ mod tests {
             .path(
                 "/search",
                 utoipa::openapi::PathItem::new(
-                    utoipa::openapi::path::PathItemType::Get,
+                    utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("search_user")),
                 ),

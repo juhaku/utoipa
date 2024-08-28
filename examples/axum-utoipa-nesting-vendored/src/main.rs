@@ -26,7 +26,7 @@ async fn main() -> Result<(), Error> {
     let hello_api =
         Into::<OpenApiBuilder>::into(HelloApi::openapi()).paths(PathsBuilder::new().path(
             "",
-            PathItem::new(utoipa::openapi::PathItemType::Get, Operation::new()),
+            PathItem::new(utoipa::openapi::HttpMethod::Get, Operation::new()),
         ));
 
     let mut doc = ApiDoc::openapi();

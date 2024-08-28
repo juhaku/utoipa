@@ -56,7 +56,7 @@ impl Paths {
     ///
     /// _**Get user path item.**_
     /// ```rust
-    /// # use utoipa::openapi::path::{Paths, PathItemType};
+    /// # use utoipa::openapi::path::{Paths, HttpMethod};
     /// # let paths = Paths::new();
     /// let path_item = paths.get_path_item("/api/v1/user");
     /// ```
@@ -67,24 +67,24 @@ impl Paths {
     /// Return _`Option`_ of reference to [`Operation`] from map of paths or `None` if not found.
     ///
     /// * First will try to find [`PathItem`] by given relative path _`P`_ e.g. `"/api/v1/user"`.
-    /// * Then tries to find [`Operation`] from [`PathItem`]'s operations by given [`PathItemType`].
+    /// * Then tries to find [`Operation`] from [`PathItem`]'s operations by given [`HttpMethod`].
     ///
     /// # Examples
     ///
     /// _**Get user operation from paths.**_
     /// ```rust
-    /// # use utoipa::openapi::path::{Paths, PathItemType};
+    /// # use utoipa::openapi::path::{Paths, HttpMethod};
     /// # let paths = Paths::new();
-    /// let operation = paths.get_path_operation("/api/v1/user", PathItemType::Get);
+    /// let operation = paths.get_path_operation("/api/v1/user", HttpMethod::Get);
     /// ```
     pub fn get_path_operation<P: AsRef<str>>(
         &self,
         path: P,
-        item_type: PathItemType,
+        http_method: HttpMethod,
     ) -> Option<&Operation> {
         self.paths
             .get(path.as_ref())
-            .and_then(|path| path.operations.get(&item_type))
+            .and_then(|path| path.operations.get(&http_method))
     }
 
     /// Append [`PathItem`] with path to map of paths. If path already exists it will merge [`Operation`]s of
@@ -123,8 +123,25 @@ impl PathsBuilder {
     pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
         set_value!(self extensions extensions)
     }
-    /// Appends a [`Path`] to map of paths. By calling [`path`](PathsBuilder::path) method.
-    /// None will be passed into [Path::path_item] method.
+
+    /// Appends a [`Path`] to map of paths. Method must be called with one generic argument that
+    /// implements [`utoipa::Path`] trait.
+    ///
+    /// # Examples
+    ///
+    /// _**Append `MyPath` content to the paths.**_
+    /// ```rust
+    /// # struct MyPath;
+    /// # impl utoipa::Path for MyPath {
+    /// #   fn methods() -> Vec<utoipa::openapi::path::HttpMethod> { vec![] }
+    /// #   fn path() -> String { String::new() }
+    /// #   fn operation() -> utoipa::openapi::path::Operation {
+    /// #        utoipa::openapi::path::Operation::new()
+    /// #   }
+    /// # }
+    /// let paths = utoipa::openapi::path::PathsBuilder::new();
+    /// let _ = paths.path_from::<MyPath>();
+    /// ```
     pub fn path_from<P: Path>(self) -> Self {
         let methods = P::methods();
         let operation = P::operation();
@@ -184,9 +201,9 @@ builder! {
         pub parameters: Option<Vec<Parameter>>,
 
         /// Map of operations in this [`PathItem`]. Operations can hold only one operation
-        /// per [`PathItemType`].
+        /// per [`HttpMethod`].
         #[serde(flatten)]
-        pub operations: PathsMap<PathItemType, Operation>,
+        pub operations: PathsMap<HttpMethod, Operation>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -195,9 +212,9 @@ builder! {
 }
 
 impl PathItem {
-    /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`PathItemType`].
-    pub fn new<O: Into<Operation>>(path_item_type: PathItemType, operation: O) -> Self {
-        let operations = PathsMap::from_iter(iter::once((path_item_type, operation.into())));
+    /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`HttpMethod`].
+    pub fn new<O: Into<Operation>>(http_method: HttpMethod, operation: O) -> Self {
+        let operations = PathsMap::from_iter(iter::once((http_method, operation.into())));
 
         Self {
             operations,
@@ -207,14 +224,10 @@ impl PathItem {
 }
 
 impl PathItemBuilder {
-    /// Append a new [`Operation`] by [`PathItemType`] to this [`PathItem`]. Operations can
-    /// hold only one operation per [`PathItemType`].
-    pub fn operation<O: Into<Operation>>(
-        mut self,
-        path_item_type: PathItemType,
-        operation: O,
-    ) -> Self {
-        self.operations.insert(path_item_type, operation.into());
+    /// Append a new [`Operation`] by [`HttpMethod`] to this [`PathItem`]. Operations can
+    /// hold only one operation per [`HttpMethod`].
+    pub fn operation<O: Into<Operation>>(mut self, http_method: HttpMethod, operation: O) -> Self {
+        self.operations.insert(http_method, operation.into());
 
         self
     }
@@ -247,11 +260,13 @@ impl PathItemBuilder {
     }
 }
 
-/// Path item operation type.
+/// HTTP method of the operation.
+///
+/// List of supported HTTP methods <https://spec.openapis.org/oas/latest.html#path-item-object>
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum PathItemType {
+pub enum HttpMethod {
     /// Type mapping for HTTP _GET_ request.
     Get,
     /// Type mapping for HTTP _POST_ request.
@@ -268,8 +283,6 @@ pub enum PathItemType {
     Patch,
     /// Type mapping for HTTP _TRACE_ request.
     Trace,
-    /// Type mapping for HTTP _CONNECT_ request.
-    Connect,
 }
 
 builder! {
@@ -712,37 +725,35 @@ pub enum ParameterStyle {
 
 #[cfg(test)]
 mod tests {
-    use super::{Operation, OperationBuilder};
-    use crate::openapi::{
-        security::SecurityRequirement, server::Server, PathItem, PathItemType, PathsBuilder,
-    };
+    use super::{HttpMethod, Operation, OperationBuilder};
+    use crate::openapi::{security::SecurityRequirement, server::Server, PathItem, PathsBuilder};
 
     #[test]
     fn test_path_order() {
         let paths_list = PathsBuilder::new()
             .path(
                 "/todo",
-                PathItem::new(PathItemType::Get, OperationBuilder::new()),
+                PathItem::new(HttpMethod::Get, OperationBuilder::new()),
             )
             .path(
                 "/todo",
-                PathItem::new(PathItemType::Post, OperationBuilder::new()),
+                PathItem::new(HttpMethod::Post, OperationBuilder::new()),
             )
             .path(
                 "/todo/{id}",
-                PathItem::new(PathItemType::Delete, OperationBuilder::new()),
+                PathItem::new(HttpMethod::Delete, OperationBuilder::new()),
             )
             .path(
                 "/todo/{id}",
-                PathItem::new(PathItemType::Get, OperationBuilder::new()),
+                PathItem::new(HttpMethod::Get, OperationBuilder::new()),
             )
             .path(
                 "/todo/{id}",
-                PathItem::new(PathItemType::Put, OperationBuilder::new()),
+                PathItem::new(HttpMethod::Put, OperationBuilder::new()),
             )
             .path(
                 "/todo/search",
-                PathItem::new(PathItemType::Get, OperationBuilder::new()),
+                PathItem::new(HttpMethod::Get, OperationBuilder::new()),
             )
             .build();
 
@@ -751,7 +762,7 @@ mod tests {
             .iter()
             .flat_map(|(path, path_item)| {
                 path_item.operations.iter().fold(
-                    Vec::<(&str, &PathItemType)>::with_capacity(paths_list.paths.len()),
+                    Vec::<(&str, &HttpMethod)>::with_capacity(paths_list.paths.len()),
                     |mut acc, (method, _)| {
                         acc.push((path.as_str(), method));
                         acc
@@ -760,10 +771,10 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let get = PathItemType::Get;
-        let post = PathItemType::Post;
-        let put = PathItemType::Put;
-        let delete = PathItemType::Delete;
+        let get = HttpMethod::Get;
+        let post = HttpMethod::Post;
+        let put = HttpMethod::Put;
+        let delete = HttpMethod::Delete;
 
         #[cfg(not(feature = "preserve_path_order"))]
         {

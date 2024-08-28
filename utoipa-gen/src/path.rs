@@ -40,7 +40,7 @@ pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
-    methods: Vec<OperationMethod>,
+    methods: Vec<HttpMethod>,
     request_body: Option<RequestBody<'p>>,
     responses: Vec<Response<'p>>,
     pub(super) path: Option<parse_utils::Value>,
@@ -108,36 +108,36 @@ impl<'p> PathAttr<'p> {
 
 impl Parse for PathAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: operation_id, path, request_body, responses, params, tag, security, context_path, description, summary";
+        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected identifier, expected any of: method, get, post, put, delete, options, head, patch, trace, operation_id, path, request_body, responses, params, tag, security, context_path, description, summary";
         let mut path_attr = PathAttr::default();
 
-        // TODO fis this
-        // #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
-        {
-            const EXPECTED_OPERATION_METHOD: &str = "unexected identifier, expected either one of: get, post, put, delete, options, head, patch, trace, connect or method = [get, post, ...]";
-            let fork = input.fork();
-            let is_method = fork
-                .parse::<Ident>()
-                .map(|ident| &*ident.to_string() == "method")
-                .unwrap_or_default();
-            if is_method {
-                input.parse::<Ident>()?;
-                path_attr.methods = parse_utils::parse_next(input, || {
-                    let bracketed;
-                    bracketed!(bracketed in input);
-
-                    bracketed.parse_terminated(OperationMethod::parse, Comma)
-                })
-                .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?
-                .into_iter()
-                .collect();
-            } else {
-                path_attr.methods = vec![input
-                    .parse::<OperationMethod>()
-                    .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?];
-            }
-            input.parse::<Token![,]>()?;
-        }
+        // // TODO fis this
+        // // #[cfg(not(any(feature = "actix_extras", feature = "rocket_extras")))]
+        // {
+        //     const EXPECTED_OPERATION_METHOD: &str = "unexected identifier, expected either one of: get, post, put, delete, options, head, patch, trace, connect or method = [get, post, ...]";
+        //     let fork = input.fork();
+        //     let is_method = fork
+        //         .parse::<Ident>()
+        //         .map(|ident| &*ident.to_string() == "method")
+        //         .unwrap_or_default();
+        //     if is_method {
+        //         input.parse::<Ident>()?;
+        //         path_attr.methods = parse_utils::parse_next(input, || {
+        //             let bracketed;
+        //             bracketed!(bracketed in input);
+        //
+        //             bracketed.parse_terminated(HttpMethod::parse, Comma)
+        //         })
+        //         .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?
+        //         .into_iter()
+        //         .collect();
+        //     } else {
+        //         path_attr.methods = vec![input
+        //             .parse::<HttpMethod>()
+        //             .map_err(|error| syn::Error::new(error.span(), EXPECTED_OPERATION_METHOD))?];
+        //     }
+        //     input.parse::<Token![,]>()?;
+        // }
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
@@ -149,6 +149,16 @@ impl Parse for PathAttr<'_> {
             let attribute_name = &*ident.to_string();
 
             match attribute_name {
+                "method" => {
+                    path_attr.methods = parse_utils::parse_next(input, || {
+                        let bracketed;
+                        bracketed!(bracketed in input);
+
+                        bracketed.parse_terminated(HttpMethod::parse, Comma)
+                    })?
+                    .into_iter()
+                    .collect();
+                }
                 "operation_id" => {
                     path_attr.operation_id =
                         Some(parse_utils::parse_next(input, || Expr::parse(input))?);
@@ -207,7 +217,13 @@ impl Parse for PathAttr<'_> {
                     path_attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
                 _ => {
-                    return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
+                    if let Some(path_operation) =
+                        attribute_name.parse::<HttpMethod>().into_iter().next()
+                    {
+                        path_attr.methods = vec![path_operation]
+                    } else {
+                        return Err(syn::Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE));
+                    }
                 }
             }
 
@@ -220,19 +236,9 @@ impl Parse for PathAttr<'_> {
     }
 }
 
-/// Path operation type of response
-///
-/// Instance of path operation can be formed from str parsing with following supported values:
-///   * "get"
-///   * "post"
-///   * "put"
-///   * "delete"
-///   * "options"
-///   * "head"
-///   * "patch"
-///   * "trace"
+/// Path operation HTTP method
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum OperationMethod {
+pub enum HttpMethod {
     Get,
     Post,
     Put,
@@ -241,48 +247,43 @@ pub enum OperationMethod {
     Head,
     Patch,
     Trace,
-    Connect,
 }
 
-impl Parse for OperationMethod {
+impl Parse for HttpMethod {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const ERROR_MESSAGE: &str = "unexpected operation method, expected one of: get, post, put, delete, options, head, patch, trace, connect";
-
         let method = input
             .parse::<Ident>()
-            .map_err(|error| syn::Error::new(error.span(), &format!("{ERROR_MESSAGE}, {error}")))?;
-        let operation_method = match &*method.to_string() {
-            "get" => OperationMethod::Get,
-            "post" => OperationMethod::Post,
-            "put" => OperationMethod::Put,
-            "delete" => OperationMethod::Delete,
-            "options" => OperationMethod::Options,
-            "head" => OperationMethod::Head,
-            "patch" => OperationMethod::Patch,
-            "trace" => OperationMethod::Trace,
-            "connect" => OperationMethod::Connect,
-            _ => return Err(syn::Error::new(method.span(), ERROR_MESSAGE)),
-        };
+            .map_err(|error| syn::Error::new(error.span(), HttpMethod::ERROR_MESSAGE))?;
 
-        Ok(operation_method)
+        method
+            .to_string()
+            .parse::<HttpMethod>()
+            .map_err(|_| syn::Error::new(method.span(), HttpMethod::ERROR_MESSAGE))
     }
 }
 
-impl OperationMethod {
+impl HttpMethod {
+    const ERROR_MESSAGE: &'static str = "unexpected http method, expected one of: get, post, put, delete, options, head, patch, trace";
     /// Create path operation from ident
     ///
     /// Ident must have value of http request type as lower case string such as `get`.
     #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
     pub fn from_ident(ident: &Ident) -> Result<Self, Diagnostics> {
-        ident
-            .to_string()
-            .as_str()
-            .parse::<OperationMethod>()
-            .map_err(|error| Diagnostics::with_span(ident.span(), error.to_string()))
+        let name = &*ident.to_string();
+        name
+            .parse::<HttpMethod>()
+            .map_err(|error| {
+                let mut diagnostics = Diagnostics::with_span(ident.span(), error.to_string());
+                if name == "connect" {
+                    diagnostics = diagnostics.note("HTTP method `CONNET` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
+                }
+
+                diagnostics
+            })
     }
 }
 
-impl FromStr for OperationMethod {
+impl FromStr for HttpMethod {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -295,27 +296,25 @@ impl FromStr for OperationMethod {
             "head" => Ok(Self::Head),
             "patch" => Ok(Self::Patch),
             "trace" => Ok(Self::Trace),
-            "connect" => Ok(Self::Connect),
             _ => Err(Error::new(
                 std::io::ErrorKind::Other,
-                "invalid PathOperation expected one of: get, post, put, delete, options, head, patch, trace, connect",
+                HttpMethod::ERROR_MESSAGE,
             )),
         }
     }
 }
 
-impl ToTokens for OperationMethod {
+impl ToTokens for HttpMethod {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let path_item_type = match self {
-            Self::Get => quote! { utoipa::openapi::PathItemType::Get },
-            Self::Post => quote! { utoipa::openapi::PathItemType::Post },
-            Self::Put => quote! { utoipa::openapi::PathItemType::Put },
-            Self::Delete => quote! { utoipa::openapi::PathItemType::Delete },
-            Self::Options => quote! { utoipa::openapi::PathItemType::Options },
-            Self::Head => quote! { utoipa::openapi::PathItemType::Head },
-            Self::Patch => quote! { utoipa::openapi::PathItemType::Patch },
-            Self::Trace => quote! { utoipa::openapi::PathItemType::Trace },
-            Self::Connect => quote! { utoipa::openapi::PathItemType::Connect },
+            Self::Get => quote! { utoipa::openapi::HttpMethod::Get },
+            Self::Post => quote! { utoipa::openapi::HttpMethod::Post },
+            Self::Put => quote! { utoipa::openapi::HttpMethod::Put },
+            Self::Delete => quote! { utoipa::openapi::HttpMethod::Delete },
+            Self::Options => quote! { utoipa::openapi::HttpMethod::Options },
+            Self::Head => quote! { utoipa::openapi::HttpMethod::Head },
+            Self::Patch => quote! { utoipa::openapi::HttpMethod::Patch },
+            Self::Trace => quote! { utoipa::openapi::HttpMethod::Trace },
         };
 
         tokens.extend(path_item_type);
@@ -324,7 +323,7 @@ impl ToTokens for OperationMethod {
 pub struct Path<'p> {
     path_attr: PathAttr<'p>,
     fn_ident: &'p Ident,
-    ext_method_operations: Vec<OperationMethod>,
+    ext_method_operations: Vec<HttpMethod>,
     path: Option<String>,
     doc_comments: Option<Vec<String>>,
     deprecated: bool,
@@ -342,10 +341,7 @@ impl<'p> Path<'p> {
         }
     }
 
-    pub fn ext_method_operations(
-        mut self,
-        operation_methods: Option<Vec<OperationMethod>>,
-    ) -> Self {
+    pub fn ext_method_operations(mut self, operation_methods: Option<Vec<HttpMethod>>) -> Self {
         self.ext_method_operations = operation_methods.unwrap_or_default();
 
         self
@@ -561,7 +557,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                     #path_with_context_path
                 }
 
-                fn methods() -> Vec<utoipa::openapi::path::PathItemType> {
+                fn methods() -> Vec<utoipa::openapi::path::HttpMethod> {
                     #method_operations.into()
                 }
 
