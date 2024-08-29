@@ -118,7 +118,7 @@ mod order {
     /// Create an order.
     ///
     /// Create an order by basically passing through the name of the request with static id.
-    #[utoipa::path(post, path = "", responses((status = OK, body = OrderRequest)), tag = super::ORDER_TAG)]
+    #[utoipa::path(post, path = "", responses((status = OK, body = Order)), tag = super::ORDER_TAG)]
     async fn create_order(Json(order): Json<OrderRequest>) -> Json<Order> {
         Json(Order {
             id: 120,
