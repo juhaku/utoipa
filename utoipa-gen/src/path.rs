@@ -315,8 +315,8 @@ impl<'p> Path<'p> {
         self
     }
 
-    pub fn path(mut self, path_provider: impl FnOnce() -> Option<String>) -> Self {
-        self.path = path_provider();
+    pub fn path(mut self, path: Option<String>) -> Self {
+        self.path = path;
 
         self
     }
@@ -387,11 +387,12 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .path
             .as_ref()
             .map(|path| path.to_token_stream())
-            .or(Some(self.path.to_token_stream()))
+            .or(self.path.as_ref().map(|path| path.to_token_stream()))
             .ok_or_else(|| {
                 let diagnostics = || {
-                    Diagnostics::new("path is not defined for path")
-                        .help(r#"Did you forget to define it in #[utoipa::path(path = "...")]"#)
+                    Diagnostics::new("path is not defined for #[utoipa::path(...)]").help(
+                        r#"Did you forget to define it in #[utoipa::path(..., path = "...")]"#,
+                    )
                 };
 
                 #[cfg(any(feature = "actix_extras", feature = "rocket_extras"))]
@@ -413,15 +414,15 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 let context_path = context_path.to_token_stream();
                 let context_path_tokens = quote! {
                     format!("{}{}",
-                        #context_path.replace('"', ""),
-                        #path.replace('"', "")
+                        #context_path,
+                        #path
                     )
                 };
                 context_path_tokens
             })
             .unwrap_or_else(|| {
                 quote! {
-                    #path.replace('"', "")
+                    String::from(#path)
                 }
             });
 

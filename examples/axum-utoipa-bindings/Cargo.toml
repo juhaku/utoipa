@@ -1,0 +1,16 @@
+[package]
+name = "axum-utoipa-bindings"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+utoipa = { path = "../../utoipa", features = ["axum_extras", "debug"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
+utoipa-axum = { path = "../../utoipa-axum" ,features = ["debug"] }
+serde = "1"
+serde_json = "1"
+
+[workspace]

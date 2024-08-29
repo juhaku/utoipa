@@ -4,6 +4,10 @@ Utoipa axum brings `utoipa` and `axum` closer together by the way of providing a
 the `axum` API. It gives a natural way to register handlers known to `axum` and also simultaneously generates OpenAPI
 specification from the handlers.
 
+## Crate features
+
+- **`debug`**: Implement debug traits for types.
+
 ## Install
 
 Add dependency declaration to `Cargo.toml`.
@@ -28,12 +32,8 @@ struct Todo {
 struct Api;
 
 let mut router: OpenApiRouter = OpenApiRouter::with_openapi(Api::openapi())
-    .routes(get_path(search_user))
-    .routes(
-        get_path(get_user)
-            .post_path(post_user)
-            .delete_path(delete_user),
-    );
+    .routes(routes!(search_user))
+    .routes(routes!(get_user, post_user, delete_user));
 
 let api = router.to_openapi();
 let axum_router: axum::Router = router.into();

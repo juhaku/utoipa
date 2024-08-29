@@ -125,7 +125,7 @@ impl PathsBuilder {
     }
 
     /// Appends a [`Path`] to map of paths. Method must be called with one generic argument that
-    /// implements [`utoipa::Path`] trait.
+    /// implements [`trait@Path`] trait.
     ///
     /// # Examples
     ///
