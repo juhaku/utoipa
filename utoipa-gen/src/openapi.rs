@@ -184,7 +184,7 @@ impl Parse for Modifier {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Tag {
-    name: String,
+    name: parse_utils::Value,
     description: Option<Str>,
     external_docs: Option<ExternalDocs>,
 }
@@ -203,7 +203,7 @@ impl Parse for Tag {
             let attribute_name = &*ident.to_string();
 
             match attribute_name {
-                "name" => tag.name = parse_utils::parse_next_literal_str(input)?,
+                "name" => tag.name = parse_utils::parse_next_literal_str_or_expr(input)?,
                 "description" => {
                     tag.description =
                         Some(parse_utils::parse_next_literal_str_or_include_str(input)?)

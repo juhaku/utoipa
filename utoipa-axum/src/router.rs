@@ -1,5 +1,4 @@
 //! Implements Router for composing handlers and collecting OpenAPI information.
-use std::collections::BTreeMap;
 use std::convert::Infallible;
 
 use axum::extract::Request;
@@ -32,7 +31,7 @@ pub type UtoipaMethodRouter<S = ()> =
 /// A wrapper struct for [`axum::Router`] and [`utoipa::openapi::OpenApi`] for composing handlers
 /// and services with collecting OpenAPI information from the handlers.
 ///
-/// This struct provides passthrough implementation for most of the [`axum::Router`] methods and
+/// This struct provides pass through implementation for most of the [`axum::Router`] methods and
 /// extends capabilities for few to collect the OpenAPI information. Methods that are not
 /// implemented can be easily called after converting this router to [`axum::Router`] by
 /// [`Into::into`].
@@ -76,12 +75,12 @@ where
         Self(Router::new(), openapi)
     }
 
-    /// Passthrough method for [`axum::Router::as_service`].
+    /// Pass through method for [`axum::Router::as_service`].
     pub fn as_service<B>(&mut self) -> RouterAsService<'_, B, S> {
         self.0.as_service()
     }
 
-    /// Passthrough method for [`axum::Router::fallback`].
+    /// Pass through method for [`axum::Router::fallback`].
     pub fn fallback<H, T>(self, handler: H) -> Self
     where
         H: Handler<T, S>,
@@ -90,7 +89,7 @@ where
         Self(self.0.fallback(handler), self.1)
     }
 
-    /// Passthrough method for [`axum::Router::fallback_service`].
+    /// Pass through method for [`axum::Router::fallback_service`].
     pub fn fallback_service<T>(self, service: T) -> Self
     where
         T: Service<Request, Error = Infallible> + Clone + Send + 'static,
@@ -100,7 +99,7 @@ where
         Self(self.0.fallback_service(service), self.1)
     }
 
-    /// Passthrough method for [`axum::Router::layer`].
+    /// Pass through method for [`axum::Router::layer`].
     pub fn layer<L>(self, layer: L) -> Self
     where
         L: Layer<Route> + Clone + Send + 'static,
@@ -115,7 +114,7 @@ where
     /// Register [`UtoipaMethodRouter`] content created with [`routes`][routes] macro to `self`.
     ///
     /// Paths of the [`UtoipaMethodRouter`] will be extended to [`utoipa::openapi::OpenApi`] and
-    /// [`axum::router::MethodRouter`] will be added to the [`axum::Router`].
+    /// [`axum::routing::MethodRouter`] will be added to the [`axum::Router`].
     ///
     /// [routes]: ../macro.routes.html
     pub fn routes(mut self, (mut paths, method_router): UtoipaMethodRouter<S>) -> Self {
@@ -141,12 +140,12 @@ where
         Self(router, self.1)
     }
 
-    /// Passthrough method for [`axum::Router<S>::route`].
+    /// Pass through method for [`axum::Router<S>::route`].
     pub fn route(self, path: &str, method_router: MethodRouter<S>) -> Self {
         Self(self.0.route(&colonized_params(path), method_router), self.1)
     }
 
-    /// Passthrough method for [`axum::Router::route_layer`].
+    /// Pass through method for [`axum::Router::route_layer`].
     pub fn route_layer<L>(self, layer: L) -> Self
     where
         L: Layer<Route> + Clone + Send + 'static,
@@ -158,7 +157,7 @@ where
         Self(self.0.route_layer(layer), self.1)
     }
 
-    /// Passthrough method for [`axum::Router<S>::route_service`].
+    /// Pass through method for [`axum::Router<S>::route_service`].
     pub fn route_service<T>(self, path: &str, service: T) -> Self
     where
         T: Service<Request, Error = Infallible> + Clone + Send + 'static,
@@ -189,26 +188,15 @@ where
     /// let router: OpenApiRouter = OpenApiRouter::new()
     ///     .nest("/api", search_router);
     /// ```
-    pub fn nest(mut self, path: &str, router: OpenApiRouter<S>) -> Self {
-        let nested_paths = router
-            .1
-            .paths
-            .paths
-            .into_iter()
-            .map(|(item_path, item)| {
-                let path = format!("{path}{item_path}");
-                (path, item)
-            })
-            .collect::<BTreeMap<_, _>>();
-
-        self.1.paths.paths.extend(nested_paths);
-
+    pub fn nest(self, path: &str, router: OpenApiRouter<S>) -> Self {
+        let api = self.1.nest(path, router.1);
         let path = if path.is_empty() { "/" } else { path };
         let router = self.0.nest(&colonized_params(path), router.0);
-        Self(router, self.1)
+
+        Self(router, api)
     }
 
-    /// Passthrough method for [`axum::Router::nest_service`]. _**This does nothing for OpenApi paths.**_
+    /// Pass through method for [`axum::Router::nest_service`]. _**This does nothing for OpenApi paths.**_
     pub fn nest_service<T>(self, path: &str, service: T) -> Self
     where
         T: Service<Request, Error = Infallible> + Clone + Send + 'static,
@@ -240,12 +228,12 @@ where
     ///     .merge(search_router);
     /// ```
     pub fn merge(mut self, router: OpenApiRouter<S>) -> Self {
-        self.1.paths.paths.extend(router.1.paths.paths);
+        self.1.merge(router.1);
 
         Self(self.0.merge(router.0), self.1)
     }
 
-    /// Passthrough method for [`axum::Router::with_state`].
+    /// Pass through method for [`axum::Router::with_state`].
     pub fn with_state<S2>(self, state: S) -> OpenApiRouter<S2> {
         OpenApiRouter(self.0.with_state(state), self.1)
     }
@@ -264,6 +252,12 @@ where
     /// Get reference to the [`utoipa::openapi::OpenApi`] instance of the router.
     pub fn get_openapi(&self) -> &utoipa::openapi::OpenApi {
         &self.1
+    }
+
+    /// Split the content of the [`OpenApiRouter`] to parts. Method will return a tuple of
+    /// inner [`axum::Router`] and [`utoipa::openapi::OpenApi`].
+    pub fn split_for_parts(self) -> (axum::Router<S>, utoipa::openapi::OpenApi) {
+        (self.0, self.1)
     }
 }
 

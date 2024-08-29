@@ -6,6 +6,10 @@
 //! the `axum` API. It gives a natural way to register handlers known to `axum` and also simultaneously generates OpenAPI
 //! specification from the handlers.
 //!
+//! ## Crate features
+//!
+//! - **`debug`**: Implement debug traits for types.
+//!
 //! ## Install
 //!
 //! Add dependency declaration to `Cargo.toml`.

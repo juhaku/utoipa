@@ -338,6 +338,34 @@ fn derive_path_with_context_path() {
 }
 
 #[test]
+fn derive_path_with_context_path_from_const() {
+    use actix_web::{get, HttpResponse, Responder};
+    use serde_json::json;
+    const CONTEXT: &str = "/api";
+
+    #[utoipa::path(
+        context_path = CONTEXT,
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo")]
+    #[allow(unused)]
+    async fn get_foo() -> impl Responder {
+        HttpResponse::Ok().json(json!({ "id": "foo" }))
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let path = doc.pointer("/paths/~1api~1foo/get").unwrap();
+
+    assert_ne!(path, &Value::Null, "expected path with context path /api");
+}
+
+#[test]
 fn path_with_struct_variables_with_into_params() {
     use actix_web::{get, HttpResponse, Responder};
     use serde_json::json;

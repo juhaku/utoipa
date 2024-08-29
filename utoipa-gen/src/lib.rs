@@ -716,8 +716,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # Path Attributes
 ///
-/// * `operation` _**Must be first parameter!**_ Accepted values are known http operations such as
-///   _`get, post, put, delete, head, options, connect, patch, trace`_.
+/// * `operation` _**Must be first parameter!**_ Accepted values are known HTTP operations such as
+///   _`get, post, put, delete, head, options, patch, trace`_.
+///
+/// * `method(get, head, ...)` Http methods for the operation. This allows defining multiple
+///   HTTP methods at once for single operation. Either _`operation`_ or _`method(...)`_ _**must be
+///   provided.**_
 ///
 /// * `path = "..."` Must be OpenAPI format compatible str with arguments within curly braces. E.g _`{id}`_
 ///
@@ -737,7 +741,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   this is derived from the module path of the handler that is given to [`OpenApi`][openapi].
 ///
 /// * `tags = ["tag1", ...]` Can be used to group operations. Operations with same tag are grouped
-///   toghether. Tags attribute can be used to add addtional _tags_ for the operation. If both
+///   together. Tags attribute can be used to add additional _tags_ for the operation. If both
 ///   _`tag`_ and _`tags`_ are provided then they will be combined to a single _`tags`_ array.
 ///
 /// * `request_body = ... | request_body(...)` Defining request body indicates that the request is expecting request body within
@@ -1445,7 +1449,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let path = Path::new(path_attribute, &ast_fn.sig.ident)
         .ext_methods(resolved_methods.map(|operation| operation.methods))
-        .path(|| resolved_path.map(|path| path.path))
+        .path(resolved_path.map(|path| path.path))
         .doc_comments(CommentAttributes::from_attributes(&ast_fn.attrs).0)
         .deprecated(ast_fn.attrs.has_deprecated());
 
@@ -1473,19 +1477,18 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   See the [trait documentation][modify] for more details.
 /// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
 ///   See more details in [`#[utoipa::path(...)]`][path] [attribute macro security options][path_security].
-/// * `tags(...)` List of [`Tag`][tags] which must match the tag _**path operation**_. By default
-///   the tag is derived from path given to **handlers** list or if undefined then `crate` is used by default.
-///   Alternatively the tag name can be given to path operation via [`#[utoipa::path(...)]`][path] macro.
-///   Tag can be used to define extra information for the api to produce richer documentation.
+/// * `tags(...)` List of [`Tag`][tags]s which must match the tag _**path operation**_.  Tags can be used to
+///   define extra information for the API to produce richer documentation. See [tags attribute syntax][tags_syntax].
 /// * `external_docs(...)` Can be used to reference external resource to the OpenAPI doc for extended documentation.
 ///   External docs can be in [`OpenApi`][openapi_struct] or in [`Tag`][tags] level.
 /// * `servers(...)` Define [`servers`][servers] as derive argument to the _`OpenApi`_. Servers
-///   are completely optional and thus can be omitted from the declaration.
+///   are completely optional and thus can be omitted from the declaration. See [servers attribute
+///   syntax][servers_syntax]
 /// * `info(...)` Declare [`Info`][info] attribute values used to override the default values
 ///   generated from Cargo environment variables. **Note!** Defined attributes will override the
 ///   whole attribute from generated values of Cargo environment variables. E.g. defining
 ///   `contact(name = ...)` will ultimately override whole contact of info and not just partially
-///   the name.
+///   the name. See [info attribute sytnax][info_syntax]
 /// * `nest(...)` Allows nesting [`OpenApi`][openapi_struct]s to this _`OpenApi`_ instance. Nest
 ///   takes comma separated list of tuples of nested `OpenApi`s. _`OpenApi`_ instance must
 ///   implement [`OpenApi`][openapi] trait. Nesting allows defining one `OpenApi` per defined path.
@@ -1515,6 +1518,16 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `license(...)` Used to override the whole license generated from environment variables.
 ///     * `name = ...` License name of the API. It can be a literal string.
 ///     * `url = ...` Define optional URL of the license. It must be URL formatted string.
+///
+/// # `tags(...)` attribute syntax
+///
+/// * `name = ...` Must be provided, can be either of static [`str`], [`String`] or an expression
+///   e.g. reference to static [`const`][const].
+/// * `description = ...` Optional description for the tag. Can be either or static [`str`] or
+///   _`include_str!(...)`_ macro call.
+/// * `external_docs(...)` Optional links to external documents.
+///      * `url = ...` Mandatory URL for external documentation.
+///      * `description = ...` Optional description for the _`url`_ link.
 ///
 /// # `servers(...)` attribute syntax
 ///
@@ -1697,6 +1710,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [tags]: openapi/tag/struct.Tag.html
 /// [to_response_trait]: trait.ToResponse.html
 /// [servers]: openapi/server/index.html
+/// [const]: https://doc.rust-lang.org/std/keyword.const.html
+/// [tags_syntax]: #tags-attribute-syntax
+/// [info_syntax]: #info-attribute-syntax
+/// [servers_syntax]: #servers-attribute-syntax
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
