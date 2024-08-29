@@ -109,7 +109,7 @@ pub use paste::paste;
 ///  let _: UtoipaMethodRouter = routes!(get_user, search_user);
 /// ```
 /// Since the _`axum`_ does not support method filter for `CONNECT` requests, using this macro with
-/// handler having request method type `CONNET` `#[utoipa::path(connet, path = "")]` will panic at
+/// handler having request method type `CONNECT` `#[utoipa::path(connect, path = "")]` will panic at
 /// runtime.
 ///
 /// # Examples

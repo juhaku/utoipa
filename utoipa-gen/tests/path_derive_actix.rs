@@ -1102,7 +1102,7 @@ test_derive_path_operations! {
 }
 
 #[test]
-fn derive_path_with_mulitple_methods_skip_connect() {
+fn derive_path_with_multiple_methods_skip_connect() {
     #[utoipa::path(
         responses(
             (status = 200, description = "success response")
@@ -1110,7 +1110,7 @@ fn derive_path_with_mulitple_methods_skip_connect() {
     )]
     #[route("/route foo", method = "GET", method = "HEAD", method = "CONNECT")]
     #[allow(unused)]
-    async fn mulitple_methods() -> impl Responder {
+    async fn multiple_methods() -> impl Responder {
         String::new()
     }
 
@@ -1120,6 +1120,6 @@ fn derive_path_with_mulitple_methods_skip_connect() {
             utoipa::openapi::path::HttpMethod::Get,
             utoipa::openapi::path::HttpMethod::Head
         ],
-        __path_mulitple_methods::methods()
+        __path_multiple_methods::methods()
     )
 }
