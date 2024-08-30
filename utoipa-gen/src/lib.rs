@@ -1718,16 +1718,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
     parse_openapi_attrs(&attrs)
-        .and_then(|openapi_attr| {
-            openapi_attr.ok_or(
-                syn::Error::new(
-                ident.span(),
-                "expected #[openapi(...)] attribute to be present when used with OpenApi derive trait")
-            )
-        })
-        .map_or_else(syn::Error::into_compile_error, |attrs| {
-            OpenApi(attrs, ident).into_token_stream()
-        })
+        .map(|openapi_attr| OpenApi(openapi_attr, ident).to_token_stream())
+        .map_or_else(syn::Error::into_compile_error, ToTokens::into_token_stream)
         .into()
 }
 
