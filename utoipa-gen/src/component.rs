@@ -10,9 +10,10 @@ use crate::schema_type::{SchemaFormat, SchemaTypeInner};
 use crate::{as_tokens_or_diagnostics, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics};
 use crate::{schema_type::SchemaType, Deprecated};
 
+use self::features::attributes::{Description, Nullable};
+use self::features::validation::Minimum;
 use self::features::{
-    pop_feature, Description, Feature, FeaturesExt, IntoInner, IsInline, Minimum, Nullable,
-    ToTokensExt, Validatable,
+    pop_feature, Feature, FeaturesExt, IntoInner, IsInline, ToTokensExt, Validatable,
 };
 use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};

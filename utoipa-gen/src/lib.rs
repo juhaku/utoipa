@@ -2699,9 +2699,9 @@ impl From<bool> for Required {
     }
 }
 
-impl From<features::Required> for Required {
-    fn from(value: features::Required) -> Self {
-        let features::Required(required) = value;
+impl From<features::attributes::Required> for Required {
+    fn from(value: features::attributes::Required) -> Self {
+        let features::attributes::Required(required) = value;
         crate::Required::from(required)
     }
 }

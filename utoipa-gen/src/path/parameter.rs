@@ -13,10 +13,16 @@ use crate::{
     component::{
         self,
         features::{
-            impl_into_inner, parse_features, AllowReserved, Description, Example, ExclusiveMaximum,
-            ExclusiveMinimum, Explode, Feature, Format, MaxItems, MaxLength, Maximum, MinItems,
-            MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Style, ToTokensExt,
-            WriteOnly, XmlAttr,
+            attributes::{
+                AllowReserved, Description, Example, Explode, Format, Nullable, ReadOnly, Style,
+                WriteOnly, XmlAttr,
+            },
+            impl_into_inner, parse_features,
+            validation::{
+                ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, Maximum, MinItems,
+                MinLength, Minimum, MultipleOf, Pattern,
+            },
+            Feature, ToTokensExt,
         },
         ComponentSchema,
     },
@@ -296,7 +302,7 @@ impl Parse for ParameterFeatures {
             Explode,
             AllowReserved,
             Example,
-            crate::component::features::Deprecated,
+            crate::component::features::attributes::Deprecated,
             Description,
             // param schema features
             Format,
