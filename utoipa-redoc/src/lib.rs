@@ -341,11 +341,11 @@ impl<S: Spec> Redoc<S> {
 /// [`serde_json::Value`].
 ///
 /// * **OpenApi** implementation allows using utoipa's OpenApi struct as a OpenAPI spec resource
-/// for the [`Redoc`].
+///   for the [`Redoc`].
 /// * **String** and **&str** implementations allows defining HTTP URL for [`Redoc`] to load the
-/// OpenAPI spec from.
+///   OpenAPI spec from.
 /// * **Value** implementation enables the use of arbitrary JSON values with serde's `json!()`
-/// macro as a OpenAPI spec for the [`Redoc`].
+///   macro as a OpenAPI spec for the [`Redoc`].
 ///
 /// # Examples
 ///
