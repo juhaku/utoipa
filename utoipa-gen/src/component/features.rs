@@ -43,29 +43,42 @@ where
     })
 }
 
-pub trait Name {
-    fn get_name() -> &'static str
+pub trait FeatureLike: Parse {
+    fn get_name() -> std::borrow::Cow<'static, str>
     where
         Self: Sized;
 }
 
-macro_rules! name {
-    ( $ident:ident = $name:literal ) => {
-        impl $crate::features::Name for $ident {
-            fn get_name() -> &'static str {
-                $name
+macro_rules! impl_feature {
+    ( $( $name:literal => )? $( #[$meta:meta] )* $vis:vis $key:ident $ty:ident $( $tt:tt )* ) => {
+        $( #[$meta] )*
+        $vis $key $ty $( $tt )*
+
+        impl $crate::features::FeatureLike for $ty {
+            fn get_name() -> std::borrow::Cow<'static, str> {
+                impl_feature!( @name $ty name: $( $name )* )
             }
         }
 
-        impl std::fmt::Display for $ident {
+        impl std::fmt::Display for $ty {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let name = <Self as $crate::features::Name>::get_name();
-                write!(f, "{name}")
+                let name = <Self as $crate::features::FeatureLike>::get_name();
+                write!(f, "{name}", name = name.as_ref())
             }
         }
     };
+    ( @name $ty:ident name: $name:literal ) => {
+        std::borrow::Cow::Borrowed($name)
+    };
+    ( @name $ty:ident name: ) => {
+        {
+            let snake = $crate::component::serde::RenameRule::Snake;
+            let renamed = snake.rename_variant(stringify!($ty));
+            std::borrow::Cow::Owned(renamed)
+        }
+    };
 }
-use name;
+use impl_feature;
 
 /// Define whether [`Feature`] variant is validatable or not
 pub trait Validatable {
@@ -243,7 +256,7 @@ impl ToTokensDiagnostics for Feature {
                     return Err(Diagnostics::new("As does not support `ToTokens`"))
                 }
                 Feature::Required(required) => {
-                    let name = <attributes::Required as Name>::get_name();
+                    let name = <attributes::Required as FeatureLike>::get_name();
                     quote! { .#name(#required) }
                 }
             };
@@ -415,7 +428,7 @@ macro_rules! parse_features {
     ($ident:ident as $( $feature:path ),*) => {
         {
             fn parse(input: syn::parse::ParseStream) -> syn::Result<Vec<crate::component::features::Feature>> {
-                let names = [$( <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::Name>::get_name(), )* ];
+                let names = [$( <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::FeatureLike>::get_name(), )* ];
                 let mut features = Vec::<crate::component::features::Feature>::new();
                 let attributes = names.join(", ");
 
@@ -431,7 +444,7 @@ macro_rules! parse_features {
                     let name = &*ident.to_string();
 
                     $(
-                        if name == <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::Name>::get_name() {
+                        if name == <crate::component::features::parse_features!(@as_ident $feature) as crate::component::features::FeatureLike>::get_name() {
                             features.push(<$feature as crate::component::features::Parse>::parse(input, ident)?.into());
                             if !input.is_empty() {
                                 input.parse::<syn::Token![,]>()?;
@@ -440,7 +453,7 @@ macro_rules! parse_features {
                         }
                     )*
 
-                    if !names.contains(&name) {
+                    if !names.contains(&std::borrow::Cow::Borrowed(name)) {
                         return Err(syn::Error::new(ident.span(), format!("unexpected attribute: {name}, expected any of: {attributes}")))
                     }
                 }

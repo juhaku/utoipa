@@ -12,12 +12,14 @@ use crate::path::parameter::{self, ParameterStyle};
 use crate::schema_type::SchemaFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
 
-use super::{name, Feature, Parse};
+use super::{impl_feature, Feature, Parse};
 use quote::quote;
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Default(pub(crate) Option<AnyValue>);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Default(pub(crate) Option<AnyValue>);
+}
 
 impl Default {
     pub fn new_default_trait(struct_ident: Ident, field_ident: syn::Member) -> Self {
@@ -50,11 +52,11 @@ impl From<self::Default> for Feature {
     }
 }
 
-name!(Default = "default");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Example(AnyValue);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Example(AnyValue);
+}
 
 impl Parse for Example {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -74,11 +76,11 @@ impl From<Example> for Feature {
     }
 }
 
-name!(Example = "example");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Examples(Vec<AnyValue>);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Examples(Vec<AnyValue>);
+}
 
 impl Parse for Examples {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -114,11 +116,11 @@ impl From<Examples> for Feature {
     }
 }
 
-name!(Examples = "examples");
-
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct XmlAttr(schema::xml::XmlAttr);
+impl_feature! {"xml" =>
+    #[derive(Default, Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct XmlAttr(schema::xml::XmlAttr);
+}
 
 impl XmlAttr {
     /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
@@ -176,11 +178,11 @@ impl From<XmlAttr> for Feature {
     }
 }
 
-name!(XmlAttr = "xml");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Format(SchemaFormat<'static>);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Format(SchemaFormat<'static>);
+}
 
 impl Parse for Format {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -200,11 +202,11 @@ impl From<Format> for Feature {
     }
 }
 
-name!(Format = "format");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct WriteOnly(bool);
+impl_feature! {
+    #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct WriteOnly(bool);
+}
 
 impl Parse for WriteOnly {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -224,11 +226,11 @@ impl From<WriteOnly> for Feature {
     }
 }
 
-name!(WriteOnly = "write_only");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ReadOnly(bool);
+impl_feature! {
+    #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct ReadOnly(bool);
+}
 
 impl Parse for ReadOnly {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -248,11 +250,11 @@ impl From<ReadOnly> for Feature {
     }
 }
 
-name!(ReadOnly = "read_only");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Title(String);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Title(String);
+}
 
 impl Parse for Title {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -272,11 +274,11 @@ impl From<Title> for Feature {
     }
 }
 
-name!(Title = "title");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Nullable(bool);
+impl_feature! {
+    #[derive(Clone, Copy)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Nullable(bool);
+}
 
 impl Nullable {
     pub fn new() -> Self {
@@ -314,11 +316,11 @@ impl From<Nullable> for Feature {
     }
 }
 
-name!(Nullable = "nullable");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Rename(String);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Rename(String);
+}
 
 impl Rename {
     pub fn into_value(self) -> String {
@@ -344,12 +346,12 @@ impl From<Rename> for Feature {
     }
 }
 
-name!(Rename = "rename");
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct RenameAll(RenameRule);
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct RenameAll(RenameRule);
-
+}
 impl RenameAll {
     pub fn as_rename_rule(&self) -> &RenameRule {
         &self.0
@@ -374,11 +376,11 @@ impl From<RenameAll> for Feature {
     }
 }
 
-name!(RenameAll = "rename_all");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Style(ParameterStyle);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Style(ParameterStyle);
+}
 
 impl From<ParameterStyle> for Style {
     fn from(style: ParameterStyle) -> Self {
@@ -404,11 +406,11 @@ impl From<Style> for Feature {
     }
 }
 
-name!(Style = "style");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct ParameterIn(parameter::ParameterIn);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct ParameterIn(parameter::ParameterIn);
+}
 
 impl Parse for ParameterIn {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -428,11 +430,11 @@ impl From<ParameterIn> for Feature {
     }
 }
 
-name!(ParameterIn = "parameter_in");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct AllowReserved(bool);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct AllowReserved(bool);
+}
 
 impl Parse for AllowReserved {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -452,11 +454,11 @@ impl From<AllowReserved> for Feature {
     }
 }
 
-name!(AllowReserved = "allow_reserved");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Explode(bool);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Explode(bool);
+}
 
 impl Parse for Explode {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -476,11 +478,11 @@ impl From<Explode> for Feature {
     }
 }
 
-name!(Explode = "explode");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ValueType(syn::Type);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct ValueType(syn::Type);
+}
 
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
@@ -501,11 +503,11 @@ impl From<ValueType> for Feature {
     }
 }
 
-name!(ValueType = "value_type");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Inline(pub(super) bool);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Inline(pub(super) bool);
+}
 
 impl Parse for Inline {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
@@ -525,12 +527,12 @@ impl From<Inline> for Feature {
     }
 }
 
-name!(Inline = "inline");
-
-/// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct IntoParamsNames(Vec<String>);
+impl_feature! {"names" =>
+    /// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct IntoParamsNames(Vec<String>);
+}
 
 impl IntoParamsNames {
     pub fn into_values(self) -> Vec<String> {
@@ -555,11 +557,11 @@ impl From<IntoParamsNames> for Feature {
     }
 }
 
-name!(IntoParamsNames = "names");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct SchemaWith(TypePath);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct SchemaWith(TypePath);
+}
 
 impl Parse for SchemaWith {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
@@ -582,11 +584,11 @@ impl From<SchemaWith> for Feature {
     }
 }
 
-name!(SchemaWith = "schema_with");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Description(parse_utils::Value);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Description(parse_utils::Value);
+}
 
 impl Parse for Description {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -615,15 +617,15 @@ impl From<Description> for Feature {
     }
 }
 
-name!(Description = "description");
-
-/// Deprecated feature parsed from macro attributes.
-///
-/// This feature supports only syntax parsed from utoipa specific macro attributes, it does not
-/// support Rust `#[deprecated]` attribute.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Deprecated(bool);
+impl_feature! {
+    /// Deprecated feature parsed from macro attributes.
+    ///
+    /// This feature supports only syntax parsed from utoipa specific macro attributes, it does not
+    /// support Rust `#[deprecated]` attribute.
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Deprecated(bool);
+}
 
 impl Parse for Deprecated {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -647,11 +649,11 @@ impl From<Deprecated> for Feature {
     }
 }
 
-name!(Deprecated = "deprecated");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct As(pub TypePath);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct As(pub TypePath);
+}
 
 impl Parse for As {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -668,11 +670,11 @@ impl From<As> for Feature {
     }
 }
 
-name!(As = "as");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct AdditionalProperties(bool);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct AdditionalProperties(bool);
+}
 
 impl Parse for AdditionalProperties {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -694,17 +696,17 @@ impl ToTokens for AdditionalProperties {
     }
 }
 
-name!(AdditionalProperties = "additional_properties");
-
 impl From<AdditionalProperties> for Feature {
     fn from(value: AdditionalProperties) -> Self {
         Self::AdditionalProperties(value)
     }
 }
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Required(pub bool);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Required(pub bool);
+}
 
 impl Required {
     pub fn is_true(&self) -> bool {
@@ -749,11 +751,11 @@ impl From<Required> for Feature {
     }
 }
 
-name!(Required = "required");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ContentEncoding(String);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct ContentEncoding(String);
+}
 
 impl Parse for ContentEncoding {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -770,17 +772,17 @@ impl ToTokens for ContentEncoding {
     }
 }
 
-name!(ContentEncoding = "content_encoding");
-
 impl From<ContentEncoding> for Feature {
     fn from(value: ContentEncoding) -> Self {
         Self::ContentEncoding(value)
     }
 }
 
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ContentMediaType(String);
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct ContentMediaType(String);
+}
 
 impl Parse for ContentMediaType {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
@@ -802,5 +804,3 @@ impl From<ContentMediaType> for Feature {
         Self::ContentMediaType(value)
     }
 }
-
-name!(ContentMediaType = "content_media_type");
