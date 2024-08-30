@@ -217,9 +217,9 @@ impl<S: Spec> Scalar<S> {
 /// By default this trait is implemented for [`utoipa::openapi::OpenApi`] and [`serde_json::Value`].
 ///
 /// * **OpenApi** implementation allows using utoipa's OpenApi struct as a OpenAPI spec resource
-/// for the [`Scalar`].
+///   for the [`Scalar`].
 /// * **Value** implementation enables the use of arbitrary JSON values with serde's `json!()`
-/// macro as a OpenAPI spec for the [`Scalar`].
+///   macro as a OpenAPI spec for the [`Scalar`].
 ///
 /// # Examples
 ///
