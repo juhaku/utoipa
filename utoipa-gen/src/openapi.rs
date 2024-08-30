@@ -390,17 +390,12 @@ impl Parse for ServerVariable {
     }
 }
 
-pub(crate) struct OpenApi<'o>(pub OpenApiAttr<'o>, pub Ident);
+pub(crate) struct OpenApi<'o>(pub Option<OpenApiAttr<'o>>, pub Ident);
 
 impl OpenApi<'_> {
     fn nested_tokens(&self) -> Option<TokenStream> {
-        if self.0.nested.is_empty() {
-            None
-        } else {
-            let nest_tokens = self
-                .0
-                .nested
-                .iter()
+        let nested = self.0.as_ref().map(|openapi| &openapi.nested)?;
+        let nest_tokens = nested.iter()
                 .map(|item| {
                     let path = &item.path;
                     let nest_api = &item
@@ -443,6 +438,9 @@ impl OpenApi<'_> {
                 })
                 .collect::<TokenStream>();
 
+        if nest_tokens.is_empty() {
+            None
+        } else {
             Some(nest_tokens)
         }
     }
@@ -452,42 +450,66 @@ impl ToTokens for OpenApi<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let OpenApi(attributes, ident) = self;
 
-        let info = info::impl_info(attributes.info.clone());
+        let info = info::impl_info(
+            attributes
+                .as_ref()
+                .and_then(|attributes| attributes.info.clone()),
+        );
 
-        let components_builder_stream = attributes.components.to_token_stream();
-
-        let components = if !components_builder_stream.is_empty() {
-            Some(quote! { .components(Some(#components_builder_stream)) })
-        } else {
-            None
+        let components = match attributes
+            .as_ref()
+            .map(|attributes| attributes.components.to_token_stream())
+        {
+            Some(tokens) if !tokens.is_empty() => Some(quote! { .components(Some(#tokens)) }),
+            _ => None,
         };
 
-        let modifiers = &attributes.modifiers;
-        let modifiers_len = modifiers.len();
+        let path_items = impl_paths(attributes.as_ref().map(|attributes| &attributes.paths));
 
-        let path_items = impl_paths(&attributes.paths);
+        let securities = attributes
+            .as_ref()
+            .and_then(|openapi_attributes| openapi_attributes.security.as_ref())
+            .map(|securities| {
+                quote! {
+                    .security(Some(#securities))
+                }
+            });
+        let tags = attributes
+            .as_ref()
+            .and_then(|attributes| attributes.tags.as_ref())
+            .map(|tags| {
+                quote! {
+                    .tags(Some(#tags))
+                }
+            });
+        let external_docs = attributes
+            .as_ref()
+            .and_then(|attributes| attributes.external_docs.as_ref())
+            .map(|external_docs| {
+                quote! {
+                    .external_docs(Some(#external_docs))
+                }
+            });
 
-        let securities = attributes.security.as_ref().map(|securities| {
-            quote! {
-                .security(Some(#securities))
+        let servers = match attributes.as_ref().map(|attributes| &attributes.servers) {
+            Some(servers) if !servers.is_empty() => {
+                let servers = servers.iter().collect::<Array<&Server>>();
+                Some(quote! { .servers(Some(#servers)) })
             }
-        });
-        let tags = attributes.tags.as_ref().map(|tags| {
-            quote! {
-                .tags(Some(#tags))
-            }
-        });
-        let external_docs = attributes.external_docs.as_ref().map(|external_docs| {
-            quote! {
-                .external_docs(Some(#external_docs))
-            }
-        });
-        let servers = if !attributes.servers.is_empty() {
-            let servers = attributes.servers.iter().collect::<Array<&Server>>();
-            Some(quote! { .servers(Some(#servers)) })
-        } else {
-            None
+            _ => None,
         };
+
+        let modifiers_tokens = attributes
+            .as_ref()
+            .map(|attributes| &attributes.modifiers)
+            .map(|modifiers| {
+                let modifiers_len = modifiers.len();
+
+                quote! {
+                    let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
+                    _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
+                }
+            });
 
         let nested_tokens = self
             .nested_tokens()
@@ -509,8 +531,7 @@ impl ToTokens for OpenApi<'_> {
                         .build();
                     #nested_tokens
 
-                    let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
-                    _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
+                    #modifiers_tokens
 
                     openapi
                 }
@@ -600,9 +621,10 @@ impl ToTokens for Components {
     }
 }
 
-fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
+fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStream {
     let handlers = handler_paths
-        .iter()
+        .into_iter()
+        .flatten()
         .map(|handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn = &segments.last().unwrap().ident;
@@ -653,7 +675,7 @@ fn impl_paths(handler_paths: &Punctuated<ExprPath, Comma>) -> TokenStream {
         })
         .collect::<TokenStream>();
 
-    handler_paths.iter().fold(
+    handler_paths.into_iter().flatten().fold(
         quote! { #handlers utoipa::openapi::path::PathsBuilder::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
