@@ -1,20 +1,21 @@
 use std::{fmt::Display, mem, str::FromStr};
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{
-    parenthesized, parse::ParseStream, punctuated::Punctuated, LitFloat, LitInt, LitStr, Token,
-    TypePath,
-};
+use syn::{parse::ParseStream, LitFloat, LitInt};
 
 use crate::{
-    as_tokens_or_diagnostics, parse_utils,
-    path::parameter::{self, ParameterStyle},
-    schema_type::{SchemaFormat, SchemaType},
-    AnyValue, Array, Diagnostics, OptionExt, ToTokensDiagnostics,
+    as_tokens_or_diagnostics, parse_utils, schema_type::SchemaType, Diagnostics, OptionExt,
+    ToTokensDiagnostics,
 };
 
-use super::{schema, serde::RenameRule, GenericType, TypeTree};
+use self::validators::{AboveZeroF64, AboveZeroUsize, IsNumber, IsString, IsVec, ValidatorChain};
+
+use super::TypeTree;
+
+pub mod attributes;
+pub mod validation;
+pub mod validators;
 
 /// Parse `LitInt` from parse stream
 fn parse_integer<T: FromStr + Display>(input: ParseStream) -> syn::Result<T>
@@ -50,20 +51,21 @@ pub trait Name {
 
 macro_rules! name {
     ( $ident:ident = $name:literal ) => {
-        impl Name for $ident {
+        impl $crate::features::Name for $ident {
             fn get_name() -> &'static str {
                 $name
             }
         }
 
-        impl Display for $ident {
+        impl std::fmt::Display for $ident {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let name = <Self as Name>::get_name();
+                let name = <Self as $crate::features::Name>::get_name();
                 write!(f, "{name}")
             }
         }
     };
 }
+use name;
 
 /// Define whether [`Feature`] variant is validatable or not
 pub trait Validatable {
@@ -74,7 +76,7 @@ pub trait Validatable {
 
 pub trait Validate: Validatable {
     /// Perform validation check against schema type.
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics>;
+    fn validate(&self, validator: impl validators::Validator) -> Option<Diagnostics>;
 }
 
 pub trait Parse {
@@ -86,44 +88,44 @@ pub trait Parse {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Clone)]
 pub enum Feature {
-    Example(Example),
-    Examples(Examples),
-    Default(Default),
-    Inline(Inline),
-    XmlAttr(XmlAttr),
-    Format(Format),
-    ValueType(ValueType),
-    WriteOnly(WriteOnly),
-    ReadOnly(ReadOnly),
-    Title(Title),
-    Nullable(Nullable),
-    Rename(Rename),
-    RenameAll(RenameAll),
-    Style(Style),
-    AllowReserved(AllowReserved),
-    Explode(Explode),
-    ParameterIn(ParameterIn),
-    IntoParamsNames(IntoParamsNames),
-    MultipleOf(MultipleOf),
-    Maximum(Maximum),
-    Minimum(Minimum),
-    ExclusiveMaximum(ExclusiveMaximum),
-    ExclusiveMinimum(ExclusiveMinimum),
-    MaxLength(MaxLength),
-    MinLength(MinLength),
-    Pattern(Pattern),
-    MaxItems(MaxItems),
-    MinItems(MinItems),
-    MaxProperties(MaxProperties),
-    MinProperties(MinProperties),
-    SchemaWith(SchemaWith),
-    Description(Description),
-    Deprecated(Deprecated),
-    As(As),
-    AdditionalProperties(AdditionalProperties),
-    Required(Required),
-    ContentEncoding(ContentEncoding),
-    ContentMediaType(ContentMediaType),
+    Example(attributes::Example),
+    Examples(attributes::Examples),
+    Default(attributes::Default),
+    Inline(attributes::Inline),
+    XmlAttr(attributes::XmlAttr),
+    Format(attributes::Format),
+    ValueType(attributes::ValueType),
+    WriteOnly(attributes::WriteOnly),
+    ReadOnly(attributes::ReadOnly),
+    Title(attributes::Title),
+    Nullable(attributes::Nullable),
+    Rename(attributes::Rename),
+    RenameAll(attributes::RenameAll),
+    Style(attributes::Style),
+    AllowReserved(attributes::AllowReserved),
+    Explode(attributes::Explode),
+    ParameterIn(attributes::ParameterIn),
+    IntoParamsNames(attributes::IntoParamsNames),
+    SchemaWith(attributes::SchemaWith),
+    Description(attributes::Description),
+    Deprecated(attributes::Deprecated),
+    As(attributes::As),
+    AdditionalProperties(attributes::AdditionalProperties),
+    Required(attributes::Required),
+    ContentEncoding(attributes::ContentEncoding),
+    ContentMediaType(attributes::ContentMediaType),
+    MultipleOf(validation::MultipleOf),
+    Maximum(validation::Maximum),
+    Minimum(validation::Minimum),
+    ExclusiveMaximum(validation::ExclusiveMaximum),
+    ExclusiveMinimum(validation::ExclusiveMinimum),
+    MaxLength(validation::MaxLength),
+    MinLength(validation::MinLength),
+    Pattern(validation::Pattern),
+    MaxItems(validation::MaxItems),
+    MinItems(validation::MinItems),
+    MaxProperties(validation::MaxProperties),
+    MinProperties(validation::MinProperties),
 }
 
 impl Feature {
@@ -153,7 +155,7 @@ impl Feature {
             Feature::MinItems(min_items) => min_items.validate(
                 ValidatorChain::new(&AboveZeroUsize(min_items.0)).next(&IsVec(type_tree)),
             ),
-            _unsupported_variant => {
+            unsupported => {
                 const SUPPORTED_VARIANTS: [&str; 10] = [
                     "multiple_of",
                     "maximum",
@@ -167,8 +169,7 @@ impl Feature {
                     "min_items",
                 ];
                 panic!(
-                    "Unsupported variant: `{variant}` for Validate::validate, expected one of: {variants}",
-                    variant = _unsupported_variant,
+                    "Unsupported variant: `{unsupported}` for Validate::validate, expected one of: {variants}",
                     variants = SUPPORTED_VARIANTS.join(", ")
                 )
             }
@@ -242,7 +243,7 @@ impl ToTokensDiagnostics for Feature {
                     return Err(Diagnostics::new("As does not support `ToTokens`"))
                 }
                 Feature::Required(required) => {
-                    let name = <Required as Name>::get_name();
+                    let name = <attributes::Required as Name>::get_name();
                     quote! { .#name(#required) }
                 }
             };
@@ -356,1386 +357,58 @@ impl Validatable for Feature {
 }
 
 macro_rules! is_validatable {
-    ( $( $ident:ident => $validatable:literal ),* ) => {
+    ( $( $ty:path $( = $validatable:literal )? ),* ) => {
         $(
-            impl Validatable for $ident {
+            impl Validatable for $ty {
+            $(
                 fn is_validatable(&self) -> bool {
                     $validatable
                 }
+            )?
             }
         )*
     };
 }
 
 is_validatable! {
-    Default => false,
-    Example => false,
-    Examples => false,
-    XmlAttr => false,
-    Format => false,
-    WriteOnly => false,
-    ReadOnly => false,
-    Title => false,
-    Nullable => false,
-    Rename => false,
-    Style => false,
-    ParameterIn => false,
-    AllowReserved => false,
-    Explode => false,
-    RenameAll => false,
-    ValueType => false,
-    Inline => false,
-    IntoParamsNames => false,
-    MultipleOf => true,
-    Maximum => true,
-    Minimum => true,
-    ExclusiveMaximum => true,
-    ExclusiveMinimum => true,
-    MaxLength => true,
-    MinLength => true,
-    Pattern => true,
-    MaxItems => true,
-    MinItems => true,
-    MaxProperties => false,
-    MinProperties => false,
-    SchemaWith => false,
-    Description => false,
-    Deprecated => false,
-    As => false,
-    AdditionalProperties => false,
-    Required => false,
-    ContentEncoding => false,
-    ContentMediaType => false
-}
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Example(AnyValue);
-
-impl Parse for Example {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(Self)
-    }
-}
-
-impl ToTokens for Example {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<Example> for Feature {
-    fn from(value: Example) -> Self {
-        Feature::Example(value)
-    }
-}
-
-name!(Example = "example");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Examples(Vec<AnyValue>);
-
-impl Parse for Examples {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        let examples;
-        parenthesized!(examples in input);
-
-        Ok(Self(
-            Punctuated::<AnyValue, Token![,]>::parse_terminated_with(
-                &examples,
-                AnyValue::parse_any,
-            )?
-            .into_iter()
-            .collect(),
-        ))
-    }
-}
-
-impl ToTokens for Examples {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if !self.0.is_empty() {
-            let examples = Array::Borrowed(&self.0).to_token_stream();
-            examples.to_tokens(tokens);
-        }
-    }
-}
-
-impl From<Examples> for Feature {
-    fn from(value: Examples) -> Self {
-        Feature::Examples(value)
-    }
-}
-
-name!(Examples = "examples");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Default(pub(crate) Option<AnyValue>);
-
-impl Default {
-    pub fn new_default_trait(struct_ident: Ident, field_ident: syn::Member) -> Self {
-        Self(Some(AnyValue::new_default_trait(struct_ident, field_ident)))
-    }
-}
-
-impl Parse for Default {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        if input.peek(syn::Token![=]) {
-            parse_utils::parse_next(input, || AnyValue::parse_any(input)).map(|any| Self(Some(any)))
-        } else {
-            Ok(Self(None))
-        }
-    }
-}
-
-impl ToTokens for Default {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match &self.0 {
-            Some(inner) => tokens.extend(quote! {Some(#inner)}),
-            None => tokens.extend(quote! {None}),
-        }
-    }
-}
-
-impl From<self::Default> for Feature {
-    fn from(value: self::Default) -> Self {
-        Feature::Default(value)
-    }
-}
-
-name!(Default = "default");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Inline(bool);
-
-impl Parse for Inline {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl From<bool> for Inline {
-    fn from(value: bool) -> Self {
-        Inline(value)
-    }
-}
-
-impl From<Inline> for Feature {
-    fn from(value: Inline) -> Self {
-        Feature::Inline(value)
-    }
-}
-
-name!(Inline = "inline");
-
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct XmlAttr(schema::xml::XmlAttr);
-
-impl XmlAttr {
-    /// Split [`XmlAttr`] for [`GenericType::Vec`] returning tuple of [`XmlAttr`]s where first
-    /// one is for a vec and second one is for object field.
-    pub fn split_for_vec(
-        &mut self,
-        type_tree: &TypeTree,
-    ) -> Result<(Option<XmlAttr>, Option<XmlAttr>), Diagnostics> {
-        if matches!(type_tree.generic_type, Some(GenericType::Vec)) {
-            let mut value_xml = mem::take(self);
-            let vec_xml = schema::xml::XmlAttr::with_wrapped(
-                mem::take(&mut value_xml.0.is_wrapped),
-                mem::take(&mut value_xml.0.wrap_name),
-            );
-
-            Ok((Some(XmlAttr(vec_xml)), Some(value_xml)))
-        } else {
-            self.validate_xml(&self.0)?;
-
-            Ok((None, Some(mem::take(self))))
-        }
-    }
-
-    #[inline]
-    fn validate_xml(&self, xml: &schema::xml::XmlAttr) -> Result<(), Diagnostics> {
-        if let Some(wrapped_ident) = xml.is_wrapped.as_ref() {
-            Err(Diagnostics::with_span(
-                wrapped_ident.span(),
-                "cannot use `wrapped` attribute in non slice field type",
-            )
-            .help("Try removing `wrapped` attribute or make your field `Vec`"))
-        } else {
-            Ok(())
-        }
-    }
-}
-
-impl Parse for XmlAttr {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        let xml;
-        parenthesized!(xml in input);
-        xml.parse::<schema::xml::XmlAttr>().map(Self)
-    }
-}
-
-impl ToTokens for XmlAttr {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<XmlAttr> for Feature {
-    fn from(value: XmlAttr) -> Self {
-        Feature::XmlAttr(value)
-    }
-}
-
-name!(XmlAttr = "xml");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Format(SchemaFormat<'static>);
-
-impl Parse for Format {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
-    }
-}
-
-impl ToTokens for Format {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<Format> for Feature {
-    fn from(value: Format) -> Self {
-        Feature::Format(value)
-    }
-}
-
-name!(Format = "format");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ValueType(syn::Type);
-
-impl ValueType {
-    /// Create [`TypeTree`] from current [`syn::Type`].
-    pub fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
-        TypeTree::from_type(&self.0)
-    }
-}
-
-impl Parse for ValueType {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<syn::Type>()).map(Self)
-    }
-}
-
-impl From<ValueType> for Feature {
-    fn from(value: ValueType) -> Self {
-        Feature::ValueType(value)
-    }
-}
-
-name!(ValueType = "value_type");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct WriteOnly(bool);
-
-impl Parse for WriteOnly {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for WriteOnly {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<WriteOnly> for Feature {
-    fn from(value: WriteOnly) -> Self {
-        Feature::WriteOnly(value)
-    }
-}
-
-name!(WriteOnly = "write_only");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ReadOnly(bool);
-
-impl Parse for ReadOnly {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for ReadOnly {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<ReadOnly> for Feature {
-    fn from(value: ReadOnly) -> Self {
-        Feature::ReadOnly(value)
-    }
-}
-
-name!(ReadOnly = "read_only");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Title(String);
-
-impl Parse for Title {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next_literal_str(input).map(Self)
-    }
-}
-
-impl ToTokens for Title {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<Title> for Feature {
-    fn from(value: Title) -> Self {
-        Feature::Title(value)
-    }
-}
-
-name!(Title = "title");
-
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Nullable(bool);
-
-impl Nullable {
-    pub fn new() -> Self {
-        Self(true)
-    }
-
-    pub fn value(&self) -> bool {
-        self.0
-    }
-
-    pub fn into_schema_type_token_stream(self) -> proc_macro2::TokenStream {
-        if self.0 {
-            quote! {utoipa::openapi::schema::Type::Null}
-        } else {
-            proc_macro2::TokenStream::new()
-        }
-    }
-}
-
-impl Parse for Nullable {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for Nullable {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<Nullable> for Feature {
-    fn from(value: Nullable) -> Self {
-        Feature::Nullable(value)
-    }
-}
-
-name!(Nullable = "nullable");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Rename(String);
-
-impl Rename {
-    pub fn into_value(self) -> String {
-        self.0
-    }
-}
-
-impl Parse for Rename {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next_literal_str(input).map(Self)
-    }
-}
-
-impl ToTokens for Rename {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(self.0.to_token_stream())
-    }
-}
-
-impl From<Rename> for Feature {
-    fn from(value: Rename) -> Self {
-        Feature::Rename(value)
-    }
-}
-
-name!(Rename = "rename");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct RenameAll(RenameRule);
-
-impl RenameAll {
-    pub fn as_rename_rule(&self) -> &RenameRule {
-        &self.0
-    }
-}
-
-impl Parse for RenameAll {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
-
-        litstr
-            .value()
-            .parse::<RenameRule>()
-            .map_err(|error| syn::Error::new(litstr.span(), error.to_string()))
-            .map(Self)
-    }
-}
-
-impl From<RenameAll> for Feature {
-    fn from(value: RenameAll) -> Self {
-        Feature::RenameAll(value)
-    }
-}
-
-name!(RenameAll = "rename_all");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Style(ParameterStyle);
-
-impl From<ParameterStyle> for Style {
-    fn from(style: ParameterStyle) -> Self {
-        Self(style)
-    }
-}
-
-impl Parse for Style {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<ParameterStyle>().map(Self))
-    }
-}
-
-impl ToTokens for Style {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
-    }
-}
-
-impl From<Style> for Feature {
-    fn from(value: Style) -> Self {
-        Feature::Style(value)
-    }
-}
-
-name!(Style = "style");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct AllowReserved(bool);
-
-impl Parse for AllowReserved {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for AllowReserved {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
-    }
-}
-
-impl From<AllowReserved> for Feature {
-    fn from(value: AllowReserved) -> Self {
-        Feature::AllowReserved(value)
-    }
-}
-
-name!(AllowReserved = "allow_reserved");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Explode(bool);
-
-impl Parse for Explode {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for Explode {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
-    }
-}
-
-impl From<Explode> for Feature {
-    fn from(value: Explode) -> Self {
-        Feature::Explode(value)
-    }
-}
-
-name!(Explode = "explode");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct ParameterIn(parameter::ParameterIn);
-
-impl Parse for ParameterIn {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
-    }
-}
-
-impl ToTokens for ParameterIn {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<ParameterIn> for Feature {
-    fn from(value: ParameterIn) -> Self {
-        Feature::ParameterIn(value)
-    }
-}
-
-name!(ParameterIn = "parameter_in");
-
-/// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct IntoParamsNames(Vec<String>);
-
-impl IntoParamsNames {
-    pub fn into_values(self) -> Vec<String> {
-        self.0
-    }
-}
-
-impl Parse for IntoParamsNames {
-    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        Ok(Self(
-            parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
-                .iter()
-                .map(LitStr::value)
-                .collect(),
-        ))
-    }
-}
-
-impl From<IntoParamsNames> for Feature {
-    fn from(value: IntoParamsNames) -> Self {
-        Feature::IntoParamsNames(value)
-    }
-}
-
-name!(IntoParamsNames = "names");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MultipleOf(f64, Ident);
-
-impl Validate for MultipleOf {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!( "`multiple_of` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`")),
-            _ => None
-        }
-    }
-}
-
-impl Parse for MultipleOf {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self> {
-        parse_number(input).map(|multiple_of| Self(multiple_of, ident))
-    }
-}
-
-impl ToTokens for MultipleOf {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MultipleOf> for Feature {
-    fn from(value: MultipleOf) -> Self {
-        Feature::MultipleOf(value)
-    }
-}
-
-name!(MultipleOf = "multiple_of");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Maximum(f64, Ident);
-
-impl Validate for Maximum {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`maximum` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for Maximum {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_number(input).map(|maximum| Self(maximum, ident))
-    }
-}
-
-impl ToTokens for Maximum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<Maximum> for Feature {
-    fn from(value: Maximum) -> Self {
-        Feature::Maximum(value)
-    }
-}
-
-name!(Maximum = "maximum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Minimum(f64, Ident);
-
-impl Minimum {
-    pub fn new(value: f64, span: Span) -> Self {
-        Self(value, Ident::new("empty", span))
-    }
-}
-
-impl Validate for Minimum {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(
-                Diagnostics::with_span(self.1.span(), format!("`minimum` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`")
-            ),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for Minimum {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_number(input).map(|maximum| Self(maximum, ident))
-    }
-}
-
-impl ToTokens for Minimum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<Minimum> for Feature {
-    fn from(value: Minimum) -> Self {
-        Feature::Minimum(value)
-    }
-}
-
-name!(Minimum = "minimum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct ExclusiveMaximum(f64, Ident);
-
-impl Validate for ExclusiveMaximum {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_maximum` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for ExclusiveMaximum {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_number(input).map(|max| Self(max, ident))
-    }
-}
-
-impl ToTokens for ExclusiveMaximum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<ExclusiveMaximum> for Feature {
-    fn from(value: ExclusiveMaximum) -> Self {
-        Feature::ExclusiveMaximum(value)
-    }
-}
-
-name!(ExclusiveMaximum = "exclusive_maximum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct ExclusiveMinimum(f64, Ident);
-
-impl Validate for ExclusiveMinimum {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_minimum` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for ExclusiveMinimum {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_number(input).map(|min| Self(min, ident))
-    }
-}
-
-impl ToTokens for ExclusiveMinimum {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<ExclusiveMinimum> for Feature {
-    fn from(value: ExclusiveMinimum) -> Self {
-        Feature::ExclusiveMinimum(value)
-    }
-}
-
-name!(ExclusiveMinimum = "exclusive_minimum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MaxLength(usize, Ident);
-
-impl Validate for MaxLength {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_length` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for MaxLength {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_integer(input).map(|max_length| Self(max_length, ident))
-    }
-}
-
-impl ToTokens for MaxLength {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MaxLength> for Feature {
-    fn from(value: MaxLength) -> Self {
-        Feature::MaxLength(value)
-    }
-}
-
-name!(MaxLength = "max_length");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MinLength(usize, Ident);
-
-impl Validate for MinLength {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_length` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for MinLength {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_integer(input).map(|max_length| Self(max_length, ident))
-    }
-}
-
-impl ToTokens for MinLength {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MinLength> for Feature {
-    fn from(value: MinLength) -> Self {
-        Feature::MinLength(value)
-    }
-}
-
-name!(MinLength = "min_length");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Pattern(String, Ident);
-
-impl Validate for Pattern {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`pattern` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`")
-            ),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for Pattern {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_utils::parse_next(input, || input.parse::<LitStr>())
-            .map(|pattern| Self(pattern.value(), ident))
-    }
-}
-
-impl ToTokens for Pattern {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<Pattern> for Feature {
-    fn from(value: Pattern) -> Self {
-        Feature::Pattern(value)
-    }
-}
-
-name!(Pattern = "pattern");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MaxItems(usize, Ident);
-
-impl Validate for MaxItems {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_items` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for MaxItems {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_number(input).map(|max_items| Self(max_items, ident))
-    }
-}
-
-impl ToTokens for MaxItems {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MaxItems> for Feature {
-    fn from(value: MaxItems) -> Self {
-        Feature::MaxItems(value)
-    }
-}
-
-name!(MaxItems = "max_items");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MinItems(usize, Ident);
-
-impl Validate for MinItems {
-    fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
-        match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_items` error: {}", error))
-                .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems")),
-            _ => None,
-        }
-    }
-}
-
-impl Parse for MinItems {
-    fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_number(input).map(|max_items| Self(max_items, ident))
-    }
-}
-
-impl ToTokens for MinItems {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MinItems> for Feature {
-    fn from(value: MinItems) -> Self {
-        Feature::MinItems(value)
-    }
-}
-
-name!(MinItems = "min_items");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MaxProperties(usize, ());
-
-impl Parse for MaxProperties {
-    fn parse(input: ParseStream, _ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_integer(input).map(|max_properties| Self(max_properties, ()))
-    }
-}
-
-impl ToTokens for MaxProperties {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MaxProperties> for Feature {
-    fn from(value: MaxProperties) -> Self {
-        Feature::MaxProperties(value)
-    }
-}
-
-name!(MaxProperties = "max_properties");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MinProperties(usize, ());
-
-impl Parse for MinProperties {
-    fn parse(input: ParseStream, _ident: Ident) -> syn::Result<Self>
-    where
-        Self: Sized,
-    {
-        parse_integer(input).map(|min_properties| Self(min_properties, ()))
-    }
-}
-
-impl ToTokens for MinProperties {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<MinProperties> for Feature {
-    fn from(value: MinProperties) -> Self {
-        Feature::MinProperties(value)
-    }
-}
-
-name!(MinProperties = "min_properties");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct SchemaWith(TypePath);
-
-impl Parse for SchemaWith {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<TypePath>().map(Self))
-    }
-}
-
-impl ToTokens for SchemaWith {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let path = &self.0;
-        tokens.extend(quote! {
-            #path()
-        })
-    }
-}
-
-impl From<SchemaWith> for Feature {
-    fn from(value: SchemaWith) -> Self {
-        Feature::SchemaWith(value)
-    }
-}
-
-name!(SchemaWith = "schema_with");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Description(parse_utils::Value);
-
-impl Parse for Description {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_next_literal_str_or_expr(input).map(Self)
-    }
-}
-
-impl ToTokens for Description {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<String> for Description {
-    fn from(value: String) -> Self {
-        Self(value.into())
-    }
-}
-
-impl From<Description> for Feature {
-    fn from(value: Description) -> Self {
-        Self::Description(value)
-    }
-}
-
-name!(Description = "description");
-
-/// Deprecated feature parsed from macro attributes.
-///
-/// This feature supports only syntax parsed from utoipa specific macro attributes, it does not
-/// support Rust `#[deprecated]` attribute.
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Deprecated(bool);
-
-impl Parse for Deprecated {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for Deprecated {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let deprecated: crate::Deprecated = self.0.into();
-        deprecated.to_tokens(tokens);
-    }
-}
-
-impl From<Deprecated> for Feature {
-    fn from(value: Deprecated) -> Self {
-        Self::Deprecated(value)
-    }
-}
-
-name!(Deprecated = "deprecated");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct As(pub TypePath);
-
-impl Parse for As {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_next(input, || input.parse()).map(Self)
-    }
-}
-
-impl From<As> for Feature {
-    fn from(value: As) -> Self {
-        Self::As(value)
-    }
-}
-
-name!(As = "as");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct AdditionalProperties(bool);
-
-impl Parse for AdditionalProperties {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for AdditionalProperties {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let additional_properties = &self.0;
-        tokens.extend(quote!(
-            utoipa::openapi::schema::AdditionalProperties::FreeForm(
-                #additional_properties
-            )
-        ))
-    }
-}
-
-name!(AdditionalProperties = "additional_properties");
-
-impl From<AdditionalProperties> for Feature {
-    fn from(value: AdditionalProperties) -> Self {
-        Self::AdditionalProperties(value)
-    }
-}
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Required(pub bool);
-
-impl Required {
-    pub fn is_true(&self) -> bool {
-        self.0
-    }
-}
-
-impl Parse for Required {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_bool_or_true(input).map(Self)
-    }
-}
-
-impl ToTokens for Required {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
-    }
-}
-
-impl From<crate::Required> for Required {
-    fn from(value: crate::Required) -> Self {
-        if value == crate::Required::True {
-            Self(true)
-        } else {
-            Self(false)
-        }
-    }
-}
-
-impl From<bool> for Required {
-    fn from(value: bool) -> Self {
-        Self(value)
-    }
-}
-
-impl From<Required> for Feature {
-    fn from(value: Required) -> Self {
-        Self::Required(value)
-    }
-}
-
-name!(Required = "required");
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ContentEncoding(String);
-
-impl Parse for ContentEncoding {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_next_literal_str(input).map(Self)
-    }
-}
-
-impl ToTokens for ContentEncoding {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-name!(ContentEncoding = "content_encoding");
-
-impl From<ContentEncoding> for Feature {
-    fn from(value: ContentEncoding) -> Self {
-        Self::ContentEncoding(value)
-    }
-}
-
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ContentMediaType(String);
-
-impl Parse for ContentMediaType {
-    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
-    where
-        Self: std::marker::Sized,
-    {
-        parse_utils::parse_next_literal_str(input).map(Self)
-    }
-}
-
-impl ToTokens for ContentMediaType {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens);
-    }
-}
-
-impl From<ContentMediaType> for Feature {
-    fn from(value: ContentMediaType) -> Self {
-        Self::ContentMediaType(value)
-    }
-}
-
-name!(ContentMediaType = "content_media_type");
-
-pub trait Validator {
-    fn is_valid(&self) -> Result<(), &'static str>;
-}
-
-pub struct IsNumber<'a>(pub &'a SchemaType<'a>);
-
-impl Validator for IsNumber<'_> {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0.is_number() {
-            Ok(())
-        } else {
-            Err("can only be used with `number` type")
-        }
-    }
-}
-
-pub struct IsString<'a>(&'a SchemaType<'a>);
-
-impl Validator for IsString<'_> {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0.is_string() {
-            Ok(())
-        } else {
-            Err("can only be used with `string` type")
-        }
-    }
-}
-
-pub struct IsInteger<'a>(&'a SchemaType<'a>);
-
-impl Validator for IsInteger<'_> {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0.is_integer() {
-            Ok(())
-        } else {
-            Err("can only be used with `integer` type")
-        }
-    }
-}
-
-pub struct IsVec<'a>(&'a TypeTree<'a>);
-
-impl Validator for IsVec<'_> {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0.generic_type == Some(GenericType::Vec) {
-            Ok(())
-        } else {
-            Err("can only be used with `Vec`, `array` or `slice` types")
-        }
-    }
-}
-
-pub struct AboveZeroUsize(usize);
-
-impl Validator for AboveZeroUsize {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0 != 0 {
-            Ok(())
-        } else {
-            Err("can only be above zero value")
-        }
-    }
-}
-
-pub struct AboveZeroF64(f64);
-
-impl Validator for AboveZeroF64 {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0 > 0.0 {
-            Ok(())
-        } else {
-            Err("can only be above zero value")
-        }
-    }
-}
-
-pub struct ValidatorChain<'c> {
-    inner: &'c dyn Validator,
-    next: Option<&'c dyn Validator>,
-}
-
-impl Validator for ValidatorChain<'_> {
-    fn is_valid(&self) -> Result<(), &'static str> {
-        self.inner.is_valid().and_then(|_| {
-            if let Some(validator) = self.next.as_ref() {
-                validator.is_valid()
-            } else {
-                // if there is no next validator consider it valid
-                Ok(())
-            }
-        })
-    }
-}
-
-impl<'c> ValidatorChain<'c> {
-    pub fn new(validator: &'c dyn Validator) -> Self {
-        Self {
-            inner: validator,
-            next: None,
-        }
-    }
-
-    pub fn next(mut self, validator: &'c dyn Validator) -> Self {
-        self.next = Some(validator);
-
-        self
-    }
+    attributes::Default,
+    attributes::Example,
+    attributes::Examples,
+    attributes::XmlAttr,
+    attributes::Format,
+    attributes::WriteOnly,
+    attributes::ReadOnly,
+    attributes::Title,
+    attributes::Nullable,
+    attributes::Rename,
+    attributes::RenameAll,
+    attributes::Style,
+    attributes::ParameterIn,
+    attributes::AllowReserved,
+    attributes::Explode,
+    attributes::ValueType,
+    attributes::Inline,
+    attributes::IntoParamsNames,
+    attributes::SchemaWith,
+    attributes::Description,
+    attributes::Deprecated,
+    attributes::As,
+    attributes::AdditionalProperties,
+    attributes::Required,
+    attributes::ContentEncoding,
+    attributes::ContentMediaType,
+    validation::MultipleOf = true,
+    validation::Maximum = true,
+    validation::Minimum = true,
+    validation::ExclusiveMaximum = true,
+    validation::ExclusiveMinimum = true,
+    validation::MaxLength = true,
+    validation::MinLength = true,
+    validation::Pattern = true,
+    validation::MaxItems = true,
+    validation::MinItems = true,
+    validation::MaxProperties,
+    validation::MinProperties
 }
 
 macro_rules! parse_features {
@@ -1821,14 +494,6 @@ impl ToTokensExt for Vec<Feature> {
 pub trait FeaturesExt {
     fn pop_by(&mut self, op: impl FnMut(&Feature) -> bool) -> Option<Feature>;
 
-    fn pop_value_type_feature(&mut self) -> Option<super::features::ValueType>;
-
-    /// Pop [`Rename`] feature if exists in [`Vec<Feature>`] list.
-    fn pop_rename_feature(&mut self) -> Option<Rename>;
-
-    /// Pop [`RenameAll`] feature if exists in [`Vec<Feature>`] list.
-    fn pop_rename_all_feature(&mut self) -> Option<RenameAll>;
-
     /// Extract [`XmlAttr`] feature for given `type_tree` if it has generic type [`GenericType::Vec`]
     fn extract_vec_xml_feature(
         &mut self,
@@ -1841,30 +506,6 @@ impl FeaturesExt for Vec<Feature> {
         self.iter()
             .position(op)
             .map(|index| self.swap_remove(index))
-    }
-
-    fn pop_value_type_feature(&mut self) -> Option<super::features::ValueType> {
-        self.pop_by(|feature| matches!(feature, Feature::ValueType(_)))
-            .and_then(|feature| match feature {
-                Feature::ValueType(value_type) => Some(value_type),
-                _ => None,
-            })
-    }
-
-    fn pop_rename_feature(&mut self) -> Option<Rename> {
-        self.pop_by(|feature| matches!(feature, Feature::Rename(_)))
-            .and_then(|feature| match feature {
-                Feature::Rename(rename) => Some(rename),
-                _ => None,
-            })
-    }
-
-    fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
-        self.pop_by(|feature| matches!(feature, Feature::RenameAll(_)))
-            .and_then(|feature| match feature {
-                Feature::RenameAll(rename_all) => Some(rename_all),
-                _ => None,
-            })
     }
 
     fn extract_vec_xml_feature(
@@ -1897,21 +538,6 @@ impl FeaturesExt for Option<Vec<Feature>> {
         self.as_mut().and_then(|features| features.pop_by(op))
     }
 
-    fn pop_value_type_feature(&mut self) -> Option<super::features::ValueType> {
-        self.as_mut()
-            .and_then(|features| features.pop_value_type_feature())
-    }
-
-    fn pop_rename_feature(&mut self) -> Option<Rename> {
-        self.as_mut()
-            .and_then(|features| features.pop_rename_feature())
-    }
-
-    fn pop_rename_all_feature(&mut self) -> Option<RenameAll> {
-        self.as_mut()
-            .and_then(|features| features.pop_rename_all_feature())
-    }
-
     fn extract_vec_xml_feature(
         &mut self,
         type_tree: &TypeTree,
@@ -1921,42 +547,49 @@ impl FeaturesExt for Option<Vec<Feature>> {
     }
 }
 
+/// Pull out a `Feature` from `Vec` of features by given match predicate.
+/// This macro can be called in two forms demonstrated below.
+/// ```text
+///  let _: Option<Feature> = pop_feature!(features => Feature::Inline(_));
+///  let _: Option<Inline> = pop_feature!(feature => Feature::Inline(_) as Option<Inline>);
+/// ```
+///
+/// The `as ...` syntax can be used to directly convert the `Feature` instance to it's inner form.
 macro_rules! pop_feature {
-    ($features:ident => $value:pat_param) => {{
-        $features.pop_by(|feature| matches!(feature, $value))
+    ($features:ident => $( $ty:tt )* ) => {{
+        pop_feature!( @inner $features $( $ty )* )
     }};
+    ( @inner $features:ident $ty:tt :: $tv:tt ( $t:pat ) $( $tt:tt)* ) => {
+        {
+        let f = $features.pop_by(|feature| matches!(feature, $ty :: $tv ($t) ) );
+        pop_feature!( @rest f $( $tt )* )
+        }
+    };
+    ( @rest $feature:ident as $ty:ty ) => {
+        {
+        let inner: $ty = $feature.into_inner();
+        inner
+        }
+
+    };
+    ( @rest $($tt:tt)* ) => {
+        $($tt)*
+    };
 }
 
 pub(crate) use pop_feature;
-
-macro_rules! pop_feature_as_inner {
-    ( $features:ident => $($value:tt)* ) => {
-        crate::component::features::pop_feature!($features => $( $value )* )
-            .map(|f| match f {
-                $( $value )* => {
-                    crate::component::features::pop_feature_as_inner!( @as_value $( $value )* )
-                },
-                _ => unreachable!()
-            })
-    };
-    ( @as_value $tt:tt :: $tr:tt ( $v:tt ) ) => {
-        $v
-    }
-}
-
-pub(crate) use pop_feature_as_inner;
 
 pub trait IntoInner<T> {
     fn into_inner(self) -> T;
 }
 
 macro_rules! impl_feature_into_inner {
-    ( $( $feat:ident , )* ) => {
+    ( $( $feat:ident :: $impl:ident , )* ) => {
         $(
-            impl IntoInner<Option<$feat>> for Option<Feature> {
-                fn into_inner(self) -> Option<$feat> {
+            impl IntoInner<Option<$feat::$impl>> for Option<Feature> {
+                fn into_inner(self) -> Option<$feat::$impl> {
                     self.and_then(|feature| match feature {
-                        Feature::$feat(value) => Some(value),
+                        Feature::$impl(value) => Some(value),
                         _ => None,
                     })
                 }
@@ -1966,42 +599,42 @@ macro_rules! impl_feature_into_inner {
 }
 
 impl_feature_into_inner! {
-    Example,
-    Examples,
-    Default,
-    Inline,
-    XmlAttr,
-    Format,
-    ValueType,
-    WriteOnly,
-    ReadOnly,
-    Title,
-    Nullable,
-    Rename,
-    RenameAll,
-    Style,
-    AllowReserved,
-    Explode,
-    ParameterIn,
-    IntoParamsNames,
-    MultipleOf,
-    Maximum,
-    Minimum,
-    ExclusiveMaximum,
-    ExclusiveMinimum,
-    MaxLength,
-    MinLength,
-    Pattern,
-    MaxItems,
-    MinItems,
-    MaxProperties,
-    MinProperties,
-    SchemaWith,
-    Description,
-    Deprecated,
-    As,
-    AdditionalProperties,
-    Required,
+    attributes::Example,
+    attributes::Examples,
+    attributes::Default,
+    attributes::Inline,
+    attributes::XmlAttr,
+    attributes::Format,
+    attributes::ValueType,
+    attributes::WriteOnly,
+    attributes::ReadOnly,
+    attributes::Title,
+    attributes::Nullable,
+    attributes::Rename,
+    attributes::RenameAll,
+    attributes::Style,
+    attributes::AllowReserved,
+    attributes::Explode,
+    attributes::ParameterIn,
+    attributes::IntoParamsNames,
+    attributes::SchemaWith,
+    attributes::Description,
+    attributes::Deprecated,
+    attributes::As,
+    attributes::AdditionalProperties,
+    attributes::Required,
+    validation::MultipleOf,
+    validation::Maximum,
+    validation::Minimum,
+    validation::ExclusiveMaximum,
+    validation::ExclusiveMinimum,
+    validation::MaxLength,
+    validation::MinLength,
+    validation::Pattern,
+    validation::MaxItems,
+    validation::MinItems,
+    validation::MaxProperties,
+    validation::MinProperties,
 }
 
 macro_rules! impl_into_inner {
@@ -2037,6 +670,7 @@ macro_rules! impl_merge {
 
             impl crate::component::features::Merge<$ident> for $ident {
                 fn merge(mut self, from: $ident) -> Self {
+                    use $crate::component::features::IntoInner;
                     let a = self.as_mut();
                     let mut b = from.into_inner();
 

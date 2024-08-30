@@ -10,7 +10,7 @@ use syn::{
 
 use crate::{
     as_tokens_or_diagnostics,
-    component::features::{Example, Rename},
+    component::features::attributes::{Example, Rename, ValueType},
     doc_comment::CommentAttributes,
     Array, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -29,11 +29,11 @@ use self::{
 
 use super::{
     features::{
-        parse_features, pop_feature, pop_feature_as_inner, As, Description, Feature, FeaturesExt,
-        IntoInner, RenameAll, ToTokensExt,
+        attributes::{As, Description, RenameAll},
+        parse_features, pop_feature, Feature, FeaturesExt, IntoInner, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeEnumRepr, SerdeValue},
-    ComponentDescription, ComponentSchema, FieldRename, FlattenedMapSchema, TypeTree, ValueType,
+    ComponentDescription, ComponentSchema, FieldRename, FlattenedMapSchema, TypeTree,
     VariantRename,
 };
 
@@ -206,7 +206,7 @@ impl<'a> SchemaVariant<'a> {
                         .parse_features::<UnnamedFieldStructFeatures>()?
                         .into_inner();
 
-                    let schema_as = pop_feature_as_inner!(unnamed_features => Feature::As(_v));
+                    let schema_as = pop_feature!(unnamed_features => Feature::As(_) as Option<As>);
                     let description =
                         pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
                     Ok(Self::Unnamed(UnnamedStructSchema {
@@ -223,7 +223,7 @@ impl<'a> SchemaVariant<'a> {
                     let mut named_features = attributes
                         .parse_features::<NamedFieldStructFeatures>()?
                         .into_inner();
-                    let schema_as = pop_feature_as_inner!(named_features => Feature::As(_v));
+                    let schema_as = pop_feature!(named_features => Feature::As(_) as Option<As>);
                     let description =
                         pop_feature!(named_features => Feature::Description(_)).into_inner();
 
@@ -231,7 +231,7 @@ impl<'a> SchemaVariant<'a> {
                         struct_name: Cow::Owned(ident.to_string()),
                         attributes,
                         description,
-                        rename_all: named_features.pop_rename_all_feature(),
+                        rename_all: pop_feature!(named_features => Feature::RenameAll(_) as Option<RenameAll>),
                         features: named_features,
                         fields: named,
                         schema_as,
@@ -303,7 +303,7 @@ pub struct NamedStructSchema<'a> {
 struct NamedStructFieldOptions<'a> {
     property: Property,
     rename_field_value: Option<Cow<'a, str>>,
-    required: Option<super::features::Required>,
+    required: Option<super::features::attributes::Required>,
     is_option: bool,
 }
 
@@ -344,7 +344,10 @@ impl NamedStructSchema<'_> {
                 let field_ident = field.ident.as_ref().unwrap().to_owned();
                 let struct_ident = format_ident!("{}", &self.struct_name);
                 features_inner.push(Feature::Default(
-                    crate::features::Default::new_default_trait(struct_ident, field_ident.into()),
+                    crate::features::attributes::Default::new_default_trait(
+                        struct_ident,
+                        field_ident.into(),
+                    ),
                 ));
             }
         }
@@ -364,9 +367,9 @@ impl NamedStructSchema<'_> {
                 _ => None,
             });
 
-        let value_type = field_features
-            .as_mut()
-            .and_then(|features| features.pop_value_type_feature());
+        let value_type = field_features.as_mut().and_then(
+            |features| pop_feature!(features => Feature::ValueType(_) as Option<ValueType>),
+        );
         let override_type_tree = value_type
             .as_ref()
             .map_try(|value_type| value_type.as_type_tree())?;
@@ -374,7 +377,7 @@ impl NamedStructSchema<'_> {
         let description = &ComponentDescription::CommentAttributes(&comments);
 
         let schema_with = pop_feature!(field_features => Feature::SchemaWith(_));
-        let required = pop_feature_as_inner!(field_features => Feature::Required(_v));
+        let required = pop_feature!(field_features => Feature::Required(_) as Option<crate::component::features::attributes::Required>);
         let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
         let is_option = type_tree.is_option();
 
@@ -606,9 +609,9 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
         let deprecated = super::get_deprecated(self.attributes);
         if all_fields_are_same {
             let mut unnamed_struct_features = self.features.clone();
-            let value_type = unnamed_struct_features
-                .as_mut()
-                .and_then(|features| features.pop_value_type_feature());
+            let value_type = unnamed_struct_features.as_mut().and_then(
+                |features| pop_feature!(features => Feature::ValueType(_) as Option<ValueType>),
+            );
             let override_type_tree = value_type
                 .as_ref()
                 .map_try(|value_type| value_type.as_type_tree())?;
@@ -617,19 +620,21 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                 if let Some(ref mut features) = unnamed_struct_features {
                     let inline =
                         features::parse_schema_features_with(&first_field.attrs, |input| {
-                            Ok(parse_features!(input as super::features::Inline))
+                            Ok(parse_features!(
+                                input as super::features::attributes::Inline
+                            ))
                         })?
                         .unwrap_or_default();
 
                     features.extend(inline);
 
-                    if pop_feature!(features => Feature::Default(crate::features::Default(None)))
+                    if pop_feature!(features => Feature::Default(crate::features::attributes::Default(None)))
                         .is_some()
                     {
                         let struct_ident = format_ident!("{}", &self.struct_name);
                         let index: syn::Index = 0.into();
                         features.push(Feature::Default(
-                            crate::features::Default::new_default_trait(struct_ident, index.into()),
+                            crate::features::attributes::Default::new_default_trait(struct_ident, index.into()),
                         ));
                     }
                 }
@@ -720,17 +725,17 @@ impl<'e> EnumSchema<'e> {
                         let mut repr_enum_features =
                             features::parse_schema_features_with(attributes, |input| {
                                 Ok(parse_features!(
-                                    input as super::features::Example,
-                                    super::features::Examples,
-                                    super::features::Default,
-                                    super::features::Title,
+                                    input as super::features::attributes::Example,
+                                    super::features::attributes::Examples,
+                                    super::features::attributes::Default,
+                                    super::features::attributes::Title,
                                     As
                                 ))
                             })?
                             .unwrap_or_default();
 
                         let schema_as =
-                            pop_feature_as_inner!(repr_enum_features => Feature::As(_v));
+                            pop_feature!(repr_enum_features => Feature::As(_) as Option<As>);
                         let description =
                             pop_feature!(repr_enum_features => Feature::Description(_))
                                 .into_inner();
@@ -755,8 +760,8 @@ impl<'e> EnumSchema<'e> {
                             .into_inner()
                             .unwrap_or_default();
                         let schema_as =
-                            pop_feature_as_inner!(simple_enum_features => Feature::As(_v));
-                        let rename_all = simple_enum_features.pop_rename_all_feature();
+                            pop_feature!(simple_enum_features => Feature::As(_) as Option<As>);
+                        let rename_all = pop_feature!(simple_enum_features => Feature::RenameAll(_) as Option<RenameAll>);
                         let description =
                             pop_feature!(simple_enum_features => Feature::Description(_))
                                 .into_inner();
@@ -781,8 +786,8 @@ impl<'e> EnumSchema<'e> {
                     .parse_features::<EnumFeatures>()?
                     .into_inner()
                     .unwrap_or_default();
-                let schema_as = pop_feature_as_inner!(simple_enum_features => Feature::As(_v));
-                let rename_all = simple_enum_features.pop_rename_all_feature();
+                let schema_as = pop_feature!(simple_enum_features => Feature::As(_) as Option<As>);
+                let rename_all = pop_feature!(simple_enum_features => Feature::RenameAll(_) as Option<RenameAll>);
                 let description =
                     pop_feature!(simple_enum_features => Feature::Description(_)).into_inner();
 
@@ -802,8 +807,9 @@ impl<'e> EnumSchema<'e> {
                 .parse_features::<ComplexEnumFeatures>()?
                 .into_inner()
                 .unwrap_or_default();
-            let schema_as = pop_feature_as_inner!(enum_features => Feature::As(_v));
-            let rename_all = enum_features.pop_rename_all_feature();
+            let schema_as = pop_feature!(enum_features => Feature::As(_) as Option<As>);
+            let rename_all =
+                pop_feature!(enum_features => Feature::RenameAll(_) as Option<RenameAll>);
             let description = pop_feature!(enum_features => Feature::Description(_)).into_inner();
 
             Ok(Self {
@@ -924,8 +930,7 @@ fn rename_enum_variant<'a>(
     container_rules: &'a SerdeContainer,
     rename_all: &'a Option<RenameAll>,
 ) -> Option<Cow<'a, str>> {
-    let rename = features
-        .pop_rename_feature()
+    let rename = pop_feature!(features => Feature::Rename(_) as Option<Rename>)
         .map(|rename| rename.into_value());
     let rename_to = variant_rules
         .rename
@@ -1099,7 +1104,7 @@ impl ComplexEnum<'_> {
                         struct_name: Cow::Borrowed(&*self.enum_name),
                         attributes: &variant.attrs,
                         description: None,
-                        rename_all: named_struct_features.pop_rename_all_feature(),
+                        rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
                         aliases: None,
@@ -1144,7 +1149,7 @@ impl ComplexEnum<'_> {
                 let mut unit_features =
                     features::parse_schema_features_with(&variant.attrs, |input| {
                         Ok(parse_features!(
-                            input as super::features::Title,
+                            input as super::features::attributes::Title,
                             RenameAll,
                             Rename,
                             Example
@@ -1200,7 +1205,7 @@ impl ComplexEnum<'_> {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     description: None,
-                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     aliases: None,
@@ -1226,7 +1231,7 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     features::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as super::features::Title))
+                        Ok(parse_features!(input as super::features::attributes::Title))
                     })
                     .unwrap_or_default();
                 let title = pop_feature!(unit_features => Feature::Title(_));
@@ -1267,7 +1272,7 @@ impl ComplexEnum<'_> {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     description: None,
-                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     aliases: None,
@@ -1331,7 +1336,7 @@ impl ComplexEnum<'_> {
                         .map(|field| TypeTree::from_type(&field.ty))
                         .collect::<Result<Vec<TypeTree>, Diagnostics>>()?
                         .iter()
-                        .any(|type_tree| type_tree.value_type == ValueType::Object);
+                        .any(|type_tree| type_tree.value_type == super::ValueType::Object);
 
                     if is_reference {
                         Ok(quote! {
@@ -1364,7 +1369,10 @@ impl ComplexEnum<'_> {
             Fields::Unit => {
                 let mut unit_features =
                     features::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as super::features::Title, Rename))
+                        Ok(parse_features!(
+                            input as super::features::attributes::Title,
+                            Rename
+                        ))
                     })?
                     .unwrap_or_default();
                 let title = pop_feature!(unit_features => Feature::Title(_));
@@ -1427,7 +1435,7 @@ impl ComplexEnum<'_> {
                     struct_name: Cow::Borrowed(&*self.enum_name),
                     attributes: &variant.attrs,
                     description: None,
-                    rename_all: named_struct_features.pop_rename_all_feature(),
+                    rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
                     aliases: None,
@@ -1511,7 +1519,10 @@ impl ComplexEnum<'_> {
 
                 let mut unit_features =
                     features::parse_schema_features_with(&variant.attrs, |input| {
-                        Ok(parse_features!(input as super::features::Title, Rename))
+                        Ok(parse_features!(
+                            input as super::features::attributes::Title,
+                            Rename
+                        ))
                     })?
                     .unwrap_or_default();
                 let title = pop_feature!(unit_features => Feature::Title(_));

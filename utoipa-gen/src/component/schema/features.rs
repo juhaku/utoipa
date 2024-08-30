@@ -5,11 +5,17 @@ use syn::{
 
 use crate::{
     component::features::{
-        impl_into_inner, impl_merge, parse_features, AdditionalProperties, As, ContentEncoding,
-        ContentMediaType, Default, Deprecated, Description, Example, Examples, ExclusiveMaximum,
-        ExclusiveMinimum, Feature, Format, Inline, IntoInner, MaxItems, MaxLength, MaxProperties,
-        Maximum, Merge, MinItems, MinLength, MinProperties, Minimum, MultipleOf, Nullable, Pattern,
-        ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+        attributes::{
+            AdditionalProperties, As, ContentEncoding, ContentMediaType, Deprecated, Description,
+            Example, Examples, Format, Inline, Nullable, ReadOnly, Rename, RenameAll, Required,
+            SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+        },
+        impl_into_inner, impl_merge, parse_features,
+        validation::{
+            ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, MaxProperties, Maximum,
+            MinItems, MinLength, MinProperties, Minimum, MultipleOf, Pattern,
+        },
+        Feature, Merge,
     },
     Diagnostics,
 };
@@ -28,7 +34,7 @@ impl Parse for NamedFieldStructFeatures {
             MaxProperties,
             MinProperties,
             As,
-            Default,
+            crate::component::features::attributes::Default,
             Deprecated,
             Description
         )))
@@ -45,7 +51,7 @@ impl Parse for UnnamedFieldStructFeatures {
         Ok(UnnamedFieldStructFeatures(parse_features!(
             input as Example,
             Examples,
-            Default,
+            crate::component::features::attributes::Default,
             Title,
             Format,
             ValueType,
@@ -65,7 +71,7 @@ impl Parse for EnumFeatures {
         Ok(EnumFeatures(parse_features!(
             input as Example,
             Examples,
-            Default,
+            crate::component::features::attributes::Default,
             Title,
             RenameAll,
             As,
@@ -84,7 +90,7 @@ impl Parse for ComplexEnumFeatures {
         Ok(ComplexEnumFeatures(parse_features!(
             input as Example,
             Examples,
-            Default,
+            crate::component::features::attributes::Default,
             RenameAll,
             As,
             Deprecated,
@@ -104,7 +110,7 @@ impl Parse for NamedFieldFeatures {
             Examples,
             ValueType,
             Format,
-            Default,
+            crate::component::features::attributes::Default,
             WriteOnly,
             ReadOnly,
             XmlAttr,
@@ -158,7 +164,7 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
         Ok(EnumUnnamedFieldVariantFeatures(parse_features!(
             input as Example,
             Examples,
-            Default,
+            crate::component::features::attributes::Default,
             Title,
             Format,
             ValueType,

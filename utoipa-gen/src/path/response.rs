@@ -11,7 +11,7 @@ use syn::{
 };
 
 use crate::{
-    component::{features::Inline, ComponentSchema, TypeTree},
+    component::{features::attributes::Inline, ComponentSchema, TypeTree},
     parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics,
 };
 

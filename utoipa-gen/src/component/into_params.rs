@@ -11,10 +11,16 @@ use crate::{
     component::{
         self,
         features::{
-            self, AdditionalProperties, AllowReserved, Example, ExclusiveMaximum, ExclusiveMinimum,
-            Explode, Format, Inline, IntoParamsNames, MaxItems, MaxLength, Maximum, MinItems,
-            MinLength, Minimum, MultipleOf, Nullable, Pattern, ReadOnly, Rename, RenameAll,
-            SchemaWith, Style, WriteOnly, XmlAttr,
+            self,
+            attributes::{
+                AdditionalProperties, AllowReserved, Example, Explode, Format, Inline,
+                IntoParamsNames, Nullable, ReadOnly, Rename, RenameAll, SchemaWith, Style,
+                WriteOnly, XmlAttr,
+            },
+            validation::{
+                ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, Maximum, MinItems,
+                MinLength, Minimum, MultipleOf, Pattern,
+            },
         },
         FieldRename,
     },
@@ -40,7 +46,7 @@ impl Parse for IntoParamsFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             input as Style,
-            features::ParameterIn,
+            features::attributes::ParameterIn,
             IntoParamsNames,
             RenameAll
         )))
@@ -253,18 +259,18 @@ impl Parse for FieldFeatures {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Self(parse_features!(
             // param features
-            input as component::features::ValueType,
+            input as component::features::attributes::ValueType,
             Rename,
             Style,
             AllowReserved,
             Example,
             Explode,
             SchemaWith,
-            component::features::Required,
+            component::features::attributes::Required,
             // param schema features
             Inline,
             Format,
-            component::features::Default,
+            component::features::attributes::Default,
             WriteOnly,
             ReadOnly,
             Nullable,
@@ -382,8 +388,7 @@ impl ToTokensDiagnostics for Param<'_> {
         let (schema_features, mut param_features) =
             self.resolve_field_features().map_err(Diagnostics::from)?;
 
-        let rename = param_features
-            .pop_rename_feature()
+        let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
             .map(|rename| rename.into_value());
         let rename_to = field_serde_params
             .rename
@@ -426,13 +431,13 @@ impl ToTokensDiagnostics for Param<'_> {
                 tokens.extend(quote! { .description(Some(#description))})
             }
 
-            let value_type = param_features.pop_value_type_feature();
+            let value_type = pop_feature!(param_features => Feature::ValueType(_) as Option<features::attributes::ValueType>);
             let component = value_type
                 .as_ref()
                 .map_try(|value_type| value_type.as_type_tree())?
                 .unwrap_or(type_tree);
 
-            let required: Option<features::Required> =
+            let required: Option<features::attributes::Required> =
                 pop_feature!(param_features => Feature::Required(_)).into_inner();
             let component_required = !component.is_option()
                 && super::is_required(field_serde_params, self.serde_container);
