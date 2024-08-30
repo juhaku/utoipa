@@ -6,11 +6,13 @@ use syn::LitStr;
 use crate::{parse_utils, Diagnostics};
 
 use super::validators::Validator;
-use super::{name, parse_integer, parse_number, Feature, Parse, Validate};
+use super::{impl_feature, parse_integer, parse_number, Feature, Parse, Validate};
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MultipleOf(pub(super) f64, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MultipleOf(pub(super) f64, Ident);
+}
 
 impl Validate for MultipleOf {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -40,11 +42,11 @@ impl From<MultipleOf> for Feature {
     }
 }
 
-name!(MultipleOf = "multiple_of");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Maximum(pub(super) f64, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Maximum(pub(super) f64, Ident);
+}
 
 impl Validate for Maximum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -77,11 +79,11 @@ impl From<Maximum> for Feature {
     }
 }
 
-name!(Maximum = "maximum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Minimum(f64, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Minimum(f64, Ident);
+}
 
 impl Minimum {
     pub fn new(value: f64, span: Span) -> Self {
@@ -122,11 +124,11 @@ impl From<Minimum> for Feature {
     }
 }
 
-name!(Minimum = "minimum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct ExclusiveMaximum(f64, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct ExclusiveMaximum(f64, Ident);
+}
 
 impl Validate for ExclusiveMaximum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -159,11 +161,11 @@ impl From<ExclusiveMaximum> for Feature {
     }
 }
 
-name!(ExclusiveMaximum = "exclusive_maximum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct ExclusiveMinimum(f64, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct ExclusiveMinimum(f64, Ident);
+}
 
 impl Validate for ExclusiveMinimum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -196,11 +198,11 @@ impl From<ExclusiveMinimum> for Feature {
     }
 }
 
-name!(ExclusiveMinimum = "exclusive_minimum");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MaxLength(pub(super) usize, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MaxLength(pub(super) usize, Ident);
+}
 
 impl Validate for MaxLength {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -233,11 +235,11 @@ impl From<MaxLength> for Feature {
     }
 }
 
-name!(MaxLength = "max_length");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MinLength(pub(super) usize, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MinLength(pub(super) usize, Ident);
+}
 
 impl Validate for MinLength {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -270,11 +272,11 @@ impl From<MinLength> for Feature {
     }
 }
 
-name!(MinLength = "min_length");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct Pattern(String, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct Pattern(String, Ident);
+}
 
 impl Validate for Pattern {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -309,11 +311,11 @@ impl From<Pattern> for Feature {
     }
 }
 
-name!(Pattern = "pattern");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MaxItems(pub(super) usize, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MaxItems(pub(super) usize, Ident);
+}
 
 impl Validate for MaxItems {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -346,11 +348,11 @@ impl From<MaxItems> for Feature {
     }
 }
 
-name!(MaxItems = "max_items");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MinItems(pub(super) usize, Ident);
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MinItems(pub(super) usize, Ident);
+}
 
 impl Validate for MinItems {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
@@ -383,11 +385,11 @@ impl From<MinItems> for Feature {
     }
 }
 
-name!(MinItems = "min_items");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MaxProperties(usize, ());
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MaxProperties(usize, ());
+}
 
 impl Parse for MaxProperties {
     fn parse(input: ParseStream, _ident: Ident) -> syn::Result<Self>
@@ -410,11 +412,11 @@ impl From<MaxProperties> for Feature {
     }
 }
 
-name!(MaxProperties = "max_properties");
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Clone)]
-pub struct MinProperties(usize, ());
+impl_feature! {
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub struct MinProperties(usize, ());
+}
 
 impl Parse for MinProperties {
     fn parse(input: ParseStream, _ident: Ident) -> syn::Result<Self>
@@ -436,5 +438,3 @@ impl From<MinProperties> for Feature {
         Feature::MinProperties(value)
     }
 }
-
-name!(MinProperties = "min_properties");
