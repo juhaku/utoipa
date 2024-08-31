@@ -497,8 +497,20 @@ impl ToTokensDiagnostics for Type<'_> {
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Variant {
+    #[cfg(feature = "non_strict_integers")]
+    Int8,
+    #[cfg(feature = "non_strict_integers")]
+    Int16,
     Int32,
     Int64,
+    #[cfg(feature = "non_strict_integers")]
+    UInt8,
+    #[cfg(feature = "non_strict_integers")]
+    UInt16,
+    #[cfg(feature = "non_strict_integers")]
+    UInt32,
+    #[cfg(feature = "non_strict_integers")]
+    UInt64,
     Float,
     Double,
     Byte,
@@ -517,22 +529,42 @@ pub enum Variant {
 
 impl Parse for Variant {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        const FORMATS: [&str; 12] = [
-            "Int32", "Int64", "Float", "Double", "Byte", "Binary", "Date", "DateTime", "Password",
-            "Uuid", "Ulid", "Uri",
-        ];
-        let excluded_format: &[&str] = &[
-            #[cfg(not(feature = "uuid"))]
+        let default_formats = [
+            "Int32",
+            "Int64",
+            "Float",
+            "Double",
+            "Byte",
+            "Binary",
+            "Date",
+            "DateTime",
+            "Password",
+            #[cfg(feature = "uuid")]
             "Uuid",
-            #[cfg(not(feature = "ulid"))]
+            #[cfg(feature = "ulid")]
             "Ulid",
-            #[cfg(not(feature = "url"))]
+            #[cfg(feature = "url")]
             "Uri",
         ];
-        let known_formats = FORMATS
-            .into_iter()
-            .filter(|format| !excluded_format.contains(format))
-            .collect::<Vec<_>>();
+        #[cfg(feature = "non_strict_integers")]
+        let non_strict_integer_formats = [
+            "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64",
+        ];
+
+        #[cfg(feature = "non_strict_integers")]
+        let formats = {
+            let mut formats = default_formats
+                .into_iter()
+                .chain(non_strict_integer_formats)
+                .collect::<Vec<_>>();
+            formats.sort_unstable();
+            formats.join(", ")
+        };
+        #[cfg(not(feature = "non_strict_integers"))]
+        let formats = {
+            let formats = default_formats.into_iter().collect::<Vec<_>>();
+            formats.join(", ")
+        };
 
         let lookahead = input.lookahead1();
         if lookahead.peek(Ident) {
@@ -540,8 +572,20 @@ impl Parse for Variant {
             let name = &*format.to_string();
 
             match name {
+                #[cfg(feature = "non_strict_integers")]
+                "Int8" => Ok(Self::Int8),
+                #[cfg(feature = "non_strict_integers")]
+                "Int16" => Ok(Self::Int16),
                 "Int32" => Ok(Self::Int32),
                 "Int64" => Ok(Self::Int64),
+                #[cfg(feature = "non_strict_integers")]
+                "UInt8" => Ok(Self::UInt8),
+                #[cfg(feature = "non_strict_integers")]
+                "UInt16" => Ok(Self::UInt16),
+                #[cfg(feature = "non_strict_integers")]
+                "UInt32" => Ok(Self::UInt32),
+                #[cfg(feature = "non_strict_integers")]
+                "UInt64" => Ok(Self::UInt64),
                 "Float" => Ok(Self::Float),
                 "Double" => Ok(Self::Double),
                 "Byte" => Ok(Self::Byte),
@@ -557,10 +601,7 @@ impl Parse for Variant {
                 "Uri" => Ok(Self::Uri),
                 _ => Err(Error::new(
                     format.span(),
-                    format!(
-                        "unexpected format: {name}, expected one of: {}",
-                        known_formats.join(", ")
-                    ),
+                    format!("unexpected format: {name}, expected one of: {formats}"),
                 )),
             }
         } else if lookahead.peek(LitStr) {
@@ -575,11 +616,27 @@ impl Parse for Variant {
 impl ToTokens for Variant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
+            #[cfg(feature = "non_strict_integers")]
+            Self::Int8 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
+            #[cfg(feature = "non_strict_integers")]
+            Self::Int16 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
             Self::Int32 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
                 utoipa::openapi::KnownFormat::Int32
             ))),
             Self::Int64 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
                 utoipa::openapi::KnownFormat::Int64
+            ))),
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt8 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt16 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16)}),
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt32 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::UInt32
+            ))),
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt64 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::UInt64
             ))),
             Self::Float => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
                 utoipa::openapi::KnownFormat::Float
