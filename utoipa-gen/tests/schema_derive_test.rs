@@ -4398,6 +4398,59 @@ fn derive_struct_with_validation_fields() {
 }
 
 #[test]
+#[cfg(feature = "non_strict_integers")]
+fn uint_non_strict_integers_format() {
+    let value = api_doc! {
+        struct Numbers {
+            #[schema(format = UInt8)]
+            ui8: String,
+            #[schema(format = UInt16)]
+            ui16: String,
+            #[schema(format = UInt32)]
+            ui32: String,
+            #[schema(format = UInt64)]
+            ui64: String,
+            #[schema(format = UInt16)]
+            i16: String,
+            #[schema(format = Int8)]
+            i8: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "ui8": {
+                    "type": "integer",
+                    "format": "uint8"
+                },
+                "ui16": {
+                    "type": "integer",
+                    "format": "uint16"
+                },
+                "ui32": {
+                    "type": "integer",
+                    "format": "uint32"
+                },
+                "ui64": {
+                    "type": "integer",
+                    "format": "uint64"
+                },
+                "i16": {
+                    "type": "integer",
+                    "format": "int16"
+                },
+                "i8": {
+                    "type": "integer",
+                    "format": "int8"
+                }
+            }
+        })
+    )
+}
+
+#[test]
 fn derive_schema_with_slice_and_array() {
     let value = api_doc! {
         struct Item<'a> {
