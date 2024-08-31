@@ -4,7 +4,7 @@ use serde::{
     de::{Error, Expected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::fmt::Formatter;
+use std::{collections::HashMap, fmt::Formatter};
 
 use self::path::PathsMap;
 pub use self::{
@@ -124,6 +124,10 @@ builder! {
         /// All the references and invidual files could use their own schema dialect.
         #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
         pub schema: String,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<HashMap<String, serde_json::Value>>,
     }
 }
 
@@ -1009,6 +1013,31 @@ mod tests {
                         "responses": {}
                     }
                 }
+            })
+        )
+    }
+
+    #[test]
+    fn openapi_custom_extension() {
+        let mut api = OpenApiBuilder::new().build();
+        let extensions = api.extensions.get_or_insert(HashMap::new());
+        extensions.insert(
+            String::from("x-tagGroup"),
+            String::from("anything that serializes to Json").into(),
+        );
+
+        let api_json = serde_json::to_value(api).expect("OpenApi must serialize to JSON");
+
+        assert_json_eq!(
+            api_json,
+            json!({
+                "info": {
+                    "title": "",
+                    "version": ""
+                },
+                "openapi": "3.1.0",
+                "paths": {},
+                "x-tagGroup": "anything that serializes to Json",
             })
         )
     }
