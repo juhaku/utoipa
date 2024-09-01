@@ -267,8 +267,10 @@
 
 pub mod openapi;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 pub use utoipa_gen::*;
 
 /// Trait for implementing OpenAPI specification in Rust.
@@ -424,6 +426,8 @@ macro_rules! impl_partial_schema {
         impl_partial_schema!( @impl_schema &$ty );
     };
     ( @impl_schema $( $tt:tt )* ) => {
+        #[cfg(feature = "macros")]
+        #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
         impl PartialSchema for $($tt)* {
             fn schema() -> openapi::RefOr<openapi::schema::Schema> {
                 schema!( $($tt)* ).into()
@@ -441,6 +445,8 @@ macro_rules! impl_partial_schema_primitive {
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
 #[doc(hidden)]
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 mod utoipa {
     pub use super::*;
 }
@@ -448,7 +454,7 @@ mod utoipa {
 /// Trait used to implement only _`Schema`_ part of the OpenAPI doc.
 ///
 /// This trait is by default implemented for Rust [`primitive`][primitive] types and some well known types like
-/// [`Vec`], [`Option`], [`HashMap`] and [`BTreeMap`]. The default implementation adds `schema()`
+/// [`Vec`], [`Option`], [`std::collections::HashMap`] and [`BTreeMap`]. The default implementation adds `schema()`
 /// method to the implementing type allowing simple conversion of the type to the OpenAPI Schema
 /// object. Moreover this allows handy way of constructing schema objects manually if ever so
 /// wished.
@@ -525,18 +531,24 @@ impl_partial_schema_primitive!(
 
 impl_partial_schema!(&str);
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Option<Vec<T>>).into()
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -547,6 +559,8 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -557,6 +571,8 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -567,6 +583,8 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -577,6 +595,8 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -587,12 +607,16 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -603,6 +627,8 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V>
     }
 }
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -613,21 +639,27 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMa
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for HashMap<K, V> {
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collections::HashMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
-            HashMap<K, V>
+            std::collections::HashMap<K, V>
         )
         .into()
     }
 }
 
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<HashMap<K, V>> {
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
+    for Option<std::collections::HashMap<K, V>>
+{
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
-            Option<HashMap<K, V>>
+            Option<std::collections::HashMap<K, V>>
         )
         .into()
     }
@@ -940,6 +972,8 @@ pub trait ToResponse<'__r> {
 
 /// Internal dev module used internally by utoipa-gen
 #[doc(hidden)]
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 pub mod __dev {
     use crate::{utoipa, OpenApi};
 

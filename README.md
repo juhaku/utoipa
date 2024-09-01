@@ -59,6 +59,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 
 ## Crate Features
 
+- **`macros`** Enable `utoipa-gen` macros. **This is enabled by default.**
 - **`yaml`**: Enables **serde_yaml** serialization of OpenAPI objects.
 - **`actix_extras`**: Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
   parse `path`, `path` and `query` parameters from actix web path attribute macros. See
