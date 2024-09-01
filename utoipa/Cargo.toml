@@ -21,43 +21,44 @@ rust-version.workspace = true
 
 [features]
 # See README.md for list and explanations of features
-default = []
-debug = ["utoipa-gen/debug"]
-actix_extras = ["utoipa-gen/actix_extras"]
-rocket_extras = ["utoipa-gen/rocket_extras"]
-axum_extras = ["utoipa-gen/axum_extras"]
-chrono = ["utoipa-gen/chrono"]
-decimal = ["utoipa-gen/decimal"]
-decimal_float = ["utoipa-gen/decimal_float"]
-non_strict_integers = ["utoipa-gen/non_strict_integers"]
-yaml = ["serde_yaml", "utoipa-gen/yaml"]
-uuid = ["utoipa-gen/uuid"]
-ulid = ["utoipa-gen/ulid"]
-url = ["utoipa-gen/url"]
-time = ["utoipa-gen/time"]
-smallvec = ["utoipa-gen/smallvec"]
-indexmap = ["utoipa-gen/indexmap"]
+default = ["macros"]
+debug = ["utoipa-gen?/debug"]
+actix_extras = ["utoipa-gen?/actix_extras"]
+rocket_extras = ["utoipa-gen?/rocket_extras"]
+axum_extras = ["utoipa-gen?/axum_extras"]
+chrono = ["utoipa-gen?/chrono"]
+decimal = ["utoipa-gen?/decimal"]
+decimal_float = ["utoipa-gen?/decimal_float"]
+non_strict_integers = ["utoipa-gen?/non_strict_integers"]
+yaml = ["serde_yaml", "utoipa-gen?/yaml"]
+uuid = ["utoipa-gen?/uuid"]
+ulid = ["utoipa-gen?/ulid"]
+url = ["utoipa-gen?/url"]
+time = ["utoipa-gen?/time"]
+smallvec = ["utoipa-gen?/smallvec"]
+indexmap = ["utoipa-gen?/indexmap"]
 openapi_extensions = []
-repr = ["utoipa-gen/repr"]
+repr = ["utoipa-gen?/repr"]
 preserve_order = []
 preserve_path_order = []
-rc_schema = ["utoipa-gen/rc_schema"]
+rc_schema = ["utoipa-gen?/rc_schema"]
+macros = ["dep:utoipa-gen"]
 
 # EXPERIEMENTAL! use with cauntion
-auto_into_responses = ["utoipa-gen/auto_into_responses"]
+auto_into_responses = ["utoipa-gen?/auto_into_responses"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 serde_yaml = { version = "0.9", optional = true }
-utoipa-gen = { version = "5.0.0-alpha.2", path = "../utoipa-gen" }
+utoipa-gen = { version = "5.0.0-alpha.2", path = "../utoipa-gen", optional = true }
 indexmap = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
 assert-json-diff = "2"
 
 [package.metadata.docs.rs]
-features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "ulid", "url", "yaml"]
+features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "ulid", "url", "yaml", "macros"]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [lints.rust]
