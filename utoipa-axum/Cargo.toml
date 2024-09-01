@@ -1,6 +1,6 @@
 [package]
 name = "utoipa-axum"
-description = "Compile time generated OpenAPI documentation for Rust"
+description = "Utoipa's axum bindings for seamless integration for the two"
 version = "0.1.0-beta.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
