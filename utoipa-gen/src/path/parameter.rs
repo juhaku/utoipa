@@ -60,7 +60,10 @@ impl<'p> Parameter<'p> {
         match (self, other) {
             (Self::Value(value), Parameter::Value(other)) => {
                 let (schema_features, _) = &value.features;
-                value.parameter_schema = other.parameter_schema;
+                // if value parameter schema has not been defined use the external one
+                if value.parameter_schema.is_none() {
+                    value.parameter_schema = other.parameter_schema;
+                }
 
                 if let Some(parameter_schema) = &mut value.parameter_schema {
                     parameter_schema.features.clone_from(schema_features);
@@ -274,7 +277,9 @@ impl Parse for ValueParameter<'_> {
 
         if input.fork().parse::<ParameterIn>().is_ok() {
             parameter.parameter_in = input.parse()?;
-            input.parse::<Token![,]>()?;
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
+            }
         }
 
         let (schema_features, parameter_features) = input
