@@ -185,6 +185,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             description: None,
                             deprecated: None,
                             object_name: "",
+                            // TODO check whether this is correct
+                            is_generics_type_arg: false
                         }
                     )?),
                     required,
@@ -206,6 +208,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             description: None,
                             deprecated: None,
                             object_name: "",
+                            // TODO check whether this is correct
+                            is_generics_type_arg: false
                         }
                     )?),
                     required,

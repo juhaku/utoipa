@@ -298,11 +298,13 @@ fn derive_response_multiple_examples() {
 
 #[test]
 fn derive_response_with_enum_contents() {
+    #[derive(utoipa::ToSchema)]
     #[allow(unused)]
     struct Admin {
         name: String,
     }
     #[allow(unused)]
+    #[derive(utoipa::ToSchema)]
     struct Moderator {
         name: String,
     }

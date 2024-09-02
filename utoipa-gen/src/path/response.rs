@@ -294,6 +294,7 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                                 description: None,
                                 deprecated: None,
                                 object_name: "",
+                                is_generics_type_arg: false,
                             })?
                             .to_token_stream()
                         }
@@ -866,6 +867,7 @@ impl ToTokensDiagnostics for Header {
                 description: None,
                 deprecated: None,
                 object_name: "",
+                is_generics_type_arg: false,
             })?
             .to_token_stream();
 

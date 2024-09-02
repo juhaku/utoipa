@@ -268,6 +268,7 @@
 
 pub mod openapi;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 #[cfg(feature = "macros")]
@@ -354,46 +355,52 @@ pub trait OpenApi {
 /// # }
 /// #
 /// impl<'__s> utoipa::ToSchema<'__s> for Pet {
-///     fn schema() -> (&'__s str, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>) {
-///          (
-///             "Pet",
-///             utoipa::openapi::ObjectBuilder::new()
-///                 .property(
-///                     "id",
-///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::schema::Type::Integer)
-///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
-///                             utoipa::openapi::KnownFormat::Int64,
-///                         ))),
-///                 )
-///                 .required("id")
-///                 .property(
-///                     "name",
-///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::schema::Type::String),
-///                 )
-///                 .required("name")
-///                 .property(
-///                     "age",
-///                     utoipa::openapi::ObjectBuilder::new()
-///                         .schema_type(utoipa::openapi::schema::Type::Integer)
-///                         .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
-///                             utoipa::openapi::KnownFormat::Int32,
-///                         ))),
-///                 )
-///                 .example(Some(serde_json::json!({
-///                   "name":"bob the cat","id":1
-///                 })))
-///                 .into(),
-///         ) }
+///     fn name() -> std::borrow::Cow<'__s, str> {
+///         std::borrow::Cow::Borrowed("Pet")
+///     }
+/// }
+/// impl utoipa::PartialSchema for Pet {
+///     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+///         utoipa::openapi::ObjectBuilder::new()
+///             .property(
+///                 "id",
+///                 utoipa::openapi::ObjectBuilder::new()
+///                     .schema_type(utoipa::openapi::schema::Type::Integer)
+///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+///                         utoipa::openapi::KnownFormat::Int64,
+///                     ))),
+///             )
+///             .required("id")
+///             .property(
+///                 "name",
+///                 utoipa::openapi::ObjectBuilder::new()
+///                     .schema_type(utoipa::openapi::schema::Type::String),
+///             )
+///             .required("name")
+///             .property(
+///                 "age",
+///                 utoipa::openapi::ObjectBuilder::new()
+///                     .schema_type(utoipa::openapi::schema::Type::Integer)
+///                     .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+///                         utoipa::openapi::KnownFormat::Int32,
+///                     ))),
+///             )
+///             .example(Some(serde_json::json!({
+///               "name":"bob the cat","id":1
+///             })))
+///             .into()
+///     }
 /// }
 /// ```
-pub trait ToSchema<'__s> {
+pub trait ToSchema<'__s>: PartialSchema {
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
-    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
+    fn name() -> Cow<'__s, str>;
+    // /// Return a tuple of name and schema or reference to a schema that can be referenced by the
+    // /// name or inlined directly to responses, request bodies or parameters.
+    // fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
 
-    /// Optional set of alias schemas for the [`ToSchema::schema`].
+    /// Optional set of alias schemas for the [`PartialSchema::schema`].
     ///
     /// Typically there is no need to manually implement this method but it is instead implemented
     /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
@@ -404,7 +411,7 @@ pub trait ToSchema<'__s> {
 
 impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema> {
     fn from(_: T) -> Self {
-        T::schema().1
+        T::schema()
     }
 }
 
@@ -413,9 +420,15 @@ impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema
 /// [`openapi::schema::Schema`] for the type.
 pub type TupleUnit = ();
 
+impl PartialSchema for TupleUnit {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        openapi::schema::empty().into()
+    }
+}
+
 impl<'__s> ToSchema<'__s> for TupleUnit {
-    fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>) {
-        ("TupleUnit", openapi::schema::empty().into())
+    fn name() -> Cow<'__s, str> {
+        Cow::Borrowed("TupleUnit")
     }
 }
 
@@ -675,6 +688,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
 ///
 /// Use `#[utoipa::path(..)]` to implement Path trait
 /// ```rust
+/// # #[derive(utoipa::ToSchema)]
 /// # struct Pet {
 /// #   id: u64,
 /// #   name: String,

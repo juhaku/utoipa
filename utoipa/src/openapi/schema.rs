@@ -142,7 +142,9 @@ impl ComponentsBuilder {
         // are created when the main schema is a generic type which should be included in OpenAPI
         // spec in its generic form.
         if aliases.is_empty() {
-            let (name, schema) = I::schema();
+            let name = I::name();
+            let schema = I::schema();
+            // let (name, schema) = I::schema();
             self.schemas.insert(name.to_string(), schema);
         }
 

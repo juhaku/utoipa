@@ -145,10 +145,10 @@ impl Modify for Foo {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 struct Foo;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 struct FooResources;
 
 #[test]

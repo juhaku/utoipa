@@ -145,6 +145,7 @@ fn get_todo_with_path_tuple() {
 
 #[test]
 fn get_todo_with_extension() {
+    #[derive(utoipa::ToSchema)]
     struct Todo {
         #[allow(unused)]
         id: i32,
