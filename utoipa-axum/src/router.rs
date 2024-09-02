@@ -1,4 +1,5 @@
 //! Implements Router for composing handlers and collecting OpenAPI information.
+use std::borrow::Cow;
 use std::convert::Infallible;
 
 use axum::extract::Request;
@@ -17,6 +18,21 @@ where
     String::from(path).replace('}', "").replace('{', ":")
 }
 
+#[inline]
+fn path_template<S: AsRef<str>>(path: S) -> String {
+    path.as_ref()
+        .split('/')
+        .map(|segment| {
+            if !segment.is_empty() && segment[0..1] == *":" {
+                Cow::Owned(format!("{{{}}}", &segment[1..]))
+            } else {
+                Cow::Borrowed(segment)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 /// Wrapper type for [`utoipa::openapi::path::Paths`] and [`axum::routing::MethodRouter`].
 ///
 /// This is used with [`OpenApiRouter::routes`] method to register current _`paths`_ to the
@@ -25,8 +41,87 @@ where
 /// See [`routes`][routes] for usage.
 ///
 /// [routes]: ../macro.routes.html
-pub type UtoipaMethodRouter<S = ()> =
-    (utoipa::openapi::path::Paths, axum::routing::MethodRouter<S>);
+pub type UtoipaMethodRouter<S = (), E = Infallible> = (
+    utoipa::openapi::path::Paths,
+    axum::routing::MethodRouter<S, E>,
+);
+
+/// Extension trait for [`UtoipaMethodRouter`] to expose typically used methods of
+/// [`axum::routing::MethodRouter`] and to extend [`UtoipaMethodRouter`] with useful convenience
+/// methods.
+pub trait UtoipaMethodRouterExt<S, E>
+where
+    S: Send + Sync + Clone + 'static,
+{
+    /// Pass through method for [`axum::routing::MethodRouter::layer`].
+    ///
+    /// This method is provided as convenience for defining layers to [`axum::routing::MethodRouter`]
+    /// routes.
+    fn layer<L, NewError>(self, layer: L) -> UtoipaMethodRouter<S, NewError>
+    where
+        L: Layer<Route<E>> + Clone + Send + 'static,
+        L::Service: Service<Request> + Clone + Send + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<NewError> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
+        E: 'static,
+        S: 'static,
+        NewError: 'static;
+
+    /// Pass through method for [`axum::routing::MethodRouter::with_state`].
+    ///
+    /// Allows quick state definition for underlying [`axum::routing::MethodRouter`].
+    fn with_state<S2>(self, state: S) -> UtoipaMethodRouter<S2, E>;
+
+    /// Convenience method that allows custom mapping for [`axum::routing::MethodRouter`] via
+    /// methods that not exposed directly through [`UtoipaMethodRouterExt`].
+    ///
+    /// This method could be used to add layers, route layers or fallback handlers for the method
+    /// router.
+    /// ```rust
+    /// # use utoipa_axum::{routes, router::{UtoipaMethodRouter, UtoipaMethodRouterExt}};
+    /// # #[utoipa::path(get, path = "")]
+    /// # async fn search_user() {}
+    /// let _: UtoipaMethodRouter = routes!(search_user).map(|method_router| {
+    ///     // .. implementation here
+    ///     method_router
+    /// });
+    /// ```
+    fn map<NewError>(
+        self,
+        op: impl FnOnce(MethodRouter<S, E>) -> MethodRouter<S, NewError>,
+    ) -> UtoipaMethodRouter<S, NewError>;
+}
+
+impl<S, E> UtoipaMethodRouterExt<S, E> for UtoipaMethodRouter<S, E>
+where
+    S: Send + Sync + Clone + 'static,
+{
+    fn layer<L, NewError>(self, layer: L) -> UtoipaMethodRouter<S, NewError>
+    where
+        L: Layer<Route<E>> + Clone + Send + 'static,
+        L::Service: Service<Request> + Clone + Send + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<NewError> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
+        E: 'static,
+        S: 'static,
+        NewError: 'static,
+    {
+        (self.0, self.1.layer(layer))
+    }
+
+    fn with_state<S2>(self, state: S) -> UtoipaMethodRouter<S2, E> {
+        (self.0, self.1.with_state(state))
+    }
+
+    fn map<NewError>(
+        self,
+        op: impl FnOnce(MethodRouter<S, E>) -> MethodRouter<S, NewError>,
+    ) -> UtoipaMethodRouter<S, NewError> {
+        (self.0, op(self.1))
+    }
+}
 
 /// A wrapper struct for [`axum::Router`] and [`utoipa::openapi::OpenApi`] for composing handlers
 /// and services with collecting OpenAPI information from the handlers.
@@ -189,7 +284,7 @@ where
     ///     .nest("/api", search_router);
     /// ```
     pub fn nest(self, path: &str, router: OpenApiRouter<S>) -> Self {
-        let api = self.1.nest(path, router.1);
+        let api = self.1.nest(path_template(path), router.1);
         let path = if path.is_empty() { "/" } else { path };
         let router = self.0.nest(&colonized_params(path), router.0);
 
