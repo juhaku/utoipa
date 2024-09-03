@@ -157,8 +157,9 @@ fn get_todo_with_extension() {
     ///
     /// List all Todo items from in-memory storage.
     #[utoipa::path(
-        get,
+        post,
         path = "/todo",
+        request_body = [Todo],
         responses(
             (status = 200, description = "List all todos successfully", body = [Todo])
         )

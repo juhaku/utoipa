@@ -167,13 +167,12 @@ impl ToTokensDiagnostics for Schema<'_> {
         impl_generics.params.push(schema_lifetime);
         let (impl_generics, _, _) = impl_generics.split_for_impl();
 
-        let mut variant_tokens = TokenStream::new();
-        variant.to_tokens(&mut variant_tokens)?;
+        let variant = as_tokens_or_diagnostics!(&variant);
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::PartialSchema for #ident #ty_generics #where_clause {
                 fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-                    #variant_tokens.into()
+                    #variant.into()
                 }
             }
             impl #impl_generics utoipa::ToSchema #schema_generics for #ident #ty_generics #where_clause {
@@ -218,13 +217,12 @@ impl<'a> SchemaVariant<'a> {
                     let description =
                         pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
                     Ok(Self::Unnamed(UnnamedStructSchema {
-                        struct_name: Cow::Owned(ident.to_string()),
+                        type_and_generics: (ident, generics),
                         attributes,
                         description,
                         features: unnamed_features,
                         fields: unnamed,
                         schema_as,
-                        generics,
                     }))
                 }
                 Fields::Named(fields) => {
@@ -237,7 +235,7 @@ impl<'a> SchemaVariant<'a> {
                         pop_feature!(named_features => Feature::Description(_)).into_inner();
 
                     Ok(Self::Named(NamedStructSchema {
-                        struct_name: Cow::Owned(ident.to_string()),
+                        type_and_generics: (ident, generics),
                         attributes,
                         description,
                         rename_all: pop_feature!(named_features => Feature::RenameAll(_) as Option<RenameAll>),
@@ -245,16 +243,14 @@ impl<'a> SchemaVariant<'a> {
                         fields: named,
                         schema_as,
                         aliases: aliases.map(|aliases| aliases.into_iter().collect()),
-                        generics,
                     }))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
             },
             Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(
-                Cow::Owned(ident.to_string()),
+                (ident, generics),
                 &content.variants,
                 attributes,
-                generics,
             )?)),
             _ => Err(Diagnostics::with_span(
                 ident.span(),
@@ -300,7 +296,7 @@ impl ToTokens for UnitStructVariant {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct NamedStructSchema<'a> {
-    pub struct_name: Cow<'a, str>,
+    pub type_and_generics: (&'a Ident, &'a Generics),
     pub fields: &'a Punctuated<Field, Comma>,
     pub attributes: &'a [Attribute],
     pub description: Option<Description>,
@@ -308,7 +304,6 @@ pub struct NamedStructSchema<'a> {
     pub rename_all: Option<RenameAll>,
     pub aliases: Option<Vec<(TypeTree<'a>, &'a TypeTree<'a>)>>,
     pub schema_as: Option<As>,
-    pub generics: &'a Generics,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -354,10 +349,9 @@ impl NamedStructSchema<'_> {
                 .any(|f| matches!(f, Feature::Default(_)))
             {
                 let field_ident = field.ident.as_ref().unwrap().to_owned();
-                let struct_ident = format_ident!("{}", &self.struct_name);
                 features_inner.push(Feature::Default(
                     crate::features::attributes::Default::new_default_trait(
-                        struct_ident,
+                        self.type_and_generics.0.clone(),
                         field_ident.into(),
                     ),
                 ));
@@ -402,8 +396,7 @@ impl NamedStructSchema<'_> {
                     features: field_features,
                     description: Some(description),
                     deprecated: deprecated.as_ref(),
-                    object_name: self.struct_name.as_ref(),
-                    is_generics_type_arg: self.generics.any_match_type_tree(type_tree),
+                    type_and_generics: self.type_and_generics,
                 };
                 if is_flatten(field_rules) && type_tree.is_map() {
                     Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
@@ -538,7 +531,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                             Some(flattened_map_field) => {
                                 return Err(Diagnostics::with_span(
                                     self.fields.span(),
-                                    format!("The structure `{}` contains multiple flattened map fields.", self.struct_name))
+                                    format!("The structure `{}` contains multiple flattened map fields.", self.type_and_generics.0))
                                     .note(
                                         format!("first flattened map field was declared here as `{}`",
                                         flattened_map_field.ident.as_ref().unwrap()))
@@ -595,13 +588,12 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct UnnamedStructSchema<'a> {
-    struct_name: Cow<'a, str>,
+    type_and_generics: (&'a Ident, &'a Generics),
     fields: &'a Punctuated<Field, Comma>,
     description: Option<Description>,
     attributes: &'a [Attribute],
     features: Option<Vec<Feature>>,
     schema_as: Option<As>,
-    generics: &'a Generics,
 }
 
 impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
@@ -645,10 +637,9 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                     if pop_feature!(features => Feature::Default(crate::features::attributes::Default(None)))
                         .is_some()
                     {
-                        let struct_ident = format_ident!("{}", &self.struct_name);
                         let index: syn::Index = 0.into();
                         features.push(Feature::Default(
-                            crate::features::attributes::Default::new_default_trait(struct_ident, index.into()),
+                            crate::features::attributes::Default::new_default_trait(self.type_and_generics.0.clone(), index.into()),
                         ));
                     }
                 }
@@ -667,8 +658,7 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                     features: unnamed_struct_features,
                     description: description.as_ref(),
                     deprecated: deprecated.as_ref(),
-                    object_name: self.struct_name.as_ref(),
-                    is_generics_type_arg: self.generics.any_match_type_tree(type_tree),
+                    type_and_generics: self.type_and_generics,
                 })?
                 .to_token_stream(),
             );
@@ -717,10 +707,9 @@ pub struct EnumSchema<'a> {
 
 impl<'e> EnumSchema<'e> {
     pub fn new(
-        enum_name: Cow<'e, str>,
+        type_and_generics: (&'e Ident, &'e Generics),
         variants: &'e Punctuated<Variant, Comma>,
         attributes: &'e [Attribute],
-        generics: &'e Generics,
     ) -> Result<Self, Diagnostics> {
         if variants
             .iter()
@@ -830,13 +819,12 @@ impl<'e> EnumSchema<'e> {
 
             Ok(Self {
                 schema_type: EnumSchemaType::Complex(ComplexEnum {
-                    enum_name,
+                    type_and_generics,
                     attributes,
                     description,
                     variants,
                     rename_all,
                     enum_features,
-                    generics,
                 }),
                 schema_as,
             })
@@ -1074,13 +1062,12 @@ fn regular_enum_to_tokens<T: self::enum_variant::Variant>(
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ComplexEnum<'a> {
+    type_and_generics: (&'a Ident, &'a Generics),
     variants: &'a Punctuated<Variant, Comma>,
     attributes: &'a [Attribute],
     description: Option<Description>,
-    enum_name: Cow<'a, str>,
     enum_features: Vec<Feature>,
     rename_all: Option<RenameAll>,
-    generics: &'a Generics,
 }
 
 impl ComplexEnum<'_> {
@@ -1119,7 +1106,7 @@ impl ComplexEnum<'_> {
                         .map(ToTokensDiagnostics::to_token_stream),
                     example: example.as_ref().map(ToTokensDiagnostics::to_token_stream),
                     item: as_tokens_or_diagnostics!(&NamedStructSchema {
-                        struct_name: Cow::Borrowed(&*self.enum_name),
+                        type_and_generics: self.type_and_generics,
                         attributes: &variant.attrs,
                         description: None,
                         rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
@@ -1127,7 +1114,6 @@ impl ComplexEnum<'_> {
                         fields: &named_fields.named,
                         aliases: None,
                         schema_as: None,
-                        generics: self.generics
                     }),
                 }))
             }
@@ -1155,13 +1141,12 @@ impl ComplexEnum<'_> {
                         .map(ToTokensDiagnostics::to_token_stream),
                     example: example.as_ref().map(ToTokensDiagnostics::to_token_stream),
                     item: as_tokens_or_diagnostics!(&UnnamedStructSchema {
-                        struct_name: Cow::Borrowed(&*self.enum_name),
+                        type_and_generics: self.type_and_generics,
                         attributes: &variant.attrs,
                         description: None,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         schema_as: None,
-                        generics: self.generics
                     }),
                 }))
             }
@@ -1222,7 +1207,7 @@ impl ComplexEnum<'_> {
                     .unwrap_or_default();
 
                 Ok(as_tokens_or_diagnostics!(&NamedStructSchema {
-                    struct_name: Cow::Borrowed(&*self.enum_name),
+                    type_and_generics: self.type_and_generics,
                     attributes: &variant.attrs,
                     description: None,
                     rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
@@ -1230,7 +1215,6 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     aliases: None,
                     schema_as: None,
-                    generics: self.generics
                 }))
             }
             Fields::Unnamed(unnamed_fields) => {
@@ -1241,13 +1225,12 @@ impl ComplexEnum<'_> {
                     .unwrap_or_default();
 
                 Ok(as_tokens_or_diagnostics!(&UnnamedStructSchema {
-                    struct_name: Cow::Borrowed(&*self.enum_name),
+                    type_and_generics: self.type_and_generics,
                     attributes: &variant.attrs,
                     description: None,
                     features: Some(unnamed_struct_features),
                     fields: &unnamed_fields.unnamed,
                     schema_as: None,
-                    generics: self.generics
                 }))
             }
             Fields::Unit => {
@@ -1291,7 +1274,7 @@ impl ComplexEnum<'_> {
                 );
 
                 let named_enum = NamedStructSchema {
-                    struct_name: Cow::Borrowed(&*self.enum_name),
+                    type_and_generics: self.type_and_generics,
                     attributes: &variant.attrs,
                     description: None,
                     rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
@@ -1299,7 +1282,6 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     aliases: None,
                     schema_as: None,
-                    generics: self.generics,
                 };
                 let named_enum_tokens = as_tokens_or_diagnostics!(&named_enum);
                 let title = title_features
@@ -1335,13 +1317,12 @@ impl ComplexEnum<'_> {
                     );
 
                     let unnamed_enum = UnnamedStructSchema {
-                        struct_name: Cow::Borrowed(&*self.enum_name),
+                        type_and_generics: self.type_and_generics,
                         attributes: &variant.attrs,
                         description: None,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         schema_as: None,
-                        generics: self.generics,
                     };
                     let unnamed_enum_tokens = as_tokens_or_diagnostics!(&unnamed_enum);
 
@@ -1456,7 +1437,7 @@ impl ComplexEnum<'_> {
                 );
 
                 let named_enum = NamedStructSchema {
-                    struct_name: Cow::Borrowed(&*self.enum_name),
+                    type_and_generics: self.type_and_generics,
                     attributes: &variant.attrs,
                     description: None,
                     rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
@@ -1464,7 +1445,6 @@ impl ComplexEnum<'_> {
                     fields: &named_fields.named,
                     aliases: None,
                     schema_as: None,
-                    generics: self.generics,
                 };
                 let named_enum_tokens = as_tokens_or_diagnostics!(&named_enum);
                 let title = title_features
@@ -1503,13 +1483,12 @@ impl ComplexEnum<'_> {
                     );
 
                     let unnamed_enum = UnnamedStructSchema {
-                        struct_name: Cow::Borrowed(&*self.enum_name),
+                        type_and_generics: self.type_and_generics,
                         description: None,
                         attributes: &variant.attrs,
                         features: Some(unnamed_struct_features),
                         fields: &unnamed_fields.unnamed,
                         schema_as: None,
-                        generics: self.generics,
                     };
                     let unnamed_enum_tokens = as_tokens_or_diagnostics!(&unnamed_enum);
 

@@ -43,7 +43,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
+    DeriveInput, ExprPath, Generics, ItemFn, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -2584,13 +2584,35 @@ pub fn schema(input: TokenStream) -> TokenStream {
         Err(diagnostics) => return diagnostics.into_token_stream().into(),
     };
 
+    // let segment = type_tree
+    //     .path
+    //     .as_ref()
+    //     .expect("schema must have Path, do not provide tuple here as an argument")
+    //     .segments
+    //     .last()
+    //     .expect("Path must have segments");
+
+    dbg!(&schema.ty);
+    dbg!(&type_tree);
+    // let mut generics = Generics::default();
+
+    let (ident, generics) = match type_tree.get_path_type_and_generics() {
+        Ok(type_and_generics) => type_and_generics,
+        Err(error) => return error.to_compile_error().into(),
+    };
+    // generics.lt_token = Some(syn::token::Lt { spans: gcckj })
+    // let g = Generics::from(segment.arguments);
+    // TODO get the correct type and generics???
+    let type_and_generics = (ident, &generics);
+
+    dbg!("does not get here");
+    dbg!(ident, &generics);
     let schema = ComponentSchema::new(ComponentSchemaProps {
         features: Some(vec![Feature::Inline(schema.inline.into())]),
         type_tree: &type_tree,
         deprecated: None,
         description: None,
-        object_name: "",
-        is_generics_type_arg: false, // it cannot be generic struct here
+        type_and_generics,
     });
 
     match schema {

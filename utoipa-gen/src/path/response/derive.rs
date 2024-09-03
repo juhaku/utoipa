@@ -343,6 +343,7 @@ impl NamedStructResponse<'_> {
             parse_utils::Value::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let status_code = mem::take(&mut derive_value.status);
+        let type_and_generics = (ident, &Generics::default());
         let inline_schema = NamedStructSchema {
             attributes,
             fields,
@@ -350,9 +351,8 @@ impl NamedStructResponse<'_> {
             description: None,
             features: None,
             rename_all: None,
-            struct_name: Cow::Owned(ident.to_string()),
             schema_as: None,
-            generics: &Generics::default(),
+            type_and_generics,
         };
 
         let ty = Self::to_type(ident);
@@ -430,16 +430,16 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         };
         let ty = Self::to_type(ident);
 
+        let type_and_generics = (ident, &Generics::default());
         let inline_schema = NamedStructSchema {
             aliases: None,
             description: None,
             fields,
             features: None,
             attributes,
-            struct_name: Cow::Owned(ident.to_string()),
             rename_all: None,
             schema_as: None,
-            generics: &Generics::default(),
+            type_and_generics,
         };
         let response_type = PathType::InlineSchema(inline_schema.to_token_stream(), ty);
 
@@ -565,14 +565,9 @@ impl<'r> EnumResponse<'r> {
             derive_value,
             description,
         });
+        let type_and_generics = (ident, &Generics::default());
         response_value.response_type = if content.is_empty() {
-            let generics = Generics::default();
-            let inline_schema = EnumSchema::new(
-                Cow::Owned(ident.to_string()),
-                variants,
-                attributes,
-                &generics,
-            )?;
+            let inline_schema = EnumSchema::new(type_and_generics, variants, attributes)?;
 
             Some(PathType::InlineSchema(
                 inline_schema.into_token_stream(),

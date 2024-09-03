@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Generics, Ident,
+    Generics,
 };
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    Array, Diagnostics, GenericsExt, OptionExt, Required, ToTokensDiagnostics,
+    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -147,7 +147,6 @@ impl ToTokensDiagnostics for IntoParams {
                         name,
                     },
                     serde_container: &serde_container,
-                    generics: &self.generics
                 };
 
                 let mut param_tokens = TokenStream::new();
@@ -301,8 +300,6 @@ struct Param<'a> {
     container_attributes: FieldParamContainerAttributes<'a>,
     /// Either serde rename all rule or into_params rename all rule if provided.
     serde_container: &'a SerdeContainer,
-    /// Container gnerics
-    generics: &'a Generics,
 }
 
 impl Param<'_> {
@@ -455,13 +452,14 @@ impl ToTokensDiagnostics for Param<'_> {
             });
             tokens.extend(param_features.to_token_stream()?);
 
+            // TODO get the field type and generics??????
+            let type_and_generics = (&Ident::new("empty_param", Span::call_site()), &Generics::default());
             let schema = ComponentSchema::new(component::ComponentSchemaProps {
                 type_tree: &component,
                 features: Some(schema_features),
                 description: None,
                 deprecated: None,
-                object_name: "",
-                is_generics_type_arg: self.generics.any_match_type_tree(&component),
+                type_and_generics,
             })?;
             let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
 

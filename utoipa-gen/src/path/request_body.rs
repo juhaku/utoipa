@@ -1,7 +1,8 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
+use syn::Generics;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::features::attributes::Inline;
@@ -163,13 +164,15 @@ impl ToTokensDiagnostics for RequestBodyAttr<'_> {
                 },
                 PathType::MediaType(body_type) => {
                     let type_tree = body_type.as_type_tree()?;
+                    // TODO get the body type and generics from body_type
+                    let type_and_generics =
+                        (&Ident::new("empty_request_body", Span::call_site()), &Generics::default());
                     ComponentSchema::new(crate::component::ComponentSchemaProps {
                         type_tree: &type_tree,
                         features: Some(vec![Inline::from(body_type.is_inline).into()]),
                         description: None,
                         deprecated: None,
-                        object_name: "",
-                        is_generics_type_arg: false,
+                        type_and_generics,
                     })?
                     .to_token_stream()
                 }

@@ -1,11 +1,11 @@
 use std::{borrow::Cow, fmt::Display};
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, LitStr, Token, TypePath,
+    Error, Generics, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -168,6 +168,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
             tokens.extend(quote! { .schema(Some(#param_schema)).required(#required) });
         };
 
+        // TODO where to get parameter type and generics????
+        let type_and_generics = (&Ident::new("empty_parameter_schema", Span::call_site()), &Generics::default());
         match &self.parameter_type {
             #[cfg(any(
                 feature = "actix_extras",
@@ -184,9 +186,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             features: Some(self.features.clone()),
                             description: None,
                             deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
+                            type_and_generics
                         }
                     )?),
                     required,
@@ -207,9 +207,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             features: Some(schema_features),
                             description: None,
                             deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
+                            type_and_generics
                         }
                     )?),
                     required,

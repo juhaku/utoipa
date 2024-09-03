@@ -7,7 +7,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Error, ExprPath, LitInt, LitStr, Token, TypePath,
+    Attribute, Error, ExprPath, Generics, LitInt, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -288,13 +288,15 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                         PathType::MediaType(ref path_type) => {
                             let type_tree = path_type.as_type_tree()?;
 
+                            let (ident, generics) = type_tree.get_path_type_and_generics()?;
+                            dbg!(&type_tree, ident, &generics);
+                            let type_and_generics = (ident, &generics);
                             ComponentSchema::new(crate::component::ComponentSchemaProps {
                                 type_tree: &type_tree,
                                 features: Some(vec![Inline::from(path_type.is_inline).into()]),
                                 description: None,
                                 deprecated: None,
-                                object_name: "",
-                                is_generics_type_arg: false,
+                                type_and_generics,
                             })?
                             .to_token_stream()
                         }
@@ -861,13 +863,14 @@ impl ToTokensDiagnostics for Header {
             // header property with custom type
             let type_tree = header_type.as_type_tree()?;
 
+            // TODO get header type and generics
+            let type_and_generics = (&Ident::new("empty_header", Span::call_site()), &Generics::default());
             let media_type_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
                 type_tree: &type_tree,
                 features: Some(vec![Inline::from(header_type.is_inline).into()]),
                 description: None,
                 deprecated: None,
-                object_name: "",
-                is_generics_type_arg: false,
+                type_and_generics,
             })?
             .to_token_stream();
 
