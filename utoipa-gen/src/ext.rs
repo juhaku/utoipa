@@ -137,6 +137,8 @@ impl ToTokensDiagnostics for RequestBody<'_> {
                 description: None,
                 deprecated: None,
                 object_name: "",
+                // Currently Request body cannot know about possible generic types
+                is_generics_type_arg: false, // TODO check whether this is correct
             })?);
 
             tokens.extend(quote_spanned! {actual_body.span.unwrap()=>

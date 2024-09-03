@@ -21,10 +21,10 @@ macro_rules! api_doc {
         }
     };
     ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
-         <$ident<$generic> as utoipa::ToSchema>::schema().1
+         <$ident<$generic> as utoipa::PartialSchema>::schema()
     };
     ( @schema $ident:ident $($tt:tt)* ) => {
-         <$ident as utoipa::ToSchema>::schema().1
+         <$ident as utoipa::PartialSchema>::schema()
     };
 }
 
@@ -307,6 +307,7 @@ fn derive_struct_with_default_attr() {
 
 #[test]
 fn derive_struct_with_default_attr_field() {
+    #[derive(ToSchema)]
     struct Book;
     let owner = api_doc! {
         struct Owner {
@@ -416,6 +417,7 @@ fn derive_struct_with_serde_default_attr() {
 
 #[test]
 fn derive_struct_with_optional_properties() {
+    #[derive(ToSchema)]
     struct Book;
     let owner = api_doc! {
         struct Owner {
@@ -473,6 +475,7 @@ fn derive_struct_with_optional_properties() {
 
 #[test]
 fn derive_struct_with_comments() {
+    #[derive(ToSchema)]
     struct Foobar;
     let account = api_doc! {
         /// This is user account dto object
@@ -905,6 +908,7 @@ fn derive_struct_with_cow() {
 #[test]
 fn derive_with_box_and_refcell() {
     #[allow(unused)]
+    #[derive(ToSchema)]
     struct Foo {
         name: &'static str,
     }
@@ -1153,7 +1157,7 @@ fn derive_struct_unnamed_field_reference_with_comment() {
 /// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_unnamed_field_reference_with_comment() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct CommentedReference(String);
 
     let value: Value = api_doc! {
@@ -1285,7 +1289,7 @@ fn derive_complex_enum_with_schema_properties() {
 // TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
 #[test]
 fn derive_enum_with_unnamed_single_field_with_tag() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct ReferenceValue(String);
 
     let value: Value = api_doc! {
@@ -1328,7 +1332,7 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
 
 #[test]
 fn derive_enum_with_named_fields_with_reference_with_tag() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct ReferenceValue(String);
 
     let value: Value = api_doc! {
@@ -1413,7 +1417,7 @@ fn derive_enum_with_named_fields_with_reference_with_tag() {
 /// Derive a complex enum with named and unnamed fields.
 #[test]
 fn derive_complex_enum() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -1477,7 +1481,7 @@ fn derive_complex_enum() {
 
 #[test]
 fn derive_complex_enum_title() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -1540,7 +1544,7 @@ fn derive_complex_enum_title() {
 
 #[test]
 fn derive_complex_enum_example() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -1605,7 +1609,7 @@ fn derive_complex_enum_example() {
 
 #[test]
 fn derive_complex_enum_serde_rename_all() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -1670,7 +1674,7 @@ fn derive_complex_enum_serde_rename_all() {
 
 #[test]
 fn derive_complex_enum_serde_rename_variant() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
     let value: Value = api_doc! {
@@ -2082,13 +2086,13 @@ fn derive_complex_enum_serde_tag() {
 
 #[test]
 fn derive_serde_flatten() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Metadata {
         category: String,
         total: u64,
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Record {
         amount: i64,
         description: String,
@@ -2096,7 +2100,7 @@ fn derive_serde_flatten() {
         metadata: Metadata,
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Pagination {
         page: i64,
         next_page: i64,
@@ -2210,7 +2214,7 @@ fn derive_complex_enum_serde_untagged() {
 
 #[test]
 fn derive_complex_enum_with_ref_serde_untagged() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo {
         name: String,
         age: u32,
@@ -2403,7 +2407,7 @@ fn derive_complex_enum_serde_adjacently_tagged() {
 
 #[test]
 fn derive_complex_enum_with_ref_serde_adjacently_tagged() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo {
         name: String,
         age: u32,
@@ -3067,6 +3071,12 @@ fn derive_struct_component_field_type_override() {
 
 #[test]
 fn derive_struct_component_field_type_path_override() {
+    mod path {
+        pub mod to {
+            #[derive(utoipa::ToSchema)]
+            pub struct Foo;
+        }
+    }
     let post = api_doc! {
         struct Post {
             id: i32,
@@ -3186,13 +3196,14 @@ fn derive_struct_override_type_with_object_type() {
 #[test]
 fn derive_struct_override_type_with_a_reference() {
     mod custom {
+        #[derive(utoipa::ToSchema)]
         #[allow(dead_code)]
-        struct NewBar;
+        pub struct NewBar;
     }
 
     let value = api_doc! {
         struct Value {
-            #[schema(value_type = NewBar)]
+            #[schema(value_type = custom::NewBar)]
             field: String,
         }
     };
@@ -3203,7 +3214,7 @@ fn derive_struct_override_type_with_a_reference() {
             "type": "object",
             "properties": {
                 "field": {
-                    "$ref": "#/components/schemas/NewBar"
+                    "$ref": "#/components/schemas/custom.NewBar"
                 }
             },
             "required": ["field"]
@@ -3402,7 +3413,7 @@ fn derive_parse_serde_simple_enum_attributes() {
 
 #[test]
 fn derive_parse_serde_complex_enum() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct Foo;
     let complex_enum = api_doc! {
         #[derive(Serialize)]
@@ -3460,6 +3471,7 @@ fn derive_component_with_generic_types_having_path_expression() {
 
 #[test]
 fn derive_component_with_aliases() {
+    #[derive(ToSchema)]
     struct A;
 
     #[derive(Debug, OpenApi)]
@@ -3484,6 +3496,7 @@ fn derive_component_with_aliases() {
 
 #[test]
 fn derive_complex_enum_as() {
+    #[derive(ToSchema)]
     struct Foobar;
 
     #[derive(ToSchema)]
@@ -3497,7 +3510,7 @@ fn derive_complex_enum_as() {
     #[openapi(components(schemas(BarBar)))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let value = doc
         .pointer("/components/schemas/named.BarBar")
         .expect("Should have BarBar named to named.BarBar");
@@ -4063,6 +4076,7 @@ fn derive_struct_with_vec_field_with_example() {
 
 #[test]
 fn derive_struct_field_with_example() {
+    #[derive(ToSchema)]
     struct MyStruct;
     let doc = api_doc! {
         struct MyValue {
@@ -4734,6 +4748,7 @@ fn derive_struct_with_unit_alias() {
 
 #[test]
 fn derive_struct_with_deprecated_fields() {
+    #[derive(ToSchema)]
     struct Foobar;
     let account = api_doc! {
         struct Account {
@@ -4794,6 +4809,7 @@ fn derive_struct_with_deprecated_fields() {
 
 #[test]
 fn derive_struct_with_schema_deprecated_fields() {
+    #[derive(ToSchema)]
     struct Foobar;
     let account = api_doc! {
         struct AccountA {
@@ -5002,7 +5018,7 @@ fn derive_nullable_tuple() {
 
 #[test]
 fn derive_unit_type_untagged_enum() {
-    #[derive(Serialize)]
+    #[derive(Serialize, ToSchema)]
     struct AggregationRequest;
 
     let value = api_doc! {
@@ -5462,6 +5478,7 @@ fn derive_simple_enum_description_override() {
 #[test]
 fn derive_complex_enum_description_override() {
     #[allow(unused)]
+    #[derive(ToSchema)]
     struct User {
         name: &'static str,
     }

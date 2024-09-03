@@ -567,7 +567,8 @@ use self::{
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #  mod custom {
-/// #      struct NewBar;
+/// #      #[derive(utoipa::ToSchema)]
+/// #      pub struct NewBar;
 /// #  }
 /// #
 /// # struct Bar;
@@ -1214,6 +1215,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// _**More complete example.**_
 /// ```rust
+/// # #[derive(utoipa::ToSchema)]
 /// # struct Pet {
 /// #    id: u64,
 /// #    name: String,
@@ -1252,6 +1254,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// _**More minimal example with the defaults.**_
 /// ```rust
+/// # #[derive(utoipa::ToSchema)]
 /// # struct Pet {
 /// #    id: u64,
 /// #    name: String,
@@ -1318,10 +1321,16 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// _**Example with multiple return types**_
 /// ```rust
 /// # trait User {}
+/// # #[derive(utoipa::ToSchema)]
 /// # struct User1 {
 /// #   id: String
 /// # }
 /// # impl User for User1 {}
+/// # #[derive(utoipa::ToSchema)]
+/// # struct User2 {
+/// #   id: String
+/// # }
+/// # impl User for User2 {}
 /// #[utoipa::path(
 ///     get,
 ///     path = "/user",
@@ -1340,7 +1349,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// _**Example with multiple examples on single response.**_
 /// ```rust
-/// # #[derive(serde::Serialize, serde::Deserialize)]
+/// # #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 /// # struct User {
 /// #   name: String
 /// # }
@@ -2581,6 +2590,7 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         object_name: "",
+        is_generics_type_arg: false, // it cannot be generic struct here
     });
 
     match schema {
@@ -2895,6 +2905,19 @@ impl<T> OptionExt<T> for Option<T> {
         } else {
             Ok(self)
         }
+    }
+}
+
+trait GenericsExt {
+    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool;
+}
+
+impl<'g> GenericsExt for &'g syn::Generics {
+    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool {
+        self.params.iter().any(|generic| match generic {
+            syn::GenericParam::Type(generic_type) => type_tree.match_ident(&generic_type.ident),
+            _ => false,
+        })
     }
 }
 

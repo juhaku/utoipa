@@ -39,7 +39,7 @@ fn derive_path_request_body_simple_success() {
     #[openapi(paths(derive_request_body_simple::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
         "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
@@ -60,7 +60,7 @@ fn derive_path_request_body_simple_array_success() {
     #[openapi(paths(derive_request_body_simple_array::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
         "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type"
@@ -83,7 +83,7 @@ fn derive_request_body_option_array_success() {
     #[openapi(paths(derive_request_body_option_array::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let body = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
     assert_json_eq!(
@@ -115,7 +115,7 @@ fn derive_request_body_primitive_simple_success() {
     #[openapi(paths(derive_request_body_primitive_simple::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
         "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type not application/json"
@@ -138,7 +138,7 @@ fn derive_request_body_primitive_array_success() {
     #[openapi(paths(derive_request_body_primitive_simple_array::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let content = doc
         .pointer("/paths/~1foo/post/requestBody/content")
         .unwrap();
@@ -172,7 +172,7 @@ fn derive_request_body_complex_success() {
     #[openapi(paths(derive_request_body_complex::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
@@ -203,7 +203,7 @@ fn derive_request_body_complex_multi_content_type_success() {
     #[openapi(paths(derive_request_body_complex_multi_content_type::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
@@ -239,7 +239,7 @@ fn derive_request_body_complex_success_inline() {
     #[openapi(paths(derive_request_body_complex_inline::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
@@ -280,7 +280,7 @@ fn derive_request_body_complex_success_array() {
     #[openapi(paths(derive_request_body_complex_array::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
@@ -314,7 +314,7 @@ fn derive_request_body_complex_success_inline_array() {
     #[openapi(paths(derive_request_body_complex_inline_array::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
@@ -358,7 +358,7 @@ fn derive_request_body_simple_inline_success() {
     #[openapi(paths(derive_request_body_simple_inline::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
     assert_json_eq!(
@@ -397,7 +397,7 @@ fn derive_request_body_complex_required_explicit_false_success() {
     #[openapi(paths(derive_request_body_complex_required_explicit::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let body = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
     assert_json_eq!(
@@ -434,7 +434,7 @@ fn derive_request_body_complex_primitive_array_success() {
     #[openapi(paths(derive_request_body_complex_primitive_array::post_foo))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let content = doc
         .pointer("/paths/~1foo/post/requestBody/content")
         .unwrap();
@@ -456,9 +456,31 @@ fn derive_request_body_complex_primitive_array_success() {
     );
 }
 
-test_fn! {
-    module: derive_request_body_ref_path,
-    body: = path::to::Foo
+#[allow(unused)]
+mod derive_request_body_ref_path {
+    #[derive(utoipa::ToSchema)]
+    #[doc = r" Some struct"]
+    pub struct Foo {
+        #[doc = r" Some name"]
+        name: String,
+    }
+
+    mod path {
+        pub mod to {
+            #[derive(utoipa::ToSchema)]
+            pub struct Foo;
+        }
+    }
+
+    #[utoipa::path(
+            post,
+            path = "/foo",
+            request_body = path::to::Foo,
+            responses(
+                (status = 200, description = "success response")
+            )
+        )]
+    fn post_foo() {}
 }
 
 #[test]
@@ -479,7 +501,7 @@ fn derive_request_body_ref_path_success() {
     )]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let schemas = doc.pointer("/components/schemas").unwrap();
     assert!(schemas.get("path.to.Foo").is_some());
 
@@ -505,7 +527,7 @@ fn unit_type_request_body() {
     #[openapi(paths(unit_type_test))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let request_body = doc
         .pointer("/paths/~1unit_type_test/post/requestBody")
         .unwrap();
@@ -541,7 +563,7 @@ fn request_body_with_example() {
     #[openapi(components(schemas(Foo)), paths(get_item))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
@@ -586,7 +608,7 @@ fn request_body_with_examples() {
     #[openapi(components(schemas(Foo)), paths(get_item))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
@@ -625,7 +647,7 @@ fn request_body_with_binary() {
     #[openapi(paths(get_item))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
@@ -658,7 +680,7 @@ fn request_body_with_external_ref() {
     #[openapi(paths(get_item))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
