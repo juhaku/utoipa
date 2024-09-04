@@ -132,7 +132,7 @@ pub use paste::paste;
 /// ```
 #[macro_export]
 macro_rules! routes {
-    ( $handler:ident $(, $tail:tt)* ) => {
+    ( $handler:path $(, $tail:path)* ) => {
         {
             use $crate::PathItemExt;
             let mut paths = utoipa::openapi::path::Paths::new();
@@ -148,7 +148,7 @@ macro_rules! routes {
             (paths, method_router)
         }
     };
-    ( $router:ident: $paths:ident: $handler:ident $(, $tail:tt)* ) => {
+    ( $router:ident: $paths:ident: $handler:path $(, $tail:tt)* ) => {
         {
             let (path, item, types) = routes!(@resolve_types $handler);
             let router = types.iter().by_ref().fold($router, |router, path_type| {
@@ -160,19 +160,42 @@ macro_rules! routes {
             router
         }
     };
-    ( @resolve_types $handler:ident ) => {
+    ( @resolve_types $handler:path ) => {
         {
-            use utoipa::{Path, __dev::Tags};
             $crate::paste! {
-                let path = [<__path_ $handler>]::path();
-                let mut operation = [<__path_ $handler>]::operation();
-                let types = [<__path_ $handler>]::methods();
-                let tags = [< __path_ $handler>]::tags();
+                let path = routes!( @path path of $handler );
+                let mut operation = routes!( @path operation of $handler );
+                let types = routes!( @path methods of $handler );
+                let tags = routes!( @path tags of $handler );
                 if !tags.is_empty() {
                     let operation_tags = operation.tags.get_or_insert(Vec::new());
                     operation_tags.extend(tags.iter().map(ToString::to_string));
                 }
                 (path, operation, types)
+            }
+        }
+    };
+    ( @path $op:ident of $part:ident $( :: $tt:tt )* ) => {
+        routes!( $op [ $part $( $tt )*] )
+    };
+    ( $op:ident [ $first:tt $( $rest:tt )* ] $( $rev:tt )* ) => {
+        routes!( $op [ $( $rest )* ] $first $( $rev)* )
+    };
+    ( $op:ident [] $first:tt $( $rest:tt )* ) => {
+        routes!( @inverse $op $first $( $rest )* )
+    };
+    ( @inverse $op:ident $tt:tt $( $rest:tt )* ) => {
+        routes!( @rev $op $tt [$($rest)*] )
+    };
+    ( @rev $op:ident $tt:tt [ $first:tt $( $rest:tt)* ] $( $reversed:tt )* ) => {
+        routes!( @rev $op $tt [ $( $rest )* ] $first $( $reversed )* )
+    };
+    ( @rev $op:ident $handler:tt [] $($tt:tt)* ) => {
+        {
+            #[allow(unused_imports)]
+            use utoipa::{Path, __dev::Tags};
+            $crate::paste! {
+                $( $tt :: )* [<__path_ $handler>]::$op()
             }
         }
     };
@@ -310,6 +333,48 @@ mod tests {
                     utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
                         .operation_id(Some("search_user")),
+                ),
+            );
+        assert_eq!(expected_paths.build(), paths);
+    }
+
+    mod pets {
+
+        #[utoipa::path(get, path = "/")]
+        pub async fn get_pet() {}
+
+        #[utoipa::path(post, path = "/")]
+        pub async fn post_pet() {}
+
+        #[utoipa::path(delete, path = "/")]
+        pub async fn delete_pet() {}
+    }
+    #[test]
+    fn openapi_routes_from_another_path() {
+        let mut router: OpenApiRouter =
+            OpenApiRouter::new().routes(routes!(pets::get_pet, pets::post_pet, pets::delete_pet));
+        let paths = router.to_openapi().paths;
+
+        let expected_paths = utoipa::openapi::path::PathsBuilder::new()
+            .path(
+                "/",
+                utoipa::openapi::PathItem::new(
+                    utoipa::openapi::path::HttpMethod::Get,
+                    utoipa::openapi::path::OperationBuilder::new().operation_id(Some("get_pet")),
+                ),
+            )
+            .path(
+                "/",
+                utoipa::openapi::PathItem::new(
+                    utoipa::openapi::path::HttpMethod::Post,
+                    utoipa::openapi::path::OperationBuilder::new().operation_id(Some("post_pet")),
+                ),
+            )
+            .path(
+                "/",
+                utoipa::openapi::PathItem::new(
+                    utoipa::openapi::path::HttpMethod::Delete,
+                    utoipa::openapi::path::OperationBuilder::new().operation_id(Some("delete_pet")),
                 ),
             );
         assert_eq!(expected_paths.build(), paths);
