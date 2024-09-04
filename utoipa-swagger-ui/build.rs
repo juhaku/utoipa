@@ -327,7 +327,7 @@ fn overwrite_target_file(target_dir: &str, swagger_ui_dist_zip: &str, path_in: P
     let filename = path_in.file_name().unwrap().to_str().unwrap();
     println!("overwrite file: {:?}", path_in.file_name().unwrap());
 
-    let content = fs::read_to_string(path_in.clone());
+    let content = fs::read(path_in.clone());
 
     match content {
         Ok(content) => {
