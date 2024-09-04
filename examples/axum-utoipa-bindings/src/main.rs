@@ -37,6 +37,10 @@ async fn main() -> Result<(), io::Error> {
         .routes(routes!(health))
         .nest("/api/customer", customer::router())
         .nest("/api/order", order::router())
+        .routes(routes!(
+            inner::secret_handlers::get_secret,
+            inner::secret_handlers::post_secret
+        ))
         .split_for_parts();
 
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/apidoc/openapi.json", api));
@@ -124,5 +128,22 @@ mod order {
             id: 120,
             name: order.name,
         })
+    }
+}
+
+mod inner {
+    pub mod secret_handlers {
+
+        /// This is some secret inner handler
+        #[utoipa::path(get, path = "/api/inner/secret", responses((status = OK, body = str)))]
+        pub async fn get_secret() -> &'static str {
+            "secret"
+        }
+
+        /// Post some secret inner handler
+        #[utoipa::path(post, path = "/api/inner/secret", responses((status = OK)))]
+        pub async fn post_secret() {
+            println!("You posted a secret")
+        }
     }
 }
