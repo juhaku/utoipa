@@ -141,9 +141,7 @@ macro_rules! routes {
             let mut method_router = types.iter().by_ref().fold(axum::routing::MethodRouter::new(), |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
             });
-            for method_type in types {
-                paths.add_path(&path, utoipa::openapi::path::PathItem::new(method_type, item.clone()));
-            }
+            paths.add_path_operation(&path, types, item);
             $( method_router = routes!( method_router: paths: $tail ); )*
             (paths, method_router)
         }
@@ -154,9 +152,7 @@ macro_rules! routes {
             let router = types.iter().by_ref().fold($router, |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
             });
-            for method_type in types {
-                $paths.add_path(&path, utoipa::openapi::path::PathItem::new(method_type, item.clone()));
-            }
+            $paths.add_path_operation(&path, types, item);
             router
         }
     };

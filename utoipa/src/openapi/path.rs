@@ -1,7 +1,7 @@
 //! Implements [OpenAPI Path Object][paths] types.
 //!
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-use std::{collections::HashMap, iter};
+use std::collections::HashMap;
 
 use crate::Path;
 use serde::{Deserialize, Serialize};
@@ -84,21 +84,51 @@ impl Paths {
     ) -> Option<&Operation> {
         self.paths
             .get(path.as_ref())
-            .and_then(|path| path.operations.get(&http_method))
+            .and_then(|path| match http_method {
+                HttpMethod::Get => path.get.as_ref(),
+                HttpMethod::Put => path.put.as_ref(),
+                HttpMethod::Post => path.post.as_ref(),
+                HttpMethod::Delete => path.delete.as_ref(),
+                HttpMethod::Options => path.options.as_ref(),
+                HttpMethod::Head => path.head.as_ref(),
+                HttpMethod::Patch => path.patch.as_ref(),
+                HttpMethod::Trace => path.trace.as_ref(),
+            })
     }
 
-    /// Append [`PathItem`] with path to map of paths. If path already exists it will merge [`Operation`]s of
-    /// [`PathItem`] with already found path item operations.
+    /// Append path operation to the list of paths.
     ///
-    /// This is same operation as [`PathsBuilder::path`] but does not move.
-    pub fn add_path<I: AsRef<str>>(&mut self, path: I, item: PathItem) {
+    /// Method accepts three arguments; `path` to add operation for, `http_methods` list of
+    /// allowed HTTP methods for the [`Operation`] and `operation` to be added under the _`path`_.
+    ///
+    /// If _`path`_ already exists, the provided [`Operation`] will be set to existing path item for
+    /// given list of [`HttpMethod`]s.
+    pub fn add_path_operation<P: AsRef<str>, O: Into<Operation>>(
+        &mut self,
+        path: P,
+        http_methods: Vec<HttpMethod>,
+        operation: O,
+    ) {
         let path = path.as_ref();
+        let operation = operation.into();
         if let Some(existing_item) = self.paths.get_mut(path) {
-            existing_item
-                .operations
-                .extend(&mut item.operations.into_iter());
+            for http_method in http_methods {
+                match http_method {
+                    HttpMethod::Get => existing_item.get = Some(operation.clone()),
+                    HttpMethod::Put => existing_item.put = Some(operation.clone()),
+                    HttpMethod::Post => existing_item.post = Some(operation.clone()),
+                    HttpMethod::Delete => existing_item.delete = Some(operation.clone()),
+                    HttpMethod::Options => existing_item.options = Some(operation.clone()),
+                    HttpMethod::Head => existing_item.head = Some(operation.clone()),
+                    HttpMethod::Patch => existing_item.patch = Some(operation.clone()),
+                    HttpMethod::Trace => existing_item.trace = Some(operation.clone()),
+                };
+            }
         } else {
-            self.paths.insert(String::from(path), item);
+            self.paths.insert(
+                String::from(path),
+                PathItem::from_http_methods(http_methods, operation),
+            );
         }
     }
 }
@@ -109,9 +139,7 @@ impl PathsBuilder {
     pub fn path<I: Into<String>>(mut self, path: I, item: PathItem) -> Self {
         let path_string = path.into();
         if let Some(existing_item) = self.paths.get_mut(&path_string) {
-            existing_item
-                .operations
-                .extend(&mut item.operations.into_iter());
+            existing_item.merge_operations(item);
         } else {
             self.paths.insert(path_string, item);
         }
@@ -200,10 +228,37 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub parameters: Option<Vec<Parameter>>,
 
-        /// Map of operations in this [`PathItem`]. Operations can hold only one operation
-        /// per [`HttpMethod`].
-        #[serde(flatten)]
-        pub operations: PathsMap<HttpMethod, Operation>,
+        /// Get [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub get: Option<Operation>,
+
+        /// Put [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub put: Option<Operation>,
+
+        /// Post [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub post: Option<Operation>,
+
+        /// Delete [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub delete: Option<Operation>,
+
+        /// Options [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub options: Option<Operation>,
+
+        /// Head [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub head: Option<Operation>,
+
+        /// Patch [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub patch: Option<Operation>,
+
+        /// Trace [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub trace: Option<Operation>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -214,11 +269,69 @@ builder! {
 impl PathItem {
     /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`HttpMethod`].
     pub fn new<O: Into<Operation>>(http_method: HttpMethod, operation: O) -> Self {
-        let operations = PathsMap::from_iter(iter::once((http_method, operation.into())));
+        let mut path_item = Self::default();
+        match http_method {
+            HttpMethod::Get => path_item.get = Some(operation.into()),
+            HttpMethod::Put => path_item.put = Some(operation.into()),
+            HttpMethod::Post => path_item.post = Some(operation.into()),
+            HttpMethod::Delete => path_item.delete = Some(operation.into()),
+            HttpMethod::Options => path_item.options = Some(operation.into()),
+            HttpMethod::Head => path_item.head = Some(operation.into()),
+            HttpMethod::Patch => path_item.patch = Some(operation.into()),
+            HttpMethod::Trace => path_item.trace = Some(operation.into()),
+        };
 
-        Self {
-            operations,
-            ..Default::default()
+        path_item
+    }
+
+    /// Constructs a new [`PathItem`] with given [`Operation`] set for provided [`HttpMethod`]s.
+    pub fn from_http_methods<I: IntoIterator<Item = HttpMethod>, O: Into<Operation>>(
+        http_methods: I,
+        operation: O,
+    ) -> Self {
+        let mut path_item = Self::default();
+        let operation = operation.into();
+        for method in http_methods {
+            match method {
+                HttpMethod::Get => path_item.get = Some(operation.clone()),
+                HttpMethod::Put => path_item.put = Some(operation.clone()),
+                HttpMethod::Post => path_item.post = Some(operation.clone()),
+                HttpMethod::Delete => path_item.delete = Some(operation.clone()),
+                HttpMethod::Options => path_item.options = Some(operation.clone()),
+                HttpMethod::Head => path_item.head = Some(operation.clone()),
+                HttpMethod::Patch => path_item.patch = Some(operation.clone()),
+                HttpMethod::Trace => path_item.trace = Some(operation.clone()),
+            };
+        }
+
+        path_item
+    }
+
+    /// Merge all defined [`Operation`]s from given [`PathItem`] to `self`.
+    pub fn merge_operations(&mut self, path_item: PathItem) {
+        if path_item.get.is_some() {
+            self.get = path_item.get;
+        }
+        if path_item.put.is_some() {
+            self.put = path_item.put;
+        }
+        if path_item.post.is_some() {
+            self.post = path_item.post;
+        }
+        if path_item.delete.is_some() {
+            self.delete = path_item.delete;
+        }
+        if path_item.options.is_some() {
+            self.options = path_item.options;
+        }
+        if path_item.head.is_some() {
+            self.head = path_item.head;
+        }
+        if path_item.patch.is_some() {
+            self.patch = path_item.patch;
+        }
+        if path_item.trace.is_some() {
+            self.trace = path_item.trace;
         }
     }
 }
@@ -227,7 +340,16 @@ impl PathItemBuilder {
     /// Append a new [`Operation`] by [`HttpMethod`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`HttpMethod`].
     pub fn operation<O: Into<Operation>>(mut self, http_method: HttpMethod, operation: O) -> Self {
-        self.operations.insert(http_method, operation.into());
+        match http_method {
+            HttpMethod::Get => self.get = Some(operation.into()),
+            HttpMethod::Put => self.put = Some(operation.into()),
+            HttpMethod::Post => self.post = Some(operation.into()),
+            HttpMethod::Delete => self.delete = Some(operation.into()),
+            HttpMethod::Options => self.options = Some(operation.into()),
+            HttpMethod::Head => self.head = Some(operation.into()),
+            HttpMethod::Patch => self.patch = Some(operation.into()),
+            HttpMethod::Trace => self.trace = Some(operation.into()),
+        };
 
         self
     }
@@ -761,13 +883,34 @@ mod tests {
             .paths
             .iter()
             .flat_map(|(path, path_item)| {
-                path_item.operations.iter().fold(
-                    Vec::<(&str, &HttpMethod)>::with_capacity(paths_list.paths.len()),
-                    |mut acc, (method, _)| {
-                        acc.push((path.as_str(), method));
-                        acc
-                    },
-                )
+                let mut path_methods =
+                    Vec::<(&str, &HttpMethod)>::with_capacity(paths_list.paths.len());
+                if path_item.get.is_some() {
+                    path_methods.push((path, &HttpMethod::Get));
+                }
+                if path_item.put.is_some() {
+                    path_methods.push((path, &HttpMethod::Put));
+                }
+                if path_item.post.is_some() {
+                    path_methods.push((path, &HttpMethod::Post));
+                }
+                if path_item.delete.is_some() {
+                    path_methods.push((path, &HttpMethod::Delete));
+                }
+                if path_item.options.is_some() {
+                    path_methods.push((path, &HttpMethod::Options));
+                }
+                if path_item.head.is_some() {
+                    path_methods.push((path, &HttpMethod::Head));
+                }
+                if path_item.patch.is_some() {
+                    path_methods.push((path, &HttpMethod::Patch));
+                }
+                if path_item.trace.is_some() {
+                    path_methods.push((path, &HttpMethod::Trace));
+                }
+
+                path_methods
             })
             .collect::<Vec<_>>();
 
@@ -794,9 +937,9 @@ mod tests {
             let expected_value = vec![
                 ("/todo", &get),
                 ("/todo", &post),
-                ("/todo/{id}", &delete),
                 ("/todo/{id}", &get),
                 ("/todo/{id}", &put),
+                ("/todo/{id}", &delete),
                 ("/todo/search", &get),
             ];
             assert_eq!(actual_value, expected_value);

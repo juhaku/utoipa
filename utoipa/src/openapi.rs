@@ -4,7 +4,7 @@ use serde::{
     de::{Error, Expected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::{collections::HashMap, fmt::Formatter};
+use std::{collections::HashMap, fmt::Formatter, mem};
 
 use self::path::PathsMap;
 pub use self::{
@@ -201,8 +201,8 @@ impl OpenApi {
 
         if !other.paths.paths.is_empty() {
             for (path, that) in &mut other.paths.paths {
-                if let Some(this) = self.paths.get_path_item(path) {
-                    that.operations.extend(this.operations.clone());
+                if let Some(this) = self.paths.paths.get_mut(path) {
+                    that.merge_operations(mem::take(this));
                 }
             }
             self.paths.paths.extend(other.paths.paths);
