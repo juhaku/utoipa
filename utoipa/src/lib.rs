@@ -87,7 +87,8 @@
 //!   When disabled, the properties are listed in alphabetical order.
 //! * **`preserve_path_order`** Preserve order of OpenAPI Paths according to order they have been
 //!   introduced to the `#[openapi(paths(...))]` macro attribute. If disabled the paths will be
-//!   ordered in alphabetical order.
+//!   ordered in alphabetical order. **However** the operations order under the path **will** be always constant according to
+//!   [specification](https://spec.openapis.org/oas/latest.html#fixed-fields-6)
 //! * **`indexmap`** Add support for [indexmap](https://crates.io/crates/indexmap). When enabled `IndexMap` will be rendered as a map similar to
 //!   `BTreeMap` and `HashMap`.
 //! * **`non_strict_integers`** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
@@ -1031,17 +1032,26 @@ pub mod __dev {
         fn openapi() -> crate::openapi::OpenApi {
             let (mut api, tags, module_path) = T::config();
 
-            api.paths
-                .paths
-                .iter_mut()
-                .flat_map(|(_, item)| &mut item.operations)
-                .for_each(|(_, operation)| {
-                    let operation_tags = operation.tags.get_or_insert(Vec::new());
-                    operation_tags.extend(tags.iter().map(ToString::to_string));
-                    if operation_tags.is_empty() && !module_path.is_empty() {
-                        operation_tags.push(module_path.to_string());
+            api.paths.paths.iter_mut().for_each(|(_, path_item)| {
+                let update_tags = |operation: Option<&mut crate::openapi::path::Operation>| {
+                    if let Some(operation) = operation {
+                        let operation_tags = operation.tags.get_or_insert(Vec::new());
+                        operation_tags.extend(tags.iter().map(ToString::to_string));
+                        if operation_tags.is_empty() && !module_path.is_empty() {
+                            operation_tags.push(module_path.to_string());
+                        }
                     }
-                });
+                };
+
+                update_tags(path_item.get.as_mut());
+                update_tags(path_item.put.as_mut());
+                update_tags(path_item.post.as_mut());
+                update_tags(path_item.delete.as_mut());
+                update_tags(path_item.options.as_mut());
+                update_tags(path_item.head.as_mut());
+                update_tags(path_item.patch.as_mut());
+                update_tags(path_item.trace.as_mut());
+            });
 
             api
         }
