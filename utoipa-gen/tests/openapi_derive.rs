@@ -35,6 +35,29 @@ fn derive_openapi_with_security_requirement() {
 }
 
 #[test]
+fn derive_logical_or_security_requirement() {
+    #[derive(Default, OpenApi)]
+    #[openapi(security(
+        ("oauth" = ["a"]),
+        ("oauth" = ["b"]),
+    ))]
+    struct ApiDoc;
+
+    let doc_value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let security = doc_value
+        .pointer("/security")
+        .expect("should have security requirements");
+
+    assert_json_eq!(
+        security,
+        json!([
+            {"oauth": ["a"]},
+            {"oauth": ["b"]},
+        ])
+    );
+}
+
+#[test]
 fn derive_openapi_tags() {
     #[derive(OpenApi)]
     #[openapi(tags(
