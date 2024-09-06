@@ -986,6 +986,67 @@ pub trait ToResponse<'__r> {
     fn response() -> (&'__r str, openapi::RefOr<openapi::response::Response>);
 }
 
+/// Flexible number wrapper used by validation schema attributes to seamlessly support different
+/// number syntaxes.
+///
+/// # Examples
+///
+/// _**Define object with two different number fields with minimum validation attribute.**_
+///
+/// ```rust
+/// # use utoipa::Number;
+/// # use utoipa::openapi::schema::{ObjectBuilder, SchemaType, Type};
+/// let _ = ObjectBuilder::new()
+///             .property("int_value", ObjectBuilder::new()
+///                 .schema_type(Type::Integer).minimum(Some(1))
+///             )
+///             .property("float_value", ObjectBuilder::new()
+///                 .schema_type(Type::Number).minimum(Some(-2.5))
+///             )
+///             .build();
+/// ```
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(untagged)]
+pub enum Number {
+    Int(isize),
+    UInt(usize),
+    Float(f64),
+}
+
+impl Eq for Number {}
+
+impl PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Int(l0), Self::Int(r0)) => l0 == r0,
+            (Self::UInt(l0), Self::UInt(r0)) => l0 == r0,
+            (Self::Float(l0), Self::Float(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+}
+
+macro_rules! impl_from_for_number {
+    ( $( $ty:ident => $pat:ident $( as $as:ident )? ),* ) => {
+        $(
+        impl From<$ty> for Number {
+            fn from(value: $ty) -> Self {
+                Self::$pat(value $( as $as )?)
+            }
+        }
+        )*
+    };
+}
+
+#[rustfmt::skip]
+impl_from_for_number!(
+    f32 => Float as f64, f64 => Float,
+    i8 => Int as isize, i16 => Int as isize, i32 => Int as isize, i64 => Int as isize, 
+    u8 => UInt as usize, u16 => UInt as usize, u32 => UInt as usize, u64 => UInt as usize,
+    isize => Int, usize => UInt
+);
+
 /// Internal dev module used internally by utoipa-gen
 #[doc(hidden)]
 #[cfg(feature = "macros")]

@@ -1,6 +1,8 @@
 use crate::component::{GenericType, TypeTree};
 use crate::schema_type::SchemaType;
 
+use super::validation::NumberValue;
+
 pub trait Validator {
     fn is_valid(&self) -> Result<(), &'static str>;
 }
@@ -53,11 +55,16 @@ impl Validator for IsVec<'_> {
     }
 }
 
-pub struct AboveZeroUsize(pub(super) usize);
+pub struct AboveZeroUsize<'a>(pub(super) &'a NumberValue);
 
-impl Validator for AboveZeroUsize {
+impl Validator for AboveZeroUsize<'_> {
     fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0 != 0 {
+        let usize: usize = self
+            .0
+            .try_from_str()
+            .map_err(|_| "invalid type, expected `usize`")?;
+
+        if usize != 0 {
             Ok(())
         } else {
             Err("can only be above zero value")
@@ -65,11 +72,15 @@ impl Validator for AboveZeroUsize {
     }
 }
 
-pub struct AboveZeroF64(pub(super) f64);
+pub struct AboveZeroF64<'a>(pub(super) &'a NumberValue);
 
-impl Validator for AboveZeroF64 {
+impl Validator for AboveZeroF64<'_> {
     fn is_valid(&self) -> Result<(), &'static str> {
-        if self.0 > 0.0 {
+        let float: f64 = self
+            .0
+            .try_from_str()
+            .map_err(|_| "invalid type, expected `f64`")?;
+        if float > 0.0 {
             Ok(())
         } else {
             Err("can only be above zero value")

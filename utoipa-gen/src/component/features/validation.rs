@@ -1,17 +1,91 @@
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
+use std::str::FromStr;
+
+use proc_macro2::{Ident, Literal, Span, TokenStream, TokenTree};
+use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::LitStr;
 
 use crate::{parse_utils, Diagnostics};
 
 use super::validators::Validator;
-use super::{impl_feature, parse_integer, parse_number, Feature, Parse, Validate};
+use super::{impl_feature, Feature, Parse, Validate};
+
+#[inline]
+fn from_str<T: FromStr>(number: &str, span: Span) -> syn::Result<T>
+where
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    T::from_str(number).map_err(|error| syn::Error::new(span, error))
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct NumberValue {
+    minus: bool,
+    pub lit: Literal,
+}
+
+impl NumberValue {
+    pub fn try_from_str<T>(&self) -> syn::Result<T>
+    where
+        T: FromStr,
+        <T as std::str::FromStr>::Err: std::fmt::Display,
+    {
+        let number = if self.minus {
+            format!("-{}", &self.lit)
+        } else {
+            self.lit.to_string()
+        };
+
+        let parsed = from_str::<T>(&number, self.lit.span())?;
+        Ok(parsed)
+    }
+}
+
+impl syn::parse::Parse for NumberValue {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut minus = false;
+        let result = input.step(|cursor| {
+            let mut rest = *cursor;
+
+            while let Some((tt, next)) = rest.token_tree() {
+                match &tt {
+                    TokenTree::Punct(punct) if punct.as_char() == '-' => {
+                        minus = true;
+                    }
+                    TokenTree::Literal(lit) => return Ok((lit.clone(), next)),
+                    _ => (),
+                }
+                rest = next;
+            }
+            Err(cursor.error("no `literal` value found after this point"))
+        })?;
+
+        Ok(Self { minus, lit: result })
+    }
+}
+
+impl ToTokens for NumberValue {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let punct = if self.minus { Some(quote! {-}) } else { None };
+        let lit = &self.lit;
+
+        tokens.extend(quote! {
+            #punct #lit
+        })
+    }
+}
+
+#[inline]
+fn parse_next_number_value(input: ParseStream) -> syn::Result<NumberValue> {
+    use syn::parse::Parse;
+    parse_utils::parse_next(input, || NumberValue::parse(input))
+}
 
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MultipleOf(pub(super) f64, Ident);
+    pub struct MultipleOf(pub(super) NumberValue, Ident);
 }
 
 impl Validate for MultipleOf {
@@ -26,7 +100,7 @@ impl Validate for MultipleOf {
 
 impl Parse for MultipleOf {
     fn parse(input: ParseStream, ident: Ident) -> syn::Result<Self> {
-        parse_number(input).map(|multiple_of| Self(multiple_of, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -45,7 +119,7 @@ impl From<MultipleOf> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct Maximum(pub(super) f64, Ident);
+    pub struct Maximum(pub(super) NumberValue, Ident);
 }
 
 impl Validate for Maximum {
@@ -63,7 +137,7 @@ impl Parse for Maximum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|maximum| Self(maximum, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -82,12 +156,18 @@ impl From<Maximum> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct Minimum(f64, Ident);
+    pub struct Minimum(NumberValue, Ident);
 }
 
 impl Minimum {
     pub fn new(value: f64, span: Span) -> Self {
-        Self(value, Ident::new("empty", span))
+        Self(
+            NumberValue {
+                minus: value < 0.0,
+                lit: Literal::f64_suffixed(value),
+            },
+            Ident::new("empty", span),
+        )
     }
 }
 
@@ -108,7 +188,7 @@ impl Parse for Minimum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|maximum| Self(maximum, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -127,7 +207,7 @@ impl From<Minimum> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct ExclusiveMaximum(f64, Ident);
+    pub struct ExclusiveMaximum(NumberValue, Ident);
 }
 
 impl Validate for ExclusiveMaximum {
@@ -145,7 +225,7 @@ impl Parse for ExclusiveMaximum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|max| Self(max, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -164,7 +244,7 @@ impl From<ExclusiveMaximum> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct ExclusiveMinimum(f64, Ident);
+    pub struct ExclusiveMinimum(NumberValue, Ident);
 }
 
 impl Validate for ExclusiveMinimum {
@@ -182,7 +262,7 @@ impl Parse for ExclusiveMinimum {
     where
         Self: Sized,
     {
-        parse_number(input).map(|min| Self(min, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -201,7 +281,7 @@ impl From<ExclusiveMinimum> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MaxLength(pub(super) usize, Ident);
+    pub struct MaxLength(pub(super) NumberValue, Ident);
 }
 
 impl Validate for MaxLength {
@@ -219,7 +299,7 @@ impl Parse for MaxLength {
     where
         Self: Sized,
     {
-        parse_integer(input).map(|max_length| Self(max_length, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -238,7 +318,7 @@ impl From<MaxLength> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MinLength(pub(super) usize, Ident);
+    pub struct MinLength(pub(super) NumberValue, Ident);
 }
 
 impl Validate for MinLength {
@@ -256,7 +336,7 @@ impl Parse for MinLength {
     where
         Self: Sized,
     {
-        parse_integer(input).map(|max_length| Self(max_length, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -314,7 +394,7 @@ impl From<Pattern> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MaxItems(pub(super) usize, Ident);
+    pub struct MaxItems(pub(super) NumberValue, Ident);
 }
 
 impl Validate for MaxItems {
@@ -332,7 +412,7 @@ impl Parse for MaxItems {
     where
         Self: Sized,
     {
-        parse_number(input).map(|max_items| Self(max_items, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -351,7 +431,7 @@ impl From<MaxItems> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MinItems(pub(super) usize, Ident);
+    pub struct MinItems(pub(super) NumberValue, Ident);
 }
 
 impl Validate for MinItems {
@@ -369,7 +449,7 @@ impl Parse for MinItems {
     where
         Self: Sized,
     {
-        parse_number(input).map(|max_items| Self(max_items, ident))
+        parse_next_number_value(input).map(|number| Self(number, ident))
     }
 }
 
@@ -388,7 +468,7 @@ impl From<MinItems> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MaxProperties(usize, ());
+    pub struct MaxProperties(NumberValue, ());
 }
 
 impl Parse for MaxProperties {
@@ -396,7 +476,7 @@ impl Parse for MaxProperties {
     where
         Self: Sized,
     {
-        parse_integer(input).map(|max_properties| Self(max_properties, ()))
+        parse_next_number_value(input).map(|number| Self(number, ()))
     }
 }
 
@@ -415,7 +495,7 @@ impl From<MaxProperties> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct MinProperties(usize, ());
+    pub struct MinProperties(NumberValue, ());
 }
 
 impl Parse for MinProperties {
@@ -423,7 +503,7 @@ impl Parse for MinProperties {
     where
         Self: Sized,
     {
-        parse_integer(input).map(|min_properties| Self(min_properties, ()))
+        parse_next_number_value(input).map(|number| Self(number, ()))
     }
 }
 
