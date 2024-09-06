@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData, vec};
+use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
 use serde::Serialize;

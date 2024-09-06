@@ -438,13 +438,13 @@ mod rocket {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     #[cfg(feature = "axum")]
     fn test_axum_with_empty_path() {
         use ::axum::Router;
         use utoipa::OpenApi;
+
+        use super::RapiDoc;
 
         #[derive(utoipa::OpenApi)]
         #[openapi()]

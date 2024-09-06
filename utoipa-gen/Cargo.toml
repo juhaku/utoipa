@@ -31,7 +31,7 @@ axum = { version = "0.7", default-features = false, features = ["json", "query"]
 paste = "1"
 rocket = { version = "0.5", features = ["json"] }
 smallvec = { version = "1.10", features = ["serde"] }
-rust_decimal = "1"
+rust_decimal = { version = "1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 assert-json-diff = "2"
 time = { version = "0.3", features = ["serde-human-readable"] }
