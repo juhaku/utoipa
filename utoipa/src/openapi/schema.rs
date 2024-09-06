@@ -905,27 +905,27 @@ builder! {
         /// Must be a number strictly greater than `0`. Numeric value is considered valid if value
         /// divided by the _`multiple_of`_ value results an integer.
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
-        pub multiple_of: Option<f64>,
+        pub multiple_of: Option<crate::utoipa::Number>,
 
         /// Specify inclusive upper limit for the [`Object`]'s value. Number is considered valid if
         /// it is equal or less than the _`maximum`_.
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
-        pub maximum: Option<f64>,
+        pub maximum: Option<crate::utoipa::Number>,
 
         /// Specify inclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is equal or greater than the _`minimum`_.
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
-        pub minimum: Option<f64>,
+        pub minimum: Option<crate::utoipa::Number>,
 
         /// Specify exclusive upper limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly less than _`exclusive_maximum`_.
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
-        pub exclusive_maximum: Option<f64>,
+        pub exclusive_maximum: Option<crate::utoipa::Number>,
 
         /// Specify exclusive lower limit for the [`Object`]'s value. Number value is considered
         /// valid if it is strictly above the _`exclusive_minimum`_.
         #[serde(skip_serializing_if = "Option::is_none", serialize_with = "omit_decimal_zero")]
-        pub exclusive_minimum: Option<f64>,
+        pub exclusive_minimum: Option<crate::utoipa::Number>,
 
         /// Specify maximum length for `string` values. _`max_length`_ cannot be a negative integer
         /// value. Value is considered valid if content length is equal or less than the _`max_length`_.
@@ -1110,28 +1110,34 @@ impl ObjectBuilder {
     }
 
     /// Set or change _`multiple_of`_ validation flag for `number` and `integer` type values.
-    pub fn multiple_of(mut self, multiple_of: Option<f64>) -> Self {
-        set_value!(self multiple_of multiple_of)
+    pub fn multiple_of<N: Into<crate::utoipa::Number>>(mut self, multiple_of: Option<N>) -> Self {
+        set_value!(self multiple_of multiple_of.map(|multiple_of| multiple_of.into()))
     }
 
     /// Set or change inclusive maximum value for `number` and `integer` values.
-    pub fn maximum(mut self, maximum: Option<f64>) -> Self {
-        set_value!(self maximum maximum)
+    pub fn maximum<N: Into<crate::utoipa::Number>>(mut self, maximum: Option<N>) -> Self {
+        set_value!(self maximum maximum.map(|max| max.into()))
     }
 
     /// Set or change inclusive minimum value for `number` and `integer` values.
-    pub fn minimum(mut self, minimum: Option<f64>) -> Self {
-        set_value!(self minimum minimum)
+    pub fn minimum<N: Into<crate::utoipa::Number>>(mut self, minimum: Option<N>) -> Self {
+        set_value!(self minimum minimum.map(|min| min.into()))
     }
 
     /// Set or change exclusive maximum value for `number` and `integer` values.
-    pub fn exclusive_maximum(mut self, exclusive_maximum: Option<f64>) -> Self {
-        set_value!(self exclusive_maximum exclusive_maximum)
+    pub fn exclusive_maximum<N: Into<crate::utoipa::Number>>(
+        mut self,
+        exclusive_maximum: Option<N>,
+    ) -> Self {
+        set_value!(self exclusive_maximum exclusive_maximum.map(|exclusive_maximum| exclusive_maximum.into()))
     }
 
     /// Set or change exclusive minimum value for `number` and `integer` values.
-    pub fn exclusive_minimum(mut self, exclusive_minimum: Option<f64>) -> Self {
-        set_value!(self exclusive_minimum exclusive_minimum)
+    pub fn exclusive_minimum<N: Into<crate::utoipa::Number>>(
+        mut self,
+        exclusive_minimum: Option<N>,
+    ) -> Self {
+        set_value!(self exclusive_minimum exclusive_minimum.map(|exclusive_minimum| exclusive_minimum.into()))
     }
 
     /// Set or change maximum length for `string` values.
@@ -1355,18 +1361,24 @@ impl From<Array> for RefOr<Schema> {
     }
 }
 
-fn omit_decimal_zero<S>(maybe_value: &Option<f64>, s: S) -> Result<S::Ok, S::Error>
+fn omit_decimal_zero<S>(
+    maybe_value: &Option<crate::utoipa::Number>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    if let Some(v) = maybe_value {
-        if v.fract() == 0.0 && *v >= i64::MIN as f64 && *v <= i64::MAX as f64 {
-            s.serialize_i64(v.trunc() as i64)
-        } else {
-            s.serialize_f64(*v)
+    match maybe_value {
+        Some(crate::utoipa::Number::Float(float)) => {
+            if float.fract() == 0.0 && *float >= i64::MIN as f64 && *float <= i64::MAX as f64 {
+                serializer.serialize_i64(float.trunc() as i64)
+            } else {
+                serializer.serialize_f64(*float)
+            }
         }
-    } else {
-        s.serialize_none()
+        Some(crate::utoipa::Number::Int(int)) => serializer.serialize_i64(*int as i64),
+        Some(crate::utoipa::Number::UInt(uint)) => serializer.serialize_u64(*uint as u64),
+        None => serializer.serialize_none(),
     }
 }
 

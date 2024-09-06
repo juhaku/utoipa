@@ -1,12 +1,11 @@
-use std::{fmt::Display, mem, str::FromStr};
+use std::{fmt::Display, mem};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{parse::ParseStream, LitFloat, LitInt};
+use syn::parse::ParseStream;
 
 use crate::{
-    as_tokens_or_diagnostics, parse_utils, schema_type::SchemaType, Diagnostics, OptionExt,
-    ToTokensDiagnostics,
+    as_tokens_or_diagnostics, schema_type::SchemaType, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use self::validators::{AboveZeroF64, AboveZeroUsize, IsNumber, IsString, IsVec, ValidatorChain};
@@ -16,32 +15,6 @@ use super::TypeTree;
 pub mod attributes;
 pub mod validation;
 pub mod validators;
-
-/// Parse `LitInt` from parse stream
-fn parse_integer<T: FromStr + Display>(input: ParseStream) -> syn::Result<T>
-where
-    <T as FromStr>::Err: Display,
-{
-    parse_utils::parse_next(input, || input.parse::<LitInt>()?.base10_parse())
-}
-
-/// Parse any `number`. Tries to parse `LitInt` or `LitFloat` from parse stream.
-fn parse_number<T>(input: ParseStream) -> syn::Result<T>
-where
-    T: FromStr,
-    <T as FromStr>::Err: Display,
-{
-    parse_utils::parse_next(input, || {
-        let lookup = input.lookahead1();
-        if lookup.peek(LitInt) {
-            input.parse::<LitInt>()?.base10_parse()
-        } else if lookup.peek(LitFloat) {
-            input.parse::<LitFloat>()?.base10_parse()
-        } else {
-            Err(lookup.error())
-        }
-    })
-}
 
 pub trait FeatureLike: Parse {
     fn get_name() -> std::borrow::Cow<'static, str>
@@ -145,7 +118,7 @@ impl Feature {
     pub fn validate(&self, schema_type: &SchemaType, type_tree: &TypeTree) -> Option<Diagnostics> {
         match self {
             Feature::MultipleOf(multiple_of) => multiple_of.validate(
-                ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(multiple_of.0)),
+                ValidatorChain::new(&IsNumber(schema_type)).next(&AboveZeroF64(&multiple_of.0)),
             ),
             Feature::Maximum(maximum) => maximum.validate(IsNumber(schema_type)),
             Feature::Minimum(minimum) => minimum.validate(IsNumber(schema_type)),
@@ -156,17 +129,17 @@ impl Feature {
                 exclusive_minimum.validate(IsNumber(schema_type))
             }
             Feature::MaxLength(max_length) => max_length.validate(
-                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(max_length.0)),
+                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(&max_length.0)),
             ),
             Feature::MinLength(min_length) => min_length.validate(
-                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(min_length.0)),
+                ValidatorChain::new(&IsString(schema_type)).next(&AboveZeroUsize(&min_length.0)),
             ),
             Feature::Pattern(pattern) => pattern.validate(IsString(schema_type)),
             Feature::MaxItems(max_items) => max_items.validate(
-                ValidatorChain::new(&AboveZeroUsize(max_items.0)).next(&IsVec(type_tree)),
+                ValidatorChain::new(&AboveZeroUsize(&max_items.0)).next(&IsVec(type_tree)),
             ),
             Feature::MinItems(min_items) => min_items.validate(
-                ValidatorChain::new(&AboveZeroUsize(min_items.0)).next(&IsVec(type_tree)),
+                ValidatorChain::new(&AboveZeroUsize(&min_items.0)).next(&IsVec(type_tree)),
             ),
             unsupported => {
                 const SUPPORTED_VARIANTS: [&str; 10] = [

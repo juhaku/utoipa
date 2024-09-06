@@ -5638,3 +5638,39 @@ fn derive_schema_required_custom_type_required() {
         })
     );
 }
+
+#[test]
+fn derive_negative_numbers() {
+    let value = api_doc! {
+        #[schema(default)]
+        #[derive(Default)]
+        struct Negative {
+            #[schema(default = -1, minimum = -2.1)]
+            number: f64,
+            #[schema(default = -2, maximum = -3)]
+            solid_number: i64,
+        }
+    };
+
+    assert_json_eq! {
+        value,
+        json!({
+            "properties": {
+                "number": {
+                    "type": "number",
+                    "format": "double",
+                    "default": -1,
+                    "minimum": -2.1
+                },
+                "solid_number": {
+                    "format": "int64",
+                    "type": "integer",
+                    "default": -2,
+                    "maximum": -3,
+                }
+            },
+            "required": [ "number", "solid_number" ],
+            "type": "object"
+        })
+    }
+}
