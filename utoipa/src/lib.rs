@@ -656,6 +656,18 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMa
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, Option<V>> {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            BTreeMap<K, Option<V>>
+        )
+        .into()
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collections::HashMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
@@ -675,6 +687,20 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
         schema!(
             #[inline]
             Option<std::collections::HashMap<K, V>>
+        )
+        .into()
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
+    for std::collections::HashMap<K, Option<V>>
+{
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        schema!(
+            #[inline]
+            std::collections::HashMap<K, Option<V>>
         )
         .into()
     }
