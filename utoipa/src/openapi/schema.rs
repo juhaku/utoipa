@@ -1242,6 +1242,12 @@ impl From<Schema> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<AllOfBuilder> for AdditionalProperties<Schema> {
+    fn from(value: AllOfBuilder) -> Self {
+        Self::RefOr(RefOr::T(Schema::AllOf(value.build())))
+    }
+}
+
 builder! {
     RefBuilder;
 
