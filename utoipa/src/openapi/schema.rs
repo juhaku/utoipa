@@ -137,6 +137,9 @@ impl ComponentsBuilder {
     pub fn schema_from<'s, I: ToSchema<'s>>(mut self) -> Self {
         let aliases = I::aliases();
 
+        // TODO this need to call similar to schema! macro call with inline always to get the full
+        // schema which then need to be composed with generic args of the schema!!!
+
         // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
         // Eventually aliases functionality should be extracted out from the `ToSchema`. Aliases
         // are created when the main schema is a generic type which should be included in OpenAPI

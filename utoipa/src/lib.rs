@@ -393,7 +393,7 @@ pub trait OpenApi {
 ///     }
 /// }
 /// ```
-pub trait ToSchema<'__s>: PartialSchema {
+pub trait ToSchema<'__s>: PartialSchema + __dev::ComposeSchema {
     /// Return a tuple of name and schema or reference to a schema that can be referenced by the
     /// name or inlined directly to responses, request bodies or parameters.
     fn name() -> Cow<'__s, str>;
@@ -421,15 +421,23 @@ impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema
 /// [`openapi::schema::Schema`] for the type.
 pub type TupleUnit = ();
 
-impl PartialSchema for TupleUnit {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        openapi::schema::empty().into()
-    }
-}
+// impl PartialSchema for TupleUnit {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         openapi::schema::empty().into()
+//     }
+// }
 
 impl<'__s> ToSchema<'__s> for TupleUnit {
     fn name() -> Cow<'__s, str> {
         Cow::Borrowed("TupleUnit")
+    }
+}
+
+impl __dev::ComposeSchema for TupleUnit {
+    fn compose(
+        _: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+    ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        Self::schema()
     }
 }
 
@@ -546,165 +554,165 @@ impl_partial_schema_primitive!(
 
 impl_partial_schema!(&str);
 
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(#[inline] Vec<T>).into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(#[inline] Option<Vec<T>>).into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            [T]
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            &[T]
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            &mut [T]
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<&[T]>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<&mut [T]>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(#[inline] Option<T>).into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            BTreeMap<K, V>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<BTreeMap<K, V>>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, Option<V>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            BTreeMap<K, Option<V>>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collections::HashMap<K, V> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            std::collections::HashMap<K, V>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
-    for Option<std::collections::HashMap<K, V>>
-{
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<std::collections::HashMap<K, V>>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
-    for std::collections::HashMap<K, Option<V>>
-{
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            std::collections::HashMap<K, Option<V>>
-        )
-        .into()
-    }
-}
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(#[inline] Vec<T>).into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(#[inline] Option<Vec<T>>).into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             [T]
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             &[T]
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             &mut [T]
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             Option<&[T]>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             Option<&mut [T]>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(#[inline] Option<T>).into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             BTreeMap<K, V>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             Option<BTreeMap<K, V>>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, Option<V>> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             BTreeMap<K, Option<V>>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collections::HashMap<K, V> {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             std::collections::HashMap<K, V>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
+//     for Option<std::collections::HashMap<K, V>>
+// {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             Option<std::collections::HashMap<K, V>>
+//         )
+//         .into()
+//     }
+// }
+//
+// #[cfg(feature = "macros")]
+// #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+// impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
+//     for std::collections::HashMap<K, Option<V>>
+// {
+//     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+//         schema!(
+//             #[inline]
+//             std::collections::HashMap<K, Option<V>>
+//         )
+//         .into()
+//     }
+// }
 
 /// Trait for implementing OpenAPI PathItem object with path.
 ///
@@ -1078,6 +1086,8 @@ impl_from_for_number!(
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 pub mod __dev {
+    use std::borrow::Cow;
+
     use crate::{utoipa, OpenApi};
 
     pub trait PathConfig {
@@ -1143,6 +1153,103 @@ pub mod __dev {
             api
         }
     }
+
+    pub struct SchemaGeneric<'s> {
+        name: Cow<'s, str>,
+        field_ref: Cow<'s, str>,
+    }
+
+    pub trait SchemaComposer {
+        // generate from original type generic args will include the T and other generic args
+        fn get_generics() -> Vec<SchemaGeneric<'static>>;
+    }
+
+    pub trait ComposeSchema {
+        fn compose(
+            new_generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>;
+    }
+
+    // Default implementation
+    impl<T: utoipa::__dev::ComposeSchema> utoipa::PartialSchema for T {
+        fn schema() -> crate::openapi::RefOr<crate::openapi::schema::Schema> {
+            T::compose(Vec::new())
+        }
+    }
+
+    //
+    // let generics = <Person as SchemaComposer>::get_generics(); => [T]
+    //
+    // ty: TypeTree = Person<'_, String>;
+    //
+    // let use_point_generics = ty.generics(); => [String]
+    //
+    //
+    // fn compose(....) {
+    //    let original_generics = <Person as SchemaComposer>::get_generics(); => [T]
+    //    let original = <Person as PartialSchema>::schema();
+    //
+    //    let use_point_generics = ?????
+    //
+    //    use_point_generics.zip(original_generics).for_each(|(new, old) | {
+    //      *original.get_field(original) = new;
+    //    });
+    //
+    //    let composed = ...;
+    //
+    //    Call generics type's PartialSchema::schema() for the field argument.
+    //
+    //
+    //
+    //
+    //    composed
+    // }
+    //
+    //
+    //
+    // impl<'p, '__s, T: Sized> utoipa::__dev::ComposeSchema for Person<'p, T> {
+    //     fn compose(new_generics: [String]) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+    //         utoipa::openapi::ObjectBuilder::new()
+    //             .property(
+    //                 "id",
+    //                 utoipa::openapi::ObjectBuilder::new()
+    //                     .schema_type(utoipa::openapi::schema::SchemaType::new(
+    //                         utoipa::openapi::schema::Type::Integer,
+    //                     ))
+    //                     .minimum(Some(0f64)),
+    //             )
+    //             .required("id")
+    //             .property(
+    //                 "name",
+    //                 utoipa::openapi::ObjectBuilder::new().schema_type(
+    //                     utoipa::openapi::schema::SchemaType::new(utoipa::openapi::schema::Type::String),
+    //                 ),
+    //             )
+    //             .required("name")
+    //             .property("field", {
+    //                 let generic_index = 0;
+    //                 new_generics.get(generic_index).or_else(|| {
+    //                     utoipa::openapi::schema::RefBuilder::new().ref_location_from_schema_name("T")
+    //                 })
+    //             })
+    //             .required("field")
+    //             .into()
+    //     }
+    // }
+    //
+    // impl<'p, '__s, T: Sized> utoipa::PartialSchema<'__s> for Person<'p, T> {
+    //     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+    //          <Self as utoipa::__dev::ComposeSchema::compose([])
+    //     }
+    // }
+    //
+    // impl<'p, '__s, T: Sized> utoipa::ToSchema<'__s> for Person<'p, T> {
+    //     fn name() -> std::borrow::Cow<'__s, str> {
+    //         std::borrow::Cow::Borrowed("Person")
+    //     }
+    // }
+    //
+    //
 }
 
 #[cfg(test)]

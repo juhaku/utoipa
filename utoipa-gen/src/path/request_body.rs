@@ -1,11 +1,12 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
+use syn::Generics;
 use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
 
 use crate::component::features::attributes::Inline;
-use crate::component::ComponentSchema;
+use crate::component::{ComponentSchema, Container};
 use crate::{parse_utils, AnyValue, Array, Diagnostics, Required, ToTokensDiagnostics};
 
 use super::example::Example;
@@ -168,8 +169,10 @@ impl ToTokensDiagnostics for RequestBodyAttr<'_> {
                         features: Some(vec![Inline::from(body_type.is_inline).into()]),
                         description: None,
                         deprecated: None,
-                        object_name: "",
-                        is_generics_type_arg: false,
+                        container: &Container {
+                            ident: &Ident::new("empty_request_body", Span::call_site()),
+                            generics: &Generics::default(),
+                        },
                     })?
                     .to_token_stream()
                 }

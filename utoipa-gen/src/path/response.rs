@@ -7,11 +7,11 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Error, ExprPath, LitInt, LitStr, Token, TypePath,
+    Attribute, Error, ExprPath, Generics, LitInt, LitStr, Token, TypePath,
 };
 
 use crate::{
-    component::{features::attributes::Inline, ComponentSchema, TypeTree},
+    component::{features::attributes::Inline, ComponentSchema, Container, TypeTree},
     parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics,
 };
 
@@ -293,8 +293,10 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                                 features: Some(vec![Inline::from(path_type.is_inline).into()]),
                                 description: None,
                                 deprecated: None,
-                                object_name: "",
-                                is_generics_type_arg: false,
+                                container: &Container {
+                                    ident: &Ident::new("empty_repopnse_tuple", Span::call_site()),
+                                    generics: &Generics::default(),
+                                },
                             })?
                             .to_token_stream()
                         }
@@ -866,8 +868,10 @@ impl ToTokensDiagnostics for Header {
                 features: Some(vec![Inline::from(header_type.is_inline).into()]),
                 description: None,
                 deprecated: None,
-                object_name: "",
-                is_generics_type_arg: false,
+                container: &Container {
+                    ident: &Ident::new("empty header", Span::call_site()),
+                    generics: &Generics::default(),
+                },
             })?
             .to_token_stream();
 

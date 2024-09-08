@@ -8,11 +8,11 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{
-    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr, Path, Type,
-    TypePath, Variant,
+    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr,
+    ParenthesizedGenericArguments, Path, Type, TypePath, Variant,
 };
 
-use crate::component::schema::{EnumSchema, NamedStructSchema};
+use crate::component::schema::{EnumSchema, NamedStructSchema, Parent};
 use crate::doc_comment::CommentAttributes;
 use crate::path::{InlineType, PathType};
 use crate::{
@@ -344,15 +344,17 @@ impl NamedStructResponse<'_> {
         };
         let status_code = mem::take(&mut derive_value.status);
         let inline_schema = NamedStructSchema {
-            attributes,
+            parent: &Parent {
+                ident,
+                attributes,
+                generics: &Generics::default(),
+            },
             fields,
             aliases: None,
             description: None,
             features: None,
             rename_all: None,
-            struct_name: Cow::Owned(ident.to_string()),
             schema_as: None,
-            generics: &Generics::default(),
         };
 
         let ty = Self::to_type(ident);
@@ -431,15 +433,17 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         let ty = Self::to_type(ident);
 
         let inline_schema = NamedStructSchema {
+            parent: &Parent {
+                ident,
+                attributes,
+                generics: &Generics::default(),
+            },
             aliases: None,
             description: None,
             fields,
             features: None,
-            attributes,
-            struct_name: Cow::Owned(ident.to_string()),
             rename_all: None,
             schema_as: None,
-            generics: &Generics::default(),
         };
         let response_type = PathType::InlineSchema(inline_schema.to_token_stream(), ty);
 
@@ -567,12 +571,12 @@ impl<'r> EnumResponse<'r> {
         });
         response_value.response_type = if content.is_empty() {
             let generics = Generics::default();
-            let inline_schema = EnumSchema::new(
-                Cow::Owned(ident.to_string()),
-                variants,
+            let parent = &Parent {
+                ident,
                 attributes,
-                &generics,
-            )?;
+                generics: &generics,
+            };
+            let inline_schema = EnumSchema::new(parent, variants)?;
 
             Some(PathType::InlineSchema(
                 inline_schema.into_token_stream(),

@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned};
-use syn::parse_quote;
 use syn::spanned::Spanned;
+use syn::{parse_quote, Generics};
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
-use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
+use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
 use crate::path::{HttpMethod, PathTypeTree};
 use crate::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics};
 
@@ -136,9 +136,10 @@ impl ToTokensDiagnostics for RequestBody<'_> {
                 features: None,
                 description: None,
                 deprecated: None,
-                object_name: "",
-                // Currently Request body cannot know about possible generic types
-                is_generics_type_arg: false, // TODO check whether this is correct
+                container: &Container {
+                    ident: &Ident::new("empty_request_body", Span::call_site()),
+                    generics: &Generics::default(),
+                }
             })?);
 
             tokens.extend(quote_spanned! {actual_body.span.unwrap()=>

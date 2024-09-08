@@ -43,7 +43,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
+    DeriveInput, ExprPath, GenericParam, ItemFn, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -2584,19 +2584,70 @@ pub fn schema(input: TokenStream) -> TokenStream {
         Err(diagnostics) => return diagnostics.into_token_stream().into(),
     };
 
+    let (ident, generics) =
+        match type_tree.get_path_type_and_generics(component::GenericArguments::CurrentTypeOnly) {
+            Ok(type_and_generics) => type_and_generics,
+            Err(error) => return error.into_compile_error().into(),
+        };
+
+    dbg!("called in schema! macro");
+    dbg!(&ident, &generics, &type_tree);
+
+    // let type_generics = generics
+    //     .params
+    //     .iter()
+    //     .filter_map(|generic| match &generic {
+    //         GenericParam::Type(ty) => {
+    //             let ident = &ty.ident;
+    //             Some(quote! { <#ident as utoipa::PartialSchema>::schema() })
+    //         }
+    //         _ => None,
+    //     })
+    //     .collect::<Array<_>>();
+
     let schema = ComponentSchema::new(ComponentSchemaProps {
         features: Some(vec![Feature::Inline(schema.inline.into())]),
         type_tree: &type_tree,
         deprecated: None,
         description: None,
-        object_name: "",
-        is_generics_type_arg: false, // it cannot be generic struct here
+        container: &component::Container {
+            ident,
+            generics: &generics,
+        },
     });
+    // TODO build compose schema based on the type_tree.
+    // let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let schema = match schema {
+        Ok(schema) => schema.to_token_stream(),
+        Err(diagnostics) => return diagnostics.to_token_stream().into(),
+    };
 
-    match schema {
-        Ok(schema) => schema.to_token_stream().into(),
-        Err(diagnostics) => diagnostics.to_token_stream().into(),
+    quote! {
+        {
+            // impl #impl_generics utoipa::__dev::ComposeSchema for #ident #ty_generics #where_clause {
+            //     fn compose(
+            //         mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>
+            //     ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            //         #schema.into()
+            //     }
+            // }
+            //
+            // impl #impl_generics utoipa::PartialSchema for #ident #ty_generics #where_clause {
+            //     fn schema() -> crate::openapi::RefOr<crate::openapi::schema::Schema> {
+            //         <#ident #ty_generics as utoipa::__dev::ComposeSchema>::compose(#type_generics.to_vec())
+            //     }
+            // }
+            fn __compose(
+                    mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>
+            ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+                #schema.into()
+            }
+
+            __compose([].to_vec())
+            // <#ident #ty_generics as utoipa::PartialSchema>::schema()
+        }
     }
+    .into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
@@ -2911,6 +2962,8 @@ impl<T> OptionExt<T> for Option<T> {
 
 trait GenericsExt {
     fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool;
+    /// Get index of `GenericParam::Type` ignoring other generic param types.
+    fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
 impl<'g> GenericsExt for &'g syn::Generics {
@@ -2919,6 +2972,30 @@ impl<'g> GenericsExt for &'g syn::Generics {
             syn::GenericParam::Type(generic_type) => type_tree.match_ident(&generic_type.ident),
             _ => false,
         })
+    }
+
+    fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
+        let ident = &type_tree
+            .path
+            .as_ref()
+            .expect("TypeTree of generic object must have a path")
+            .segments
+            .last()
+            .expect("Generic object path must have at least one segment")
+            .ident;
+
+        dbg!("finding ident", type_tree, &self.params);
+        self.params
+            .iter()
+            .filter(|generic| matches!(generic, GenericParam::Type(_)))
+            .enumerate()
+            .find_map(|(index, generic)| {
+                if matches!(generic, GenericParam::Type(ty) if ty.ident == *ident) {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -2938,6 +3015,14 @@ trait ToTokensDiagnostics {
         match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
             Ok(_) => tokens,
             Err(error_stream) => Into::<Diagnostics>::into(error_stream).into_token_stream(),
+        }
+    }
+
+    fn try_to_token_stream(&self) -> Result<TokenStream2, Diagnostics> {
+        let mut tokens = TokenStream2::new();
+        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
+            Ok(_) => Ok(tokens),
+            Err(diagnostics) => Err(diagnostics),
         }
     }
 }

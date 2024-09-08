@@ -1,11 +1,11 @@
 use std::{borrow::Cow, fmt::Display};
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, LitStr, Token, TypePath,
+    Error, Generics, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
             },
             Feature, ToTokensExt,
         },
-        ComponentSchema,
+        ComponentSchema, Container,
     },
     parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
@@ -184,9 +184,10 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             features: Some(self.features.clone()),
                             description: None,
                             deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
+                            container: &Container {
+                                ident: &Ident::new("empty_parameter_external", Span::call_site()),
+                                generics: &Generics::default(),
+                            }
                         }
                     )?),
                     required,
@@ -207,9 +208,10 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             features: Some(schema_features),
                             description: None,
                             deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
+                            container: &Container {
+                                ident: &Ident::new("empty_parameter_parsed", Span::call_site()),
+                                generics: &Generics::default(),
+                            }
                         }
                     )?),
                     required,

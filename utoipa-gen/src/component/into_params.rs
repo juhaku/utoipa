@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
@@ -34,7 +34,7 @@ use super::{
         Merge, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
-    ComponentSchema, TypeTree,
+    ComponentSchema, Container, TypeTree,
 };
 
 impl_merge!(IntoParamsFeatures, FieldFeatures);
@@ -460,8 +460,10 @@ impl ToTokensDiagnostics for Param<'_> {
                 features: Some(schema_features),
                 description: None,
                 deprecated: None,
-                object_name: "",
-                is_generics_type_arg: self.generics.any_match_type_tree(&component),
+                container: &Container {
+                    ident: &Ident::new("empty_param", Span::call_site()),
+                    generics: &self.generics,
+                },
             })?;
             let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
 

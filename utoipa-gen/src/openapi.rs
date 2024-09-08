@@ -13,7 +13,12 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use crate::{parse_utils, security_requirement::SecurityRequirementsAttr, Array, ExternalDocs};
+use crate::{
+    component::{features::Feature, ComponentSchema, Container, TypeTree},
+    parse_utils,
+    security_requirement::SecurityRequirementsAttr,
+    Array, Diagnostics, ExternalDocs, ToTokensDiagnostics,
+};
 use crate::{parse_utils::Str, path};
 
 use self::info::Info;
@@ -140,6 +145,29 @@ impl Parse for OpenApiAttr<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Schema(TypePath);
+
+impl Schema {
+    fn get_component(&self) -> Result<ComponentSchema, Diagnostics> {
+        let ty = syn::Type::Path(self.0.clone());
+        let type_tree = TypeTree::from_type(&ty)?;
+        let (ident, generics) = type_tree
+            .get_path_type_and_generics(crate::component::GenericArguments::CurrentTypeOnly)?;
+
+        let container = Container {
+            ident,
+            generics: &generics,
+        };
+        let component_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
+            container: &container,
+            type_tree: &type_tree,
+            features: Some(vec![Feature::Inline(true.into())]),
+            description: None,
+            deprecated: None,
+        })?;
+
+        Ok(component_schema)
+    }
+}
 
 impl Parse for Schema {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -446,8 +474,8 @@ impl OpenApi<'_> {
     }
 }
 
-impl ToTokens for OpenApi<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+impl ToTokensDiagnostics for OpenApi<'_> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let OpenApi(attributes, ident) = self;
 
         let info = info::impl_info(
@@ -458,9 +486,10 @@ impl ToTokens for OpenApi<'_> {
 
         let components = match attributes
             .as_ref()
-            .map(|attributes| attributes.components.to_token_stream())
+            .map(|attributes| attributes.components.try_to_token_stream())
         {
-            Some(tokens) if !tokens.is_empty() => Some(quote! { .components(Some(#tokens)) }),
+            Some(Ok(tokens)) if !tokens.is_empty() => Some(quote! { .components(Some(#tokens)) }),
+            Some(Err(diagnostics)) => return Err(diagnostics),
             _ => None,
         };
 
@@ -537,6 +566,8 @@ impl ToTokens for OpenApi<'_> {
                 }
             }
         });
+
+        Ok(())
     }
 }
 
@@ -586,24 +617,29 @@ impl Parse for Components {
     }
 }
 
-impl ToTokens for Components {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl crate::ToTokensDiagnostics for Components {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         if self.schemas.is_empty() && self.responses.is_empty() {
-            return;
+            return Ok(());
         }
 
-        let builder_tokens = self.schemas.iter().fold(
-            quote! { utoipa::openapi::ComponentsBuilder::new() },
-            |mut tokens, schema| {
-                let Schema(path) = schema;
+        let builder_tokens = self
+            .schemas
+            .iter()
+            .map(|schema| schema.get_component())
+            .collect::<Result<Vec<ComponentSchema>, Diagnostics>>()?
+            .into_iter()
+            .fold(
+                quote! { utoipa::openapi::ComponentsBuilder::new() },
+                |mut components, component_schema| {
+                    let schema = component_schema.to_token_stream();
+                    let name = component_schema.name;
 
-                tokens.extend(quote_spanned!(path.span()=>
-                     .schema_from::<#path>()
-                ));
+                    components.extend(quote! { .schema(#name, #schema) });
 
-                tokens
-            },
-        );
+                    components
+                },
+            );
 
         let builder_tokens =
             self.responses
@@ -618,6 +654,8 @@ impl ToTokens for Components {
                 });
 
         tokens.extend(quote! { #builder_tokens.build() });
+
+        Ok(())
     }
 }
 
