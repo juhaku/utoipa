@@ -1498,7 +1498,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   generated from Cargo environment variables. **Note!** Defined attributes will override the
 ///   whole attribute from generated values of Cargo environment variables. E.g. defining
 ///   `contact(name = ...)` will ultimately override whole contact of info and not just partially
-///   the name. See [info attribute sytnax][info_syntax]
+///   the name. See [info attribute syntax][info_syntax]
 /// * `nest(...)` Allows nesting [`OpenApi`][openapi_struct]s to this _`OpenApi`_ instance. Nest
 ///   takes comma separated list of tuples of nested `OpenApi`s. _`OpenApi`_ instance must
 ///   implement [`OpenApi`][openapi] trait. Nesting allows defining one `OpenApi` per defined path.
@@ -1563,7 +1563,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `path = ...` Define mandatory path for nesting the [`OpenApi`][openapi_struct].
 /// * `api = ...` Define mandatory path to struct that implements [`OpenApi`][openapi] trait.
 ///    The fully qualified path (_`path::to`_) will become the default _`tag`_ for the nested
-///    `OpenApi` enpoints if provided.
+///    `OpenApi` endpoints if provided.
 /// * `tags = [...]` Define optional tags what are appended to the existing list of tags.
 ///
 ///  _**Example of nest definition**_

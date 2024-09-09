@@ -2218,7 +2218,7 @@ fn path_and_nest_with_default_tags_from_path() {
 }
 
 #[test]
-fn path_and_nest_with_addtional_tags() {
+fn path_and_nest_with_additional_tags() {
     mod test_path {
         #[allow(dead_code)]
         #[utoipa::path(get, path = "/test", tag = "this_is_tag", tags = ["additional"])]

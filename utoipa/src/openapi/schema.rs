@@ -960,7 +960,7 @@ builder! {
         /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
         ///
         /// Typically this is either unset for _`string`_ content types which then uses the content
-        /// encoding of the underying JSON document. If the content is in _`binary`_ format such as an image or an audio
+        /// encoding of the underlying JSON document. If the content is in _`binary`_ format such as an image or an audio
         /// set it to `base64` to encode it as _`Base64`_.
         ///
         /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
@@ -1313,7 +1313,7 @@ impl RefBuilder {
         set_value!(self ref_location format!("#/components/schemas/{}", schema_name.into()))
     }
 
-    // TODO: REMOVE THE unnecesary description Option wrapping.
+    // TODO: REMOVE THE unnecessary description Option wrapping.
 
     /// Add or change description which by default should override that of the referenced component.
     /// Description supports markdown syntax. If referenced object type does not support
@@ -1632,7 +1632,7 @@ pub enum SchemaType {
     Type(Type),
     /// Multiple types rendered as [`slice`]
     Array(Vec<Type>),
-    /// Type that is considred typeless. _`AnyValue`_ will omit the type definition from the schema
+    /// Type that is considered typeless. _`AnyValue`_ will omit the type definition from the schema
     /// making it to accept any type possible.
     AnyValue,
 }
@@ -1658,7 +1658,7 @@ impl FromIterator<Type> for SchemaType {
 impl SchemaType {
     /// Instantiate new [`SchemaType`] of given [`Type`]
     ///
-    /// Method accpets one argument `type` to create [`SchemaType`] for.
+    /// Method accepts one argument `type` to create [`SchemaType`] for.
     ///
     /// # Examples
     ///
@@ -1690,7 +1690,7 @@ impl SchemaType {
 ///
 /// [`Type`] is used to create a [`SchemaType`] that defines the type of the [`Schema`].
 /// [`SchemaType`] can be created from a single [`Type`] or multiple [`Type`]s according to the
-/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definiton of
+/// OpenAPI 3.1 spec. Since the OpenAPI 3.1 is fully compatible with JSON schema the definition of
 /// the _**type**_ property comes from [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type).
 ///
 /// # Examples
