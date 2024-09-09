@@ -1070,7 +1070,7 @@ macro_rules! test_derive_path_operations {
 
 #[test]
 fn path_derive_custom_generic_wrapper() {
-    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    #[derive(serde::Serialize, serde::Deserialize)]
     struct Validated<T>(T);
 
     impl<T> FromRequest for Validated<T> {

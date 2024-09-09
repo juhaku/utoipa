@@ -633,7 +633,7 @@ impl crate::ToTokensDiagnostics for Components {
                 quote! { utoipa::openapi::ComponentsBuilder::new() },
                 |mut components, component_schema| {
                     let schema = component_schema.to_token_stream();
-                    let name = component_schema.name;
+                    let name = &component_schema.name_tokens;
 
                     components.extend(quote! { .schema(#name, #schema) });
 

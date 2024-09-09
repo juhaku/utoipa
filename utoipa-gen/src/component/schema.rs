@@ -4,8 +4,9 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
-    Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, GenericParam, Generics,
-    Lifetime, LifetimeParam, Path, PathArguments, Token, Type, Variant, Visibility,
+    Constraint, Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, GenericParam,
+    Generics, Lifetime, LifetimeParam, Path, PathArguments, Token, Type, TypeParam, Variant,
+    Visibility,
 };
 
 use crate::{
@@ -112,7 +113,6 @@ impl ToTokensDiagnostics for Schema<'_> {
                 .map(|alias| {
                     let name = &*alias.name;
                     let alias_type_tree = TypeTree::from_type(&alias.ty);
-                    dbg!(&alias_type_tree, &alias.ty);
 
                     // TODO remove this duplicate TypeTree::from_type(...) thing once complete
                     SchemaVariant::new(
@@ -138,7 +138,7 @@ impl ToTokensDiagnostics for Schema<'_> {
                 .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
             Result::<TokenStream, Diagnostics>::Ok(quote! {
-                fn aliases() -> Vec<(& #life str, utoipa::openapi::schema::Schema)> {
+                fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Schema)> {
                     #alias_schemas.to_vec()
                 }
             })
@@ -178,9 +178,9 @@ impl ToTokensDiagnostics for Schema<'_> {
             ..Default::default()
         };
 
-        let mut impl_generics = self.generics.clone();
-        impl_generics.params.push(schema_lifetime);
-        let (impl_generics, _, _) = impl_generics.split_for_impl();
+        // let mut impl_generics = self.generics.clone();
+        // impl_generics.params.push(schema_lifetime);
+        let (impl_generics, _, _) = self.generics.split_for_impl();
 
         let mut variant_tokens = TokenStream::new();
         variant.to_tokens(&mut variant_tokens)?;
@@ -193,8 +193,9 @@ impl ToTokensDiagnostics for Schema<'_> {
                     #variant_tokens.into()
                 }
             }
-            impl #impl_generics utoipa::ToSchema #schema_generics for #ident #ty_generics #where_clause {
-                fn name() -> std::borrow::Cow<#life, str> {
+
+            impl #impl_generics utoipa::ToSchema for #ident #ty_generics #where_clause {
+                fn name() -> std::borrow::Cow<'static, str> {
                     std::borrow::Cow::Borrowed(#name)
                 }
 
@@ -403,7 +404,6 @@ impl NamedStructSchema<'_> {
             property: if let Some(schema_with) = schema_with {
                 Property::SchemaWith(schema_with)
             } else {
-                dbg!("setting field container", self.parent);
                 let cs = super::ComponentSchemaProps {
                     type_tree,
                     features: field_features,
@@ -779,7 +779,8 @@ impl<'e> EnumSchema<'e> {
                 match repr_enum {
                     Some(repr) => Ok(repr),
                     None => {
-                        let mut simple_enum_features = attributes
+                        let mut simple_enum_features = parent
+                            .attributes
                             .parse_features::<EnumFeatures>()?
                             .into_inner()
                             .unwrap_or_default();
@@ -792,7 +793,7 @@ impl<'e> EnumSchema<'e> {
 
                         Ok(Self {
                             schema_type: EnumSchemaType::Simple(SimpleEnum {
-                                attributes,
+                                attributes: parent.attributes,
                                 description,
                                 variants,
                                 enum_features: simple_enum_features,

@@ -16,7 +16,7 @@ use crate::{
 };
 use crate::{schema_type::SchemaType, Deprecated};
 
-use self::features::attributes::{Description, Nullable};
+use self::features::attributes::{As, Description, Nullable};
 use self::features::validation::Minimum;
 use self::features::{
     pop_feature, Feature, FeaturesExt, IntoInner, IsInline, ToTokensExt, Validatable,
@@ -628,7 +628,7 @@ impl ToTokens for ComponentDescription<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentSchema {
     tokens: TokenStream,
-    pub name: String,
+    pub name_tokens: TokenStream,
 }
 
 impl<'c> ComponentSchema {
@@ -644,12 +644,11 @@ impl<'c> ComponentSchema {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
-        let mut name = String::new();
+        let mut name_tokens = TokenStream::new();
 
         match type_tree.generic_type {
             Some(GenericType::Map) => ComponentSchema::map_to_tokens(
                 &mut tokens,
-                &mut name,
                 container,
                 features,
                 type_tree,
@@ -659,7 +658,6 @@ impl<'c> ComponentSchema {
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 ComponentSchema::vec_to_tokens(
                     &mut tokens,
-                    &mut name,
                     container,
                     features,
                     type_tree,
@@ -670,7 +668,6 @@ impl<'c> ComponentSchema {
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
-                &mut name,
                 container,
                 features,
                 type_tree,
@@ -736,7 +733,7 @@ impl<'c> ComponentSchema {
             }
             None => ComponentSchema::non_generic_to_tokens(
                 &mut tokens,
-                &mut name,
+                &mut name_tokens,
                 container,
                 features,
                 type_tree,
@@ -745,7 +742,10 @@ impl<'c> ComponentSchema {
             )?,
         };
 
-        Ok(Self { tokens, name })
+        Ok(Self {
+            tokens,
+            name_tokens,
+        })
     }
 
     /// Create `.schema_type(...)` override token stream if nullable is true from given [`SchemaTypeInner`].
@@ -771,7 +771,6 @@ impl<'c> ComponentSchema {
 
     fn map_to_tokens(
         tokens: &mut TokenStream,
-        name: &mut String,
         container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
@@ -829,7 +828,6 @@ impl<'c> ComponentSchema {
 
     fn vec_to_tokens(
         tokens: &mut TokenStream,
-        name: &mut String,
         container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
@@ -931,7 +929,7 @@ impl<'c> ComponentSchema {
 
     fn non_generic_to_tokens(
         tokens: &mut TokenStream,
-        component_name_buffer: &mut String,
+        name_tokens: &mut TokenStream,
         container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
@@ -943,13 +941,6 @@ impl<'c> ComponentSchema {
         let nullable = nullable_feat
             .map(|nullable| nullable.value())
             .unwrap_or_default();
-
-        // let (ident, ref generics) =
-        //     type_tree.get_path_type_and_generics(GenericArguments::All)?;
-        // dbg!("non generic tokens", &ident, &generics, &type_tree);
-
-        // TODO check if fields is generic, check the generic type index according to the original
-        // type generic argument list. by the field type matching to generic type.
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -1025,67 +1016,53 @@ impl<'c> ComponentSchema {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let nullable_item = nullable_all_of_item(nullable);
 
+                    let mut component_name_buffer = String::new();
+                    if let Some(children) = &type_tree.children {
+                        component_name_buffer.push('_');
+                        fn compose_name<'tr, I>(children: I) -> String
+                        where
+                            I: IntoIterator<Item = &'tr TypeTree<'tr>>,
+                        {
+                            children
+                                .into_iter()
+                                .map(|type_tree| {
+                                    let mut name = type_tree
+                                        .path
+                                        .as_ref()
+                                        .expect("Generic ValueType::Object must have path")
+                                        .segments
+                                        .last()
+                                        .expect("Generic path must have one segment")
+                                        .ident
+                                        .to_string();
+
+                                    if let Some(children) = &type_tree.children {
+                                        name.push('_');
+                                        name.push_str(&compose_name(children));
+
+                                        name
+                                    } else {
+                                        name
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join("_")
+                        }
+                        component_name_buffer.push_str(&compose_name(children))
+                    }
+                    name_tokens.extend(quote! { format!("{}{}", < #type_path as utoipa::ToSchema >::name(), #component_name_buffer) });
+
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
-                        let schema = if default.is_some() || nullable {
-                            quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::AllOfBuilder::new()
-                                    #nullable_item
-                                    .item(<#type_path as utoipa::PartialSchema>::schema())
-                                    #default_tokens
-                            }
-                        } else {
-                            // TOOD change this name to take in account the `as` attribute as a
-                            // prefix instead of the type_path ident name!!
-                            let mut name = Cow::Owned(format_path_ref(type_path));
-                            let object_name = &*container.ident.to_string();
-                            if name == "Self" && !object_name.is_empty() {
-                                name = Cow::Borrowed(object_name);
-                            }
-                            component_name_buffer.push_str(name.as_ref());
 
-                            if let Some(children) = &type_tree.children {
-                                component_name_buffer.push('_');
-                                fn compose_name<'tr, I>(children: I) -> String
-                                where
-                                    I: IntoIterator<Item = &'tr TypeTree<'tr>>,
-                                {
-                                    children
-                                        .into_iter()
-                                        .map(|type_tree| {
-                                            let mut name = type_tree
-                                                .path
-                                                .as_ref()
-                                                .expect("Generic ValueType::Object must have path")
-                                                .segments
-                                                .last()
-                                                .expect("Generic path must have one segment")
-                                                .ident
-                                                .to_string();
-
-                                            if let Some(children) = &type_tree.children {
-                                                name.push('_');
-                                                name.push_str(&compose_name(children));
-
-                                                name
-                                            } else {
-                                                name
-                                            }
-                                        })
-                                        .collect::<Vec<_>>()
-                                        .join("_")
-                                }
-                                component_name_buffer.push_str(&compose_name(children))
-                            }
-
-                            fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
-                                children: I,
-                            ) -> impl Iterator<Item = TokenStream> + 'v
-                            where
-                                <I as std::iter::IntoIterator>::IntoIter: 'v,
-                            {
-                                children.into_iter()
+                        fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
+                            children: I,
+                        ) -> impl Iterator<Item = TokenStream> + 'v
+                        where
+                            <I as std::iter::IntoIterator>::IntoIter: 'v,
+                        {
+                            children.into_iter()
                                     .map(|child| {
                                         let path = child.path.as_deref().expect(
                                             "inline TypeTree ValueType::Object must have child path if generic",
@@ -1099,20 +1076,28 @@ impl<'c> ComponentSchema {
                                             quote! { <#path as utoipa::PartialSchema>::schema() }
                                         }
                                     })
+                        }
+                        let items_tokens = if let Some(children) = &type_tree.children {
+                            let composed_generics =
+                                compose_generics(children).collect::<Array<_>>();
+                            quote_spanned! {type_path.span()=>
+                                <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
                             }
-                            // fist it calls this
-                            dbg!("inline type_treeeeeee", &type_tree);
-                            if let Some(children) = &type_tree.children {
-                                let composed_generics =
-                                    compose_generics(children).collect::<Array<_>>();
-                                quote_spanned! {type_path.span() =>
-                                    <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
-                                }
-                            } else {
-                                quote_spanned! {type_path.span() =>
-                                    <#type_path as utoipa::PartialSchema>::schema()
-                                }
+                        } else {
+                            quote_spanned! {type_path.span()=>
+                                <#type_path as utoipa::PartialSchema>::schema()
                             }
+                        };
+
+                        let schema = if default.is_some() || nullable {
+                            quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    #nullable_item
+                                    .item(#items_tokens)
+                                #default_tokens
+                            }
+                        } else {
+                            items_tokens
                         };
 
                         schema.to_tokens(tokens);
@@ -1120,63 +1105,46 @@ impl<'c> ComponentSchema {
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
 
-                        let is_generic_argument = container.generics.any_match_type_tree(type_tree);
+                        let index = container.generics.get_generic_type_param_index(type_tree);
+                        let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
+                            if let Some(index) = &index {
+                                quote_spanned! {type_path.span()=>
+                                    {
+                                        let _ = <#type_path as utoipa::PartialSchema>::schema;
 
-                        let check_type = if !is_generic_argument {
-                            Some(
-                                quote_spanned! {type_path.span()=> let _ = <#type_path as utoipa::PartialSchema>::schema;},
-                            )
-                        } else {
-                            None
+                                        if let Some(composed) = generics.get_mut(#index) {
+                                            std::mem::take(composed)
+                                        } else {
+                                            #item_tokens.into()
+                                        }
+                                    }
+                                }
+                            } else {
+                                quote_spanned! {type_path.span()=>
+                                    #item_tokens
+                                }
+                            }
                         };
 
                         // TODO: refs support `summary` field but currently there is no such field
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
                         let schema = if default.is_some() || nullable {
-                            quote_spanned! {type_path.span()=>
-                                {
-                                    #check_type
-
-                                    utoipa::openapi::schema::AllOfBuilder::new()
-                                        #nullable_item
-                                        .item(utoipa::openapi::schema::RefBuilder::new()
-                                            #description_stream
-                                            .ref_location_from_schema_name(#component_name_buffer)
-                                        )
-                                        #default_tokens
-                                        // .into()
-                                }
-                            }
+                            composed_or_ref(quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    #nullable_item
+                                    .item(utoipa::openapi::schema::RefBuilder::new()
+                                        #description_stream
+                                        .ref_location_from_schema_name(#name_tokens)
+                                    )
+                                    #default_tokens
+                            })
                         } else {
-                            let index = container.generics.get_generic_type_param_index(type_tree);
-                            dbg!("setting type_tree for ref field", &type_tree, &index);
-                            if let Some(index) = &index {
-                                quote_spanned! {type_path.span()=>
-                                    {
-                                        #check_type
-                                        if let Some(composed) = generics.get_mut(#index) {
-                                            std::mem::take(composed)
-                                        } else {
-                                            utoipa::openapi::schema::RefBuilder::new()
-                                                #description_stream
-                                                .ref_location_from_schema_name(#component_name_buffer)
-                                                .into()
-                                        }
-                                    }
-                                }
-                            } else {
-                                quote_spanned! {type_path.span()=>
-                                    {
-                                        #check_type
-
-                                        utoipa::openapi::schema::RefBuilder::new()
-                                            #description_stream
-                                            .ref_location_from_schema_name(#component_name_buffer)
-                                        // .into()
-                                    }
-                                }
-                            }
+                            composed_or_ref(quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::RefBuilder::new()
+                                    #description_stream
+                                    .ref_location_from_schema_name(#name_tokens)
+                            })
                         };
 
                         schema.to_tokens(tokens);

@@ -462,7 +462,7 @@ impl ToTokensDiagnostics for Param<'_> {
                 deprecated: None,
                 container: &Container {
                     ident: &Ident::new("empty_param", Span::call_site()),
-                    generics: &self.generics,
+                    generics: self.generics,
                 },
             })?;
             let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);

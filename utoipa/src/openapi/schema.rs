@@ -134,7 +134,7 @@ impl ComponentsBuilder {
         self
     }
 
-    pub fn schema_from<'s, I: ToSchema<'s>>(mut self) -> Self {
+    pub fn schema_from<I: ToSchema>(mut self) -> Self {
         let aliases = I::aliases();
 
         // TODO this need to call similar to schema! macro call with inline always to get the full

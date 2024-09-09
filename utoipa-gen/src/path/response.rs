@@ -869,7 +869,7 @@ impl ToTokensDiagnostics for Header {
                 description: None,
                 deprecated: None,
                 container: &Container {
-                    ident: &Ident::new("empty header", Span::call_site()),
+                    ident: &Ident::new("empty_header", Span::call_site()),
                     generics: &Generics::default(),
                 },
             })?

@@ -456,33 +456,6 @@ fn derive_request_body_complex_primitive_array_success() {
     );
 }
 
-#[allow(unused)]
-mod derive_request_body_ref_path {
-    #[derive(utoipa::ToSchema)]
-    #[doc = r" Some struct"]
-    pub struct Foo {
-        #[doc = r" Some name"]
-        name: String,
-    }
-
-    mod path {
-        pub mod to {
-            #[derive(utoipa::ToSchema)]
-            pub struct Foo;
-        }
-    }
-
-    #[utoipa::path(
-            post,
-            path = "/foo",
-            request_body = path::to::Foo,
-            responses(
-                (status = 200, description = "success response")
-            )
-        )]
-    fn post_foo() {}
-}
-
 #[test]
 fn derive_request_body_ref_path_success() {
     /// Some struct
@@ -494,11 +467,18 @@ fn derive_request_body_ref_path_success() {
         name: String,
     }
 
+    #[utoipa::path(
+            post,
+            path = "/foo",
+            request_body = Foo,
+            responses(
+                (status = 200, description = "success response")
+            )
+        )]
+    fn post_foo() {}
+
     #[derive(OpenApi, Default)]
-    #[openapi(
-        paths(derive_request_body_ref_path::post_foo),
-        components(schemas(Foo))
-    )]
+    #[openapi(paths(post_foo), components(schemas(Foo)))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
