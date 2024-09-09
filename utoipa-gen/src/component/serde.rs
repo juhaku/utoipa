@@ -504,7 +504,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = parse_container(attributes).expect("parse succes");
+        let result = parse_container(attributes).expect("parse success");
         assert_eq!(expected, result);
     }
 }

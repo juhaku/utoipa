@@ -108,7 +108,7 @@ impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
 impl ToTokensDiagnostics for RequestBody<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let mut actual_body = get_actual_body_type(&self.ty)
-            .expect("should have found actual requst body TypeTree")
+            .expect("should have found actual request body TypeTree")
             .clone();
 
         if let Some(option) = find_option_type_tree(&self.ty) {

@@ -61,7 +61,7 @@ use utoipa::openapi::HttpMethod;
 /// Extends [`utoipa::openapi::path::PathItem`] by providing conversion methods to convert this
 /// path item type to a [`axum::routing::MethodFilter`].
 pub trait PathItemExt {
-    /// Convert this path item type ot a [`axum::routing::MethodFilter`].
+    /// Convert this path item type to a [`axum::routing::MethodFilter`].
     ///
     /// Method filter is used with handler registration on [`axum::routing::MethodRouter`].
     fn to_method_filter(&self) -> MethodFilter;
@@ -89,7 +89,7 @@ pub use paste::paste;
 /// Collect axum handlers annotated with [`utoipa::path`] to [`router::UtoipaMethodRouter`].
 ///
 /// [`routes`] macro will return [`router::UtoipaMethodRouter`] which contains an
-/// [`axum::routing::MethodRouter`] and currenty registered paths. The output of this macro is
+/// [`axum::routing::MethodRouter`] and currently registered paths. The output of this macro is
 /// meant to be used together with [`router::OpenApiRouter`] which combines the paths and axum
 /// routers to a single entity.
 ///

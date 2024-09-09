@@ -30,7 +30,7 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
   hassle free.
 * **`debug-embed`** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
   builds as well.
-* **`reqwest`** Use `reqwest` for downloading Swagger UI accoring to the `SWAGGER_UI_DOWNLOAD_URL` environment
+* **`reqwest`** Use `reqwest` for downloading Swagger UI according to the `SWAGGER_UI_DOWNLOAD_URL` environment
   variable. This is only enabled by default on _Windows_.
 * **`url`** Enabled by default for parsing and encoding the download URL.
 * **`vendored`** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.

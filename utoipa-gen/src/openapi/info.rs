@@ -393,7 +393,7 @@ mod tests {
         let author = "";
         let contact = Contact::try_from(author.to_string()).unwrap();
 
-        assert!(contact.name.is_none(), "Contat name should be empty");
-        assert!(contact.email.is_none(), "Contat email should be empty");
+        assert!(contact.name.is_none(), "Contact name should be empty");
+        assert!(contact.email.is_none(), "Contact email should be empty");
     }
 }

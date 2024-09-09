@@ -6,7 +6,7 @@ set -eu -o pipefail
 
 version="${1:-""}"
 if [ -z "$version" ]; then
-	echo "Missing 'version' argument from commmand, run as $0 <version>" >&2 && exit 1
+	echo "Missing 'version' argument from command, run as $0 <version>" >&2 && exit 1
 fi
 zip_name="v$version.zip"
 
