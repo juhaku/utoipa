@@ -16,7 +16,7 @@ debug = []
 
 [dependencies]
 axum = { version = "0.7", default-features = false }
-utoipa = { version = "5.0.0-beta", path = "../utoipa", default-features = false }
+utoipa = { version = "5.0.0-beta", path = "../utoipa", default-features = false, features = ["macros"] }
 tower-service = "0.3"
 tower-layer = "0.3.2"
 paste = "1.0"
