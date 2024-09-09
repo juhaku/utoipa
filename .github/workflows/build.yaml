@@ -47,6 +47,10 @@ jobs:
       - name: Resolve changed paths
         id: changes
         run: |
+          if [[ $GITHUB_EVENT_NAME != "pull_request" ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           changes=false
           while read -r change; do
             if [[ "$change" == "utoipa-gen" && "${{ matrix.crate }}" == "utoipa-gen" && $changes == false ]]; then
