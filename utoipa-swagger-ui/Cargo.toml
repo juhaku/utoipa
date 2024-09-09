@@ -33,6 +33,7 @@ serde_json = { version = "1.0" }
 
 [dev-dependencies]
 similar = "2.5"
+utoipa-swagger-ui = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
 [package.metadata.docs.rs]
 features = ["actix-web", "axum", "rocket", "vendored"]

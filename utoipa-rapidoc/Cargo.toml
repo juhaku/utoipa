@@ -23,5 +23,8 @@ actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5", features = ["json"], optional = true }
 axum = { version = "0.7", default-features = false, features = ["json"], optional = true }
 
+[dev-dependencies]
+utoipa-rapidoc = { path = ".", features = ["actix-web", "axum", "rocket"] }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
