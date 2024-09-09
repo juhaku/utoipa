@@ -1,11 +1,9 @@
 //! Implements [OpenAPI Tag Object][tag] types.
 //!
 //! [tag]: https://spec.openapis.org/oas/latest.html#tag-object
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
-use super::{builder, external_docs::ExternalDocs, set_value};
+use super::{builder, extensions::Extensions, external_docs::ExternalDocs, set_value};
 
 builder! {
     TagBuilder;
@@ -33,7 +31,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -64,7 +62,7 @@ impl TagBuilder {
     }
 
     /// Add openapi extensions (x-something) to the tag.
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 }

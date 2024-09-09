@@ -1,14 +1,13 @@
 //! Implements [OpenAPI Path Object][paths] types.
 //!
 //! [paths]: https://spec.openapis.org/oas/latest.html#paths-object
-use std::collections::HashMap;
-
 use crate::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
     builder,
+    extensions::Extensions,
     request_body::RequestBody,
     response::{Response, Responses},
     security::SecurityRequirement,
@@ -39,7 +38,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -148,7 +147,7 @@ impl PathsBuilder {
     }
 
     /// Add extensions to the paths section.
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 
@@ -262,7 +261,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -377,7 +376,7 @@ impl PathItemBuilder {
     }
 
     /// Add openapi extensions (x-something) to this [`PathItem`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 }
@@ -495,7 +494,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -639,7 +638,7 @@ impl OperationBuilder {
     }
 
     /// Add openapi extensions (x-something) of the [`Operation`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 }
@@ -715,7 +714,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -789,7 +788,7 @@ impl ParameterBuilder {
     }
 
     /// Add openapi extensions (x-something) to the [`Parameter`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 }
