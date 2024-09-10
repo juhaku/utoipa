@@ -185,6 +185,7 @@ pub enum SecurityScheme {
     /// OpenApi 3.1 type
     #[serde(rename = "mutualTLS")]
     MutualTls {
+        #[allow(missing_docs)]
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
     },
@@ -343,6 +344,7 @@ impl HttpBuilder {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(rename_all = "lowercase")]
+#[allow(missing_docs)]
 pub enum HttpAuthScheme {
     Basic,
     Bearer,

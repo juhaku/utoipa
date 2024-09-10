@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+#![warn(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 //! Want to have your API documented with OpenAPI? But you don't want to see the
 //! trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
@@ -321,6 +323,8 @@ pub use utoipa_gen::*;
 /// ```
 /// [derive]: derive.OpenApi.html
 pub trait OpenApi {
+    /// Return the [`openapi::OpenApi`] instance which can be parsed with serde or served via
+    /// OpenAPI visualization tool such as Swagger UI.
     fn openapi() -> openapi::OpenApi;
 }
 
@@ -394,20 +398,14 @@ pub trait OpenApi {
 /// }
 /// ```
 pub trait ToSchema: PartialSchema {
-    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
-    /// name or inlined directly to responses, request bodies or parameters.
-    fn name() -> Cow<'static, str>;
-    // /// Return a tuple of name and schema or reference to a schema that can be referenced by the
-    // /// name or inlined directly to responses, request bodies or parameters.
-    // fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
-
-    /// Optional set of alias schemas for the [`PartialSchema::schema`].
+    /// Return name of the schema.
     ///
-    /// Typically there is no need to manually implement this method but it is instead implemented
-    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'static str, openapi::schema::Schema)> {
-        Vec::new()
-    }
+    /// Name is used by referencing objects to point to this schema object returned with
+    /// [`PartialSchema::schema`] within the OpenAPI document.
+    ///
+    /// In case a generic schema the _`name`_ will be used as prefix for the name in the OpenAPI
+    /// documentation.
+    fn name() -> Cow<'static, str>;
 }
 
 impl<T: ToSchema> From<T> for openapi::RefOr<openapi::schema::Schema> {
@@ -555,10 +553,13 @@ pub trait PartialSchema {
 #[rustfmt::skip]
 impl_partial_schema_primitive!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
-    // Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>,
-    // Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
-    // Option<String>, Option<&str>, Option<char>
 );
+
+impl<'a> ToSchema for &'a str {
+    fn name() -> Cow<'static, str> {
+        std::borrow::Cow::Borrowed("str")
+    }
+}
 
 impl_partial_schema!(&str);
 
@@ -801,10 +802,14 @@ impl<K: PartialSchema, V: ToSchema> PartialSchema for std::collections::HashMap<
 ///
 /// [derive]: attr.path.html
 pub trait Path {
+    /// List of HTTP methods this path operation is served at.
     fn methods() -> Vec<openapi::path::HttpMethod>;
 
+    /// The path this operation is served at.
     fn path() -> String;
 
+    /// [`openapi::path::Operation`] describing http operation details such as request bodies,
+    /// parameters and responses.
     fn operation() -> openapi::path::Operation;
 }
 
@@ -872,6 +877,11 @@ pub trait Path {
 ///
 /// [server]: https://spec.openapis.org/oas/latest.html#server-object
 pub trait Modify {
+    /// Apply mutation for [`openapi::OpenApi`] instance before it is returned by
+    /// [`openapi::OpenApi::openapi`] method call.
+    ///
+    /// This function allows users to run arbitrary code to change the generated
+    /// [`utoipa::OpenApi`] before it is served.
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
@@ -1047,8 +1057,11 @@ pub trait ToResponse<'__r> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum Number {
+    /// Signed integer e.g. `1` or `-2`
     Int(isize),
+    /// Unsigned integer value e.g. `0`. Unsigned integer cannot be below zero.
     UInt(usize),
+    /// Floating point number e.g. `1.34`
     Float(f64),
 }
 
@@ -1057,9 +1070,9 @@ impl Eq for Number {}
 impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Int(l0), Self::Int(r0)) => l0 == r0,
-            (Self::UInt(l0), Self::UInt(r0)) => l0 == r0,
-            (Self::Float(l0), Self::Float(r0)) => l0 == r0,
+            (Self::Int(left), Self::Int(right)) => left == right,
+            (Self::UInt(left), Self::UInt(right)) => left == right,
+            (Self::Float(left), Self::Float(right)) => left == right,
             _ => false,
         }
     }

@@ -134,24 +134,28 @@ impl ComponentsBuilder {
         self
     }
 
+    /// Add [`Schema`] to [`Components`].
+    ///
+    /// This is effectively same as calling [`ComponentsBuilder::schema`] but expects to be called
+    /// with one generic argument that implements [`ToSchema`][trait@ToSchema] trait.
+    ///
+    /// # Examples
+    ///
+    /// _**Add schema from `Value` type that derives `ToSchema`.**_
+    ///
+    /// ```rust
+    /// # use utoipa::{ToSchema, openapi::schema::ComponentsBuilder};
+    ///  #[derive(ToSchema)]
+    ///  struct Value(String);
+    ///  
+    ///  let _ = ComponentsBuilder::new().schema_from::<Value>().build();
+    /// ```
     pub fn schema_from<I: ToSchema>(mut self) -> Self {
-        let aliases = I::aliases();
+        let name = I::name();
+        let schema = I::schema();
+        self.schemas.insert(name.to_string(), schema);
 
-        // TODO this need to call similar to schema! macro call with inline always to get the full
-        // schema which then need to be composed with generic args of the schema!!!
-
-        // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
-        // Eventually aliases functionality should be extracted out from the `ToSchema`. Aliases
-        // are created when the main schema is a generic type which should be included in OpenAPI
-        // spec in its generic form.
-        if aliases.is_empty() {
-            let name = I::name();
-            let schema = I::schema();
-            // let (name, schema) = I::schema();
-            self.schemas.insert(name.to_string(), schema);
-        }
-
-        self.schemas_from_iter(aliases)
+        self
     }
 
     /// Add [`Schema`]s from iterator.
@@ -189,6 +193,10 @@ impl ComponentsBuilder {
         self
     }
 
+    /// Add [`struct@Response`] to [`Components`].
+    ///
+    /// Method accepts tow arguments; `name` of the reusable response and `response` which is the
+    /// reusable response itself.
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         name: S,
@@ -198,11 +206,20 @@ impl ComponentsBuilder {
         self
     }
 
+    /// Add [`struct@Response`] to [`Components`].
+    ///
+    /// This behaves the same way as [`ComponentsBuilder::schema_from`] but for responses. It
+    /// allows adding response from type implementing [`trait@ToResponse`] trait. Method is
+    /// expected to be called with one generic argument that implements the trait.
     pub fn response_from<'r, I: ToResponse<'r>>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }
 
+    /// Add multiple [`struct@Response`]s to [`Components`] from iterator.
+    ///
+    /// Like the [`ComponentsBuilder::schemas_from_iter`] this allows adding multiple responses by
+    /// any iterator what returns tuples of (name, response) values.
     pub fn responses_from_iter<
         I: IntoIterator<Item = (S, R)>,
         S: Into<String>,
@@ -1041,6 +1058,7 @@ impl ObjectBuilder {
         self
     }
 
+    /// Add additional [`Schema`] for non specified fields (Useful for typed maps).
     pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
         mut self,
         additional_properties: Option<I>,
@@ -1613,11 +1631,13 @@ impl From<ArrayBuilder> for RefOr<Schema> {
 
 impl ToArray for Array {}
 
+/// This convenience trait allows quick way to wrap any `RefOr<Schema>` with [`Array`] schema.
 pub trait ToArray
 where
     RefOr<Schema>: From<Self>,
     Self: Sized,
 {
+    /// Wrap this `RefOr<Schema>` with [`Array`].
     fn to_array(self) -> Array {
         Array::new(self)
     }

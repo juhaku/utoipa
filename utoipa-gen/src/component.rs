@@ -16,12 +16,11 @@ use crate::{
 };
 use crate::{schema_type::SchemaType, Deprecated};
 
-use self::features::attributes::{As, Description, Nullable};
+use self::features::attributes::{Description, Nullable};
 use self::features::validation::Minimum;
 use self::features::{
     pop_feature, Feature, FeaturesExt, IntoInner, IsInline, ToTokensExt, Validatable,
 };
-use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};
 
 pub mod into_params;
@@ -334,24 +333,6 @@ impl<'t> TypeTree<'t> {
         is
     }
 
-    fn find_mut(&mut self, type_tree: &TypeTree) -> Option<&mut Self> {
-        let is = self
-            .path
-            .as_mut()
-            .map(|p| matches!(&type_tree.path, Some(path) if path.as_ref() == p.as_ref()))
-            .unwrap_or(false);
-
-        if is {
-            Some(self)
-        } else {
-            self.children.as_mut().and_then(|children| {
-                children
-                    .iter_mut()
-                    .find_map(|child| Self::find_mut(child, type_tree))
-            })
-        }
-    }
-
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
     pub fn is_object(&self) -> bool {
@@ -374,31 +355,8 @@ impl<'t> TypeTree<'t> {
         matches!(self.generic_type, Some(GenericType::Map))
     }
 
-    pub fn match_ident(&self, ident: &Ident) -> bool {
-        let Some(ref path) = self.path else {
-            return false;
-        };
-
-        let matches = path
-            .segments
-            .iter()
-            .last()
-            .map(|segment| &segment.ident == ident)
-            .unwrap_or_default();
-
-        matches
-            || self
-                .children
-                .iter()
-                .flatten()
-                .any(|child| child.match_ident(ident))
-    }
-
-    /// Get path type `Ident` and `Generics` of the `TypeTree` path value.
-    pub fn get_path_type_and_generics(
-        &self,
-        generic_arguments: GenericArguments,
-    ) -> syn::Result<(&Ident, Generics)> {
+    /// Get [`syn::Generics`] for current [`TypeTree`]'s [`syn::Path`].
+    pub fn get_path_generics(&self) -> syn::Result<Generics> {
         let mut generics = Generics::default();
         let segment = self
             .path
@@ -408,10 +366,7 @@ impl<'t> TypeTree<'t> {
             .last()
             .expect("Path must have segments");
 
-        fn type_to_generic_params(
-            ty: &Type,
-            generic_arguments: &GenericArguments,
-        ) -> Vec<GenericParam> {
+        fn type_to_generic_params(ty: &Type) -> Vec<GenericParam> {
             match &ty {
                 Type::Path(path) => {
                     let mut params_vec: Vec<GenericParam> = Vec::new();
@@ -423,38 +378,22 @@ impl<'t> TypeTree<'t> {
                     let ident = &last_segment.ident;
                     params_vec.push(syn::parse_quote!(#ident));
 
-                    if matches!(generic_arguments, GenericArguments::All) {
-                        // we are only interested of angle bracket arguments
-                        if let PathArguments::AngleBracketed(ref args) = last_segment.arguments {
-                            params_vec.extend(angle_bracket_args_to_params(args, generic_arguments))
-                        }
-                    }
                     params_vec
                 }
-                Type::Reference(reference) => {
-                    type_to_generic_params(reference.elem.as_ref(), generic_arguments)
-                }
+                Type::Reference(reference) => type_to_generic_params(reference.elem.as_ref()),
                 _ => Vec::new(),
             }
         }
 
-        fn angle_bracket_args_to_params<'a>(
-            args: &'a AngleBracketedGenericArguments,
-            generic_arguments: &'a GenericArguments,
-        ) -> impl Iterator<Item = GenericParam> + 'a {
+        fn angle_bracket_args_to_params(
+            args: &AngleBracketedGenericArguments,
+        ) -> impl Iterator<Item = GenericParam> + '_ {
             args.args
                 .iter()
                 .filter_map(move |generic_argument| {
                     match generic_argument {
-                        GenericArgument::Type(ty) => {
-                            Some(type_to_generic_params(ty, generic_arguments))
-                        }
-                        GenericArgument::Lifetime(life)
-                            if matches!(
-                                generic_arguments,
-                                GenericArguments::CurrentTypeOnly | GenericArguments::All
-                            ) =>
-                        {
+                        GenericArgument::Type(ty) => Some(type_to_generic_params(ty)),
+                        GenericArgument::Lifetime(life) => {
                             Some(vec![GenericParam::Lifetime(syn::parse_quote!(#life))])
                         }
                         _ => None, // other wise ignore
@@ -465,20 +404,12 @@ impl<'t> TypeTree<'t> {
 
         if let PathArguments::AngleBracketed(angle_bracketed_args) = &segment.arguments {
             generics.lt_token = Some(angle_bracketed_args.lt_token);
-            generics.params =
-                angle_bracket_args_to_params(angle_bracketed_args, &generic_arguments).collect();
+            generics.params = angle_bracket_args_to_params(angle_bracketed_args).collect();
             generics.gt_token = Some(angle_bracketed_args.gt_token);
         };
 
-        Ok((&segment.ident, generics))
+        Ok(generics)
     }
-}
-
-#[allow(unused)]
-pub enum GenericArguments {
-    All,
-    CurrentTypeOnly,
-    CurrentOnlyNoLifetimes,
 }
 
 impl PartialEq for TypeTree<'_> {
@@ -585,7 +516,6 @@ impl Rename for FieldRename {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Container<'c> {
-    pub ident: &'c Ident,
     pub generics: &'c Generics,
 }
 

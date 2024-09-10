@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
@@ -25,7 +25,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    Array, Diagnostics, GenericsExt, OptionExt, Required, ToTokensDiagnostics,
+    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -461,7 +461,6 @@ impl ToTokensDiagnostics for Param<'_> {
                 description: None,
                 deprecated: None,
                 container: &Container {
-                    ident: &Ident::new("empty_param", Span::call_site()),
                     generics: self.generics,
                 },
             })?;

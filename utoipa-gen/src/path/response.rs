@@ -294,7 +294,6 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                                 description: None,
                                 deprecated: None,
                                 container: &Container {
-                                    ident: &Ident::new("empty_repopnse_tuple", Span::call_site()),
                                     generics: &Generics::default(),
                                 },
                             })?
@@ -869,7 +868,6 @@ impl ToTokensDiagnostics for Header {
                 description: None,
                 deprecated: None,
                 container: &Container {
-                    ident: &Ident::new("empty_header", Span::call_site()),
                     generics: &Generics::default(),
                 },
             })?

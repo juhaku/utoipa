@@ -28,7 +28,7 @@ macro_rules! api_doc {
         #[openapi(paths($module::get_foo))]
         struct ApiDoc;
 
-        let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+        let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
         doc.pointer("/paths/~1foo/get")
             .unwrap_or(&serde_json::Value::Null)
             .clone()
@@ -364,7 +364,7 @@ fn derive_path_with_multiple_responses_via_content_attribute() {
     #[openapi(paths(get_item), components(schemas(User, User2)))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
@@ -424,7 +424,7 @@ fn derive_path_with_multiple_examples() {
     #[openapi(paths(get_item), components(schemas(User)))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
@@ -502,7 +502,7 @@ fn derive_path_with_multiple_responses_with_multiple_examples() {
     #[openapi(paths(get_item), components(schemas(User, User2)))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
@@ -568,7 +568,7 @@ fn path_response_with_external_ref() {
     #[openapi(paths(get_item))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(
@@ -611,7 +611,7 @@ fn path_response_with_inline_ref_type() {
     #[openapi(paths(get_item), components(schemas(User)))]
     struct ApiDoc;
 
-    let doc = serde_json::to_value(&ApiDoc::openapi()).unwrap();
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
 
     assert_json_eq!(

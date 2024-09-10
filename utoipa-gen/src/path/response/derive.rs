@@ -8,8 +8,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::{
-    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr,
-    ParenthesizedGenericArguments, Path, Type, TypePath, Variant,
+    Attribute, Data, Field, Fields, Generics, Lifetime, LifetimeParam, LitStr, Path, Type,
+    TypePath, Variant,
 };
 
 use crate::component::schema::{EnumSchema, NamedStructSchema, Parent};
@@ -350,7 +350,6 @@ impl NamedStructResponse<'_> {
                 generics: &Generics::default(),
             },
             fields,
-            aliases: None,
             description: None,
             features: None,
             rename_all: None,
@@ -438,7 +437,6 @@ impl<'p> ToResponseNamedStructResponse<'p> {
                 attributes,
                 generics: &Generics::default(),
             },
-            aliases: None,
             description: None,
             fields,
             features: None,

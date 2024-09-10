@@ -150,11 +150,9 @@ impl Schema {
     fn get_component(&self) -> Result<ComponentSchema, Diagnostics> {
         let ty = syn::Type::Path(self.0.clone());
         let type_tree = TypeTree::from_type(&ty)?;
-        let (ident, generics) = type_tree
-            .get_path_type_and_generics(crate::component::GenericArguments::CurrentTypeOnly)?;
+        let generics = type_tree.get_path_generics()?;
 
         let container = Container {
-            ident,
             generics: &generics,
         };
         let component_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {

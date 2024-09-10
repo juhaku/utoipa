@@ -24,7 +24,6 @@ fn get_coord_schema<T: PartialSchema>() -> Object {
 }
 
 #[derive(Serialize, ToSchema)]
-#[aliases(MyFloatObject = MyObject<f64>, MyIntegerObject = MyObject<u64>)]
 pub struct MyObject<T: geo_types::CoordNum + PartialSchema> {
     #[schema(schema_with=get_coord_schema::<T>)]
     at: geo_types::Coord<T>,
@@ -45,7 +44,7 @@ pub struct FloatParams {
         FloatParams
     ),
     responses(
-        (status = 200, description = "OK", body = MyFloatObject),
+        (status = 200, description = "OK", body = MyObject<f64>),
     ),
     security(
         ("api_key" = [])
@@ -75,7 +74,7 @@ pub struct IntegerParams {
         IntegerParams,
     ),
     responses(
-        (status = 200, description = "OK", body = MyIntegerObject),
+        (status = 200, description = "OK", body = MyObject<u64>),
     ),
     security(
         ("api_key" = [])
@@ -99,7 +98,7 @@ async fn main() -> Result<(), impl Error> {
     #[derive(OpenApi)]
     #[openapi(
         paths(coord_f64, coord_u64),
-        components(schemas(MyFloatObject, MyIntegerObject))
+        components(schemas(MyObject<f64>, MyObject<u64>))
     )]
     struct ApiDoc;
 

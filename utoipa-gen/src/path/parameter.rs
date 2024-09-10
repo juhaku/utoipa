@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::Display};
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
@@ -185,7 +185,6 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             description: None,
                             deprecated: None,
                             container: &Container {
-                                ident: &Ident::new("empty_parameter_external", Span::call_site()),
                                 generics: &Generics::default(),
                             }
                         }
@@ -209,7 +208,6 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             description: None,
                             deprecated: None,
                             container: &Container {
-                                ident: &Ident::new("empty_parameter_parsed", Span::call_site()),
                                 generics: &Generics::default(),
                             }
                         }

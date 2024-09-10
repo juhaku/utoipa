@@ -46,6 +46,7 @@ builder! {
 }
 
 impl Content {
+    /// Construct a new [`Content`] object for provided _`schema`_.
     pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
         Self {
             schema: schema.into(),

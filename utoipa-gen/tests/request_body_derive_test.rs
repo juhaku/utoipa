@@ -475,6 +475,7 @@ fn derive_request_body_ref_path_success() {
                 (status = 200, description = "success response")
             )
         )]
+    #[allow(unused)]
     fn post_foo() {}
 
     #[derive(OpenApi, Default)]

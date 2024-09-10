@@ -65,7 +65,7 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[proc_macro_derive(ToSchema, attributes(schema, aliases))]
+#[proc_macro_derive(ToSchema, attributes(schema))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].
 ///
@@ -182,7 +182,7 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
@@ -209,7 +209,7 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
@@ -441,7 +441,7 @@ use self::{
 ///  }
 /// ```
 /// When generic types are registered to the `OpenApi` the full type declaration must be provided.
-/// See the full example in test [schema_generic.rs](https://github.com/juhaku/utoipa/blob/master/utoipa-gen/tests/schema_generics.rs)
+/// See the full example in test [schema_generics.rs](https://github.com/juhaku/utoipa/blob/master/utoipa-gen/tests/schema_generics.rs)
 ///
 /// # Examples
 ///
@@ -699,10 +699,10 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
         ident,
         data,
         generics,
-        vis,
+        ..
     } = syn::parse_macro_input!(input);
 
-    Schema::new(&data, &attrs, &ident, &generics, &vis)
+    Schema::new(&data, &attrs, &ident, &generics)
         .as_ref()
         .map_or_else(Diagnostics::to_token_stream, Schema::to_token_stream)
         .into()
@@ -1827,7 +1827,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 ///
@@ -2601,11 +2601,10 @@ pub fn schema(input: TokenStream) -> TokenStream {
         Err(diagnostics) => return diagnostics.into_token_stream().into(),
     };
 
-    let (ident, generics) =
-        match type_tree.get_path_type_and_generics(component::GenericArguments::CurrentTypeOnly) {
-            Ok(type_and_generics) => type_and_generics,
-            Err(error) => return error.into_compile_error().into(),
-        };
+    let generics = match type_tree.get_path_generics() {
+        Ok(generics) => generics,
+        Err(error) => return error.into_compile_error().into(),
+    };
 
     let schema = ComponentSchema::new(ComponentSchemaProps {
         features: Some(vec![Feature::Inline(schema.inline.into())]),
@@ -2613,7 +2612,6 @@ pub fn schema(input: TokenStream) -> TokenStream {
         deprecated: None,
         description: None,
         container: &component::Container {
-            ident,
             generics: &generics,
         },
     });
@@ -2943,19 +2941,11 @@ impl<T> OptionExt<T> for Option<T> {
 }
 
 trait GenericsExt {
-    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool;
     /// Get index of `GenericParam::Type` ignoring other generic param types.
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
 impl<'g> GenericsExt for &'g syn::Generics {
-    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool {
-        self.params.iter().any(|generic| match generic {
-            syn::GenericParam::Type(generic_type) => type_tree.match_ident(&generic_type.ident),
-            _ => false,
-        })
-    }
-
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
         let ident = &type_tree
             .path

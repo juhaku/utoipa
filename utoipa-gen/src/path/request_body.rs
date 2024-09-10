@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
@@ -170,7 +170,6 @@ impl ToTokensDiagnostics for RequestBodyAttr<'_> {
                         description: None,
                         deprecated: None,
                         container: &Container {
-                            ident: &Ident::new("empty_request_body", Span::call_site()),
                             generics: &Generics::default(),
                         },
                     })?

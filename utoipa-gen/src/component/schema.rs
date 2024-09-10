@@ -1,19 +1,17 @@
 use std::borrow::{Borrow, Cow};
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use syn::{
-    parse::Parse, parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute,
-    Constraint, Data, Field, Fields, FieldsNamed, FieldsUnnamed, GenericArgument, GenericParam,
-    Generics, Lifetime, LifetimeParam, Path, PathArguments, Token, Type, TypeParam, Variant,
-    Visibility,
+    punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field, Fields,
+    FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Variant,
 };
 
 use crate::{
     as_tokens_or_diagnostics,
     component::features::attributes::{Example, Rename, ValueType},
     doc_comment::CommentAttributes,
-    Array, Deprecated, Diagnostics, GenericsExt, OptionExt, ToTokensDiagnostics,
+    Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use self::{
@@ -47,40 +45,27 @@ pub struct Parent<'p> {
     pub ident: &'p Ident,
     pub generics: &'p Generics,
     pub attributes: &'p [Attribute],
-    // type_tree: &'p TypeTree<'p>,
 }
 
 pub struct Schema<'a> {
     ident: &'a Ident,
     attributes: &'a [Attribute],
     generics: &'a Generics,
-    aliases: Option<Punctuated<AliasSchema, Comma>>,
     data: &'a Data,
-    vis: &'a Visibility,
 }
 
 impl<'a> Schema<'a> {
-    const TO_SCHEMA_LIFETIME: &'static str = "'__s";
     pub fn new(
         data: &'a Data,
         attributes: &'a [Attribute],
         ident: &'a Ident,
         generics: &'a Generics,
-        vis: &'a Visibility,
     ) -> Result<Self, Diagnostics> {
-        let aliases = if generics.type_params().count() > 0 {
-            parse_aliases(attributes)?
-        } else {
-            None
-        };
-
         Ok(Self {
             data,
             ident,
             attributes,
             generics,
-            aliases,
-            vis,
         })
     }
 }
@@ -88,99 +73,20 @@ impl<'a> Schema<'a> {
 impl ToTokensDiagnostics for Schema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let ident = self.ident;
-        let (_, ty_generics, where_clause) = self.generics.split_for_impl();
-
-        let schema_ty: Type = parse_quote!(#ident #ty_generics);
-        let schema_type_tree = TypeTree::from_type(&schema_ty)?;
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let parent = Parent {
             ident,
             generics: self.generics,
             attributes: self.attributes,
-            // type_tree: &schema_type_tree,
         };
-        let variant = SchemaVariant::new(self.data, &parent, None::<Vec<(TypeTree, &TypeTree)>>)?;
-        let life = &Lifetime::new(Schema::TO_SCHEMA_LIFETIME, Span::call_site());
-
-        // TODO remove this duplicate TypeTree::from_type(...) thing once complete
-        let schema_children = &*TypeTree::from_type(&schema_ty)?
-            .children
-            .unwrap_or_default();
-
-        let aliases = self.aliases.as_ref().map_try(|aliases| {
-            let alias_schemas = aliases
-                .iter()
-                .map(|alias| {
-                    let name = &*alias.name;
-                    let alias_type_tree = TypeTree::from_type(&alias.ty);
-
-                    // TODO remove this duplicate TypeTree::from_type(...) thing once complete
-                    SchemaVariant::new(
-                        self.data,
-                        &Parent {
-                            ident,
-                            generics: &Generics::default(),
-                            attributes: self.attributes,
-                            // type_tree: &TypeTree::from_type(&alias.ty)?,
-                        },
-                        alias_type_tree?
-                            .children
-                            .map(|children| children.into_iter().zip(schema_children)),
-                    )
-                    .and_then(|variant| {
-                        let mut alias_tokens = TokenStream::new();
-                        match variant.to_tokens(&mut alias_tokens) {
-                            Ok(_) => Ok(quote! { (#name, #alias_tokens.into()) }),
-                            Err(diagnostics) => Err(diagnostics),
-                        }
-                    })
-                })
-                .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
-
-            Result::<TokenStream, Diagnostics>::Ok(quote! {
-                fn aliases() -> Vec<(&'static str, utoipa::openapi::schema::Schema)> {
-                    #alias_schemas.to_vec()
-                }
-            })
-        })?;
-
-        let type_aliases = self.aliases.as_ref().map_try(|aliases| {
-            aliases
-                .iter()
-                .map(|alias| {
-                    let name = quote::format_ident!("{}", alias.name);
-                    let ty = &alias.ty;
-                    let vis = self.vis;
-                    let name_generics = alias.get_lifetimes()?.fold(
-                        Punctuated::<&GenericArgument, Comma>::new(),
-                        |mut acc, lifetime| {
-                            acc.push(lifetime);
-                            acc
-                        },
-                    );
-
-                    Ok(quote! {
-                        #vis type #name < #name_generics > = #ty;
-                    })
-                })
-                .collect::<Result<TokenStream, Diagnostics>>()
-        })?;
+        let variant = SchemaVariant::new(self.data, &parent)?;
 
         let name = if let Some(schema_as) = variant.get_schema_as() {
             format_path_ref(&schema_as.0.path)
         } else {
             ident.to_string()
         };
-
-        let schema_lifetime: GenericParam = LifetimeParam::new(life.clone()).into();
-        let schema_generics = Generics {
-            params: [schema_lifetime.clone()].into_iter().collect(),
-            ..Default::default()
-        };
-
-        // let mut impl_generics = self.generics.clone();
-        // impl_generics.params.push(schema_lifetime);
-        let (impl_generics, _, _) = self.generics.split_for_impl();
 
         let mut variant_tokens = TokenStream::new();
         variant.to_tokens(&mut variant_tokens)?;
@@ -198,11 +104,7 @@ impl ToTokensDiagnostics for Schema<'_> {
                 fn name() -> std::borrow::Cow<'static, str> {
                     std::borrow::Cow::Borrowed(#name)
                 }
-
-                #aliases
             }
-
-            #type_aliases
         });
         Ok(())
     }
@@ -217,11 +119,7 @@ enum SchemaVariant<'a> {
 }
 
 impl<'a> SchemaVariant<'a> {
-    pub fn new<I: IntoIterator<Item = (TypeTree<'a>, &'a TypeTree<'a>)>>(
-        data: &'a Data,
-        parent: &'a Parent<'a>,
-        aliases: Option<I>,
-    ) -> Result<SchemaVariant<'a>, Diagnostics> {
+    pub fn new(data: &'a Data, parent: &'a Parent<'a>) -> Result<SchemaVariant<'a>, Diagnostics> {
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
@@ -259,7 +157,6 @@ impl<'a> SchemaVariant<'a> {
                         features: named_features,
                         fields: named,
                         schema_as,
-                        aliases: aliases.map(|aliases| aliases.into_iter().collect()),
                     }))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
@@ -314,7 +211,6 @@ pub struct NamedStructSchema<'a> {
     pub description: Option<Description>,
     pub features: Option<Vec<Feature>>,
     pub rename_all: Option<RenameAll>,
-    pub aliases: Option<Vec<(TypeTree<'a>, &'a TypeTree<'a>)>>,
     pub schema_as: Option<As>,
 }
 
@@ -334,13 +230,6 @@ impl NamedStructSchema<'_> {
         container_rules: &SerdeContainer,
     ) -> Result<NamedStructFieldOptions<'_>, Diagnostics> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
-        if let Some(aliases) = &self.aliases {
-            for (new_generic, old_generic_matcher) in aliases.iter() {
-                if let Some(generic_match) = type_tree.find_mut(old_generic_matcher) {
-                    *generic_match = new_generic.clone();
-                }
-            }
-        }
 
         let mut field_features = field
             .attrs
@@ -410,7 +299,6 @@ impl NamedStructSchema<'_> {
                     description: Some(description),
                     deprecated: deprecated.as_ref(),
                     container: &super::Container {
-                        ident: self.parent.ident,
                         generics: self.parent.generics,
                     },
                 };
@@ -675,8 +563,7 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                     description: description.as_ref(),
                     deprecated: deprecated.as_ref(),
                     container: &super::Container {
-                        ident: &self.parent.ident,
-                        generics: &self.parent.generics,
+                        generics: self.parent.generics,
                     },
                 })?
                 .to_token_stream(),
@@ -1130,13 +1017,11 @@ impl ComplexEnum<'_> {
                             ident: self.parent.ident,
                             attributes: &variant.attrs,
                             generics: self.parent.generics,
-                            // type_tree: self.parent.type_tree,
                         },
                         description: None,
                         rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                         features: Some(named_struct_features),
                         fields: &named_fields.named,
-                        aliases: None,
                         schema_as: None,
                     }),
                 }))
@@ -1169,7 +1054,6 @@ impl ComplexEnum<'_> {
                             ident: self.parent.ident,
                             attributes: &variant.attrs,
                             generics: self.parent.generics,
-                            // type_tree: self.parent.type_tree,
                         },
                         description: None,
                         features: Some(unnamed_struct_features),
@@ -1239,13 +1123,11 @@ impl ComplexEnum<'_> {
                         ident: self.parent.ident,
                         attributes: &variant.attrs,
                         generics: self.parent.generics,
-                        // type_tree: self.parent.type_tree,
                     },
                     description: None,
                     rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
-                    aliases: None,
                     schema_as: None,
                 }))
             }
@@ -1261,7 +1143,6 @@ impl ComplexEnum<'_> {
                         ident: self.parent.ident,
                         attributes: &variant.attrs,
                         generics: self.parent.generics,
-                        // type_tree: self.parent.type_tree,
                     },
                     description: None,
                     features: Some(unnamed_struct_features),
@@ -1314,13 +1195,11 @@ impl ComplexEnum<'_> {
                         ident: self.parent.ident,
                         attributes: &variant.attrs,
                         generics: self.parent.generics,
-                        // type_tree: self.parent.type_tree,
                     },
                     description: None,
                     rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
-                    aliases: None,
                     schema_as: None,
                 };
                 let named_enum_tokens = as_tokens_or_diagnostics!(&named_enum);
@@ -1361,7 +1240,6 @@ impl ComplexEnum<'_> {
                             ident: self.parent.ident,
                             attributes: &variant.attrs,
                             generics: self.parent.generics,
-                            // type_tree: self.parent.type_tree,
                         },
                         description: None,
                         features: Some(unnamed_struct_features),
@@ -1485,13 +1363,11 @@ impl ComplexEnum<'_> {
                         ident: self.parent.ident,
                         attributes: &variant.attrs,
                         generics: self.parent.generics,
-                        // type_tree: self.parent.type_tree,
                     },
                     description: None,
                     rename_all: pop_feature!(named_struct_features => Feature::RenameAll(_) as Option<RenameAll>),
                     features: Some(named_struct_features),
                     fields: &named_fields.named,
-                    aliases: None,
                     schema_as: None,
                 };
                 let named_enum_tokens = as_tokens_or_diagnostics!(&named_enum);
@@ -1535,7 +1411,6 @@ impl ComplexEnum<'_> {
                             ident: self.parent.ident,
                             attributes: &variant.attrs,
                             generics: self.parent.generics,
-                            // type_tree: self.parent.type_tree,
                         },
                         description: None,
                         features: Some(unnamed_struct_features),
@@ -1735,67 +1610,4 @@ fn is_not_skipped(rule: &SerdeValue) -> bool {
 #[inline]
 fn is_flatten(rule: &SerdeValue) -> bool {
     rule.flatten
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct AliasSchema {
-    pub name: String,
-    pub ty: Type,
-}
-
-impl AliasSchema {
-    fn get_lifetimes(&self) -> Result<impl Iterator<Item = &GenericArgument>, Diagnostics> {
-        fn lifetimes_from_type(
-            ty: &Type,
-        ) -> Result<impl Iterator<Item = &GenericArgument>, Diagnostics> {
-            match ty {
-                Type::Path(type_path) => Ok(type_path
-                    .path
-                    .segments
-                    .iter()
-                    .flat_map(|segment| match &segment.arguments {
-                        PathArguments::AngleBracketed(angle_bracketed_args) => {
-                            Some(angle_bracketed_args.args.iter())
-                        }
-                        _ => None,
-                    })
-                    .flatten()
-                    .flat_map(|arg| match arg {
-                        GenericArgument::Type(type_argument) => {
-                            lifetimes_from_type(type_argument).map(|iter| iter.collect::<Vec<_>>())
-                        }
-                        _ => Ok(vec![arg]),
-                    })
-                    .flat_map(|args| args.into_iter().filter(|generic_arg| matches!(generic_arg, syn::GenericArgument::Lifetime(lifetime) if lifetime.ident != "'static"))),
-                    ),
-                _ => Err(Diagnostics::with_span(ty.span(), "AliasSchema `get_lifetimes` only supports syn::TypePath types"))
-            }
-        }
-
-        lifetimes_from_type(&self.ty)
-    }
-}
-
-impl Parse for AliasSchema {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name = input.parse::<Ident>()?;
-        input.parse::<Token![=]>()?;
-
-        Ok(Self {
-            name: name.to_string(),
-            ty: input.parse::<Type>()?,
-        })
-    }
-}
-
-fn parse_aliases(
-    attributes: &[Attribute],
-) -> Result<Option<Punctuated<AliasSchema, Comma>>, Diagnostics> {
-    attributes
-        .iter()
-        .find(|attribute| attribute.path().is_ident("aliases"))
-        .map_try(|aliases| {
-            aliases.parse_args_with(Punctuated::<AliasSchema, Comma>::parse_terminated)
-        })
-        .map_err(Into::into)
 }

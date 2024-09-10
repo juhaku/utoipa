@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{parse_quote, Generics};
@@ -137,7 +137,6 @@ impl ToTokensDiagnostics for RequestBody<'_> {
                 description: None,
                 deprecated: None,
                 container: &Container {
-                    ident: &Ident::new("empty_request_body", Span::call_site()),
                     generics: &Generics::default(),
                 }
             })?);
