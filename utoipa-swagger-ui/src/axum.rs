@@ -44,13 +44,9 @@ where
 
         let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config)));
         let path: &str = swagger_ui.path.as_ref();
-        let slash_path = format!("{}/", path);
 
         router
-            .route(
-                path,
-                routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
-            )
+            .route(path, handler.clone())
             .route(&format!("{}/", path), handler.clone())
             .route(&format!("{}/*rest", path), handler)
     }
