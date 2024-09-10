@@ -21,6 +21,9 @@ tower-service = "0.3"
 tower-layer = "0.3.2"
 paste = "1.0"
 
+[dev-dependencies]
+utoipa = { path = "../utoipa", features = ["debug"] }
+
 [package.metadata.docs.rs]
 features = []
 rustdoc-args = ["--cfg", "doc_cfg"]

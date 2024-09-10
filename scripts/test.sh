@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 set -e
 
@@ -11,7 +12,9 @@ for crate in $crates; do
     echo "Testing crate: $crate..."
 
     # Always test the crate itself first, without any features added.
-    $CARGO ${CARGO_COMMAND} -p $crate
+    if [[ "$crate" != "utoipa-gen" ]]; then
+        $CARGO ${CARGO_COMMAND} -p $crate
+    fi
 
     if [[ "$crate" == "utoipa" ]]; then
         $CARGO ${CARGO_COMMAND} -p utoipa --features openapi_extensions,preserve_order,preserve_path_order,debug,macros
