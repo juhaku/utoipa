@@ -25,7 +25,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    Array, Diagnostics, GenericsExt, OptionExt, Required, ToTokensDiagnostics,
+    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -34,7 +34,7 @@ use super::{
         Merge, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
-    ComponentSchema, TypeTree,
+    ComponentSchema, Container, TypeTree,
 };
 
 impl_merge!(IntoParamsFeatures, FieldFeatures);
@@ -460,8 +460,9 @@ impl ToTokensDiagnostics for Param<'_> {
                 features: Some(schema_features),
                 description: None,
                 deprecated: None,
-                object_name: "",
-                is_generics_type_arg: self.generics.any_match_type_tree(&component),
+                container: &Container {
+                    generics: self.generics,
+                },
             })?;
             let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
 

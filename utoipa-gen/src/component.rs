@@ -3,11 +3,17 @@ use std::borrow::Cow;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
-use syn::{Attribute, GenericArgument, Path, PathArguments, PathSegment, Type, TypePath};
+use syn::{
+    AngleBracketedGenericArguments, Attribute, GenericArgument, GenericParam, Generics, Path,
+    PathArguments, PathSegment, Type, TypePath,
+};
 
 use crate::doc_comment::CommentAttributes;
 use crate::schema_type::{SchemaFormat, SchemaTypeInner};
-use crate::{as_tokens_or_diagnostics, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics};
+use crate::{
+    as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
+    ToTokensDiagnostics,
+};
 use crate::{schema_type::SchemaType, Deprecated};
 
 use self::features::attributes::{Description, Nullable};
@@ -15,7 +21,6 @@ use self::features::validation::Minimum;
 use self::features::{
     pop_feature, Feature, FeaturesExt, IntoInner, IsInline, ToTokensExt, Validatable,
 };
-use self::schema::format_path_ref;
 use self::serde::{RenameRule, SerdeContainer, SerdeValue};
 
 pub mod into_params;
@@ -328,24 +333,6 @@ impl<'t> TypeTree<'t> {
         is
     }
 
-    fn find_mut(&mut self, type_tree: &TypeTree) -> Option<&mut Self> {
-        let is = self
-            .path
-            .as_mut()
-            .map(|p| matches!(&type_tree.path, Some(path) if path.as_ref() == p.as_ref()))
-            .unwrap_or(false);
-
-        if is {
-            Some(self)
-        } else {
-            self.children.as_mut().and_then(|children| {
-                children
-                    .iter_mut()
-                    .find_map(|child| Self::find_mut(child, type_tree))
-            })
-        }
-    }
-
     /// `Object` virtual type is used when generic object is required in OpenAPI spec. Typically used
     /// with `value_type` attribute to hinder the actual type.
     pub fn is_object(&self) -> bool {
@@ -368,24 +355,60 @@ impl<'t> TypeTree<'t> {
         matches!(self.generic_type, Some(GenericType::Map))
     }
 
-    pub fn match_ident(&self, ident: &Ident) -> bool {
-        let Some(ref path) = self.path else {
-            return false;
+    /// Get [`syn::Generics`] for current [`TypeTree`]'s [`syn::Path`].
+    pub fn get_path_generics(&self) -> syn::Result<Generics> {
+        let mut generics = Generics::default();
+        let segment = self
+            .path
+            .as_ref()
+            .ok_or_else(|| syn::Error::new(self.path.span(), "cannot get TypeTree::path, did you call this on `tuple` or `unit` type type tree?"))?
+            .segments
+            .last()
+            .expect("Path must have segments");
+
+        fn type_to_generic_params(ty: &Type) -> Vec<GenericParam> {
+            match &ty {
+                Type::Path(path) => {
+                    let mut params_vec: Vec<GenericParam> = Vec::new();
+                    let last_segment = path
+                        .path
+                        .segments
+                        .last()
+                        .expect("TypePath must have a segment");
+                    let ident = &last_segment.ident;
+                    params_vec.push(syn::parse_quote!(#ident));
+
+                    params_vec
+                }
+                Type::Reference(reference) => type_to_generic_params(reference.elem.as_ref()),
+                _ => Vec::new(),
+            }
+        }
+
+        fn angle_bracket_args_to_params(
+            args: &AngleBracketedGenericArguments,
+        ) -> impl Iterator<Item = GenericParam> + '_ {
+            args.args
+                .iter()
+                .filter_map(move |generic_argument| {
+                    match generic_argument {
+                        GenericArgument::Type(ty) => Some(type_to_generic_params(ty)),
+                        GenericArgument::Lifetime(life) => {
+                            Some(vec![GenericParam::Lifetime(syn::parse_quote!(#life))])
+                        }
+                        _ => None, // other wise ignore
+                    }
+                })
+                .flatten()
+        }
+
+        if let PathArguments::AngleBracketed(angle_bracketed_args) = &segment.arguments {
+            generics.lt_token = Some(angle_bracketed_args.lt_token);
+            generics.params = angle_bracket_args_to_params(angle_bracketed_args).collect();
+            generics.gt_token = Some(angle_bracketed_args.gt_token);
         };
 
-        let matches = path
-            .segments
-            .iter()
-            .last()
-            .map(|segment| &segment.ident == ident)
-            .unwrap_or_default();
-
-        matches
-            || self
-                .children
-                .iter()
-                .flatten()
-                .any(|child| child.match_ident(ident))
+        Ok(generics)
     }
 }
 
@@ -492,13 +515,17 @@ impl Rename for FieldRename {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Container<'c> {
+    pub generics: &'c Generics,
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentSchemaProps<'c> {
+    pub container: &'c Container<'c>,
     pub type_tree: &'c TypeTree<'c>,
     pub features: Option<Vec<Feature>>,
-    pub(crate) description: Option<&'c ComponentDescription<'c>>,
-    pub(crate) deprecated: Option<&'c Deprecated>,
-    pub object_name: &'c str,
-    pub is_generics_type_arg: bool,
+    pub description: Option<&'c ComponentDescription<'c>>,
+    pub deprecated: Option<&'c Deprecated>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -531,53 +558,51 @@ impl ToTokens for ComponentDescription<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentSchema {
     tokens: TokenStream,
+    pub name_tokens: TokenStream,
 }
 
 impl<'c> ComponentSchema {
     pub fn new(
         ComponentSchemaProps {
+            container,
             type_tree,
             features,
             description,
             deprecated,
-            object_name,
-            is_generics_type_arg,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
         let mut features = features.unwrap_or(Vec::new());
         let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
+        let mut name_tokens = TokenStream::new();
 
         match type_tree.generic_type {
             Some(GenericType::Map) => ComponentSchema::map_to_tokens(
                 &mut tokens,
+                container,
                 features,
                 type_tree,
-                object_name,
                 description,
                 deprecated_stream,
-                is_generics_type_arg,
             )?,
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 ComponentSchema::vec_to_tokens(
                     &mut tokens,
+                    container,
                     features,
                     type_tree,
-                    object_name,
                     description,
                     deprecated_stream,
-                    is_generics_type_arg,
                 )?
             }
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
+                container,
                 features,
                 type_tree,
-                object_name,
                 description,
                 deprecated_stream,
-                is_generics_type_arg,
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -589,6 +614,7 @@ impl<'c> ComponentSchema {
                 }
 
                 ComponentSchema::new(ComponentSchemaProps {
+                    container,
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -599,13 +625,12 @@ impl<'c> ComponentSchema {
                     features: Some(features),
                     description,
                     deprecated,
-                    object_name,
-                    is_generics_type_arg,
                 })?
                 .to_tokens(&mut tokens)?;
             }
             Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
                 ComponentSchema::new(ComponentSchemaProps {
+                    container,
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -616,14 +641,13 @@ impl<'c> ComponentSchema {
                     features: Some(features),
                     description,
                     deprecated,
-                    object_name,
-                    is_generics_type_arg,
                 })?
                 .to_tokens(&mut tokens)?;
             }
             #[cfg(feature = "rc_schema")]
             Some(GenericType::Arc) | Some(GenericType::Rc) => {
                 ComponentSchema::new(ComponentSchemaProps {
+                    container,
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -634,23 +658,24 @@ impl<'c> ComponentSchema {
                     features: Some(features),
                     description,
                     deprecated,
-                    object_name,
-                    is_generics_type_arg,
                 })?
                 .to_tokens(&mut tokens)?;
             }
             None => ComponentSchema::non_generic_to_tokens(
                 &mut tokens,
+                &mut name_tokens,
+                container,
                 features,
                 type_tree,
-                object_name,
                 description,
                 deprecated_stream,
-                is_generics_type_arg,
             )?,
         };
 
-        Ok(Self { tokens })
+        Ok(Self {
+            tokens,
+            name_tokens,
+        })
     }
 
     /// Create `.schema_type(...)` override token stream if nullable is true from given [`SchemaTypeInner`].
@@ -676,12 +701,11 @@ impl<'c> ComponentSchema {
 
     fn map_to_tokens(
         tokens: &mut TokenStream,
+        container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
-        object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
-        is_generics_type_arg: bool,
     ) -> Result<(), Diagnostics> {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
@@ -699,6 +723,7 @@ impl<'c> ComponentSchema {
                 // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
                 let schema_property = ComponentSchema::new(ComponentSchemaProps {
+                    container,
                     type_tree: type_tree
                         .children
                         .as_ref()
@@ -708,8 +733,6 @@ impl<'c> ComponentSchema {
                     features: Some(features),
                     description: None,
                     deprecated: None,
-                    object_name,
-                    is_generics_type_arg, // TODO check whether this is correct
                 })?;
                 let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
@@ -735,12 +758,11 @@ impl<'c> ComponentSchema {
 
     fn vec_to_tokens(
         tokens: &mut TokenStream,
+        container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
-        object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
-        is_generics_type_arg: bool,
     ) -> Result<(), Diagnostics> {
         let example = pop_feature!(features => Feature::Example(_));
         let xml = features.extract_vec_xml_feature(type_tree)?;
@@ -774,12 +796,11 @@ impl<'c> ComponentSchema {
         let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
 
         let component_schema = ComponentSchema::new(ComponentSchemaProps {
+            container,
             type_tree: child,
             features: Some(features),
             description: None,
             deprecated: None,
-            object_name,
-            is_generics_type_arg,
         })?;
         let component_schema_tokens = as_tokens_or_diagnostics!(&component_schema);
 
@@ -838,12 +859,12 @@ impl<'c> ComponentSchema {
 
     fn non_generic_to_tokens(
         tokens: &mut TokenStream,
+        name_tokens: &mut TokenStream,
+        container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
-        object_name: &str,
         description_stream: Option<&ComponentDescription<'_>>,
         deprecated_stream: Option<TokenStream>,
-        is_generics_type_arg: bool,
     ) -> Result<(), Diagnostics> {
         let nullable_feat: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
@@ -925,68 +946,135 @@ impl<'c> ComponentSchema {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let nullable_item = nullable_all_of_item(nullable);
 
+                    let mut component_name_buffer = String::new();
+                    if let Some(children) = &type_tree.children {
+                        component_name_buffer.push('_');
+                        fn compose_name<'tr, I>(children: I) -> String
+                        where
+                            I: IntoIterator<Item = &'tr TypeTree<'tr>>,
+                        {
+                            children
+                                .into_iter()
+                                .map(|type_tree| {
+                                    let mut name = type_tree
+                                        .path
+                                        .as_ref()
+                                        .expect("Generic ValueType::Object must have path")
+                                        .segments
+                                        .last()
+                                        .expect("Generic path must have one segment")
+                                        .ident
+                                        .to_string();
+
+                                    if let Some(children) = &type_tree.children {
+                                        name.push('_');
+                                        name.push_str(&compose_name(children));
+
+                                        name
+                                    } else {
+                                        name
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join("_")
+                        }
+                        component_name_buffer.push_str(&compose_name(children))
+                    }
+                    name_tokens.extend(quote! { format!("{}{}", < #type_path as utoipa::ToSchema >::name(), #component_name_buffer) });
+
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
-                        let schema = if default.is_some() || nullable {
+
+                        fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
+                            children: I,
+                        ) -> impl Iterator<Item = TokenStream> + 'v
+                        where
+                            <I as std::iter::IntoIterator>::IntoIter: 'v,
+                        {
+                            children.into_iter()
+                                    .map(|child| {
+                                        let path = child.path.as_deref().expect(
+                                            "inline TypeTree ValueType::Object must have child path if generic",
+                                        );
+
+                                        if let Some(children) = &child.children {
+                                            let items = compose_generics(children).collect::<Array<_>>();
+                                            quote! { <#path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) }
+
+                                        } else {
+                                            quote! { <#path as utoipa::PartialSchema>::schema() }
+                                        }
+                                    })
+                        }
+                        let items_tokens = if let Some(children) = &type_tree.children {
+                            let composed_generics =
+                                compose_generics(children).collect::<Array<_>>();
                             quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::AllOfBuilder::new()
-                                    #nullable_item
-                                    .item(<#type_path as utoipa::PartialSchema>::schema())
-                                    #default_tokens
+                                <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
                             }
                         } else {
-                            quote_spanned! {type_path.span() =>
+                            quote_spanned! {type_path.span()=>
                                 <#type_path as utoipa::PartialSchema>::schema()
                             }
                         };
 
+                        let schema = if default.is_some() || nullable {
+                            quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    #nullable_item
+                                    .item(#items_tokens)
+                                #default_tokens
+                            }
+                        } else {
+                            items_tokens
+                        };
+
                         schema.to_tokens(tokens);
                     } else {
-                        let mut name = Cow::Owned(format_path_ref(type_path));
-                        if name == "Self" && !object_name.is_empty() {
-                            name = Cow::Borrowed(object_name);
-                        }
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
 
-                        // TODO partial schema check cannot be performed for generic type, we
-                        // need to know whether type is generic or not.
-                        let check_type = if !is_generics_type_arg {
-                            Some(
-                                quote_spanned! {type_path.span()=> let _ = <#type_path as utoipa::PartialSchema>::schema;},
-                            )
-                        } else {
-                            None
+                        let index = container.generics.get_generic_type_param_index(type_tree);
+                        let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
+                            if let Some(index) = &index {
+                                quote_spanned! {type_path.span()=>
+                                    {
+                                        let _ = <#type_path as utoipa::PartialSchema>::schema;
+
+                                        if let Some(composed) = generics.get_mut(#index) {
+                                            std::mem::take(composed)
+                                        } else {
+                                            #item_tokens.into()
+                                        }
+                                    }
+                                }
+                            } else {
+                                quote_spanned! {type_path.span()=>
+                                    #item_tokens
+                                }
+                            }
                         };
 
                         // TODO: refs support `summary` field but currently there is no such field
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
                         let schema = if default.is_some() || nullable {
-                            quote_spanned! {type_path.span()=>
-                                {
-                                    #check_type
-
-                                    utoipa::openapi::schema::AllOfBuilder::new()
-                                        #nullable_item
-                                        .item(utoipa::openapi::schema::RefBuilder::new()
-                                            #description_stream
-                                            .ref_location_from_schema_name(#name)
-                                        )
-                                        #default_tokens
-                                }
-                            }
-                        } else {
-                            quote_spanned! {type_path.span()=>
-                                {
-                                    #check_type
-
-                                    utoipa::openapi::schema::RefBuilder::new()
+                            composed_or_ref(quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    #nullable_item
+                                    .item(utoipa::openapi::schema::RefBuilder::new()
                                         #description_stream
-                                        .ref_location_from_schema_name(#name)
-                                }
-                            }
+                                        .ref_location_from_schema_name(#name_tokens)
+                                    )
+                                    #default_tokens
+                            })
+                        } else {
+                            composed_or_ref(quote_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::RefBuilder::new()
+                                    #description_stream
+                                    .ref_location_from_schema_name(#name_tokens)
+                            })
                         };
 
                         schema.to_tokens(tokens);
@@ -1008,12 +1096,11 @@ impl<'c> ComponentSchema {
                                 };
 
                                 match ComponentSchema::new(ComponentSchemaProps {
+                                    container,
                                     type_tree: child,
                                     features,
                                     description: None,
                                     deprecated: None,
-                                    object_name,
-                                    is_generics_type_arg, // TODO check whether this is correct
                                 }) {
                                     Ok(child) => Ok(as_tokens_or_diagnostics!(&child)),
                                     Err(diagnostics) => Err(diagnostics),
@@ -1071,12 +1158,11 @@ pub struct FlattenedMapSchema {
 impl FlattenedMapSchema {
     pub fn new(
         ComponentSchemaProps {
+            container,
             type_tree,
             features,
             description,
             deprecated,
-            object_name,
-            is_generics_type_arg,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
@@ -1093,6 +1179,7 @@ impl FlattenedMapSchema {
         // maps have 2 child schemas and we are interested the second one of them
         // which is used to determine the additional properties
         let schema_property = ComponentSchema::new(ComponentSchemaProps {
+            container,
             type_tree: type_tree
                 .children
                 .as_ref()
@@ -1102,8 +1189,6 @@ impl FlattenedMapSchema {
             features: Some(features),
             description: None,
             deprecated: None,
-            object_name,
-            is_generics_type_arg,
         })?;
         let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 

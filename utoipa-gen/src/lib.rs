@@ -43,7 +43,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
+    DeriveInput, ExprPath, GenericParam, ItemFn, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -65,7 +65,7 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[proc_macro_derive(ToSchema, attributes(schema, aliases))]
+#[proc_macro_derive(ToSchema, attributes(schema))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].
 ///
@@ -182,7 +182,7 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
@@ -209,7 +209,7 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
@@ -399,34 +399,49 @@ use self::{
 ///  }
 /// ```
 ///
-/// # Generic schemas with aliases
+/// # Generic schemas
 ///
-/// Schemas can also be generic which allows reusing types. This enables certain behaviour patterns
-/// where super type declares common code for type aliases.
+/// Utoipa supports full set of deeply nested generics as shown below. All the generic types must
+/// implement [`ToSchema`][to_schema] trait and bounds are checked at build time.
 ///
-/// In this example we have common `Status` type which accepts one generic type. It is then defined
-/// with `#[aliases(...)]` that it is going to be used with [`String`] and [`i32`] values.
-/// The generic argument could also be another [`ToSchema`][to_schema] as well.
+/// The _`as = ...`_ attribute is used to define the prefixed or alternative name for the component
+/// in question. This same name will be used throughout the OpenAPI generated with `utoipa` when
+/// the type is being referenced in [`OpenApi`][openapi_derive] derive macro or in [`utoipa::path(...)`][path_macro] macro.
 /// ```rust
-/// # use utoipa::{ToSchema, OpenApi};
-/// #[derive(ToSchema)]
-/// #[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
-/// struct Status<T> {
-///     value: T
-/// }
+/// # use utoipa::ToSchema;
+/// # use std::borrow::Cow;
+///  #[derive(ToSchema)]
+///  #[schema(as = path::MyType<T>)]
+///  struct Type<T: ToSchema> {
+///      t: T,
+///  }
 ///
-/// #[derive(OpenApi)]
-/// #[openapi(
-///     components(schemas(StatusMessage, StatusNumber))
-/// )]
-/// struct ApiDoc;
+///  #[derive(ToSchema)]
+///  struct Person<'p, T: Sized + ToSchema, P: ToSchema> {
+///      id: usize,
+///      name: Option<Cow<'p, str>>,
+///      field: T,
+///      t: P,
+///  }
+///
+///  #[derive(ToSchema)]
+///  #[schema(as = path::to::PageList)]
+///  struct Page<T: ToSchema> {
+///      total: usize,
+///      page: usize,
+///      pages: usize,
+///      items: Vec<T>,
+///  }
+///
+///  #[derive(ToSchema)]
+///  #[schema(as = path::to::Element<T>)]
+///  enum E<T: ToSchema> {
+///      One(T),
+///      Many(Vec<T>),
+///  }
 /// ```
-///
-/// The `#[aliases(...)]` is just syntactic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)
-/// behind the scenes which then can be later referenced anywhere in code.
-///
-/// **Note!** You should never register generic type itself in `components(...)` so according above example `Status<...>` should not be registered
-/// because it will not render the type correctly and will cause an error in generated OpenAPI spec.
+/// When generic types are registered to the `OpenApi` the full type declaration must be provided.
+/// See the full example in test [schema_generics.rs](https://github.com/juhaku/utoipa/blob/master/utoipa-gen/tests/schema_generics.rs)
 ///
 /// # Examples
 ///
@@ -677,16 +692,17 @@ use self::{
 /// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 /// [openapi_derive]: derive.OpenApi.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+/// [path_macro]: macro@path
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
         data,
         generics,
-        vis,
+        ..
     } = syn::parse_macro_input!(input);
 
-    Schema::new(&data, &attrs, &ident, &generics, &vis)
+    Schema::new(&data, &attrs, &ident, &generics)
         .as_ref()
         .map_or_else(Diagnostics::to_token_stream, Schema::to_token_stream)
         .into()
@@ -1811,7 +1827,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 ///
@@ -2514,12 +2530,13 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 /// be inlined to the schema output.
 ///
 /// ```rust
+/// # use utoipa::openapi::{RefOr, schema::Schema};
 /// # #[derive(utoipa::ToSchema)]
 /// # struct Pet {id: i32};
-/// let schema = utoipa::schema!(Vec<Pet>);
+/// let schema: RefOr<Schema> = utoipa::schema!(Vec<Pet>).into();
 ///
 /// // with inline
-/// let schema = utoipa::schema!(#[inline] Vec<Pet>);
+/// let schema: RefOr<Schema> = utoipa::schema!(#[inline] Vec<Pet>).into();
 /// ```
 ///
 /// # Examples
@@ -2584,19 +2601,33 @@ pub fn schema(input: TokenStream) -> TokenStream {
         Err(diagnostics) => return diagnostics.into_token_stream().into(),
     };
 
+    let generics = match type_tree.get_path_generics() {
+        Ok(generics) => generics,
+        Err(error) => return error.into_compile_error().into(),
+    };
+
     let schema = ComponentSchema::new(ComponentSchemaProps {
         features: Some(vec![Feature::Inline(schema.inline.into())]),
         type_tree: &type_tree,
         deprecated: None,
         description: None,
-        object_name: "",
-        is_generics_type_arg: false, // it cannot be generic struct here
+        container: &component::Container {
+            generics: &generics,
+        },
     });
 
-    match schema {
-        Ok(schema) => schema.to_token_stream().into(),
-        Err(diagnostics) => diagnostics.to_token_stream().into(),
+    let schema = match schema {
+        Ok(schema) => schema.to_token_stream(),
+        Err(diagnostics) => return diagnostics.to_token_stream().into(),
+    };
+
+    quote! {
+        {
+            let mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>> = Vec::new();
+            #schema
+        }
     }
+    .into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
@@ -2910,15 +2941,32 @@ impl<T> OptionExt<T> for Option<T> {
 }
 
 trait GenericsExt {
-    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool;
+    /// Get index of `GenericParam::Type` ignoring other generic param types.
+    fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
 impl<'g> GenericsExt for &'g syn::Generics {
-    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool {
-        self.params.iter().any(|generic| match generic {
-            syn::GenericParam::Type(generic_type) => type_tree.match_ident(&generic_type.ident),
-            _ => false,
-        })
+    fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
+        let ident = &type_tree
+            .path
+            .as_ref()
+            .expect("TypeTree of generic object must have a path")
+            .segments
+            .last()
+            .expect("Generic object path must have at least one segment")
+            .ident;
+
+        self.params
+            .iter()
+            .filter(|generic| matches!(generic, GenericParam::Type(_)))
+            .enumerate()
+            .find_map(|(index, generic)| {
+                if matches!(generic, GenericParam::Type(ty) if ty.ident == *ident) {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -2938,6 +2986,14 @@ trait ToTokensDiagnostics {
         match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
             Ok(_) => tokens,
             Err(error_stream) => Into::<Diagnostics>::into(error_stream).into_token_stream(),
+        }
+    }
+
+    fn try_to_token_stream(&self) -> Result<TokenStream2, Diagnostics> {
+        let mut tokens = TokenStream2::new();
+        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
+            Ok(_) => Ok(tokens),
+            Err(diagnostics) => Err(diagnostics),
         }
     }
 }

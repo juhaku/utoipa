@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, LitStr, Token, TypePath,
+    Error, Generics, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
             },
             Feature, ToTokensExt,
         },
-        ComponentSchema,
+        ComponentSchema, Container,
     },
     parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
@@ -184,9 +184,9 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             features: Some(self.features.clone()),
                             description: None,
                             deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
+                            container: &Container {
+                                generics: &Generics::default(),
+                            }
                         }
                     )?),
                     required,
@@ -207,9 +207,9 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                             features: Some(schema_features),
                             description: None,
                             deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
+                            container: &Container {
+                                generics: &Generics::default(),
+                            }
                         }
                     )?),
                     required,

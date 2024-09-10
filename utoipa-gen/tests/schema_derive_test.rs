@@ -4,7 +4,7 @@ use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config,
 use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::openapi::{Object, ObjectBuilder};
-use utoipa::{OpenApi, ToSchema, TupleUnit};
+use utoipa::{OpenApi, ToSchema};
 
 mod common;
 
@@ -25,26 +25,6 @@ macro_rules! api_doc {
     };
     ( @schema $ident:ident $($tt:tt)* ) => {
          <$ident as utoipa::PartialSchema>::schema()
-    };
-}
-
-macro_rules! api_doc_aliases {
-    ( $(#[$meta:meta])* $key:ident $ident:ident $($tt:tt)* ) => {
-        {
-            #[derive(ToSchema)]
-            $(#[$meta])*
-            #[allow(unused)]
-            $key $ident $( $tt )*
-
-            let schema = api_doc_aliases!( @schema $ident $($tt)* );
-            serde_json::to_value(schema).unwrap()
-        }
-    };
-    ( @schema $ident:ident < $($life:lifetime , )? $generic:ident > $($tt:tt)* ) => {
-         <$ident<$generic> as utoipa::ToSchema>::aliases()
-    };
-    ( @schema $ident:ident $($tt:tt)* ) => {
-         <$ident as utoipa::ToSchema>::aliases()
     };
 }
 
@@ -854,24 +834,6 @@ fn derive_enum_with_schema_deprecated() {
         "enum" = r#"["Mode1","Mode2"]"#, "Mode enum variants"
         "type" = r#""string""#, "Mode type"
         "deprecated" = r#"true"#, "Mode deprecated"
-    };
-}
-
-#[test]
-fn derive_struct_with_generics() {
-    #[allow(unused)]
-    enum Type {
-        Foo,
-        Bar,
-    }
-    let status = api_doc! {
-        struct Status<Type> {
-            t: Type
-        }
-    };
-
-    assert_value! {status=>
-        "properties.t.$ref" = r###""#/components/schemas/Type""###, "Status t field"
     };
 }
 
@@ -3070,11 +3032,36 @@ fn derive_struct_component_field_type_override() {
 }
 
 #[test]
-fn derive_struct_component_field_type_path_override() {
+fn derive_struct_component_field_type_path_override_returns_default_name() {
     mod path {
         pub mod to {
             #[derive(utoipa::ToSchema)]
-            pub struct Foo;
+            pub struct Foo(());
+        }
+    }
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(value_type = path::to::Foo)]
+            value: i64,
+        }
+    };
+
+    let component_ref: &str = post
+        .pointer("/properties/value/$ref")
+        .unwrap()
+        .as_str()
+        .unwrap();
+    assert_eq!(component_ref, "#/components/schemas/Foo");
+}
+
+#[test]
+fn derive_struct_component_field_type_path_override_with_as_returns_custom_name() {
+    mod path {
+        pub mod to {
+            #[derive(utoipa::ToSchema)]
+            #[schema(as = path::to::Foo)]
+            pub struct Foo(());
         }
     }
     let post = api_doc! {
@@ -3198,7 +3185,7 @@ fn derive_struct_override_type_with_a_reference() {
     mod custom {
         #[derive(utoipa::ToSchema)]
         #[allow(dead_code)]
-        pub struct NewBar;
+        pub struct NewBar(());
     }
 
     let value = api_doc! {
@@ -3214,7 +3201,7 @@ fn derive_struct_override_type_with_a_reference() {
             "type": "object",
             "properties": {
                 "field": {
-                    "$ref": "#/components/schemas/custom.NewBar"
+                    "$ref": "#/components/schemas/NewBar"
                 }
             },
             "required": ["field"]
@@ -3470,31 +3457,6 @@ fn derive_component_with_generic_types_having_path_expression() {
 }
 
 #[test]
-fn derive_component_with_aliases() {
-    #[derive(ToSchema)]
-    struct A;
-
-    #[derive(Debug, OpenApi)]
-    #[openapi(components(schemas(MyAlias)))]
-    struct ApiDoc;
-
-    #[derive(ToSchema)]
-    #[aliases(MyAlias = Bar<A>)]
-    struct Bar<R> {
-        #[allow(dead_code)]
-        bar: R,
-    }
-
-    let doc = ApiDoc::openapi();
-    let doc_value = &serde_json::to_value(doc).unwrap();
-
-    let value = doc_value.pointer("/components/schemas").unwrap();
-    assert_value! {value=>
-        "MyAlias.properties.bar.$ref" = r###""#/components/schemas/A""###, "MyAlias aliased property"
-    }
-}
-
-#[test]
 fn derive_complex_enum_as() {
     #[derive(ToSchema)]
     struct Foobar;
@@ -3537,65 +3499,6 @@ fn derive_complex_enum_as() {
             ]
         })
     )
-}
-
-#[test]
-fn derive_component_with_primitive_aliases() {
-    #[derive(Debug, OpenApi)]
-    #[openapi(components(schemas(BarString, BarInt, Foo)))]
-    struct ApiDoc;
-
-    #[derive(ToSchema)]
-    #[aliases(BarString = Bar<String>, BarInt = Bar<i32>)]
-    struct Bar<R> {
-        #[allow(dead_code)]
-        bar: R,
-    }
-    #[derive(ToSchema)]
-    struct Foo {
-        #[allow(dead_code)]
-        #[schema(value_type=BarString)]
-        baz: Bar<String>,
-    }
-
-    let doc = ApiDoc::openapi();
-    let doc_value = &serde_json::to_value(doc).unwrap();
-
-    let value = doc_value.pointer("/components/schemas").unwrap();
-
-    assert_json_eq!(
-        value,
-        json!({
-            "BarString": {
-                "properties": {
-                    "bar": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "required": ["bar"]
-            },
-            "BarInt": {
-                "properties": {
-                    "bar": {
-                        "type": "integer",
-                        "format": "int32",
-                    }
-               },
-                "type": "object",
-                "required": ["bar"]
-            },
-            "Foo": {
-                "properties": {
-                    "baz": {
-                        "$ref": "#/components/schemas/BarString",
-                    }
-               },
-                "type": "object",
-                "required": ["baz"]
-            }
-        })
-    );
 }
 
 #[test]
@@ -4617,133 +4520,6 @@ fn derive_schema_with_multiple_schema_attributes() {
             "required": ["name"]
         })
     )
-}
-
-#[test]
-fn derive_schema_with_generics_and_lifetimes() {
-    struct TResult;
-
-    let value = api_doc_aliases! {
-        #[aliases(Paginated1 = Paginated<'b, String>, Paginated2 = Paginated<'b, Cow<'c, bool>>)]
-        struct Paginated<'r, TResult> {
-            pub total: usize,
-            pub data: Vec<TResult>,
-            pub next: Option<&'r str>,
-            pub prev: Option<&'r str>,
-        }
-    };
-
-    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
-
-    assert_json_matches!(
-        value,
-        json!([
-            [
-                "Paginated1",
-                {
-                    "properties": {
-                        "data": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                    },
-                    "next": {
-                        "type": ["string", "null"],
-                    },
-                    "prev": {
-                        "type": ["string", "null"],
-                    },
-                    "total": {
-                        "type": "integer",
-                        "minimum": 0.0,
-                     }
-                    },
-                    "required": [
-                        "total",
-                        "data",
-                    ],
-                    "type": "object"
-                }
-            ],
-            [
-                "Paginated2",
-                {
-                    "properties": {
-                        "data": {
-                            "type": "array",
-                            "items": {
-                                "type": "boolean"
-                            }
-                        },
-                        "next": {
-                            "type": ["string", "null"],
-                        },
-                        "prev": {
-                            "type": ["string", "null"],
-                        },
-                        "total": {
-                            "type": "integer",
-                            "minimum": 0.0
-                        }
-                    },
-                    "required": [
-                        "total",
-                        "data",
-                    ],
-                    "type": "object"
-                }
-            ]
-        ]),
-        config
-    )
-}
-
-#[test]
-fn derive_struct_with_unit_alias() {
-    struct V;
-
-    let value = api_doc_aliases! {
-        #[aliases(UnitDataValue = DataValue<TupleUnit>)]
-        struct DataValue<V> {
-            name: String,
-            v: V,
-        }
-    };
-
-    #[derive(utoipa::OpenApi)]
-    #[openapi(components(schemas(TupleUnit)))]
-    struct ApiDoc;
-
-    let doc = ApiDoc::openapi();
-    let doc_value = serde_json::to_value(&doc).unwrap();
-    let unit = doc_value.pointer("/components/schemas/TupleUnit").unwrap();
-
-    assert_json_eq!(
-        value,
-        json!([[
-              "UnitDataValue",
-              {
-                  "properties": {
-                      "name": {
-                          "type": "string",
-                      },
-                      "v": {
-                          "$ref": "#/components/schemas/TupleUnit"
-                      },
-                  },
-                  "required": ["name", "v"],
-                  "type": "object"
-              }
-        ]])
-    );
-
-    assert_json_eq!(
-        unit,
-        json!({
-            "default": null,
-        })
-    );
 }
 
 #[test]

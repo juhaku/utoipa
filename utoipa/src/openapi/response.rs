@@ -31,6 +31,7 @@ builder! {
 }
 
 impl Responses {
+    /// Construct a new [`Responses`].
     pub fn new() -> Self {
         Default::default()
     }

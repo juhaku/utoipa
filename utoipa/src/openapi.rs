@@ -423,6 +423,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
 /// The value will serialize to boolean.
 #[derive(PartialEq, Eq, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[allow(missing_docs)]
 pub enum Deprecated {
     True,
     #[default]
@@ -469,6 +470,7 @@ impl<'de> Deserialize<'de> for Deprecated {
 ///
 /// The value will serialize to boolean.
 #[derive(PartialEq, Eq, Clone, Default)]
+#[allow(missing_docs)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Required {
     True,
@@ -520,7 +522,11 @@ impl<'de> Deserialize<'de> for Required {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum RefOr<T> {
+    /// Represents [`Ref`] reference to another OpenAPI object instance. e.g.
+    /// `$ref: #/components/schemas/Hello`
     Ref(Ref),
+    /// Represents any value that can be added to the [`struct@Components`] e.g. [`enum@Schema`]
+    /// or [`struct@Response`].
     T(T),
 }
 

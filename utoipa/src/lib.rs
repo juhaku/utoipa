@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+#![warn(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 //! Want to have your API documented with OpenAPI? But you don't want to see the
 //! trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
@@ -321,6 +323,8 @@ pub use utoipa_gen::*;
 /// ```
 /// [derive]: derive.OpenApi.html
 pub trait OpenApi {
+    /// Return the [`openapi::OpenApi`] instance which can be parsed with serde or served via
+    /// OpenAPI visualization tool such as Swagger UI.
     fn openapi() -> openapi::OpenApi;
 }
 
@@ -355,8 +359,8 @@ pub trait OpenApi {
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl<'__s> utoipa::ToSchema<'__s> for Pet {
-///     fn name() -> std::borrow::Cow<'__s, str> {
+/// impl utoipa::ToSchema for Pet {
+///     fn name() -> std::borrow::Cow<'static, str> {
 ///         std::borrow::Cow::Borrowed("Pet")
 ///     }
 /// }
@@ -393,24 +397,18 @@ pub trait OpenApi {
 ///     }
 /// }
 /// ```
-pub trait ToSchema<'__s>: PartialSchema {
-    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
-    /// name or inlined directly to responses, request bodies or parameters.
-    fn name() -> Cow<'__s, str>;
-    // /// Return a tuple of name and schema or reference to a schema that can be referenced by the
-    // /// name or inlined directly to responses, request bodies or parameters.
-    // fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
-
-    /// Optional set of alias schemas for the [`PartialSchema::schema`].
+pub trait ToSchema: PartialSchema {
+    /// Return name of the schema.
     ///
-    /// Typically there is no need to manually implement this method but it is instead implemented
-    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
-        Vec::new()
-    }
+    /// Name is used by referencing objects to point to this schema object returned with
+    /// [`PartialSchema::schema`] within the OpenAPI document.
+    ///
+    /// In case a generic schema the _`name`_ will be used as prefix for the name in the OpenAPI
+    /// documentation.
+    fn name() -> Cow<'static, str>;
 }
 
-impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema> {
+impl<T: ToSchema> From<T> for openapi::RefOr<openapi::schema::Schema> {
     fn from(_: T) -> Self {
         T::schema()
     }
@@ -427,8 +425,8 @@ impl PartialSchema for TupleUnit {
     }
 }
 
-impl<'__s> ToSchema<'__s> for TupleUnit {
-    fn name() -> Cow<'__s, str> {
+impl ToSchema for TupleUnit {
+    fn name() -> Cow<'static, str> {
         Cow::Borrowed("TupleUnit")
     }
 }
@@ -456,6 +454,22 @@ macro_rules! impl_partial_schema_primitive {
         $( impl_partial_schema!( $tt ); )*
     };
 }
+
+macro_rules! impl_to_schema {
+    ( $( $ty:ident ,)* ) => {
+        $(
+        impl ToSchema for $ty {
+            fn name() -> std::borrow::Cow<'static, str> {
+                std::borrow::Cow::Borrowed(stringify!( $ty ))
+            }
+        }
+        )*
+    };
+}
+#[rustfmt::skip]
+impl_to_schema!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+);
 
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
@@ -538,17 +552,20 @@ pub trait PartialSchema {
 
 #[rustfmt::skip]
 impl_partial_schema_primitive!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
-    Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>,
-    Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
-    Option<String>, Option<&str>, Option<char>
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
+
+impl<'a> ToSchema for &'a str {
+    fn name() -> Cow<'static, str> {
+        std::borrow::Cow::Borrowed("str")
+    }
+}
 
 impl_partial_schema!(&str);
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
+impl<T: ToSchema> PartialSchema for Vec<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Vec<T>).into()
     }
@@ -556,7 +573,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
+impl<T: ToSchema> PartialSchema for Option<Vec<T>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Option<Vec<T>>).into()
     }
@@ -564,7 +581,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
+impl<T: ToSchema> PartialSchema for [T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -576,7 +593,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
+impl<T: ToSchema> PartialSchema for &[T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -588,7 +605,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
+impl<T: ToSchema> PartialSchema for &mut [T] {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -600,7 +617,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
+impl<T: ToSchema> PartialSchema for Option<&[T]> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -612,7 +629,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
+impl<T: ToSchema> PartialSchema for Option<&mut [T]> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -624,7 +641,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
+impl<T: ToSchema> PartialSchema for Option<T> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(#[inline] Option<T>).into()
     }
@@ -632,7 +649,7 @@ impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
+impl<K: PartialSchema, V: ToSchema> PartialSchema for BTreeMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -644,7 +661,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V>
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
+impl<K: PartialSchema, V: ToSchema> PartialSchema for Option<BTreeMap<K, V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -656,7 +673,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMa
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, Option<V>> {
+impl<K: PartialSchema, V: ToSchema> PartialSchema for BTreeMap<K, Option<V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -668,7 +685,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, Op
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collections::HashMap<K, V> {
+impl<K: PartialSchema, V: ToSchema> PartialSchema for std::collections::HashMap<K, V> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -680,9 +697,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collectio
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
-    for Option<std::collections::HashMap<K, V>>
-{
+impl<K: PartialSchema, V: ToSchema> PartialSchema for Option<std::collections::HashMap<K, V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -694,9 +709,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
-    for std::collections::HashMap<K, Option<V>>
-{
+impl<K: PartialSchema, V: ToSchema> PartialSchema for std::collections::HashMap<K, Option<V>> {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         schema!(
             #[inline]
@@ -789,10 +802,14 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
 ///
 /// [derive]: attr.path.html
 pub trait Path {
+    /// List of HTTP methods this path operation is served at.
     fn methods() -> Vec<openapi::path::HttpMethod>;
 
+    /// The path this operation is served at.
     fn path() -> String;
 
+    /// [`openapi::path::Operation`] describing http operation details such as request bodies,
+    /// parameters and responses.
     fn operation() -> openapi::path::Operation;
 }
 
@@ -860,6 +877,11 @@ pub trait Path {
 ///
 /// [server]: https://spec.openapis.org/oas/latest.html#server-object
 pub trait Modify {
+    /// Apply mutation for [`openapi::OpenApi`] instance before it is returned by
+    /// [`openapi::OpenApi::openapi`] method call.
+    ///
+    /// This function allows users to run arbitrary code to change the generated
+    /// [`utoipa::OpenApi`] before it is served.
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
@@ -1035,8 +1057,11 @@ pub trait ToResponse<'__r> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum Number {
+    /// Signed integer e.g. `1` or `-2`
     Int(isize),
+    /// Unsigned integer value e.g. `0`. Unsigned integer cannot be below zero.
     UInt(usize),
+    /// Floating point number e.g. `1.34`
     Float(f64),
 }
 
@@ -1045,9 +1070,9 @@ impl Eq for Number {}
 impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Int(l0), Self::Int(r0)) => l0 == r0,
-            (Self::UInt(l0), Self::UInt(r0)) => l0 == r0,
-            (Self::Float(l0), Self::Float(r0)) => l0 == r0,
+            (Self::Int(left), Self::Int(right)) => left == right,
+            (Self::UInt(left), Self::UInt(right)) => left == right,
+            (Self::Float(left), Self::Float(right)) => left == right,
             _ => false,
         }
     }
@@ -1141,6 +1166,19 @@ pub mod __dev {
             });
 
             api
+        }
+    }
+
+    pub trait ComposeSchema {
+        fn compose(
+            new_generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>;
+    }
+
+    // Default implementation
+    impl<T: utoipa::__dev::ComposeSchema> utoipa::PartialSchema for T {
+        fn schema() -> crate::openapi::RefOr<crate::openapi::schema::Schema> {
+            T::compose(Vec::new())
         }
     }
 }

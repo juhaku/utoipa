@@ -356,6 +356,7 @@ fn derive_openapi_with_generic_response() {
 
 #[test]
 fn derive_openapi_with_generic_schema() {
+    #[derive(ToSchema)]
     struct Value;
 
     #[derive(Serialize, ToSchema)]
@@ -370,7 +371,7 @@ fn derive_openapi_with_generic_schema() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let schema = doc.pointer("/components/schemas/Pet");
+    let schema = doc.pointer("/components/schemas/Pet_Value");
 
     assert_json_eq!(
         schema,
@@ -388,6 +389,7 @@ fn derive_openapi_with_generic_schema() {
 
 #[test]
 fn derive_openapi_with_generic_schema_with_as() {
+    #[derive(ToSchema)]
     struct Value;
 
     #[derive(Serialize, ToSchema)]
@@ -403,7 +405,7 @@ fn derive_openapi_with_generic_schema_with_as() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let schema = doc.pointer("/components/schemas/api.models.Pet");
+    let schema = doc.pointer("/components/schemas/api.models.Pet_Value");
 
     assert_json_eq!(
         schema,

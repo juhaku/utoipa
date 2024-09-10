@@ -81,7 +81,7 @@ mod pet_api {
 #[derive(Default, OpenApi)]
 #[openapi(
     paths(pet_api::get_pet_by_id),
-    components(schemas(Pet, GenericC, GenericD)),
+    components(schemas(Pet, C<A, B>, C<B, A>)),
     modifiers(&Foo),
     security(
         (),
@@ -112,8 +112,7 @@ struct B {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-#[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
-struct C<T, R> {
+struct C<T: ToSchema, R: ToSchema> {
     field_1: R,
     field_2: T,
 }
