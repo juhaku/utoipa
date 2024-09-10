@@ -44,7 +44,6 @@ where
 
         let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config)));
         let path: &str = swagger_ui.path.as_ref();
-        let slash_path = format!("{}/", path);
 
         router
             .route(path, handler.clone())
