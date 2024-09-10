@@ -47,10 +47,7 @@ where
         let slash_path = format!("{}/", path);
 
         router
-            .route(
-                path,
-                routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
-            )
+            .route(path, handler.clone())
             .route(&format!("{}/", path), handler.clone())
             .route(&format!("{}/*rest", path), handler)
     }
