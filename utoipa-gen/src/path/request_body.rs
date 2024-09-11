@@ -80,8 +80,8 @@ impl ToTokensDiagnostics for RequestBody<'_> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr<'r> {
     content: Option<PathType<'r>>,
-    content_type: Vec<parse_utils::Value>,
-    description: Option<parse_utils::Value>,
+    content_type: Vec<parse_utils::LitStrOrExpr>,
+    description: Option<parse_utils::LitStrOrExpr>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
 }

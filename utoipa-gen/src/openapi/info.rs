@@ -7,15 +7,15 @@ use syn::parse::Parse;
 use syn::token::Comma;
 use syn::{parenthesized, Error, LitStr};
 
-use crate::parse_utils;
-use crate::parse_utils::Str;
+use crate::parse_utils::{self, LitStrOrExpr};
 
 #[derive(Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub(super) struct Info<'i> {
-    title: Option<String>,
-    version: Option<String>,
-    description: Option<Str>,
+    title: Option<LitStrOrExpr>,
+    version: Option<LitStrOrExpr>,
+    description: Option<LitStrOrExpr>,
+    terms_of_service: Option<LitStrOrExpr>,
     license: Option<License<'i>>,
     contact: Option<Contact<'i>>,
 }
@@ -27,10 +27,10 @@ impl Info<'_> {
     /// * `CARGO_PGK_DESCRIPTION`
     /// * `CARGO_PGK_AUTHORS`
     /// * `CARGO_PGK_LICENSE`
-    fn from_env() -> Self {
+    pub fn from_env() -> Self {
         let name = std::env::var("CARGO_PKG_NAME").ok();
         let version = std::env::var("CARGO_PKG_VERSION").ok();
-        let description = std::env::var("CARGO_PKG_DESCRIPTION").ok().map(Str::String);
+        let description = std::env::var("CARGO_PKG_DESCRIPTION").ok();
         let contact = std::env::var("CARGO_PKG_AUTHORS")
             .ok()
             .and_then(|authors| Contact::try_from(authors).ok())
@@ -44,12 +44,45 @@ impl Info<'_> {
         let license = std::env::var("CARGO_PKG_LICENSE").ok().map(License::from);
 
         Info {
-            title: name,
-            version,
-            description,
+            title: name.map(|name| name.into()),
+            version: version.map(|version| version.into()),
+            description: description.map(|description| description.into()),
             contact,
             license,
+            ..Default::default()
         }
+    }
+
+    /// Merge given info arguments to [`Info`] created from `CARGO_*` env arguments.
+    pub fn merge_with_env_args(info: Option<Info>) -> Info {
+        let mut from_env = Info::from_env();
+        if let Some(info) = info {
+            if info.title.is_some() {
+                from_env.title = info.title;
+            }
+
+            if info.terms_of_service.is_some() {
+                from_env.terms_of_service = info.terms_of_service;
+            }
+
+            if info.description.is_some() {
+                from_env.description = info.description;
+            }
+
+            if info.license.is_some() {
+                from_env.license = info.license;
+            }
+
+            if info.contact.is_some() {
+                from_env.contact = info.contact;
+            }
+
+            if info.version.is_some() {
+                from_env.version = info.version;
+            }
+        }
+
+        from_env
     }
 }
 
@@ -63,16 +96,24 @@ impl Parse for Info<'_> {
 
             match attribute_name {
                 "title" => {
-                    info.title =
-                        Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
+                    info.title = Some(parse_utils::parse_next(input, || {
+                        input.parse::<LitStrOrExpr>()
+                    })?)
                 }
                 "version" => {
-                    info.version =
-                        Some(parse_utils::parse_next(input, || input.parse::<LitStr>())?.value())
+                    info.version = Some(parse_utils::parse_next(input, || {
+                        input.parse::<LitStrOrExpr>()
+                    })?)
                 }
                 "description" => {
-                    info.description =
-                        Some(parse_utils::parse_next(input, || input.parse::<Str>())?)
+                    info.description = Some(parse_utils::parse_next(input, || {
+                        input.parse::<LitStrOrExpr>()
+                    })?)
+                }
+                "terms_of_service" => {
+                    info.terms_of_service = Some(parse_utils::parse_next(input, || {
+                        input.parse::<LitStrOrExpr>()
+                    })?)
                 }
                 "license" => {
                     let license_stream;
@@ -85,7 +126,7 @@ impl Parse for Info<'_> {
                     info.contact = Some(contact_stream.parse()?)
                 }
                 _ => {
-                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: title, version, description, license, contact")));
+                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: title, terms_of_service, version, description, license, contact")));
                 }
             }
             if !input.is_empty() {
@@ -104,6 +145,10 @@ impl ToTokens for Info<'_> {
             .version
             .as_ref()
             .map(|version| quote! { .version(#version) });
+        let terms_of_service = self
+            .terms_of_service
+            .as_ref()
+            .map(|terms_of_service| quote! {.terms_of_service(Some(#terms_of_service))});
         let description = self
             .description
             .as_ref()
@@ -121,6 +166,7 @@ impl ToTokens for Info<'_> {
             utoipa::openapi::InfoBuilder::new()
                 #title
                 #version
+                #terms_of_service
                 #description
                 #license
                 #contact
@@ -286,34 +332,6 @@ impl TryFrom<String> for Contact<'_> {
             ))
         }
     }
-}
-
-pub(super) fn impl_info(parsed: Option<Info>) -> Info {
-    let mut info = Info::from_env();
-
-    if let Some(parsed) = parsed {
-        if parsed.title.is_some() {
-            info.title = parsed.title;
-        }
-
-        if parsed.description.is_some() {
-            info.description = parsed.description;
-        }
-
-        if parsed.license.is_some() {
-            info.license = parsed.license;
-        }
-
-        if parsed.contact.is_some() {
-            info.contact = parsed.contact;
-        }
-
-        if parsed.version.is_some() {
-            info.version = parsed.version;
-        }
-    }
-
-    info
 }
 
 fn get_parsed_author(author: Option<&str>) -> Option<(&str, &str)> {

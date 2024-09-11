@@ -43,16 +43,16 @@ pub struct PathAttr<'p> {
     methods: Vec<HttpMethod>,
     request_body: Option<RequestBody<'p>>,
     responses: Vec<Response<'p>>,
-    pub(super) path: Option<parse_utils::Value>,
+    pub(super) path: Option<parse_utils::LitStrOrExpr>,
     operation_id: Option<Expr>,
-    tag: Option<parse_utils::Value>,
-    tags: Vec<parse_utils::Value>,
+    tag: Option<parse_utils::LitStrOrExpr>,
+    tags: Vec<parse_utils::LitStrOrExpr>,
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementsAttr>>,
-    context_path: Option<parse_utils::Value>,
+    context_path: Option<parse_utils::LitStrOrExpr>,
     impl_for: Option<Ident>,
-    description: Option<parse_utils::Value>,
-    summary: Option<parse_utils::Value>,
+    description: Option<parse_utils::LitStrOrExpr>,
+    summary: Option<parse_utils::LitStrOrExpr>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -159,7 +159,7 @@ impl Parse for PathAttr<'_> {
                     path_attr.tags = parse_utils::parse_next(input, || {
                         let tags;
                         syn::bracketed!(tags in input);
-                        Punctuated::<parse_utils::Value, Token![,]>::parse_terminated(&tags)
+                        Punctuated::<parse_utils::LitStrOrExpr, Token![,]>::parse_terminated(&tags)
                     })?
                     .into_iter()
                     .collect::<Vec<_>>();
@@ -581,7 +581,7 @@ impl ToTokensDiagnostics for Operation<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Description<'a> {
-    Value(&'a parse_utils::Value),
+    Value(&'a parse_utils::LitStrOrExpr),
     Vec(&'a [String]),
 }
 
@@ -606,7 +606,7 @@ impl ToTokens for Description<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Summary<'a> {
-    Value(&'a parse_utils::Value),
+    Value(&'a parse_utils::LitStrOrExpr),
     Str(&'a str),
 }
 
@@ -766,24 +766,26 @@ mod parse {
     use crate::{parse_utils, AnyValue};
 
     #[inline]
-    pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
+    pub(super) fn description(input: ParseStream) -> Result<parse_utils::LitStrOrExpr> {
         parse_utils::parse_next_literal_str_or_expr(input)
     }
 
     #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::Value>> {
+    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::LitStrOrExpr>> {
         parse_utils::parse_next(input, || {
             let look_content_type = input.lookahead1();
             if look_content_type.peek(Bracket) {
                 let content_types;
                 bracketed!(content_types in input);
                 Ok(
-                    Punctuated::<parse_utils::Value, Comma>::parse_terminated(&content_types)?
-                        .into_iter()
-                        .collect(),
+                    Punctuated::<parse_utils::LitStrOrExpr, Comma>::parse_terminated(
+                        &content_types,
+                    )?
+                    .into_iter()
+                    .collect(),
                 )
             } else {
-                Ok(vec![input.parse::<parse_utils::Value>()?])
+                Ok(vec![input.parse::<parse_utils::LitStrOrExpr>()?])
             }
         })
     }

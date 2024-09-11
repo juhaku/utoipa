@@ -1533,10 +1533,16 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # `info(...)` attribute syntax
 ///
-/// * `title = ...` Define title of the API. It can be literal string.
+/// * `title = ...` Define title of the API. It can be [`str`] or an
+///   expression such as [`include_str!`][include_str] or static [`const`][const] reference.
+/// * `terms_of_service = ...` Define URL to the Terms of Service for the API. It can be [`str`] or an
+///   expression such as [`include_str!`][include_str] or static [`const`][const] reference. Value
+///   must be valid URL.
 /// * `description = ...` Define description of the API. Markdown can be used for rich text
-///   representation. It can be literal string or [`include_str!`] statement.
-/// * `version = ...` Override default version from _`Cargo.toml`_. Value must be literal string.
+///   representation. It can be [`str`] or an expression such as [`include_str!`][include_str] or static
+///   [`const`][const] reference..
+/// * `version = ...` Override default version from _`Cargo.toml`_. Value can be [`str`] or an
+///   expression such as [`include_str!`][include_str] or static [`const`][const] reference.
 /// * `contact(...)` Used to override the whole contact generated from environment variables.
 ///     * `name = ...` Define identifying name of contact person / organization. It Can be a literal string.
 ///     * `email = ...` Define email address of the contact person / organization. It can be a literal string.
@@ -1547,10 +1553,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # `tags(...)` attribute syntax
 ///
-/// * `name = ...` Must be provided, can be either of static [`str`], [`String`] or an expression
-///   e.g. reference to static [`const`][const].
-/// * `description = ...` Optional description for the tag. Can be either or static [`str`] or
-///   _`include_str!(...)`_ macro call.
+/// * `name = ...` Must be provided, can be [`str`] or an expression such as [`include_str!`][include_str]
+///   or static [`const`][const] reference.
+/// * `description = ...` Optional description for the tag. Can be either or static [`str`]
+///   or an expression e.g. _`include_str!(...)`_ macro call or reference to static [`const`][const].
 /// * `external_docs(...)` Optional links to external documents.
 ///      * `url = ...` Mandatory URL for external documentation.
 ///      * `description = ...` Optional description for the _`url`_ link.
@@ -1740,6 +1746,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [tags_syntax]: #tags-attribute-syntax
 /// [info_syntax]: #info-attribute-syntax
 /// [servers_syntax]: #servers-attribute-syntax
+/// [include_str]: https://doc.rust-lang.org/std/macro.include_str.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
@@ -3179,7 +3186,7 @@ mod parse_utils {
     use std::fmt::Display;
 
     use proc_macro2::{Group, Ident, TokenStream};
-    use quote::{quote, ToTokens};
+    use quote::ToTokens;
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
@@ -3190,40 +3197,40 @@ mod parse_utils {
 
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub enum Value {
+    pub enum LitStrOrExpr {
         LitStr(LitStr),
         Expr(Expr),
     }
 
-    impl From<String> for Value {
+    impl From<String> for LitStrOrExpr {
         fn from(value: String) -> Self {
             Self::LitStr(LitStr::new(&value, proc_macro2::Span::call_site()))
         }
     }
 
-    impl Value {
+    impl LitStrOrExpr {
         pub(crate) fn is_empty_litstr(&self) -> bool {
             matches!(self, Self::LitStr(s) if s.value().is_empty())
         }
     }
 
-    impl Default for Value {
+    impl Default for LitStrOrExpr {
         fn default() -> Self {
             Self::LitStr(LitStr::new("", proc_macro2::Span::call_site()))
         }
     }
 
-    impl Parse for Value {
+    impl Parse for LitStrOrExpr {
         fn parse(input: ParseStream) -> syn::Result<Self> {
             if input.peek(LitStr) {
-                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+                Ok::<LitStrOrExpr, Error>(LitStrOrExpr::LitStr(input.parse::<LitStr>()?))
             } else {
-                Ok(Value::Expr(input.parse::<Expr>()?))
+                Ok(LitStrOrExpr::Expr(input.parse::<Expr>()?))
             }
         }
     }
 
-    impl ToTokens for Value {
+    impl ToTokens for LitStrOrExpr {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
                 Self::LitStr(str) => str.to_tokens(tokens),
@@ -3232,7 +3239,7 @@ mod parse_utils {
         }
     }
 
-    impl Display for Value {
+    impl Display for LitStrOrExpr {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
                 Self::LitStr(str) => write!(f, "{str}", str = str.value()),
@@ -3253,12 +3260,8 @@ mod parse_utils {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
-    pub fn parse_next_literal_str_or_include_str(input: ParseStream) -> syn::Result<Str> {
-        parse_next(input, || input.parse::<Str>())
-    }
-
-    pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
-        parse_next(input, || Value::parse(input)).map_err(|error| {
+    pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<LitStrOrExpr> {
+        parse_next(input, || LitStrOrExpr::parse(input)).map_err(|error| {
             syn::Error::new(
                 error.span(),
                 format!("expected literal string or expression argument: {error}"),
@@ -3330,42 +3333,6 @@ mod parse_utils {
                 input.span(),
                 "unexpected token, expected json!(...)",
             ))
-        }
-    }
-
-    #[derive(Clone)]
-    #[cfg_attr(feature = "debug", derive(Debug))]
-    pub enum Str {
-        String(String),
-        IncludeStr(TokenStream),
-    }
-
-    impl Parse for Str {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            if input.peek(LitStr) {
-                Ok(Self::String(input.parse::<LitStr>()?.value()))
-            } else {
-                let include_str = input.parse::<Ident>()?;
-                let bang = input.parse::<Option<Token![!]>>()?;
-                if include_str != "include_str" || bang.is_none() {
-                    return Err(Error::new(
-                        include_str.span(),
-                        "unexpected token, expected either literal string or include_str!(...)",
-                    ));
-                }
-                Ok(Self::IncludeStr(input.parse::<Group>()?.stream()))
-            }
-        }
-    }
-
-    impl ToTokens for Str {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            match self {
-                Self::String(str) => str.to_tokens(tokens),
-                Self::IncludeStr(include_str) => {
-                    tokens.extend(quote! { include_str!(#include_str) })
-                }
-            }
         }
     }
 }
