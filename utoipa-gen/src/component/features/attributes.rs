@@ -587,7 +587,7 @@ impl From<SchemaWith> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct Description(parse_utils::Value);
+    pub struct Description(parse_utils::LitStrOrExpr);
 }
 
 impl Parse for Description {

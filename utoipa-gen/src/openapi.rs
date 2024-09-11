@@ -13,13 +13,13 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
+use crate::path;
 use crate::{
     component::{features::Feature, ComponentSchema, Container, TypeTree},
     parse_utils,
     security_requirement::SecurityRequirementsAttr,
     Array, Diagnostics, ExternalDocs, ToTokensDiagnostics,
 };
-use crate::{parse_utils::Str, path};
 
 use self::info::Info;
 
@@ -210,8 +210,8 @@ impl Parse for Modifier {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Tag {
-    name: parse_utils::Value,
-    description: Option<Str>,
+    name: parse_utils::LitStrOrExpr,
+    description: Option<parse_utils::LitStrOrExpr>,
     external_docs: Option<ExternalDocs>,
 }
 
@@ -231,8 +231,7 @@ impl Parse for Tag {
             match attribute_name {
                 "name" => tag.name = parse_utils::parse_next_literal_str_or_expr(input)?,
                 "description" => {
-                    tag.description =
-                        Some(parse_utils::parse_next_literal_str_or_include_str(input)?)
+                    tag.description = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
                 "external_docs" => {
                     let content;
@@ -476,7 +475,7 @@ impl ToTokensDiagnostics for OpenApi<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let OpenApi(attributes, ident) = self;
 
-        let info = info::impl_info(
+        let info = Info::merge_with_env_args(
             attributes
                 .as_ref()
                 .and_then(|attributes| attributes.info.clone()),
@@ -732,9 +731,9 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStrea
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(Default)]
 struct NestOpenApi {
-    path: parse_utils::Value,
+    path: parse_utils::LitStrOrExpr,
     open_api: Option<TypePath>,
-    tags: Punctuated<parse_utils::Value, Comma>,
+    tags: Punctuated<parse_utils::LitStrOrExpr, Comma>,
 }
 
 impl Parse for NestOpenApi {

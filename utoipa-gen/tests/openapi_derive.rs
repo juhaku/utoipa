@@ -255,6 +255,7 @@ fn derive_openapi_with_servers() {
 fn derive_openapi_with_custom_info() {
     #[derive(OpenApi)]
     #[openapi(info(
+        terms_of_service = "http://localhost/terms",
         title = "title override",
         description = "description override",
         version = "1.0.0",
@@ -271,6 +272,7 @@ fn derive_openapi_with_custom_info() {
             json!(
                 {
                     "title": "title override",
+                    "termsOfService": "http://localhost/terms",
                     "description": "description override",
                     "license": {
                         "name": "MIT OR Apache-2.0",

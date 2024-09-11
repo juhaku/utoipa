@@ -168,7 +168,7 @@ impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
 
 pub struct DeriveResponsesAttributes<T> {
     derive_value: T,
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
 }
 
 impl<'r> From<DeriveResponsesAttributes<DeriveIntoResponsesValue>> for ResponseValue<'r> {
@@ -198,9 +198,9 @@ impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for Resp
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
     response_type: Option<PathType<'r>>,
-    content_type: Option<Vec<parse_utils::Value>>,
+    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
@@ -210,7 +210,7 @@ pub struct ResponseValue<'r> {
 impl<'r> ResponseValue<'r> {
     fn from_derive_to_response_value(
         derive_value: DeriveToResponseValue,
-        description: parse_utils::Value,
+        description: parse_utils::LitStrOrExpr,
     ) -> Self {
         Self {
             description: if derive_value.description.is_empty_litstr()
@@ -230,7 +230,7 @@ impl<'r> ResponseValue<'r> {
 
     fn from_derive_into_responses_value(
         response_value: DeriveIntoResponsesValue,
-        description: parse_utils::Value,
+        description: parse_utils::LitStrOrExpr,
     ) -> Self {
         ResponseValue {
             description: if response_value.description.is_empty_litstr()
@@ -409,9 +409,9 @@ trait DeriveResponseValue: Parse {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct DeriveToResponseValue {
-    content_type: Option<Vec<parse_utils::Value>>,
+    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
@@ -482,9 +482,9 @@ impl Parse for DeriveToResponseValue {
 #[derive(Default)]
 struct DeriveIntoResponsesValue {
     status: ResponseStatus,
-    content_type: Option<Vec<parse_utils::Value>>,
+    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
-    description: parse_utils::Value,
+    description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
     examples: Option<(Punctuated<Example, Comma>, Ident)>,
 }
