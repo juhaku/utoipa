@@ -30,6 +30,7 @@ pub mod example;
 pub mod external_docs;
 pub mod header;
 pub mod info;
+pub mod link;
 pub mod path;
 pub mod request_body;
 pub mod response;
@@ -586,17 +587,25 @@ pub(crate) use from;
 
 macro_rules! builder {
     ( $( #[$builder_meta:meta] )* $builder_name:ident; $(#[$meta:meta])* $vis:vis $key:ident $name:ident $( $tt:tt )* ) => {
-        builder!( @type_impl $( #[$meta] )* $vis $key $name $( $tt )* );
+        builder!( @type_impl $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
         builder!( @builder_impl $( #[$builder_meta] )* $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
     };
 
-    ( @type_impl $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
+    ( @type_impl $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
         { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
     ) => {
-
         $( #[$meta] )*
         $vis $key $name {
             $( $( #[$field_meta] )* $field_vis $field: $field_ty, )*
+        }
+
+        impl $name {
+            #[doc = concat!("Construct a new ", stringify!($builder_name), ".")]
+            #[doc = ""]
+            #[doc = concat!("This is effectively same as calling [`", stringify!($builder_name), "::new`]")]
+            $vis fn builder() -> $builder_name {
+                $builder_name::new()
+            }
         }
     };
 

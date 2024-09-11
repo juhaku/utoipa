@@ -276,7 +276,7 @@ impl ToTokens for Tag {
 // (url = "http:://url", description = "description", variables(...))
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Server {
+pub struct Server {
     url: String,
     description: Option<String>,
     variables: Punctuated<ServerVariable, Comma>,

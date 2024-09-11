@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::openapi::{Ref, RefOr};
 use crate::IntoResponses;
 
+use super::link::Link;
 use super::{builder, header::Header, set_value, Content};
 
 builder! {
@@ -123,6 +124,11 @@ builder! {
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<HashMap<String, serde_json::Value>>,
+
+        /// A map of operations links that can be followed from the response. The key of the
+        /// map is a short name for the link.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub links: BTreeMap<String, RefOr<Link>>,
     }
 }
 
@@ -161,6 +167,13 @@ impl ResponseBuilder {
     /// Add openapi extensions (x-something) to the [`Header`].
     pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Add link that can be followed from the response.
+    pub fn link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
+        self.links.insert(name.into(), link.into());
+
+        self
     }
 }
 
