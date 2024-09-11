@@ -45,20 +45,12 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 regex = "1.7"
 
 # enabled optionally to allow rust only build with expense of bigger dependency tree and platform
-# independant build. By default `curl` system package is tried for downloading the Swagger UI.
+# independent build. By default `curl` system package is tried for downloading the Swagger UI.
 reqwest = { version = "0.12", features = [
     "blocking",
     "rustls-tls",
 ], default-features = false, optional = true }
 url = { version = "2", optional = true }
-utoipa-swagger-ui-vendored = { version = "0.1", path = "../utoipa-swagger-ui-vendored", optional = true }
-
-# Windows is forced to use reqwest to download the Swagger UI.
-[target.'cfg(windows)'.build-dependencies]
-reqwest = { version = "0.12", features = [
-    "blocking",
-    "rustls-tls",
-], default-features = false }
 utoipa-swagger-ui-vendored = { version = "0.1", path = "../utoipa-swagger-ui-vendored", optional = true }
 
 [lints.rust]
