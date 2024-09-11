@@ -57,10 +57,9 @@ utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
 
 > [!IMPORTANT]
 > _`utoipa-swagger-ui` crate will by default try to use system `curl` package for downloading the Swagger UI. It
-> can optionally be downloaded with `reqwest` by enabling `reqwest` feature. On Windows the `reqwest` feature
-> is enabled by default. Reqwest can be useful for platform independent builds however bringing quite a few 
-> unnecessary dependencies just to download a file. If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no 
-> downloading will happen._
+> can optionally be downloaded with `reqwest` by enabling `reqwest` feature. Reqwest can be useful for platform
+> independent builds however bringing quite a few unnecessary dependencies just to download a file.
+> If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no downloading will happen._
 
 > [!TIP]
 > Use **`vendored`** feature flag to use vendored Swagger UI. This is especially useful for no network 

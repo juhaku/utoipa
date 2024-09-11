@@ -226,15 +226,9 @@ struct SwaggerUiDist;
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let reqwest_feature = env::var("CARGO_FEATURE_REQWEST");
     println!("reqwest feature: {reqwest_feature:?}");
-    if reqwest_feature.is_ok()
-        || env::var("CARGO_CFG_TARGET_OS")
-            .map(|os| os == "windows")
-            .unwrap_or_default()
-    {
-        #[cfg(any(feature = "reqwest", target_os = "windows"))]
-        {
-            download_file_reqwest(url, path)?;
-        }
+    if reqwest_feature.is_ok() {
+        #[cfg(feature = "reqwest")]
+        download_file_reqwest(url, path)?;
         Ok(())
     } else {
         println!("trying to download using `curl` system package");
@@ -242,7 +236,7 @@ fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     }
 }
 
-#[cfg(any(feature = "reqwest", target_os = "windows"))]
+#[cfg(feature = "reqwest")]
 fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let mut client_builder = reqwest::blocking::Client::builder();
 
@@ -263,7 +257,7 @@ fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-#[cfg(any(feature = "reqwest", target_os = "windows"))]
+#[cfg(feature = "reqwest")]
 fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
     let mut buf = Vec::new();
     use io::Read;
@@ -273,6 +267,16 @@ fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
 }
 
 fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Box<dyn Error>> {
+    // Not using `CARGO_CFG_TARGET_OS` because of the possibility of cross-compilation.
+    // When targeting `x86_64-pc-windows-gnu` on Linux for example, `cfg!()` in the
+    // build script still reports `target_os = "linux"`, which is desirable.
+    let curl_bin_name = if cfg!(target_os = "windows") {
+        // powershell aliases `curl` to `Invoke-WebRequest`
+        "curl.exe"
+    } else {
+        "curl"
+    };
+
     #[cfg(feature = "url")]
     let url = url::Url::parse(url)?;
 
@@ -297,7 +301,7 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
         args.extend(["--cacert", &cacert]);
     }
 
-    let download = std::process::Command::new("curl")
+    let download = std::process::Command::new(curl_bin_name)
         .args(args)
         .spawn()
         .and_then(|mut child| child.wait());
@@ -315,7 +319,7 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
         })
         .map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
-                io::Error::new(error.kind(), "`curl` command not found".to_string())
+                io::Error::new(error.kind(), format!("`{curl_bin_name}` command not found"))
             } else {
                 error
             }
