@@ -856,19 +856,77 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `examples(...)` Define multiple examples for single response. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
-///     * `name = ...` This is first attribute and value must be literal string.
-///     * `summary = ...` Short description of example. Value must be literal string.
-///     * `description = ...` Long description of example. Attribute supports markdown for rich text
-///       representation. Value must be literal string.
-///     * `value = ...` Example value. It must be _`json!(...)`_. _`json!(...)`_ should be something that
-///       _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
-///     * `external_value = ...` Define URI to literal example value. This is mutually exclusive to
-///       the _`value`_ attribute. Value must be literal string.
 ///
-///      _**Example of example definition.**_
+/// * `links(...)` Define a map of operations links that can be followed from the response.
+///
+/// ## Response `examples(...)` syntax
+///
+/// * `name = ...` This is first attribute and value must be literal string.
+/// * `summary = ...` Short description of example. Value must be literal string.
+/// * `description = ...` Long description of example. Attribute supports markdown for rich text
+///   representation. Value must be literal string.
+/// * `value = ...` Example value. It must be _`json!(...)`_. _`json!(...)`_ should be something that
+///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+/// * `external_value = ...` Define URI to literal example value. This is mutually exclusive to
+///   the _`value`_ attribute. Value must be literal string.
+///
+///  _**Example of example definition.**_
+/// ```text
+///  ("John" = (summary = "This is John", value = json!({"name": "John"})))
+/// ```
+///
+/// ## Response `links(...)` syntax
+///
+/// * `operation_ref = ...` Define a relative or absolute URI reference to an OAS operation. This field is
+///   mutually exclusive of the _`operation_id`_ field, and **must** point to an [Operation Object][operation].
+///   Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+///   [`const`][const] reference.
+///
+/// * `operation_id = ...` Define the name of an existing, resolvable OAS operation, as defined with a unique
+///   _`operation_id`_. This field is mutually exclusive of the _`operation_ref`_ field.
+///   Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+///   [`const`][const] reference.
+///
+/// * `parameters(...)` A map representing parameters to pass to an operation as specified with _`operation_id`_
+///   or identified by _`operation_ref`_. The key is parameter name to be used and value can
+///   be any value supported by JSON or an [expression][expression] e.g. `$path.id`
+///     * `name = ...` Define name for the parameter.
+///       Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+///       [`const`][const] reference.
+///     * `value` = Any value that can be supported by JSON or an [expression][expression].
+///
+///     _**Example of parameters syntax:**_
 ///     ```text
-///      ("John" = (summary = "This is John", value = json!({"name": "John"})))
+///     parameters(
+///          ("name" = value),
+///          ("name" = value)
+///     ),
 ///     ```
+///
+/// * `request_body = ...` Define a literal value or an [expression][expression] to be used as request body when
+///   operation is called
+///
+/// * `description = ...` Define description of the link. Value supports Markdown syntax.Value can be be [`str`] or
+///   an expression such as [`include_str!`][include_str] or static [`const`][const] reference.
+///
+/// * `server(...)` Define [Server][server] object to be used by the target operation. See
+///   [server syntax][server_derive_syntax]
+///
+/// **Links syntax example:** See the full example below in [examples](#examples).
+/// ```text
+/// responses(
+///     (status = 200, description = "success response",
+///         links(
+///             ("link_name" = (
+///                 operation_id = "test_links",
+///                 parameters(("key" = "value"), ("json_value" = json!(1))),
+///                 request_body = "this is body",
+///                 server(url = "http://localhost")
+///             ))
+///         )
+///     )
+/// )
+/// ```
 ///
 /// **Minimal response format:**
 /// ```text
@@ -1032,10 +1090,18 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
 ///
+/// ##### Parameter Formats
+/// ```test
+/// ("name" = ParameterType, ParameterIn, ...)
+/// ("name", ParameterIn, ...)
+/// ```
+///
 /// **For example:**
 ///
 /// ```text
 /// params(
+///     ("limit" = i32, Query),
+///     ("x-custom-header" = String, Header, description = "Custom header"),
 ///     ("id" = String, Path, deprecated, description = "Pet database id"),
 ///     ("name", Path, deprecated, description = "Pet name"),
 ///     (
@@ -1387,6 +1453,33 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// _**Example of using links in response.**_
+/// ```rust
+/// # use serde_json::json;
+///  #[utoipa::path(
+///     get,
+///     path = "/test-links",
+///     responses(
+///         (status = 200, description = "success response",
+///             links(
+///                 ("getFoo" = (
+///                     operation_id = "test_links",
+///                     parameters(("key" = "value"), ("json_value" = json!(1))),
+///                     request_body = "this is body",
+///                     server(url = "http://localhost")
+///                 )),
+///                 ("getBar" = (
+///                     operation_ref = "this is ref"
+///                 ))
+///             )
+///         )
+///     ),
+/// )]
+/// async fn test_links() -> &'static str {
+///     ""
+/// }
+/// ```
+///
 /// [in_enum]: openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
 /// [to_schema]: trait.ToSchema.html
@@ -1402,6 +1495,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [known_format]: openapi/schema/enum.KnownFormat.html
 /// [xml]: openapi/xml/struct.Xml.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+/// [relative_references]: https://spec.openapis.org/oas/latest.html#relative-references-in-uris
+/// [operation]: openapi/path/struct.Operation.html
+/// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
+/// [const]: https://doc.rust-lang.org/std/keyword.const.html
+/// [include_str]: https://doc.rust-lang.org/std/macro.include_str.html
+/// [server_derive_syntax]: derive.OpenApi.html#servers-attribute-syntax
+/// [server]: openapi/server/struct.Server.html
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
@@ -1540,7 +1640,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   must be valid URL.
 /// * `description = ...` Define description of the API. Markdown can be used for rich text
 ///   representation. It can be [`str`] or an expression such as [`include_str!`][include_str] or static
-///   [`const`][const] reference..
+///   [`const`][const] reference.
 /// * `version = ...` Override default version from _`Cargo.toml`_. Value can be [`str`] or an
 ///   expression such as [`include_str!`][include_str] or static [`const`][const] reference.
 /// * `contact(...)` Used to override the whole contact generated from environment variables.

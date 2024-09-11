@@ -15,9 +15,12 @@ use crate::{
     parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics,
 };
 
+use self::link::LinkTuple;
+
 use super::{example::Example, parse, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
 
 pub mod derive;
+pub mod link;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Response<'r> {
@@ -126,6 +129,10 @@ impl Parse for ResponseTuple<'_> {
                     response.as_value(input.span())?.content =
                         parse_utils::parse_punctuated_within_parenthesis(input)?;
                 }
+                "links" => {
+                    response.as_value(input.span())?.links =
+                        parse_utils::parse_punctuated_within_parenthesis(input)?;
+                }
                 "response" => {
                     response.set_ref_type(
                         input.span(),
@@ -205,6 +212,7 @@ pub struct ResponseValue<'r> {
     example: Option<AnyValue>,
     examples: Option<Punctuated<Example, Comma>>,
     content: Punctuated<Content<'r>, Comma>,
+    links: Punctuated<LinkTuple, Comma>,
 }
 
 impl<'r> ResponseValue<'r> {
@@ -381,6 +389,12 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                     let header = crate::as_tokens_or_diagnostics!(header);
                     tokens.extend(quote! {
                         .header(#name, #header)
+                    })
+                }
+
+                for LinkTuple(name, link) in &val.links {
+                    tokens.extend(quote! {
+                        .link(#name, #link)
                     })
                 }
 

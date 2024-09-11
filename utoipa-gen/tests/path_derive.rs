@@ -2383,3 +2383,72 @@ fn derive_path_with_multiple_methods() {
         })
     );
 }
+
+#[test]
+fn derive_path_with_response_links() {
+    #![allow(dead_code)]
+
+    #[utoipa::path(
+        get,
+        path = "/test-links",
+        responses(
+            (status = 200, description = "success response", 
+                links(
+                    ("getFoo" = (
+                        operation_id = "test_links", 
+                        parameters(("key" = "value"), ("json_value" = json!(1))), 
+                        request_body = "this is body", 
+                        server(url = "http://localhost") 
+                    )),
+                    ("getBar" = (
+                        operation_ref = "this is ref"
+                    ))
+                )
+            )
+        ),
+    )]
+    #[allow(unused)]
+    async fn test_links() -> &'static str {
+        ""
+    }
+    use utoipa::OpenApi;
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(test_links))]
+    struct ApiDoc;
+
+    let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let paths = doc.pointer("/paths").expect("OpenApi must have paths");
+
+    assert_json_eq!(
+        &paths,
+        json!({
+            "/test-links": {
+                "get": {
+                    "operationId": "test_links",
+                    "responses": {
+                        "200": {
+                            "description": "success response",
+                            "links": {
+                                "getFoo": {
+                                    "operation_id": "test_links",
+                                    "parameters": {
+                                        "json_value": 1,
+                                        "key": "value"
+                                    },
+                                    "request_body": "this is body",
+                                    "server": {
+                                        "url": "http://localhost"
+                                    }
+                                },
+                                "getBar": {
+                                    "operation_ref": "this is ref"
+                                }
+                            },
+                        },
+                    },
+                    "tags": []
+                },
+            }
+        })
+    );
+}
