@@ -16,7 +16,7 @@ Add dependency declaration to `Cargo.toml`.
 utoipa_config = "0.1"
 ```
 
-> [NOTE!]
+> [!NOTE]
 > Not released yet.
 
 ## Examples
