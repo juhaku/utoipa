@@ -1,0 +1,21 @@
+[package]
+name = "utoipa-config-test"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+utoipa = { version = "5.0.0-beta.0", path = "../../utoipa", features = [
+    "debug",
+    "config",
+] }
+serde = "1"
+serde_json = "1"
+
+[build-dependencies]
+utoipa-config = { version = "0.1", path = "../../utoipa-config" }
+
+[dev-dependencies]
+utoipa-config = { version = "0.1", path = "../../utoipa-config" }
+
+[workspace]

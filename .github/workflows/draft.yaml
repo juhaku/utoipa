@@ -21,6 +21,7 @@ jobs:
           - utoipa-rapidoc
           - utoipa-scalar
           - utoipa-axum
+          - utoipa-config
     runs-on: ubuntu-latest
 
     steps:

@@ -410,6 +410,24 @@ impl<'t> TypeTree<'t> {
 
         Ok(generics)
     }
+
+    /// Get possible global alias defined in `utoipa_config::Config` for current `TypeTree`.
+    pub fn get_alias_type(&self) -> Result<Option<syn::Type>, Diagnostics> {
+        #[cfg(feature = "config")]
+        {
+            self.path
+                .as_ref()
+                .and_then(|path| path.segments.iter().last())
+                .and_then(|last_segment| {
+                    crate::CONFIG.aliases.get(&*last_segment.ident.to_string())
+                })
+                .map_try(|alias| syn::parse_str::<syn::Type>(alias.as_ref()))
+                .map_err(|error| Diagnostics::new(error.to_string()))
+        }
+
+        #[cfg(not(feature = "config"))]
+        Ok(None)
+    }
 }
 
 impl PartialEq for TypeTree<'_> {
