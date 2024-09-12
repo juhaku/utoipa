@@ -287,6 +287,11 @@ impl NamedStructSchema<'_> {
         let schema_with = pop_feature!(field_features => Feature::SchemaWith(_));
         let required = pop_feature!(field_features => Feature::Required(_) as Option<crate::component::features::attributes::Required>);
         let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
+
+        let alias_type = type_tree.get_alias_type()?;
+        let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
+        let type_tree = alias_type_tree.as_ref().unwrap_or(type_tree);
+
         let is_option = type_tree.is_option();
 
         Ok(NamedStructFieldOptions {
@@ -556,6 +561,11 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
             let type_tree = override_type_tree.as_ref().unwrap_or(first_part);
+
+            let alias_type = type_tree.get_alias_type()?;
+            let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
+            let type_tree = alias_type_tree.as_ref().unwrap_or(type_tree);
+
             tokens.extend(
                 ComponentSchema::new(super::ComponentSchemaProps {
                     type_tree,

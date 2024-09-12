@@ -65,6 +65,10 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
+#[cfg(feature = "config")]
+static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
+    once_cell::sync::Lazy::new(utoipa_config::Config::read_from_file);
+
 #[proc_macro_derive(ToSchema, attributes(schema))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].

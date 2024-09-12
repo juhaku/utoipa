@@ -40,5 +40,9 @@ for crate in $crates; do
         $CARGO ${CARGO_COMMAND} -p utoipa-scalar --features actix-web,rocket,axum,utoipa/macros
     elif [[ "$crate" == "utoipa-axum" ]]; then
         $CARGO ${CARGO_COMMAND} -p utoipa-axum --features debug,utoipa/debug,utoipa/macros
+    elif [[ "$crate" == "utoipa-config" ]]; then
+        pushd utoipa-config/config-test-crate/
+        $CARGO ${CARGO_COMMAND}
+        popd
     fi
 done

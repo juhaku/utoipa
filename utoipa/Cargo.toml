@@ -43,6 +43,7 @@ preserve_order = []
 preserve_path_order = []
 rc_schema = ["utoipa-gen?/rc_schema"]
 macros = ["dep:utoipa-gen"]
+config = ["utoipa-gen?/config"]
 
 # EXPERIEMENTAL! use with cauntion
 auto_into_responses = ["utoipa-gen?/auto_into_responses"]
@@ -59,7 +60,16 @@ assert-json-diff = "2"
 utoipa = { path = ".", features = ["debug"] }
 
 [package.metadata.docs.rs]
-features = ["actix_extras", "non_strict_integers", "openapi_extensions", "uuid", "ulid", "url", "yaml", "macros"]
+features = [
+    "actix_extras",
+    "non_strict_integers",
+    "openapi_extensions",
+    "uuid",
+    "ulid",
+    "url",
+    "yaml",
+    "macros",
+]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [lints.rust]
