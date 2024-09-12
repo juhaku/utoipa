@@ -109,7 +109,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **`non_strict_integers`**: Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
 - **`rc_schema`**: Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
-- **`config`** Enables [`utoipa-config`](./utoipa-config/README.md) for the project which allows defining global configuration options `utoipa`.
+- **`config`** Enables [`utoipa-config`](./utoipa-config/README.md) for the project which allows defining global configuration options for `utoipa`.
 
 Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 
