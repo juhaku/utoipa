@@ -1116,7 +1116,7 @@ fn derive_struct_unnamed_field_reference_with_comment() {
     );
 }
 
-/// Derive a complex enum with named and unnamed fields.
+/// Derive a mixed enum with named and unnamed fields.
 #[test]
 fn derive_complex_unnamed_field_reference_with_comment() {
     #[derive(Serialize, ToSchema)]
@@ -1136,6 +1136,7 @@ fn derive_complex_unnamed_field_reference_with_comment() {
             "oneOf": [
                 {
                     "type": "object",
+                    "description": "Since OpenAPI 3.1 the comments can be added to the Ref types as well",
                     "properties": {
                         "UnnamedFieldWithCommentReference": {
                             "$ref": "#/components/schemas/CommentedReference",
@@ -1174,15 +1175,12 @@ fn derive_enum_with_unnamed_primitive_field_with_tag() {
                     "required": ["tag"]
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag"
-            }
         })
     );
 }
 
 #[test]
-fn derive_complex_enum_with_schema_properties() {
+fn derive_mixed_enum_with_schema_properties() {
     let value: Value = api_doc! {
         /// This is the description
         #[derive(Serialize)]
@@ -1284,10 +1282,7 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
                         },
                     ],
                 }
-            ],
-            "discriminator": {
-                "propertyName": "enum"
-            }
+            ]
         })
     );
 }
@@ -1339,7 +1334,7 @@ fn derive_enum_with_named_fields_with_reference_with_tag() {
                 {
                     "allOf": [
                         {
-                        "$ref": "#/components/schemas/ReferenceValue",
+                            "$ref": "#/components/schemas/ReferenceValue",
                         },
                         {
                             "type": "object",
@@ -1369,16 +1364,13 @@ fn derive_enum_with_named_fields_with_reference_with_tag() {
                     "type": "object"
                 }
             ],
-            "discriminator": {
-                "propertyName": "enum"
-            }
         })
     );
 }
 
-/// Derive a complex enum with named and unnamed fields.
+/// Derive a mixed enum with named and unnamed fields.
 #[test]
-fn derive_complex_enum() {
+fn derive_mixed_enum() {
     #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
@@ -1442,7 +1434,7 @@ fn derive_complex_enum() {
 }
 
 #[test]
-fn derive_complex_enum_title() {
+fn derive_mixed_enum_title() {
     #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
@@ -1505,7 +1497,7 @@ fn derive_complex_enum_title() {
 }
 
 #[test]
-fn derive_complex_enum_example() {
+fn derive_mixed_enum_example() {
     #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
@@ -1570,7 +1562,7 @@ fn derive_complex_enum_example() {
 }
 
 #[test]
-fn derive_complex_enum_serde_rename_all() {
+fn derive_mixed_enum_serde_rename_all() {
     #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
@@ -1635,7 +1627,7 @@ fn derive_complex_enum_serde_rename_all() {
 }
 
 #[test]
-fn derive_complex_enum_serde_rename_variant() {
+fn derive_mixed_enum_serde_rename_variant() {
     #[derive(Serialize, ToSchema)]
     struct Foo(String);
 
@@ -1742,7 +1734,7 @@ fn derive_struct_custom_rename() {
 }
 
 #[test]
-fn derive_complex_enum_custom_rename() {
+fn derive_mixed_enum_custom_rename() {
     let value: Value = api_doc! {
         #[schema(rename_all = "UPPERCASE")]
         enum PostType {
@@ -1826,7 +1818,7 @@ fn derive_complex_enum_custom_rename() {
 }
 
 #[test]
-fn derive_complex_enum_use_serde_rename_over_custom_rename() {
+fn derive_mixed_enum_use_serde_rename_over_custom_rename() {
     let value: Value = api_doc! {
         #[derive(serde::Deserialize)]
         #[serde(rename_all = "lowercase")]
@@ -1923,7 +1915,7 @@ fn derive_enum_with_title() {
 }
 
 #[test]
-fn derive_complex_enum_with_title() {
+fn derive_mixed_enum_with_title() {
     let value: Value = api_doc! {
         enum UserType {
             #[schema(title = "admin")]
@@ -1976,10 +1968,10 @@ fn derive_complex_enum_with_title() {
     )
 }
 
-/// Derive a complex enum with the serde `tag` container attribute applied for internal tagging.
+/// Derive a mixed enum with the serde `tag` container attribute applied for internal tagging.
 /// Note that tuple fields are not supported.
 #[test]
-fn derive_complex_enum_serde_tag() {
+fn derive_mixed_enum_serde_tag() {
     #[derive(Serialize)]
     #[allow(dead_code)]
     struct Foo(String);
@@ -2039,9 +2031,6 @@ fn derive_complex_enum_serde_tag() {
                     ],
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag"
-            }
         })
     );
 }
@@ -2148,10 +2137,11 @@ fn derive_serde_flatten() {
 }
 
 #[test]
-fn derive_complex_enum_serde_untagged() {
+fn derive_mixed_enum_serde_untagged() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
         #[serde(untagged)]
+        #[schema(title = "FooTitle")]
         enum Foo {
             Bar(i32),
             Baz(String),
@@ -2161,6 +2151,7 @@ fn derive_complex_enum_serde_untagged() {
     assert_json_eq!(
         value,
         json!({
+            "title": "FooTitle",
             "oneOf": [
                 {
                     "format": "int32",
@@ -2175,7 +2166,35 @@ fn derive_complex_enum_serde_untagged() {
 }
 
 #[test]
-fn derive_complex_enum_with_ref_serde_untagged() {
+fn derive_untagged_with_unit_variant() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum EnumWithUnit {
+            ValueNumber(i32),
+            ThisIsUnit,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "format": "int32",
+                    "type": "integer",
+                },
+                {
+                    "type": "null",
+                    "default": null,
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn derive_mixed_enum_with_ref_serde_untagged() {
     #[derive(Serialize, ToSchema)]
     struct Foo {
         name: String,
@@ -2208,7 +2227,7 @@ fn derive_complex_enum_with_ref_serde_untagged() {
 }
 
 #[test]
-fn derive_complex_enum_with_ref_serde_untagged_named_fields() {
+fn derive_mixed_enum_with_ref_serde_untagged_named_fields() {
     #[derive(Serialize, ToSchema)]
     struct Bar {
         name: String,
@@ -2257,7 +2276,7 @@ fn derive_complex_enum_with_ref_serde_untagged_named_fields() {
 }
 
 #[test]
-fn derive_complex_enum_with_ref_serde_untagged_named_fields_rename_all() {
+fn derive_mixed_enum_with_ref_serde_untagged_named_fields_rename_all() {
     #[derive(Serialize, ToSchema)]
     struct Bar {
         name: String,
@@ -2308,7 +2327,7 @@ fn derive_complex_enum_with_ref_serde_untagged_named_fields_rename_all() {
 }
 
 #[test]
-fn derive_complex_enum_serde_adjacently_tagged() {
+fn derive_mixed_enum_serde_adjacently_tagged() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
         #[serde(tag = "tag", content = "content")]
@@ -2337,8 +2356,8 @@ fn derive_complex_enum_serde_adjacently_tagged() {
                         },
                     },
                     "required": [
+                        "content",
                         "tag",
-                        "content"
                     ],
                 },
                 {
@@ -2355,20 +2374,17 @@ fn derive_complex_enum_serde_adjacently_tagged() {
                         },
                     },
                     "required": [
+                        "content",
                         "tag",
-                        "content"
                     ],
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag",
-            },
         })
     );
 }
 
 #[test]
-fn derive_complex_enum_with_ref_serde_adjacently_tagged() {
+fn derive_mixed_enum_with_ref_serde_adjacently_tagged() {
     #[derive(Serialize, ToSchema)]
     struct Foo {
         name: String,
@@ -2403,8 +2419,8 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged() {
                         },
                     },
                     "required": [
+                        "content",
                         "tag",
-                        "content"
                     ],
                 },
                 {
@@ -2421,20 +2437,109 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged() {
                         },
                     },
                     "required": [
+                        "content",
                         "tag",
-                        "content"
                     ],
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag",
-            },
         })
     );
 }
 
 #[test]
-fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields() {
+fn derive_mixed_enum_with_discriminator_simple_form() {
+    #[derive(Serialize, ToSchema)]
+    struct FooInternal {
+        name: String,
+        age: u32,
+        bar: String,
+    }
+
+    #[derive(ToSchema, Serialize)]
+    struct BarBarInternal {
+        value: String,
+        bar: String,
+    }
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        #[schema(discriminator = "bar")]
+        enum BarInternal {
+            Baz(BarBarInternal),
+            FooBar(FooInternal),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "$ref": "#/components/schemas/BarBarInternal"
+                },
+                {
+                    "$ref": "#/components/schemas/FooInternal"
+                },
+            ],
+            "discriminator": {
+                "propertyName": "bar",
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_mixed_enum_with_discriminator_with_mapping() {
+    #[derive(Serialize, ToSchema)]
+    struct FooInternal {
+        name: String,
+        age: u32,
+        bar_type: String,
+    }
+
+    #[derive(ToSchema, Serialize)]
+    struct BarBarInternal {
+        value: String,
+        bar_type: String,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        #[schema(discriminator(property_name = "bar_type", mapping(
+            ("bar" = "#/components/schemas/BarBarInternal"),
+            ("foo" = "#/components/schemas/FooInternal"),
+        )))]
+        enum BarInternal {
+            Baz(BarBarInternal),
+            FooBar(FooInternal),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "$ref": "#/components/schemas/BarBarInternal"
+                },
+                {
+                    "$ref": "#/components/schemas/FooInternal"
+                },
+            ],
+            "discriminator": {
+                "propertyName": "bar_type",
+                "mapping": {
+                    "bar": "#/components/schemas/BarBarInternal",
+                    "foo": "#/components/schemas/FooInternal"
+                }
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_mixed_enum_with_ref_serde_adjacently_tagged_named_fields() {
     #[derive(Serialize, ToSchema)]
     struct Bar {
         name: String,
@@ -2477,8 +2582,8 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields() {
                         },
                     },
                     "required": [
-                      "tag",
-                      "content"
+                        "content",
+                        "tag",
                     ],
                 },
                 {
@@ -2503,20 +2608,17 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields() {
                         },
                     },
                     "required": [
-                      "tag",
-                      "content",
+                        "content",
+                        "tag",
                     ],
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag",
-            },
         })
     );
 }
 
 #[test]
-fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all() {
+fn derive_mixed_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all() {
     #[derive(Serialize, ToSchema)]
     struct Bar {
         name: String,
@@ -2561,8 +2663,8 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all(
                         },
                     },
                     "required": [
-                      "tag",
-                      "content"
+                        "content",
+                        "tag",
                     ],
                 },
                 {
@@ -2587,20 +2689,17 @@ fn derive_complex_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all(
                         },
                     },
                     "required": [
-                      "tag",
-                      "content",
+                        "content",
+                        "tag",
                     ],
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag",
-            },
         })
     );
 }
 
 #[test]
-fn derive_complex_enum_serde_tag_title() {
+fn derive_mixed_enum_serde_tag_title() {
     #[derive(Serialize)]
     #[allow(dead_code)]
     struct Foo(String);
@@ -2657,9 +2756,6 @@ fn derive_complex_enum_serde_tag_title() {
                     ],
                 },
             ],
-            "discriminator": {
-                "propertyName": "tag"
-            }
         })
     );
 }
@@ -3399,10 +3495,10 @@ fn derive_parse_serde_simple_enum_attributes() {
 }
 
 #[test]
-fn derive_parse_serde_complex_enum() {
+fn derive_parse_serde_mixed_enum() {
     #[derive(Serialize, ToSchema)]
     struct Foo;
-    let complex_enum = api_doc! {
+    let mixed_enum = api_doc! {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         enum Bar {
@@ -3419,7 +3515,7 @@ fn derive_parse_serde_complex_enum() {
         }
     };
 
-    assert_value! {complex_enum=>
+    assert_value! {mixed_enum=>
         "oneOf.[0].enum" = r#"["unitValue"]"#, "Unit value enum"
         "oneOf.[0].type" = r#""string""#, "Unit value type"
 
@@ -3457,7 +3553,7 @@ fn derive_component_with_generic_types_having_path_expression() {
 }
 
 #[test]
-fn derive_complex_enum_as() {
+fn derive_mixed_enum_as() {
     #[derive(ToSchema)]
     struct Foobar;
 
@@ -3591,7 +3687,7 @@ fn derive_component_with_to_schema_value_type() {
 }
 
 #[test]
-fn derive_component_with_complex_enum_lifetimes() {
+fn derive_component_with_mixed_enum_lifetimes() {
     #[derive(ToSchema)]
     struct Foo<'foo> {
         #[allow(unused)]
@@ -5064,6 +5160,7 @@ fn derive_schema_with_docstring_on_unit_variant_of_enum() {
                     "type": "string"
                 },
                 {
+                    "description": "non-unit doc",
                     "properties": {
                         "NonUnitVariant": {
                             "description": "non-unit doc",
@@ -5096,35 +5193,33 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
     assert_json_eq!(
         value,
         json!(
-                {
-                  "oneOf": [
+            {
+                "oneOf": [
                     {
-                      "type": "object",
-                      "required": [
-                        "TupleVariantWithOptionFirst"
-                      ],
-                      "properties": {
-                        "TupleVariantWithOptionFirst": {
-                          "type": ["string", "null"],
-                          "description": "doc for tuple variant with Option as first element - I now produce a description"
+                        "type": "object",
+                        "required": [ "TupleVariantWithOptionFirst" ],
+                        "description": "doc for tuple variant with Option as first element - I now produce a description",
+                        "properties": {
+                            "TupleVariantWithOptionFirst": {
+                                "type": ["string", "null"],
+                                "description": "doc for tuple variant with Option as first element - I now produce a description"
+                            }
                         }
-                      }
                     },
                     {
-                      "type": "object",
-                      "required": [
-                        "TupleVariantWithNoOption"
-                      ],
-                      "properties": {
-                        "TupleVariantWithNoOption": {
-                          "type": "string",
-                          "description": "doc for tuple variant without Option as first element - I produce a description"
+                        "type": "object",
+                        "required": [ "TupleVariantWithNoOption" ],
+                        "description": "doc for tuple variant without Option as first element - I produce a description",
+                        "properties": {
+                            "TupleVariantWithNoOption": {
+                                "type": "string",
+                                "description": "doc for tuple variant without Option as first element - I produce a description"
+                            }
                         }
-                      }
                     }
-                  ],
-                  "description": "top level doc for My enum"
-                }
+                ],
+                "description": "top level doc for My enum"
+            }
         )
     );
 
@@ -5145,6 +5240,7 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
             "description": "top level doc for My enum",
             "oneOf": [
                 {
+                    "description": "doc for tuple variant with Option as first element - I now produce a description",
                     "properties": {
                         "TupleVariantWithOptionFirst": {
                             "description": "doc for tuple variant with Option as first element - I now produce a description",
@@ -5162,6 +5258,7 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
                     "type": "object"
                 },
                 {
+                    "description": "doc for tuple variant without Option as first element - I produce a description",
                     "properties": {
                         "TupleVariantWithOptionSecond": {
                             "description": "doc for tuple variant without Option as first element - I produce a description",
@@ -5252,7 +5349,7 @@ fn derive_simple_enum_description_override() {
 }
 
 #[test]
-fn derive_complex_enum_description_override() {
+fn derive_mixed_enum_description_override() {
     #[allow(unused)]
     #[derive(ToSchema)]
     struct User {

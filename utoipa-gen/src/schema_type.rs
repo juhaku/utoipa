@@ -41,8 +41,9 @@ impl ToTokens for SchemaTypeInner {
 }
 
 /// Tokenizes OpenAPI data type correctly according to the Rust type
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SchemaType<'a> {
-    pub path: &'a syn::Path,
+    pub path: std::borrow::Cow<'a, syn::Path>,
     pub nullable: bool,
 }
 

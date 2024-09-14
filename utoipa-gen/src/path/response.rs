@@ -914,5 +914,5 @@ fn headers(input: ParseStream) -> syn::Result<Vec<Header>> {
     let headers;
     syn::parenthesized!(headers in input);
 
-    parse_utils::parse_groups(&headers)
+    parse_utils::parse_groups_collect(&headers)
 }
