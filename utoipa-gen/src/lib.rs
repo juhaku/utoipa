@@ -98,12 +98,15 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// }
 /// ```
 ///
-/// # Struct Optional Configuration Options for `#[schema(...)]`
+/// # Named Field Struct Optional Configuration Options for `#[schema(...)]`
+///
 /// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
 ///   `include_str!(...)` statement. This can be used to override **default** description what is
 ///   resolved from doc comments of the type.
-/// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
-///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -113,95 +116,26 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   __serde__ will take precedence.
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
 /// * `default` Can be used to populate default values on all fields using the struct's
 ///   [`Default`] implementation.
 /// * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the fields as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
-
-/// # Enum Optional Configuration Options for `#[schema(...)]`
-/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
-///   `include_str!(...)` statement. This can be used to override **default** description what is
-///   resolved from doc comments of the type.
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
-/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
-///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
-/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
-///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
-///   are defined __serde__ will take precedence.
-/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
-///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
-/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
-///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
-///   Rust's own `#[deprecated]` attribute instead.
+/// * `max_properties = ...` Can be used to define maximum number of properties this struct can
+///   contain. Value must be a number.
+/// * `min_properties = ...` Can be used to define minimum number of properties this struct can
+///   contain. Value must be a number.
 ///
-/// # Enum Variant Optional Configuration Options for `#[schema(...)]`
-/// Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
-/// unnamed struct type configuration options are supported.
+/// ## Named Fields Optional Configuration Options for `#[schema(...)]`
 ///
-/// In addition to the variant type specific configuration options enum variants support custom
-/// _`rename`_ attribute. It behaves similarly to serde's _`rename`_ attribute. If both _serde_
-/// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
-///
-/// ## Enum Unnamed Variant Field Configuration Options
-///
-/// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
-///   will be inlined. **warning:** Don't use this for recursive data types!
-///
-///   _**Inline unnamed field variant schemas.**_
-///   ```rust
-///   # use utoipa::ToSchema;
-///   # #[derive(ToSchema)]
-///   # enum Number {
-///   #     One,
-///   # }
-///   #
-///   # #[derive(ToSchema)]
-///   # enum Color {
-///   #     Spade,
-///   # }
-///    #[derive(ToSchema)]
-///    enum Card {
-///        Number(#[schema(inline)] Number),
-///        Color(#[schema(inline)] Color),
-///    }
-///   ```
-///
-/// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
-/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
-///   `include_str!(...)` statement. This can be used to override **default** description what is
-///   resolved from doc comments of the type.
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
-///   only one field, the field's default value in the schema will be set from the struct's
-///   [`Default`] implementation.
-/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
-///   an open value as a string. By default the format is derived from the type of the property
-///   according OpenApi spec.
-/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
-///   This is useful in cases where the default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
-///   or _`Value`_.
-///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
-/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
-///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   struct.
-/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
-///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
-/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
-///   not in the code. If you'd like to mark the field as deprecated in the code as well use
-///   Rust's own `#[deprecated]` attribute instead.
-///
-/// # Named Fields Optional Configuration Options for `#[schema(...)]`
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -247,6 +181,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+/// * `content_encoding = ...` Can be used to define content encoding used for underlying schema object.
+///   See [`Object::content_encoding`][schema_object_encoding]
+/// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
+///   See [`Object::content_media_type`][schema_object_media_type]
 ///
 /// #### Field nullability and required rules
 ///
@@ -270,6 +208,220 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 /// See [`Xml`][xml] for more details.
 ///
+/// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
+///
+/// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_. If no value
+///   is specified, and the struct has only one field, the field's default value in the schema will be
+///   set from the struct's [`Default`] implementation.
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
+///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
+///   or _`Value`_.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
+/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///
+/// # Enum Optional Configuration Options for `#[schema(...)]`
+///
+/// ## Plain Enum having only `Unit` variants Optional Configuration Options for `#[schema(...)]`
+///
+/// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///
+/// ### Plain Enum Variant Optional Configuration Options for `#[schema(...)]`
+///
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence. **Note!** [`Repr enum`][macro@ToSchema#repr-attribute-support] variant does not
+///   support _`rename`_.
+///
+/// ## Mixed Enum Optional Configuration Options for `#[schema(...)]`
+///
+/// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+/// * `discriminator = ...` or `discriminator(...)` Can be used to define OpenAPI discriminator
+///   field for enums with single unnamed _`ToSchema`_ reference field. See the [discriminator
+///   syntax][derive@ToSchema#schemadiscriminator-syntax].
+///
+///  ### `#[schema(discriminator)]` syntax
+///  
+///  Discriminator can **only** be used with enums having **`#[serde(untagged)]`** attribute and
+///  each variant must have only one unnamed field schema reference to type implementing
+///  _`ToSchema`_.
+///
+///  **Simple form `discriminator = ...`**
+///
+///  Can be literal string or expression e.g. [_`const`_][const] reference. It can be defined as
+///  _`discriminator = "value"`_ where the assigned value is the
+/// discriminator field that must exists in each variant referencing schema.
+///
+/// **Complex form `discriminator(...)`**
+///
+/// * `property_name = ...` Can be literal string or expression e.g. [_`const`_][const] reference.
+/// * mapping `key` Can be literal string or expression e.g. [_`const`_][const] reference.
+/// * mapping `value` Can be literal string or expression e.g. [_`const`_][const] reference.
+///
+/// Additionally discriminator can be defined with custom mappings as show below. The _`mapping`_
+/// values defines _**key = value**_ pairs where _**key**_ is the expected value for _**property_name**_ field
+/// and _**value**_ is schema to map.
+/// ```text
+/// discriminator(property_name = "my_field", mapping(
+///      ("value" = "#/components/schemas/Schema1"),
+///      ("value2" = "#/components/schemas/Schema2")
+/// ))
+/// ```
+///
+/// ### Mixed Enum Named Field Variant Optional Configuration Options for `#[serde(schema)]`
+///
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum.
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variant fields accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+/// * `max_properties = ...` Can be used to define maximum number of properties this struct can
+///   contain. Value must be a number.
+/// * `min_properties = ...` Can be used to define minimum number of properties this struct can
+///   contain. Value must be a number.
+///
+/// ## Mixed Enum Unnamed Field Variant Optional Configuration Options for `#[serde(schema)]`
+///
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
+///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
+///   or _`Value`_.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///
+/// #### Mixed Enum Unnamed Field Variant's Field Configuration Options
+///
+/// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
+///   will be inlined. **warning:** Don't use this for recursive data types!
+///
+///   _**Inline unnamed field variant schemas.**_
+///   ```rust
+///   # use utoipa::ToSchema;
+///   # #[derive(ToSchema)]
+///   # enum Number {
+///   #     One,
+///   # }
+///   #
+///   # #[derive(ToSchema)]
+///   # enum Color {
+///   #     Spade,
+///   # }
+///    #[derive(ToSchema)]
+///    enum Card {
+///        Number(#[schema(inline)] Number),
+///        Color(#[schema(inline)] Color),
+///    }
+///   ```
+///
+/// ## Mixed Enum Unit Field Variant Optional Configuration Options for `#[serde(schema)]`
+///
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///
 /// # Partial `#[serde(...)]` attributes support
 ///
 /// ToSchema derive has partial support for [serde attributes]. These supported attributes will reflect to the
@@ -283,7 +435,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `skip_deserializing = "..."` Supported  **only** at the field or variant level.
 /// * `skip_serializing_if = "..."` Supported  **only** at the field level.
 /// * `with = ...` Supported **only at field level.**
-/// * `tag = "..."` Supported at the container level. `tag` attribute works as a [discriminator field][discriminator] for an enum.
+/// * `tag = "..."` Supported at the container level.
 /// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
@@ -295,8 +447,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
 ///
-/// **Note!** `tag` attribute has some limitations like it cannot be used
-/// with **unnamed field structs** and **tuple types**.  See more at
+/// **Note!** `tag` attribute has some limitations like it cannot be used with **tuple types**. See more at
 /// [enum representation docs](https://serde.rs/enum-representations.html).
 ///
 /// **Note!** `with` attribute is used in tandem with [serde_with](https://github.com/jonasbb/serde_with) to recognize
@@ -364,14 +515,18 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 /// **Supported schema attributes**
 ///
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
+///   struct.
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
 ///
 /// _**Create enum with numeric values.**_
 /// ```rust
@@ -504,7 +659,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// }
 /// ```
 ///
-/// _**Also you write complex enum combining all above types.**_
+/// _**Also you write mixed enum combining all above types.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -696,7 +851,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 /// [openapi_derive]: derive.OpenApi.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+/// [schema_object_encoding]: openapi/schema/struct.Object.html#structfield.content_encoding
+/// [schema_object_media_type]: openapi/schema/struct.Object.html#structfield.content_media_type
 /// [path_macro]: macro@path
+/// [const]: https://doc.rust-lang.org/std/keyword.const.html
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
@@ -801,7 +959,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   content type such as _`application/json`_  or a slice of content types within brackets e.g.
 ///   _`content_type = ["application/json", "text/html"]`_. By default the content type is _`text/plain`_
 ///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
-///   for struct and complex enum types.
+///   for struct and mixed enum types.
 ///
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
@@ -839,7 +997,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
+///   _`application/json`_ for struct and mixed enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
@@ -2323,7 +2481,7 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
+///   _`application/json`_ for struct and mixed enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
@@ -2490,7 +2648,7 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///   from the `body` attribute. If defined the value should be valid content type such as
 ///   _`application/json`_. By default the content type is _`text/plain`_ for
 ///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
+///   _`application/json`_ for struct and mixed enum types.
 ///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
 ///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
 ///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
@@ -2752,8 +2910,6 @@ where
     #[allow(dead_code)]
     Borrowed(&'a [T]),
 }
-
-impl<T> Array<'_, T> where T: ToTokens + Sized {}
 
 impl<V> FromIterator<V> for Array<'_, V>
 where
@@ -3373,7 +3529,7 @@ mod parse_utils {
         })
     }
 
-    pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
+    pub fn parse_groups_collect<T, R>(input: ParseStream) -> syn::Result<R>
     where
         T: Sized,
         T: Parse,

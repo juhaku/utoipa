@@ -7,8 +7,8 @@ use crate::{
     component::features::{
         attributes::{
             AdditionalProperties, As, ContentEncoding, ContentMediaType, Deprecated, Description,
-            Example, Examples, Format, Inline, Nullable, ReadOnly, Rename, RenameAll, Required,
-            SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+            Discriminator, Example, Examples, Format, Inline, Nullable, ReadOnly, Rename,
+            RenameAll, Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
         },
         impl_into_inner, impl_merge, parse_features,
         validation::{
@@ -83,23 +83,25 @@ impl Parse for EnumFeatures {
 
 impl_into_inner!(EnumFeatures);
 
-pub struct ComplexEnumFeatures(Vec<Feature>);
+pub struct MixedEnumFeatures(Vec<Feature>);
 
-impl Parse for ComplexEnumFeatures {
+impl Parse for MixedEnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(ComplexEnumFeatures(parse_features!(
+        Ok(MixedEnumFeatures(parse_features!(
             input as Example,
             Examples,
             crate::component::features::attributes::Default,
+            Title,
             RenameAll,
             As,
             Deprecated,
-            Description
+            Description,
+            Discriminator
         )))
     }
 }
 
-impl_into_inner!(ComplexEnumFeatures);
+impl_into_inner!(MixedEnumFeatures);
 
 pub struct NamedFieldFeatures(Vec<Feature>);
 
@@ -146,11 +148,14 @@ impl Parse for EnumNamedFieldVariantFeatures {
         Ok(EnumNamedFieldVariantFeatures(parse_features!(
             input as Example,
             Examples,
+            crate::component::features::attributes::Default,
             XmlAttr,
             Title,
             Rename,
             RenameAll,
-            Deprecated
+            Deprecated,
+            MaxProperties,
+            MinProperties
         )))
     }
 }
@@ -204,7 +209,7 @@ impl_merge!(
     NamedFieldStructFeatures,
     UnnamedFieldStructFeatures,
     EnumFeatures,
-    ComplexEnumFeatures,
+    MixedEnumFeatures,
     NamedFieldFeatures,
     EnumNamedFieldVariantFeatures,
     EnumUnnamedFieldVariantFeatures

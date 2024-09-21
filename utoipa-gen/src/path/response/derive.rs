@@ -12,7 +12,7 @@ use syn::{
     TypePath, Variant,
 };
 
-use crate::component::schema::{EnumSchema, NamedStructSchema, Parent};
+use crate::component::schema::{EnumSchema, NamedStructSchema, Root};
 use crate::doc_comment::CommentAttributes;
 use crate::path::{InlineType, PathType};
 use crate::{
@@ -344,7 +344,7 @@ impl NamedStructResponse<'_> {
         };
         let status_code = mem::take(&mut derive_value.status);
         let inline_schema = NamedStructSchema {
-            parent: &Parent {
+            root: &Root {
                 ident,
                 attributes,
                 generics: &Generics::default(),
@@ -432,7 +432,7 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         let ty = Self::to_type(ident);
 
         let inline_schema = NamedStructSchema {
-            parent: &Parent {
+            root: &Root {
                 ident,
                 attributes,
                 generics: &Generics::default(),
@@ -569,7 +569,7 @@ impl<'r> EnumResponse<'r> {
         });
         response_value.response_type = if content.is_empty() {
             let generics = Generics::default();
-            let parent = &Parent {
+            let parent = &Root {
                 ident,
                 attributes,
                 generics: &generics,

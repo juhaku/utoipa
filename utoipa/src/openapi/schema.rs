@@ -272,7 +272,7 @@ pub enum Schema {
     Object(Object),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
-    /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
+    /// [`Schema::OneOf`] is created form mixed enum where enum contains various variants.
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
@@ -327,6 +327,41 @@ impl Discriminator {
         Self {
             property_name: property_name.into(),
             mapping: BTreeMap::new(),
+        }
+    }
+
+    /// Construct a new [`Discriminator`] object with property name and mappings.
+    ///
+    ///
+    /// Method accepts two arguments. First _`property_name`_ to use as `discriminator` and
+    /// _`mapping`_ for custom property name mappings.
+    ///
+    /// # Examples
+    ///
+    ///_**Construct an ew [`Discriminator`] with custom mapping.**_
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::schema::Discriminator;
+    /// let discriminator = Discriminator::with_mapping("pet_type", [
+    ///     ("cat","#/components/schemas/Cat")
+    /// ]);
+    /// ```
+    pub fn with_mapping<
+        P: Into<String>,
+        M: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    >(
+        property_name: P,
+        mapping: M,
+    ) -> Self {
+        Self {
+            property_name: property_name.into(),
+            mapping: BTreeMap::from_iter(
+                mapping
+                    .into_iter()
+                    .map(|(key, val)| (key.into(), val.into())),
+            ),
         }
     }
 }

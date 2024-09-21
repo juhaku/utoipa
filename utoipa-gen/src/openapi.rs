@@ -109,12 +109,12 @@ impl Parse for OpenApiAttr<'_> {
                 "security" => {
                     let security;
                     parenthesized!(security in input);
-                    openapi.security = Some(parse_utils::parse_groups(&security)?)
+                    openapi.security = Some(parse_utils::parse_groups_collect(&security)?)
                 }
                 "tags" => {
                     let tags;
                     parenthesized!(tags in input);
-                    openapi.tags = Some(parse_utils::parse_groups(&tags)?);
+                    openapi.tags = Some(parse_utils::parse_groups_collect(&tags)?);
                 }
                 "external_docs" => {
                     let external_docs;
@@ -127,7 +127,7 @@ impl Parse for OpenApiAttr<'_> {
                 "nest" => {
                     let nest;
                     parenthesized!(nest in input);
-                    openapi.nested = parse_utils::parse_groups(&nest)?;
+                    openapi.nested = parse_utils::parse_groups_collect(&nest)?;
                 }
                 _ => {
                     return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE));

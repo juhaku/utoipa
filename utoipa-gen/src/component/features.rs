@@ -100,6 +100,7 @@ pub enum Feature {
     Required(attributes::Required),
     ContentEncoding(attributes::ContentEncoding),
     ContentMediaType(attributes::ContentMediaType),
+    Discriminator(attributes::Discriminator),
     MultipleOf(validation::MultipleOf),
     Maximum(validation::Maximum),
     Minimum(validation::Minimum),
@@ -166,73 +167,74 @@ impl Feature {
 impl ToTokensDiagnostics for Feature {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let feature = match &self {
-                Feature::Default(default) => quote! { .default(#default) },
-                Feature::Example(example) => quote! { .example(Some(#example)) },
-                Feature::Examples(examples) => quote! { .examples(#examples) },
-                Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
-                Feature::Format(format) => quote! { .format(Some(#format)) },
-                Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
-                Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
-                Feature::Title(title) => quote! { .title(Some(#title)) },
-                Feature::Nullable(_nullable) => return Err(Diagnostics::new("Nullable does not support `ToTokens`")),
-                Feature::Rename(rename) => rename.to_token_stream(),
-                Feature::Style(style) => quote! { .style(Some(#style)) },
-                Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
-                Feature::MultipleOf(multiple_of) => quote! { .multiple_of(Some(#multiple_of)) },
-                Feature::AllowReserved(allow_reserved) => {
-                    quote! { .allow_reserved(Some(#allow_reserved)) }
-                }
-                Feature::Explode(explode) => quote! { .explode(Some(#explode)) },
-                Feature::Maximum(maximum) => quote! { .maximum(Some(#maximum)) },
-                Feature::Minimum(minimum) => quote! { .minimum(Some(#minimum)) },
-                Feature::ExclusiveMaximum(exclusive_maximum) => {
-                    quote! { .exclusive_maximum(Some(#exclusive_maximum)) }
-                }
-                Feature::ExclusiveMinimum(exclusive_minimum) => {
-                    quote! { .exclusive_minimum(Some(#exclusive_minimum)) }
-                }
-                Feature::MaxLength(max_length) => quote! { .max_length(Some(#max_length)) },
-                Feature::MinLength(min_length) => quote! { .min_length(Some(#min_length)) },
-                Feature::Pattern(pattern) => quote! { .pattern(Some(#pattern)) },
-                Feature::MaxItems(max_items) => quote! { .max_items(Some(#max_items)) },
-                Feature::MinItems(min_items) => quote! { .min_items(Some(#min_items)) },
-                Feature::MaxProperties(max_properties) => {
-                    quote! { .max_properties(Some(#max_properties)) }
-                }
-                Feature::MinProperties(min_properties) => {
-                    quote! { .max_properties(Some(#min_properties)) }
-                }
-                Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
-                Feature::Description(description) => quote! { .description(Some(#description)) },
-                Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
-                Feature::AdditionalProperties(additional_properties) => {
-                    quote! { .additional_properties(Some(#additional_properties)) }
-                }
-                Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
-                Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
-                Feature::RenameAll(_) => {
-                    return Err(Diagnostics::new("RenameAll feature does not support `ToTokens`"))
-                }
-                Feature::ValueType(_) => {
-                    return Err(Diagnostics::new("ValueType feature does not support `ToTokens`")
-                        .help("ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type."))
-                }
-                Feature::Inline(_) => {
-                    // inline feature is ignored by `ToTokens`
-                    TokenStream::new()
-                }
-                Feature::IntoParamsNames(_) => {
-                    return Err(Diagnostics::new("Names feature does not support `ToTokens`")
-                        .help("Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."))
-                }
-                Feature::As(_) => {
-                    return Err(Diagnostics::new("As does not support `ToTokens`"))
-                }
-                Feature::Required(required) => {
-                    let name = <attributes::Required as FeatureLike>::get_name();
-                    quote! { .#name(#required) }
-                }
-            };
+            Feature::Default(default) => quote! { .default(#default) },
+            Feature::Example(example) => quote! { .example(Some(#example)) },
+            Feature::Examples(examples) => quote! { .examples(#examples) },
+            Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
+            Feature::Format(format) => quote! { .format(Some(#format)) },
+            Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
+            Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
+            Feature::Title(title) => quote! { .title(Some(#title)) },
+            Feature::Nullable(_nullable) => return Err(Diagnostics::new("Nullable does not support `ToTokens`")),
+            Feature::Rename(rename) => rename.to_token_stream(),
+            Feature::Style(style) => quote! { .style(Some(#style)) },
+            Feature::ParameterIn(parameter_in) => quote! { .parameter_in(#parameter_in) },
+            Feature::MultipleOf(multiple_of) => quote! { .multiple_of(Some(#multiple_of)) },
+            Feature::AllowReserved(allow_reserved) => {
+                quote! { .allow_reserved(Some(#allow_reserved)) }
+            }
+            Feature::Explode(explode) => quote! { .explode(Some(#explode)) },
+            Feature::Maximum(maximum) => quote! { .maximum(Some(#maximum)) },
+            Feature::Minimum(minimum) => quote! { .minimum(Some(#minimum)) },
+            Feature::ExclusiveMaximum(exclusive_maximum) => {
+                quote! { .exclusive_maximum(Some(#exclusive_maximum)) }
+            }
+            Feature::ExclusiveMinimum(exclusive_minimum) => {
+                quote! { .exclusive_minimum(Some(#exclusive_minimum)) }
+            }
+            Feature::MaxLength(max_length) => quote! { .max_length(Some(#max_length)) },
+            Feature::MinLength(min_length) => quote! { .min_length(Some(#min_length)) },
+            Feature::Pattern(pattern) => quote! { .pattern(Some(#pattern)) },
+            Feature::MaxItems(max_items) => quote! { .max_items(Some(#max_items)) },
+            Feature::MinItems(min_items) => quote! { .min_items(Some(#min_items)) },
+            Feature::MaxProperties(max_properties) => {
+                quote! { .max_properties(Some(#max_properties)) }
+            }
+            Feature::MinProperties(min_properties) => {
+                quote! { .max_properties(Some(#min_properties)) }
+            }
+            Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
+            Feature::Description(description) => quote! { .description(Some(#description)) },
+            Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
+            Feature::AdditionalProperties(additional_properties) => {
+                quote! { .additional_properties(Some(#additional_properties)) }
+            }
+            Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
+            Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
+            Feature::Discriminator(discriminator) => quote! { .discriminator(Some(#discriminator)) },
+            Feature::RenameAll(_) => {
+                return Err(Diagnostics::new("RenameAll feature does not support `ToTokens`"))
+            }
+            Feature::ValueType(_) => {
+                return Err(Diagnostics::new("ValueType feature does not support `ToTokens`")
+                    .help("ValueType is supposed to be used with `TypeTree` in same manner as a resolved struct/field type."))
+            }
+            Feature::Inline(_) => {
+                // inline feature is ignored by `ToTokens`
+                TokenStream::new()
+            }
+            Feature::IntoParamsNames(_) => {
+                return Err(Diagnostics::new("Names feature does not support `ToTokens`")
+                    .help("Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."))
+            }
+            Feature::As(_) => {
+                return Err(Diagnostics::new("As does not support `ToTokens`"))
+            }
+            Feature::Required(required) => {
+                let name = <attributes::Required as FeatureLike>::get_name();
+                quote! { .#name(#required) }
+            }
+        };
 
         tokens.extend(feature);
 
@@ -291,6 +293,7 @@ impl Display for Feature {
             Feature::Required(required) => required.fmt(f),
             Feature::ContentEncoding(content_encoding) => content_encoding.fmt(f),
             Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
+            Feature::Discriminator(discriminator) => discriminator.fmt(f),
         }
     }
 }
@@ -338,6 +341,7 @@ impl Validatable for Feature {
             Feature::Required(required) => required.is_validatable(),
             Feature::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
             Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
+            Feature::Discriminator(discriminator) => discriminator.is_validatable(),
         }
     }
 }
@@ -383,6 +387,7 @@ is_validatable! {
     attributes::Required,
     attributes::ContentEncoding,
     attributes::ContentMediaType,
+    attributes::Discriminator,
     validation::MultipleOf = true,
     validation::Maximum = true,
     validation::Minimum = true,
@@ -607,8 +612,9 @@ impl_feature_into_inner! {
     attributes::Description,
     attributes::Deprecated,
     attributes::As,
-    attributes::AdditionalProperties,
     attributes::Required,
+    attributes::AdditionalProperties,
+    attributes::Discriminator,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,

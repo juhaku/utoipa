@@ -4,10 +4,12 @@ use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::{LitStr, Token, TypePath};
+use syn::token::Paren;
+use syn::{Error, LitStr, Token, TypePath};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
+use crate::parse_utils::LitStrOrExpr;
 use crate::path::parameter::{self, ParameterStyle};
 use crate::schema_type::SchemaFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
@@ -649,6 +651,12 @@ impl From<Deprecated> for Feature {
     }
 }
 
+impl From<bool> for Deprecated {
+    fn from(value: bool) -> Self {
+        Self(value)
+    }
+}
+
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
@@ -802,5 +810,130 @@ impl ToTokens for ContentMediaType {
 impl From<ContentMediaType> for Feature {
     fn from(value: ContentMediaType) -> Self {
         Self::ContentMediaType(value)
+    }
+}
+
+// discriminator = ...
+// discriminator(property_name = ..., mapping(
+//      (value = ...),
+//      (value2 = ...)
+// ))
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Discriminator(LitStrOrExpr, Punctuated<(LitStrOrExpr, LitStrOrExpr), Token![,]>, Ident);
+}
+
+impl Discriminator {
+    fn new(attribute: Ident) -> Self {
+        Self(LitStrOrExpr::default(), Punctuated::default(), attribute)
+    }
+
+    pub fn get_attribute(&self) -> &Ident {
+        &self.2
+    }
+}
+
+impl Parse for Discriminator {
+    fn parse(input: ParseStream, attribute: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(Token![=]) {
+            parse_utils::parse_next_literal_str_or_expr(input)
+                .map(|property_name| Self(property_name, Punctuated::new(), attribute))
+        } else if lookahead.peek(Paren) {
+            let discriminator_stream;
+            syn::parenthesized!(discriminator_stream in input);
+
+            let mut discriminator = Discriminator::new(attribute);
+
+            while !discriminator_stream.is_empty() {
+                let property = discriminator_stream.parse::<Ident>()?;
+                let name = &*property.to_string();
+
+                match name {
+                    "property_name" => {
+                        discriminator.0 =
+                            parse_utils::parse_next_literal_str_or_expr(&discriminator_stream)?
+                    }
+                    "mapping" => {
+                        let mapping_stream;
+                        syn::parenthesized!(mapping_stream in &discriminator_stream);
+                        let mappings: Punctuated<(LitStrOrExpr, LitStrOrExpr), Token![,]> =
+                            Punctuated::parse_terminated_with(&mapping_stream, |input| {
+                                let inner;
+                                syn::parenthesized!(inner in input);
+
+                                let key = inner.parse::<LitStrOrExpr>()?;
+                                inner.parse::<Token![=]>()?;
+                                let value = inner.parse::<LitStrOrExpr>()?;
+
+                                Ok((key, value))
+                            })?;
+                        discriminator.1 = mappings;
+                    }
+                    unexpected => {
+                        return Err(Error::new(
+                            property.span(),
+                            &format!(
+                                "unexpected identifier {}, expected any of: property_name, mapping",
+                                unexpected
+                            ),
+                        ))
+                    }
+                }
+
+                if !discriminator_stream.is_empty() {
+                    discriminator_stream.parse::<Token![,]>()?;
+                }
+            }
+
+            Ok(discriminator)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for Discriminator {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Discriminator(property_name, mapping, _) = self;
+
+        struct Mapping<'m>(&'m LitStrOrExpr, &'m LitStrOrExpr);
+
+        impl ToTokens for Mapping<'_> {
+            fn to_tokens(&self, tokens: &mut TokenStream) {
+                let Mapping(property_name, value) = *self;
+
+                tokens.extend(quote! {
+                    (#property_name, #value)
+                })
+            }
+        }
+
+        let discriminator = if !mapping.is_empty() {
+            let mapping = mapping
+                .iter()
+                .map(|(key, value)| Mapping(key, value))
+                .collect::<Array<Mapping>>();
+
+            quote! {
+                utoipa::openapi::schema::Discriminator::with_mapping(#property_name, #mapping)
+            }
+        } else {
+            quote! {
+                utoipa::openapi::schema::Discriminator::new(#property_name)
+            }
+        };
+
+        discriminator.to_tokens(tokens);
+    }
+}
+
+impl From<Discriminator> for Feature {
+    fn from(value: Discriminator) -> Self {
+        Self::Discriminator(value)
     }
 }

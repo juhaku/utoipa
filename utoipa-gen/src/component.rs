@@ -265,7 +265,7 @@ impl<'t> TypeTree<'t> {
     fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
         let schema_type = SchemaType {
-            path,
+            path: Cow::Borrowed(path),
             nullable: matches!(generic_type, Some(GenericType::Option)),
         };
 
@@ -500,11 +500,11 @@ trait Rename {
 /// * `value` to rename.
 /// * `to` Optional rename to value for fields with _`rename`_ property.
 /// * `container_rule` which is used to rename containers with _`rename_all`_ property.
-fn rename<'r, R: Rename>(
-    value: &'r str,
-    to: Option<Cow<'r, str>>,
-    container_rule: Option<&'r RenameRule>,
-) -> Option<Cow<'r, str>> {
+fn rename<'s, R: Rename>(
+    value: &str,
+    to: Option<Cow<'s, str>>,
+    container_rule: Option<&RenameRule>,
+) -> Option<Cow<'s, str>> {
     let rename = to.and_then(|to| if !to.is_empty() { Some(to) } else { None });
 
     rename.or_else(|| {
@@ -841,7 +841,7 @@ impl<'c> ComponentSchema {
         let validate = |feature: &Feature| {
             let type_path = &**type_tree.path.as_ref().unwrap();
             let schema_type = SchemaType {
-                path: type_path,
+                path: Cow::Borrowed(type_path),
                 nullable: nullable
                     .map(|nullable| nullable.value())
                     .unwrap_or_default(),
@@ -894,7 +894,7 @@ impl<'c> ComponentSchema {
             ValueType::Primitive => {
                 let type_path = &**type_tree.path.as_ref().unwrap();
                 let schema_type = SchemaType {
-                    path: type_path,
+                    path: Cow::Borrowed(type_path),
                     nullable,
                 };
                 if schema_type.is_unsigned_integer() {

@@ -82,19 +82,19 @@ fn derive_enum_response() {
                 "application/json": {
                     "schema": {
                         "oneOf": [
-                        {
-                            "properties": {
-                                "Value": {
-                                    "type": "string"
-                                }
+                            {
+                                "properties": {
+                                    "Value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["Value"],
+                                "type": "object",
                             },
-                            "required": ["Value"],
-                            "type": "object",
-                        },
-                        {
-                            "enum": ["Foobar"],
-                            "type": "string"
-                        }
+                            {
+                                "enum": ["Foobar"],
+                                "type": "string"
+                            }
                         ]
                     }
                 }
