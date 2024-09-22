@@ -533,3 +533,160 @@ fn derive_nest_openapi_with_tags() {
         })
     )
 }
+
+#[test]
+fn openapi_schemas_resolve_schema_references() {
+    #![allow(dead_code)]
+    use utoipa::ToSchema;
+
+    #[derive(ToSchema)]
+    enum Element<T: ToSchema> {
+        One(T),
+        Many(Vec<T>),
+    }
+
+    #[derive(ToSchema)]
+    struct Foobar;
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        foo_bar: Foobar,
+        accounts: Vec<Option<Account>>,
+    }
+
+    #[derive(ToSchema)]
+    struct Yeah {
+        name: String,
+        foo_bar: Foobar,
+        accounts: Vec<Option<Account>>,
+    }
+
+    #[derive(ToSchema)]
+    struct Boo {
+        boo: bool,
+    }
+
+    #[derive(ToSchema)]
+    struct OneOfOne(Person);
+
+    #[derive(ToSchema)]
+    struct OneOfYeah(Yeah);
+
+    #[derive(ToSchema)]
+    struct ThisIsNone;
+
+    #[derive(ToSchema)]
+    enum EnumMixedContent {
+        ContentZero,
+        One(Foobar),
+        NamedSchema {
+            value: Account,
+            value2: Boo,
+            foo: ThisIsNone,
+            int: i32,
+            f: bool,
+        },
+        Many(Vec<Person>),
+    }
+
+    #[derive(ToSchema)]
+    struct Foob {
+        item: Element<String>,
+        item2: Element<Yeah>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Person, Foob, OneOfYeah, OneOfOne, EnumMixedContent, Element<String>)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+
+    let json = serde_json::to_string_pretty(&doc).expect("OpenAPI is json serializable");
+    println!("{json}");
+
+    let expected =
+        include_str!("./testdata/openapi_schemas_resolve_inner_schema_references").trim();
+    assert_eq!(expected, json.trim());
+}
+
+#[test]
+fn openapi_resolvle_recursive_references() {
+    #![allow(dead_code)]
+    use utoipa::ToSchema;
+
+    #[derive(ToSchema)]
+    struct Foobar;
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+        foobar: Foobar,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        accounts: Vec<Option<Account>>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Person)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+
+    let value = serde_json::to_value(doc).expect("OpenAPI is serde serializable");
+    let schemas = value
+        .pointer("/components/schemas")
+        .expect("OpenAPI must have schemas");
+
+    assert_json_eq!(
+        schemas,
+        json!({
+            "Account": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format": "int32",
+                    },
+                     "foobar": {
+                        "$ref": "#/components/schemas/Foobar"
+                    }
+                },
+                "type": "object",
+                "required": [ "id" , "foobar" ],
+            },
+            "Foobar": {
+                "default": null,
+            },
+            "Person": {
+                "properties": {
+                    "accounts": {
+                        "items": {
+                            "allOf": [
+                                {
+                                    "type": "null",
+                                },
+                                {
+                                    "$ref": "#/components/schemas/Account",
+                                }
+                            ]
+                        },
+                        "type": "array",
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                },
+                "type": "object",
+                "required": [ "name" , "accounts" ],
+            }
+        })
+    )
+}

@@ -233,7 +233,7 @@ impl ResponseExt for Response {
     fn json_schema_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
-            Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
+            Content::new(Some(crate::openapi::Ref::from_schema_name(ref_name))),
         );
         self
     }
@@ -244,7 +244,7 @@ impl ResponseExt for ResponseBuilder {
     fn json_schema_ref(self, ref_name: &str) -> ResponseBuilder {
         self.content(
             "application/json",
-            Content::new(crate::openapi::Ref::from_schema_name(ref_name)),
+            Content::new(Some(crate::openapi::Ref::from_schema_name(ref_name))),
         )
     }
 }
@@ -268,7 +268,9 @@ mod tests {
             .description("A sample response")
             .content(
                 "application/json",
-                Content::new(crate::openapi::Ref::from_schema_name("MySchemaPayload")),
+                Content::new(Some(crate::openapi::Ref::from_schema_name(
+                    "MySchemaPayload",
+                ))),
             )
             .build();
         let serialized = serde_json::to_string_pretty(&request_body)?;

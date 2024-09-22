@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
     Generics, Ident,
@@ -463,7 +463,7 @@ impl ToTokensDiagnostics for Param<'_> {
                     generics: self.generics,
                 },
             })?;
-            let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
+            let schema_tokens = schema.to_token_stream();
 
             tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
         }

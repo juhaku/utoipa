@@ -545,7 +545,7 @@ impl IntoParamsNames {
 impl Parse for IntoParamsNames {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
-            parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
+            parse_utils::parse_comma_separated_within_parenthesis::<LitStr>(input)?
                 .iter()
                 .map(LitStr::value)
                 .collect(),
@@ -877,7 +877,7 @@ impl Parse for Discriminator {
                     unexpected => {
                         return Err(Error::new(
                             property.span(),
-                            &format!(
+                            format!(
                                 "unexpected identifier {}, expected any of: property_name, mapping",
                                 unexpected
                             ),

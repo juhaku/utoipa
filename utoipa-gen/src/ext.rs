@@ -7,8 +7,9 @@ use syn::{parse_quote, Generics};
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
+use crate::path::media_type::MediaTypePathExt;
 use crate::path::{HttpMethod, PathTypeTree};
-use crate::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics};
+use crate::{Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -96,22 +97,50 @@ pub enum ArgumentIn {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBody<'r> {
-    ty: TypeTree<'r>,
+    type_tree: TypeTree<'r>,
+}
+
+impl RequestBody<'_> {
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn get_component_schema(&self) -> Result<Option<ComponentSchema>, Diagnostics> {
+        use crate::OptionExt;
+
+        let type_tree = &self.type_tree;
+        let actual_body_type = get_actual_body_type(type_tree);
+
+        actual_body_type.and_then_try(|body_type| {
+            if let Some(component_schema) = body_type.get_component_schema()? {
+                Result::<Option<ComponentSchema>, Diagnostics>::Ok(Some(component_schema))
+            } else {
+                Ok(None)
+            }
+        })
+    }
 }
 
 impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
     fn from(value: TypeTree<'t>) -> RequestBody<'t> {
-        Self { ty: value }
+        Self { type_tree: value }
+    }
+}
+
+impl<'r> MediaTypePathExt<'r> for RequestBody<'r> {
+    fn get_component_schema(&self) -> Result<Option<ComponentSchema>, Diagnostics> {
+        self.type_tree.get_component_schema()
     }
 }
 
 impl ToTokensDiagnostics for RequestBody<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let mut actual_body = get_actual_body_type(&self.ty)
+        let mut actual_body = get_actual_body_type(&self.type_tree)
             .expect("should have found actual request body TypeTree")
             .clone();
 
-        if let Some(option) = find_option_type_tree(&self.ty) {
+        if let Some(option) = find_option_type_tree(&self.type_tree) {
             let path = option.path.clone();
             actual_body = TypeTree {
                 children: Some(vec![actual_body]),
@@ -128,38 +157,40 @@ impl ToTokensDiagnostics for RequestBody<'_> {
             quote!(utoipa::openapi::Required::True)
         };
 
-        let mut create_body_tokens = |content_type: &str,
-                                      actual_body: &TypeTree|
-         -> Result<(), Diagnostics> {
-            let schema = as_tokens_or_diagnostics!(&ComponentSchema::new(ComponentSchemaProps {
-                type_tree: actual_body,
-                features: Vec::new(),
-                description: None,
-                container: &Container {
-                    generics: &Generics::default(),
-                }
-            })?);
+        let mut create_body_tokens =
+            |content_type: &str, actual_body: &TypeTree| -> Result<(), Diagnostics> {
+                let schema = &ComponentSchema::new(ComponentSchemaProps {
+                    type_tree: actual_body,
+                    features: Vec::new(),
+                    description: None,
+                    container: &Container {
+                        generics: &Generics::default(),
+                    },
+                })?;
 
-            tokens.extend(quote_spanned! {actual_body.span.unwrap()=>
-                utoipa::openapi::request_body::RequestBodyBuilder::new()
-                    .content(#content_type,
-                        utoipa::openapi::content::Content::new(#schema)
-                    )
-                    .required(Some(#required))
-                    .description(Some(""))
-                    .build()
-            });
-            Ok(())
-        };
+                tokens.extend(quote_spanned! {actual_body.span.unwrap()=>
+                    utoipa::openapi::request_body::RequestBodyBuilder::new()
+                        .content(#content_type,
+                            utoipa::openapi::content::Content::new(Some(#schema))
+                        )
+                        .required(Some(#required))
+                        .description(Some(""))
+                        .build()
+                });
+                Ok(())
+            };
 
-        if self.ty.is("Bytes") {
+        if self.type_tree.is("Bytes") {
             let bytes_as_bytes_vec = parse_quote!(Vec<u8>);
             let ty = TypeTree::from_type(&bytes_as_bytes_vec)?;
             create_body_tokens("application/octet-stream", &ty)?;
-        } else if self.ty.is("Form") {
+        } else if self.type_tree.is("Form") {
             create_body_tokens("application/x-www-form-urlencoded", &actual_body)?;
         } else {
-            create_body_tokens(actual_body.get_default_content_type(), &actual_body)?;
+            create_body_tokens(
+                actual_body.get_default_content_type().as_ref(),
+                &actual_body,
+            )?;
         };
 
         Ok(())

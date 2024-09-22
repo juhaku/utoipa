@@ -127,11 +127,11 @@ impl Parse for ResponseTuple<'_> {
                 }
                 "content" => {
                     response.as_value(input.span())?.content =
-                        parse_utils::parse_punctuated_within_parenthesis(input)?;
+                        parse_utils::parse_comma_separated_within_parenthesis(input)?;
                 }
                 "links" => {
                     response.as_value(input.span())?.links =
-                        parse_utils::parse_punctuated_within_parenthesis(input)?;
+                        parse_utils::parse_comma_separated_within_parenthesis(input)?;
                 }
                 "response" => {
                     response.set_ref_type(
@@ -309,8 +309,7 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                         PathType::InlineSchema(schema, _) => schema.to_token_stream(),
                     };
 
-                    let mut content =
-                        quote! { utoipa::openapi::ContentBuilder::new().schema(#content_schema) };
+                    let mut content = quote! { utoipa::openapi::ContentBuilder::new().schema(Some(#content_schema)) };
 
                     if let Some(ref example) = example {
                         content.extend(quote! {
@@ -700,7 +699,9 @@ impl Parse for Content<'_> {
                     })?)
                 }
                 "examples" => {
-                    examples = Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
+                    examples = Some(parse_utils::parse_comma_separated_within_parenthesis(
+                        &content,
+                    )?)
                 }
                 _ => {
                     return Err(Error::new(

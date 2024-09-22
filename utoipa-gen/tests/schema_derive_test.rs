@@ -1434,6 +1434,8 @@ fn derive_mixed_enum() {
 
 #[test]
 fn derive_mixed_enum_deprecated_variants() {
+    #![allow(deprecated)]
+
     #[derive(Serialize, ToSchema)]
     struct Foo(String);
 

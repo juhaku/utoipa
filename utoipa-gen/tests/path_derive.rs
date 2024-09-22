@@ -5,7 +5,7 @@ use paste::paste;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use utoipa::openapi::RefOr;
+use utoipa::openapi::{self, Components, RefOr, Schema};
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
@@ -2448,6 +2448,250 @@ fn derive_path_with_response_links() {
                     },
                     "tags": []
                 },
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_path_test_collect_request_body() {
+    #![allow(dead_code)]
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        account: Account,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = Person,
+        path = "/test-collect-schemas",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_collect_schemas(_body: Person) -> &'static str {
+        ""
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi)]
+    #[openapi(paths(test_collect_schemas))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = doc
+        .pointer("/components/schemas")
+        .expect("OpenApi must have schemas");
+
+    assert_json_eq!(
+        &schemas,
+        json!({
+            "Person": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                    },
+                    "account": {
+                        "$ref": "#/components/schemas/Account"
+                    }
+                },
+                "required": ["name", "account"],
+                "type": "object"
+            },
+            "Account": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format":  "int32",
+                    },
+                },
+                "required": ["id"],
+                "type": "object"
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_path_test_collect_generic_array_request_body() {
+    #![allow(dead_code)]
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        account: Account,
+    }
+
+    #[derive(ToSchema)]
+    struct CreateRequest<T: ToSchema> {
+        value: T,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = [ CreateRequest<Person> ],
+        path = "/test-collect-schemas",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_collect_schemas(_body: Person) -> &'static str {
+        ""
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi)]
+    #[openapi(paths(test_collect_schemas))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = doc
+        .pointer("/components/schemas")
+        .expect("OpenApi must have schemas");
+
+    assert_json_eq!(
+        &schemas,
+        json!({
+            "CreateRequest_Person": {
+                "properties": {
+                    "value": {
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                            },
+                            "account": {
+                                "$ref": "#/components/schemas/Account"
+                            }
+                        },
+                        "required": ["name", "account"],
+                        "type": "object"
+                    }
+                },
+                "required": ["value"],
+                "type": "object"
+            },
+            "Person": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                    },
+                    "account": {
+                        "$ref": "#/components/schemas/Account"
+                    }
+                },
+                "required": ["name", "account"],
+                "type": "object"
+            },
+            "Account": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format":  "int32",
+                    },
+                },
+                "required": ["id"],
+                "type": "object"
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_path_test_collect_generic_request_body() {
+    #![allow(dead_code)]
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        account: Account,
+    }
+
+    #[derive(ToSchema)]
+    struct CreateRequest<T: ToSchema> {
+        value: T,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = CreateRequest<Person>,
+        path = "/test-collect-schemas",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_collect_schemas(_body: Person) -> &'static str {
+        ""
+    }
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi)]
+    #[openapi(paths(test_collect_schemas))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = doc
+        .pointer("/components/schemas")
+        .expect("OpenApi must have schemas");
+
+    assert_json_eq!(
+        &schemas,
+        json!({
+            "CreateRequest_Person": {
+                "properties": {
+                    "value": {
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                            },
+                            "account": {
+                                "$ref": "#/components/schemas/Account"
+                            }
+                        },
+                        "required": ["name", "account"],
+                        "type": "object"
+                    }
+                },
+                "required": ["value"],
+                "type": "object"
+            },
+            "Person": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                    },
+                    "account": {
+                        "$ref": "#/components/schemas/Account"
+                    }
+                },
+                "required": ["name", "account"],
+                "type": "object"
+            },
+            "Account": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format":  "int32",
+                    },
+                },
+                "required": ["id"],
+                "type": "object"
             }
         })
     );
