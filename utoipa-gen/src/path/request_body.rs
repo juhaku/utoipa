@@ -166,9 +166,8 @@ impl ToTokensDiagnostics for RequestBodyAttr<'_> {
                     let type_tree = body_type.as_type_tree()?;
                     ComponentSchema::new(crate::component::ComponentSchemaProps {
                         type_tree: &type_tree,
-                        features: Some(vec![Inline::from(body_type.is_inline).into()]),
+                        features: vec![Inline::from(body_type.is_inline).into()],
                         description: None,
-                        deprecated: None,
                         container: &Container {
                             generics: &Generics::default(),
                         },

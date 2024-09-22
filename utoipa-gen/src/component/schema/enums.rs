@@ -379,7 +379,7 @@ impl MixedEnumContent {
         serde_container: &SerdeContainer,
         rename_all: Option<&RenameAll>,
         variant_serde_rules: SerdeValue,
-        variant_features: Vec<Feature>,
+        mut variant_features: Vec<Feature>,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
         let name = variant.ident.to_string();
@@ -390,6 +390,13 @@ impl MixedEnumContent {
             CommentAttributes::from_attributes(&variant.attrs).as_formatted_string();
         let description: Option<Description> =
             (!variant_description.is_empty()).then(|| variant_description.into());
+        if let Some(description) = description {
+            variant_features.push(Feature::Description(description))
+        }
+
+        if variant.attrs.has_deprecated() {
+            variant_features.push(Feature::Deprecated(true.into()))
+        }
 
         match &variant.fields {
             Fields::Named(named) => {
@@ -399,7 +406,6 @@ impl MixedEnumContent {
                         variant,
                         fields: &named.named,
                         name,
-                        description,
                     },
                     variant_features,
                     serde_container,
@@ -415,7 +421,6 @@ impl MixedEnumContent {
                         variant,
                         fields: &unnamed.unnamed,
                         name,
-                        description,
                     },
                     variant_features,
                     serde_container,
@@ -427,12 +432,10 @@ impl MixedEnumContent {
             Fields::Unit => {
                 let variant_tokens = MixedEnumContent::get_unit_tokens(
                     name,
-                    variant,
                     variant_features,
                     serde_container,
                     variant_serde_rules,
                     rename_all,
-                    description,
                 );
                 variant_tokens.to_tokens(&mut tokens);
             }
@@ -453,7 +456,6 @@ impl MixedEnumContent {
             variant,
             fields,
             name,
-            description,
         } = variant;
 
         let renamed = super::rename_enum_variant(
@@ -470,54 +472,39 @@ impl MixedEnumContent {
             attributes: &variant.attrs,
             generics: root.generics,
         };
-        fn get_schema<'a>(
-            fields: &'a Punctuated<syn::Field, Comma>,
-            root: &'a Root<'a>,
-            mut variant_features: Vec<Feature>,
-            description: Option<Description>,
-        ) -> NamedStructSchema<'a> {
-            NamedStructSchema {
-                root,
-                rename_all: pop_feature!(variant_features => Feature::RenameAll(_)).into_inner(),
-                fields,
-                features: Some(variant_features),
-                schema_as: None,
-                description,
-            }
-        }
 
         let variant_tokens = match &serde_container.enum_repr {
             SerdeEnumRepr::ExternallyTagged => {
                 let (enum_features, variant_features) =
-                    MixedEnumContent::split_enum_features(variant_features, description);
-                let schema = get_schema(fields, root, variant_features, None);
+                    MixedEnumContent::split_enum_features(variant_features);
+                let schema = NamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema = schema.try_to_token_stream()?;
+                let schema = schema.to_token_stream();
                 EnumSchema::<ObjectSchema>::new(name.as_ref(), schema)
                     .features(enum_features)
                     .to_token_stream()
             }
             SerdeEnumRepr::InternallyTagged { tag } => {
                 let (enum_features, variant_features) =
-                    MixedEnumContent::split_enum_features(variant_features, description);
-                let schema = get_schema(fields, root, variant_features, None);
+                    MixedEnumContent::split_enum_features(variant_features);
+                let schema = NamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema = schema.try_to_token_stream()?;
+                let schema = schema.to_token_stream();
                 EnumSchema::<ObjectSchema>::tagged(schema)
                     .tag(tag, PlainSchema::for_name(name.as_ref()))
                     .features(enum_features)
                     .to_token_stream()
             }
             SerdeEnumRepr::Untagged => {
-                let schema = get_schema(fields, root, variant_features, description);
-                schema.try_to_token_stream()?
+                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                schema.to_token_stream()
             }
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 let (enum_features, variant_features) =
-                    MixedEnumContent::split_enum_features(variant_features, description);
-                let schema = get_schema(fields, root, variant_features, None);
+                    MixedEnumContent::split_enum_features(variant_features);
+                let schema = NamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema = schema.try_to_token_stream()?;
+                let schema = schema.to_token_stream();
                 EnumSchema::<ObjectSchema>::adjacently_tagged(schema, content)
                     .tag(tag, PlainSchema::for_name(name.as_ref()))
                     .features(enum_features)
@@ -543,7 +530,6 @@ impl MixedEnumContent {
             variant,
             fields,
             name,
-            description,
         } = variant;
 
         let renamed = super::rename_enum_variant(
@@ -560,38 +546,24 @@ impl MixedEnumContent {
             attributes: &variant.attrs,
             generics: root.generics,
         };
-        fn get_schema<'a>(
-            fields: &'a Punctuated<syn::Field, Comma>,
-            root: &'a Root<'a>,
-            variant_features: Vec<Feature>,
-            description: Option<Description>,
-        ) -> UnnamedStructSchema<'a> {
-            UnnamedStructSchema {
-                root,
-                description,
-                features: Some(variant_features),
-                fields,
-                schema_as: None,
-            }
-        }
 
         let variant_tokens = match &serde_container.enum_repr {
             SerdeEnumRepr::ExternallyTagged => {
                 let (enum_features, variant_features) =
-                    MixedEnumContent::split_enum_features(variant_features, description);
-                let schema = get_schema(fields, root, variant_features, None);
+                    MixedEnumContent::split_enum_features(variant_features);
+                let schema = UnnamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema = schema.try_to_token_stream()?;
+                let schema = schema.to_token_stream();
                 EnumSchema::<ObjectSchema>::new(name.as_ref(), schema)
                     .features(enum_features)
                     .to_token_stream()
             }
             SerdeEnumRepr::InternallyTagged { tag } => {
                 let (enum_features, variant_features) =
-                    MixedEnumContent::split_enum_features(variant_features, description);
-                let schema = get_schema(fields, root, variant_features, None);
+                    MixedEnumContent::split_enum_features(variant_features);
+                let schema = UnnamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema = schema.try_to_token_stream()?;
+                let schema = schema.to_token_stream();
 
                 let is_reference = fields
                     .iter()
@@ -606,8 +578,8 @@ impl MixedEnumContent {
                     .to_token_stream()
             }
             SerdeEnumRepr::Untagged => {
-                let schema = get_schema(fields, root, variant_features, description);
-                schema.try_to_token_stream()?
+                let schema = UnnamedStructSchema::new(root, fields, variant_features)?;
+                schema.to_token_stream()
             }
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 if fields.len() > 1 {
@@ -619,10 +591,10 @@ impl MixedEnumContent {
                 }
 
                 let (enum_features, variant_features) =
-                    MixedEnumContent::split_enum_features(variant_features, description);
-                let schema = get_schema(fields, root, variant_features, None);
+                    MixedEnumContent::split_enum_features(variant_features);
+                let schema = UnnamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema = schema.try_to_token_stream()?;
+                let schema = schema.to_token_stream();
                 EnumSchema::<ObjectSchema>::adjacently_tagged(schema, content)
                     .tag(tag, PlainSchema::for_name(name.as_ref()))
                     .features(enum_features)
@@ -638,12 +610,10 @@ impl MixedEnumContent {
 
     fn get_unit_tokens(
         name: String,
-        variant: &Variant,
         mut variant_features: Vec<Feature>,
         serde_container: &SerdeContainer,
         variant_serde_rules: SerdeValue,
         rename_all: Option<&RenameAll>,
-        description: Option<Description>,
     ) -> TokenStream {
         let renamed = super::rename_enum_variant(
             &name,
@@ -653,13 +623,6 @@ impl MixedEnumContent {
             rename_all,
         );
         let name = renamed.unwrap_or(Cow::Owned(name));
-        if let Some(description) = description {
-            variant_features.push(description.into());
-        }
-
-        if variant.attrs.has_deprecated() {
-            variant_features.push(Feature::Deprecated(true.into()))
-        }
 
         match &serde_container.enum_repr {
             SerdeEnumRepr::ExternallyTagged => EnumSchema::<PlainSchema>::new(name.as_ref())
@@ -687,11 +650,8 @@ impl MixedEnumContent {
         }
     }
 
-    fn split_enum_features(
-        variant_features: Vec<Feature>,
-        description: Option<Description>,
-    ) -> (Vec<Feature>, Vec<Feature>) {
-        let (mut enum_features, variant_features): (Vec<_>, Vec<_>) =
+    fn split_enum_features(variant_features: Vec<Feature>) -> (Vec<Feature>, Vec<Feature>) {
+        let (enum_features, variant_features): (Vec<_>, Vec<_>) =
             variant_features.into_iter().partition(|feature| {
                 matches!(
                     feature,
@@ -699,11 +659,10 @@ impl MixedEnumContent {
                         | Feature::Example(_)
                         | Feature::Examples(_)
                         | Feature::Default(_)
+                        | Feature::Description(_)
+                        | Feature::Deprecated(_)
                 )
             });
-        if let Some(description) = description {
-            enum_features.push(description.into());
-        }
 
         (enum_features, variant_features)
     }
@@ -720,7 +679,6 @@ pub struct MixedEnumVariant<'v> {
     variant: &'v syn::Variant,
     fields: &'v Punctuated<syn::Field, Comma>,
     name: String,
-    description: Option<Description>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

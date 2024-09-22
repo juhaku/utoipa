@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::{iter, mem};
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -343,18 +343,15 @@ impl NamedStructResponse<'_> {
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
         let status_code = mem::take(&mut derive_value.status);
-        let inline_schema = NamedStructSchema {
-            root: &Root {
+        let inline_schema = NamedStructSchema::new(
+            &Root {
                 ident,
                 attributes,
                 generics: &Generics::default(),
             },
             fields,
-            description: None,
-            features: None,
-            rename_all: None,
-            schema_as: None,
-        };
+            Vec::new(),
+        )?;
 
         let ty = Self::to_type(ident);
 
@@ -431,18 +428,15 @@ impl<'p> ToResponseNamedStructResponse<'p> {
         };
         let ty = Self::to_type(ident);
 
-        let inline_schema = NamedStructSchema {
-            root: &Root {
+        let inline_schema = NamedStructSchema::new(
+            &Root {
                 ident,
                 attributes,
                 generics: &Generics::default(),
             },
-            description: None,
             fields,
-            features: None,
-            rename_all: None,
-            schema_as: None,
-        };
+            Vec::new(),
+        )?;
         let response_type = PathType::InlineSchema(inline_schema.to_token_stream(), ty);
 
         let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {

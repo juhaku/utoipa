@@ -298,9 +298,8 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
 
                             ComponentSchema::new(crate::component::ComponentSchemaProps {
                                 type_tree: &type_tree,
-                                features: Some(vec![Inline::from(path_type.is_inline).into()]),
+                                features: vec![Inline::from(path_type.is_inline).into()],
                                 description: None,
-                                deprecated: None,
                                 container: &Container {
                                     generics: &Generics::default(),
                                 },
@@ -878,9 +877,8 @@ impl ToTokensDiagnostics for Header {
 
             let media_type_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
                 type_tree: &type_tree,
-                features: Some(vec![Inline::from(header_type.is_inline).into()]),
+                features: vec![Inline::from(header_type.is_inline).into()],
                 description: None,
-                deprecated: None,
                 container: &Container {
                     generics: &Generics::default(),
                 },

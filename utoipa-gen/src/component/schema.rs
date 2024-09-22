@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, Cow};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field, Fields,
     FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Variant,
@@ -11,7 +11,7 @@ use crate::{
     as_tokens_or_diagnostics,
     component::features::attributes::{Rename, ValueType},
     doc_comment::CommentAttributes,
-    Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
+    AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use self::{
@@ -108,8 +108,8 @@ impl ToTokensDiagnostics for Schema<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum SchemaVariant<'a> {
-    Named(NamedStructSchema<'a>),
-    Unnamed(UnnamedStructSchema<'a>),
+    Named(NamedStructSchema),
+    Unnamed(UnnamedStructSchema),
     Enum(EnumSchema<'a>),
     Unit(UnitStructVariant),
 }
@@ -120,40 +120,31 @@ impl<'a> SchemaVariant<'a> {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
                     let FieldsUnnamed { unnamed, .. } = fields;
-                    let mut unnamed_features = parent
+                    let unnamed_features = parent
                         .attributes
                         .parse_features::<UnnamedFieldStructFeatures>()?
-                        .into_inner();
+                        .into_inner()
+                        .unwrap_or_default();
 
-                    let schema_as = pop_feature!(unnamed_features => Feature::As(_) as Option<As>);
-                    let description =
-                        pop_feature!(unnamed_features => Feature::Description(_)).into_inner();
-                    Ok(Self::Unnamed(UnnamedStructSchema {
-                        root: parent,
-                        description,
-                        features: unnamed_features,
-                        fields: unnamed,
-                        schema_as,
-                    }))
+                    Ok(Self::Unnamed(UnnamedStructSchema::new(
+                        parent,
+                        unnamed,
+                        unnamed_features,
+                    )?))
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-                    let mut named_features = parent
+                    let named_features = parent
                         .attributes
                         .parse_features::<NamedFieldStructFeatures>()?
-                        .into_inner();
-                    let schema_as = pop_feature!(named_features => Feature::As(_) as Option<As>);
-                    let description =
-                        pop_feature!(named_features => Feature::Description(_)).into_inner();
+                        .into_inner()
+                        .unwrap_or_default();
 
-                    Ok(Self::Named(NamedStructSchema {
-                        root: parent,
-                        description,
-                        rename_all: pop_feature!(named_features => Feature::RenameAll(_) as Option<RenameAll>),
-                        features: named_features,
-                        fields: named,
-                        schema_as,
-                    }))
+                    Ok(Self::Named(NamedStructSchema::new(
+                        parent,
+                        named,
+                        named_features,
+                    )?))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
             },
@@ -179,8 +170,14 @@ impl ToTokensDiagnostics for SchemaVariant<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
             Self::Enum(schema) => schema.to_tokens(tokens),
-            Self::Named(schema) => schema.to_tokens(tokens),
-            Self::Unnamed(schema) => schema.to_tokens(tokens),
+            Self::Named(schema) => {
+                schema.to_tokens(tokens);
+                Ok(())
+            }
+            Self::Unnamed(schema) => {
+                schema.to_tokens(tokens);
+                Ok(())
+            }
             Self::Unit(unit) => {
                 unit.to_tokens(tokens);
                 Ok(())
@@ -201,127 +198,35 @@ impl ToTokens for UnitStructVariant {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct NamedStructSchema<'a> {
-    pub root: &'a Root<'a>,
-    pub fields: &'a Punctuated<Field, Comma>,
-    pub description: Option<Description>,
-    pub features: Option<Vec<Feature>>,
-    pub rename_all: Option<RenameAll>,
+pub struct NamedStructSchema {
+    tokens: TokenStream,
     pub schema_as: Option<As>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct NamedStructFieldOptions<'a> {
     property: Property,
-    rename_field_value: Option<Cow<'a, str>>,
+    renamed_field: Option<Cow<'a, str>>,
     required: Option<super::features::attributes::Required>,
     is_option: bool,
 }
 
-impl NamedStructSchema<'_> {
-    fn get_named_struct_field_options(
-        &self,
-        field: &Field,
-        field_rules: &SerdeValue,
-        container_rules: &SerdeContainer,
-    ) -> Result<NamedStructFieldOptions<'_>, Diagnostics> {
-        let type_tree = &mut TypeTree::from_type(&field.ty)?;
+impl NamedStructSchema {
+    pub fn new(
+        root: &Root,
+        fields: &Punctuated<Field, Comma>,
+        mut features: Vec<Feature>,
+    ) -> Result<Self, Diagnostics> {
+        let mut tokens = TokenStream::new();
 
-        let mut field_features = field
-            .attrs
-            .parse_features::<NamedFieldFeatures>()?
-            .into_inner();
+        let rename_all = pop_feature!(features => Feature::RenameAll(_) as Option<RenameAll>);
+        let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
+        let description: Option<Description> =
+            pop_feature!(features => Feature::Description(_)).into_inner();
 
-        let schema_default = self
-            .features
-            .as_ref()
-            .map(|features| features.iter().any(|f| matches!(f, Feature::Default(_))))
-            .unwrap_or(false);
-        let serde_default = container_rules.default;
+        let container_rules = serde::parse_container(root.attributes)?;
 
-        if schema_default || serde_default {
-            let features_inner = field_features.get_or_insert(vec![]);
-            if !features_inner
-                .iter()
-                .any(|f| matches!(f, Feature::Default(_)))
-            {
-                let field_ident = field.ident.as_ref().unwrap().to_owned();
-                let struct_ident = format_ident!("{}", &self.root.ident);
-                features_inner.push(Feature::Default(
-                    crate::features::attributes::Default::new_default_trait(
-                        struct_ident,
-                        field_ident.into(),
-                    ),
-                ));
-            }
-        }
-
-        // check for Rust's `#[deprecated]` attribute first, then check for `deprecated` feature
-        let deprecated = super::get_deprecated(&field.attrs).or_else(|| {
-            pop_feature!(field_features => Feature::Deprecated(_)).and_then(|feature| match feature
-            {
-                Feature::Deprecated(_) => Some(Deprecated::True),
-                _ => None,
-            })
-        });
-
-        let rename_field =
-            pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
-                Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
-                _ => None,
-            });
-
-        let value_type = field_features.as_mut().and_then(
-            |features| pop_feature!(features => Feature::ValueType(_) as Option<ValueType>),
-        );
-        let override_type_tree = value_type
-            .as_ref()
-            .map_try(|value_type| value_type.as_type_tree())?;
-        let comments = CommentAttributes::from_attributes(&field.attrs);
-        let description = &ComponentDescription::CommentAttributes(&comments);
-
-        let schema_with = pop_feature!(field_features => Feature::SchemaWith(_));
-        let required = pop_feature!(field_features => Feature::Required(_) as Option<crate::component::features::attributes::Required>);
-        let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
-
-        let alias_type = type_tree.get_alias_type()?;
-        let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
-        let type_tree = alias_type_tree.as_ref().unwrap_or(type_tree);
-
-        let is_option = type_tree.is_option();
-
-        Ok(NamedStructFieldOptions {
-            property: if let Some(schema_with) = schema_with {
-                Property::SchemaWith(schema_with)
-            } else {
-                let cs = super::ComponentSchemaProps {
-                    type_tree,
-                    features: field_features,
-                    description: Some(description),
-                    deprecated: deprecated.as_ref(),
-                    container: &super::Container {
-                        generics: self.root.generics,
-                    },
-                };
-                if field_rules.flatten && type_tree.is_map() {
-                    Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
-                } else {
-                    Property::Schema(ComponentSchema::new(cs)?)
-                }
-            },
-            rename_field_value: rename_field,
-            required,
-            is_option,
-        })
-    }
-}
-
-impl ToTokensDiagnostics for NamedStructSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let container_rules = serde::parse_container(self.root.attributes)?;
-
-        let fields = self
-            .fields
+        let fields_vec = fields
             .iter()
             .map(|field| {
                 let mut field_name = Cow::Owned(field.ident.as_ref().unwrap().to_string());
@@ -335,8 +240,13 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                     Ok(field_rules) => field_rules,
                     Err(diagnostics) => return Err(diagnostics),
                 };
-                let field_options =
-                    self.get_named_struct_field_options(field, &field_rules, &container_rules);
+                let field_options = Self::get_named_struct_field_options(
+                    root,
+                    field,
+                    &features,
+                    &field_rules,
+                    &container_rules,
+                );
 
                 match field_options {
                     Ok(field_options) => Ok((field_options, field_rules, field_name, field)),
@@ -345,7 +255,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?;
 
-        let mut object_tokens = fields
+        let mut object_tokens = fields_vec
             .iter()
             .filter(|(_, field_rules, ..)| !field_rules.skip && !field_rules.flatten)
             .map(|(property, field_rules, field_name, field)| {
@@ -364,7 +274,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                 |mut object_tokens,
                  (
                     NamedStructFieldOptions {
-                        rename_field_value,
+                        renamed_field,
                         required,
                         is_option,
                         ..
@@ -378,9 +288,8 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                         .rename
                         .as_deref()
                         .map(Cow::Borrowed)
-                        .or(rename_field_value.as_ref().cloned());
-                    let rename_all = container_rules.rename_all.as_ref().or(self
-                        .rename_all
+                        .or(renamed_field.as_ref().cloned());
+                    let rename_all = container_rules.rename_all.as_ref().or(rename_all
                         .as_ref()
                         .map(|rename_all| rename_all.as_rename_rule()));
 
@@ -408,7 +317,7 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                 },
             );
 
-        let flatten_fields = fields
+        let flatten_fields = fields_vec
             .iter()
             .filter(|(_, field_rules, ..)| field_rules.flatten)
             .collect::<Vec<_>>();
@@ -435,8 +344,8 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
                             }
                             Some(flattened_map_field) => {
                                 return Err(Diagnostics::with_span(
-                                    self.fields.span(),
-                                    format!("The structure `{}` contains multiple flattened map fields.", self.root.ident))
+                                    fields.span(),
+                                    format!("The structure `{}` contains multiple flattened map fields.", root.ident))
                                     .note(
                                         format!("first flattened map field was declared here as `{}`",
                                         flattened_map_field.ident.as_ref().unwrap()))
@@ -470,45 +379,146 @@ impl ToTokensDiagnostics for NamedStructSchema<'_> {
             });
         }
 
-        if let Some(deprecated) = super::get_deprecated(self.root.attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        if root.attributes.has_deprecated()
+            && !features
+                .iter()
+                .any(|feature| matches!(feature, Feature::Deprecated(_)))
+        {
+            features.push(Feature::Deprecated(true.into()));
         }
 
-        if let Some(struct_features) = self.features.as_ref() {
-            tokens.extend(struct_features.to_token_stream()?)
-        }
+        tokens.extend(features.to_token_stream()?);
 
-        let comments = CommentAttributes::from_attributes(self.root.attributes);
-        let description = self
-            .description
+        let comments = CommentAttributes::from_attributes(root.attributes);
+        let description = description
             .as_ref()
             .map(ComponentDescription::Description)
             .or(Some(ComponentDescription::CommentAttributes(&comments)));
 
-        description.to_tokens(tokens);
+        description.to_tokens(&mut tokens);
 
-        Ok(())
+        Ok(Self { tokens, schema_as })
+    }
+
+    fn get_named_struct_field_options<'a>(
+        root: &Root,
+        field: &Field,
+        features: &[Feature],
+        field_rules: &SerdeValue,
+        container_rules: &SerdeContainer,
+    ) -> Result<NamedStructFieldOptions<'a>, Diagnostics> {
+        let type_tree = &mut TypeTree::from_type(&field.ty)?;
+
+        let mut field_features = field
+            .attrs
+            .parse_features::<NamedFieldFeatures>()?
+            .into_inner()
+            .unwrap_or_default();
+
+        let schema_default = features.iter().any(|f| matches!(f, Feature::Default(_)));
+        let serde_default = container_rules.default;
+
+        if (schema_default || serde_default)
+            && !field_features
+                .iter()
+                .any(|f| matches!(f, Feature::Default(_)))
+        {
+            let field_ident = field.ident.as_ref().unwrap().to_owned();
+
+            // TODO refactor the clone away
+            field_features.push(Feature::Default(
+                crate::features::attributes::Default::new_default_trait(
+                    root.ident.clone(),
+                    field_ident.into(),
+                ),
+            ));
+        }
+
+        if field.attrs.has_deprecated()
+            && !field_features
+                .iter()
+                .any(|feature| matches!(feature, Feature::Deprecated(_)))
+        {
+            field_features.push(Feature::Deprecated(true.into()));
+        }
+
+        let rename_field =
+            pop_feature!(field_features => Feature::Rename(_)).and_then(|feature| match feature {
+                Feature::Rename(rename) => Some(Cow::Owned(rename.into_value())),
+                _ => None,
+            });
+
+        let value_type = pop_feature!(field_features => Feature::ValueType(_) as Option<ValueType>);
+        let override_type_tree = value_type
+            .as_ref()
+            .map_try(|value_type| value_type.as_type_tree())?;
+        let comments = CommentAttributes::from_attributes(&field.attrs);
+        let description = &ComponentDescription::CommentAttributes(&comments);
+
+        let schema_with = pop_feature!(field_features => Feature::SchemaWith(_));
+        let required = pop_feature!(field_features => Feature::Required(_) as Option<crate::component::features::attributes::Required>);
+        let type_tree = override_type_tree.as_ref().unwrap_or(type_tree);
+
+        let alias_type = type_tree.get_alias_type()?;
+        let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
+        let type_tree = alias_type_tree.as_ref().unwrap_or(type_tree);
+
+        let is_option = type_tree.is_option();
+
+        Ok(NamedStructFieldOptions {
+            property: if let Some(schema_with) = schema_with {
+                Property::SchemaWith(schema_with)
+            } else {
+                let cs = super::ComponentSchemaProps {
+                    type_tree,
+                    features: field_features,
+                    description: Some(description),
+                    container: &super::Container {
+                        generics: root.generics,
+                    },
+                };
+                if field_rules.flatten && type_tree.is_map() {
+                    Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
+                } else {
+                    Property::Schema(ComponentSchema::new(cs)?)
+                }
+            },
+            renamed_field: rename_field,
+            required,
+            is_option,
+        })
+    }
+}
+
+impl ToTokens for NamedStructSchema {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.tokens.to_tokens(tokens);
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct UnnamedStructSchema<'a> {
-    root: &'a Root<'a>,
-    fields: &'a Punctuated<Field, Comma>,
-    description: Option<Description>,
-    features: Option<Vec<Feature>>,
+struct UnnamedStructSchema {
+    tokens: TokenStream,
     schema_as: Option<As>,
 }
 
-impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let fields_len = self.fields.len();
-        let first_field = self.fields.first().unwrap();
+impl UnnamedStructSchema {
+    fn new(
+        root: &Root,
+        fields: &Punctuated<Field, Comma>,
+        mut features: Vec<Feature>,
+    ) -> Result<Self, Diagnostics> {
+        let mut tokens = TokenStream::new();
+        let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
+        let description: Option<Description> =
+            pop_feature!(features => Feature::Description(_)).into_inner();
+
+        let fields_len = fields.len();
+        let first_field = fields.first().unwrap();
         let first_part = &TypeTree::from_type(&first_field.ty)?;
 
         let all_fields_are_same = fields_len == 1
-            || self
-                .fields
+            || fields
                 .iter()
                 .skip(1)
                 .map(|field| TypeTree::from_type(&field.ty))
@@ -516,43 +526,42 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                 .iter()
                 .all(|schema_part| first_part == schema_part);
 
-        let deprecated = super::get_deprecated(self.root.attributes);
+        if root.attributes.has_deprecated()
+            && !features
+                .iter()
+                .any(|feature| matches!(feature, Feature::Deprecated(_)))
+        {
+            features.push(Feature::Deprecated(true.into()));
+        }
         if all_fields_are_same {
-            let mut unnamed_struct_features = self.features.clone();
-            let value_type = unnamed_struct_features.as_mut().and_then(
-                |features| pop_feature!(features => Feature::ValueType(_) as Option<ValueType>),
-            );
+            let value_type = pop_feature!(features => Feature::ValueType(_) as Option<ValueType>);
             let override_type_tree = value_type
                 .as_ref()
                 .map_try(|value_type| value_type.as_type_tree())?;
 
             if fields_len == 1 {
-                if let Some(ref mut features) = unnamed_struct_features {
-                    let inline =
-                        features::parse_schema_features_with(&first_field.attrs, |input| {
-                            Ok(parse_features!(
-                                input as super::features::attributes::Inline
-                            ))
-                        })?
-                        .unwrap_or_default();
+                let inline = features::parse_schema_features_with(&first_field.attrs, |input| {
+                    Ok(parse_features!(
+                        input as super::features::attributes::Inline
+                    ))
+                })?
+                .unwrap_or_default();
 
-                    features.extend(inline);
+                features.extend(inline);
 
-                    if pop_feature!(features => Feature::Default(crate::features::attributes::Default(None)))
-                        .is_some()
-                    {
-                        let struct_ident = format_ident!("{}", &self.root.ident);
-                        let index: syn::Index = 0.into();
-                        features.push(Feature::Default(
-                            crate::features::attributes::Default::new_default_trait(struct_ident, index.into()),
-                        ));
-                    }
+                if pop_feature!(features => Feature::Default(crate::features::attributes::Default(None)))
+                    .is_some()
+                {
+                    let index: syn::Index = 0.into();
+                    // TODO refactor the clone away
+                    features.push(Feature::Default(
+                        crate::features::attributes::Default::new_default_trait(root.ident.clone(), index.into()),
+                    ));
                 }
             }
 
-            let comments = CommentAttributes::from_attributes(self.root.attributes);
-            let description = self
-                .description
+            let comments = CommentAttributes::from_attributes(root.attributes);
+            let description = description
                 .as_ref()
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
@@ -565,11 +574,10 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
             tokens.extend(
                 ComponentSchema::new(super::ComponentSchemaProps {
                     type_tree,
-                    features: unnamed_struct_features,
+                    features,
                     description: description.as_ref(),
-                    deprecated: deprecated.as_ref(),
                     container: &super::Container {
-                        generics: self.root.generics,
+                        generics: root.generics,
                     },
                 })?
                 .to_token_stream(),
@@ -583,19 +591,12 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
                 utoipa::openapi::ObjectBuilder::new()
             });
 
-            if let Some(deprecated) = deprecated {
-                tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-            }
-
-            if let Some(ref attrs) = self.features {
-                tokens.extend(attrs.to_token_stream()?)
-            }
+            tokens.extend(features.to_token_stream()?)
         }
 
         if fields_len > 1 {
-            let comments = CommentAttributes::from_attributes(self.root.attributes);
-            let description = self
-                .description
+            let comments = CommentAttributes::from_attributes(root.attributes);
+            let description = description
                 .as_ref()
                 .map(ComponentDescription::Description)
                 .or(Some(ComponentDescription::CommentAttributes(&comments)));
@@ -607,7 +608,13 @@ impl ToTokensDiagnostics for UnnamedStructSchema<'_> {
             })
         }
 
-        Ok(())
+        Ok(UnnamedStructSchema { tokens, schema_as })
+    }
+}
+
+impl ToTokens for UnnamedStructSchema {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.tokens.to_tokens(tokens);
     }
 }
 

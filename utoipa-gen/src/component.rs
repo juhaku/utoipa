@@ -541,9 +541,8 @@ pub struct Container<'c> {
 pub struct ComponentSchemaProps<'c> {
     pub container: &'c Container<'c>,
     pub type_tree: &'c TypeTree<'c>,
-    pub features: Option<Vec<Feature>>,
+    pub features: Vec<Feature>,
     pub description: Option<&'c ComponentDescription<'c>>,
-    pub deprecated: Option<&'c Deprecated>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -579,19 +578,16 @@ pub struct ComponentSchema {
     pub name_tokens: TokenStream,
 }
 
-impl<'c> ComponentSchema {
+impl ComponentSchema {
     pub fn new(
         ComponentSchemaProps {
             container,
             type_tree,
-            features,
+            mut features,
             description,
-            deprecated,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
-        let mut features = features.unwrap_or(Vec::new());
-        let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
         let mut name_tokens = TokenStream::new();
 
         match type_tree.generic_type {
@@ -601,7 +597,6 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 description,
-                deprecated_stream,
             )?,
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 ComponentSchema::vec_to_tokens(
@@ -610,7 +605,6 @@ impl<'c> ComponentSchema {
                     features,
                     type_tree,
                     description,
-                    deprecated_stream,
                 )?
             }
             #[cfg(feature = "smallvec")]
@@ -620,7 +614,6 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 description,
-                deprecated_stream,
             )?,
             Some(GenericType::Option) => {
                 // Add nullable feature if not already exists. Option is always nullable
@@ -640,9 +633,8 @@ impl<'c> ComponentSchema {
                         .iter()
                         .next()
                         .expect("ComponentSchema generic container type should have 1 child"),
-                    features: Some(features),
+                    features,
                     description,
-                    deprecated,
                 })?
                 .to_tokens(&mut tokens)?;
             }
@@ -656,9 +648,8 @@ impl<'c> ComponentSchema {
                         .iter()
                         .next()
                         .expect("ComponentSchema generic container type should have 1 child"),
-                    features: Some(features),
+                    features,
                     description,
-                    deprecated,
                 })?
                 .to_tokens(&mut tokens)?;
             }
@@ -673,9 +664,8 @@ impl<'c> ComponentSchema {
                         .iter()
                         .next()
                         .expect("ComponentSchema rc generic container type should have 1 child"),
-                    features: Some(features),
+                    features,
                     description,
-                    deprecated,
                 })?
                 .to_tokens(&mut tokens)?;
             }
@@ -686,7 +676,6 @@ impl<'c> ComponentSchema {
                 features,
                 type_tree,
                 description,
-                deprecated_stream,
             )?,
         };
 
@@ -723,7 +712,6 @@ impl<'c> ComponentSchema {
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
         description_stream: Option<&ComponentDescription<'_>>,
-        deprecated_stream: Option<TokenStream>,
     ) -> Result<(), Diagnostics> {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
@@ -731,6 +719,7 @@ impl<'c> ComponentSchema {
             pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_));
         let default_tokens = as_tokens_or_diagnostics!(&default);
+        let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         let additional_properties = additional_properties
             .as_ref()
@@ -748,9 +737,8 @@ impl<'c> ComponentSchema {
                         .expect("ComponentSchema Map type should have children")
                         .get(1)
                         .expect("ComponentSchema Map type should have 2 child"),
-                    features: Some(features),
+                    features,
                     description: None,
-                    deprecated: None,
                 })?;
                 let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
@@ -767,7 +755,7 @@ impl<'c> ComponentSchema {
                 #schema_type
                 #additional_properties
                 #description_stream
-                #deprecated_stream
+                #deprecated
                 #default_tokens
         });
 
@@ -780,7 +768,6 @@ impl<'c> ComponentSchema {
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
         description_stream: Option<&ComponentDescription<'_>>,
-        deprecated_stream: Option<TokenStream>,
     ) -> Result<(), Diagnostics> {
         let example = pop_feature!(features => Feature::Example(_));
         let xml = features.extract_vec_xml_feature(type_tree)?;
@@ -789,6 +776,7 @@ impl<'c> ComponentSchema {
         let nullable: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_));
+        let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         let child = type_tree
             .children
@@ -816,9 +804,8 @@ impl<'c> ComponentSchema {
         let component_schema = ComponentSchema::new(ComponentSchemaProps {
             container,
             type_tree: child,
-            features: Some(features),
+            features,
             description: None,
-            deprecated: None,
         })?;
         let component_schema_tokens = as_tokens_or_diagnostics!(&component_schema);
 
@@ -851,7 +838,7 @@ impl<'c> ComponentSchema {
 
         tokens.extend(quote! {
             #schema
-            #deprecated_stream
+            #deprecated
             #description_stream
         });
 
@@ -882,13 +869,13 @@ impl<'c> ComponentSchema {
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
         description_stream: Option<&ComponentDescription<'_>>,
-        deprecated_stream: Option<TokenStream>,
     ) -> Result<(), Diagnostics> {
         let nullable_feat: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
         let nullable = nullable_feat
             .map(|nullable| nullable.value())
             .unwrap_or_default();
+        let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         match type_tree.value_type {
             ValueType::Primitive => {
@@ -921,7 +908,7 @@ impl<'c> ComponentSchema {
                 }
 
                 description_stream.to_tokens(tokens);
-                tokens.extend(deprecated_stream);
+                tokens.extend(deprecated);
                 for feature in features.iter().filter(|feature| feature.is_validatable()) {
                     feature.validate(&schema_type, type_tree);
                 }
@@ -934,7 +921,7 @@ impl<'c> ComponentSchema {
                     tokens.extend(quote! {
                         utoipa::openapi::ObjectBuilder::new()
                             .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
-                            #description_stream #deprecated_stream
+                            #description_stream #deprecated
                     })
                 }
             }
@@ -949,7 +936,7 @@ impl<'c> ComponentSchema {
                     tokens.extend(quote! {
                         utoipa::openapi::ObjectBuilder::new()
                             #nullable_schema_type
-                            #description_stream #deprecated_stream
+                            #description_stream #deprecated
                     })
                 } else {
                     fn nullable_all_of_item(nullable: bool) -> Option<TokenStream> {
@@ -1108,9 +1095,9 @@ impl<'c> ComponentSchema {
                             .iter()
                             .map(|child| {
                                 let features = if child.is_option() {
-                                    Some(vec![Feature::Nullable(Nullable::new())])
+                                    vec![Feature::Nullable(Nullable::new())]
                                 } else {
-                                    None
+                                    Vec::new()
                                 };
 
                                 match ComponentSchema::new(ComponentSchemaProps {
@@ -1118,7 +1105,6 @@ impl<'c> ComponentSchema {
                                     type_tree: child,
                                     features,
                                     description: None,
-                                    deprecated: None,
                                 }) {
                                     Ok(child) => Ok(as_tokens_or_diagnostics!(&child)),
                                     Err(diagnostics) => Err(diagnostics),
@@ -1144,7 +1130,7 @@ impl<'c> ComponentSchema {
                                 #nullable_schema_type
                                 .items(#all_of)
                                 #description_stream
-                                #deprecated_stream
+                                #deprecated
                         })
                     })?
                     .unwrap_or_else(|| quote!(utoipa::openapi::schema::empty())) // TODO should
@@ -1154,10 +1140,6 @@ impl<'c> ComponentSchema {
             }
         }
         Ok(())
-    }
-
-    fn get_deprecated(deprecated: Option<&'c Deprecated>) -> Option<TokenStream> {
-        deprecated.map(|deprecated| quote! { .deprecated(Some(#deprecated)) })
     }
 }
 
@@ -1178,14 +1160,12 @@ impl FlattenedMapSchema {
         ComponentSchemaProps {
             container,
             type_tree,
-            features,
+            mut features,
             description,
-            deprecated,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
-        let mut features = features.unwrap_or(Vec::new());
-        let deprecated_stream = ComponentSchema::get_deprecated(deprecated);
+        let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let nullable = pop_feature!(features => Feature::Nullable(_));
@@ -1204,16 +1184,15 @@ impl FlattenedMapSchema {
                 .expect("ComponentSchema Map type should have children")
                 .get(1)
                 .expect("ComponentSchema Map type should have 2 child"),
-            features: Some(features),
+            features,
             description: None,
-            deprecated: None,
         })?;
         let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
 
         tokens.extend(quote! {
             #schema_tokens
                 #description
-                #deprecated_stream
+                #deprecated
                 #default_tokens
         });
 

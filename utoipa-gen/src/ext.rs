@@ -133,9 +133,8 @@ impl ToTokensDiagnostics for RequestBody<'_> {
          -> Result<(), Diagnostics> {
             let schema = as_tokens_or_diagnostics!(&ComponentSchema::new(ComponentSchemaProps {
                 type_tree: actual_body,
-                features: None,
+                features: Vec::new(),
                 description: None,
-                deprecated: None,
                 container: &Container {
                     generics: &Generics::default(),
                 }
