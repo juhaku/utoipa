@@ -181,9 +181,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                     as_tokens_or_diagnostics!(&ComponentSchema::new(
                         component::ComponentSchemaProps {
                             type_tree,
-                            features: Some(self.features.clone()),
+                            features: self.features.clone(),
                             description: None,
-                            deprecated: None,
                             container: &Container {
                                 generics: &Generics::default(),
                             }
@@ -204,9 +203,8 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                     as_tokens_or_diagnostics!(&ComponentSchema::new(
                         component::ComponentSchemaProps {
                             type_tree: &type_tree,
-                            features: Some(schema_features),
+                            features: schema_features,
                             description: None,
-                            deprecated: None,
                             container: &Container {
                                 generics: &Generics::default(),
                             }

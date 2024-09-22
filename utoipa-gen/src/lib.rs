@@ -2876,9 +2876,8 @@ pub fn schema(input: TokenStream) -> TokenStream {
     };
 
     let schema = ComponentSchema::new(ComponentSchemaProps {
-        features: Some(vec![Feature::Inline(schema.inline.into())]),
+        features: vec![Feature::Inline(schema.inline.into())],
         type_tree: &type_tree,
-        deprecated: None,
         description: None,
         container: &component::Container {
             generics: &generics,
@@ -3407,9 +3406,8 @@ trait AttributesExt {
 
 impl AttributesExt for Vec<syn::Attribute> {
     fn has_deprecated(&self) -> bool {
-        self.iter().any(|attr| {
-            matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
-        })
+        let this = &**self;
+        this.has_deprecated()
     }
 }
 

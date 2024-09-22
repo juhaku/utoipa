@@ -158,9 +158,8 @@ impl Schema {
         let component_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
             container: &container,
             type_tree: &type_tree,
-            features: Some(vec![Feature::Inline(true.into())]),
+            features: vec![Feature::Inline(true.into())],
             description: None,
-            deprecated: None,
         })?;
 
         Ok(component_schema)

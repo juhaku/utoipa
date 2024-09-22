@@ -457,9 +457,8 @@ impl ToTokensDiagnostics for Param<'_> {
 
             let schema = ComponentSchema::new(component::ComponentSchemaProps {
                 type_tree: &component,
-                features: Some(schema_features),
+                features: schema_features,
                 description: None,
-                deprecated: None,
                 container: &Container {
                     generics: self.generics,
                 },

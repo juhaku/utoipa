@@ -1368,7 +1368,6 @@ fn derive_enum_with_named_fields_with_reference_with_tag() {
     );
 }
 
-/// Derive a mixed enum with named and unnamed fields.
 #[test]
 fn derive_mixed_enum() {
     #[derive(Serialize, ToSchema)]
@@ -1433,6 +1432,76 @@ fn derive_mixed_enum() {
     );
 }
 
+#[test]
+fn derive_mixed_enum_deprecated_variants() {
+    #[derive(Serialize, ToSchema)]
+    struct Foo(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            #[schema(deprecated)]
+            UnitValue,
+            #[deprecated]
+            NamedFields {
+                id: &'static str,
+                names: Option<Vec<String>>
+            },
+            #[deprecated]
+            UnnamedFields(Foo),
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "deprecated": true,
+                    "type": "string",
+                    "enum": [
+                        "UnitValue",
+                    ],
+                },
+                {
+                    "deprecated": true,
+                    "type": "object",
+                    "properties": {
+                        "NamedFields": {
+                            "deprecated": true,
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                },
+                                "names": {
+                                    "type": ["array", "null"],
+                                    "items": {
+                                        "type": "string",
+                                    },
+                                },
+                            },
+                            "required": [
+                                "id",
+                            ],
+                        },
+                    },
+                    "required": ["NamedFields"],
+                },
+                {
+                    "deprecated": true,
+                    "type": "object",
+                    "properties": {
+                        "UnnamedFields": {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                    },
+                    "required": ["UnnamedFields"],
+                },
+            ],
+        })
+    );
+}
 #[test]
 fn derive_mixed_enum_title() {
     #[derive(Serialize, ToSchema)]
