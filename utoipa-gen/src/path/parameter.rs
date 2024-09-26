@@ -178,16 +178,15 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 let required: Required = (!type_tree.is_option()).into();
 
                 to_tokens(
-                    as_tokens_or_diagnostics!(&ComponentSchema::new(
-                        component::ComponentSchemaProps {
-                            type_tree,
-                            features: self.features.clone(),
-                            description: None,
-                            container: &Container {
-                                generics: &Generics::default(),
-                            }
-                        }
-                    )?),
+                    ComponentSchema::new(component::ComponentSchemaProps {
+                        type_tree,
+                        features: self.features.clone(),
+                        description: None,
+                        container: &Container {
+                            generics: &Generics::default(),
+                        },
+                    })?
+                    .to_token_stream(),
                     required,
                 );
                 Ok(())
@@ -200,16 +199,15 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
                 to_tokens(
-                    as_tokens_or_diagnostics!(&ComponentSchema::new(
-                        component::ComponentSchemaProps {
-                            type_tree: &type_tree,
-                            features: schema_features,
-                            description: None,
-                            container: &Container {
-                                generics: &Generics::default(),
-                            }
-                        }
-                    )?),
+                    ComponentSchema::new(component::ComponentSchemaProps {
+                        type_tree: &type_tree,
+                        features: schema_features,
+                        description: None,
+                        container: &Container {
+                            generics: &Generics::default(),
+                        },
+                    })?
+                    .to_token_stream(),
                     required,
                 );
                 Ok(())

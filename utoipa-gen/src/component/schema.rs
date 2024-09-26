@@ -11,7 +11,7 @@ use crate::{
     as_tokens_or_diagnostics,
     component::features::attributes::{Rename, ValueType},
     doc_comment::CommentAttributes,
-    AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
+    Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use self::{
@@ -28,8 +28,8 @@ use super::{
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
-    ComponentDescription, ComponentSchema, FieldRename, FlattenedMapSchema, TypeTree,
-    VariantRename,
+    ComponentDescription, ComponentSchema, FieldRename, FlattenedMapSchema, SchemaReference,
+    TypeTree, VariantRename,
 };
 
 mod enums;
@@ -71,12 +71,41 @@ impl ToTokensDiagnostics for Schema<'_> {
         let ident = self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let parent = Root {
+        let root = Root {
             ident,
             generics: self.generics,
             attributes: self.attributes,
         };
-        let variant = SchemaVariant::new(self.data, &parent)?;
+        let variant = SchemaVariant::new(self.data, &root)?;
+        let schema_references = variant
+            .get_schema_references()
+            .filter(|schema_reference| !schema_reference.is_partial());
+
+        struct SchemaRef<'a>(&'a TokenStream, &'a TokenStream, &'a TokenStream);
+        impl ToTokens for SchemaRef<'_> {
+            fn to_tokens(&self, tokens: &mut TokenStream) {
+                let SchemaRef(name, ref_tokens, ..) = self;
+                tokens.extend(quote! {  (#name, #ref_tokens) });
+            }
+        }
+        let schema_refs = schema_references
+            .map(|schema_reference| {
+                SchemaRef(
+                    &schema_reference.name,
+                    &schema_reference.tokens,
+                    &schema_reference.references,
+                )
+            })
+            .collect::<Array<SchemaRef>>();
+
+        let references = schema_refs.iter().fold(
+            TokenStream::new(),
+            |mut tokens, SchemaRef(_, _, references)| {
+                tokens.extend(quote!( #references; ));
+
+                tokens
+            },
+        );
 
         let name = if let Some(schema_as) = variant.get_schema_as() {
             format_path_ref(&schema_as.0.path)
@@ -84,21 +113,25 @@ impl ToTokensDiagnostics for Schema<'_> {
             ident.to_string()
         };
 
-        let mut variant_tokens = TokenStream::new();
-        variant.to_tokens(&mut variant_tokens)?;
-
         tokens.extend(quote! {
             impl #impl_generics utoipa::__dev::ComposeSchema for #ident #ty_generics #where_clause {
                 fn compose(
                     mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>
                 ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-                    #variant_tokens.into()
+                    #variant.into()
                 }
             }
 
             impl #impl_generics utoipa::ToSchema for #ident #ty_generics #where_clause {
                 fn name() -> std::borrow::Cow<'static, str> {
                     std::borrow::Cow::Borrowed(#name)
+                }
+            }
+
+            impl #impl_generics utoipa::__dev::SchemaReferences for #ident #ty_generics #where_clause {
+                fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    schemas.extend(#schema_refs);
+                    #references;
                 }
             }
         });
@@ -115,42 +148,42 @@ enum SchemaVariant<'a> {
 }
 
 impl<'a> SchemaVariant<'a> {
-    pub fn new(data: &'a Data, parent: &'a Root<'a>) -> Result<SchemaVariant<'a>, Diagnostics> {
+    pub fn new(data: &'a Data, root: &'a Root<'a>) -> Result<SchemaVariant<'a>, Diagnostics> {
         match data {
             Data::Struct(content) => match &content.fields {
                 Fields::Unnamed(fields) => {
                     let FieldsUnnamed { unnamed, .. } = fields;
-                    let unnamed_features = parent
+                    let unnamed_features = root
                         .attributes
                         .parse_features::<UnnamedFieldStructFeatures>()?
                         .into_inner()
                         .unwrap_or_default();
 
                     Ok(Self::Unnamed(UnnamedStructSchema::new(
-                        parent,
+                        root,
                         unnamed,
                         unnamed_features,
                     )?))
                 }
                 Fields::Named(fields) => {
                     let FieldsNamed { named, .. } = fields;
-                    let named_features = parent
+                    let named_features = root
                         .attributes
                         .parse_features::<NamedFieldStructFeatures>()?
                         .into_inner()
                         .unwrap_or_default();
 
                     Ok(Self::Named(NamedStructSchema::new(
-                        parent,
+                        root,
                         named,
                         named_features,
                     )?))
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
             },
-            Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(parent, &content.variants)?)),
+            Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(root, &content.variants)?)),
             _ => Err(Diagnostics::with_span(
-                parent.ident.span(),
+                root.ident.span(),
                 "unexpected data type, expected syn::Data::Struct or syn::Data::Enum",
             )),
         }
@@ -164,24 +197,24 @@ impl<'a> SchemaVariant<'a> {
             _ => &None,
         }
     }
+
+    fn get_schema_references(&self) -> impl Iterator<Item = &SchemaReference> {
+        match self {
+            Self::Named(schema) => schema.fields_references.iter(),
+            Self::Unnamed(schema) => schema.schema_references.iter(),
+            Self::Enum(schema) => schema.schema_references.iter(),
+            _ => [].iter(),
+        }
+    }
 }
 
-impl ToTokensDiagnostics for SchemaVariant<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokens for SchemaVariant<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Self::Enum(schema) => schema.to_tokens(tokens),
-            Self::Named(schema) => {
-                schema.to_tokens(tokens);
-                Ok(())
-            }
-            Self::Unnamed(schema) => {
-                schema.to_tokens(tokens);
-                Ok(())
-            }
-            Self::Unit(unit) => {
-                unit.to_tokens(tokens);
-                Ok(())
-            }
+            Self::Named(schema) => schema.to_tokens(tokens),
+            Self::Unnamed(schema) => schema.to_tokens(tokens),
+            Self::Unit(unit) => unit.to_tokens(tokens),
         }
     }
 }
@@ -201,6 +234,7 @@ impl ToTokens for UnitStructVariant {
 pub struct NamedStructSchema {
     tokens: TokenStream,
     pub schema_as: Option<As>,
+    fields_references: Vec<SchemaReference>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -226,7 +260,7 @@ impl NamedStructSchema {
 
         let container_rules = serde::parse_container(root.attributes)?;
 
-        let fields_vec = fields
+        let mut fields_vec = fields
             .iter()
             .map(|field| {
                 let mut field_name = Cow::Owned(field.ident.as_ref().unwrap().to_string());
@@ -254,6 +288,19 @@ impl NamedStructSchema {
                 }
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?;
+
+        let fields_references = fields_vec
+            .iter_mut()
+            .filter_map(|(field_options, field_rules, ..)| {
+                match (&mut field_options.property, field_rules.skip) {
+                    (Property::Schema(schema), false) => {
+                        Some(std::mem::take(&mut schema.schema_references))
+                    }
+                    _ => None,
+                }
+            })
+            .flatten()
+            .collect::<Vec<_>>();
 
         let mut object_tokens = fields_vec
             .iter()
@@ -397,7 +444,11 @@ impl NamedStructSchema {
 
         description.to_tokens(&mut tokens);
 
-        Ok(Self { tokens, schema_as })
+        Ok(Self {
+            tokens,
+            schema_as,
+            fields_references,
+        })
     }
 
     fn get_named_struct_field_options<'a>(
@@ -469,7 +520,7 @@ impl NamedStructSchema {
             property: if let Some(schema_with) = schema_with {
                 Property::SchemaWith(schema_with)
             } else {
-                let cs = super::ComponentSchemaProps {
+                let props = super::ComponentSchemaProps {
                     type_tree,
                     features: field_features,
                     description: Some(description),
@@ -478,9 +529,10 @@ impl NamedStructSchema {
                     },
                 };
                 if field_rules.flatten && type_tree.is_map() {
-                    Property::FlattenedMap(FlattenedMapSchema::new(cs)?)
+                    Property::FlattenedMap(FlattenedMapSchema::new(props)?)
                 } else {
-                    Property::Schema(ComponentSchema::new(cs)?)
+                    let schema = ComponentSchema::new(props)?;
+                    Property::Schema(schema)
                 }
             },
             renamed_field: rename_field,
@@ -500,6 +552,7 @@ impl ToTokens for NamedStructSchema {
 struct UnnamedStructSchema {
     tokens: TokenStream,
     schema_as: Option<As>,
+    schema_references: Vec<SchemaReference>,
 }
 
 impl UnnamedStructSchema {
@@ -533,6 +586,7 @@ impl UnnamedStructSchema {
         {
             features.push(Feature::Deprecated(true.into()));
         }
+        let mut schema_references = Vec::<SchemaReference>::new();
         if all_fields_are_same {
             let value_type = pop_feature!(features => Feature::ValueType(_) as Option<ValueType>);
             let override_type_tree = value_type
@@ -571,17 +625,17 @@ impl UnnamedStructSchema {
             let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
             let type_tree = alias_type_tree.as_ref().unwrap_or(type_tree);
 
-            tokens.extend(
-                ComponentSchema::new(super::ComponentSchemaProps {
-                    type_tree,
-                    features,
-                    description: description.as_ref(),
-                    container: &super::Container {
-                        generics: root.generics,
-                    },
-                })?
-                .to_token_stream(),
-            );
+            let mut schema = ComponentSchema::new(super::ComponentSchemaProps {
+                type_tree,
+                features,
+                description: description.as_ref(),
+                container: &super::Container {
+                    generics: root.generics,
+                },
+            })?;
+
+            tokens.extend(schema.to_token_stream());
+            schema_references = std::mem::take(&mut schema.schema_references);
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.
             // See: https://serde.rs/json.html
@@ -608,7 +662,11 @@ impl UnnamedStructSchema {
             })
         }
 
-        Ok(UnnamedStructSchema { tokens, schema_as })
+        Ok(UnnamedStructSchema {
+            tokens,
+            schema_as,
+            schema_references,
+        })
     }
 }
 
@@ -622,6 +680,7 @@ impl ToTokens for UnnamedStructSchema {
 pub struct EnumSchema<'a> {
     schema_type: EnumSchemaType<'a>,
     schema_as: Option<As>,
+    schema_references: Vec<SchemaReference>,
 }
 
 impl<'e> EnumSchema<'e> {
@@ -646,6 +705,7 @@ impl<'e> EnumSchema<'e> {
                             super::features::attributes::Examples,
                             super::features::attributes::Default,
                             super::features::attributes::Title,
+                            crate::component::features::attributes::Deprecated,
                             As
                         ))
                     })?
@@ -668,10 +728,14 @@ impl<'e> EnumSchema<'e> {
             };
 
             let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
+            if parent.attributes.has_deprecated() {
+                features.push(Feature::Deprecated(true.into()))
+            }
 
             Ok(Self {
                 schema_type: EnumSchemaType::Plain(PlainEnum::new(parent, variants, features)?),
                 schema_as,
+                schema_references: Vec::new(),
             })
         } else {
             let mut enum_features = parent
@@ -681,20 +745,22 @@ impl<'e> EnumSchema<'e> {
                 .unwrap_or_default();
             let schema_as = pop_feature!(enum_features => Feature::As(_) as Option<As>);
 
+            if parent.attributes.has_deprecated() {
+                enum_features.push(Feature::Deprecated(true.into()))
+            }
+            let mut mixed_enum = MixedEnum::new(parent, variants, enum_features)?;
+            let schema_references = std::mem::take(&mut mixed_enum.schema_references);
             Ok(Self {
-                schema_type: EnumSchemaType::Mixed(MixedEnum::new(
-                    parent,
-                    variants,
-                    enum_features,
-                )?),
+                schema_type: EnumSchemaType::Mixed(mixed_enum),
                 schema_as,
+                schema_references,
             })
         }
     }
 }
 
-impl ToTokensDiagnostics for EnumSchema<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokens for EnumSchema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         self.schema_type.to_tokens(tokens)
     }
 }
@@ -705,8 +771,8 @@ enum EnumSchemaType<'e> {
     Plain(PlainEnum<'e>),
 }
 
-impl ToTokensDiagnostics for EnumSchemaType<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokens for EnumSchemaType<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         let (attributes, description) = match self {
             Self::Mixed(mixed) => {
                 mixed.to_tokens(tokens);
@@ -718,9 +784,6 @@ impl ToTokensDiagnostics for EnumSchemaType<'_> {
             }
         };
 
-        if let Some(deprecated) = super::get_deprecated(attributes) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
         let comments = CommentAttributes::from_attributes(attributes);
         let description = description
             .as_ref()
@@ -728,8 +791,6 @@ impl ToTokensDiagnostics for EnumSchemaType<'_> {
             .or(Some(ComponentDescription::CommentAttributes(&comments)));
 
         description.to_tokens(tokens);
-
-        Ok(())
     }
 }
 
@@ -765,7 +826,7 @@ enum Property {
 impl ToTokensDiagnostics for Property {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
-            Self::Schema(schema) => schema.to_tokens(tokens)?,
+            Self::Schema(schema) => schema.to_tokens(tokens),
             Self::FlattenedMap(schema) => schema.to_tokens(tokens)?,
             Self::SchemaWith(schema_with) => schema_with.to_tokens(tokens)?,
         }

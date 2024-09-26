@@ -1100,8 +1100,17 @@ fn path_derive_custom_generic_wrapper() {
     struct Doc;
 
     let doc = serde_json::to_value(Doc::openapi()).unwrap();
+    let schemas = doc.pointer("/components/schemas").unwrap();
     let operation = doc.pointer("/paths/~1item/post").unwrap();
 
+    assert_json_eq!(
+        &schemas,
+        json!({
+            "Item": {
+                "type": "string"
+            }
+        })
+    );
     assert_json_eq!(
         &operation.pointer("/requestBody"),
         json!({

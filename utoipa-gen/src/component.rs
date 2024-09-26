@@ -79,6 +79,42 @@ impl PartialEq for TypeTreeValue<'_> {
     }
 }
 
+enum TypeTreeValueIter<'a, T> {
+    Once(std::iter::Once<T>),
+    Empty,
+    Iter(Box<dyn std::iter::Iterator<Item = T> + 'a>),
+}
+
+impl<'a, T> TypeTreeValueIter<'a, T> {
+    fn once(item: T) -> Self {
+        Self::Once(std::iter::once(item))
+    }
+
+    fn empty() -> Self {
+        Self::Empty
+    }
+}
+
+impl<'a, T> Iterator for TypeTreeValueIter<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Once(iter) => iter.next(),
+            Self::Empty => None,
+            Self::Iter(iter) => iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Once(once) => once.size_hint(),
+            Self::Empty => (0, None),
+            Self::Iter(iter) => iter.size_hint(),
+        }
+    }
+}
+
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -91,8 +127,8 @@ pub struct TypeTree<'t> {
     pub children: Option<Vec<TypeTree<'t>>>,
 }
 
-impl<'t> TypeTree<'t> {
-    pub fn from_type(ty: &'t Type) -> Result<TypeTree<'t>, Diagnostics> {
+impl TypeTree<'_> {
+    pub fn from_type(ty: &Type) -> Result<TypeTree<'_>, Diagnostics> {
         Self::convert_types(Self::get_type_tree_values(ty)?).map(|mut type_tree| {
             type_tree
                 .next()
@@ -100,23 +136,35 @@ impl<'t> TypeTree<'t> {
         })
     }
 
-    fn get_type_tree_values(ty: &'t Type) -> Result<Vec<TypeTreeValue>, Diagnostics> {
+    fn get_type_tree_values(
+        ty: &Type,
+    ) -> Result<impl Iterator<Item = TypeTreeValue<'_>>, Diagnostics> {
         let type_tree_values = match ty {
             Type::Path(path) => {
-                vec![TypeTreeValue::TypePath(path)]
+                TypeTreeValueIter::once(TypeTreeValue::TypePath(path))
             },
-            Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref())?,
+            // NOTE have to put this in the box to avoid compiler bug with recursive functions
+            // See here https://github.com/rust-lang/rust/pull/110844 and https://github.com/rust-lang/rust/issues/111906
+            // This bug in fixed in Rust 1.79, but in order to support Rust 1.75 these need to be
+            // boxed.
+            Type::Reference(reference) => TypeTreeValueIter::Iter(Box::new(Self::get_type_tree_values(reference.elem.as_ref())?)),
+            // Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref())?,
             Type::Tuple(tuple) => {
                 // Detect unit type ()
-                if tuple.elems.is_empty() { return Ok(vec![TypeTreeValue::UnitType]) }
-                vec![TypeTreeValue::Tuple(
+                if tuple.elems.is_empty() { return Ok(TypeTreeValueIter::once(TypeTreeValue::UnitType)) }
+                TypeTreeValueIter::once(TypeTreeValue::Tuple(
                     tuple.elems.iter().map(Self::get_type_tree_values).collect::<Result<Vec<_>, Diagnostics>>()?.into_iter().flatten().collect(),
                     tuple.span()
-                )]
+                ))
             },
-            Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref())?,
-            Type::Slice(slice) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem)?, slice.bracket_token.span.join())],
-            Type::Array(array) => vec![TypeTreeValue::Array(Self::get_type_tree_values(&array.elem)?, array.bracket_token.span.join())],
+            // NOTE have to put this in the box to avoid compiler bug with recursive functions
+            // See here https://github.com/rust-lang/rust/pull/110844 and https://github.com/rust-lang/rust/issues/111906
+            // This bug in fixed in Rust 1.79, but in order to support Rust 1.75 these need to be
+            // boxed.
+            Type::Group(group) => TypeTreeValueIter::Iter(Box::new(Self::get_type_tree_values(group.elem.as_ref())?)),
+            // Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref())?,
+            Type::Slice(slice) => TypeTreeValueIter::once(TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem)?.collect(), slice.bracket_token.span.join())),
+            Type::Array(array) => TypeTreeValueIter::once(TypeTreeValue::Array(Self::get_type_tree_values(&array.elem)?.collect(), array.bracket_token.span.join())),
             Type::TraitObject(trait_object) => {
                 trait_object
                     .bounds
@@ -129,7 +177,7 @@ impl<'t> TypeTree<'t> {
                             _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
                         }
                     })
-                    .map(|path| vec![TypeTreeValue::Path(path)]).unwrap_or_else(Vec::new)
+                    .map(|path| TypeTreeValueIter::once(TypeTreeValue::Path(path))).unwrap_or_else(TypeTreeValueIter::empty)
             }
             unexpected => return Err(Diagnostics::with_span(unexpected.span(), "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject")),
         };
@@ -137,9 +185,9 @@ impl<'t> TypeTree<'t> {
         Ok(type_tree_values)
     }
 
-    fn convert_types(
-        paths: Vec<TypeTreeValue<'t>>,
-    ) -> Result<impl Iterator<Item = TypeTree<'t>>, Diagnostics> {
+    fn convert_types<'p, P: IntoIterator<Item = TypeTreeValue<'p>>>(
+        paths: P,
+    ) -> Result<impl Iterator<Item = TypeTree<'p>>, Diagnostics> {
         paths
             .into_iter()
             .map(|value| {
@@ -194,12 +242,12 @@ impl<'t> TypeTree<'t> {
                     Self::resolve_schema_type(path, last_segment)
                 }
             })
-            .collect::<Result<Vec<TypeTree<'t>>, Diagnostics>>()
+            .collect::<Result<Vec<TypeTree<'_>>, Diagnostics>>()
             .map(IntoIterator::into_iter)
     }
 
     // Only when type is a generic type we get to this function.
-    fn resolve_schema_type(
+    fn resolve_schema_type<'t>(
         path: &'t Path,
         last_segment: &'t PathSegment,
     ) -> Result<TypeTree<'t>, Diagnostics> {
@@ -262,14 +310,14 @@ impl<'t> TypeTree<'t> {
         Ok(generic_schema_type)
     }
 
-    fn convert(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
+    fn convert<'t>(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
         let generic_type = Self::get_generic_type(last_segment);
         let schema_type = SchemaType {
             path: Cow::Borrowed(path),
             nullable: matches!(generic_type, Some(GenericType::Option)),
         };
 
-        Self {
+        TypeTree {
             path: Some(Cow::Borrowed(path)),
             span: Some(path.span()),
             value_type: if schema_type.is_primitive() {
@@ -572,10 +620,30 @@ impl ToTokens for ComponentDescription<'_> {
     }
 }
 
+/// Used to store possible inner field schema name and tokens if field contains any schema
+/// references. E.g. field: Vec<Foo> should have name: Foo::name(), tokens: Foo::schema() and
+/// references: Foo::schemas()
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default)]
+pub struct SchemaReference {
+    pub name: TokenStream,
+    pub tokens: TokenStream,
+    pub references: TokenStream,
+}
+
+impl SchemaReference {
+    /// Check whether `SchemaReference` is partial. Partial schema reference occurs in situation
+    /// when reference schema tokens cannot be resolved e.g. type in question is generic argument.
+    fn is_partial(&self) -> bool {
+        self.tokens.is_empty()
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentSchema {
     tokens: TokenStream,
     pub name_tokens: TokenStream,
+    pub schema_references: Vec<SchemaReference>,
 }
 
 impl ComponentSchema {
@@ -589,10 +657,12 @@ impl ComponentSchema {
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
         let mut name_tokens = TokenStream::new();
+        let mut schema_references = Vec::<SchemaReference>::new();
 
         match type_tree.generic_type {
             Some(GenericType::Map) => ComponentSchema::map_to_tokens(
                 &mut tokens,
+                &mut schema_references,
                 container,
                 features,
                 type_tree,
@@ -601,6 +671,7 @@ impl ComponentSchema {
             Some(GenericType::Vec | GenericType::LinkedList | GenericType::Set) => {
                 ComponentSchema::vec_to_tokens(
                     &mut tokens,
+                    &mut schema_references,
                     container,
                     features,
                     type_tree,
@@ -610,6 +681,7 @@ impl ComponentSchema {
             #[cfg(feature = "smallvec")]
             Some(GenericType::SmallVec) => ComponentSchema::vec_to_tokens(
                 &mut tokens,
+                &mut schema_references,
                 container,
                 features,
                 type_tree,
@@ -623,8 +695,7 @@ impl ComponentSchema {
                 {
                     features.push(Nullable::new().into());
                 }
-
-                ComponentSchema::new(ComponentSchemaProps {
+                let schema = ComponentSchema::new(ComponentSchemaProps {
                     container,
                     type_tree: type_tree
                         .children
@@ -635,11 +706,13 @@ impl ComponentSchema {
                         .expect("ComponentSchema generic container type should have 1 child"),
                     features,
                     description,
-                })?
-                .to_tokens(&mut tokens)?;
+                })?;
+                schema.to_tokens(&mut tokens);
+
+                schema_references.extend(schema.schema_references);
             }
             Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
-                ComponentSchema::new(ComponentSchemaProps {
+                let schema = ComponentSchema::new(ComponentSchemaProps {
                     container,
                     type_tree: type_tree
                         .children
@@ -650,12 +723,14 @@ impl ComponentSchema {
                         .expect("ComponentSchema generic container type should have 1 child"),
                     features,
                     description,
-                })?
-                .to_tokens(&mut tokens)?;
+                })?;
+                schema.to_tokens(&mut tokens);
+
+                schema_references.extend(schema.schema_references);
             }
             #[cfg(feature = "rc_schema")]
             Some(GenericType::Arc) | Some(GenericType::Rc) => {
-                ComponentSchema::new(ComponentSchemaProps {
+                let schema = ComponentSchema::new(ComponentSchemaProps {
                     container,
                     type_tree: type_tree
                         .children
@@ -666,12 +741,15 @@ impl ComponentSchema {
                         .expect("ComponentSchema rc generic container type should have 1 child"),
                     features,
                     description,
-                })?
-                .to_tokens(&mut tokens)?;
+                })?;
+                schema.to_tokens(&mut tokens);
+
+                schema_references.extend(schema.schema_references);
             }
             None => ComponentSchema::non_generic_to_tokens(
                 &mut tokens,
                 &mut name_tokens,
+                &mut schema_references,
                 container,
                 features,
                 type_tree,
@@ -682,6 +760,7 @@ impl ComponentSchema {
         Ok(Self {
             tokens,
             name_tokens,
+            schema_references,
         })
     }
 
@@ -708,6 +787,7 @@ impl ComponentSchema {
 
     fn map_to_tokens(
         tokens: &mut TokenStream,
+        schema_references: &mut Vec<SchemaReference>,
         container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
@@ -740,9 +820,11 @@ impl ComponentSchema {
                     features,
                     description: None,
                 })?;
-                let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
+                let schema_tokens = schema_property.to_token_stream();
 
-                Ok(Some(
+                schema_references.extend(schema_property.schema_references);
+
+                Result::<Option<TokenStream>, Diagnostics>::Ok(Some(
                     quote! { .additional_properties(Some(#schema_tokens)) },
                 ))
             })?;
@@ -764,6 +846,7 @@ impl ComponentSchema {
 
     fn vec_to_tokens(
         tokens: &mut TokenStream,
+        schema_references: &mut Vec<SchemaReference>,
         container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
@@ -799,17 +882,17 @@ impl ComponentSchema {
             child
         };
 
-        let unique = matches!(type_tree.generic_type, Some(GenericType::Set));
-
         let component_schema = ComponentSchema::new(ComponentSchemaProps {
             container,
             type_tree: child,
             features,
             description: None,
         })?;
-        let component_schema_tokens = as_tokens_or_diagnostics!(&component_schema);
+        let component_schema_tokens = component_schema.to_token_stream();
 
-        let unique = match unique {
+        schema_references.extend(component_schema.schema_references);
+
+        let unique = match matches!(type_tree.generic_type, Some(GenericType::Set)) {
             true => quote! {
                 .unique_items(true)
             },
@@ -865,6 +948,7 @@ impl ComponentSchema {
     fn non_generic_to_tokens(
         tokens: &mut TokenStream,
         name_tokens: &mut TokenStream,
+        schema_references: &mut Vec<SchemaReference>,
         container: &Container,
         mut features: Vec<Feature>,
         type_tree: &TypeTree,
@@ -950,71 +1034,26 @@ impl ComponentSchema {
                     }
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let nullable_item = nullable_all_of_item(nullable);
+                    let mut object_schema_reference = SchemaReference::default();
 
                     let mut component_name_buffer = String::new();
                     if let Some(children) = &type_tree.children {
                         component_name_buffer.push('_');
-                        fn compose_name<'tr, I>(children: I) -> String
-                        where
-                            I: IntoIterator<Item = &'tr TypeTree<'tr>>,
-                        {
-                            children
-                                .into_iter()
-                                .map(|type_tree| {
-                                    let mut name = type_tree
-                                        .path
-                                        .as_ref()
-                                        .expect("Generic ValueType::Object must have path")
-                                        .segments
-                                        .last()
-                                        .expect("Generic path must have one segment")
-                                        .ident
-                                        .to_string();
-
-                                    if let Some(children) = &type_tree.children {
-                                        name.push('_');
-                                        name.push_str(&compose_name(children));
-
-                                        name
-                                    } else {
-                                        name
-                                    }
-                                })
-                                .collect::<Vec<_>>()
-                                .join("_")
-                        }
-                        component_name_buffer.push_str(&compose_name(children))
+                        component_name_buffer.push_str(&Self::compose_name(children))
                     }
                     name_tokens.extend(quote! { format!("{}{}", < #type_path as utoipa::ToSchema >::name(), #component_name_buffer) });
+
+                    object_schema_reference.name = name_tokens.clone();
 
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
                         let default_tokens = as_tokens_or_diagnostics!(&default);
 
-                        fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
-                            children: I,
-                        ) -> impl Iterator<Item = TokenStream> + 'v
-                        where
-                            <I as std::iter::IntoIterator>::IntoIter: 'v,
-                        {
-                            children.into_iter()
-                                    .map(|child| {
-                                        let path = child.path.as_deref().expect(
-                                            "inline TypeTree ValueType::Object must have child path if generic",
-                                        );
-
-                                        if let Some(children) = &child.children {
-                                            let items = compose_generics(children).collect::<Array<_>>();
-                                            quote! { <#path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) }
-
-                                        } else {
-                                            quote! { <#path as utoipa::PartialSchema>::schema() }
-                                        }
-                                    })
-                        }
                         let items_tokens = if let Some(children) = &type_tree.children {
+                            schema_references.extend(Self::compose_child_references(children));
+
                             let composed_generics =
-                                compose_generics(children).collect::<Array<_>>();
+                                Self::compose_generics(children).collect::<Array<_>>();
                             quote_spanned! {type_path.span()=>
                                 <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
                             }
@@ -1023,6 +1062,8 @@ impl ComponentSchema {
                                 <#type_path as utoipa::PartialSchema>::schema()
                             }
                         };
+                        object_schema_reference.tokens = items_tokens.clone();
+                        object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
 
                         let schema = if default.is_some() || nullable {
                             quote_spanned! {type_path.span()=>
@@ -1041,6 +1082,12 @@ impl ComponentSchema {
                         let default_tokens = as_tokens_or_diagnostics!(&default);
 
                         let index = container.generics.get_generic_type_param_index(type_tree);
+                        // only set schema references for concrete non generic types
+                        if index.is_none() {
+                            object_schema_reference.tokens =
+                                quote! {<#type_path as utoipa::PartialSchema>::schema() };
+                            object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
+                        }
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
                             if let Some(index) = &index {
                                 quote_spanned! {type_path.span()=>
@@ -1084,6 +1131,8 @@ impl ComponentSchema {
 
                         schema.to_tokens(tokens);
                     }
+
+                    schema_references.push(object_schema_reference);
                 }
             }
             ValueType::Tuple => {
@@ -1106,7 +1155,7 @@ impl ComponentSchema {
                                     features,
                                     description: None,
                                 }) {
-                                    Ok(child) => Ok(as_tokens_or_diagnostics!(&child)),
+                                    Ok(child) => Ok(child.to_token_stream()),
                                     Err(diagnostics) => Err(diagnostics),
                                 }
                             })
@@ -1141,12 +1190,111 @@ impl ComponentSchema {
         }
         Ok(())
     }
+
+    fn compose_name<'tr, I>(children: I) -> String
+    where
+        I: IntoIterator<Item = &'tr TypeTree<'tr>>,
+    {
+        children
+            .into_iter()
+            .map(|type_tree| {
+                let mut name = type_tree
+                    .path
+                    .as_ref()
+                    .expect("Generic ValueType::Object must have path")
+                    .segments
+                    .last()
+                    .expect("Generic path must have one segment")
+                    .ident
+                    .to_string();
+
+                if let Some(children) = &type_tree.children {
+                    name.push('_');
+                    name.push_str(&Self::compose_name(children));
+
+                    name
+                } else {
+                    name
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("_")
+    }
+
+    fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
+        children: I,
+    ) -> impl Iterator<Item = TokenStream> + 'v
+    where
+        <I as std::iter::IntoIterator>::IntoIter: 'v,
+    {
+        children.into_iter().map(|child| {
+            let path = child
+                .path
+                .as_deref()
+                .expect("inline TypeTree ValueType::Object must have child path if generic");
+
+            if let Some(children) = &child.children {
+                let items = Self::compose_generics(children).collect::<Array<_>>();
+                quote! { <#path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) }
+            } else {
+                quote! { <#path as utoipa::PartialSchema>::schema() }
+            }
+        })
+    }
+
+    fn compose_child_references<'a, I: IntoIterator<Item = &'a TypeTree<'a>> + 'a>(
+        children: I,
+    ) -> impl Iterator<Item = SchemaReference> + 'a {
+        children.into_iter().flat_map(|type_tree| {
+            if let Some(children) = &type_tree.children {
+                ChildRefIter::Iter(Box::new(Self::compose_child_references(children)))
+            } else if type_tree.value_type == ValueType::Object {
+                let type_path = type_tree
+                    .path
+                    .as_ref()
+                    .expect("Object TypePath must have type path, compose child references").as_ref();
+
+                ChildRefIter::Once(std::iter::once(SchemaReference {
+                    name: quote! { String::from(< #type_path as utoipa::ToSchema >::name().as_ref()) },
+                    tokens: quote! { <#type_path as utoipa::PartialSchema>::schema() },
+                    references: quote !{ <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) },
+                }))
+            } else {
+                ChildRefIter::Empty
+            }
+        })
+    }
 }
 
-impl ToTokensDiagnostics for ComponentSchema {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+impl ToTokens for ComponentSchema {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         self.tokens.to_tokens(tokens);
-        Ok(())
+    }
+}
+
+enum ChildRefIter<'c, T> {
+    Iter(Box<dyn std::iter::Iterator<Item = T> + 'c>),
+    Once(std::iter::Once<T>),
+    Empty,
+}
+
+impl<'a, T> Iterator for ChildRefIter<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Iter(iter) => iter.next(),
+            Self::Once(once) => once.next(),
+            Self::Empty => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Iter(iter) => iter.size_hint(),
+            Self::Once(once) => once.size_hint(),
+            Self::Empty => (0, None),
+        }
     }
 }
 
@@ -1187,7 +1335,7 @@ impl FlattenedMapSchema {
             features,
             description: None,
         })?;
-        let schema_tokens = as_tokens_or_diagnostics!(&schema_property);
+        let schema_tokens = schema_property.to_token_stream();
 
         tokens.extend(quote! {
             #schema_tokens

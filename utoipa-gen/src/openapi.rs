@@ -13,13 +13,13 @@ use syn::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, quote_spanned, ToTokens};
 
-use crate::path;
 use crate::{
     component::{features::Feature, ComponentSchema, Container, TypeTree},
     parse_utils,
     security_requirement::SecurityRequirementsAttr,
     Array, Diagnostics, ExternalDocs, ToTokensDiagnostics,
 };
+use crate::{path, OptionExt};
 
 use self::info::Info;
 
@@ -98,13 +98,14 @@ impl Parse for OpenApiAttr<'_> {
                     openapi.info = Some(info_stream.parse()?)
                 }
                 "paths" => {
-                    openapi.paths = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    openapi.paths = parse_utils::parse_comma_separated_within_parenthesis(input)?;
                 }
                 "components" => {
                     openapi.components = input.parse()?;
                 }
                 "modifiers" => {
-                    openapi.modifiers = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    openapi.modifiers =
+                        parse_utils::parse_comma_separated_within_parenthesis(input)?;
                 }
                 "security" => {
                     let security;
@@ -122,7 +123,7 @@ impl Parse for OpenApiAttr<'_> {
                     openapi.external_docs = Some(external_docs.parse()?);
                 }
                 "servers" => {
-                    openapi.servers = parse_utils::parse_punctuated_within_parenthesis(input)?;
+                    openapi.servers = parse_utils::parse_comma_separated_within_parenthesis(input)?;
                 }
                 "nest" => {
                     let nest;
@@ -299,7 +300,7 @@ impl Parse for Server {
                         Some(parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value())
                 }
                 "variables" => {
-                    server.variables = parse_utils::parse_punctuated_within_parenthesis(&server_stream)?
+                    server.variables = parse_utils::parse_comma_separated_within_parenthesis(&server_stream)?
                 }
                 _ => {
                     return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables")))
@@ -398,7 +399,7 @@ impl Parse for ServerVariable {
                 }
                 "enum_values" => {
                     server_variable.enum_values =
-                        Some(parse_utils::parse_punctuated_within_parenthesis(&content)?)
+                        Some(parse_utils::parse_comma_separated_within_parenthesis(&content)?)
                 }
                 _ => {
                     return Err(Error::new(ident.span(), format!( "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values")))
@@ -480,16 +481,33 @@ impl ToTokensDiagnostics for OpenApi<'_> {
                 .and_then(|attributes| attributes.info.clone()),
         );
 
-        let components = match attributes
+        let components = attributes
             .as_ref()
-            .map(|attributes| attributes.components.try_to_token_stream())
-        {
-            Some(Ok(tokens)) if !tokens.is_empty() => Some(quote! { .components(Some(#tokens)) }),
-            Some(Err(diagnostics)) => return Err(diagnostics),
-            _ => None,
-        };
+            .map_try(|attributes| attributes.components.try_to_token_stream())?
+            .and_then(|tokens| {
+                if !tokens.is_empty() {
+                    Some(quote! { .components(Some(#tokens)) })
+                } else {
+                    None
+                }
+            });
 
-        let path_items = impl_paths(attributes.as_ref().map(|attributes| &attributes.paths));
+        let Paths(path_items, handlers) =
+            impl_paths(attributes.as_ref().map(|attributes| &attributes.paths));
+
+        let handler_schemas = handlers.iter().fold(
+            quote! {
+                    let components = openapi.components.get_or_insert(utoipa::openapi::Components::new());
+                    let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
+            },
+            |mut handler_schemas, (usage, ..)| {
+                handler_schemas.extend(quote! {
+                    <#usage as utoipa::__dev::SchemaReferences>::schemas(&mut schemas);
+                });
+
+                handler_schemas
+            },
+        );
 
         let securities = attributes
             .as_ref()
@@ -554,6 +572,8 @@ impl ToTokensDiagnostics for OpenApi<'_> {
                         #servers
                         #external_docs
                         .build();
+                    #handler_schemas
+                    components.schemas.extend(schemas);
                     #nested_tokens
 
                     #modifiers_tokens
@@ -592,12 +612,12 @@ impl Parse for Components {
 
             match attribute {
                 "schemas" => schemas.append(
-                    &mut parse_utils::parse_punctuated_within_parenthesis(&content)?
+                    &mut parse_utils::parse_comma_separated_within_parenthesis(&content)?
                         .into_iter()
                         .collect(),
                 ),
                 "responses" => responses.append(
-                    &mut parse_utils::parse_punctuated_within_parenthesis(&content)?
+                    &mut parse_utils::parse_comma_separated_within_parenthesis(&content)?
                         .into_iter()
                         .collect(),
                 ),
@@ -622,15 +642,23 @@ impl crate::ToTokensDiagnostics for Components {
         let builder_tokens = self
             .schemas
             .iter()
-            .map(|schema| schema.get_component())
-            .collect::<Result<Vec<ComponentSchema>, Diagnostics>>()?
+            .map(|schema| match schema.get_component() {
+                Ok(component_schema) => Ok((component_schema, &schema.0)),
+                Err(diagnostics) => Err(diagnostics),
+            })
+            .collect::<Result<Vec<(ComponentSchema, &TypePath)>, Diagnostics>>()?
             .into_iter()
             .fold(
                 quote! { utoipa::openapi::ComponentsBuilder::new() },
-                |mut components, component_schema| {
+                |mut components, (component_schema, type_path)| {
                     let schema = component_schema.to_token_stream();
                     let name = &component_schema.name_tokens;
 
+                    components.extend(quote! { .schemas_from_iter( {
+                        let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
+                        <#type_path as utoipa::__dev::SchemaReferences>::schemas(&mut schemas);
+                        schemas
+                    } )});
                     components.extend(quote! { .schema(#name, #schema) });
 
                     components
@@ -655,7 +683,9 @@ impl crate::ToTokensDiagnostics for Components {
     }
 }
 
-fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStream {
+struct Paths(TokenStream, Vec<(ExprPath, String, Ident)>);
+
+fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
     let handlers = handler_paths
         .into_iter()
         .flatten()
@@ -665,7 +695,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStrea
             let handler_ident = path::format_path_ident(Cow::Borrowed(handler_fn));
             let handler_ident_nested = format_ident!("_{}", handler_ident.as_ref());
 
-            let tag = &*segments
+            let tag = segments
                 .iter()
                 .take(segments.len() - 1)
                 .map(|part| part.ident.to_string())
@@ -674,7 +704,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStrea
 
             let usage = syn::parse_str::<ExprPath>(
                 &vec![
-                    if tag.is_empty() { None } else { Some(tag) },
+                    if tag.is_empty() { None } else { Some(&*tag) },
                     Some(&*handler_ident.as_ref().to_string()),
                 ]
                 .into_iter()
@@ -683,7 +713,13 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStrea
                 .join("::"),
             )
             .unwrap();
+            (usage, tag, handler_ident_nested)
+        })
+        .collect::<Vec<_>>();
 
+    let handlers_impls = handlers
+        .iter()
+        .map(|(usage, tag, handler_ident_nested)| {
             quote! {
                 #[allow(non_camel_case_types)]
                 struct #handler_ident_nested;
@@ -709,8 +745,8 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStrea
         })
         .collect::<TokenStream>();
 
-    handler_paths.into_iter().flatten().fold(
-        quote! { #handlers utoipa::openapi::path::PathsBuilder::new() },
+    let tokens = handler_paths.into_iter().flatten().fold(
+        quote! { #handlers_impls utoipa::openapi::path::PathsBuilder::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_fn = &segments.last().unwrap().ident;
@@ -723,7 +759,9 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> TokenStrea
 
             paths
         },
-    )
+    );
+
+    Paths(tokens, handlers)
 }
 
 /// (path = "/nest/path", api = NestApi, tags = ["tag1", "tag2"])

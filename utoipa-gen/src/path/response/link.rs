@@ -59,12 +59,12 @@ impl Parse for Link {
                 "operation_ref" => link.operation_ref = Some(parse_utils::parse_next_literal_str_or_expr(&inner)?),
                 "operation_id" => link.operation_id = Some(parse_utils::parse_next_literal_str_or_expr(&inner)?),
                 "parameters" => {
-                    link.parameters = parse_utils::parse_punctuated_within_parenthesis(&inner)?;
+                    link.parameters = parse_utils::parse_comma_separated_within_parenthesis(&inner)?;
                 },
                 "request_body" => link.request_body = Some(parse_utils::parse_next(&inner, || { AnyValue::parse_any(&inner)})?),
                 "description" => link.description = Some(parse_utils::parse_next_literal_str_or_expr(&inner)?),
                 "server" => link.server = Some(inner.call(Server::parse)?),
-                _ => return Err(syn::Error::new(ident.span(), &format!("unexpected attribute: {attribute}, expected any of: operation_ref, operation_id, parameters, request_body, description, server")))
+                _ => return Err(syn::Error::new(ident.span(), format!("unexpected attribute: {attribute}, expected any of: operation_ref, operation_id, parameters, request_body, description, server")))
             }
 
             if !inner.is_empty() {

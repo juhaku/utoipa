@@ -935,7 +935,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # Request Body Attributes
 ///
-/// **Simple format definition by `request_body = ...`**
+/// ## Simple format definition by `request_body = ...`
 /// * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
 ///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
@@ -943,23 +943,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   json file for body schema. **Note!** Utoipa does **not** guarantee that free form _`ref`_ is accessible via
 ///   OpenAPI doc or Swagger UI, users are responsible for making these guarantees.
 ///
-/// **Advanced format definition by `request_body(...)`**
-/// * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
-///   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
-///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
-///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
-///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
-///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
-///   these guarantees.
+/// ## Advanced format definition by `request_body(...)`
+///
+/// With advanced format the request body supports defining either one or multiple request bodies by `content` attribute.
+///
+/// ### Common request body attributes
 ///
 /// * `description = "..."` Define the description for the request body object as str.
-///
-/// * `content_type = "..."` or `content_type = [...]` Can be used to override the default behavior
-///   of auto resolving the content type from the `content` attribute. If defined the value should be valid
-///   content type such as _`application/json`_  or a slice of content types within brackets e.g.
-///   _`content_type = ["application/json", "text/html"]`_. By default the content type is _`text/plain`_
-///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
-///   for struct and mixed enum types.
 ///
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
@@ -969,11 +959,69 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   This has same syntax as _`examples(...)`_ in [Response Attributes](#response-attributes)
 ///   _examples(...)_
 ///
-/// _**Example request body definitions.**_
+/// ### Single request body content
+///
+/// * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
+///   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
+///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
+///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
+///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
+///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
+///   these guarantees.
+///
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `content` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
+///
+/// _**Example of single request body definitions.**_
 /// ```text
 ///  request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
+///  request_body(content_type = "application/json"),
 ///  request_body = Pet,
 ///  request_body = Option<[Pet]>,
+/// ```
+///
+/// ### Multiple request body content
+///
+/// * `content(...)` Can be tuple of content tuples according to format below.
+///   ```text
+///   ( schema )
+///   ( schema = "content/type", example = ..., examples(..., ...)  )
+///   ( "content/type", ),
+///   ( "content/type", example = ..., examples(..., ...) )
+///   ```
+///
+///   First argument of content tuple is _`schema`_, which is optional as long as either _`schema`_
+///   or _`content/type`_ is defined. The _`schema`_ and _`content/type`_ is separated with equals
+///   (=) sign. Optionally content tuple supports defining _`example`_  and _`examples`_ arguments. See
+///   [common request body attributes][macro@path#common-request-body-attributes]
+///
+/// _**Example of multiple request body definitions.**_
+///
+/// ```text
+///  // guess the content type for Pet and Pet2
+///  request_body(description = "Common description",
+///     content(
+///         (Pet),
+///         (Pet2)
+///     )
+///  ),
+///  // define explicit content types
+///  request_body(description = "Common description",
+///     content(
+///         (Pet = "application/json", examples(..., ...), example = ...),
+///         (Pet2 = "text/xml", examples(..., ...), example = ...)
+///     )
+///  ),
+///  // omit schema and accept arbitrary content types
+///  request_body(description = "Common description",
+///     content(
+///         ("application/json"),
+///         ("text/xml", examples(..., ...), example = ...)
+///     )
+///  ),
 /// ```
 ///
 /// # Response Attributes
@@ -3549,7 +3597,19 @@ mod parse_utils {
         Punctuated::parse_terminated(&group)
     }
 
-    pub fn parse_punctuated_within_parenthesis<T>(
+    pub fn parse_comma_separated_within_parethesis_with<T>(
+        input: ParseStream,
+        with: fn(ParseStream) -> syn::Result<T>,
+    ) -> syn::Result<Punctuated<T, Comma>>
+    where
+        T: Parse,
+    {
+        let content;
+        parenthesized!(content in input);
+        Punctuated::<T, Comma>::parse_terminated_with(&content, with)
+    }
+
+    pub fn parse_comma_separated_within_parenthesis<T>(
         input: ParseStream,
     ) -> syn::Result<Punctuated<T, Comma>>
     where

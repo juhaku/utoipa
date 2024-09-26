@@ -774,7 +774,7 @@ impl<K: PartialSchema, V: ToSchema> PartialSchema for std::collections::HashMap<
 ///                                 .description("Pet found successfully")
 ///                                 .content("application/json",
 ///                                     utoipa::openapi::Content::new(
-///                                         utoipa::openapi::Ref::from_schema_name("Pet"),
+///                                         Some(utoipa::openapi::Ref::from_schema_name("Pet")),
 ///                                     ),
 ///                             ),
 ///                         )
@@ -1182,6 +1182,15 @@ pub mod __dev {
         fn schema() -> crate::openapi::RefOr<crate::openapi::schema::Schema> {
             T::compose(Vec::new())
         }
+    }
+
+    pub trait SchemaReferences {
+        fn schemas(
+            schemas: &mut Vec<(
+                String,
+                utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+            )>,
+        );
     }
 }
 

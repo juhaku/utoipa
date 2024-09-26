@@ -1,16 +1,15 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
+use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::Generics;
-use syn::{parenthesized, parse::Parse, token::Paren, Error, Token};
+use syn::token::Paren;
+use syn::{parse::Parse, Error, Token};
 
-use crate::component::features::attributes::Inline;
-use crate::component::{ComponentSchema, Container};
-use crate::{parse_utils, AnyValue, Array, Diagnostics, Required, ToTokensDiagnostics};
+use crate::component::ComponentSchema;
+use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
 
-use super::example::Example;
-use super::{parse, PathType, PathTypeTree};
+use super::media_type::MediaTypeAttr;
+use super::parse;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum RequestBody<'r> {
@@ -23,8 +22,52 @@ pub enum RequestBody<'r> {
     Ext(crate::ext::RequestBody<'r>),
 }
 
+impl RequestBody<'_> {
+    pub fn get_component_schemas(
+        &self,
+    ) -> Result<impl Iterator<Item = ComponentSchema>, Diagnostics> {
+        match self {
+            Self::Parsed(parsed) => parsed
+                .get_component_schemas()
+                .map(|iter| ComponentSchemaIter::Iter(Box::new(iter))),
+            #[cfg(any(
+                feature = "actix_extras",
+                feature = "rocket_extras",
+                feature = "axum_extras"
+            ))]
+            Self::Ext(ext) => Ok(ComponentSchemaIter::Option(
+                ext.get_component_schema()?.into_iter(),
+            )),
+        }
+    }
+}
+
+#[allow(unused)]
+enum ComponentSchemaIter<T> {
+    Iter(Box<dyn std::iter::Iterator<Item = T>>),
+    Option(std::option::IntoIter<T>),
+}
+
+impl<T> Iterator for ComponentSchemaIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Iter(iter) => iter.next(),
+            Self::Option(option) => option.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Iter(iter) => iter.size_hint(),
+            Self::Option(option) => option.size_hint(),
+        }
+    }
+}
+
 impl ToTokensDiagnostics for RequestBody<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
             Self::Parsed(parsed) => ToTokensDiagnostics::to_tokens(parsed, tokens)?,
             #[cfg(any(
@@ -53,7 +96,7 @@ impl ToTokensDiagnostics for RequestBody<'_> {
 /// to be xml.
 /// ```text
 /// #[utoipa::path(
-///    request_body = (content = String, description = "foobar", content_type = "text/xml"),
+///    request_body(content = String, description = "foobar", content_type = "text/xml"),
 /// )]
 ///
 /// It is also possible to provide the request body type simply by providing only the content object type.
@@ -76,27 +119,54 @@ impl ToTokensDiagnostics for RequestBody<'_> {
 ///    request_body = Option<[Foo]>,
 /// )]
 /// ```
+///
+/// request_body(
+///     description = "This is request body",
+///     content_type = "content/type",
+///     content = Schema,
+///     example = ...,
+///     examples(..., ...),
+///     encoding(...)
+/// )
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr<'r> {
-    content: Option<PathType<'r>>,
-    content_type: Vec<parse_utils::LitStrOrExpr>,
     description: Option<parse_utils::LitStrOrExpr>,
-    example: Option<AnyValue>,
-    examples: Option<Punctuated<Example, Comma>>,
+    media_type: Vec<MediaTypeAttr<'r>>,
+}
+
+impl RequestBodyAttr<'_> {
+    fn new() -> Self {
+        Self {
+            description: Default::default(),
+            media_type: vec![MediaTypeAttr::default()],
+        }
+    }
+
+    pub fn get_component_schemas(
+        &self,
+    ) -> Result<impl Iterator<Item = ComponentSchema>, Diagnostics> {
+        Ok(self
+            .media_type
+            .iter()
+            .map(|media_type| media_type.schema.get_component_schema())
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .flatten())
+    }
 }
 
 impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: content, content_type, description, examples";
+            "unexpected attribute, expected any of: content, content_type, description, examples, example";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
             let group;
-            parenthesized!(group in input);
+            syn::parenthesized!(group in input);
 
-            let mut request_body_attr = RequestBodyAttr::default();
+            let mut request_body_attr = RequestBodyAttr::new();
             while !group.is_empty() {
                 let ident = group
                     .parse::<Ident>()
@@ -105,30 +175,59 @@ impl Parse for RequestBodyAttr<'_> {
 
                 match attribute_name {
                     "content" => {
-                        request_body_attr.content = Some(
-                            parse_utils::parse_next(&group, || group.parse()).map_err(|error| {
-                                Error::new(
-                                    error.span(),
-                                    format!(
-                                        "unexpected token, expected type such as String, {error}",
-                                    ),
-                                )
-                            })?,
-                        );
+                        if group.peek(Token![=]) {
+                            group.parse::<Token![=]>()?;
+                            let schema = MediaTypeAttr::parse_schema(&group)?;
+                            if let Some(media_type) = request_body_attr.media_type.get_mut(0) {
+                                media_type.schema = schema;
+                            }
+                        } else if group.peek(Paren) {
+                            fn group_parser<'a>(
+                                input: ParseStream,
+                            ) -> syn::Result<MediaTypeAttr<'a>> {
+                                let buf;
+                                syn::parenthesized!(buf in input);
+                                buf.call(MediaTypeAttr::parse)
+                            }
+
+                            let media_type =
+                                parse_utils::parse_comma_separated_within_parethesis_with(
+                                    &group,
+                                    group_parser,
+                                )?
+                                .into_iter()
+                                .collect::<Vec<_>>();
+
+                            request_body_attr.media_type = media_type;
+                        } else {
+                            return Err(Error::new(ident.span(), "unexpected content format, expected either `content = schema` or `content(...)`"));
+                        }
                     }
                     "content_type" => {
-                        request_body_attr.content_type = parse::content_type(&group)?;
+                        let content_type = parse_utils::parse_next(&group, || {
+                            parse_utils::LitStrOrExpr::parse(&group)
+                        })?;
+
+                        if let Some(media_type) = request_body_attr.media_type.get_mut(0) {
+                            media_type.content_type = Some(content_type);
+                        }
                     }
                     "description" => {
                         request_body_attr.description = Some(parse::description(&group)?);
                     }
-                    "example" => {
-                        request_body_attr.example = Some(parse::example(&group)?);
+                    _ => {
+                        if let Err(error) = MediaTypeAttr::parse_named_attributes(
+                            request_body_attr
+                                .media_type
+                                .get_mut(0)
+                                .expect("parse request body named attributes must have media type"),
+                            &group,
+                            &ident,
+                        ) {
+                            return Err(Error::new(error.span(),
+                                format!("unexpected attribute: {attribute_name}, expected any of: content, content_type, description, examples, example")));
+                        }
                     }
-                    "examples" => {
-                        request_body_attr.examples = Some(parse::examples(&group)?);
-                    }
-                    _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
                 }
 
                 if !group.is_empty() {
@@ -140,14 +239,16 @@ impl Parse for RequestBodyAttr<'_> {
         } else if lookahead.peek(Token![=]) {
             input.parse::<Token![=]>()?;
 
+            let media_type = MediaTypeAttr {
+                schema: MediaTypeAttr::parse_schema(input)?,
+                content_type: None,
+                example: None,
+                examples: Punctuated::default(),
+            };
+
             Ok(RequestBodyAttr {
-                content: Some(input.parse().map_err(|error| {
-                    Error::new(
-                        error.span(),
-                        format!("unexpected token, expected type such as String, {error}"),
-                    )
-                })?),
-                ..Default::default()
+                media_type: vec![media_type],
+                description: None,
             })
         } else {
             Err(lookahead.error())
@@ -156,86 +257,51 @@ impl Parse for RequestBodyAttr<'_> {
 }
 
 impl ToTokensDiagnostics for RequestBodyAttr<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
-        if let Some(body_type) = &self.content {
-            let media_type_schema = match body_type {
-                PathType::Ref(ref_type) => quote! {
-                    utoipa::openapi::schema::Ref::new(#ref_type)
-                },
-                PathType::MediaType(body_type) => {
-                    let type_tree = body_type.as_type_tree()?;
-                    ComponentSchema::new(crate::component::ComponentSchemaProps {
-                        type_tree: &type_tree,
-                        features: vec![Inline::from(body_type.is_inline).into()],
-                        description: None,
-                        container: &Container {
-                            generics: &Generics::default(),
-                        },
-                    })?
-                    .to_token_stream()
-                }
-                PathType::InlineSchema(schema, _) => schema.to_token_stream(),
-            };
-            let mut content = quote! {
-                utoipa::openapi::content::ContentBuilder::new()
-                    .schema(#media_type_schema)
-            };
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        let media_types = self
+            .media_type
+            .iter()
+            .map(|media_type| {
+                let default_content_type_result = media_type.schema.get_default_content_type();
+                let type_tree = media_type.schema.get_type_tree();
 
-            if let Some(ref example) = self.example {
-                content.extend(quote! {
-                    .example(Some(#example))
-                })
-            }
-            if let Some(ref examples) = self.examples {
-                let examples = examples
-                    .iter()
-                    .map(|example| {
-                        let name = &example.name;
-                        quote!((#name, #example))
-                    })
-                    .collect::<Array<TokenStream2>>();
-                content.extend(quote!(
-                    .examples_from_iter(#examples)
-                ))
-            }
-
-            match body_type {
-                PathType::Ref(_) => {
-                    tokens.extend(quote! {
-                        utoipa::openapi::request_body::RequestBodyBuilder::new()
-                            .content("application/json", #content.build())
-                    });
+                match (default_content_type_result, type_tree) {
+                    (Ok(content_type), Ok(type_tree)) => Ok((content_type, media_type, type_tree)),
+                    (Err(diagnostics), _) => Err(diagnostics),
+                    (_, Err(diagnostics)) => Err(diagnostics),
                 }
-                PathType::MediaType(body_type) => {
-                    let type_tree = body_type.as_type_tree()?;
-                    let required: Required = (!type_tree.is_option()).into();
-                    let content_types = if self.content_type.is_empty() {
-                        let content_type = type_tree.get_default_content_type();
-                        vec![quote!(#content_type)]
-                    } else {
-                        self.content_type
-                            .iter()
-                            .map(|content_type| content_type.to_token_stream())
-                            .collect()
-                    };
+            })
+            .collect::<Result<Vec<_>, Diagnostics>>()?;
 
-                    tokens.extend(quote! {
-                        utoipa::openapi::request_body::RequestBodyBuilder::new()
-                            .required(Some(#required))
-                    });
+        let any_required = media_types.iter().any(|(_, _, type_tree)| {
+            type_tree
+                .as_ref()
+                .map(|type_tree| !type_tree.is_option())
+                .unwrap_or(false)
+        });
 
-                    for content_type in content_types {
-                        tokens.extend(quote! {
-                            .content(#content_type, #content.build())
-                        });
-                    }
-                }
-                PathType::InlineSchema(_, _) => {
-                    unreachable!("PathType::InlineSchema is not implemented for RequestBodyAttr");
-                }
-            }
+        tokens.extend(quote! {
+            utoipa::openapi::request_body::RequestBodyBuilder::new()
+        });
+        for (content_type, media_type, _) in media_types {
+            let content_type_tokens = media_type
+                .content_type
+                .as_ref()
+                .map(|content_type| content_type.to_token_stream())
+                .unwrap_or_else(|| content_type.to_token_stream());
+            let content_tokens = media_type.try_to_token_stream()?;
+
+            tokens.extend(quote! {
+                .content(#content_type_tokens, #content_tokens)
+            });
         }
 
+        if any_required {
+            let required: Required = any_required.into();
+            tokens.extend(quote! {
+                .required(Some(#required))
+            })
+        }
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
                 .description(Some(#description))

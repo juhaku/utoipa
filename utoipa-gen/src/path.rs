@@ -12,7 +12,9 @@ use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
 use crate::path::request_body::RequestBody;
-use crate::{as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, ToTokensDiagnostics};
+use crate::{
+    as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
+};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
@@ -20,6 +22,7 @@ use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Respon
 
 pub mod example;
 pub mod handler;
+pub mod media_type;
 pub mod parameter;
 mod request_body;
 pub mod response;
@@ -472,6 +475,26 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
+        let schemas = self
+            .path_attr
+            .request_body
+            .as_ref()
+            .map_try(|request_body| request_body.get_component_schemas())?
+            .into_iter()
+            .flatten()
+            .fold(TokenStream2::new(), |mut schemas, component_schema| {
+                for reference in component_schema.schema_references {
+                    let name = &reference.name;
+                    let tokens = &reference.tokens;
+                    let references = &reference.references;
+
+                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+                    schemas.extend(quote!( #references; ));
+                }
+
+                schemas
+            });
+
         let mut tags = self.path_attr.tags.clone();
         if let Some(tag) = self.path_attr.tag.as_ref() {
             // if defined tag is the first before the additional tags
@@ -514,6 +537,13 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                     #operation.into()
                 }
             }
+
+            impl utoipa::__dev::SchemaReferences for #impl_for {
+                fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    #schemas
+                }
+            }
+
         });
 
         Ok(())
@@ -694,7 +724,7 @@ impl Parse for InlineType<'_> {
 
 pub trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
-    fn get_default_content_type(&self) -> &str;
+    fn get_default_content_type(&self) -> Cow<'static, str>;
 
     #[allow(unused)]
     /// Check whether [`TypeTree`] an option
@@ -704,9 +734,9 @@ pub trait PathTypeTree {
     fn is_array(&self) -> bool;
 }
 
-impl PathTypeTree for TypeTree<'_> {
+impl<'p> PathTypeTree for TypeTree<'p> {
     /// Resolve default content type based on current [`Type`].
-    fn get_default_content_type(&self) -> &'static str {
+    fn get_default_content_type(&self) -> Cow<'static, str> {
         if self.is_array()
             && self
                 .children
@@ -725,7 +755,7 @@ impl PathTypeTree for TypeTree<'_> {
                 })
                 .unwrap_or(false)
         {
-            "application/octet-stream"
+            Cow::Borrowed("application/octet-stream")
         } else if self
             .path
             .as_ref()
@@ -736,9 +766,9 @@ impl PathTypeTree for TypeTree<'_> {
             .map(|schema_type| schema_type.is_primitive())
             .unwrap_or(false)
         {
-            "text/plain"
+            Cow::Borrowed("text/plain")
         } else {
-            "application/json"
+            Cow::Borrowed("application/json")
         }
     }
 
@@ -803,6 +833,6 @@ mod parse {
 
     #[inline]
     pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Comma>> {
-        parse_utils::parse_punctuated_within_parenthesis(input)
+        parse_utils::parse_comma_separated_within_parenthesis(input)
     }
 }
