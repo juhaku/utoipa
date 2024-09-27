@@ -8,39 +8,8 @@ use syn::{parse::Parse, Error, Token};
 use crate::component::ComponentSchema;
 use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
 
-use super::media_type::MediaTypeAttr;
+use super::media_type::{MediaTypeAttr, Schema};
 use super::parse;
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub enum RequestBody<'r> {
-    Parsed(RequestBodyAttr<'r>),
-    #[cfg(any(
-        feature = "actix_extras",
-        feature = "rocket_extras",
-        feature = "axum_extras"
-    ))]
-    Ext(crate::ext::RequestBody<'r>),
-}
-
-impl RequestBody<'_> {
-    pub fn get_component_schemas(
-        &self,
-    ) -> Result<impl Iterator<Item = ComponentSchema>, Diagnostics> {
-        match self {
-            Self::Parsed(parsed) => parsed
-                .get_component_schemas()
-                .map(|iter| ComponentSchemaIter::Iter(Box::new(iter))),
-            #[cfg(any(
-                feature = "actix_extras",
-                feature = "rocket_extras",
-                feature = "axum_extras"
-            ))]
-            Self::Ext(ext) => Ok(ComponentSchemaIter::Option(
-                ext.get_component_schema()?.into_iter(),
-            )),
-        }
-    }
-}
 
 #[allow(unused)]
 enum ComponentSchemaIter<T> {
@@ -63,22 +32,6 @@ impl<T> Iterator for ComponentSchemaIter<T> {
             Self::Iter(iter) => iter.size_hint(),
             Self::Option(option) => option.size_hint(),
         }
-    }
-}
-
-impl ToTokensDiagnostics for RequestBody<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        match self {
-            Self::Parsed(parsed) => ToTokensDiagnostics::to_tokens(parsed, tokens)?,
-            #[cfg(any(
-                feature = "actix_extras",
-                feature = "rocket_extras",
-                feature = "axum_extras"
-            ))]
-            Self::Ext(ext) => ToTokensDiagnostics::to_tokens(ext, tokens)?,
-        };
-
-        Ok(())
     }
 }
 
@@ -135,11 +88,26 @@ pub struct RequestBodyAttr<'r> {
     media_type: Vec<MediaTypeAttr<'r>>,
 }
 
-impl RequestBodyAttr<'_> {
+impl<'r> RequestBodyAttr<'r> {
     fn new() -> Self {
         Self {
             description: Default::default(),
             media_type: vec![MediaTypeAttr::default()],
+        }
+    }
+
+    #[cfg(any(
+        feature = "actix_extras",
+        feature = "rocket_extras",
+        feature = "axum_extras"
+    ))]
+    pub fn from_schema(schema: Schema<'r>) -> RequestBodyAttr<'r> {
+        Self {
+            media_type: vec![MediaTypeAttr {
+                schema,
+                ..Default::default()
+            }],
+            ..Self::new()
         }
     }
 
@@ -179,7 +147,7 @@ impl Parse for RequestBodyAttr<'_> {
                             group.parse::<Token![=]>()?;
                             let schema = MediaTypeAttr::parse_schema(&group)?;
                             if let Some(media_type) = request_body_attr.media_type.get_mut(0) {
-                                media_type.schema = schema;
+                                media_type.schema = Schema::Default(schema);
                             }
                         } else if group.peek(Paren) {
                             fn group_parser<'a>(
@@ -240,7 +208,7 @@ impl Parse for RequestBodyAttr<'_> {
             input.parse::<Token![=]>()?;
 
             let media_type = MediaTypeAttr {
-                schema: MediaTypeAttr::parse_schema(input)?,
+                schema: Schema::Default(MediaTypeAttr::parse_schema(input)?),
                 content_type: None,
                 example: None,
                 examples: Punctuated::default(),

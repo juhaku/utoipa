@@ -11,7 +11,6 @@ use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr, Type};
 
 use crate::component::{GenericType, TypeTree};
-use crate::path::request_body::RequestBody;
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -44,7 +43,7 @@ pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
     methods: Vec<HttpMethod>,
-    request_body: Option<RequestBody<'p>>,
+    request_body: Option<RequestBodyAttr<'p>>,
     responses: Vec<Response<'p>>,
     pub(super) path: Option<parse_utils::LitStrOrExpr>,
     operation_id: Option<Expr>,
@@ -70,13 +69,12 @@ impl<'p> PathAttr<'p> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn update_request_body(&mut self, request_body: Option<crate::ext::RequestBody<'p>>) {
-        use std::mem;
-
+    pub fn update_request_body(&mut self, schema: Option<crate::ext::ExtSchema<'p>>) {
+        use self::media_type::Schema;
         if self.request_body.is_none() {
-            self.request_body = request_body
-                .map(RequestBody::Ext)
-                .or(mem::take(&mut self.request_body));
+            if let Some(schema) = schema {
+                self.request_body = Some(RequestBodyAttr::from_schema(Schema::Ext(schema)));
+            }
         }
     }
 
@@ -138,8 +136,7 @@ impl Parse for PathAttr<'_> {
                     path_attr.path = Some(parse_utils::parse_next_literal_str_or_expr(input)?);
                 }
                 "request_body" => {
-                    path_attr.request_body =
-                        Some(RequestBody::Parsed(input.parse::<RequestBodyAttr>()?));
+                    path_attr.request_body = Some(input.parse::<RequestBodyAttr>()?);
                 }
                 "responses" => {
                     let responses;
@@ -557,7 +554,7 @@ struct Operation<'a> {
     description: Option<Description<'a>>,
     deprecated: bool,
     parameters: &'a Vec<Parameter<'a>>,
-    request_body: Option<&'a RequestBody<'a>>,
+    request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
 }

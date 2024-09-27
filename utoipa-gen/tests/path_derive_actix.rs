@@ -879,7 +879,6 @@ fn path_with_all_args() {
     assert_json_eq!(
         &operation.pointer("/requestBody"),
         json!({
-            "description": "",
             "content": {
                 "application/json": {
                     "schema": {
@@ -940,7 +939,6 @@ fn path_with_all_args_using_uuid() {
     assert_json_eq!(
         &operation.pointer("/requestBody"),
         json!({
-            "description": "",
             "content": {
                 "application/json": {
                     "schema": {
@@ -1019,7 +1017,6 @@ fn path_with_all_args_using_custom_uuid() {
     assert_json_eq!(
         &operation.pointer("/requestBody"),
         json!({
-            "description": "",
             "content": {
                 "application/json": {
                     "schema": {
@@ -1114,7 +1111,6 @@ fn path_derive_custom_generic_wrapper() {
     assert_json_eq!(
         &operation.pointer("/requestBody"),
         json!({
-            "description": "",
             "content": {
                 "application/json": {
                     "schema": {

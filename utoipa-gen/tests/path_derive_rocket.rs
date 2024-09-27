@@ -532,7 +532,6 @@ fn path_with_all_args_and_body() {
                     }
                 }
             },
-            "description": "",
             "required": true
         })
     );

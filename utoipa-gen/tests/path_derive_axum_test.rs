@@ -447,7 +447,6 @@ fn path_with_path_query_body_resolved() {
     assert_json_eq!(
         &operation.pointer("/requestBody"),
         json!({
-            "description": "",
             "content": {
                 "application/json": {
                     "schema": {
