@@ -121,6 +121,7 @@ impl<'a, T> Iterator for TypeTreeValueIter<'a, T> {
 #[derive(Clone)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
+    #[allow(unused)]
     pub span: Option<Span>,
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,

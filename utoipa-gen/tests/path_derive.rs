@@ -5,7 +5,7 @@ use paste::paste;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use utoipa::openapi::{self, Components, RefOr, Schema};
+use utoipa::openapi::RefOr;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},

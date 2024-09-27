@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::ops::Deref;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -11,6 +10,7 @@ use syn::{Error, Generics, Ident, Token, Type};
 use crate::component::features::attributes::Inline;
 use crate::component::features::Feature;
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree, ValueType};
+use crate::ext::ExtSchema;
 use crate::{parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics};
 
 use super::example::Example;
@@ -23,9 +23,9 @@ use super::PathTypeTree;
 /// ( "content/type", example = ..., examples(..., ...), encoding(...) )
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct MediaTypeAttr<'a> {
+pub struct MediaTypeAttr<'m> {
     pub content_type: Option<parse_utils::LitStrOrExpr>, // if none, true guess
-    pub schema: Schema<DefaultSchema<'a>>,
+    pub schema: Schema<'m>,
     pub example: Option<AnyValue>,
     pub examples: Punctuated<Example, Comma>,
     // econding: String, // TODO parse encoding
@@ -38,7 +38,7 @@ impl Parse for MediaTypeAttr<'_> {
         let fork = input.fork();
         let is_schema = fork.parse::<DefaultSchema>().is_ok();
         if is_schema {
-            let schema = input.parse::<Schema<DefaultSchema>>()?;
+            let schema = input.parse::<DefaultSchema>()?;
 
             let content_type = if input.parse::<Option<Token![=]>>()?.is_some() {
                 Some(
@@ -56,7 +56,7 @@ impl Parse for MediaTypeAttr<'_> {
             } else {
                 None
             };
-            media_type.schema = schema;
+            media_type.schema = Schema::Default(schema);
             media_type.content_type = content_type;
         } else {
             // if schema, the content type is required
@@ -85,10 +85,8 @@ impl Parse for MediaTypeAttr<'_> {
 }
 
 impl<'m> MediaTypeAttr<'m> {
-    pub fn parse_schema(input: ParseStream) -> syn::Result<Schema<DefaultSchema<'m>>> {
-        Ok(Schema {
-            inner: input.parse()?,
-        })
+    pub fn parse_schema(input: ParseStream) -> syn::Result<DefaultSchema<'m>> {
+        input.parse()
     }
 
     pub fn parse_named_attributes(
@@ -153,54 +151,55 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
     }
 }
 
-#[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default)]
-pub struct Schema<T: Parse + Default> {
-    inner: T,
-}
-
-impl<T> Deref for Schema<T>
-where
-    T: Parse + Default,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> Parse for Schema<T>
-where
-    T: Parse + Default,
-{
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            inner: input.parse()?,
-        })
-    }
-}
-
-impl<T> ToTokens for Schema<T>
-where
-    T: ToTokens + Parse + Default,
-{
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.inner.to_tokens(tokens);
-    }
-}
-
-impl<T> AsRef<T> for Schema<T>
-where
-    T: Parse + Default,
-{
-    fn as_ref(&self) -> &T {
-        &self.inner
-    }
-}
-
 pub trait MediaTypePathExt<'a> {
     fn get_component_schema(&self) -> Result<Option<ComponentSchema>, Diagnostics>;
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[allow(unused)]
+pub enum Schema<'a> {
+    Default(DefaultSchema<'a>),
+    Ext(ExtSchema<'a>),
+}
+
+impl Default for Schema<'_> {
+    fn default() -> Self {
+        Self::Default(DefaultSchema::None)
+    }
+}
+
+impl Schema<'_> {
+    pub fn get_type_tree(&self) -> Result<Option<Cow<TypeTree<'_>>>, Diagnostics> {
+        match self {
+            Self::Default(def) => def.get_type_tree(),
+            Self::Ext(ext) => ext.get_type_tree(),
+        }
+    }
+
+    pub fn get_default_content_type(&self) -> Result<Cow<'static, str>, Diagnostics> {
+        match self {
+            Self::Default(def) => def.get_default_content_type(),
+            Self::Ext(ext) => ext.get_default_content_type(),
+        }
+    }
+
+    pub fn get_component_schema(&self) -> Result<Option<ComponentSchema>, Diagnostics> {
+        match self {
+            Self::Default(def) => def.get_component_schema(),
+            Self::Ext(ext) => ext.get_component_schema(),
+        }
+    }
+}
+
+impl ToTokensDiagnostics for Schema<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        match self {
+            Self::Default(def) => def.to_tokens(tokens)?,
+            Self::Ext(ext) => ext.to_tokens(tokens)?,
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -288,9 +287,11 @@ impl DefaultSchema<'_> {
         }
     }
 
-    pub fn get_type_tree(&self) -> Result<Option<TypeTree<'_>>, Diagnostics> {
+    pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
         match self {
-            Self::TypePath(path) => path.to_type_tree().map(Some),
+            Self::TypePath(path) => path
+                .to_type_tree()
+                .map(|type_tree| Some(Cow::Owned(type_tree))),
             _ => Ok(None),
         }
     }
