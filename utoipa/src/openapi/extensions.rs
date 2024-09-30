@@ -40,6 +40,18 @@ impl DerefMut for Extensions {
     }
 }
 
+impl<K, V> FromIterator<(K, V)> for Extensions
+where
+    K: Into<String>,
+    V: Into<serde_json::Value>,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let iter = iter.into_iter().map(|(k, v)| (k.into(), v.into()));
+        let extensions = HashMap::from_iter(iter);
+        Self { extensions }
+    }
+}
+
 impl From<Extensions> for HashMap<String, serde_json::Value> {
     fn from(value: Extensions) -> Self {
         value.extensions
@@ -93,5 +105,19 @@ mod tests {
         let value = serde_json::to_value(&extensions).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
         assert_eq!(value.get("x-another-extension"), Some(&expected));
+    }
+
+    #[test]
+    fn extensions_from_iter() {
+        let expected = json!("value");
+        let extensions: Extensions = [
+            ("x-some-extension", expected.clone()),
+            ("another-extension", expected.clone()),
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(extensions.get("x-some-extension"), Some(&expected));
+        assert_eq!(extensions.get("another-extension"), Some(&expected));
     }
 }
