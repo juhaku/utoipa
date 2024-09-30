@@ -6,11 +6,10 @@
 //! [info]: <https://spec.openapis.org/oas/latest.html#info-object>
 //! [openapi_trait]: ../../trait.OpenApi.html
 //! [derive]: ../../derive.OpenApi.html
-use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value};
+use super::{builder, extensions::Extensions, set_value};
 
 builder! {
     /// # Examples
@@ -71,7 +70,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -128,7 +127,7 @@ impl InfoBuilder {
     }
 
     /// Add openapi extensions (x-something) of the API.
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 }

@@ -3,14 +3,11 @@
 //! Refer to [`SecurityScheme`] for usage and more details.
 //!
 //! [security]: https://spec.openapis.org/oas/latest.html#security-scheme-object
-use std::{
-    collections::{BTreeMap, HashMap},
-    iter,
-};
+use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-use super::builder;
+use super::{builder, extensions::Extensions};
 
 /// OpenAPI [security requirement][security] object.
 ///
@@ -427,7 +424,7 @@ pub struct OAuth2 {
 
     /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
+    pub extensions: Option<Extensions>,
 }
 
 impl OAuth2 {

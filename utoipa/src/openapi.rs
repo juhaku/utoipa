@@ -4,7 +4,7 @@ use serde::{
     de::{Error, Expected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::{collections::HashMap, fmt::Formatter, mem};
+use std::{fmt::Formatter, mem};
 
 use self::path::PathsMap;
 pub use self::{
@@ -27,6 +27,7 @@ pub use self::{
 pub mod content;
 pub mod encoding;
 pub mod example;
+pub mod extensions;
 pub mod external_docs;
 pub mod header;
 pub mod info;
@@ -128,7 +129,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -637,6 +638,7 @@ macro_rules! builder {
         crate::openapi::from!($name $builder_name $( $field ),* );
     };
 }
+use crate::openapi::extensions::Extensions;
 pub(crate) use builder;
 
 #[cfg(test)]
@@ -1035,7 +1037,7 @@ mod tests {
     #[test]
     fn openapi_custom_extension() {
         let mut api = OpenApiBuilder::new().build();
-        let extensions = api.extensions.get_or_insert(HashMap::new());
+        let extensions = api.extensions.get_or_insert(Default::default());
         extensions.insert(
             String::from("x-tagGroup"),
             String::from("anything that serializes to Json").into(),
