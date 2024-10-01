@@ -6,11 +6,11 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::{Comma, Paren};
+use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, ExprLit, Lit, LitStr, Type};
+use syn::{Expr, ExprLit, Lit, LitStr};
 
-use crate::component::{GenericType, TypeTree};
+use crate::component::{ComponentSchema, GenericType, TypeTree};
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -472,6 +472,32 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
+        fn to_schema_references(
+            mut schemas: TokenStream2,
+            component_schema: ComponentSchema,
+        ) -> TokenStream2 {
+            for reference in component_schema.schema_references {
+                let name = &reference.name;
+                let tokens = &reference.tokens;
+                let references = &reference.references;
+
+                schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+                schemas.extend(quote!( #references; ));
+            }
+
+            schemas
+        }
+
+        let response_schemas = self
+            .path_attr
+            .responses
+            .iter()
+            .map(|response| response.get_component_schemas())
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .flatten()
+            .fold(TokenStream2::new(), to_schema_references);
+
         let schemas = self
             .path_attr
             .request_body
@@ -479,18 +505,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .map_try(|request_body| request_body.get_component_schemas())?
             .into_iter()
             .flatten()
-            .fold(TokenStream2::new(), |mut schemas, component_schema| {
-                for reference in component_schema.schema_references {
-                    let name = &reference.name;
-                    let tokens = &reference.tokens;
-                    let references = &reference.references;
-
-                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
-                    schemas.extend(quote!( #references; ));
-                }
-
-                schemas
-            });
+            .fold(TokenStream2::new(), to_schema_references);
 
         let mut tags = self.path_attr.tags.clone();
         if let Some(tag) = self.path_attr.tag.as_ref() {
@@ -538,6 +553,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             impl utoipa::__dev::SchemaReferences for #impl_for {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                     #schemas
+                    #response_schemas
                 }
             }
 
@@ -651,81 +667,9 @@ impl ToTokens for Summary<'_> {
     }
 }
 
-/// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
-#[cfg_attr(feature = "debug", derive(Debug))]
-enum PathType<'p> {
-    Ref(String),
-    MediaType(InlineType<'p>),
-    InlineSchema(TokenStream2, Type),
-}
-
-impl Parse for PathType<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let fork = input.fork();
-        let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
-            fork.peek(Paren)
-        } else {
-            false
-        };
-
-        if is_ref {
-            input.parse::<Token![ref]>()?;
-            let ref_stream;
-            parenthesized!(ref_stream in input);
-            Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
-        } else {
-            Ok(Self::MediaType(input.parse()?))
-        }
-    }
-}
-
-// inline(syn::Type) | syn::Type
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct InlineType<'i> {
-    ty: Cow<'i, Type>,
-    is_inline: bool,
-}
-
-impl InlineType<'_> {
-    /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
-        TypeTree::from_type(&self.ty)
-    }
-}
-
-impl Parse for InlineType<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let fork = input.fork();
-        let is_inline = if let Some(ident) = fork.parse::<Option<Ident>>()? {
-            ident == "inline" && fork.peek(Paren)
-        } else {
-            false
-        };
-
-        let ty = if is_inline {
-            input.parse::<Ident>()?;
-            let inlined;
-            parenthesized!(inlined in input);
-
-            inlined.parse::<Type>()?
-        } else {
-            input.parse::<Type>()?
-        };
-
-        Ok(InlineType {
-            ty: Cow::Owned(ty),
-            is_inline,
-        })
-    }
-}
-
 pub trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> Cow<'static, str>;
-
-    #[allow(unused)]
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool;
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool;
@@ -769,11 +713,6 @@ impl<'p> PathTypeTree for TypeTree<'p> {
         }
     }
 
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool {
-        matches!(self.generic_type, Some(GenericType::Option))
-    }
-
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool {
         match self.generic_type {
@@ -792,8 +731,8 @@ impl<'p> PathTypeTree for TypeTree<'p> {
 mod parse {
     use syn::parse::ParseStream;
     use syn::punctuated::Punctuated;
-    use syn::token::{Bracket, Comma};
-    use syn::{bracketed, Result};
+    use syn::token::Comma;
+    use syn::Result;
 
     use crate::path::example::Example;
     use crate::{parse_utils, AnyValue};
@@ -801,26 +740,6 @@ mod parse {
     #[inline]
     pub(super) fn description(input: ParseStream) -> Result<parse_utils::LitStrOrExpr> {
         parse_utils::parse_next_literal_str_or_expr(input)
-    }
-
-    #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::LitStrOrExpr>> {
-        parse_utils::parse_next(input, || {
-            let look_content_type = input.lookahead1();
-            if look_content_type.peek(Bracket) {
-                let content_types;
-                bracketed!(content_types in input);
-                Ok(
-                    Punctuated::<parse_utils::LitStrOrExpr, Comma>::parse_terminated(
-                        &content_types,
-                    )?
-                    .into_iter()
-                    .collect(),
-                )
-            } else {
-                Ok(vec![input.parse::<parse_utils::LitStrOrExpr>()?])
-            }
-        })
     }
 
     #[inline]

@@ -11,30 +11,6 @@ use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
 use super::media_type::{MediaTypeAttr, Schema};
 use super::parse;
 
-#[allow(unused)]
-enum ComponentSchemaIter<T> {
-    Iter(Box<dyn std::iter::Iterator<Item = T>>),
-    Option(std::option::IntoIter<T>),
-}
-
-impl<T> Iterator for ComponentSchemaIter<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Iter(iter) => iter.next(),
-            Self::Option(option) => option.next(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Self::Iter(iter) => iter.size_hint(),
-            Self::Option(option) => option.size_hint(),
-        }
-    }
-}
-
 /// Parsed information related to request body of path.
 ///
 /// Supported configuration options:
@@ -85,14 +61,14 @@ impl<T> Iterator for ComponentSchemaIter<T> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct RequestBodyAttr<'r> {
     description: Option<parse_utils::LitStrOrExpr>,
-    media_type: Vec<MediaTypeAttr<'r>>,
+    content: Vec<MediaTypeAttr<'r>>,
 }
 
 impl<'r> RequestBodyAttr<'r> {
     fn new() -> Self {
         Self {
             description: Default::default(),
-            media_type: vec![MediaTypeAttr::default()],
+            content: vec![MediaTypeAttr::default()],
         }
     }
 
@@ -103,7 +79,7 @@ impl<'r> RequestBodyAttr<'r> {
     ))]
     pub fn from_schema(schema: Schema<'r>) -> RequestBodyAttr<'r> {
         Self {
-            media_type: vec![MediaTypeAttr {
+            content: vec![MediaTypeAttr {
                 schema,
                 ..Default::default()
             }],
@@ -115,7 +91,7 @@ impl<'r> RequestBodyAttr<'r> {
         &self,
     ) -> Result<impl Iterator<Item = ComponentSchema>, Diagnostics> {
         Ok(self
-            .media_type
+            .content
             .iter()
             .map(|media_type| media_type.schema.get_component_schema())
             .collect::<Result<Vec<_>, Diagnostics>>()?
@@ -134,6 +110,7 @@ impl Parse for RequestBodyAttr<'_> {
             let group;
             syn::parenthesized!(group in input);
 
+            let mut is_content_group = false;
             let mut request_body_attr = RequestBodyAttr::new();
             while !group.is_empty() {
                 let ident = group
@@ -146,10 +123,11 @@ impl Parse for RequestBodyAttr<'_> {
                         if group.peek(Token![=]) {
                             group.parse::<Token![=]>()?;
                             let schema = MediaTypeAttr::parse_schema(&group)?;
-                            if let Some(media_type) = request_body_attr.media_type.get_mut(0) {
+                            if let Some(media_type) = request_body_attr.content.get_mut(0) {
                                 media_type.schema = Schema::Default(schema);
                             }
                         } else if group.peek(Paren) {
+                            is_content_group = true;
                             fn group_parser<'a>(
                                 input: ParseStream,
                             ) -> syn::Result<MediaTypeAttr<'a>> {
@@ -166,17 +144,22 @@ impl Parse for RequestBodyAttr<'_> {
                                 .into_iter()
                                 .collect::<Vec<_>>();
 
-                            request_body_attr.media_type = media_type;
+                            request_body_attr.content = media_type;
                         } else {
                             return Err(Error::new(ident.span(), "unexpected content format, expected either `content = schema` or `content(...)`"));
                         }
                     }
                     "content_type" => {
+                        if is_content_group {
+                            return Err(Error::new(ident.span(), "cannot set `content_type` when content(...) is defined in group form"));
+                        }
                         let content_type = parse_utils::parse_next(&group, || {
                             parse_utils::LitStrOrExpr::parse(&group)
-                        })?;
+                        }).map_err(|error| Error::new(error.span(),
+                                format!(r#"invalid content_type, must be literal string or expression, e.g. "application/json", {error} "#)
+                            ))?;
 
-                        if let Some(media_type) = request_body_attr.media_type.get_mut(0) {
+                        if let Some(media_type) = request_body_attr.content.get_mut(0) {
                             media_type.content_type = Some(content_type);
                         }
                     }
@@ -184,17 +167,14 @@ impl Parse for RequestBodyAttr<'_> {
                         request_body_attr.description = Some(parse::description(&group)?);
                     }
                     _ => {
-                        if let Err(error) = MediaTypeAttr::parse_named_attributes(
+                        MediaTypeAttr::parse_named_attributes(
                             request_body_attr
-                                .media_type
+                                .content
                                 .get_mut(0)
                                 .expect("parse request body named attributes must have media type"),
                             &group,
                             &ident,
-                        ) {
-                            return Err(Error::new(error.span(),
-                                format!("unexpected attribute: {attribute_name}, expected any of: content, content_type, description, examples, example")));
-                        }
+                        )?;
                     }
                 }
 
@@ -215,7 +195,7 @@ impl Parse for RequestBodyAttr<'_> {
             };
 
             Ok(RequestBodyAttr {
-                media_type: vec![media_type],
+                content: vec![media_type],
                 description: None,
             })
         } else {
@@ -227,7 +207,7 @@ impl Parse for RequestBodyAttr<'_> {
 impl ToTokensDiagnostics for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let media_types = self
-            .media_type
+            .content
             .iter()
             .map(|media_type| {
                 let default_content_type_result = media_type.schema.get_default_content_type();

@@ -1005,7 +1005,7 @@ where
 
 /// `RefOrOwned` is simple `Cow` like type to wrap either `ref` or owned value. This allows passing
 /// either owned or referenced values as if they were owned like the `Cow` does but this works with
-/// non clonable types. Thus values cannot be modified but they can be passed down as re-referenced
+/// non cloneable types. Thus values cannot be modified but they can be passed down as re-referenced
 /// values by dereffing the original value. `Roo::Ref(original.deref())`.
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Roo<'t, T> {

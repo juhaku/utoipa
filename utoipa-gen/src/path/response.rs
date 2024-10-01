@@ -7,19 +7,25 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::Comma,
-    Attribute, Error, ExprPath, Generics, LitInt, LitStr, Token, TypePath,
+    Attribute, Error, ExprPath, LitInt, LitStr, Token, TypePath,
 };
 
 use crate::{
-    component::{features::attributes::Inline, ComponentSchema, Container, TypeTree},
-    parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics,
+    component::ComponentSchema, parse_utils, path::media_type::Schema, AnyValue, Diagnostics,
+    ToTokensDiagnostics,
 };
 
-use self::link::LinkTuple;
+use self::{header::Header, link::LinkTuple};
 
-use super::{example::Example, parse, status::STATUS_CODES, InlineType, PathType, PathTypeTree};
+use super::{
+    example::Example,
+    media_type::{DefaultSchema, MediaTypeAttr, ParsedType},
+    parse,
+    status::STATUS_CODES,
+};
 
 pub mod derive;
+mod header;
 pub mod link;
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -42,6 +48,54 @@ impl Parse for Response<'_> {
     }
 }
 
+impl Response<'_> {
+    pub fn get_component_schemas(
+        &self,
+    ) -> Result<impl Iterator<Item = ComponentSchema>, Diagnostics> {
+        match self {
+            Self::Tuple(tuple) => match &tuple.inner {
+                // Only tuple type will have `ComponentSchema`s as of now
+                Some(ResponseTupleInner::Value(value)) => {
+                    Ok(ResponseComponentSchemaIter::Iter(Box::new(
+                        value
+                            .content
+                            .iter()
+                            .map(|media_type| media_type.schema.get_component_schema())
+                            .collect::<Result<Vec<_>, Diagnostics>>()?
+                            .into_iter()
+                            .flatten(),
+                    )))
+                }
+                _ => Ok(ResponseComponentSchemaIter::Empty),
+            },
+            Self::IntoResponses(_) => Ok(ResponseComponentSchemaIter::Empty),
+        }
+    }
+}
+
+pub enum ResponseComponentSchemaIter<'a, T> {
+    Iter(Box<dyn std::iter::Iterator<Item = T> + 'a>),
+    Empty,
+}
+
+impl<'a, T> Iterator for ResponseComponentSchemaIter<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Iter(iter) => iter.next(),
+            Self::Empty => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Iter(iter) => iter.size_hint(),
+            Self::Empty => (0, None),
+        }
+    }
+}
+
 /// Parsed representation of response attributes from `#[utoipa::path]` attribute.
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -54,20 +108,36 @@ const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
     "The `response` attribute may only be used in conjunction with the `status` attribute";
 
 impl<'r> ResponseTuple<'r> {
-    // This will error if the `response` attribute has already been set
-    fn as_value(&mut self, span: Span) -> syn::Result<&mut ResponseValue<'r>> {
-        if self.inner.is_none() {
-            self.inner = Some(ResponseTupleInner::Value(ResponseValue::default()));
-        }
-        if let ResponseTupleInner::Value(val) = self.inner.as_mut().unwrap() {
-            Ok(val)
-        } else {
-            Err(Error::new(span, RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG))
-        }
+    /// Set as `ResponseValue` the content. This will fail if `response` attribute is already
+    /// defined.
+    fn set_as_value<F: FnOnce(&mut ResponseValue) -> syn::Result<()>>(
+        &mut self,
+        ident: &Ident,
+        attribute: &str,
+        op: F,
+    ) -> syn::Result<()> {
+        match &mut self.inner {
+            Some(ResponseTupleInner::Value(value)) => {
+                op(value)?;
+            }
+            Some(ResponseTupleInner::Ref(_)) => {
+                return Err(Error::new(ident.span(), format!("Cannot use `{attribute}` in conjunction with `response`. The `response` attribute can only be used in conjunction with `status` attribute.")));
+            }
+            None => {
+                let mut value = ResponseValue {
+                    content: vec![MediaTypeAttr::default()],
+                    ..Default::default()
+                };
+                op(&mut value)?;
+                self.inner = Some(ResponseTupleInner::Value(value))
+            }
+        };
+
+        Ok(())
     }
 
     // Use with the `response` attribute, this will fail if an incompatible attribute has already been set
-    fn set_ref_type(&mut self, span: Span, ty: InlineType<'r>) -> syn::Result<()> {
+    fn set_ref_type(&mut self, span: Span, ty: ParsedType<'r>) -> syn::Result<()> {
         match &mut self.inner {
             None => self.inner = Some(ResponseTupleInner::Ref(ty)),
             Some(ResponseTupleInner::Ref(r)) => *r = ty,
@@ -82,12 +152,13 @@ impl<'r> ResponseTuple<'r> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum ResponseTupleInner<'r> {
     Value(ResponseValue<'r>),
-    Ref(InlineType<'r>),
+    Ref(ParsedType<'r>),
 }
 
 impl Parse for ResponseTuple<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE_MESSAGE: &str = "unexpected attribute, expected any of: status, description, body, content_type, headers, example, examples, response";
+        const EXPECTED_ATTRIBUTES: &str =
+            "status, description, body, content_type, headers, example, examples, response";
 
         let mut response = ResponseTuple::default();
 
@@ -95,43 +166,16 @@ impl Parse for ResponseTuple<'_> {
             let ident = input.parse::<Ident>().map_err(|error| {
                 Error::new(
                     error.span(),
-                    format!("{EXPECTED_ATTRIBUTE_MESSAGE}, {error}"),
+                    format!(
+                        "unexpected attribute, expected any of: {EXPECTED_ATTRIBUTES}, {error}"
+                    ),
                 )
             })?;
-            let attribute_name = &*ident.to_string();
-
-            match attribute_name {
+            let name = &*ident.to_string();
+            match name {
                 "status" => {
                     response.status_code =
                         parse_utils::parse_next(input, || input.parse::<ResponseStatus>())?;
-                }
-                "description" => {
-                    response.as_value(input.span())?.description = parse::description(input)?;
-                }
-                "body" => {
-                    response.as_value(input.span())?.response_type =
-                        Some(parse_utils::parse_next(input, || input.parse())?);
-                }
-                "content_type" => {
-                    response.as_value(input.span())?.content_type =
-                        Some(parse::content_type(input)?);
-                }
-                "headers" => {
-                    response.as_value(input.span())?.headers = headers(input)?;
-                }
-                "example" => {
-                    response.as_value(input.span())?.example = Some(parse::example(input)?);
-                }
-                "examples" => {
-                    response.as_value(input.span())?.examples = Some(parse::examples(input)?);
-                }
-                "content" => {
-                    response.as_value(input.span())?.content =
-                        parse_utils::parse_comma_separated_within_parenthesis(input)?;
-                }
-                "links" => {
-                    response.as_value(input.span())?.links =
-                        parse_utils::parse_comma_separated_within_parenthesis(input)?;
                 }
                 "response" => {
                     response.set_ref_type(
@@ -139,16 +183,16 @@ impl Parse for ResponseTuple<'_> {
                         parse_utils::parse_next(input, || input.parse())?,
                     )?;
                 }
-                _ => return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE_MESSAGE)),
+                _ => {
+                    response.set_as_value(&ident, name, |value| {
+                        value.parse_named_attributes(input, &ident)
+                    })?;
+                }
             }
 
             if !input.is_empty() {
                 input.parse::<Token![,]>()?;
             }
-        }
-
-        if response.inner.is_none() {
-            response.inner = Some(ResponseTupleInner::Value(ResponseValue::default()))
         }
 
         Ok(response)
@@ -173,53 +217,144 @@ impl<'r> From<(ResponseStatus, ResponseValue<'r>)> for ResponseTuple<'r> {
     }
 }
 
-pub struct DeriveResponsesAttributes<T> {
-    derive_value: T,
-    description: parse_utils::LitStrOrExpr,
-}
-
-impl<'r> From<DeriveResponsesAttributes<DeriveIntoResponsesValue>> for ResponseValue<'r> {
-    fn from(value: DeriveResponsesAttributes<DeriveIntoResponsesValue>) -> Self {
-        Self::from_derive_into_responses_value(value.derive_value, value.description)
-    }
-}
-
-impl<'r> From<DeriveResponsesAttributes<Option<DeriveToResponseValue>>> for ResponseValue<'r> {
-    fn from(
-        DeriveResponsesAttributes::<Option<DeriveToResponseValue>> {
-            derive_value,
-            description,
-        }: DeriveResponsesAttributes<Option<DeriveToResponseValue>>,
-    ) -> Self {
-        if let Some(derive_value) = derive_value {
-            ResponseValue::from_derive_to_response_value(derive_value, description)
-        } else {
-            ResponseValue {
-                description,
-                ..Default::default()
-            }
-        }
-    }
-}
-
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ResponseValue<'r> {
     description: parse_utils::LitStrOrExpr,
-    response_type: Option<PathType<'r>>,
-    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
     headers: Vec<Header>,
-    example: Option<AnyValue>,
-    examples: Option<Punctuated<Example, Comma>>,
-    content: Punctuated<Content<'r>, Comma>,
     links: Punctuated<LinkTuple, Comma>,
+    content: Vec<MediaTypeAttr<'r>>,
+    is_content_group: bool,
+}
+
+impl Parse for ResponseValue<'_> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut response_value = ResponseValue::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                Error::new(
+                    error.span(),
+                    format!(
+                        "unexpected attribute, expected any of: {expected_attributes}, {error}",
+                        expected_attributes = ResponseValue::EXPECTED_ATTRIBUTES
+                    ),
+                )
+            })?;
+            response_value.parse_named_attributes(input, &ident)?;
+
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        Ok(response_value)
+    }
 }
 
 impl<'r> ResponseValue<'r> {
-    fn from_derive_to_response_value(
+    const EXPECTED_ATTRIBUTES: &'static str =
+        "description, body, content_type, headers, example, examples";
+
+    fn parse_named_attributes(&mut self, input: ParseStream, attribute: &Ident) -> syn::Result<()> {
+        let attribute_name = &*attribute.to_string();
+
+        match attribute_name {
+            "description" => {
+                self.description = parse::description(input)?;
+            }
+            "body" => {
+                if self.is_content_group {
+                    return Err(Error::new(
+                        attribute.span(),
+                        "cannot set `body` when content(...) is defined in group form",
+                    ));
+                }
+
+                let schema = parse_utils::parse_next(input, || MediaTypeAttr::parse_schema(input))?;
+                if let Some(media_type) = self.content.get_mut(0) {
+                    media_type.schema = Schema::Default(schema);
+                }
+            }
+            "content_type" => {
+                if self.is_content_group {
+                    return Err(Error::new(
+                        attribute.span(),
+                        "cannot set `content_type` when content(...) is defined in group form",
+                    ));
+                }
+                let content_type = parse_utils::parse_next(input, || {
+                    parse_utils::LitStrOrExpr::parse(input)
+                }).map_err(|error| Error::new(error.span(),
+                        format!(r#"invalid content_type, must be literal string or expression, e.g. "application/json", {error} "#)
+                    ))?;
+
+                if let Some(media_type) = self.content.get_mut(0) {
+                    media_type.content_type = Some(content_type);
+                }
+            }
+            "headers" => {
+                self.headers = header::headers(input)?;
+            }
+            "content" => {
+                self.is_content_group = true;
+                fn group_parser<'a>(input: ParseStream) -> syn::Result<MediaTypeAttr<'a>> {
+                    let buf;
+                    syn::parenthesized!(buf in input);
+                    buf.call(MediaTypeAttr::parse)
+                }
+
+                let content =
+                    parse_utils::parse_comma_separated_within_parethesis_with(input, group_parser)?
+                        .into_iter()
+                        .collect::<Vec<_>>();
+
+                self.content = content;
+            }
+            "links" => {
+                self.links = parse_utils::parse_comma_separated_within_parenthesis(input)?;
+            }
+            _ => {
+                MediaTypeAttr::parse_named_attributes(
+                    self.content.get_mut(0).expect(
+                        "parse named attributes response value must have one media type by default",
+                    ),
+                    input,
+                    attribute,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn from_schema<S: Into<Schema<'r>>>(schema: S, description: parse_utils::LitStrOrExpr) -> Self {
+        let media_type = MediaTypeAttr {
+            schema: schema.into(),
+            ..Default::default()
+        };
+
+        Self {
+            description,
+            content: vec![media_type],
+            ..Default::default()
+        }
+    }
+
+    fn from_derive_to_response_value<S: Into<Schema<'r>>>(
         derive_value: DeriveToResponseValue,
+        schema: S,
         description: parse_utils::LitStrOrExpr,
     ) -> Self {
+        let media_type = MediaTypeAttr {
+            content_type: derive_value.content_type,
+            schema: schema.into(),
+            example: derive_value.example.map(|(example, _)| example),
+            examples: derive_value
+                .examples
+                .map(|(examples, _)| examples)
+                .unwrap_or_default(),
+        };
+
         Self {
             description: if derive_value.description.is_empty_litstr()
                 && !description.is_empty_litstr()
@@ -229,17 +364,26 @@ impl<'r> ResponseValue<'r> {
                 derive_value.description
             },
             headers: derive_value.headers,
-            example: derive_value.example.map(|(example, _)| example),
-            examples: derive_value.examples.map(|(examples, _)| examples),
-            content_type: derive_value.content_type,
+            content: vec![media_type],
             ..Default::default()
         }
     }
 
-    fn from_derive_into_responses_value(
+    fn from_derive_into_responses_value<S: Into<Schema<'r>>>(
         response_value: DeriveIntoResponsesValue,
+        schema: S,
         description: parse_utils::LitStrOrExpr,
     ) -> Self {
+        let media_type = MediaTypeAttr {
+            content_type: response_value.content_type,
+            schema: schema.into(),
+            example: response_value.example.map(|(example, _)| example),
+            examples: response_value
+                .examples
+                .map(|(examples, _)| examples)
+                .unwrap_or_default(),
+        };
+
         ResponseValue {
             description: if response_value.description.is_empty_litstr()
                 && !description.is_empty_litstr()
@@ -249,24 +393,16 @@ impl<'r> ResponseValue<'r> {
                 response_value.description
             },
             headers: response_value.headers,
-            example: response_value.example.map(|(example, _)| example),
-            examples: response_value.examples.map(|(examples, _)| examples),
-            content_type: response_value.content_type,
+            content: vec![media_type],
             ..Default::default()
         }
-    }
-
-    fn response_type(mut self, response_type: Option<PathType<'r>>) -> Self {
-        self.response_type = response_type;
-
-        self
     }
 }
 
 impl ToTokensDiagnostics for ResponseTuple<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
-        match self.inner.as_ref().unwrap() {
-            ResponseTupleInner::Ref(res) => {
+        match self.inner.as_ref() {
+            Some(ResponseTupleInner::Ref(res)) => {
                 let path = &res.ty;
                 if res.is_inline {
                     tokens.extend(quote_spanned! {path.span()=>
@@ -278,111 +414,30 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                     });
                 }
             }
-            ResponseTupleInner::Value(val) => {
-                let description = &val.description;
+            Some(ResponseTupleInner::Value(value)) => {
+                let description = &value.description;
                 tokens.extend(quote! {
                     utoipa::openapi::ResponseBuilder::new().description(#description)
                 });
 
-                let create_content = |path_type: &PathType,
-                                      example: &Option<AnyValue>,
-                                      examples: &Option<Punctuated<Example, Comma>>|
-                 -> Result<TokenStream2, Diagnostics> {
-                    let content_schema = match path_type {
-                        PathType::Ref(ref_type) => quote! {
-                            utoipa::openapi::schema::Ref::new(#ref_type)
-                        }
-                        .to_token_stream(),
-                        PathType::MediaType(ref path_type) => {
-                            let type_tree = path_type.as_type_tree()?;
+                for media_type in value.content.iter().filter(|media_type| {
+                    !matches!(media_type.schema, Schema::Default(DefaultSchema::None))
+                }) {
+                    let default_content_type = media_type.schema.get_default_content_type()?;
 
-                            ComponentSchema::new(crate::component::ComponentSchemaProps {
-                                type_tree: &type_tree,
-                                features: vec![Inline::from(path_type.is_inline).into()],
-                                description: None,
-                                container: &Container {
-                                    generics: &Generics::default(),
-                                },
-                            })?
-                            .to_token_stream()
-                        }
-                        PathType::InlineSchema(schema, _) => schema.to_token_stream(),
-                    };
+                    let content_type_tokens = media_type
+                        .content_type
+                        .as_ref()
+                        .map(|content_type| content_type.to_token_stream())
+                        .unwrap_or_else(|| default_content_type.to_token_stream());
+                    let content_tokens = media_type.try_to_token_stream()?;
 
-                    let mut content = quote! { utoipa::openapi::ContentBuilder::new().schema(Some(#content_schema)) };
-
-                    if let Some(ref example) = example {
-                        content.extend(quote! {
-                            .example(Some(#example))
-                        })
-                    }
-                    if let Some(ref examples) = examples {
-                        let examples = examples
-                            .iter()
-                            .map(|example| {
-                                let name = &example.name;
-                                quote!((#name, #example))
-                            })
-                            .collect::<Array<TokenStream2>>();
-                        content.extend(quote!(
-                            .examples_from_iter(#examples)
-                        ))
-                    }
-
-                    Ok(quote! {
-                        #content.build()
-                    })
-                };
-
-                if let Some(response_type) = &val.response_type {
-                    let content = create_content(response_type, &val.example, &val.examples)?;
-
-                    if let Some(content_types) = val.content_type.as_ref() {
-                        content_types.iter().for_each(|content_type| {
-                            tokens.extend(quote! {
-                                .content(#content_type, #content)
-                            })
-                        })
-                    } else {
-                        match response_type {
-                            PathType::Ref(_) => {
-                                tokens.extend(quote! {
-                                    .content("application/json", #content)
-                                });
-                            }
-                            PathType::MediaType(path_type) => {
-                                let type_tree = path_type.as_type_tree()?;
-                                let default_type = type_tree.get_default_content_type();
-                                tokens.extend(quote! {
-                                    .content(#default_type, #content)
-                                })
-                            }
-                            PathType::InlineSchema(_, ty) => {
-                                let type_tree = TypeTree::from_type(ty)?;
-                                let default_type = type_tree.get_default_content_type();
-                                tokens.extend(quote! {
-                                    .content(#default_type, #content)
-                                })
-                            }
-                        }
-                    }
+                    tokens.extend(quote! {
+                        .content(#content_type_tokens, #content_tokens)
+                    });
                 }
 
-                val.content
-                    .iter()
-                    .map(|Content(content_type, body, example, examples)| {
-                        match create_content(body, example, examples) {
-                            Ok(content) => Ok((Cow::Borrowed(&**content_type), content)),
-                            Err(diagnostics) => Err(diagnostics),
-                        }
-                    })
-                    .collect::<Result<Vec<_>, Diagnostics>>()?
-                    .into_iter()
-                    .for_each(|(content_type, content)| {
-                        tokens.extend(quote! { .content(#content_type, #content) })
-                    });
-
-                for header in &val.headers {
+                for header in &value.headers {
                     let name = &header.name;
                     let header = crate::as_tokens_or_diagnostics!(header);
                     tokens.extend(quote! {
@@ -390,7 +445,7 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                     })
                 }
 
-                for LinkTuple(name, link) in &val.links {
+                for LinkTuple(name, link) in &value.links {
                     tokens.extend(quote! {
                         .link(#name, #link)
                     })
@@ -398,6 +453,9 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
 
                 tokens.extend(quote! { .build() });
             }
+            None => tokens.extend(quote! {
+                utoipa::openapi::ResponseBuilder::new().description("")
+            }),
         }
 
         Ok(())
@@ -421,7 +479,7 @@ trait DeriveResponseValue: Parse {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct DeriveToResponseValue {
-    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
+    content_type: Option<parse_utils::LitStrOrExpr>,
     headers: Vec<Header>,
     description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
@@ -463,10 +521,11 @@ impl Parse for DeriveToResponseValue {
                     response.description = parse::description(input)?;
                 }
                 "content_type" => {
-                    response.content_type = Some(parse::content_type(input)?);
+                    response.content_type =
+                        Some(parse_utils::parse_next_literal_str_or_expr(input)?);
                 }
                 "headers" => {
-                    response.headers = headers(input)?;
+                    response.headers = header::headers(input)?;
                 }
                 "example" => {
                     response.example = Some((parse::example(input)?, ident));
@@ -494,7 +553,7 @@ impl Parse for DeriveToResponseValue {
 #[derive(Default)]
 struct DeriveIntoResponsesValue {
     status: ResponseStatus,
-    content_type: Option<Vec<parse_utils::LitStrOrExpr>>,
+    content_type: Option<parse_utils::LitStrOrExpr>,
     headers: Vec<Header>,
     description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
@@ -558,10 +617,11 @@ impl Parse for DeriveIntoResponsesValue {
                     response.description = parse::description(input)?;
                 }
                 "content_type" => {
-                    response.content_type = Some(parse::content_type(input)?);
+                    response.content_type =
+                        Some(parse_utils::parse_next_literal_str_or_expr(input)?);
                 }
                 "headers" => {
-                    response.headers = headers(input)?;
+                    response.headers = header::headers(input)?;
                 }
                 "example" => {
                     response.example = Some((parse::example(input)?, ident));
@@ -665,63 +725,6 @@ impl ToTokens for ResponseStatus {
     }
 }
 
-// content(
-//   ("application/json" = Response, example = "...", examples(..., ...)),
-//   ("application/json2" = Response2, example = "...", examples("...", "..."))
-// )
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct Content<'c>(
-    String,
-    PathType<'c>,
-    Option<AnyValue>,
-    Option<Punctuated<Example, Comma>>,
-);
-
-impl Parse for Content<'_> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-        parenthesized!(content in input);
-
-        let content_type = content.parse::<LitStr>()?;
-        content.parse::<Token![=]>()?;
-        let body = content.parse()?;
-        content.parse::<Option<Comma>>()?;
-        let mut example = None::<AnyValue>;
-        let mut examples = None::<Punctuated<Example, Comma>>;
-
-        while !content.is_empty() {
-            let ident = content.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
-            match attribute_name {
-                "example" => {
-                    example = Some(parse_utils::parse_next(&content, || {
-                        AnyValue::parse_json(&content)
-                    })?)
-                }
-                "examples" => {
-                    examples = Some(parse_utils::parse_comma_separated_within_parenthesis(
-                        &content,
-                    )?)
-                }
-                _ => {
-                    return Err(Error::new(
-                        ident.span(),
-                        format!(
-                            "unexpected attribute: {ident}, expected one of: example, examples"
-                        ),
-                    ));
-                }
-            }
-
-            if !content.is_empty() {
-                content.parse::<Comma>()?;
-            }
-        }
-
-        Ok(Content(content_type.value(), body, example, examples))
-    }
-}
-
 pub struct Responses<'a>(pub &'a [Response<'a>]);
 
 impl ToTokensDiagnostics for Responses<'_> {
@@ -758,160 +761,4 @@ impl ToTokensDiagnostics for Responses<'_> {
 
         Ok(())
     }
-}
-
-/// Parsed representation of response header defined in `#[utoipa::path(..)]` attribute.
-///
-/// Supported configuration format is `("x-my-header-name" = type, description = "optional description of header")`.
-/// The `= type` and the `description = ".."` are optional configurations thus so the same configuration
-/// could be written as follows: `("x-my-header-name")`.
-///
-/// The `type` can be any typical type supported as a header argument such as `String, i32, u64, bool` etc.
-/// and if not provided it will default to `String`.
-///
-/// # Examples
-///
-/// Example of 200 success response which does return nothing back in response body, but returns a
-/// new csrf token in response headers.
-/// ```text
-/// #[utoipa::path(
-///     ...
-///     responses = [
-///         (status = 200, description = "success response",
-///             headers = [
-///                 ("xrfs-token" = String, description = "New csrf token sent back in response header")
-///             ]
-///         ),
-///     ]
-/// )]
-/// ```
-///
-/// Example with default values.
-/// ```text
-/// #[utoipa::path(
-///     ...
-///     responses = [
-///         (status = 200, description = "success response",
-///             headers = [
-///                 ("xrfs-token")
-///             ]
-///         ),
-///     ]
-/// )]
-/// ```
-///
-/// Example with multiple headers with default values.
-/// ```text
-/// #[utoipa::path(
-///     ...
-///     responses = [
-///         (status = 200, description = "success response",
-///             headers = [
-///                 ("xrfs-token"),
-///                 ("another-header"),
-///             ]
-///         ),
-///     ]
-/// )]
-/// ```
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct Header {
-    name: String,
-    value_type: Option<InlineType<'static>>,
-    description: Option<String>,
-}
-
-impl Parse for Header {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut header = Header {
-            name: input.parse::<LitStr>()?.value(),
-            ..Default::default()
-        };
-
-        if input.peek(Token![=]) {
-            input.parse::<Token![=]>()?;
-
-            header.value_type = Some(input.parse().map_err(|error| {
-                Error::new(
-                    error.span(),
-                    format!("unexpected token, expected type such as String, {error}"),
-                )
-            })?);
-        }
-
-        if !input.is_empty() {
-            input.parse::<Token![,]>()?;
-        }
-
-        if input.peek(syn::Ident) {
-            input
-                .parse::<Ident>()
-                .map_err(|error| {
-                    Error::new(
-                        error.span(),
-                        format!("unexpected attribute, expected: description, {error}"),
-                    )
-                })
-                .and_then(|ident| {
-                    if ident != "description" {
-                        return Err(Error::new(
-                            ident.span(),
-                            "unexpected attribute, expected: description",
-                        ));
-                    }
-                    Ok(ident)
-                })?;
-            input.parse::<Token![=]>()?;
-            header.description = Some(input.parse::<LitStr>()?.value());
-        }
-
-        Ok(header)
-    }
-}
-
-impl ToTokensDiagnostics for Header {
-    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics> {
-        if let Some(header_type) = &self.value_type {
-            // header property with custom type
-            let type_tree = header_type.as_type_tree()?;
-
-            let media_type_schema = ComponentSchema::new(crate::component::ComponentSchemaProps {
-                type_tree: &type_tree,
-                features: vec![Inline::from(header_type.is_inline).into()],
-                description: None,
-                container: &Container {
-                    generics: &Generics::default(),
-                },
-            })?
-            .to_token_stream();
-
-            tokens.extend(quote! {
-                utoipa::openapi::HeaderBuilder::new().schema(#media_type_schema)
-            })
-        } else {
-            // default header (string type)
-            tokens.extend(quote! {
-                Into::<utoipa::openapi::HeaderBuilder>::into(utoipa::openapi::Header::default())
-            })
-        };
-
-        if let Some(ref description) = self.description {
-            tokens.extend(quote! {
-                .description(Some(#description))
-            })
-        }
-
-        tokens.extend(quote! { .build() });
-
-        Ok(())
-    }
-}
-
-#[inline]
-fn headers(input: ParseStream) -> syn::Result<Vec<Header>> {
-    let headers;
-    syn::parenthesized!(headers in input);
-
-    parse_utils::parse_groups_collect(&headers)
 }
