@@ -1041,15 +1041,11 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
 ///   these guarantees.
 ///
-/// * `content_type = "..."` or `content_type = [...]` Can be used to override the default behavior of auto resolving the content type
-///   from the `body` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and mixed enum types.
-///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `body` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -1059,10 +1055,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
 ///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 ///
-/// * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
-///   _content_ is `(content_type = response_body, example = "...", examples(...))`. _`example`_
-///   and _`examples`_ are optional arguments. Examples attribute behaves exactly same way as in
-///   the response and is mutually exclusive with the example attribute.
+/// * `content((...), (...))` Can be used to define multiple return types for single response status. Supports same syntax as
+///   [multiple request body content][`macro@path#multiple-request-body-content`].
 ///
 /// * `examples(...)` Define multiple examples for single response. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
@@ -1156,13 +1150,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///         headers(...),
 ///         example = json!({"id": 1, "name": "bob the cat"})
 ///     )
-/// )
-/// ```
-///
-/// **Response with multiple response content types:**
-/// ```text
-/// responses(
-///     (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
 /// )
 /// ```
 ///
@@ -1628,8 +1615,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///     path = "/user",
 ///     responses(
 ///         (status = 200, content(
-///                 ("application/vnd.user.v1+json" = User1, example = json!({"id": "id".to_string()})),
-///                 ("application/vnd.user.v2+json" = User2, example = json!({"id": 2}))
+///                 (User1 = "application/vnd.user.v1+json", example = json!({"id": "id".to_string()})),
+///                 (User2 = "application/vnd.user.v2+json", example = json!({"id": 2}))
 ///             )
 ///         )
 ///     )
@@ -2525,15 +2512,11 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str. This can be used to
 ///   override the default description resolved from doc comments if present.
 ///
-/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
-///   from the `body` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and mixed enum types.
-///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `body` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2692,15 +2675,11 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str. This can be used to
 ///   override the default description resolved from doc comments if present.
 ///
-/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
-///   from the `body` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and mixed enum types.
-///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `body` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///

@@ -14,14 +14,14 @@ use syn::{
 
 use crate::component::schema::{EnumSchema, NamedStructSchema, Root};
 use crate::doc_comment::CommentAttributes;
-use crate::path::{InlineType, PathType};
+use crate::path::media_type::{DefaultSchema, MediaTypeAttr, ParsedType, Schema};
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Array, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
 use super::{
-    Content, DeriveIntoResponsesValue, DeriveResponseValue, DeriveResponsesAttributes,
-    DeriveToResponseValue, ResponseTuple, ResponseTupleInner, ResponseValue,
+    DeriveIntoResponsesValue, DeriveResponseValue, DeriveToResponseValue, ResponseTuple,
+    ResponseTupleInner, ResponseValue,
 };
 
 pub struct ToResponse<'r> {
@@ -281,23 +281,26 @@ impl<'u> UnnamedStructResponse<'u> {
             (false, false) => Self(
                 (
                     status_code,
-                    ResponseValue::from_derive_into_responses_value(derive_value, description)
-                        .response_type(Some(PathType::MediaType(InlineType {
+                    ResponseValue::from_derive_into_responses_value(
+                        derive_value,
+                        ParsedType {
                             ty: Cow::Borrowed(ty),
                             is_inline,
-                        }))),
+                        },
+                        description,
+                    ),
                 )
                     .into(),
             ),
             (true, false) => Self(ResponseTuple {
-                inner: Some(ResponseTupleInner::Ref(InlineType {
+                inner: Some(ResponseTupleInner::Ref(ParsedType {
                     ty: Cow::Borrowed(ty),
                     is_inline: false,
                 })),
                 status_code,
             }),
             (false, true) => Self(ResponseTuple {
-                inner: Some(ResponseTupleInner::Ref(InlineType {
+                inner: Some(ResponseTupleInner::Ref(ParsedType {
                     ty: Cow::Borrowed(ty),
                     is_inline: true,
                 })),
@@ -358,11 +361,14 @@ impl NamedStructResponse<'_> {
         Ok(Self(
             (
                 status_code,
-                ResponseValue::from_derive_into_responses_value(derive_value, description)
-                    .response_type(Some(PathType::InlineSchema(
-                        inline_schema.to_token_stream(),
-                        ty,
-                    ))),
+                ResponseValue::from_derive_into_responses_value(
+                    derive_value,
+                    Schema::Default(DefaultSchema::Raw {
+                        tokens: inline_schema.to_token_stream(),
+                        ty: Cow::Owned(ty),
+                    }),
+                    description,
+                ),
             )
                 .into(),
         ))
@@ -393,7 +399,11 @@ impl UnitStructResponse<'_> {
         Ok(Self(
             (
                 status_code,
-                ResponseValue::from_derive_into_responses_value(derive_value, description),
+                ResponseValue::from_derive_into_responses_value(
+                    derive_value,
+                    Schema::Default(DefaultSchema::None),
+                    description,
+                ),
             )
                 .into(),
         ))
@@ -437,13 +447,26 @@ impl<'p> ToResponseNamedStructResponse<'p> {
             fields,
             Vec::new(),
         )?;
-        let response_type = PathType::InlineSchema(inline_schema.to_token_stream(), ty);
 
-        let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
-            derive_value,
-            description,
-        });
-        response_value.response_type = Some(response_type);
+        let response_value = if let Some(derive_value) = derive_value {
+            ResponseValue::from_derive_to_response_value(
+                derive_value,
+                Schema::Default(DefaultSchema::Raw {
+                    tokens: inline_schema.to_token_stream(),
+                    ty: Cow::Owned(ty),
+                }),
+                description,
+            )
+        } else {
+            ResponseValue::from_schema(
+                Schema::Default(DefaultSchema::Raw {
+                    tokens: inline_schema.to_token_stream(),
+                    ty: Cow::Owned(ty),
+                }),
+                description,
+            )
+        };
+        // response_value.response_type = Some(response_type);
 
         Ok(Self(response_value.into()))
     }
@@ -483,20 +506,31 @@ impl<'u> ToResponseUnnamedStructResponse<'u> {
         let is_inline = inner_attributes
             .iter()
             .any(|attribute| attribute.path().get_ident().unwrap() == "to_schema");
-        let mut response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
-            description,
-            derive_value,
-        });
 
-        response_value.response_type = Some(PathType::MediaType(InlineType {
-            ty: Cow::Borrowed(ty),
-            is_inline,
-        }));
+        let response_value = if let Some(derive_value) = derive_value {
+            ResponseValue::from_derive_to_response_value(
+                derive_value,
+                ParsedType {
+                    ty: Cow::Borrowed(ty),
+                    is_inline,
+                },
+                description,
+            )
+        } else {
+            ResponseValue::from_schema(
+                ParsedType {
+                    ty: Cow::Borrowed(ty),
+                    is_inline,
+                },
+                description,
+            )
+        };
 
         Ok(Self(response_value.into()))
     }
 }
 
+#[cfg_attr(feature = "debug", derive(Debug))]
 struct VariantAttributes<'r> {
     type_and_content: Option<(&'r Type, String)>,
     derive_value: Option<DeriveToResponseValue>,
@@ -530,13 +564,13 @@ impl<'r> EnumResponse<'r> {
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
 
-        let variants_content = variants
+        let content = variants
             .into_iter()
             .map(Self::parse_variant_attributes)
             .collect::<Result<Vec<VariantAttributes>, Diagnostics>>()?
             .into_iter()
-            .filter_map(Self::to_content);
-        let content: Punctuated<Content, Comma> = Punctuated::from_iter(variants_content);
+            .filter(|variant| variant.type_and_content.is_some())
+            .collect::<Vec<_>>();
 
         let derive_value = DeriveToResponseValue::from_attributes(attributes)?;
         if let Some(derive_value) = &derive_value {
@@ -557,27 +591,88 @@ impl<'r> EnumResponse<'r> {
             }
         }
 
-        let mut response_value: ResponseValue = From::from(DeriveResponsesAttributes {
-            derive_value,
-            description,
-        });
-        response_value.response_type = if content.is_empty() {
-            let generics = Generics::default();
-            let parent = &Root {
-                ident,
-                attributes,
-                generics: &generics,
-            };
-            let inline_schema = EnumSchema::new(parent, variants)?;
-
-            Some(PathType::InlineSchema(
-                inline_schema.into_token_stream(),
-                ty,
-            ))
-        } else {
-            None
+        let generics = Generics::default();
+        let root = &Root {
+            ident,
+            attributes,
+            generics: &generics,
         };
-        response_value.content = content;
+        let inline_schema = EnumSchema::new(root, variants)?;
+
+        let response_value = if content.is_empty() {
+            if let Some(derive_value) = derive_value {
+                ResponseValue::from_derive_to_response_value(
+                    derive_value,
+                    Schema::Default(DefaultSchema::None),
+                    description,
+                )
+            } else {
+                ResponseValue::from_schema(
+                    Schema::Default(DefaultSchema::Raw {
+                        tokens: inline_schema.to_token_stream(),
+                        ty: Cow::Owned(ty),
+                    }),
+                    description,
+                )
+            }
+        } else {
+            let content = content
+                .into_iter()
+                .map(
+                    |VariantAttributes {
+                         type_and_content,
+                         derive_value,
+                         is_inline,
+                     }| {
+                        let (content_type, schema) = if let Some((ty, content)) = type_and_content {
+                            (
+                                Some(content.into()),
+                                Some(Schema::Default(DefaultSchema::TypePath(ParsedType {
+                                    ty: Cow::Borrowed(ty),
+                                    is_inline,
+                                }))),
+                            )
+                        } else {
+                            (None, None)
+                        };
+                        let (example, examples) = if let Some(derive_value) = derive_value {
+                            (
+                                derive_value.example.map(|(example, _)| example),
+                                derive_value.examples.map(|(examples, _)| examples),
+                            )
+                        } else {
+                            (None, None)
+                        };
+
+                        MediaTypeAttr {
+                            content_type,
+                            schema: schema.unwrap_or_else(|| Schema::Default(DefaultSchema::None)),
+                            example,
+                            examples: examples.unwrap_or_default(),
+                        }
+                    },
+                )
+                .collect::<Vec<_>>();
+
+            let mut response = if let Some(derive_value) = derive_value {
+                ResponseValue::from_derive_to_response_value(
+                    derive_value,
+                    Schema::Default(DefaultSchema::None),
+                    description,
+                )
+            } else {
+                ResponseValue::from_schema(
+                    Schema::Default(DefaultSchema::Raw {
+                        tokens: inline_schema.to_token_stream(),
+                        ty: Cow::Owned(ty),
+                    }),
+                    description,
+                )
+            };
+            response.content = content;
+
+            response
+        };
 
         Ok(Self(response_value.into()))
     }
@@ -627,35 +722,6 @@ impl<'r> EnumResponse<'r> {
             is_inline,
         })
     }
-
-    fn to_content(
-        VariantAttributes {
-            type_and_content: field_and_content,
-            mut derive_value,
-            is_inline,
-        }: VariantAttributes,
-    ) -> Option<Content<'_>> {
-        let (example, examples) = if let Some(variant_derive) = &mut derive_value {
-            (
-                mem::take(&mut variant_derive.example),
-                mem::take(&mut variant_derive.examples),
-            )
-        } else {
-            (None, None)
-        };
-
-        field_and_content.map(|(ty, content_type)| {
-            Content(
-                content_type,
-                PathType::MediaType(InlineType {
-                    ty: Cow::Borrowed(ty),
-                    is_inline,
-                }),
-                example.map(|(example, _)| example),
-                examples.map(|(examples, _)| examples),
-            )
-        })
-    }
 }
 
 struct ToResponseUnitStructResponse<'u>(ResponseTuple<'u>);
@@ -676,10 +742,19 @@ impl ToResponseUnitStructResponse<'_> {
             let s = CommentAttributes::from_attributes(attributes).as_formatted_string();
             parse_utils::LitStrOrExpr::LitStr(LitStr::new(&s, Span::call_site()))
         };
-        let response_value: ResponseValue = ResponseValue::from(DeriveResponsesAttributes {
-            derive_value,
-            description,
-        });
+
+        let response_value = if let Some(derive_value) = derive_value {
+            ResponseValue::from_derive_to_response_value(
+                derive_value,
+                Schema::Default(DefaultSchema::None),
+                description,
+            )
+        } else {
+            ResponseValue {
+                description,
+                ..Default::default()
+            }
+        };
 
         Ok(Self(response_value.into()))
     }

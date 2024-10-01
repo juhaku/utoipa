@@ -24,12 +24,12 @@ use crate::{
             },
             Feature, ToTokensExt,
         },
-        ComponentSchema, Container,
+        ComponentSchema, Container, TypeTree,
     },
     parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
 
-use super::InlineType;
+use super::media_type::ParsedType;
 
 /// Parameter of request such as in path, header, query or cookie
 ///
@@ -192,7 +192,7 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 Ok(())
             }
             ParameterType::Parsed(inline_type) => {
-                let type_tree = inline_type.as_type_tree()?;
+                let type_tree = TypeTree::from_type(inline_type.ty.as_ref())?;
                 let required: Required = (!type_tree.is_option()).into();
                 let mut schema_features = Vec::<Feature>::new();
                 schema_features.clone_from(&self.features);
@@ -224,7 +224,7 @@ enum ParameterType<'p> {
         feature = "axum_extras"
     ))]
     External(crate::component::TypeTree<'p>),
-    Parsed(InlineType<'p>),
+    Parsed(ParsedType<'p>),
 }
 
 #[derive(Default)]

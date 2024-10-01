@@ -48,7 +48,7 @@ impl Parse for MediaTypeAttr<'_> {
                             Error::new(
                                 error.span(),
                                 format!(
-                                    "missing content type e.g. `\"application/json\"`, {error}"
+                                    r#"missing content type e.g. `"application/json"`, {error}"#
                                 ),
                             )
                         })?,
@@ -97,11 +97,24 @@ impl<'m> MediaTypeAttr<'m> {
         let name = &*attribute.to_string();
 
         match name {
-            "example" => media_type.example = Some(parse_utils::parse_next(input, || AnyValue::parse_any(input))?),
-            "examples" => media_type.examples = parse_utils::parse_comma_separated_within_parenthesis(input)?,
+            "example" => {
+                media_type.example = Some(parse_utils::parse_next(input, || {
+                    AnyValue::parse_any(input)
+                })?)
+            }
+            "examples" => {
+                media_type.examples = parse_utils::parse_comma_separated_within_parenthesis(input)?
+            }
             // // TODO implement encoding support
             // "encoding" => (),
-            unexpected => return Err(syn::Error::new(attribute.span(), format!("unexpected attribute: {unexpected}, expected any of: schema, example, examples"))),
+            unexpected => {
+                return Err(syn::Error::new(
+                    attribute.span(),
+                    format!(
+                        "unexpected attribute: {unexpected}, expected any of: example, examples"
+                    ),
+                ))
+            }
         }
 
         if !input.is_empty() {
@@ -211,6 +224,11 @@ pub enum DefaultSchema<'d> {
     /// `content_type` without actual schema.
     #[default]
     None,
+    /// Support for raw tokens as Schema. Used in response derive.
+    Raw {
+        tokens: TokenStream,
+        ty: Cow<'d, Type>,
+    },
 }
 
 impl ToTokensDiagnostics for DefaultSchema<'_> {
@@ -234,6 +252,11 @@ impl ToTokensDiagnostics for DefaultSchema<'_> {
                 .to_token_stream();
 
                 component_tokens.to_tokens(tokens);
+            }
+            Self::Raw {
+                tokens: raw_tokens, ..
+            } => {
+                raw_tokens.to_tokens(tokens);
             }
             // nada
             Self::None => (),
@@ -271,6 +294,10 @@ impl DefaultSchema<'_> {
                 Ok(type_tree.get_default_content_type())
             }
             Self::Ref(_) => Ok(Cow::Borrowed("application/json")),
+            Self::Raw { ty, .. } => {
+                let type_tree = TypeTree::from_type(ty.as_ref())?;
+                Ok(type_tree.get_default_content_type())
+            }
             Self::None => Ok(Cow::Borrowed("")),
         }
     }
@@ -318,11 +345,17 @@ impl Parse for DefaultSchema<'_> {
     }
 }
 
+impl<'r> From<ParsedType<'r>> for Schema<'r> {
+    fn from(value: ParsedType<'r>) -> Self {
+        Self::Default(DefaultSchema::TypePath(value))
+    }
+}
+
 // inline(syn::TypePath) | syn::TypePath
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ParsedType<'i> {
-    ty: Cow<'i, Type>,
-    is_inline: bool,
+    pub ty: Cow<'i, Type>,
+    pub is_inline: bool,
 }
 
 impl ParsedType<'_> {
