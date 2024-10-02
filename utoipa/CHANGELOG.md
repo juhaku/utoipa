@@ -490,6 +490,7 @@ Migration guide: https://github.com/juhaku/utoipa/discussions/456
 
 ### Changed
 
+* Fix typos in changelog
 * Refactor `ToResponse` trait (https://github.com/juhaku/utoipa/pull/460)
 * Refactor to schema casting as (https://github.com/juhaku/utoipa/pull/459)
 * Enhance generic aliases with lifetimes support (https://github.com/juhaku/utoipa/pull/458)
