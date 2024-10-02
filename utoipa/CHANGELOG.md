@@ -324,7 +324,7 @@
 * Bump rocket to v0.5.0-rc.3 (https://github.com/juhaku/utoipa/pull/577)
 * feat: Allow default value on Content::examples (https://github.com/juhaku/utoipa/pull/579)
 * Allow value_type serde_json::Value (https://github.com/juhaku/utoipa/pull/568)
-* Rename AdditionalProperites->AdditionalProperties (https://github.com/juhaku/utoipa/pull/564)
+* Rename AdditionalProperties (https://github.com/juhaku/utoipa/pull/564)
 * Cargo format
 * Update utoipa-swagger-ui version
 
