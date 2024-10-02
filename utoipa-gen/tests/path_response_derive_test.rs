@@ -685,3 +685,33 @@ fn path_response_default_no_value_nor_ref() {
         })
     )
 }
+
+#[test]
+fn path_response_with_no_schema() {
+    #![allow(unused)]
+
+    /// Post some secret inner handler
+    #[utoipa::path(post, path = "/api/inner/secret", responses(
+        (status = OK, content_type = "application/octet-stream")
+    ))]
+    pub async fn post_secret() {}
+
+    let operation = __path_post_secret::operation();
+    let value = serde_json::to_value(operation).expect("operation is JSON serializable");
+
+    assert_json_eq!(
+        value,
+        json!({
+            "operationId": "post_secret",
+            "responses": {
+                "200": {
+                    "content": {
+                        "application/octet-stream": {}
+                    },
+                    "description": ""
+                }
+            },
+            "summary": "Post some secret inner handler"
+        })
+    )
+}
