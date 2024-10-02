@@ -421,7 +421,8 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                 });
 
                 for media_type in value.content.iter().filter(|media_type| {
-                    !matches!(media_type.schema, Schema::Default(DefaultSchema::None))
+                    !(matches!(media_type.schema, Schema::Default(DefaultSchema::None))
+                        && media_type.content_type.is_none())
                 }) {
                     let default_content_type = media_type.schema.get_default_content_type()?;
 
