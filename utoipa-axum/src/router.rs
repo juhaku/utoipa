@@ -42,6 +42,10 @@ fn path_template<S: AsRef<str>>(path: S) -> String {
 ///
 /// [routes]: ../macro.routes.html
 pub type UtoipaMethodRouter<S = (), E = Infallible> = (
+    Vec<(
+        String,
+        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+    )>,
     utoipa::openapi::path::Paths,
     axum::routing::MethodRouter<S, E>,
 );
@@ -108,18 +112,18 @@ where
         S: 'static,
         NewError: 'static,
     {
-        (self.0, self.1.layer(layer))
+        (self.0, self.1, self.2.layer(layer))
     }
 
     fn with_state<S2>(self, state: S) -> UtoipaMethodRouter<S2, E> {
-        (self.0, self.1.with_state(state))
+        (self.0, self.1, self.2.with_state(state))
     }
 
     fn map<NewError>(
         self,
         op: impl FnOnce(MethodRouter<S, E>) -> MethodRouter<S, NewError>,
     ) -> UtoipaMethodRouter<S, NewError> {
-        (self.0, op(self.1))
+        (self.0, self.1, op(self.2))
     }
 }
 
@@ -212,7 +216,7 @@ where
     /// [`axum::routing::MethodRouter`] will be added to the [`axum::Router`].
     ///
     /// [routes]: ../macro.routes.html
-    pub fn routes(mut self, (mut paths, method_router): UtoipaMethodRouter<S>) -> Self {
+    pub fn routes(mut self, (schemas, mut paths, method_router): UtoipaMethodRouter<S>) -> Self {
         let router = if paths.paths.len() == 1 {
             let first_entry = &paths.paths.first_entry();
             let path = first_entry.as_ref().map(|path| path.key());
@@ -231,6 +235,11 @@ where
 
         // add current paths to the OpenApi
         self.1.paths.paths.extend(paths.paths.clone());
+        let components = self
+            .1
+            .components
+            .get_or_insert(utoipa::openapi::Components::new());
+        components.schemas.extend(schemas);
 
         Self(router, self.1)
     }

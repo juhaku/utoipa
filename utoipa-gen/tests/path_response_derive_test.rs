@@ -663,6 +663,8 @@ fn path_response_with_inline_ref_type() {
 
 #[test]
 fn path_response_default_no_value_nor_ref() {
+    #![allow(unused)]
+
     /// Post some secret inner handler
     #[utoipa::path(post, path = "/api/inner/secret", responses((status = OK)))]
     pub async fn post_secret() {}
