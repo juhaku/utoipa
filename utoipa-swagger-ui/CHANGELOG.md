@@ -15,6 +15,7 @@
 
 ### Changed
 
+* [2611200](https://github.com/juhaku/utoipa/commit/2611200) Update to rc
 * [78656b6](https://github.com/juhaku/utoipa/commit/78656b6) Always use system `curl` by default (https://github.com/juhaku/utoipa/pull/1045)
 * [a985d8c](https://github.com/juhaku/utoipa/commit/a985d8c) Remove Redirect Causing Invalid URIs for Swagger UIs Server on / (https://github.com/juhaku/utoipa/pull/1043)
 * [c36f877](https://github.com/juhaku/utoipa/commit/c36f877) Use fs::read to overwrite swagger UI contents (https://github.com/juhaku/utoipa/pull/1022)

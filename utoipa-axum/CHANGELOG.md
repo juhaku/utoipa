@@ -21,6 +21,7 @@
 
 ### Changed
 
+* [2611200](https://github.com/juhaku/utoipa/commit/2611200) Update to rc
 * [b0ae6ef](https://github.com/juhaku/utoipa/commit/b0ae6ef) Chore change the operations implementation. (https://github.com/juhaku/utoipa/pull/1026)
 * [8d8ff6e](https://github.com/juhaku/utoipa/commit/8d8ff6e) Update utoipa-axum version
 * [90ec7a6](https://github.com/juhaku/utoipa/commit/90ec7a6) Enhance `utoipa-axum` bindings (https://github.com/juhaku/utoipa/pull/1017)

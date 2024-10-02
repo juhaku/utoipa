@@ -54,6 +54,7 @@
 
 ### Changed
 
+* [2611200](https://github.com/juhaku/utoipa/commit/2611200) Update to rc
 * [ac13f48](https://github.com/juhaku/utoipa/commit/ac13f48) Chore unify request body and ext request body (https://github.com/juhaku/utoipa/pull/1067)
 * [e0c5aa7](https://github.com/juhaku/utoipa/commit/e0c5aa7) Refactor structs processing (https://github.com/juhaku/utoipa/pull/1060)
 * [576f6c1](https://github.com/juhaku/utoipa/commit/576f6c1) Update README.md

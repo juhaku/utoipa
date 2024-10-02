@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-axum"
 description = "Utoipa's axum bindings for seamless integration for the two"
-version = "0.1.0-beta.2"
+version = "0.1.0-rc.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -16,7 +16,7 @@ debug = []
 
 [dependencies]
 axum = { version = "0.7", default-features = false }
-utoipa = { version = "5.0.0-beta", path = "../utoipa", default-features = false, features = [
+utoipa = { version = "5.0.0-rc", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
 tower-service = "0.3"

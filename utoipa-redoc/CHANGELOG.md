@@ -14,6 +14,7 @@
 
 ### Changed
 
+* [2611200](https://github.com/juhaku/utoipa/commit/2611200) Update to rc
 * [57ba3ba](https://github.com/juhaku/utoipa/commit/57ba3ba) Update next beta versions
 * [509e8e7](https://github.com/juhaku/utoipa/commit/509e8e7) Chore fix clippy lint (https://github.com/juhaku/utoipa/pull/1010)
 * [1af4ad4](https://github.com/juhaku/utoipa/commit/1af4ad4) Chore update docs and relax `url` version (https://github.com/juhaku/utoipa/pull/1001)
