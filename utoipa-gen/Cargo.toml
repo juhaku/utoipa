@@ -14,7 +14,7 @@ rust-version.workspace = true
 proc-macro = true
 
 [dependencies]
-utoipa-config = { version = "0.1", path = "../utoipa-config", optional = true }
+utoipa-config = { version = "0.1.0-rc", path = "../utoipa-config", optional = true }
 once_cell = { version = "1.19.0", optional = true }
 proc-macro2 = "1.0"
 syn = { version = "2.0", features = ["full", "extra-traits"] }

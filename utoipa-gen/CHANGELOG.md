@@ -37,7 +37,8 @@
 
 ### Changed
 
-* Remove commit commit id from changelogs(https://github.com/juhaku/utoipa/pull/1077)
+* Update `utoipa-config` version
+* Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc version
 * Chore unify request body and ext request body (https://github.com/juhaku/utoipa/pull/1067)
 * Refactor structs processing (https://github.com/juhaku/utoipa/pull/1060)
