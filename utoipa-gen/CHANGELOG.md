@@ -19,7 +19,7 @@
 * Add `description` attribute on `ToSchema` (https://github.com/juhaku/utoipa/pull/949)
 * Add support for description and summary overriding (https://github.com/juhaku/utoipa/pull/948)
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
-* Add support for addtional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
+* Add support for additional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
 
 ### Fixed
 
@@ -37,6 +37,7 @@
 
 ### Changed
 
+* Fix typos
 * Update `utoipa-config` version
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc version
@@ -64,7 +65,7 @@
 * Implement automatic schema collection for requests (https://github.com/juhaku/utoipa/pull/1066)
 * Refactor enums processing (https://github.com/juhaku/utoipa/pull/1059)
 * Add support for real generics (https://github.com/juhaku/utoipa/pull/1034)
-* Add support to define mulitple operation methods (https://github.com/juhaku/utoipa/pull/1006)
+* Add support to define multiple operation methods (https://github.com/juhaku/utoipa/pull/1006)
 * Feature openapi 31 (https://github.com/juhaku/utoipa/pull/981)
 * Enhance OpenApi nesting with tags support (https://github.com/juhaku/utoipa/pull/932)
 * allow for multiple req body content_type (https://github.com/juhaku/utoipa/pull/876)
@@ -244,7 +245,7 @@
 * Allow additional integer types (https://github.com/juhaku/utoipa/pull/575)
 * Bump rocket to v0.5.0-rc.3 (https://github.com/juhaku/utoipa/pull/577)
 * Allow value_type serde_json::Value (https://github.com/juhaku/utoipa/pull/568)
-* Rename AdditionalProperites->AdditionalProperties (https://github.com/juhaku/utoipa/pull/564)
+* Rename AdditionalProperties (https://github.com/juhaku/utoipa/pull/564)
 
 ## 3.2.1 - May 31 2023
 
@@ -270,7 +271,7 @@
 ### Changed
 
 * Update next release versions
-* Refactor alises support on `ToSchema` derive (https://github.com/juhaku/utoipa/pull/546)
+* Refactor aliases support on `ToSchema` derive (https://github.com/juhaku/utoipa/pull/546)
 * Upgrade to syn2 (https://github.com/juhaku/utoipa/pull/542)
 
 ## 3.1.2 - May 20 2023
@@ -378,7 +379,7 @@
 * Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397) 
 * Add derive servers attribute for OpenApi (https://github.com/juhaku/utoipa/pull/395)
 * Add support for unit sructs (https://github.com/juhaku/utoipa/pull/392)
-* Add support for `schema_with` custon fn reference (https://github.com/juhaku/utoipa/pull/390)
+* Add support for `schema_with` custom fn reference (https://github.com/juhaku/utoipa/pull/390)
 * Add support for multiple serde definitions (https://github.com/juhaku/utoipa/pull/389)
 * Add support for tuple Path parameters for axum (https://github.com/juhaku/utoipa/pull/388)
 * Add derive validation attributes to `IntoParams` (https://github.com/juhaku/utoipa/pull/386)
@@ -399,17 +400,17 @@
 
 ### Changed
 
-* Refactor `ToReponse` trait (https://github.com/juhaku/utoipa/pull/460)
+* Refactor `ToResponse` trait (https://github.com/juhaku/utoipa/pull/460)
 * Refactor to schema casting as (https://github.com/juhaku/utoipa/pull/459)
 * Enhance generic aliases with lifetimes support (https://github.com/juhaku/utoipa/pull/458)
 * Enhance path tuple argument support (https://github.com/juhaku/utoipa/pull/455)
 * Update versions
 * Improve docs (https://github.com/juhaku/utoipa/pull/444)
-* Enhance reponses derive support (https://github.com/juhaku/utoipa/pull/443)
+* Enhance responses derive support (https://github.com/juhaku/utoipa/pull/443)
 * Feat/serde enum representation (https://github.com/juhaku/utoipa/pull/414)
 * Enhance `ToResponse` implementation (https://github.com/juhaku/utoipa/pull/419)
-* Addresss clippy lint
-* Improve documenetation
+* Address clippy lint
+* Improve documentation
 * Enhance repeated attributes support (https://github.com/juhaku/utoipa/pull/411)
 * Make derive OpenApi server variable names LitStr
 * Refactor `Type` to `TypeTree` (https://github.com/juhaku/utoipa/pull/408)

@@ -26,7 +26,7 @@
 * Address clippy lints and refactor serde parsing (https://github.com/juhaku/utoipa/pull/931)
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
 * Add `merge_from` method for chainable merge (https://github.com/juhaku/utoipa/pull/924)
-* Add support for addtional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
+* Add support for additional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
 
 ### Fixed
 
@@ -54,6 +54,7 @@
 
 ### Changed
 
+* Fix typos
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc version
 * Chore unify request body and ext request body (https://github.com/juhaku/utoipa/pull/1067)
@@ -99,7 +100,7 @@
 * Add support for real generics (https://github.com/juhaku/utoipa/pull/1034)
 * Chore change the operations implementation. (https://github.com/juhaku/utoipa/pull/1026)
 * Add macros feature flag (https://github.com/juhaku/utoipa/pull/1015)
-* Add support to define mulitple operation methods (https://github.com/juhaku/utoipa/pull/1006)
+* Add support to define multiple operation methods (https://github.com/juhaku/utoipa/pull/1006)
 * Feature openapi 31 (https://github.com/juhaku/utoipa/pull/981)
 * Enhance utoipa-swagger-ui build (https://github.com/juhaku/utoipa/pull/936)
 * Enhance OpenApi nesting with tags support (https://github.com/juhaku/utoipa/pull/932)
@@ -353,7 +354,7 @@
 ### Changed
 
 * Update next release versions
-* Refactor alises support on `ToSchema` derive (https://github.com/juhaku/utoipa/pull/546)
+* Refactor aliases support on `ToSchema` derive (https://github.com/juhaku/utoipa/pull/546)
 * Upgrade to syn2 (https://github.com/juhaku/utoipa/pull/542)
 
 ## 3.1.2 - Mar 20 2023
@@ -465,7 +466,7 @@ Migration guide: https://github.com/juhaku/utoipa/discussions/456
 * Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397)
 * Add derive servers attribute for OpenApi (https://github.com/juhaku/utoipa/pull/395)
 * Add support for unit sructs (https://github.com/juhaku/utoipa/pull/392)
-* Add support for `schema_with` custon fn reference (https://github.com/juhaku/utoipa/pull/390)
+* Add support for `schema_with` custom fn reference (https://github.com/juhaku/utoipa/pull/390)
 * Add support for multiple serde definitions (https://github.com/juhaku/utoipa/pull/389)
 * Add support for tuple Path parameters for axum (https://github.com/juhaku/utoipa/pull/388)
 * Add derive validation attributes to `IntoParams` (https://github.com/juhaku/utoipa/pull/386)
@@ -484,12 +485,12 @@ Migration guide: https://github.com/juhaku/utoipa/discussions/456
 * Fix time-crate typo in schema format tokens (https://github.com/juhaku/utoipa/pull/401)
 * Fix primitive type generic aliases (https://github.com/juhaku/utoipa/pull/393)
 * Fix `TypeTree` for `slice` and `array` types (https://github.com/juhaku/utoipa/pull/387)
-* Fix minum axum version info
+* Fix minimum axum version info
 * Fix broken swagger-ui on axum  (https://github.com/juhaku/utoipa/pull/370)
 
 ### Changed
 
-* Refactor `ToReponse` trait (https://github.com/juhaku/utoipa/pull/460)
+* Refactor `ToResponse` trait (https://github.com/juhaku/utoipa/pull/460)
 * Refactor to schema casting as (https://github.com/juhaku/utoipa/pull/459)
 * Enhance generic aliases with lifetimes support (https://github.com/juhaku/utoipa/pull/458)
 * Enhance path tuple argument support (https://github.com/juhaku/utoipa/pull/455)
@@ -497,13 +498,13 @@ Migration guide: https://github.com/juhaku/utoipa/discussions/456
 * Update README
 * Update docs
 * Improve docs (https://github.com/juhaku/utoipa/pull/444)
-* Enhance reponses derive support (https://github.com/juhaku/utoipa/pull/443)
+* Enhance responses derive support (https://github.com/juhaku/utoipa/pull/443)
 * Document `preserve_order` feature flag (https://github.com/juhaku/utoipa/pull/437)
 * Feat/serde enum representation (https://github.com/juhaku/utoipa/pull/414)
 * Enhance `ToResponse` implementation (https://github.com/juhaku/utoipa/pull/419)
 * Swagger UI url config (https://github.com/juhaku/utoipa/pull/418)
-* Addresss clippy lint
-* Improve documenetation
+* Address clippy lint
+* Improve documentation
 * Enhance repeated attributes support (https://github.com/juhaku/utoipa/pull/411)
 * Make derive OpenApi server variable names LitStr
 * Refactor `Type` to `TypeTree` (https://github.com/juhaku/utoipa/pull/408)

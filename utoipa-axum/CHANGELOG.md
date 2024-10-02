@@ -9,7 +9,7 @@
 * Add paths support for routes! macro (https://github.com/juhaku/utoipa/pull/1023)
 * Add macros feature flag (https://github.com/juhaku/utoipa/pull/1015)
 * Add `utoipa-axum` binding example and update docs (https://github.com/juhaku/utoipa/pull/1007)
-* Add support to define mulitple operation methods (https://github.com/juhaku/utoipa/pull/1006)
+* Add support to define multiple operation methods (https://github.com/juhaku/utoipa/pull/1006)
 * Add utoipa axum bindings (https://github.com/juhaku/utoipa/pull/1004)
 
 ### Fixed
@@ -21,6 +21,7 @@
 
 ### Changed
 
+* Fix typos
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc version
 * Chore change the operations implementation. (https://github.com/juhaku/utoipa/pull/1026)
