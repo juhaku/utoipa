@@ -52,13 +52,9 @@ async fn main() -> Result<(), io::Error> {
 mod customer {
     use axum::Json;
     use serde::Serialize;
-    use utoipa::{OpenApi, ToSchema};
+    use utoipa::ToSchema;
     use utoipa_axum::router::OpenApiRouter;
     use utoipa_axum::routes;
-
-    #[derive(OpenApi)]
-    #[openapi(components(schemas(Customer)))]
-    struct CustomerApi;
 
     /// This is the customer
     #[derive(ToSchema, Serialize)]
@@ -68,7 +64,7 @@ mod customer {
 
     /// expose the Customer OpenAPI to parent module
     pub fn router() -> OpenApiRouter {
-        OpenApiRouter::with_openapi(CustomerApi::openapi()).routes(routes!(get_customer))
+        OpenApiRouter::new().routes(routes!(get_customer))
     }
 
     /// Get customer
@@ -85,13 +81,9 @@ mod customer {
 mod order {
     use axum::Json;
     use serde::{Deserialize, Serialize};
-    use utoipa::{OpenApi, ToSchema};
+    use utoipa::ToSchema;
     use utoipa_axum::router::OpenApiRouter;
     use utoipa_axum::routes;
-
-    #[derive(OpenApi)]
-    #[openapi(components(schemas(Order, OrderRequest)))]
-    struct OrderApi;
 
     /// This is the order
     #[derive(ToSchema, Serialize)]
@@ -107,7 +99,7 @@ mod order {
 
     /// expose the Order OpenAPI to parent module
     pub fn router() -> OpenApiRouter {
-        OpenApiRouter::with_openapi(OrderApi::openapi()).routes(routes!(get_order, create_order))
+        OpenApiRouter::new().routes(routes!(get_order, create_order))
     }
 
     /// Get static order object
