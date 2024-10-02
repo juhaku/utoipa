@@ -1,6 +1,6 @@
-//! Implements [OpenAPI Extensions][external_docs].
+//! Implements [OpenAPI Extensions][extensions].
 //!
-/// [extensions]: https://spec.openapis.org/oas/latest.html#specification-extensions
+//! [extensions]: https://spec.openapis.org/oas/latest.html#specification-extensions
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
