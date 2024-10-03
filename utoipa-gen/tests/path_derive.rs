@@ -2535,7 +2535,7 @@ fn derive_path_test_collect_generic_array_request_body() {
     }
 
     #[derive(ToSchema)]
-    struct CreateRequest<T: ToSchema> {
+    struct CreateRequest<T> {
         value: T,
     }
 
@@ -2624,7 +2624,7 @@ fn derive_path_test_collect_generic_request_body() {
     }
 
     #[derive(ToSchema)]
-    struct CreateRequest<T: ToSchema> {
+    struct CreateRequest<T> {
         value: T,
     }
 

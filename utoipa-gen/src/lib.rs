@@ -571,12 +571,12 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// # use std::borrow::Cow;
 ///  #[derive(ToSchema)]
 ///  #[schema(as = path::MyType<T>)]
-///  struct Type<T: ToSchema> {
+///  struct Type<T> {
 ///      t: T,
 ///  }
 ///
 ///  #[derive(ToSchema)]
-///  struct Person<'p, T: Sized + ToSchema, P: ToSchema> {
+///  struct Person<'p, T: Sized, P> {
 ///      id: usize,
 ///      name: Option<Cow<'p, str>>,
 ///      field: T,
@@ -585,7 +585,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 ///  #[derive(ToSchema)]
 ///  #[schema(as = path::to::PageList)]
-///  struct Page<T: ToSchema> {
+///  struct Page<T> {
 ///      total: usize,
 ///      page: usize,
 ///      pages: usize,
@@ -594,7 +594,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 ///  #[derive(ToSchema)]
 ///  #[schema(as = path::to::Element<T>)]
-///  enum E<T: ToSchema> {
+///  enum E<T> {
 ///      One(T),
 ///      Many(Vec<T>),
 ///  }

@@ -1,10 +1,8 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
-use utoipa::openapi::{Info, RefOr, Schema};
-use utoipa::openapi::{RefOr, Schema};
 use serde::Serialize;
-use utoipa::openapi::{RefOr, Schema};
+use utoipa::openapi::{Info, RefOr, Schema};
 use utoipa::{schema, OpenApi, ToSchema};
 
 #[test]
