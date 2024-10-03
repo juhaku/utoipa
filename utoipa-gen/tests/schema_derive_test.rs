@@ -62,12 +62,18 @@ fn derive_map_ref() {
         json!({
             "properties": {
                 "map": {
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "$ref": "#/components/schemas/Foo"
                     },
                     "type": "object",
                 },
                 "map2": {
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "type": "string",
                         "enum": ["Variant"]
@@ -328,6 +334,9 @@ fn derive_struct_with_default_attr_field() {
                     ]
                 },
                 "leases": {
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "$ref": "#/components/schemas/Book",
                     },
@@ -430,6 +439,9 @@ fn derive_struct_with_optional_properties() {
                 },
                 "metadata": {
                     "type": ["object", "null"],
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "type": "string"
                     }
@@ -508,6 +520,9 @@ fn derive_struct_with_comments() {
                 "map": {
                     "description": "Map description",
                     "type": "object",
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "type": "string"
                     },
@@ -4180,6 +4195,9 @@ fn derive_struct_field_with_example() {
                 },
                 "field3": {
                     "type": "object",
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "type": "string",
                     },
@@ -4189,6 +4207,9 @@ fn derive_struct_field_with_example() {
                 },
                 "field4": {
                     "type": "object",
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "$ref": "#/components/schemas/MyStruct",
                     },
@@ -4738,6 +4759,9 @@ fn derive_struct_with_deprecated_fields() {
                     }
                 },
                 "map": {
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "type": "string"
                     },
@@ -4799,6 +4823,9 @@ fn derive_struct_with_schema_deprecated_fields() {
                     }
                 },
                 "map": {
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
                         "type": "string"
                     },
@@ -5003,7 +5030,13 @@ fn derive_schema_with_unit_hashmap() {
         json!({
             "properties": {
                 "volumes": {
+                    "propertyNames": {
+                        "type": "string"
+                    },
                     "additionalProperties": {
+                        "propertyNames": {
+                            "default": null,
+                        },
                         "additionalProperties": {
                             "default": null,
                         },
@@ -5618,4 +5651,33 @@ fn derive_negative_numbers() {
             "type": "object"
         })
     }
+}
+
+#[test]
+fn derive_map_with_property_names() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    enum Names {
+        Foo,
+        Bar,
+    }
+
+    let value = api_doc! {
+        struct Mapped(std::collections::BTreeMap<Names, String>);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "propertyNames": {
+                "type": "string",
+                "enum": ["Foo", "Bar"]
+            },
+            "additionalProperties": {
+                "type": "string"
+            },
+            "type": "object"
+        })
+    )
 }

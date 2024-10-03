@@ -622,10 +622,13 @@ fn derive_path_params_map() {
             "name": "with_ref",
             "required": true,
             "schema": {
-              "additionalProperties": {
-                "$ref": "#/components/schemas/Foo"
-              },
-              "type": "object"
+                "propertyNames": {
+                    "type": "string"
+                },
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Foo"
+                },
+                  "type": "object"
             }
           },
           {
@@ -633,10 +636,13 @@ fn derive_path_params_map() {
             "name": "with_type",
             "required": true,
             "schema": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+                "propertyNames": {
+                    "type": "string"
+                },
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
             }
           }
         ]}
@@ -666,10 +672,13 @@ fn derive_path_params_with_examples() {
                 "key": "value"
             },
             "schema": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+                "propertyNames": {
+                    "type": "string"
+                },
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object"
             }
           },
           {
