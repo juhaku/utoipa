@@ -663,6 +663,22 @@ impl_feature! {
     pub struct As(pub TypePath);
 }
 
+impl As {
+    /// Returns this `As` attribute type path formatted as string supported by OpenAPI spec whereas
+    /// double colons (::) are replaced with dot (.).
+    pub fn to_schema_formatted_string(&self) -> String {
+        // See: https://github.com/juhaku/utoipa/pull/187#issuecomment-1173101405
+        // :: are not officially supported in the spec
+        self.0
+            .path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join(".")
+    }
+}
+
 impl Parse for As {
     fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
     where

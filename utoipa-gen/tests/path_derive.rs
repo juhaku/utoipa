@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use utoipa::openapi::RefOr;
 use utoipa::openapi::{Object, ObjectBuilder};
+use utoipa::Path;
 use utoipa::{
     openapi::{Response, ResponseBuilder, ResponsesBuilder},
     IntoParams, IntoResponses, OpenApi, ToSchema,
@@ -2692,6 +2693,50 @@ fn derive_path_test_collect_generic_request_body() {
                 },
                 "required": ["id"],
                 "type": "object"
+            }
+        })
+    );
+}
+
+#[test]
+fn path_derive_with_body_ref_using_as_attribute_schema() {
+    #![allow(unused)]
+
+    #[derive(Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+    #[schema(as = types::calculation::calculation_assembly_cost::v1::CalculationAssemblyCostResponse)]
+    pub struct CalculationAssemblyCostResponse {
+        #[schema(value_type = uuid::Uuid)]
+        pub id: String,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/calculations/assembly-costs",
+        responses(
+            (status = 200, description = "Get calculated cost of an assembly.",
+                body = CalculationAssemblyCostResponse)
+        ),
+    )]
+    async fn handler() {}
+
+    let operation = __path_handler::operation();
+    let operation = serde_json::to_value(&operation).expect("operation is JSON serializable");
+
+    assert_json_eq!(
+        operation,
+        json!({
+            "operationId": "handler",
+            "responses": {
+                "200": {
+                    "description": "Get calculated cost of an assembly.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/types.calculation.calculation_assembly_cost.v1.CalculationAssemblyCostResponse"
+                            },
+                        }
+                    }
+                }
             }
         })
     );
