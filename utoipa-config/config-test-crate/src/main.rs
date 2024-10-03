@@ -15,6 +15,8 @@ struct AliasValues {
     my_value: bool,
 
     date: MyDateTime,
+
+    optional_date: Option<MyDateTime>,
 }
 
 #[allow(unused)]
