@@ -691,9 +691,14 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
         .flatten()
         .map(|handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
+            let handler_config_name = segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("_");
             let handler_fn = &segments.last().unwrap().ident;
             let handler_ident = path::format_path_ident(Cow::Borrowed(handler_fn));
-            let handler_ident_nested = format_ident!("_{}", handler_ident.as_ref());
+            let handler_ident_config = format_ident!("{}_config", handler_config_name);
 
             let tag = segments
                 .iter()
@@ -713,7 +718,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
                 .join("::"),
             )
             .unwrap();
-            (usage, tag, handler_ident_nested)
+            (usage, tag, handler_ident_config)
         })
         .collect::<Vec<_>>();
 
@@ -749,12 +754,15 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
         quote! { #handlers_impls utoipa::openapi::path::PathsBuilder::new() },
         |mut paths, handler| {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
-            let handler_fn = &segments.last().unwrap().ident;
-            let handler_ident_nested =
-                format_ident!("_{}", path::format_path_ident(Cow::Borrowed(handler_fn)));
+            let handler_config_name = segments
+                .iter()
+                .map(|segment| segment.ident.to_string())
+                .collect::<Vec<_>>()
+                .join("_");
+            let handler_ident_config = format_ident!("{}_config", handler_config_name);
 
             paths.extend(quote! {
-                .path_from::<#handler_ident_nested>()
+                .path_from::<#handler_ident_config>()
             });
 
             paths

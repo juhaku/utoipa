@@ -24,6 +24,7 @@
 
 ### Fixed
 
+* Fix nest path config struct name (https://github.com/juhaku/utoipa/pull/1081)
 * Fix `as` attribute path format (https://github.com/juhaku/utoipa/pull/1080)
 * Fix allow response `content_type` without schema (https://github.com/juhaku/utoipa/pull/1073)
 * Fix negative value parsing on schema attributes (https://github.com/juhaku/utoipa/pull/1031)
