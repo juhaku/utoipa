@@ -147,9 +147,10 @@ test_api_fn! {
     /// Additional info in long description
     ///
     /// With more info on separate lines
-    /// containing text.
-    ///
-    /// Yeah
+    /// containing markdown:
+    /// - A
+    ///   Indented.
+    /// - B
     #[deprecated]
 }
 
@@ -164,7 +165,7 @@ fn derive_path_with_all_info_success() {
     common::assert_json_array_len(operation.pointer("/parameters").unwrap(), 1);
     assert_value! {operation=>
        "deprecated" = r#"true"#, "Api fn deprecated status"
-       "description" = r#""Additional info in long description\n\nWith more info on separate lines\ncontaining text.\n\nYeah""#, "Api fn description"
+       "description" = r#""Additional info in long description\n\nWith more info on separate lines\ncontaining markdown:\n- A\n  Indented.\n- B""#, "Api fn description"
        "summary" = r#""This is test operation long multiline\nsummary. That need to be correctly split.""#, "Api fn summary"
        "operationId" = r#""foo_bar_id""#, "Api fn operation_id"
        "tags.[0]" = r#""custom_tag""#, "Api fn tag"
