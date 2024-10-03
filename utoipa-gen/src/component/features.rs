@@ -101,6 +101,7 @@ pub enum Feature {
     ContentEncoding(attributes::ContentEncoding),
     ContentMediaType(attributes::ContentMediaType),
     Discriminator(attributes::Discriminator),
+    Bound(attributes::Bound),
     MultipleOf(validation::MultipleOf),
     Maximum(validation::Maximum),
     Minimum(validation::Minimum),
@@ -212,6 +213,10 @@ impl ToTokensDiagnostics for Feature {
             Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
             Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
             Feature::Discriminator(discriminator) => quote! { .discriminator(Some(#discriminator)) },
+            Feature::Bound(_) => {
+                // specially handled on generating impl blocks.
+                TokenStream::new()
+            }
             Feature::RenameAll(_) => {
                 return Err(Diagnostics::new("RenameAll feature does not support `ToTokens`"))
             }
@@ -294,6 +299,7 @@ impl Display for Feature {
             Feature::ContentEncoding(content_encoding) => content_encoding.fmt(f),
             Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
             Feature::Discriminator(discriminator) => discriminator.fmt(f),
+            Feature::Bound(bound) => bound.fmt(f),
         }
     }
 }
@@ -342,6 +348,7 @@ impl Validatable for Feature {
             Feature::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
             Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
             Feature::Discriminator(discriminator) => discriminator.is_validatable(),
+            Feature::Bound(bound) => bound.is_validatable(),
         }
     }
 }
@@ -388,6 +395,7 @@ is_validatable! {
     attributes::ContentEncoding,
     attributes::ContentMediaType,
     attributes::Discriminator,
+    attributes::Bound,
     validation::MultipleOf = true,
     validation::Maximum = true,
     validation::Minimum = true,
@@ -615,6 +623,7 @@ impl_feature_into_inner! {
     attributes::Required,
     attributes::AdditionalProperties,
     attributes::Discriminator,
+    attributes::Bound,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,

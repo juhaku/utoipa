@@ -1,7 +1,29 @@
 use std::borrow::Cow;
+use std::marker::PhantomData;
 
 use utoipa::openapi::{Info, RefOr, Schema};
+use utoipa::openapi::{RefOr, Schema};
+use serde::Serialize;
+use utoipa::openapi::{RefOr, Schema};
 use utoipa::{schema, OpenApi, ToSchema};
+
+#[test]
+fn generic_schema_custom_bound() {
+    #![allow(unused)]
+
+    #[derive(Serialize, ToSchema)]
+    #[schema(bound = "T: Clone + Sized, T: Sized")]
+    struct Type<T> {
+        #[serde(skip)]
+        t: PhantomData<T>,
+    }
+
+    #[derive(Clone)]
+    struct NoToSchema;
+    fn assert_is_to_schema<T: ToSchema>() {}
+
+    assert_is_to_schema::<Type<NoToSchema>>();
+}
 
 #[test]
 fn generic_schema_full_api() {
@@ -9,12 +31,12 @@ fn generic_schema_full_api() {
 
     #[derive(ToSchema)]
     #[schema(as = path::MyType<T>)]
-    struct Type<T: ToSchema> {
+    struct Type<T> {
         t: T,
     }
 
     #[derive(ToSchema)]
-    struct Person<'p, T: Sized + ToSchema, P: ToSchema> {
+    struct Person<'p, T: Sized, P> {
         id: usize,
         name: Option<Cow<'p, str>>,
         field: T,
@@ -23,7 +45,7 @@ fn generic_schema_full_api() {
 
     #[derive(ToSchema)]
     #[schema(as = path::to::PageList)]
-    struct Page<T: ToSchema> {
+    struct Page<T> {
         total: usize,
         page: usize,
         pages: usize,
@@ -32,10 +54,13 @@ fn generic_schema_full_api() {
 
     #[derive(ToSchema)]
     #[schema(as = path::to::Element<T>)]
-    enum E<T: ToSchema> {
+    enum E<T> {
         One(T),
         Many(Vec<T>),
     }
+
+    struct NoToSchema;
+    fn assert_no_need_to_schema_outside_api(_: Type<NoToSchema>) {}
 
     #[utoipa::path(
         get,
@@ -80,12 +105,12 @@ fn schema_macro_run() {
 
     #[derive(ToSchema)]
     #[schema(as = path::MyType<T>)]
-    struct Type<T: ToSchema> {
+    struct Type<T> {
         t: T,
     }
 
     #[derive(ToSchema)]
-    struct Person<'p, T: Sized + ToSchema, P: ToSchema> {
+    struct Person<'p, T: Sized, P> {
         id: usize,
         name: Option<Cow<'p, str>>,
         field: T,
@@ -94,7 +119,7 @@ fn schema_macro_run() {
 
     #[derive(ToSchema)]
     #[schema(as = path::to::PageList)]
-    struct Page<T: ToSchema> {
+    struct Page<T> {
         total: usize,
         page: usize,
         pages: usize,
