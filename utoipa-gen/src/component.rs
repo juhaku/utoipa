@@ -696,15 +696,20 @@ impl ComponentSchema {
                 {
                     features.push(Nullable::new().into());
                 }
+                let child = type_tree
+                    .children
+                    .as_ref()
+                    .expect("ComponentSchema generic container type should have children")
+                    .iter()
+                    .next()
+                    .expect("ComponentSchema generic container type should have 1 child");
+                let alias = child.get_alias_type()?;
+                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
+                let child = alias.as_ref().unwrap_or(child);
+
                 let schema = ComponentSchema::new(ComponentSchemaProps {
                     container,
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema generic container type should have children")
-                        .iter()
-                        .next()
-                        .expect("ComponentSchema generic container type should have 1 child"),
+                    type_tree: child,
                     features,
                     description,
                 })?;
@@ -713,15 +718,20 @@ impl ComponentSchema {
                 schema_references.extend(schema.schema_references);
             }
             Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
+                let child = type_tree
+                    .children
+                    .as_ref()
+                    .expect("ComponentSchema generic container type should have children")
+                    .iter()
+                    .next()
+                    .expect("ComponentSchema generic container type should have 1 child");
+                let alias = child.get_alias_type()?;
+                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
+                let child = alias.as_ref().unwrap_or(child);
+
                 let schema = ComponentSchema::new(ComponentSchemaProps {
                     container,
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema generic container type should have children")
-                        .iter()
-                        .next()
-                        .expect("ComponentSchema generic container type should have 1 child"),
+                    type_tree: child,
                     features,
                     description,
                 })?;
@@ -731,15 +741,20 @@ impl ComponentSchema {
             }
             #[cfg(feature = "rc_schema")]
             Some(GenericType::Arc) | Some(GenericType::Rc) => {
+                let child = type_tree
+                    .children
+                    .as_ref()
+                    .expect("ComponentSchema rc generic container type should have children")
+                    .iter()
+                    .next()
+                    .expect("ComponentSchema rc generic container type should have 1 child");
+                let alias = child.get_alias_type()?;
+                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
+                let child = alias.as_ref().unwrap_or(child);
+
                 let schema = ComponentSchema::new(ComponentSchemaProps {
                     container,
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema rc generic container type should have children")
-                        .iter()
-                        .next()
-                        .expect("ComponentSchema rc generic container type should have 1 child"),
+                    type_tree: child,
                     features,
                     description,
                 })?;
@@ -810,14 +825,19 @@ impl ComponentSchema {
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
+                let child = type_tree
+                    .children
+                    .as_ref()
+                    .expect("ComponentSchema Map type should have children")
+                    .get(1)
+                    .expect("ComponentSchema Map type should have 2 child");
+                let alias = child.get_alias_type()?;
+                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
+                let child = alias.as_ref().unwrap_or(child);
+
                 let schema_property = ComponentSchema::new(ComponentSchemaProps {
                     container,
-                    type_tree: type_tree
-                        .children
-                        .as_ref()
-                        .expect("ComponentSchema Map type should have children")
-                        .get(1)
-                        .expect("ComponentSchema Map type should have 2 child"),
+                    type_tree: child,
                     features,
                     description: None,
                 })?;
@@ -882,6 +902,9 @@ impl ComponentSchema {
         } else {
             child
         };
+        let alias = child.get_alias_type()?;
+        let alias = alias.as_ref().map_try(TypeTree::from_type)?;
+        let child = alias.as_ref().unwrap_or(child);
 
         let component_schema = ComponentSchema::new(ComponentSchemaProps {
             container,
