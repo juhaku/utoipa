@@ -119,6 +119,8 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
 ///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
 ///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
 /// * `default` Can be used to populate default values on all fields using the struct's
 ///   [`Default`] implementation.
 /// * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
@@ -238,6 +240,8 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
 ///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
 ///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
@@ -265,6 +269,8 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
 ///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
 ///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
 /// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
@@ -296,6 +302,8 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
 ///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
 ///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
 /// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
@@ -560,12 +568,15 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 /// # Generic schemas
 ///
-/// Utoipa supports full set of deeply nested generics as shown below. All the generic types must
-/// implement [`ToSchema`][to_schema] trait and bounds are checked at build time.
+/// Utoipa supports full set of deeply nested generics as shown below. The type will implement
+/// [`ToSchema`][to_schema] if and only if all the generic types implement `ToSchema` by default.
+/// That is in Rust `impl<T> ToSchema for MyType<T> where T: Schema { ... }`.
+/// You can also specify `bound = ...` on the item to override the default auto bounds.
 ///
 /// The _`as = ...`_ attribute is used to define the prefixed or alternative name for the component
 /// in question. This same name will be used throughout the OpenAPI generated with `utoipa` when
 /// the type is being referenced in [`OpenApi`][openapi_derive] derive macro or in [`utoipa::path(...)`][path_macro] macro.
+///
 /// ```rust
 /// # use utoipa::ToSchema;
 /// # use std::borrow::Cow;
@@ -839,6 +850,33 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// ```
 ///
 /// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
+///
+/// _**Use `bound` attribute to override the default impl bounds.**_
+///
+/// `bound = ...` accepts a string containing zero or more where-predicates separated by comma, as
+/// the similar syntax to [`serde(bound = ...)`](https://serde.rs/container-attrs.html#bound).
+/// If `bound = ...` exists, the default auto bounds (requiring all generic types to implement
+/// `ToSchema`) will not be applied anymore, and only the specified predicates are added to the
+/// `where` clause of generated `impl` blocks.
+///
+/// ```rust
+/// // Override the default bounds to only require `T: ToSchema`, ignoring unused `U`.
+/// #[derive(utoipa::ToSchema, serde::Serialize)]
+/// #[schema(bound = "T: utoipa::ToSchema")]
+/// struct Partial<T, U> {
+///     used_in_api: T,
+///     #[serde(skip)]
+///     not_in_api: std::marker::PhantomData<U>,
+/// }
+///
+/// // Just remove the auto-bounds. So we got `Unused<T>: ToSchema` for any `T`.
+/// #[derive(utoipa::ToSchema, serde::Serialize)]
+/// #[schema(bound = "")]
+/// struct Unused<T> {
+///     #[serde(skip)]
+///     _marker: std::marker::PhantomData<T>,
+/// }
+/// ```
 ///
 /// [to_schema]: trait.ToSchema.html
 /// [known_format]: openapi/schema/enum.KnownFormat.html
