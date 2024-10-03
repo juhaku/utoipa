@@ -821,14 +821,34 @@ impl ComponentSchema {
             .as_ref()
             .map_try(|feature| Ok(as_tokens_or_diagnostics!(feature)))?
             .or_else_try(|| {
+                let children = type_tree
+                    .children
+                    .as_ref()
+                    .expect("ComponentSchema Map type should have children");
+                // Get propertyNames
+                let property_name = children
+                    .first()
+                    .expect("ComponentSchema Map type shouldu have 2 child, getting first");
+                let property_name_alias = property_name.get_alias_type()?;
+                let property_name_alias =
+                    property_name_alias.as_ref().map_try(TypeTree::from_type)?;
+                let property_name_child = property_name_alias.as_ref().unwrap_or(property_name);
+
+                let mut property_name_features = features.clone();
+                property_name_features.push(Feature::Inline(true.into()));
+                let property_name_schema = ComponentSchema::new(ComponentSchemaProps {
+                    container,
+                    type_tree: property_name_child,
+                    features: property_name_features,
+                    description: None,
+                })?;
+                let property_name_tokens = property_name_schema.to_token_stream();
+
                 // Maps are treated as generic objects with no named properties and
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
-                let child = type_tree
-                    .children
-                    .as_ref()
-                    .expect("ComponentSchema Map type should have children")
+                let child = children
                     .get(1)
                     .expect("ComponentSchema Map type should have 2 child");
                 let alias = child.get_alias_type()?;
@@ -845,9 +865,10 @@ impl ComponentSchema {
 
                 schema_references.extend(schema_property.schema_references);
 
-                Result::<Option<TokenStream>, Diagnostics>::Ok(Some(
-                    quote! { .additional_properties(Some(#schema_tokens)) },
-                ))
+                Result::<Option<TokenStream>, Diagnostics>::Ok(Some(quote! {
+                    .property_names(Some(#property_name_tokens))
+                    .additional_properties(Some(#schema_tokens))
+                }))
             })?;
 
         let schema_type =

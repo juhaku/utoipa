@@ -932,6 +932,11 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub additional_properties: Option<Box<AdditionalProperties<Schema>>>,
 
+        /// Additional [`Schema`] to describe property names of an object such as a map. See more
+        /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub property_names: Option<Box<Schema>>,
+
         /// Changes the [`Object`] deprecated status.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub deprecated: Option<Deprecated>,
@@ -1102,6 +1107,12 @@ impl ObjectBuilder {
         set_value!(self additional_properties additional_properties.map(|additional_properties| Box::new(additional_properties.into())))
     }
 
+    /// Add additional [`Schema`] to describe property names of an object such as a map. See more
+    /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
+    pub fn property_names<S: Into<Schema>>(mut self, property_name: Option<S>) -> Self {
+        set_value!(self property_names property_name.map(|property_name| Box::new(property_name.into())))
+    }
+
     /// Add field to the required fields of [`Object`].
     pub fn required<I: Into<String>>(mut self, required_field: I) -> Self {
         self.required.push(required_field.into());
@@ -1247,6 +1258,17 @@ component_from_builder!(ObjectBuilder);
 impl From<ObjectBuilder> for RefOr<Schema> {
     fn from(builder: ObjectBuilder) -> Self {
         Self::T(Schema::Object(builder.build()))
+    }
+}
+
+impl From<RefOr<Schema>> for Schema {
+    fn from(value: RefOr<Schema>) -> Self {
+        match value {
+            RefOr::Ref(_) => {
+                panic!("Invalid type `RefOr::Ref` provided, cannot convert to RefOr::T<Schema>")
+            }
+            RefOr::T(value) => value,
+        }
     }
 }
 
