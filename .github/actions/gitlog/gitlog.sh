@@ -70,11 +70,15 @@ mapfile -t log_lines < <(git log --pretty=format:'(%h) %s' $ancestry_path "$comm
 function is_crate_related {
     commit="$1"
     changes="$(git diff --name-only "$commit"~ "$commit" | awk -F / '{print $1}' | xargs)"
+    IFS=" " read -r -a change_dirs <<<"$changes"
 
     is_related=false
-    if [[ "$changes" == *"$crate"* ]]; then
-        is_related=true
-    fi
+    for change in "${change_dirs[@]}"; do
+        if [[ "$change" == "$crate" ]]; then
+            is_related=true
+            break
+        fi
+    done
 
     echo $is_related
 }
