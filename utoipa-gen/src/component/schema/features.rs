@@ -6,9 +6,9 @@ use syn::{
 use crate::{
     component::features::{
         attributes::{
-            AdditionalProperties, As, ContentEncoding, ContentMediaType, Deprecated, Description,
-            Discriminator, Example, Examples, Format, Inline, Nullable, ReadOnly, Rename,
-            RenameAll, Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+            AdditionalProperties, As, Bound, ContentEncoding, ContentMediaType, Deprecated,
+            Description, Discriminator, Example, Examples, Format, Inline, Nullable, ReadOnly,
+            Rename, RenameAll, Required, SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
         },
         impl_into_inner, impl_merge, parse_features,
         validation::{
@@ -36,7 +36,8 @@ impl Parse for NamedFieldStructFeatures {
             As,
             crate::component::features::attributes::Default,
             Deprecated,
-            Description
+            Description,
+            Bound
         )))
     }
 }
@@ -57,7 +58,8 @@ impl Parse for UnnamedFieldStructFeatures {
             ValueType,
             As,
             Deprecated,
-            Description
+            Description,
+            Bound
         )))
     }
 }
@@ -76,7 +78,8 @@ impl Parse for EnumFeatures {
             RenameAll,
             As,
             Deprecated,
-            Description
+            Description,
+            Bound
         )))
     }
 }

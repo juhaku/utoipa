@@ -112,7 +112,7 @@ struct B {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-struct C<T: ToSchema, R: ToSchema> {
+struct C<T, R> {
     field_1: R,
     field_2: T,
 }

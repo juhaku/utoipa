@@ -540,7 +540,7 @@ fn openapi_schemas_resolve_schema_references() {
     use utoipa::ToSchema;
 
     #[derive(ToSchema)]
-    enum Element<T: ToSchema> {
+    enum Element<T> {
         One(T),
         Many(Vec<T>),
     }

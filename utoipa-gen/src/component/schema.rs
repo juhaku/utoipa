@@ -3,8 +3,8 @@ use std::borrow::{Borrow, Cow};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field, Fields,
-    FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Variant,
+    parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Variant,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ use self::{
 
 use super::{
     features::{
-        attributes::{As, Description, RenameAll},
+        attributes::{As, Bound, Description, RenameAll},
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
@@ -70,6 +70,7 @@ impl ToTokensDiagnostics for Schema<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         let ident = self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        let mut where_clause = where_clause.map_or(parse_quote!(where), |w| w.clone());
 
         let root = Root {
             ident,
@@ -112,6 +113,17 @@ impl ToTokensDiagnostics for Schema<'_> {
         } else {
             ident.to_string()
         };
+
+        if let Some(Bound(bound)) = variant.get_schema_bound() {
+            where_clause.predicates.extend(bound.clone());
+        } else {
+            for param in self.generics.type_params() {
+                let param = &param.ident;
+                where_clause
+                    .predicates
+                    .push(parse_quote!(#param : utoipa::ToSchema))
+            }
+        }
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::__dev::ComposeSchema for #ident #ty_generics #where_clause {
@@ -206,6 +218,15 @@ impl<'a> SchemaVariant<'a> {
             _ => [].iter(),
         }
     }
+
+    fn get_schema_bound(&self) -> Option<&Bound> {
+        match self {
+            SchemaVariant::Named(schema) => schema.bound.as_ref(),
+            SchemaVariant::Unnamed(schema) => schema.bound.as_ref(),
+            SchemaVariant::Enum(schema) => schema.bound.as_ref(),
+            SchemaVariant::Unit(_) => None,
+        }
+    }
 }
 
 impl ToTokens for SchemaVariant<'_> {
@@ -235,6 +256,7 @@ pub struct NamedStructSchema {
     tokens: TokenStream,
     pub schema_as: Option<As>,
     fields_references: Vec<SchemaReference>,
+    bound: Option<Bound>,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -257,6 +279,7 @@ impl NamedStructSchema {
         let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
         let description: Option<Description> =
             pop_feature!(features => Feature::Description(_)).into_inner();
+        let bound = pop_feature!(features => Feature::Bound(_) as Option<Bound>);
 
         let container_rules = serde::parse_container(root.attributes)?;
 
@@ -448,6 +471,7 @@ impl NamedStructSchema {
             tokens,
             schema_as,
             fields_references,
+            bound,
         })
     }
 
@@ -553,6 +577,7 @@ struct UnnamedStructSchema {
     tokens: TokenStream,
     schema_as: Option<As>,
     schema_references: Vec<SchemaReference>,
+    bound: Option<Bound>,
 }
 
 impl UnnamedStructSchema {
@@ -565,6 +590,7 @@ impl UnnamedStructSchema {
         let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
         let description: Option<Description> =
             pop_feature!(features => Feature::Description(_)).into_inner();
+        let bound = pop_feature!(features => Feature::Bound(_) as Option<Bound>);
 
         let fields_len = fields.len();
         let first_field = fields.first().unwrap();
@@ -666,6 +692,7 @@ impl UnnamedStructSchema {
             tokens,
             schema_as,
             schema_references,
+            bound,
         })
     }
 }
@@ -681,6 +708,7 @@ pub struct EnumSchema<'a> {
     schema_type: EnumSchemaType<'a>,
     schema_as: Option<As>,
     schema_references: Vec<SchemaReference>,
+    bound: Option<Bound>,
 }
 
 impl<'e> EnumSchema<'e> {
@@ -728,6 +756,8 @@ impl<'e> EnumSchema<'e> {
             };
 
             let schema_as = pop_feature!(features => Feature::As(_) as Option<As>);
+            let bound = pop_feature!(features => Feature::Bound(_) as Option<Bound>);
+
             if parent.attributes.has_deprecated() {
                 features.push(Feature::Deprecated(true.into()))
             }
@@ -736,6 +766,7 @@ impl<'e> EnumSchema<'e> {
                 schema_type: EnumSchemaType::Plain(PlainEnum::new(parent, variants, features)?),
                 schema_as,
                 schema_references: Vec::new(),
+                bound,
             })
         } else {
             let mut enum_features = parent
@@ -744,6 +775,7 @@ impl<'e> EnumSchema<'e> {
                 .into_inner()
                 .unwrap_or_default();
             let schema_as = pop_feature!(enum_features => Feature::As(_) as Option<As>);
+            let bound = pop_feature!(enum_features => Feature::Bound(_) as Option<Bound>);
 
             if parent.attributes.has_deprecated() {
                 enum_features.push(Feature::Deprecated(true.into()))
@@ -754,6 +786,7 @@ impl<'e> EnumSchema<'e> {
                 schema_type: EnumSchemaType::Mixed(mixed_enum),
                 schema_as,
                 schema_references,
+                bound,
             })
         }
     }

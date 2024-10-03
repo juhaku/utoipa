@@ -5,7 +5,7 @@ use quote::ToTokens;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Paren;
-use syn::{Error, LitStr, Token, TypePath};
+use syn::{Error, LitStr, Token, TypePath, WherePredicate};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
@@ -935,5 +935,34 @@ impl ToTokens for Discriminator {
 impl From<Discriminator> for Feature {
     fn from(value: Discriminator) -> Self {
         Self::Discriminator(value)
+    }
+}
+
+// bound = "GenericTy: Trait"
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Bound(pub(crate) Punctuated<WherePredicate, Token![,]>);
+}
+
+impl Parse for Bound {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
+        let bounds =
+            syn::parse::Parser::parse_str(<Punctuated<_, _>>::parse_terminated, &litstr.value())
+                .map_err(|err| syn::Error::new(litstr.span(), err.to_string()))?;
+        Ok(Self(bounds))
+    }
+}
+
+impl ToTokens for Bound {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Bound> for Feature {
+    fn from(value: Bound) -> Self {
+        Feature::Bound(value)
     }
 }

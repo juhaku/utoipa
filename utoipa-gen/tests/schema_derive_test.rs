@@ -3515,6 +3515,7 @@ fn derive_parse_serde_field_attributes() {
     let post = api_doc! {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
+        #[schema(bound = "")]
         struct Post<S> {
             #[serde(rename = "uuid")]
             id: String,

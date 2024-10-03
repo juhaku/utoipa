@@ -20,6 +20,7 @@
 * Add support for description and summary overriding (https://github.com/juhaku/utoipa/pull/948)
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
 * Add support for additional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
+* Add `bound` attribute for customizing generic impl bounds. (https://github.com/juhaku/utoipa/pull/1079)
 
 ### Fixed
 
