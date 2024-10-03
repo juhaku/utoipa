@@ -607,7 +607,9 @@ fn openapi_schemas_resolve_schema_references() {
 
     let doc = ApiDoc::openapi();
 
-    let json = serde_json::to_string_pretty(&doc).expect("OpenAPI is json serializable");
+    let value = serde_json::to_value(&doc).expect("OpenAPI is JSON serializable");
+    let schemas = value.pointer("/components").unwrap();
+    let json = serde_json::to_string_pretty(&schemas).expect("OpenAPI is json serializable");
     println!("{json}");
 
     let expected =

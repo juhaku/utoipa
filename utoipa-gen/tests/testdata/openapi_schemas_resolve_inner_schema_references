@@ -1,259 +1,241 @@
-
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "utoipa-gen",
-    "description": "Code generation implementation for utoipa",
-    "contact": {
-      "name": "Juha Kukkonen",
-      "email": "juha7kukkonen@gmail.com"
-    },
-    "license": {
-      "name": "MIT OR Apache-2.0"
-    },
-    "version": "5.0.0-beta.0"
-  },
-  "paths": {},
-  "components": {
-    "schemas": {
-      "Account": {
-        "type": "object",
-        "required": [
-          "id"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int32"
-          }
+  "schemas": {
+    "Account": {
+      "properties": {
+        "id": {
+          "format": "int32",
+          "type": "integer"
         }
       },
-      "Boo": {
-        "type": "object",
-        "required": [
-          "boo"
-        ],
-        "properties": {
-          "boo": {
-            "type": "boolean"
-          }
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "Boo": {
+      "properties": {
+        "boo": {
+          "type": "boolean"
         }
       },
-      "Element_String": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "One"
-            ],
-            "properties": {
-              "One": {
-                "type": "string"
-              }
+      "required": [
+        "boo"
+      ],
+      "type": "object"
+    },
+    "Element_String": {
+      "oneOf": [
+        {
+          "properties": {
+            "One": {
+              "type": "string"
             }
           },
-          {
-            "type": "object",
-            "required": [
-              "Many"
-            ],
-            "properties": {
-              "Many": {
-                "type": "array",
-                "items": {
-                  "type": "object"
-                }
-              }
+          "required": [
+            "One"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "Many": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
             }
-          }
-        ]
-      },
-      "Element_Yeah": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "One"
-            ],
-            "properties": {
-              "One": {
+          },
+          "required": [
+            "Many"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Element_Yeah": {
+      "oneOf": [
+        {
+          "properties": {
+            "One": {
+              "$ref": "#/components/schemas/Yeah"
+            }
+          },
+          "required": [
+            "One"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "Many": {
+              "items": {
                 "$ref": "#/components/schemas/Yeah"
-              }
+              },
+              "type": "array"
             }
           },
-          {
-            "type": "object",
-            "required": [
-              "Many"
-            ],
-            "properties": {
-              "Many": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Yeah"
-                }
-              }
+          "required": [
+            "Many"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "EnumMixedContent": {
+      "oneOf": [
+        {
+          "enum": [
+            "ContentZero"
+          ],
+          "type": "string"
+        },
+        {
+          "properties": {
+            "One": {
+              "$ref": "#/components/schemas/Foobar"
             }
-          }
-        ]
+          },
+          "required": [
+            "One"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "NamedSchema": {
+              "properties": {
+                "f": {
+                  "type": "boolean"
+                },
+                "foo": {
+                  "$ref": "#/components/schemas/ThisIsNone"
+                },
+                "int": {
+                  "format": "int32",
+                  "type": "integer"
+                },
+                "value": {
+                  "$ref": "#/components/schemas/Account"
+                },
+                "value2": {
+                  "$ref": "#/components/schemas/Boo"
+                }
+              },
+              "required": [
+                "value",
+                "value2",
+                "foo",
+                "int",
+                "f"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "NamedSchema"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "Many": {
+              "items": {
+                "$ref": "#/components/schemas/Person"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "Many"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "Foob": {
+      "properties": {
+        "item": {
+          "$ref": "#/components/schemas/Element_String"
+        },
+        "item2": {
+          "$ref": "#/components/schemas/Element_Yeah"
+        }
       },
-      "EnumMixedContent": {
-        "oneOf": [
-          {
-            "type": "string",
-            "enum": [
-              "ContentZero"
+      "required": [
+        "item",
+        "item2"
+      ],
+      "type": "object"
+    },
+    "Foobar": {
+      "default": null
+    },
+    "OneOfOne": {
+      "$ref": "#/components/schemas/Person"
+    },
+    "OneOfYeah": {
+      "$ref": "#/components/schemas/Yeah"
+    },
+    "Person": {
+      "properties": {
+        "accounts": {
+          "items": {
+            "allOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Account"
+              }
             ]
           },
-          {
-            "type": "object",
-            "required": [
-              "One"
-            ],
-            "properties": {
-              "One": {
-                "$ref": "#/components/schemas/Foobar"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "NamedSchema"
-            ],
-            "properties": {
-              "NamedSchema": {
-                "type": "object",
-                "required": [
-                  "value",
-                  "value2",
-                  "foo",
-                  "int",
-                  "f"
-                ],
-                "properties": {
-                  "f": {
-                    "type": "boolean"
-                  },
-                  "foo": {
-                    "$ref": "#/components/schemas/ThisIsNone"
-                  },
-                  "int": {
-                    "type": "integer",
-                    "format": "int32"
-                  },
-                  "value": {
-                    "$ref": "#/components/schemas/Account"
-                  },
-                  "value2": {
-                    "$ref": "#/components/schemas/Boo"
-                  }
-                }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "Many"
-            ],
-            "properties": {
-              "Many": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Person"
-                }
-              }
-            }
-          }
-        ]
-      },
-      "Foob": {
-        "type": "object",
-        "required": [
-          "item",
-          "item2"
-        ],
-        "properties": {
-          "item": {
-            "$ref": "#/components/schemas/Element_String"
-          },
-          "item2": {
-            "$ref": "#/components/schemas/Element_Yeah"
-          }
+          "type": "array"
+        },
+        "foo_bar": {
+          "$ref": "#/components/schemas/Foobar"
+        },
+        "name": {
+          "type": "string"
         }
       },
-      "Foobar": {
-        "default": null
-      },
-      "OneOfOne": {
-        "$ref": "#/components/schemas/Person"
-      },
-      "OneOfYeah": {
-        "$ref": "#/components/schemas/Yeah"
-      },
-      "Person": {
-        "type": "object",
-        "required": [
-          "name",
-          "foo_bar",
-          "accounts"
-        ],
-        "properties": {
-          "accounts": {
-            "type": "array",
-            "items": {
-              "allOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/Account"
-                }
-              ]
-            }
+      "required": [
+        "name",
+        "foo_bar",
+        "accounts"
+      ],
+      "type": "object"
+    },
+    "ThisIsNone": {
+      "default": null
+    },
+    "Yeah": {
+      "properties": {
+        "accounts": {
+          "items": {
+            "allOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Account"
+              }
+            ]
           },
-          "foo_bar": {
-            "$ref": "#/components/schemas/Foobar"
-          },
-          "name": {
-            "type": "string"
-          }
+          "type": "array"
+        },
+        "foo_bar": {
+          "$ref": "#/components/schemas/Foobar"
+        },
+        "name": {
+          "type": "string"
         }
       },
-      "ThisIsNone": {
-        "default": null
-      },
-      "Yeah": {
-        "type": "object",
-        "required": [
-          "name",
-          "foo_bar",
-          "accounts"
-        ],
-        "properties": {
-          "accounts": {
-            "type": "array",
-            "items": {
-              "allOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/components/schemas/Account"
-                }
-              ]
-            }
-          },
-          "foo_bar": {
-            "$ref": "#/components/schemas/Foobar"
-          },
-          "name": {
-            "type": "string"
-          }
-        }
-      }
+      "required": [
+        "name",
+        "foo_bar",
+        "accounts"
+      ],
+      "type": "object"
     }
   }
 }
-

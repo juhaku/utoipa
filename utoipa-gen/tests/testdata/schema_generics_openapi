@@ -1,16 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "utoipa-gen",
-    "description": "Code generation implementation for utoipa",
-    "contact": {
-      "name": "Juha Kukkonen",
-      "email": "juha7kukkonen@gmail.com"
-    },
-    "license": {
-      "name": "MIT OR Apache-2.0"
-    },
-    "version": "5.0.0-beta.0"
+    "title": "title",
+    "version": "version"
   },
   "paths": {
     "/handler": {

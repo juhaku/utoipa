@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use utoipa::openapi::{RefOr, Schema};
+use utoipa::openapi::{Info, RefOr, Schema};
 use utoipa::{schema, OpenApi, ToSchema};
 
 #[test]
@@ -63,11 +63,11 @@ fn generic_schema_full_api() {
     )]
     struct ApiDoc;
 
-    let actual = ApiDoc::openapi()
-        .to_pretty_json()
-        .expect("ApiDoc is JSON serializable");
-    println!("{actual}");
+    let mut doc = ApiDoc::openapi();
+    doc.info = Info::new("title", "version");
 
+    let actual = doc.to_pretty_json().expect("OpenApi is JSON serializable");
+    println!("{actual}");
     let expected = include_str!("./testdata/schema_generics_openapi");
 
     assert_eq!(expected.trim(), actual.trim());
