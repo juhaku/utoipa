@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add `bound` attribute for customizing generic impl bounds. (https://github.com/juhaku/utoipa/pull/1079)
 * Add auto collect schemas for utoipa-axum (https://github.com/juhaku/utoipa/pull/1072)
 * Add global config for `utiopa` (https://github.com/juhaku/utoipa/pull/1048)
 * Add support for `links` in `#[utoipa::path]` (https://github.com/juhaku/utoipa/pull/1047)
@@ -20,10 +21,10 @@
 * Add support for description and summary overriding (https://github.com/juhaku/utoipa/pull/948)
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
 * Add support for additional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
-* Add `bound` attribute for customizing generic impl bounds. (https://github.com/juhaku/utoipa/pull/1079)
 
 ### Fixed
 
+* Fix `as` attribute path format (https://github.com/juhaku/utoipa/pull/1080)
 * Fix allow response `content_type` without schema (https://github.com/juhaku/utoipa/pull/1073)
 * Fix negative value parsing on schema attributes (https://github.com/juhaku/utoipa/pull/1031)
 * Fix parameter inline for tuple path params (https://github.com/juhaku/utoipa/pull/1014)

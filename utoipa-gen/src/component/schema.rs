@@ -4,7 +4,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
     parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Generics, Path, PathArguments, Variant,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, Variant,
 };
 
 use crate::{
@@ -109,7 +109,7 @@ impl ToTokensDiagnostics for Schema<'_> {
         );
 
         let name = if let Some(schema_as) = variant.get_schema_as() {
-            format_path_ref(&schema_as.0.path)
+            schema_as.to_schema_formatted_string()
         } else {
             ident.to_string()
         };
@@ -865,18 +865,4 @@ impl ToTokensDiagnostics for Property {
         }
         Ok(())
     }
-}
-
-/// Reformat a path reference string that was generated using [`quote`] to be used as a nice compact schema reference,
-/// by removing spaces between colon punctuation and `::` and the path segments.
-pub(crate) fn format_path_ref(path: &Path) -> String {
-    let mut path = path.clone();
-
-    // Generics and path arguments are unsupported
-    if let Some(last_segment) = path.segments.last_mut() {
-        last_segment.arguments = PathArguments::None;
-    }
-    // :: are not officially supported in the spec
-    // See: https://github.com/juhaku/utoipa/pull/187#issuecomment-1173101405
-    path.to_token_stream().to_string().replace(" :: ", ".")
 }
