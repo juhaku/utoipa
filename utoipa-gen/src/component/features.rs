@@ -102,6 +102,7 @@ pub enum Feature {
     ContentMediaType(attributes::ContentMediaType),
     Discriminator(attributes::Discriminator),
     Bound(attributes::Bound),
+    Ignore(attributes::Ignore),
     MultipleOf(validation::MultipleOf),
     Maximum(validation::Maximum),
     Minimum(validation::Minimum),
@@ -239,6 +240,7 @@ impl ToTokensDiagnostics for Feature {
                 let name = <attributes::Required as FeatureLike>::get_name();
                 quote! { .#name(#required) }
             }
+            Feature::Ignore(_) => return Err(Diagnostics::new("Feature::Ignore does not support ToTokens")),
         };
 
         tokens.extend(feature);
@@ -300,6 +302,7 @@ impl Display for Feature {
             Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
             Feature::Discriminator(discriminator) => discriminator.fmt(f),
             Feature::Bound(bound) => bound.fmt(f),
+            Feature::Ignore(ignore) => ignore.fmt(f),
         }
     }
 }
@@ -349,6 +352,7 @@ impl Validatable for Feature {
             Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
             Feature::Discriminator(discriminator) => discriminator.is_validatable(),
             Feature::Bound(bound) => bound.is_validatable(),
+            Feature::Ignore(ignore) => ignore.is_validatable(),
         }
     }
 }
@@ -396,6 +400,7 @@ is_validatable! {
     attributes::ContentMediaType,
     attributes::Discriminator,
     attributes::Bound,
+    attributes::Ignore,
     validation::MultipleOf = true,
     validation::Maximum = true,
     validation::Minimum = true,
@@ -624,6 +629,7 @@ impl_feature_into_inner! {
     attributes::AdditionalProperties,
     attributes::Discriminator,
     attributes::Bound,
+    attributes::Ignore,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,

@@ -2751,3 +2751,41 @@ fn path_derive_with_body_ref_using_as_attribute_schema() {
         })
     );
 }
+
+#[test]
+fn derive_into_params_with_ignored_field() {
+    #![allow(unused)]
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        name: String,
+        #[param(ignore)]
+        __this_is_private: String,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_eq!(
+        value,
+        json!([
+            {
+                "in": "query",
+                "name": "name",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }
+        ])
+    )
+}

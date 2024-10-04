@@ -187,6 +187,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
+///* `ignore` Can be used to skip the field from being serialized to OpenAPI schema.
 ///
 /// #### Field nullability and required rules
 ///
@@ -2227,6 +2228,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
+///
+/// * `ignore` Can be used to skip the field from being serialized to OpenAPI schema.
 ///
 /// #### Field nullability and required rules
 ///

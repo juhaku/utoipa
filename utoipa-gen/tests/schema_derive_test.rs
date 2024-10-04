@@ -5681,3 +5681,29 @@ fn derive_map_with_property_names() {
         })
     )
 }
+
+#[test]
+fn derive_schema_with_ignored_field() {
+    #![allow(unused)]
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "value": {
+                    "type": "string"
+                }
+            },
+            "required": [ "value" ],
+            "type": "object"
+        })
+    )
+}
