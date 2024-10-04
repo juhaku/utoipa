@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use syn::{parse::Parse, LitStr, Token};
 
 use crate::{
-    component::ValueType,
+    component::{GenericType, ValueType},
     ext::{ArgValue, ArgumentIn, MacroArg, ValueArgument},
     path::HttpMethod,
     Diagnostics, OptionExt,
@@ -136,7 +136,18 @@ fn with_argument_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<(FnArg,
 
 #[inline]
 fn is_into_params(fn_arg: &FnArg) -> bool {
-    matches!(fn_arg.ty.value_type, ValueType::Object) && fn_arg.ty.generic_type.is_none()
+    let mut ty = &fn_arg.ty;
+
+    if fn_arg.ty.generic_type == Some(GenericType::Option) {
+        ty = fn_arg
+            .ty
+            .children
+            .as_ref()
+            .expect("FnArg Option must have children")
+            .first()
+            .expect("FnArg Option must have 1 child");
+    }
+    matches!(ty.value_type, ValueType::Object) && ty.generic_type.is_none()
 }
 
 #[inline]

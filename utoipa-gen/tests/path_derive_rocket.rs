@@ -3,12 +3,12 @@
 use std::io::Error;
 
 use assert_json_diff::assert_json_eq;
-use rocket::post;
 use rocket::request::FromParam;
 use rocket::serde::json::Json;
+use rocket::{get, post, FromForm};
 use serde_json::{json, Value};
 use utoipa::openapi::path::ParameterBuilder;
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, Path, ToSchema};
 use utoipa_gen::schema;
 
 mod common;
@@ -442,9 +442,7 @@ fn path_with_all_args_and_body() {
     // NOTE! temporarily disable automatic parameter recognition
     #[utoipa::path(
     responses(
-        (
-            status = 200, description = "Hello from server")
-        ),
+        (status = 200, description = "Hello from server")),
         params(
             ("id", description = "Hello id"),
             QueryParams
@@ -623,10 +621,10 @@ macro_rules! test_derive_path_operations {
                     use rocket::$operation;
 
                     #[utoipa::path(
-                                                responses(
-                                                    (status = 200, description = "Hello from server")
-                                                )
-                                            )]
+                        responses(
+                            (status = 200, description = "Hello from server")
+                        )
+                    )]
                     #[$operation("/hello")]
                     #[allow(unused)]
                     fn hello() -> String {
@@ -662,4 +660,85 @@ test_derive_path_operations! {
     derive_path_head: head
     derive_path_options: options
     derive_path_patch: patch
+}
+
+#[test]
+fn derive_rocket_path_with_query_params_in_option() {
+    #![allow(unused)]
+
+    #[derive(FromForm, IntoParams)]
+    #[into_params(parameter_in = Query, style = Form)]
+    pub struct PageParams {
+        pub page: u64,
+        pub per_page: u64,
+    }
+
+    #[utoipa::path(
+        context_path = "/user/api_keys",
+        params(
+            PageParams,
+        ),
+        responses(
+            (status = 200, body = ()),
+            (status = 400, body = ()),
+        ),
+    )]
+    #[get("/list?<page..>")]
+    async fn list_items(page: Option<PageParams>) {}
+
+    let operation = __path_list_items::operation();
+    let value = serde_json::to_value(&operation).expect("operation is JSON serializable");
+
+    assert_json_eq!(
+        value,
+        json!({
+            "operationId": "list_items",
+            "parameters": [
+                {
+                    "in": "query",
+                    "name": "page",
+                    "required": true,
+                    "schema": {
+                        "format": "int64",
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "style": "form"
+                },
+                {
+                    "in": "query",
+                    "name": "per_page",
+                    "required": true,
+                    "schema": {
+                        "format": "int64",
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "style": "form"
+                }
+            ],
+            "responses": {
+                "200": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "default": null,
+                            }
+                        }
+                    },
+                    "description": ""
+                },
+                "400": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "default": null,
+                            }
+                        }
+                    },
+                    "description": ""
+                }
+            }
+        })
+    )
 }

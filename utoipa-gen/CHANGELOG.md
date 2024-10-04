@@ -25,6 +25,7 @@
 
 ### Fixed
 
+* Fix option wrapped tailing query parameters (https://github.com/juhaku/utoipa/pull/1089)
 * Fix doc comment trimming to keep relative indentation. (https://github.com/juhaku/utoipa/pull/1082)
 * Fix generic aliases (https://github.com/juhaku/utoipa/pull/1083)
 * Fix nest path config struct name (https://github.com/juhaku/utoipa/pull/1081)
