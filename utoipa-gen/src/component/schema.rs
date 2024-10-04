@@ -285,7 +285,7 @@ impl NamedStructSchema {
 
         let mut fields_vec = fields
             .iter()
-            .map(|field| {
+            .filter_map(|field| {
                 let mut field_name = Cow::Owned(field.ident.as_ref().unwrap().to_string());
 
                 if Borrow::<str>::borrow(&field_name).starts_with("r#") {
@@ -295,7 +295,7 @@ impl NamedStructSchema {
                 let field_rules = serde::parse_value(&field.attrs);
                 let field_rules = match field_rules {
                     Ok(field_rules) => field_rules,
-                    Err(diagnostics) => return Err(diagnostics),
+                    Err(diagnostics) => return Some(Err(diagnostics)),
                 };
                 let field_options = Self::get_named_struct_field_options(
                     root,
@@ -306,8 +306,11 @@ impl NamedStructSchema {
                 );
 
                 match field_options {
-                    Ok(field_options) => Ok((field_options, field_rules, field_name, field)),
-                    Err(options_diagnostics) => Err(options_diagnostics),
+                    Ok(Some(field_options)) => {
+                        Some(Ok((field_options, field_rules, field_name, field)))
+                    }
+                    Ok(_) => None,
+                    Err(options_diagnostics) => Some(Err(options_diagnostics)),
                 }
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?;
@@ -481,7 +484,7 @@ impl NamedStructSchema {
         features: &[Feature],
         field_rules: &SerdeValue,
         container_rules: &SerdeContainer,
-    ) -> Result<NamedStructFieldOptions<'a>, Diagnostics> {
+    ) -> Result<Option<NamedStructFieldOptions<'a>>, Diagnostics> {
         let type_tree = &mut TypeTree::from_type(&field.ty)?;
 
         let mut field_features = field
@@ -489,6 +492,14 @@ impl NamedStructSchema {
             .parse_features::<NamedFieldFeatures>()?
             .into_inner()
             .unwrap_or_default();
+
+        if field_features
+            .iter()
+            .any(|feature| matches!(feature, Feature::Ignore(_)))
+        {
+            // skip ignored field
+            return Ok(None);
+        };
 
         let schema_default = features.iter().any(|f| matches!(f, Feature::Default(_)));
         let serde_default = container_rules.default;
@@ -540,7 +551,7 @@ impl NamedStructSchema {
 
         let is_option = type_tree.is_option();
 
-        Ok(NamedStructFieldOptions {
+        Ok(Some(NamedStructFieldOptions {
             property: if let Some(schema_with) = schema_with {
                 Property::SchemaWith(schema_with)
             } else {
@@ -562,7 +573,7 @@ impl NamedStructSchema {
             renamed_field: rename_field,
             required,
             is_option,
-        })
+        }))
     }
 }
 

@@ -982,3 +982,25 @@ impl From<Bound> for Feature {
         Feature::Bound(value)
     }
 }
+
+// Nothing to parse, it will be parsed true via `parse_features!` when defined as `ignore`
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Ignore;
+}
+
+impl Parse for Ignore {
+    fn parse(_: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<Ignore> for Feature {
+    fn from(value: Ignore) -> Self {
+        Self::Ignore(value)
+    }
+}
