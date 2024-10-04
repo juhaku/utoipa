@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add customization support for Scalar (https://github.com/juhaku/utoipa/pull/1086)
 * Add macros feature flag (https://github.com/juhaku/utoipa/pull/1015)
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
 

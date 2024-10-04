@@ -51,6 +51,35 @@ let scalar = move || async {
 };
 ```
 
+# Customization
+
+Scalar supports customization via [`Scalar::custom_html`] method which allows overriding the
+default HTML template with customized one. 
+
+**See more about configuration options.**
+
+* [Quick HTML configuration instructions](https://github.com/scalar/scalar/blob/main/documentation/integrations/html.md)
+* [Configuration options](https://github.com/scalar/scalar/blob/main/documentation/configuration.md)
+* [Themes](https://github.com/scalar/scalar/blob/main/documentation/themes.md)
+
+The HTML template must contain **`$spec`** variable which will be overridden during
+`Scalar::to_html` execution.
+
+* **`$spec`** Will be the `Spec` that will be rendered via `Scalar`.
+
+_**Overriding the HTML template with a custom one.**_
+```rust
+# use utoipa_redoc::Redoc;
+# use utoipa::OpenApi;
+# use serde_json::json;
+# #[derive(OpenApi)]
+# #[openapi()]
+# struct ApiDoc;
+#
+let html = "...";
+Redoc::new(ApiDoc::openapi()).custom_html(html);
+```
+
 # Examples
 
 _**Serve `Scalar` via `actix-web` framework.**_
