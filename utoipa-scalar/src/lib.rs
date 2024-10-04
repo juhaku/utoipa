@@ -54,6 +54,34 @@
 //! };
 //! ```
 //!
+//! # Customization
+//!
+//! Scalar supports customization via [`Scalar::custom_html`] method which allows overriding the
+//! default HTML template with customized one.
+//!
+//! **See more about configuration options.**
+//!
+//! * [Quick HTML configuration instructions][html]
+//! * [Configuration options][configuration]
+//! * [Themes][themes]
+//!
+//! The HTML template must contain **`$spec`** variable which will be overridden during
+//! [`Scalar::to_html`] execution.
+//!
+//! * **`$spec`** Will be the [`Spec`] that will be rendered via [Scalar][scalar].
+//!
+//! _**Overriding the HTML template with a custom one.**_
+//! ```rust
+//! # use utoipa_scalar::Scalar;
+//! # use utoipa::OpenApi;
+//! # use serde_json::json;
+//! # #[derive(OpenApi)]
+//! # #[openapi()]
+//! # struct ApiDoc;
+//! #
+//! let html = "...";
+//! Scalar::new(ApiDoc::openapi()).custom_html(html);
+//! ```
 //! # Examples
 //!
 //! _**Serve [`Scalar`] via `actix-web` framework.**_
@@ -112,6 +140,10 @@
 //! ```
 //!
 //! [examples]: <https://github.com/juhaku/utoipa/tree/master/examples>
+//! [scalar]: <https://scalar.com/>
+//! [configuration]: <https://github.com/scalar/scalar/blob/main/documentation/configuration.md>
+//! [themes]: <https://github.com/scalar/scalar/blob/main/documentation/themes.md>
+//! [html]: <https://github.com/scalar/scalar/blob/main/documentation/integrations/html.md>
 
 use std::borrow::Cow;
 
@@ -209,6 +241,17 @@ impl<S: Spec> Scalar<S> {
                 "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
             ),
         )
+    }
+
+    /// Override the [default HTML template][scalar_html_quickstart] with new one. Refer to
+    /// [customization] for more comprehensive guide for customization options.
+    ///
+    /// [customization]: <index.html#customization>
+    /// [scalar_html_quickstart]: <https://github.com/scalar/scalar?tab=readme-ov-file#quickstart>
+    pub fn custom_html<H: Into<Cow<'static, str>>>(mut self, html: H) -> Self {
+        self.html = html.into();
+
+        self
     }
 }
 
