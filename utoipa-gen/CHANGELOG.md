@@ -26,6 +26,7 @@
 
 ### Fixed
 
+* Fix non generic root generic references (https://github.com/juhaku/utoipa/pull/1095)
 * Fix option wrapped tailing query parameters (https://github.com/juhaku/utoipa/pull/1089)
 * Fix doc comment trimming to keep relative indentation. (https://github.com/juhaku/utoipa/pull/1082)
 * Fix generic aliases (https://github.com/juhaku/utoipa/pull/1083)

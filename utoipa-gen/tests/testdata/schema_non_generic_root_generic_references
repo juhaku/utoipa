@@ -1,0 +1,71 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Bar_String": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/String"
+          }
+        }
+      },
+      "Bar_i32": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/i32"
+          }
+        }
+      },
+      "Foo_String": {
+        "type": "object",
+        "required": [
+          "bar"
+        ],
+        "properties": {
+          "bar": {
+            "$ref": "#/components/schemas/Bar_String"
+          }
+        }
+      },
+      "Foo_i32": {
+        "type": "object",
+        "required": [
+          "bar"
+        ],
+        "properties": {
+          "bar": {
+            "$ref": "#/components/schemas/Bar_i32"
+          }
+        }
+      },
+      "Top": {
+        "type": "object",
+        "required": [
+          "foo1",
+          "foo2"
+        ],
+        "properties": {
+          "foo1": {
+            "$ref": "#/components/schemas/Foo_String"
+          },
+          "foo2": {
+            "$ref": "#/components/schemas/Foo_i32"
+          }
+        }
+      }
+    }
+  }
+}

@@ -97,6 +97,39 @@ fn generic_schema_full_api() {
 }
 
 #[test]
+fn schema_with_non_generic_root() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    struct Foo<T> {
+        bar: Bar<T>,
+    }
+
+    #[derive(ToSchema)]
+    struct Bar<T> {
+        value: T,
+    }
+
+    #[derive(ToSchema)]
+    struct Top {
+        foo1: Foo<String>,
+        foo2: Foo<i32>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Top)))]
+    struct ApiDoc;
+    let mut api = ApiDoc::openapi();
+    api.info = Info::new("title", "version");
+
+    let actual = api.to_pretty_json().expect("schema is JSON serializable");
+    println!("{actual}");
+    let expected = include_str!("./testdata/schema_non_generic_root_generic_references");
+
+    assert_eq!(actual.trim(), expected.trim())
+}
+
+#[test]
 #[ignore = "For debugging only"]
 fn schema_macro_run() {
     #![allow(unused)]
