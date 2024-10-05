@@ -125,7 +125,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/path.to.PageList_Person_String_Type_i32"
+                  "$ref": "#/components/schemas/path.to.PageList_Person_String_path.MyType_i32"
                 }
               }
             }
@@ -136,7 +136,7 @@
   },
   "components": {
     "schemas": {
-      "Person_String_Type_i32": {
+      "Person_String_path.MyType_i32": {
         "type": "object",
         "required": [
           "id",
@@ -200,7 +200,7 @@
           }
         ]
       },
-      "path.to.PageList_Person_String_Type_i32": {
+      "path.to.PageList_Person_String_path.MyType_i32": {
         "type": "object",
         "required": [
           "total",

@@ -1081,14 +1081,16 @@ impl ComponentSchema {
                     let nullable_item = nullable_all_of_item(nullable);
                     let mut object_schema_reference = SchemaReference::default();
 
-                    let mut component_name_buffer = String::new();
                     if let Some(children) = &type_tree.children {
-                        component_name_buffer.push('_');
-                        component_name_buffer.push_str(&Self::compose_name(children))
+                        let children_name = Self::compose_name(children);
+                        name_tokens.extend(quote! { std::borrow::Cow::Owned(format!("{}_{}", < #type_path as utoipa::ToSchema >::name(), #children_name)) });
+                    } else {
+                        name_tokens.extend(
+                            quote! { format!("{}", < #type_path as utoipa::ToSchema >::name()) },
+                        );
                     }
-                    name_tokens.extend(quote! { format!("{}{}", < #type_path as utoipa::ToSchema >::name(), #component_name_buffer) });
 
-                    object_schema_reference.name = name_tokens.clone();
+                    object_schema_reference.name = quote! { String::from(#name_tokens) };
 
                     if is_inline {
                         let default = pop_feature!(features => Feature::Default(_));
@@ -1236,34 +1238,29 @@ impl ComponentSchema {
         Ok(())
     }
 
-    fn compose_name<'tr, I>(children: I) -> String
+    fn compose_name<'tr, I>(children: I) -> TokenStream
     where
         I: IntoIterator<Item = &'tr TypeTree<'tr>>,
     {
-        children
+        let children = children
             .into_iter()
             .map(|type_tree| {
-                let mut name = type_tree
+                let name = type_tree
                     .path
                     .as_ref()
-                    .expect("Generic ValueType::Object must have path")
-                    .segments
-                    .last()
-                    .expect("Generic path must have one segment")
-                    .ident
-                    .to_string();
+                    .expect("Generic ValueType::Object must have path");
 
                 if let Some(children) = &type_tree.children {
-                    name.push('_');
-                    name.push_str(&Self::compose_name(children));
+                    let children_name = Self::compose_name(children);
 
-                    name
+                    quote! { std::borrow::Cow::Owned(format!("{}_{}", <#name as utoipa::ToSchema>::name(), #children_name)) }
                 } else {
-                    name
+                    quote! { <#name as utoipa::ToSchema>::name() }
                 }
             })
-            .collect::<Vec<_>>()
-            .join("_")
+            .collect::<Array<_>>();
+
+        quote! { std::borrow::Cow::<String>::Owned(#children.to_vec().join("_")) }
     }
 
     fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
