@@ -407,7 +407,41 @@ pub trait ToSchema: PartialSchema {
     ///
     /// In case a generic schema the _`name`_ will be used as prefix for the name in the OpenAPI
     /// documentation.
-    fn name() -> Cow<'static, str>;
+    ///
+    /// The default implementation naively takes the TypeName by removing
+    /// the module path and generic elements.
+    /// But you probably don't want to use the default implementation for generic elements.
+    /// That will produce coliision between generics. (eq. `Foo<String>` )
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use utoipa::ToSchema;
+    /// #
+    /// struct Foo<T>(T);
+    ///
+    /// impl<T: ToSchema> ToSchema for Foo<T> {}
+    /// # impl<T: ToSchema> utoipa::PartialSchema for Foo<T> {
+    /// #     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+    /// #         Default::default()
+    /// #     }
+    /// # }
+    ///
+    /// assert_eq!(Foo::<()>::name(), std::borrow::Cow::Borrowed("Foo"));
+    /// assert_eq!(Foo::<()>::name(), Foo::<i32>::name()); // WARNING: these types have the same name
+    /// ```
+    fn name() -> Cow<'static, str> {
+        let full_type_name = std::any::type_name::<Self>();
+        let type_name_without_generic = full_type_name
+            .split_once("<")
+            .map(|(s1, _)| s1)
+            .unwrap_or(full_type_name);
+        let type_name = type_name_without_generic
+            .rsplit_once("::")
+            .map(|(_, tn)| tn)
+            .unwrap_or(type_name_without_generic);
+        Cow::Borrowed(type_name)
+    }
 }
 
 impl<T: ToSchema> From<T> for openapi::RefOr<openapi::schema::Schema> {
@@ -1200,6 +1234,34 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn test_toschema_name() {
+        struct Foo;
+        impl ToSchema for Foo {}
+        impl PartialSchema for Foo {
+            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+                Default::default()
+            }
+        }
+        assert_eq!(Foo::name(), Cow::Borrowed("Foo"));
+
+        struct FooGeneric<T: ToSchema, U: ToSchema>(T, U);
+        impl<T: ToSchema, U: ToSchema> ToSchema for FooGeneric<T, U> {}
+        impl<T: ToSchema, U: ToSchema> PartialSchema for FooGeneric<T, U> {
+            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+                Default::default()
+            }
+        }
+        assert_eq!(
+            FooGeneric::<Foo, String>::name(),
+            Cow::Borrowed("FooGeneric")
+        );
+        assert_eq!(
+            FooGeneric::<Foo, String>::name(),
+            FooGeneric::<(), ()>::name(),
+        );
+    }
 
     #[cfg(not(feature = "non_strict_integers"))]
     #[test]
