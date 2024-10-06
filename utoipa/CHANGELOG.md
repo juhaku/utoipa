@@ -1,6 +1,6 @@
 # Changelog - utoipa
 
-**`utoipa`** CHANGELOG is in direct correlation with **`utoipa-gen`** [CHAMGELOG.md](../utoipa-gen/CHANGELOG.md). You might want
+**`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
 ## Unreleased
