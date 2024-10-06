@@ -1131,8 +1131,14 @@ impl ComponentSchema {
                         let index = container.generics.get_generic_type_param_index(type_tree);
                         // only set schema references for concrete non generic types
                         if index.is_none() {
-                            object_schema_reference.tokens =
-                                quote! {<#type_path as utoipa::PartialSchema>::schema() };
+                            let reference_tokens = if let Some(children) = &type_tree.children {
+                                let composed_generics =
+                                    Self::compose_generics(children).collect::<Array<_>>();
+                                quote! { <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec()) }
+                            } else {
+                                quote! { <#type_path as utoipa::PartialSchema>::schema() }
+                            };
+                            object_schema_reference.tokens = reference_tokens;
                             object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
                         }
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {

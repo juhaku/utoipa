@@ -57,7 +57,33 @@
         {
           "properties": {
             "One": {
-              "$ref": "#/components/schemas/Yeah"
+              "properties": {
+                "accounts": {
+                  "items": {
+                    "allOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/components/schemas/Account"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                "foo_bar": {
+                  "$ref": "#/components/schemas/Foobar"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "foo_bar",
+                "accounts"
+              ],
+              "type": "object"
             }
           },
           "required": [
@@ -69,7 +95,7 @@
           "properties": {
             "Many": {
               "items": {
-                "$ref": "#/components/schemas/Yeah"
+                "type": "object"
               },
               "type": "array"
             }
