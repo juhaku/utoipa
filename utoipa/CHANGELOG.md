@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add default implementation of `ToSchema` trait (https://github.com/juhaku/utoipa/pull/1096)
 * Add support for `property_names` for object (https://github.com/juhaku/utoipa/pull/1084)
 * Add auto collect schemas for utoipa-axum (https://github.com/juhaku/utoipa/pull/1072)
 * Add global config for `utiopa` (https://github.com/juhaku/utoipa/pull/1048)
