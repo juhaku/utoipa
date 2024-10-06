@@ -1,112 +1,65 @@
 # Changelog - utoipa
 
+**`utoipa`** CHANGELOG is in direct correlation with **`utoipa-gen`** [CHAMGELOG.md](../utoipa-gen/CHANGELOG.md). You might want
+to look into changes introduced to **`utoipa-gen`**.
+
 ## Unreleased
 
 ### Added
 
-* Add default implementation of `ToSchema` trait (https://github.com/juhaku/utoipa/pull/1096)
+* Add a default impl of ToSchema::name() (https://github.com/juhaku/utoipa/pull/1096)
 * Add support for `property_names` for object (https://github.com/juhaku/utoipa/pull/1084)
-* Add auto collect schemas for utoipa-axum (https://github.com/juhaku/utoipa/pull/1072)
+* Add changelogs for crates (https://github.com/juhaku/utoipa/pull/1075)
+* Add explicit `Extensions` type (https://github.com/juhaku/utoipa/pull/1062)
 * Add global config for `utiopa` (https://github.com/juhaku/utoipa/pull/1048)
 * Add support for `links` in `#[utoipa::path]` (https://github.com/juhaku/utoipa/pull/1047)
-* Add support for `termsOfService` to OpenApi derive (https://github.com/juhaku/utoipa/pull/1046)
+* Add support for real generics (https://github.com/juhaku/utoipa/pull/1034)
 * Add typos to CI (https://github.com/juhaku/utoipa/pull/1036)
 * Add support for nullable schema map items (https://github.com/juhaku/utoipa/pull/1032)
-* Add test for logical or security requirement
-* Add paths support for routes! macro (https://github.com/juhaku/utoipa/pull/1023)
+* Add macros feature flag (https://github.com/juhaku/utoipa/pull/1015)
 * Add extensions support for OpenApi (https://github.com/juhaku/utoipa/pull/1013)
-* Add parsing support for non strict integers (https://github.com/juhaku/utoipa/pull/1012)
 * Add `utoipa-axum` binding example and update docs (https://github.com/juhaku/utoipa/pull/1007)
+* Add support to define mulitple operation methods (https://github.com/juhaku/utoipa/pull/1006)
 * Add utoipa axum bindings (https://github.com/juhaku/utoipa/pull/1004)
 * Add some deprecated attributes for `example` method
-* Add support for inlined enum variants (https://github.com/juhaku/utoipa/pull/963)
-* Add extensions for schemas (https://github.com/juhaku/utoipa/pull/983)
-* Add `description` attribute on `ToSchema` (https://github.com/juhaku/utoipa/pull/949)
-* Add support for description and summary overriding (https://github.com/juhaku/utoipa/pull/948)
-* Add vendored Swagger UI for utoipa (https://github.com/juhaku/utoipa/pull/941)
-* Add missing windows check to utoipa-swagger-ui build.rs
-* Address clippy lints and refactor serde parsing (https://github.com/juhaku/utoipa/pull/931)
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
 * Add `merge_from` method for chainable merge (https://github.com/juhaku/utoipa/pull/924)
-* Add support for additional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
+* Add support for addtional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
 
-### Fixed
+### Fixed 
 
+* Fix typos in changelog
+* Fix typos
+* Fix typos
 * Fix brokent doc links
-* Fix allow response `content_type` without schema (https://github.com/juhaku/utoipa/pull/1073)
 * Fix testing without explicit features (https://github.com/juhaku/utoipa/pull/1041)
-* Fix building utoipa-rapidoc & utoipa-scalar (https://github.com/juhaku/utoipa/pull/1039)
-* Fix building utoipa-axum & utoipa-swagger-ui (https://github.com/juhaku/utoipa/pull/1038)
 * Fix negative value parsing on schema attributes (https://github.com/juhaku/utoipa/pull/1031)
-* Fix utoipa-axum project description
-* Fix parameter inline for tuple path params (https://github.com/juhaku/utoipa/pull/1014)
-* Fix some typos
 * Fix default tag logic for paths (https://github.com/juhaku/utoipa/pull/1002)
-* Fix utoipa-swagger-ui-vendored crates link
 * Fixed documentation spelling mistake (https://github.com/juhaku/utoipa/pull/999)
-* Fix RapiDoc with empty URL panic on axum (https://github.com/juhaku/utoipa/pull/997)
 * Fix respect `required` attribute (https://github.com/juhaku/utoipa/pull/990)
-* Fix samples in documentation when with_openapi is used (https://github.com/juhaku/utoipa/pull/988)
-* Fix openapi serialized twice when served with Rocket (https://github.com/juhaku/utoipa/pull/987)
-* Fix find actual request body TypeTree (https://github.com/juhaku/utoipa/pull/977)
-* Fix summary / description split on empty lines (https://github.com/juhaku/utoipa/pull/947)
-* Fix docs.rs build
-* Fix compile error propagation (https://github.com/juhaku/utoipa/pull/929)
-* Fix tuple params missing features (https://github.com/juhaku/utoipa/pull/928)
 
 ### Changed
 
-* Fix typos
+* List only `utoipa` related changes in `utoipa` CHANGELOG
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
-* Update to rc version
-* Chore unify request body and ext request body (https://github.com/juhaku/utoipa/pull/1067)
-* Refactor structs processing (https://github.com/juhaku/utoipa/pull/1060)
+* Update to rc
 * Update README.md
-* Update README.md
-* Always use system `curl` by default (https://github.com/juhaku/utoipa/pull/1045)
-* Remove Redirect Causing Invalid URIs for Swagger UIs Server on / (https://github.com/juhaku/utoipa/pull/1043)
-* Disable unused default features of rust_decimal (https://github.com/juhaku/utoipa/pull/1029)
-* Update utoipa-axum version
-* Use fs::read to overwrite swagger UI contents (https://github.com/juhaku/utoipa/pull/1022)
+* Chore change the operations implementation. (https://github.com/juhaku/utoipa/pull/1026)
 * Make referenced schemas required (https://github.com/juhaku/utoipa/pull/1018)
 * Enhance `utoipa-axum` bindings (https://github.com/juhaku/utoipa/pull/1017)
 * Update next beta versions
-* Chore refactor `OpenApi` derive macro (https://github.com/juhaku/utoipa/pull/1011)
-* Chore fix clippy lint (https://github.com/juhaku/utoipa/pull/1010)
-* Chore refactor Name trait usage in features (https://github.com/juhaku/utoipa/pull/1009)
-* Chore refactor features (https://github.com/juhaku/utoipa/pull/1008)
 * Chore update docs and relax `url` version (https://github.com/juhaku/utoipa/pull/1001)
 * Bump up versions (https://github.com/juhaku/utoipa/pull/998)
-* Clean up some unused fields
-* fix(utoipa-gen): remove unnecessary allocation with to_string in expanded code (https://github.com/juhaku/utoipa/pull/982)
+* Add extensions for schemas (https://github.com/juhaku/utoipa/pull/983)
 * Bump up to next alplha
 * Update versions
-* Update utoipa-swagger-ui vendored dependency
-* Update utoipa-swagger-ui-vendored version
-* Include res for crates
-* Update min Rust version and utoipa-swagger-ui version
-* Update `utoipa-swagger-ui` versions (https://github.com/juhaku/utoipa/pull/938)
-* Use CARGO_HTTP_CAINFO CA file in build script if present (https://github.com/juhaku/utoipa/pull/935)
-* Clean up imports for utoipa-gen
-* change pub(super) enum to pub enum (https://github.com/juhaku/utoipa/pull/926)
-* Improve file:// url parsing (https://github.com/juhaku/utoipa/pull/925)
-* Migrate out from proc macro error (https://github.com/juhaku/utoipa/pull/920)
-* Make SWAGGER_UI_DOWNLOAD_URL support file:// urls (https://github.com/juhaku/utoipa/pull/923)
 
 ### Breaking
 
-* Auto collect tuple responses schema references (https://github.com/juhaku/utoipa/pull/1071)
-* Add explicit `Extensions` type (https://github.com/juhaku/utoipa/pull/1062)
 * Implement automatic schema collection for requests (https://github.com/juhaku/utoipa/pull/1066)
 * Refactor enums processing (https://github.com/juhaku/utoipa/pull/1059)
-* Add support for real generics (https://github.com/juhaku/utoipa/pull/1034)
-* Chore change the operations implementation. (https://github.com/juhaku/utoipa/pull/1026)
-* Add macros feature flag (https://github.com/juhaku/utoipa/pull/1015)
-* Add support to define multiple operation methods (https://github.com/juhaku/utoipa/pull/1006)
 * Feature openapi 31 (https://github.com/juhaku/utoipa/pull/981)
-* Enhance utoipa-swagger-ui build (https://github.com/juhaku/utoipa/pull/936)
 * Enhance OpenApi nesting with tags support (https://github.com/juhaku/utoipa/pull/932)
-* allow for multiple req body content_type (https://github.com/juhaku/utoipa/pull/876)
 
 ## 4.2.3 - May 7 2024
 
