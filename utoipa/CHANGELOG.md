@@ -19,19 +19,17 @@ to look into changes introduced to **`utoipa-gen`**.
 * Add macros feature flag (https://github.com/juhaku/utoipa/pull/1015)
 * Add extensions support for OpenApi (https://github.com/juhaku/utoipa/pull/1013)
 * Add `utoipa-axum` binding example and update docs (https://github.com/juhaku/utoipa/pull/1007)
-* Add support to define mulitple operation methods (https://github.com/juhaku/utoipa/pull/1006)
+* Add support to define multiple operation methods (https://github.com/juhaku/utoipa/pull/1006)
 * Add utoipa axum bindings (https://github.com/juhaku/utoipa/pull/1004)
 * Add some deprecated attributes for `example` method
 * Add nest `OpenApi` support (https://github.com/juhaku/utoipa/pull/930)
 * Add `merge_from` method for chainable merge (https://github.com/juhaku/utoipa/pull/924)
-* Add support for addtional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
+* Add support for additional tags via `tags` (https://github.com/juhaku/utoipa/pull/916)
 
 ### Fixed 
 
 * Fix typos in changelog
-* Fix typos
-* Fix typos
-* Fix brokent doc links
+* Fix broken doc links
 * Fix testing without explicit features (https://github.com/juhaku/utoipa/pull/1041)
 * Fix negative value parsing on schema attributes (https://github.com/juhaku/utoipa/pull/1031)
 * Fix default tag logic for paths (https://github.com/juhaku/utoipa/pull/1002)
