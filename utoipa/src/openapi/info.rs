@@ -158,6 +158,10 @@ builder! {
         /// Email of the contact person or the organization of the API.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub email: Option<String>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -183,6 +187,11 @@ impl ContactBuilder {
     pub fn email<S: Into<String>>(mut self, email: Option<S>) -> Self {
         set_value!(self email email.map(|email| email.into()))
     }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
+    }
 }
 
 builder! {
@@ -202,6 +211,10 @@ builder! {
         /// Optional url pointing to the license.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub url: Option<String>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -226,6 +239,11 @@ impl LicenseBuilder {
     /// Add url pointing to the license used in API.
     pub fn url<S: Into<String>>(mut self, url: Option<S>) -> Self {
         set_value!(self url url.map(|url| url.into()))
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 

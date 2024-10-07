@@ -26,6 +26,13 @@ builder! {
     }
 }
 
+impl Extensions {
+    /// Merge other [`Extensions`] into _`self`_.
+    pub fn merge(&mut self, other: Extensions) {
+        self.extensions.extend(other.extensions);
+    }
+}
+
 impl Deref for Extensions {
     type Target = HashMap<String, serde_json::Value>;
 

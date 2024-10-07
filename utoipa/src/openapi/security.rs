@@ -185,6 +185,9 @@ pub enum SecurityScheme {
         #[allow(missing_docs)]
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        extensions: Option<Extensions>,
     },
 }
 
@@ -212,6 +215,10 @@ pub struct ApiKeyValue {
     /// Description of the the [`ApiKey`] [`SecurityScheme`]. Supports markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl ApiKeyValue {
@@ -228,6 +235,7 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: None,
+            extensions: Default::default(),
         }
     }
 
@@ -244,6 +252,7 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: Some(description.into()),
+            extensions: Default::default(),
         }
     }
 }
@@ -269,6 +278,10 @@ builder! {
         /// Optional description of [`Http`] [`SecurityScheme`] supporting markdown syntax.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -289,6 +302,7 @@ impl Http {
             scheme,
             bearer_format: None,
             description: None,
+            extensions: Default::default(),
         }
     }
 }
@@ -375,6 +389,10 @@ pub struct OpenIdConnect {
     /// Description of [`OpenIdConnect`] [`SecurityScheme`] supporting markdown syntax.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl OpenIdConnect {
@@ -390,6 +408,7 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: None,
+            extensions: Default::default(),
         }
     }
 
@@ -406,6 +425,7 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: Some(description.into()),
+            extensions: Default::default(),
         }
     }
 }
@@ -559,6 +579,10 @@ pub struct Implicit {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl Implicit {
@@ -594,6 +618,7 @@ impl Implicit {
             authorization_url: authorization_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -622,6 +647,7 @@ impl Implicit {
             authorization_url: authorization_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
     }
 }
@@ -644,6 +670,10 @@ pub struct AuthorizationCode {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl AuthorizationCode {
@@ -686,6 +716,7 @@ impl AuthorizationCode {
             token_url: token_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -717,6 +748,7 @@ impl AuthorizationCode {
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
     }
 }
@@ -737,6 +769,10 @@ pub struct Password {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl Password {
@@ -772,6 +808,7 @@ impl Password {
             token_url: token_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -799,6 +836,7 @@ impl Password {
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
     }
 }
@@ -819,6 +857,10 @@ pub struct ClientCredentials {
     /// Scopes required by the flow.
     #[serde(flatten)]
     pub scopes: Scopes,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl ClientCredentials {
@@ -854,6 +896,7 @@ impl ClientCredentials {
             token_url: token_url.into(),
             refresh_url: None,
             scopes,
+            extensions: Default::default(),
         }
     }
 
@@ -881,6 +924,7 @@ impl ClientCredentials {
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
+            extensions: Default::default(),
         }
     }
 }
@@ -1266,7 +1310,8 @@ mod tests {
     test_fn! {
         security_schema_correct_mutual_tls:
         SecurityScheme::MutualTls {
-            description: Some(String::from("authorization is performed with client side certificate"))
+            description: Some(String::from("authorization is performed with client side certificate")),
+            extensions: None,
         };
         r###"{
   "type": "mutualTLS",

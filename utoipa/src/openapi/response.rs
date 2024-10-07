@@ -29,6 +29,10 @@ builder! {
         /// Map containing status code as a key with represented response as a value.
         #[serde(flatten)]
         pub responses: BTreeMap<String, RefOr<Response>>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -72,6 +76,11 @@ impl ResponsesBuilder {
         self.responses.extend(I::responses());
         self
     }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
+    }
 }
 
 impl From<Responses> for BTreeMap<String, RefOr<Response>> {
@@ -91,6 +100,7 @@ where
                 iter.into_iter()
                     .map(|(code, response)| (code.into(), response.into())),
             ),
+            ..Default::default()
         }
     }
 }

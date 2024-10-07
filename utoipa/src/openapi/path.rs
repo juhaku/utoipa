@@ -34,6 +34,7 @@ builder! {
     pub struct Paths {
         /// Map of relative paths with [`PathItem`]s holding [`Operation`]s matching
         /// api endpoints.
+        #[serde(flatten)]
         pub paths: PathsMap<String, PathItem>,
 
         /// Optional extensions "x-something".

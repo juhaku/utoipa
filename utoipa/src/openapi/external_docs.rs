@@ -3,6 +3,7 @@
 //! [external_docs]: https://spec.openapis.org/oas/latest.html#xml-object
 use serde::{Deserialize, Serialize};
 
+use super::extensions::Extensions;
 use super::{builder, set_value};
 
 builder! {
@@ -18,6 +19,10 @@ builder! {
         pub url: String,
         /// Additional description supporting markdown syntax of the external documentation.
         pub description: Option<String>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -49,5 +54,10 @@ impl ExternalDocsBuilder {
     /// Add additional description of external documentation.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }

@@ -78,6 +78,10 @@ builder! {
         /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub security_schemes: BTreeMap<String, SecurityScheme>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -254,6 +258,11 @@ impl ComponentsBuilder {
 
         self
     }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
+    }
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
@@ -312,6 +321,10 @@ pub struct Discriminator {
     /// validation.
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub mapping: BTreeMap<String, String>,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl Discriminator {
@@ -328,6 +341,7 @@ impl Discriminator {
         Self {
             property_name: property_name.into(),
             mapping: BTreeMap::new(),
+            ..Default::default()
         }
     }
 
@@ -363,6 +377,7 @@ impl Discriminator {
                     .into_iter()
                     .map(|(key, val)| (key.into(), val.into())),
             ),
+            ..Default::default()
         }
     }
 }
@@ -2373,7 +2388,13 @@ mod tests {
                 "200",
                 ResponseBuilder::new().description("Okay").build(),
             )])
-            .security_scheme("TLS", SecurityScheme::MutualTls { description: None })
+            .security_scheme(
+                "TLS",
+                SecurityScheme::MutualTls {
+                    description: None,
+                    extensions: None,
+                },
+            )
             .build();
 
         let serialized_components = serde_json::to_string(&components).unwrap();

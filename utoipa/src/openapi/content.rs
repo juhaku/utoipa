@@ -7,6 +7,7 @@ use serde_json::Value;
 
 use super::builder;
 use super::example::Example;
+use super::extensions::Extensions;
 use super::{encoding::Encoding, set_value, RefOr, Schema};
 
 builder! {
@@ -14,6 +15,10 @@ builder! {
 
 
     /// Content holds request body content or response content.
+    ///
+    /// [`Content`] implements OpenAPI spec [Media Type Object][media_type]
+    ///
+    /// [media_type]: <https://spec.openapis.org/oas/latest.html#media-type-object>
     #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[non_exhaustive]
@@ -43,6 +48,10 @@ builder! {
         /// multipart or `application/x-www-form-urlencoded`.
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub encoding: BTreeMap<String, Encoding>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -106,5 +115,10 @@ impl ContentBuilder {
     ) -> Self {
         self.encoding.insert(property_name.into(), encoding.into());
         self
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
