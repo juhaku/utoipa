@@ -5707,3 +5707,47 @@ fn derive_schema_with_ignored_field() {
         })
     )
 }
+
+#[test]
+fn derive_schema_unnamed_title() {
+    #![allow(unused)]
+
+    let value = api_doc! {
+        #[schema(title = "This is vec title")]
+        struct SchemaIgnoredField (Vec<String>);
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "title": "This is vec title",
+            "items": {
+                "type": "string"
+            },
+            "type": "array"
+        })
+    );
+
+    #[derive(ToSchema)]
+    enum UnnamedEnum {
+        One,
+        Two,
+    }
+
+    let enum_value = api_doc! {
+        #[schema(title = "This is enum ref title")]
+        struct SchemaIgnoredField (UnnamedEnum);
+    };
+
+    assert_json_eq!(
+        enum_value,
+        json!({
+            "title": "This is enum ref title",
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/UnnamedEnum"
+                }
+            ],
+        })
+    )
+}
