@@ -5751,3 +5751,63 @@ fn derive_schema_unnamed_title() {
         })
     )
 }
+
+#[test]
+fn derive_struct_inline_with_description() {
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct Foo {
+        name: &'static str,
+    }
+
+    let value = api_doc! {
+        struct FooInlined {
+            /// This is description
+            #[schema(inline)]
+            with_description: Foo,
+
+            #[schema(inline)]
+            no_description_inline: Foo,
+        }
+    };
+
+    assert_json_eq!(
+        &value,
+        json!({
+            "properties": {
+                "no_description_inline": {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                    },
+                    "required": [
+                        "name"
+                    ],
+                    "type": "object"
+                },
+                "with_description": {
+                    "description": "This is description",
+                    "allOf": [
+                        {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                            },
+                            "required": [
+                                "name"
+                            ],
+                            "type": "object"
+                        }
+                    ]
+                },
+            },
+            "required": [
+                "with_description",
+                "no_description_inline",
+            ],
+            "type": "object"
+        })
+    );
+}

@@ -1113,13 +1113,19 @@ impl ComponentSchema {
                         object_schema_reference.tokens = items_tokens.clone();
                         object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
 
-                        let schema = if default.is_some() || nullable || title.is_some() {
+                        let description_tokens = description_stream.to_token_stream();
+                        let schema = if default.is_some()
+                            || nullable
+                            || title.is_some()
+                            || !description_tokens.is_empty()
+                        {
                             quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::AllOfBuilder::new()
                                     #nullable_item
                                     .item(#items_tokens)
                                 #title_tokens
                                 #default_tokens
+                                #description_stream
                             }
                         } else {
                             items_tokens
