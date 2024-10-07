@@ -536,6 +536,12 @@ impl From<OneOfBuilder> for RefOr<Schema> {
     }
 }
 
+impl From<OneOfBuilder> for ArrayItems {
+    fn from(value: OneOfBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 component_from_builder!(OneOfBuilder);
 
 builder! {
@@ -707,6 +713,12 @@ impl From<AllOfBuilder> for RefOr<Schema> {
     }
 }
 
+impl From<AllOfBuilder> for ArrayItems {
+    fn from(value: AllOfBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 component_from_builder!(AllOfBuilder);
 
 builder! {
@@ -865,6 +877,12 @@ impl From<AnyOf> for Schema {
 impl From<AnyOfBuilder> for RefOr<Schema> {
     fn from(any_of: AnyOfBuilder) -> Self {
         Self::T(Schema::AnyOf(any_of.build()))
+    }
+}
+
+impl From<AnyOfBuilder> for ArrayItems {
+    fn from(value: AnyOfBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -1071,6 +1089,12 @@ impl From<Object> for Schema {
     }
 }
 
+impl From<Object> for ArrayItems {
+    fn from(value: Object) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 impl ToArray for Object {}
 
 impl ObjectBuilder {
@@ -1272,6 +1296,12 @@ impl From<RefOr<Schema>> for Schema {
     }
 }
 
+impl From<ObjectBuilder> for ArrayItems {
+    fn from(value: ObjectBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 /// AdditionalProperties is used to define values of map fields of the [`Schema`].
 ///
 /// The value can either be [`RefOr`] or _`bool`_.
@@ -1414,9 +1444,21 @@ impl From<RefBuilder> for RefOr<Schema> {
     }
 }
 
+impl From<RefBuilder> for ArrayItems {
+    fn from(value: RefBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 impl From<Ref> for RefOr<Schema> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
+    }
+}
+
+impl From<Ref> for ArrayItems {
+    fn from(value: Ref) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -1467,6 +1509,70 @@ where
     }
 }
 
+/// Represents [`Array`] items in [JSON Schema Array][json_schema_array].
+///
+/// [json_schema_array]: <https://json-schema.org/understanding-json-schema/reference/array#items>
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(untagged)]
+pub enum ArrayItems {
+    /// Defines [`Array::items`] as [`RefOr::T(Schema)`]. This is the default for [`Array`].
+    RefOrSchema(Box<RefOr<Schema>>),
+    /// Defines [`Array::items`] as `false` indicating that no extra items are allowed to the
+    /// [`Array`]. This can be used together with [`Array::prefix_items`] to disallow [additional
+    /// items][additional_items] in [`Array`].
+    ///
+    /// [additional_items]: <https://json-schema.org/understanding-json-schema/reference/array#additionalitems>
+    #[serde(with = "array_items_false")]
+    False,
+}
+
+mod array_items_false {
+    use serde::de::Visitor;
+
+    pub fn serialize<S: serde::Serializer>(serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bool(false)
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
+        struct ItemsFalseVisitor;
+
+        impl<'de> Visitor<'de> for ItemsFalseVisitor {
+            type Value = ();
+            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                if !v {
+                    Ok(())
+                } else {
+                    Err(serde::de::Error::custom(format!(
+                        "invalid boolean value: {v}, expected false"
+                    )))
+                }
+            }
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("expected boolean false")
+            }
+        }
+
+        deserializer.deserialize_bool(ItemsFalseVisitor)
+    }
+}
+
+impl Default for ArrayItems {
+    fn default() -> Self {
+        Self::RefOrSchema(Box::new(Object::with_type(SchemaType::AnyValue).into()))
+    }
+}
+
+impl From<RefOr<Schema>> for ArrayItems {
+    fn from(value: RefOr<Schema>) -> Self {
+        Self::RefOrSchema(Box::new(value))
+    }
+}
+
 builder! {
     ArrayBuilder;
 
@@ -1486,8 +1592,15 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub title: Option<String>,
 
-        /// Schema representing the array items type.
-        pub items: Box<RefOr<Schema>>,
+        /// Items of the [`Array`].
+        pub items: ArrayItems,
+
+        /// Prefix items of [`Array`] is used to define item validation of tuples according [JSON schema
+        /// item validation][item_validation].
+        ///
+        /// [item_validation]: <https://json-schema.org/understanding-json-schema/reference/array#tupleValidation>
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub prefix_items: Vec<Schema>,
 
         /// Description of the [`Array`]. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1541,6 +1654,7 @@ impl Default for Array {
             schema_type: Type::Array.into(),
             unique_items: bool::default(),
             items: Default::default(),
+            prefix_items: Vec::default(),
             description: Default::default(),
             deprecated: Default::default(),
             example: Default::default(),
@@ -1566,7 +1680,7 @@ impl Array {
     /// ```
     pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
-            items: Box::new(component.into()),
+            items: ArrayItems::RefOrSchema(Box::new(component.into())),
             ..Default::default()
         }
     }
@@ -1582,7 +1696,7 @@ impl Array {
     /// ```
     pub fn new_nullable<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
-            items: Box::new(component.into()),
+            items: ArrayItems::RefOrSchema(Box::new(component.into())),
             schema_type: SchemaType::from_iter([Type::Array, Type::Null]),
             ..Default::default()
         }
@@ -1591,8 +1705,21 @@ impl Array {
 
 impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
-    pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self items Box::new(component.into()))
+    pub fn items<I: Into<ArrayItems>>(mut self, items: I) -> Self {
+        set_value!(self items items.into())
+    }
+
+    /// Add prefix items of [`Array`] to define item validation of tuples according [JSON schema
+    /// item validation][item_validation].
+    ///
+    /// [item_validation]: <https://json-schema.org/understanding-json-schema/reference/array#tupleValidation>
+    pub fn prefix_items<I: IntoIterator<Item = S>, S: Into<Schema>>(mut self, items: I) -> Self {
+        self.prefix_items = items
+            .into_iter()
+            .map(|item| item.into())
+            .collect::<Vec<_>>();
+
+        self
     }
 
     /// Change type of the array e.g. to change type to _`string`_
@@ -1678,6 +1805,12 @@ component_from_builder!(ArrayBuilder);
 impl From<Array> for Schema {
     fn from(array: Array) -> Self {
         Self::Array(array)
+    }
+}
+
+impl From<ArrayBuilder> for ArrayItems {
+    fn from(value: ArrayBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -2128,9 +2261,9 @@ mod tests {
         );
 
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(
-                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(Type::Number)),
-            ))
+            .additional_properties(Some(ArrayBuilder::new().items(ArrayItems::RefOrSchema(
+                Box::new(ObjectBuilder::new().schema_type(Type::Number).into()),
+            ))))
             .build();
         assert_json_eq!(
             json_value,

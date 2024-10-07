@@ -74,6 +74,7 @@
 
 ### Breaking
 
+* Adds support for `prefixItems` on `Array` (https://github.com/juhaku/utoipa/pull/1103)
 * Auto collect tuple responses schema references (https://github.com/juhaku/utoipa/pull/1071)
 * Implement automatic schema collection for requests (https://github.com/juhaku/utoipa/pull/1066)
 * Refactor enums processing (https://github.com/juhaku/utoipa/pull/1059)

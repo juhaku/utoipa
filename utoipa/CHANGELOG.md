@@ -54,6 +54,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Breaking
 
+* Adds support for `prefixItems` on `Array` (https://github.com/juhaku/utoipa/pull/1103)
 * Implement automatic schema collection for requests (https://github.com/juhaku/utoipa/pull/1066)
 * Refactor enums processing (https://github.com/juhaku/utoipa/pull/1059)
 * Feature openapi 31 (https://github.com/juhaku/utoipa/pull/981)

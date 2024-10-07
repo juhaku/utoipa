@@ -4920,28 +4920,34 @@ fn derive_tuple_named_struct_field() {
             info: (String, i64, bool, Person)
         }
     };
+
     assert_json_eq!(
         value,
         json!({
             "properties": {
                 "info": {
-                    "items": {
-                        "allOf": [
-                            {
-                                "type": "string"
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "integer",
+                            "format": "int64",
+                        },
+                        {
+                            "type": "boolean",
+                        },
+                        {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
                             },
-                            {
-                                "type": "integer",
-                                "format": "int64",
-                            },
-                            {
-                                "type": "boolean",
-                            },
-                            {
-                                "$ref": "#/components/schemas/Person"
-                            }
-                        ]
-                    },
+                            "required": ["name"],
+                            "type": "object"
+                        }
+                    ],
+                    "items": false,
                     "type": "array"
                 }
             },
@@ -4966,17 +4972,16 @@ fn derive_nullable_tuple() {
         json!({
             "properties": {
                 "info": {
-                    "items": {
-                        "allOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "integer",
-                                "format": "int64",
-                            },
-                        ]
-                    },
+                    "prefixItems": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "integer",
+                            "format": "int64",
+                        },
+                    ],
+                    "items": false,
                     "type": ["array", "null"],
                     "deprecated": true,
                     "description": "This is description",

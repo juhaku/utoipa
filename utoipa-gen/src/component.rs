@@ -1199,14 +1199,16 @@ impl ComponentSchema {
                     .children
                     .as_ref()
                     .map_try(|children| {
-                        let all_of = children
+                        let prefix_items = children
                             .iter()
                             .map(|child| {
-                                let features = if child.is_option() {
+                                let mut features = if child.is_option() {
                                     vec![Feature::Nullable(Nullable::new())]
                                 } else {
                                     Vec::new()
                                 };
+                                // Prefix item is always inlined
+                                features.push(Feature::Inline(true.into()));
 
                                 match ComponentSchema::new(ComponentSchemaProps {
                                     container,
@@ -1214,20 +1216,15 @@ impl ComponentSchema {
                                     features,
                                     description: None,
                                 }) {
-                                    Ok(child) => Ok(child.to_token_stream()),
+                                    Ok(child) => Ok(quote! {
+                                        Into::<utoipa::openapi::schema::Schema>::into(#child)
+                                    }),
                                     Err(diagnostics) => Err(diagnostics),
                                 }
                             })
                             .collect::<Result<Vec<_>, Diagnostics>>()?
                             .into_iter()
-                            .fold(
-                                quote! { utoipa::openapi::schema::AllOfBuilder::new() },
-                                |mut all_of, child_tokens| {
-                                    all_of.extend(quote!( .item(#child_tokens) ));
-
-                                    all_of
-                                },
-                            );
+                            .collect::<Array<_>>();
 
                         let nullable_schema_type = ComponentSchema::get_schema_type_override(
                             nullable_feat,
@@ -1236,7 +1233,8 @@ impl ComponentSchema {
                         Result::<TokenStream, Diagnostics>::Ok(quote! {
                             utoipa::openapi::schema::ArrayBuilder::new()
                                 #nullable_schema_type
-                                .items(#all_of)
+                                .items(utoipa::openapi::schema::ArrayItems::False)
+                                .prefix_items(#prefix_items.to_vec())
                                 #description_stream
                                 #deprecated
                         })
