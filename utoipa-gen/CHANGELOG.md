@@ -26,6 +26,7 @@
 
 ### Fixed
 
+* Fix description on `inline` field (https://github.com/juhaku/utoipa/pull/1102)
 * Fix `title` on unnamed struct and references (https://github.com/juhaku/utoipa/pull/1101)
 * Fix generic references (https://github.com/juhaku/utoipa/pull/1097)
 * Fix non generic root generic references (https://github.com/juhaku/utoipa/pull/1095)
