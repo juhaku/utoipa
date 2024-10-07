@@ -901,6 +901,7 @@ impl ComponentSchema {
         let nullable: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_));
+        let title = pop_feature!(features => Feature::Title(_));
         let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         let child = type_tree
@@ -980,10 +981,8 @@ impl ComponentSchema {
             tokens.extend(min_items.to_token_stream())
         }
 
-        if let Some(default) = default {
-            tokens.extend(default.to_token_stream())
-        }
-
+        default.to_tokens(tokens)?;
+        title.to_tokens(tokens)?;
         example.to_tokens(tokens)?;
         xml.to_tokens(tokens)?;
 
@@ -1092,10 +1091,12 @@ impl ComponentSchema {
 
                     object_schema_reference.name = quote! { String::from(#name_tokens) };
 
-                    if is_inline {
-                        let default = pop_feature!(features => Feature::Default(_));
-                        let default_tokens = as_tokens_or_diagnostics!(&default);
+                    let default = pop_feature!(features => Feature::Default(_));
+                    let default_tokens = as_tokens_or_diagnostics!(&default);
+                    let title = pop_feature!(features => Feature::Title(_));
+                    let title_tokens = as_tokens_or_diagnostics!(&title);
 
+                    if is_inline {
                         let items_tokens = if let Some(children) = &type_tree.children {
                             schema_references.extend(Self::compose_child_references(children));
 
@@ -1112,11 +1113,12 @@ impl ComponentSchema {
                         object_schema_reference.tokens = items_tokens.clone();
                         object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
 
-                        let schema = if default.is_some() || nullable {
+                        let schema = if default.is_some() || nullable || title.is_some() {
                             quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::AllOfBuilder::new()
                                     #nullable_item
                                     .item(#items_tokens)
+                                #title_tokens
                                 #default_tokens
                             }
                         } else {
@@ -1125,9 +1127,6 @@ impl ComponentSchema {
 
                         schema.to_tokens(tokens);
                     } else {
-                        let default = pop_feature!(features => Feature::Default(_));
-                        let default_tokens = as_tokens_or_diagnostics!(&default);
-
                         let index = container.generics.get_generic_type_param_index(type_tree);
                         // only set schema references for concrete non generic types
                         if index.is_none() {
@@ -1164,7 +1163,7 @@ impl ComponentSchema {
                         // TODO: refs support `summary` field but currently there is no such field
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
-                        let schema = if default.is_some() || nullable {
+                        let schema = if default.is_some() || nullable || title.is_some() {
                             composed_or_ref(quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::AllOfBuilder::new()
                                     #nullable_item
@@ -1172,6 +1171,7 @@ impl ComponentSchema {
                                         #description_stream
                                         .ref_location_from_schema_name(#name_tokens)
                                     )
+                                    #title_tokens
                                     #default_tokens
                             })
                         } else {
