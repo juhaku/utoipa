@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::extensions::Extensions;
 use super::{builder, set_value, Content, Required};
 
 builder! {
@@ -28,6 +29,10 @@ builder! {
         /// Determines whether request body is required in the request or not.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub required: Option<Required>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -54,6 +59,11 @@ impl RequestBodyBuilder {
         self.content.insert(content_type.into(), content);
 
         self
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 

@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::extensions::Extensions;
 use super::{builder, Server};
 
 builder! {
@@ -67,6 +68,10 @@ builder! {
         /// [server]: ../server/struct.Server.html
         #[serde(skip_serializing_if = "Option::is_none")]
         pub server: Option<Server>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -125,6 +130,13 @@ impl LinkBuilder {
     /// [server]: ../server/struct.Server.html
     pub fn server<S: Into<Server>>(mut self, server: Option<S>) -> Self {
         self.server = server.map(|server| server.into());
+
+        self
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        self.extensions = extensions;
 
         self
     }

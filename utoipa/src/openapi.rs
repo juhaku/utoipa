@@ -89,7 +89,6 @@ builder! {
         /// Available paths and operations for the API.
         ///
         /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
-        #[serde(flatten)]
         pub paths: Paths,
 
         /// Holds various reusable schemas for the OpenAPI document.
@@ -208,6 +207,11 @@ impl OpenApi {
                 }
             }
             self.paths.paths.extend(other.paths.paths);
+
+            if let Some(other_paths_extensions) = other.paths.extensions {
+                let paths_extensions = self.paths.extensions.get_or_insert(Extensions::default());
+                paths_extensions.merge(other_paths_extensions);
+            }
         };
 
         if let Some(other_components) = &mut other.components {
@@ -852,6 +856,7 @@ mod tests {
                             .response("200", Response::new("Get user success 1")),
                     ),
                 )
+                .extensions(Some(Extensions::from_iter([("x-v1-api", true)])))
                 .build(),
         );
 
@@ -891,6 +896,7 @@ mod tests {
                                 .response("200", Response::new("Post user success 2")),
                         ),
                     )
+                    .extensions(Some(Extensions::from_iter([("x-random", "Value")])))
                     .build(),
             )
             .components(Some(
@@ -950,7 +956,9 @@ mod tests {
                           }
                         }
                       }
-                    }
+                    },
+                    "x-random": "Value",
+                    "x-v1-api": true,
                   },
                   "components": {
                     "schemas": {

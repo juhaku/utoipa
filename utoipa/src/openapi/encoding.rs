@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::extensions::Extensions;
 use super::{builder, path::ParameterStyle, set_value, Header};
 
 builder! {
@@ -51,6 +52,10 @@ builder! {
         /// `application/x-www-form-urlencoded`.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub allow_reserved: Option<bool>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -80,5 +85,10 @@ impl EncodingBuilder {
     /// Set the allow reserved. See [`Encoding::allow_reserved`].
     pub fn allow_reserved(mut self, allow_reserved: Option<bool>) -> Self {
         set_value!(self allow_reserved allow_reserved)
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }

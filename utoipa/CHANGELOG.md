@@ -7,6 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Added
 
+* Add missing `extensions` for OpenAPI types (https://github.com/juhaku/utoipa/pull/1104)
 * Add a default impl of ToSchema::name() (https://github.com/juhaku/utoipa/pull/1096)
 * Add support for `property_names` for object (https://github.com/juhaku/utoipa/pull/1084)
 * Add changelogs for crates (https://github.com/juhaku/utoipa/pull/1075)
