@@ -14,6 +14,7 @@
 
 ### Fixed
 
+* Fix `routes!` macro call (https://github.com/juhaku/utoipa/pull/1108)
 * Fix testing without explicit features (https://github.com/juhaku/utoipa/pull/1041)
 * Fix building utoipa-axum & utoipa-swagger-ui (https://github.com/juhaku/utoipa/pull/1038)
 * Fix utoipa-axum project description
