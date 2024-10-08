@@ -128,19 +128,19 @@ macro_rules! routes {
             use $crate::PathItemExt;
             let mut paths = utoipa::openapi::path::Paths::new();
             let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
-            let (path, item, types) = routes!(@resolve_types $handler : schemas);
+            let (path, item, types) = $crate::routes!(@resolve_types $handler : schemas);
             #[allow(unused_mut)]
             let mut method_router = types.iter().by_ref().fold(axum::routing::MethodRouter::new(), |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
             });
             paths.add_path_operation(&path, types, item);
-            $( method_router = routes!( schemas: method_router: paths: $tail ); )*
+            $( method_router = $crate::routes!( schemas: method_router: paths: $tail ); )*
             (schemas, paths, method_router)
         }
     };
     ( $schemas:tt: $router:ident: $paths:ident: $handler:path $(, $tail:tt)* ) => {
         {
-            let (path, item, types) = routes!(@resolve_types $handler : $schemas);
+            let (path, item, types) = $crate::routes!(@resolve_types $handler : $schemas);
             let router = types.iter().by_ref().fold($router, |router, path_type| {
                 router.on(path_type.to_method_filter(), $handler)
             });
@@ -151,11 +151,11 @@ macro_rules! routes {
     ( @resolve_types $handler:path : $schemas:tt ) => {
         {
             $crate::paste! {
-                let path = routes!( @path [path()] of $handler );
-                let mut operation = routes!( @path [operation()] of $handler );
-                let types = routes!( @path [methods()] of $handler );
-                let tags = routes!( @path [tags()] of $handler );
-                routes!( @path [schemas(&mut $schemas)] of $handler );
+                let path = $crate::routes!( @path [path()] of $handler );
+                let mut operation = $crate::routes!( @path [operation()] of $handler );
+                let types = $crate::routes!( @path [methods()] of $handler );
+                let tags = $crate::routes!( @path [tags()] of $handler );
+                $crate::routes!( @path [schemas(&mut $schemas)] of $handler );
                 if !tags.is_empty() {
                     let operation_tags = operation.tags.get_or_insert(Vec::new());
                     operation_tags.extend(tags.iter().map(ToString::to_string));
@@ -165,19 +165,19 @@ macro_rules! routes {
         }
     };
     ( @path $op:tt of $part:ident $( :: $tt:tt )* ) => {
-        routes!( $op : [ $part $( $tt )*] )
+        $crate::routes!( $op : [ $part $( $tt )*] )
     };
     ( $op:tt : [ $first:tt $( $rest:tt )* ] $( $rev:tt )* ) => {
-        routes!( $op : [ $( $rest )* ] $first $( $rev)* )
+        $crate::routes!( $op : [ $( $rest )* ] $first $( $rev)* )
     };
     ( $op:tt : [] $first:tt $( $rest:tt )* ) => {
-        routes!( @inverse $op : $first $( $rest )* )
+        $crate::routes!( @inverse $op : $first $( $rest )* )
     };
     ( @inverse $op:tt : $tt:tt $( $rest:tt )* ) => {
-        routes!( @rev $op : $tt [$($rest)*] )
+        $crate::routes!( @rev $op : $tt [$($rest)*] )
     };
     ( @rev $op:tt : $tt:tt [ $first:tt $( $rest:tt)* ] $( $reversed:tt )* ) => {
-        routes!( @rev $op : $tt [ $( $rest )* ] $first $( $reversed )* )
+        $crate::routes!( @rev $op : $tt [ $( $rest )* ] $first $( $reversed )* )
     };
     ( @rev [$op:ident $( $args:tt )* ] : $handler:tt [] $($tt:tt)* ) => {
         {
