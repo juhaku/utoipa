@@ -29,6 +29,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Fixed 
 
+* Fix impl `ToSchema` for container types (https://github.com/juhaku/utoipa/pull/1107)
 * Fix typos in changelog
 * Fix broken doc links
 * Fix testing without explicit features (https://github.com/juhaku/utoipa/pull/1041)

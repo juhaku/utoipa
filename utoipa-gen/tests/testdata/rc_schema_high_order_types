@@ -1,0 +1,42 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "HighArc": {
+        "$ref": "#/components/schemas/High_Arc_i32"
+      },
+      "HighRc": {
+        "$ref": "#/components/schemas/High_Rc_i32"
+      },
+      "High_Arc_i32": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "High_Rc_i32": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  }
+}

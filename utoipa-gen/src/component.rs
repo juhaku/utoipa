@@ -1234,7 +1234,7 @@ impl ComponentSchema {
                             utoipa::openapi::schema::ArrayBuilder::new()
                                 #nullable_schema_type
                                 .items(utoipa::openapi::schema::ArrayItems::False)
-                                .prefix_items(#prefix_items.to_vec())
+                                .prefix_items(#prefix_items)
                                 #description_stream
                                 #deprecated
                         })

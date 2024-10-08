@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use serde::Serialize;
 use utoipa::openapi::{Info, RefOr, Schema};
-use utoipa::{schema, OpenApi, ToSchema};
+use utoipa::{schema, OpenApi, PartialSchema, ToSchema};
 
 #[test]
 fn generic_schema_custom_bound() {
@@ -127,6 +127,131 @@ fn schema_with_non_generic_root() {
     let expected = include_str!("./testdata/schema_non_generic_root_generic_references");
 
     assert_eq!(actual.trim(), expected.trim())
+}
+
+#[test]
+fn derive_generic_schema_enum_variants() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct FooStruct<B> {
+        pub foo: B,
+    }
+
+    #[derive(ToSchema)]
+    enum FoosEnum {
+        ThingNoAliasOption(FooStruct<Option<i32>>),
+        FooEnumThing(#[schema(inline)] FooStruct<Vec<i32>>),
+        FooThingOptionVec(#[schema(inline)] FooStruct<Option<Vec<i32>>>),
+        FooThingLinkedList(#[schema(inline)] FooStruct<std::collections::LinkedList<i32>>),
+        FooThingBTreeMap(#[schema(inline)] FooStruct<std::collections::BTreeMap<String, String>>),
+        FooThingHashMap(#[schema(inline)] FooStruct<std::collections::HashMap<i32, String>>),
+        FooThingHashSet(#[schema(inline)] FooStruct<std::collections::HashSet<i32>>),
+        FooThingBTreeSet(#[schema(inline)] FooStruct<std::collections::BTreeSet<i32>>),
+    }
+
+    let schema = FoosEnum::schema();
+    let json = serde_json::to_string_pretty(&schema).expect("Schema is JSON serializable");
+    let value = json.trim();
+    // println!("{value}");
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(FoosEnum)))]
+    struct Api;
+
+    let mut api = Api::openapi();
+    api.info = Info::new("title", "version");
+    let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
+    println!("{api_json}");
+    let expected = include_str!("./testdata/schema_generic_enum_variant_with_generic_type");
+    assert_eq!(expected.trim(), api_json.trim());
+}
+
+#[test]
+fn high_order_types() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct High<T> {
+        high: T,
+    }
+
+    #[derive(ToSchema)]
+    pub struct HighBox {
+        value: High<Box<i32>>,
+    }
+
+    #[derive(ToSchema)]
+    pub struct HighCow(High<Cow<'static, i32>>);
+
+    #[derive(ToSchema)]
+    pub struct HighRefCell(High<std::cell::RefCell<i32>>);
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(HighBox, HighCow, HighRefCell)))]
+    struct Api;
+
+    let mut api = Api::openapi();
+    api.info = Info::new("title", "version");
+    let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
+    println!("{api_json}");
+    let expected = include_str!("./testdata/schema_high_order_types");
+    assert_eq!(expected.trim(), api_json.trim());
+}
+
+#[test]
+#[cfg(feature = "rc_schema")]
+fn rc_schema_high_order_types() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct High<T> {
+        high: T,
+    }
+
+    #[derive(ToSchema)]
+    pub struct HighArc(High<std::sync::Arc<i32>>);
+
+    #[derive(ToSchema)]
+    pub struct HighRc(High<std::rc::Rc<i32>>);
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(HighArc, HighRc)))]
+    struct Api;
+
+    let mut api = Api::openapi();
+    api.info = Info::new("title", "version");
+    let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
+    println!("{api_json}");
+
+    let expected = include_str!("./testdata/rc_schema_high_order_types");
+    assert_eq!(expected.trim(), api_json.trim());
+}
+
+#[test]
+#[ignore = "arrays, slices, tuples as generic argument is not supported at the moment"]
+fn slice_generic_args() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct High<T> {
+        high: T,
+    }
+
+    // // #[derive(ToSchema)]
+    // pub struct HighSlice(High<&'static [i32]>);
+    //
+    // #[derive(OpenApi)]
+    // // #[openapi(components(schemas(HighSlice)))]
+    // struct Api;
+    //
+    // let mut api = Api::openapi();
+    // api.info = Info::new("title", "version");
+    // let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
+    // println!("{api_json}");
+    //
+    // let expected = include_str!("./testdata/rc_schema_high_order_types");
+    // assert_eq!(expected.trim(), api_json.trim());
 }
 
 #[test]
