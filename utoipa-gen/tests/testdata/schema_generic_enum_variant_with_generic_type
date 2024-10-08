@@ -1,0 +1,340 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "FooStruct_BTreeMap_String_String": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FooStruct_BTreeSet_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "uniqueItems": true
+          }
+        }
+      },
+      "FooStruct_HashMap_i32_String": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "FooStruct_HashSet_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "uniqueItems": true
+          }
+        }
+      },
+      "FooStruct_LinkedList_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "FooStruct_Option_Vec_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "allOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "FooStruct_Option_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "allOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "format": "int32"
+              }
+            ]
+          }
+        }
+      },
+      "FooStruct_Vec_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "FoosEnum": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ThingNoAliasOption"
+            ],
+            "properties": {
+              "ThingNoAliasOption": {
+                "$ref": "#/components/schemas/FooStruct_Option_i32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooEnumThing"
+            ],
+            "properties": {
+              "FooEnumThing": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooThingOptionVec"
+            ],
+            "properties": {
+              "FooThingOptionVec": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "allOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "format": "int32"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooThingLinkedList"
+            ],
+            "properties": {
+              "FooThingLinkedList": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooThingBTreeMap"
+            ],
+            "properties": {
+              "FooThingBTreeMap": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooThingHashMap"
+            ],
+            "properties": {
+              "FooThingHashMap": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooThingHashSet"
+            ],
+            "properties": {
+              "FooThingHashSet": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "uniqueItems": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "FooThingBTreeSet"
+            ],
+            "properties": {
+              "FooThingBTreeSet": {
+                "type": "object",
+                "required": [
+                  "foo"
+                ],
+                "properties": {
+                  "foo": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "uniqueItems": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
