@@ -2,14 +2,16 @@ use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
+use syn::token::Comma;
 use syn::{
     AngleBracketedGenericArguments, Attribute, GenericArgument, GenericParam, Generics, Path,
     PathArguments, PathSegment, Type, TypePath,
 };
 
 use crate::doc_comment::CommentAttributes;
-use crate::schema_type::{SchemaFormat, SchemaTypeInner};
+use crate::schema_type::{PrimitiveType, SchemaFormat, SchemaTypeInner};
 use crate::{
     as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
     ToTokensDiagnostics,
@@ -126,6 +128,101 @@ pub struct TypeTree<'t> {
     pub value_type: ValueType,
     pub generic_type: Option<GenericType>,
     pub children: Option<Vec<TypeTree<'t>>>,
+}
+
+pub trait SynPathExt {
+    /// Rewrite path will perform conditional substitution over the current path replacing
+    /// [`PathSegment`]s and [`syn::Ident`] with aliases if found via [`TypeTree::get_alias_type`]
+    /// or by [`PrimitiveType`] if type in question is known to be a primitive type.
+    fn rewrite_path(&self) -> Result<syn::Path, Diagnostics>;
+}
+
+impl<'p> SynPathExt for &'p Path {
+    fn rewrite_path(&self) -> Result<syn::Path, Diagnostics> {
+        let last_segment = self
+            .segments
+            .last()
+            .expect("syn::Path must have at least one segment");
+
+        let mut segment = last_segment.clone();
+        if let PathArguments::AngleBracketed(anglebracketed_args) = &last_segment.arguments {
+            let args = anglebracketed_args.args.iter().try_fold(
+                Punctuated::<GenericArgument, Comma>::new(),
+                |mut args, generic_arg| {
+                    if let GenericArgument::Type(ty) = generic_arg {
+                        let type_tree = TypeTree::from_type(ty)?;
+                        let alias_type = type_tree.get_alias_type()?;
+                        let alias_type_tree =
+                            alias_type.as_ref().map(TypeTree::from_type).transpose()?;
+                        let type_tree = alias_type_tree.unwrap_or(type_tree);
+
+                        let path = type_tree
+                            .path
+                            .as_ref()
+                            .expect("TypeTree must have a path")
+                            .as_ref();
+
+                        if let Some(default_type) = PrimitiveType::new(path) {
+                            args.push(GenericArgument::Type(default_type.ty.clone()));
+                        } else {
+                            let inner = path.rewrite_path()?;
+                            args.push(GenericArgument::Type(syn::Type::Path(
+                                syn::parse_quote!(#inner),
+                            )))
+                        }
+                    }
+
+                    Result::<_, Diagnostics>::Ok(args)
+                },
+            )?;
+
+            let angle_bracket_args = AngleBracketedGenericArguments {
+                args,
+                lt_token: anglebracketed_args.lt_token,
+                gt_token: anglebracketed_args.gt_token,
+                colon2_token: anglebracketed_args.colon2_token,
+            };
+
+            segment.arguments = PathArguments::AngleBracketed(angle_bracket_args);
+        }
+
+        let segment_ident = &segment.ident;
+        let segment_type: Type = syn::parse_quote!(#segment_ident);
+        let type_tree = TypeTree::from_type(&segment_type)?;
+        let alias_type = type_tree.get_alias_type()?;
+        let alias_type_tree = alias_type.as_ref().map(TypeTree::from_type).transpose()?;
+        let type_tree = alias_type_tree.unwrap_or(type_tree);
+
+        let path = type_tree
+            .path
+            .as_ref()
+            .expect("TypeTree for ident must have a path")
+            .as_ref();
+
+        if let Some(default_type) = PrimitiveType::new(path) {
+            let ty = &default_type.ty;
+            let ident: Ident = syn::parse_quote!(#ty);
+
+            segment.ident = ident;
+        } else {
+            let ident = path
+                .get_ident()
+                .expect("Path of Ident must have Ident")
+                .clone();
+            segment.ident = ident;
+        }
+
+        let path = syn::Path {
+            segments: if last_segment == &segment {
+                self.segments.clone()
+            } else {
+                Punctuated::from_iter(std::iter::once(segment))
+            },
+            leading_colon: self.leading_colon,
+        };
+
+        Ok(path)
+    }
 }
 
 impl TypeTree<'_> {
@@ -1077,15 +1174,16 @@ impl ComponentSchema {
                         }
                     }
                     let type_path = &**type_tree.path.as_ref().unwrap();
+                    let rewritten_path = type_path.rewrite_path()?;
                     let nullable_item = nullable_all_of_item(nullable);
                     let mut object_schema_reference = SchemaReference::default();
 
                     if let Some(children) = &type_tree.children {
-                        let children_name = Self::compose_name(children);
-                        name_tokens.extend(quote! { std::borrow::Cow::Owned(format!("{}_{}", < #type_path as utoipa::ToSchema >::name(), #children_name)) });
+                        let children_name = Self::compose_name(children)?;
+                        name_tokens.extend(quote! { std::borrow::Cow::Owned(format!("{}_{}", < #rewritten_path as utoipa::ToSchema >::name(), #children_name)) });
                     } else {
                         name_tokens.extend(
-                            quote! { format!("{}", < #type_path as utoipa::ToSchema >::name()) },
+                            quote! { format!("{}", < #rewritten_path as utoipa::ToSchema >::name()) },
                         );
                     }
 
@@ -1098,20 +1196,20 @@ impl ComponentSchema {
 
                     if is_inline {
                         let items_tokens = if let Some(children) = &type_tree.children {
-                            schema_references.extend(Self::compose_child_references(children));
+                            schema_references.extend(Self::compose_child_references(children)?);
 
                             let composed_generics =
-                                Self::compose_generics(children).collect::<Array<_>>();
+                                Self::compose_generics(children)?.collect::<Array<_>>();
                             quote_spanned! {type_path.span()=>
-                                <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
+                                <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
                             }
                         } else {
                             quote_spanned! {type_path.span()=>
-                                <#type_path as utoipa::PartialSchema>::schema()
+                                <#rewritten_path as utoipa::PartialSchema>::schema()
                             }
                         };
                         object_schema_reference.tokens = items_tokens.clone();
-                        object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
+                        object_schema_reference.references = quote! { <#rewritten_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
 
                         let description_tokens = description_stream.to_token_stream();
                         let schema = if default.is_some()
@@ -1138,19 +1236,19 @@ impl ComponentSchema {
                         if index.is_none() {
                             let reference_tokens = if let Some(children) = &type_tree.children {
                                 let composed_generics =
-                                    Self::compose_generics(children).collect::<Array<_>>();
-                                quote! { <#type_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec()) }
+                                    Self::compose_generics(children)?.collect::<Array<_>>();
+                                quote! { <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec()) }
                             } else {
-                                quote! { <#type_path as utoipa::PartialSchema>::schema() }
+                                quote! { <#rewritten_path as utoipa::PartialSchema>::schema() }
                             };
                             object_schema_reference.tokens = reference_tokens;
-                            object_schema_reference.references = quote! { <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
+                            object_schema_reference.references = quote! { <#rewritten_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
                         }
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
                             if let Some(index) = &index {
                                 quote_spanned! {type_path.span()=>
                                     {
-                                        let _ = <#type_path as utoipa::PartialSchema>::schema;
+                                        let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
 
                                         if let Some(composed) = generics.get_mut(#index) {
                                             std::mem::take(composed)
@@ -1248,7 +1346,7 @@ impl ComponentSchema {
         Ok(())
     }
 
-    fn compose_name<'tr, I>(children: I) -> TokenStream
+    fn compose_name<'tr, I>(children: I) -> Result<TokenStream, Diagnostics>
     where
         I: IntoIterator<Item = &'tr TypeTree<'tr>>,
     {
@@ -1259,62 +1357,74 @@ impl ComponentSchema {
                     .path
                     .as_ref()
                     .expect("Generic ValueType::Object must have path");
+                let rewritten_name = name.as_ref().rewrite_path()?;
 
                 if let Some(children) = &type_tree.children {
-                    let children_name = Self::compose_name(children);
+                    let children_name = Self::compose_name(children)?;
 
-                    quote! { std::borrow::Cow::Owned(format!("{}_{}", <#name as utoipa::ToSchema>::name(), #children_name)) }
+                    Ok(quote! { std::borrow::Cow::Owned(format!("{}_{}", <#rewritten_name as utoipa::ToSchema>::name(), #children_name)) })
                 } else {
-                    quote! { <#name as utoipa::ToSchema>::name() }
+                    Ok(quote! { <#rewritten_name as utoipa::ToSchema>::name() })
                 }
             })
-            .collect::<Array<_>>();
+            .collect::<Result<Array<_>, Diagnostics>>()?;
 
-        quote! { std::borrow::Cow::<String>::Owned(#children.to_vec().join("_")) }
+        Ok(quote! { std::borrow::Cow::<String>::Owned(#children.to_vec().join("_")) })
     }
 
     fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
         children: I,
-    ) -> impl Iterator<Item = TokenStream> + 'v
+    ) -> Result<impl Iterator<Item = TokenStream> + 'v, Diagnostics>
     where
         <I as std::iter::IntoIterator>::IntoIter: 'v,
     {
-        children.into_iter().map(|child| {
+        let iter = children.into_iter().map(|child| {
             let path = child
                 .path
                 .as_deref()
                 .expect("inline TypeTree ValueType::Object must have child path if generic");
-
+            let rewritten_path = path.rewrite_path()?;
             if let Some(children) = &child.children {
-                let items = Self::compose_generics(children).collect::<Array<_>>();
-                quote! { <#path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) }
+                let items = Self::compose_generics(children)?.collect::<Array<_>>();
+                Ok(quote! { <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) })
             } else {
-                quote! { <#path as utoipa::PartialSchema>::schema() }
+                Ok(quote! { <#rewritten_path as utoipa::PartialSchema>::schema() })
             }
-        })
+        }).collect::<Result<Vec<_>, Diagnostics>>()?
+        .into_iter();
+
+        Ok(iter)
     }
 
     fn compose_child_references<'a, I: IntoIterator<Item = &'a TypeTree<'a>> + 'a>(
         children: I,
-    ) -> impl Iterator<Item = SchemaReference> + 'a {
-        children.into_iter().flat_map(|type_tree| {
+    ) -> Result<impl Iterator<Item = SchemaReference> + 'a, Diagnostics> {
+        let iter = children.into_iter().map(|type_tree| {
             if let Some(children) = &type_tree.children {
-                ChildRefIter::Iter(Box::new(Self::compose_child_references(children)))
+                let iter = Self::compose_child_references(children)?;
+                Ok(ChildRefIter::Iter(Box::new(iter)))
             } else if type_tree.value_type == ValueType::Object {
                 let type_path = type_tree
                     .path
                     .as_ref()
                     .expect("Object TypePath must have type path, compose child references").as_ref();
 
-                ChildRefIter::Once(std::iter::once(SchemaReference {
-                    name: quote! { String::from(< #type_path as utoipa::ToSchema >::name().as_ref()) },
-                    tokens: quote! { <#type_path as utoipa::PartialSchema>::schema() },
-                    references: quote !{ <#type_path as utoipa::__dev::SchemaReferences>::schemas(schemas) },
+                let rewritten_path = type_path.rewrite_path()?;
+
+                Ok(ChildRefIter::Once(std::iter::once(SchemaReference {
+                    name: quote! { String::from(< #rewritten_path as utoipa::ToSchema >::name().as_ref()) },
+                    tokens: quote! { <#rewritten_path as utoipa::PartialSchema>::schema() },
+                    references: quote !{ <#rewritten_path as utoipa::__dev::SchemaReferences>::schemas(schemas) },
                 }))
+                )
             } else {
-                ChildRefIter::Empty
+                Ok(ChildRefIter::Empty)
             }
-        })
+        }).collect::<Result<Vec<_>, Diagnostics>>()?
+        .into_iter()
+        .flatten();
+
+        Ok(iter)
     }
 }
 

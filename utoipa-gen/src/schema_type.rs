@@ -678,3 +678,82 @@ impl ToTokens for Variant {
         };
     }
 }
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct PrimitiveType {
+    pub ty: syn::Type,
+}
+
+impl PrimitiveType {
+    pub fn new(path: &Path) -> Option<PrimitiveType> {
+        let last_segment = path.segments.last().unwrap_or_else(|| {
+            panic!(
+                "Path for DefaultType must have at least one segment: `{path}`",
+                path = path.to_token_stream()
+            )
+        });
+
+        let name = &*last_segment.ident.to_string();
+
+        let ty: syn::Type = match name {
+            "String" | "str" | "char" => syn::parse_quote!(#path),
+
+            "bool" => syn::parse_quote!(#path),
+
+            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
+            | "u128" | "usize" => syn::parse_quote!(#path),
+            "f32" | "f64" => syn::parse_quote!(#path),
+
+            #[cfg(feature = "chrono")]
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(any(feature = "chrono", feature = "time"))]
+            "Date" | "Duration" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "decimal")]
+            "Decimal" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "decimal_float")]
+            "Decimal" => {
+                syn::parse_quote!(f64)
+            }
+
+            #[cfg(feature = "rocket_extras")]
+            "PathBuf" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "uuid")]
+            "Uuid" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "ulid")]
+            "Ulid" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "url")]
+            "Url" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "time")]
+            "PrimitiveDateTime" | "OffsetDateTime" => {
+                syn::parse_quote!(String)
+            }
+            _ => {
+                // not a primitive type
+                return None;
+            }
+        };
+
+        Some(Self { ty })
+    }
+}

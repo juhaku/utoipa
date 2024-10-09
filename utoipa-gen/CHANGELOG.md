@@ -50,6 +50,7 @@
 
 ### Changed
 
+* Add path rewrite support (https://github.com/juhaku/utoipa/pull/1110)
 * Fix broken tests
 * Fix typos
 * Update `utoipa-config` version
