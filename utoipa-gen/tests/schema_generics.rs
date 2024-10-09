@@ -229,6 +229,32 @@ fn rc_schema_high_order_types() {
 }
 
 #[test]
+#[cfg(feature = "uuid")]
+fn uuid_type_generic_argument() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct High<T> {
+        high: T,
+    }
+
+    #[derive(ToSchema)]
+    pub struct HighUuid(High<Option<uuid::Uuid>>);
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(HighUuid)))]
+    struct Api;
+
+    let mut api = Api::openapi();
+    api.info = Info::new("title", "version");
+    let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
+    println!("{api_json}");
+
+    let expected = include_str!("./testdata/uuid_type_generic_argument");
+    assert_eq!(expected.trim(), api_json.trim());
+}
+
+#[test]
 #[ignore = "arrays, slices, tuples as generic argument is not supported at the moment"]
 fn slice_generic_args() {
     #![allow(unused)]
