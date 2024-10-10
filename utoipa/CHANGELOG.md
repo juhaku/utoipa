@@ -40,6 +40,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Changed
 
+* Move `schemas` into `ToSchema` for schemas (https://github.com/juhaku/utoipa/pull/1112)
 * List only `utoipa` related changes in `utoipa` CHANGELOG
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc

@@ -50,6 +50,7 @@
 
 ### Changed
 
+* Move `schemas` into `ToSchema` for schemas (https://github.com/juhaku/utoipa/pull/1112)
 * Refactor `KnownFormat`
 * Add path rewrite support (https://github.com/juhaku/utoipa/pull/1110)
 * Fix broken tests

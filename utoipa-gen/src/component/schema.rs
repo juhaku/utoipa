@@ -138,9 +138,7 @@ impl ToTokensDiagnostics for Schema<'_> {
                 fn name() -> std::borrow::Cow<'static, str> {
                     std::borrow::Cow::Borrowed(#name)
                 }
-            }
 
-            impl #impl_generics utoipa::__dev::SchemaReferences for #ident #ty_generics #where_clause {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                     schemas.extend(#schema_refs);
                     #references;

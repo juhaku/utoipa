@@ -1209,7 +1209,8 @@ impl ComponentSchema {
                             }
                         };
                         object_schema_reference.tokens = items_tokens.clone();
-                        object_schema_reference.references = quote! { <#rewritten_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
+                        object_schema_reference.references =
+                            quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
 
                         let description_tokens = description_stream.to_token_stream();
                         let schema = if default.is_some()
@@ -1242,7 +1243,8 @@ impl ComponentSchema {
                                 quote! { <#rewritten_path as utoipa::PartialSchema>::schema() }
                             };
                             object_schema_reference.tokens = reference_tokens;
-                            object_schema_reference.references = quote! { <#rewritten_path as utoipa::__dev::SchemaReferences>::schemas(schemas) };
+                            object_schema_reference.references =
+                                quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
                         }
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
                             if let Some(index) = &index {
@@ -1414,7 +1416,7 @@ impl ComponentSchema {
                 Ok(ChildRefIter::Once(std::iter::once(SchemaReference {
                     name: quote! { String::from(< #rewritten_path as utoipa::ToSchema >::name().as_ref()) },
                     tokens: quote! { <#rewritten_path as utoipa::PartialSchema>::schema() },
-                    references: quote !{ <#rewritten_path as utoipa::__dev::SchemaReferences>::schemas(schemas) },
+                    references: quote !{ <#rewritten_path as utoipa::ToSchema>::schemas(schemas) },
                 }))
                 )
             } else {
