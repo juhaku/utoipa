@@ -50,6 +50,7 @@
 
 ### Changed
 
+* Enhance file uploads (https://github.com/juhaku/utoipa/pull/1113)
 * Move `schemas` into `ToSchema` for schemas (https://github.com/juhaku/utoipa/pull/1112)
 * Refactor `KnownFormat`
 * Add path rewrite support (https://github.com/juhaku/utoipa/pull/1110)

@@ -60,6 +60,8 @@ impl Parse for UnnamedFieldStructFeatures {
             As,
             Deprecated,
             Description,
+            ContentEncoding,
+            ContentMediaType,
             Bound
         )))
     }
