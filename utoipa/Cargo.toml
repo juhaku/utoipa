@@ -44,6 +44,7 @@ preserve_path_order = []
 rc_schema = ["utoipa-gen?/rc_schema"]
 macros = ["dep:utoipa-gen"]
 config = ["utoipa-gen?/config"]
+sqlx = ["dep:sqlx", "utoipa-gen?/sqlx"]
 
 # EXPERIEMENTAL! use with cauntion
 auto_into_responses = ["utoipa-gen?/auto_into_responses"]
@@ -54,6 +55,9 @@ serde_json = { version = "1.0" }
 serde_yaml = { version = "0.9", optional = true }
 utoipa-gen = { version = "5.0.0-rc.0", path = "../utoipa-gen", optional = true }
 indexmap = { version = "2", features = ["serde"] }
+sqlx = { version = "0.8", default-features = false, features = [
+    "json",
+], optional = true }
 
 [dev-dependencies]
 assert-json-diff = "2"

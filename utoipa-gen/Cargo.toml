@@ -45,6 +45,7 @@ chrono = { version = "0.4", features = ["serde"] }
 assert-json-diff = "2"
 time = { version = "0.3", features = ["serde-human-readable"] }
 serde_with = "3.0"
+sqlx = { version = "0.8", default-features = false, features = ["json"] }
 
 [features]
 # See README.md for list and explanations of features
@@ -66,6 +67,7 @@ repr = []
 indexmap = []
 rc_schema = []
 config = ["dep:utoipa-config", "dep:once_cell"]
+sqlx = []
 
 # EXPERIEMENTAL! use with cauntion
 auto_into_responses = []

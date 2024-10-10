@@ -646,6 +646,9 @@ impl<T: PartialSchema> ToSchema for std::rc::Rc<T> where std::rc::Rc<T>: Partial
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
 impl<T: PartialSchema> ToSchema for std::sync::Arc<T> where std::sync::Arc<T>: PartialSchema {}
 
+// #[cfg(all(feature = "macros", feature = "sqlx"))]
+// impl<T: ToSchema> ToSchema for sqlx::types::Json<T> where sqlx::types::Json<T>: PartialSchema {}
+
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
 #[doc(hidden)]
@@ -737,6 +740,13 @@ impl<'a> ToSchema for &'a str {
 }
 
 impl_partial_schema!(&str);
+
+// #[cfg(all(feature = "macros", feature = "sqlx"))]
+// impl<T: ToSchema> PartialSchema for sqlx::types::Json<T> {
+//     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+//         T::schema()
+//     }
+// }
 
 /// Trait for implementing OpenAPI PathItem object with path.
 ///

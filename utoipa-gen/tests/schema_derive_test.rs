@@ -5854,3 +5854,45 @@ fn schema_manual_impl() {
         })
     )
 }
+
+#[test]
+#[cfg(feature = "sqlx")]
+fn schema_with_sqlx_wrapper() {
+    struct Person {
+        name: Json<String>,
+    }
+    // sqlx::types::Json::<String>;
+    // #![allow(unused)]
+    //
+    // // struct Json<T>(T);
+    //
+    //
+    //
+    // #[derive(ToSchema)]
+    // struct Customer {
+    //     name: String
+    // }
+    //
+    //
+    //
+    // let value = api_doc! {
+    //     struct Dto {
+    //         customer: <Customer>
+    //     }
+    // };
+    //
+    // dbg!(&value);
+    //
+    // assert_json_eq!(
+    //     value,
+    //     json!({
+    //         "properties": {
+    //             "customer": {
+    //                 "$ref": "#/components/schemas/Newtype"
+    //             }
+    //         },
+    //         "required": ["customer"],
+    //         "type": "object"
+    //     })
+    // )
+}
