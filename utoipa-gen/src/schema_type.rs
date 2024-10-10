@@ -333,7 +333,7 @@ pub enum KnownFormat {
     /// This is not really tokenized, but is actually only for purpose of having some format in
     /// case we do not know what the format is actually.
     #[allow(unused)]
-    Unknonw,
+    Unknown,
 }
 
 impl KnownFormat {
@@ -394,14 +394,14 @@ impl KnownFormat {
 
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => Self::DateTime,
-            _ => Self::Unknonw,
+            _ => Self::Unknown,
         };
 
         Ok(variant)
     }
 
     pub fn is_known_format(&self) -> bool {
-        !matches!(self, Self::Unknonw)
+        !matches!(self, Self::Unknown)
     }
 }
 
@@ -552,7 +552,7 @@ impl ToTokens for KnownFormat {
             Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::SchemaFormat::Custom(
                 String::from(#value)
             ))),
-            Self::Unknonw => (), // unknown we just skip it
+            Self::Unknown => (), // unknown we just skip it
         };
     }
 }
