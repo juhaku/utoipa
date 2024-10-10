@@ -297,207 +297,10 @@ impl ToTokensDiagnostics for SchemaType<'_> {
     }
 }
 
-/// Either Rust type component variant or enum variant schema variant.
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub enum SchemaFormat<'c> {
-    /// [`utoipa::openapi::schema::SchemaFormat`] enum variant schema format.
-    Variant(Variant),
-    /// Rust type schema format.
-    Type(Type<'c>),
-}
-
-impl SchemaFormat<'_> {
-    pub fn is_known_format(&self) -> bool {
-        match self {
-            Self::Type(ty) => ty.is_known_format(),
-            Self::Variant(_) => true,
-        }
-    }
-}
-
-impl<'a> From<&'a Path> for SchemaFormat<'a> {
-    fn from(path: &'a Path) -> Self {
-        Self::Type(Type(path))
-    }
-}
-
-impl Parse for SchemaFormat<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        Ok(Self::Variant(input.parse()?))
-    }
-}
-
-impl ToTokens for SchemaFormat<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            Self::Type(ty) => {
-                if let Err(diagnostics) = ty.to_tokens(tokens) {
-                    diagnostics.to_tokens(tokens)
-                }
-            }
-            Self::Variant(variant) => variant.to_tokens(tokens),
-        }
-    }
-}
-
-/// Tokenizes OpenAPI data type format correctly by given Rust type.
-#[derive(Clone)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Type<'a>(&'a syn::Path);
-
-impl Type<'_> {
-    /// Check is the format know format. Known formats can be used within `quote! {...}` statements.
-    pub fn is_known_format(&self) -> bool {
-        let last_segment = match self.0.segments.last() {
-            Some(segment) => segment,
-            None => return false,
-        };
-        let name = &*last_segment.ident.to_string();
-
-        #[cfg(not(any(
-            feature = "chrono",
-            feature = "decimal_float",
-            feature = "uuid",
-            feature = "ulid",
-            feature = "url",
-            feature = "time"
-        )))]
-        {
-            is_known_format(name)
-        }
-
-        #[cfg(any(
-            feature = "chrono",
-            feature = "decimal_float",
-            feature = "uuid",
-            feature = "ulid",
-            feature = "url",
-            feature = "time"
-        ))]
-        {
-            let mut known_format = is_known_format(name);
-
-            #[cfg(feature = "chrono")]
-            if !known_format {
-                known_format = matches!(name, "DateTime" | "Date" | "NaiveDate" | "NaiveDateTime");
-            }
-
-            #[cfg(feature = "decimal_float")]
-            if !known_format {
-                known_format = matches!(name, "Decimal");
-            }
-
-            #[cfg(feature = "uuid")]
-            if !known_format {
-                known_format = matches!(name, "Uuid");
-            }
-
-            #[cfg(feature = "ulid")]
-            if !known_format {
-                known_format = matches!(name, "Ulid");
-            }
-
-            #[cfg(feature = "url")]
-            if !known_format {
-                known_format = matches!(name, "Url");
-            }
-
-            #[cfg(feature = "time")]
-            if !known_format {
-                known_format = matches!(name, "Date" | "PrimitiveDateTime" | "OffsetDateTime");
-            }
-
-            known_format
-        }
-    }
-}
-
-#[inline]
-fn is_known_format(name: &str) -> bool {
-    matches!(
-        name,
-        "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "i64" | "u64" | "f32" | "f64"
-    )
-}
-
-impl ToTokensDiagnostics for Type<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-        let last_segment = self.0.segments.last().ok_or_else(|| {
-            Diagnostics::with_span(
-                self.0.span(),
-                "type should have at least one segment in the path",
-            )
-        })?;
-        let name = &*last_segment.ident.to_string();
-
-        match name {
-            #[cfg(feature="non_strict_integers")]
-            "i8" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8) }),
-            #[cfg(feature="non_strict_integers")]
-            "u8" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8) }),
-            #[cfg(feature="non_strict_integers")]
-            "i16" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16) }),
-            #[cfg(feature="non_strict_integers")]
-            "u16" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16) }),
-            #[cfg(feature="non_strict_integers")]
-            #[cfg(feature="non_strict_integers")]
-            "u32" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt32) }),
-            #[cfg(feature="non_strict_integers")]
-            "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt64) }),
-
-            #[cfg(not(feature="non_strict_integers"))]
-            "i8" | "i16" | "u8" | "u16" | "u32" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32) })
-            }
-
-            #[cfg(not(feature="non_strict_integers"))]
-            "u64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
-
-            "i32" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int32) }),
-            "i64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int64) }),
-            "f32" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Float) }),
-            "f64" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
-
-            #[cfg(feature = "chrono")]
-            "NaiveDate" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
-
-            #[cfg(feature = "chrono")]
-            "DateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
-
-            #[cfg(feature = "chrono")]
-            "NaiveDateTime" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) }),
-
-            #[cfg(any(feature = "chrono", feature = "time"))]
-            "Date" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Date) }),
-
-            #[cfg(feature = "decimal_float")]
-            "Decimal" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Double) }),
-
-            #[cfg(feature = "uuid")]
-            "Uuid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uuid) }),
-
-            #[cfg(feature = "ulid")]
-            "Ulid" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Ulid) }),
-
-            #[cfg(feature = "url")]
-            "Url" => tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Uri) }),
-
-            #[cfg(feature = "time")]
-            "PrimitiveDateTime" | "OffsetDateTime" => {
-                tokens.extend(quote! { utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::DateTime) })
-            }
-            _ => (),
-        };
-
-        Ok(())
-    }
-}
-
 /// [`Parse`] and [`ToTokens`] implementation for [`utoipa::openapi::schema::SchemaFormat`].
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub enum Variant {
+pub enum KnownFormat {
     #[cfg(feature = "non_strict_integers")]
     Int8,
     #[cfg(feature = "non_strict_integers")]
@@ -525,10 +328,84 @@ pub enum Variant {
     Ulid,
     #[cfg(feature = "url")]
     Uri,
+    /// Custom format is reserved only for manual entry.
     Custom(String),
+    /// This is not really tokenized, but is actually only for purpose of having some format in
+    /// case we do not know what the format is actually.
+    #[allow(unused)]
+    Unknonw,
 }
 
-impl Parse for Variant {
+impl KnownFormat {
+    pub fn from_path(path: &syn::Path) -> Result<Self, Diagnostics> {
+        let last_segment = path.segments.last().ok_or_else(|| {
+            Diagnostics::with_span(
+                path.span(),
+                "type should have at least one segment in the path",
+            )
+        })?;
+        let name = &*last_segment.ident.to_string();
+
+        let variant = match name {
+            #[cfg(feature = "non_strict_integers")]
+            "i8" => Self::Int8,
+            #[cfg(feature = "non_strict_integers")]
+            "u8" => Self::UInt8,
+            #[cfg(feature = "non_strict_integers")]
+            "i16" => Self::Int16,
+            #[cfg(feature = "non_strict_integers")]
+            "u16" => Self::UInt16,
+            #[cfg(feature = "non_strict_integers")]
+            "u32" => Self::UInt32,
+            #[cfg(feature = "non_strict_integers")]
+            "u64" => Self::UInt64,
+
+            #[cfg(not(feature = "non_strict_integers"))]
+            "i8" | "i16" | "u8" | "u16" | "u32" => Self::Int32,
+
+            #[cfg(not(feature = "non_strict_integers"))]
+            "u64" => Self::Int64,
+
+            "i32" => Self::Int32,
+            "i64" => Self::Int64,
+            "f32" => Self::Float,
+            "f64" => Self::Double,
+
+            #[cfg(feature = "chrono")]
+            "NaiveDate" => Self::Date,
+
+            #[cfg(feature = "chrono")]
+            "DateTime" | "NaiveDateTime" => Self::DateTime,
+
+            #[cfg(any(feature = "chrono", feature = "time"))]
+            "Date" => Self::Date,
+
+            #[cfg(feature = "decimal_float")]
+            "Decimal" => Self::Double,
+
+            #[cfg(feature = "uuid")]
+            "Uuid" => Self::Uuid,
+
+            #[cfg(feature = "ulid")]
+            "Ulid" => Self::Ulid,
+
+            #[cfg(feature = "url")]
+            "Url" => Self::Uri,
+
+            #[cfg(feature = "time")]
+            "PrimitiveDateTime" | "OffsetDateTime" => Self::DateTime,
+            _ => Self::Unknonw,
+        };
+
+        Ok(variant)
+    }
+
+    pub fn is_known_format(&self) -> bool {
+        !matches!(self, Self::Unknonw)
+    }
+}
+
+impl Parse for KnownFormat {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let default_formats = [
             "Int32",
@@ -614,7 +491,7 @@ impl Parse for Variant {
     }
 }
 
-impl ToTokens for Variant {
+impl ToTokens for KnownFormat {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             #[cfg(feature = "non_strict_integers")]
@@ -675,6 +552,7 @@ impl ToTokens for Variant {
             Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::SchemaFormat::Custom(
                 String::from(#value)
             ))),
+            Self::Unknonw => (), // unknown we just skip it
         };
     }
 }

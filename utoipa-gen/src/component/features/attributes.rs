@@ -11,7 +11,7 @@ use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
 use crate::parse_utils::LitStrOrExpr;
 use crate::path::parameter::{self, ParameterStyle};
-use crate::schema_type::SchemaFormat;
+use crate::schema_type::KnownFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
 
 use super::{impl_feature, Feature, Parse};
@@ -183,12 +183,12 @@ impl From<XmlAttr> for Feature {
 impl_feature! {
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Format(SchemaFormat<'static>);
+    pub struct Format(KnownFormat);
 }
 
 impl Parse for Format {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
+        parse_utils::parse_next(input, || input.parse::<KnownFormat>()).map(Self)
     }
 }
 

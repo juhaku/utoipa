@@ -798,6 +798,7 @@ fn derive_into_params_in_another_module() {
 
 #[test]
 fn path_with_all_args() {
+    #![allow(unused)]
     #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
     struct Item(String);
 
@@ -894,6 +895,8 @@ fn path_with_all_args() {
 #[test]
 #[cfg(feature = "uuid")]
 fn path_with_all_args_using_uuid() {
+    #![allow(unused)]
+
     #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
     struct Item(String);
 

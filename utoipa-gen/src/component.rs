@@ -11,7 +11,7 @@ use syn::{
 };
 
 use crate::doc_comment::CommentAttributes;
-use crate::schema_type::{PrimitiveType, SchemaFormat, SchemaTypeInner};
+use crate::schema_type::{KnownFormat, PrimitiveType, SchemaTypeInner};
 use crate::{
     as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
     ToTokensDiagnostics,
@@ -1125,7 +1125,7 @@ impl ComponentSchema {
                     utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type_tokens)
                 });
 
-                let format: SchemaFormat = (type_path).into();
+                let format = KnownFormat::from_path(type_path)?;
                 if format.is_known_format() {
                     tokens.extend(quote! {
                         .format(Some(#format))
