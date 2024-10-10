@@ -246,6 +246,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+/// * `content_encoding = ...` Can be used to define content encoding used for underlying schema object.
+///   See [`Object::content_encoding`][schema_object_encoding]
+/// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
+///   See [`Object::content_media_type`][schema_object_media_type]
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 ///
@@ -1529,6 +1533,73 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// # Defining file uploads
+///
+/// File uploads can be defined in accordance to Open API specification [file uploads][file_uploads].
+///
+///
+/// _**Example sending `jpg` and `png` images as `application/octet-stream`.**_
+/// ```rust
+/// #[utoipa::path(
+///     post,
+///     request_body(
+///         content(
+///             ("image/png"),
+///             ("image/jpg"),
+///         ),
+///     ),
+///     path = "/test_images"
+/// )]
+/// async fn test_images(_body: Vec<u8>) {}
+/// ```
+///
+/// _**Example of sending `multipart` form.**_
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// struct MyForm {
+///     order_id: i32,
+///     #[schema(content_media_type = "application/octet-stream")]
+///     file_bytes: Vec<u8>,
+/// }
+///
+/// #[utoipa::path(
+///     post,
+///     request_body(content = inline(MyForm), content_type = "multipart/form-data"),
+///     path = "/test_multipart"
+/// )]
+/// async fn test_multipart(_body: MyForm) {}
+/// ```
+///
+/// _**Example of sending arbitrary binary content as `application/octet-stream`.**_
+/// ```rust
+/// #[utoipa::path(
+///     post,
+///     request_body = Vec<u8>,
+///     path = "/test-octet-stream",
+///     responses(
+///         (status = 200, description = "success response")
+///     ),
+/// )]
+/// async fn test_octet_stream(_body: Vec<u8>) {}
+/// ```
+///
+/// _**Example of sending `png` image as `base64` encoded.**_
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// #[schema(content_encoding = "base64")]
+/// struct MyPng(String);
+///
+/// #[utoipa::path(
+///     post,
+///     request_body(content = inline(MyPng), content_type = "image/png"),
+///     path = "/test_png",
+///     responses(
+///         (status = 200, description = "success response")
+///     ),
+/// )]
+/// async fn test_png(_body: MyPng) {}
+/// ```
+///
 /// # Examples
 ///
 /// _**More complete example.**_
@@ -1738,6 +1809,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [include_str]: https://doc.rust-lang.org/std/macro.include_str.html
 /// [server_derive_syntax]: derive.OpenApi.html#servers-attribute-syntax
 /// [server]: openapi/server/struct.Server.html
+/// [file_uploads]: <https://spec.openapis.org/oas/v3.1.0.html#considerations-for-file-uploads>
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 

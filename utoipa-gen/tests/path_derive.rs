@@ -2789,3 +2789,177 @@ fn derive_into_params_with_ignored_field() {
         ])
     )
 }
+
+#[test]
+fn derive_octet_stream_request_body() {
+    #![allow(dead_code)]
+
+    #[utoipa::path(
+        post,
+        request_body = Vec<u8>,
+        path = "/test-octet-stream",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_octet_stream(_body: Vec<u8>) {}
+
+    let operation = serde_json::to_value(__path_test_octet_stream::operation())
+        .expect("Operation is JSON serializable");
+    let request_body = operation
+        .pointer("/requestBody")
+        .expect("must have request body");
+
+    assert_json_eq!(
+        &request_body,
+        json!({
+            "content": {
+                "application/octet-stream": {
+                    "schema": {
+                        "items": {
+                            "type": "integer",
+                            "format": "int32",
+                            "minimum": 0,
+                        },
+                        "type": "array",
+                    },
+                },
+            },
+            "required": true,
+        })
+    );
+}
+
+#[test]
+fn derive_img_png_request_body() {
+    #![allow(dead_code)]
+
+    #[derive(utoipa::ToSchema)]
+    #[schema(content_encoding = "base64")]
+    struct MyPng(String);
+
+    #[utoipa::path(
+        post,
+        request_body(content = inline(MyPng), content_type = "image/png"),
+        path = "/test_png",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_png(_body: MyPng) {}
+
+    let operation =
+        serde_json::to_value(__path_test_png::operation()).expect("Operation is JSON serializable");
+    let request_body = operation
+        .pointer("/requestBody")
+        .expect("must have request body");
+
+    assert_json_eq!(
+        &request_body,
+        json!({
+            "content": {
+                "image/png": {
+                    "schema": {
+                        "type": "string",
+                        "contentEncoding": "base64"
+                    },
+                },
+            },
+            "required": true,
+        })
+    );
+}
+
+#[test]
+fn derive_multipart_form_data() {
+    #![allow(dead_code)]
+
+    #[derive(utoipa::ToSchema)]
+    struct MyForm {
+        order_id: i32,
+        #[schema(content_media_type = "application/octet-stream")]
+        file_bytes: Vec<u8>,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body(content = inline(MyForm), content_type = "multipart/form-data"),
+        path = "/test_multipart",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_multipart(_body: MyForm) {}
+
+    let operation = serde_json::to_value(__path_test_multipart::operation())
+        .expect("Operation is JSON serializable");
+    let request_body = operation
+        .pointer("/requestBody")
+        .expect("must have request body");
+
+    assert_json_eq!(
+        &request_body,
+        json!({
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "order_id": {
+                                "type": "integer",
+                                "format": "int32"
+                            },
+                            "file_bytes": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "format": "int32",
+                                    "minimum": 0,
+                                },
+                                "contentMediaType": "application/octet-stream"
+                            },
+                        },
+                        "required": ["order_id", "file_bytes"]
+                    },
+                },
+            },
+            "required": true,
+        })
+    );
+}
+
+#[test]
+fn derive_images_as_application_octet_stream() {
+    #![allow(dead_code)]
+
+    #[utoipa::path(
+        post,
+        request_body(
+            content(
+                ("image/png"),
+                ("image/jpg"),
+            ),
+        ),
+        path = "/test_images",
+        responses(
+            (status = 200, description = "success response")
+        ),
+    )]
+    async fn test_multipart(_body: Vec<u8>) {}
+
+    let operation = serde_json::to_value(__path_test_multipart::operation())
+        .expect("Operation is JSON serializable");
+    let request_body = operation
+        .pointer("/requestBody")
+        .expect("must have request body");
+
+    assert_json_eq!(
+        &request_body,
+        json!({
+            "content": {
+                "image/jpg": {},
+                "image/png": {},
+            },
+        })
+    );
+}

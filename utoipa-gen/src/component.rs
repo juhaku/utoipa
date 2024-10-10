@@ -1000,6 +1000,8 @@ impl ComponentSchema {
         let default = pop_feature!(features => Feature::Default(_));
         let title = pop_feature!(features => Feature::Title(_));
         let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
+        let content_encoding = pop_feature!(features => Feature::ContentEncoding(_));
+        let content_media_type = pop_feature!(features => Feature::ContentMediaType(_));
 
         let child = type_tree
             .children
@@ -1078,6 +1080,8 @@ impl ComponentSchema {
             tokens.extend(min_items.to_token_stream())
         }
 
+        content_encoding.to_tokens(tokens)?;
+        content_media_type.to_tokens(tokens)?;
         default.to_tokens(tokens)?;
         title.to_tokens(tokens)?;
         example.to_tokens(tokens)?;

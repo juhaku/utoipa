@@ -1656,6 +1656,24 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
 
+        /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
+        /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
+        ///
+        /// Typically this is either unset for _`string`_ content types which then uses the content
+        /// encoding of the underlying JSON document. If the content is in _`binary`_ format such as an image or an audio
+        /// set it to `base64` to encode it as _`Base64`_.
+        ///
+        /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub content_encoding: String,
+
+        /// The _`content_media_type`_ keyword specifies the MIME type of the contents of a string,
+        /// as described in [RFC 2046](https://tools.ietf.org/html/rfc2046).
+        ///
+        /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub content_media_type: String,
+
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -1679,6 +1697,8 @@ impl Default for Array {
             min_items: Default::default(),
             xml: Default::default(),
             extensions: Default::default(),
+            content_encoding: Default::default(),
+            content_media_type: Default::default(),
         }
     }
 }
@@ -1805,6 +1825,18 @@ impl ArrayBuilder {
     /// Set [`Xml`] formatting for [`Array`].
     pub fn xml(mut self, xml: Option<Xml>) -> Self {
         set_value!(self xml xml)
+    }
+
+    /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
+    /// example.
+    pub fn content_encoding<S: Into<String>>(mut self, content_encoding: S) -> Self {
+        set_value!(self content_encoding content_encoding.into())
+    }
+
+    /// Set of change [`Object::content_media_type`]. Value must be valid MIME type e.g.
+    /// `application/json`.
+    pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
+        set_value!(self content_media_type content_media_type.into())
     }
 
     /// Add openapi extensions (`x-something`) for [`Array`].
