@@ -656,7 +656,7 @@ impl crate::ToTokensDiagnostics for Components {
 
                     components.extend(quote! { .schemas_from_iter( {
                         let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
-                        <#type_path as utoipa::__dev::SchemaReferences>::schemas(&mut schemas);
+                        <#type_path as utoipa::ToSchema>::schemas(&mut schemas);
                         schemas
                     } )});
                     components.extend(quote! { .schema(#name, #schema) });

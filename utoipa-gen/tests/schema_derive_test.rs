@@ -5816,3 +5816,41 @@ fn derive_struct_inline_with_description() {
         })
     );
 }
+
+#[test]
+fn schema_manual_impl() {
+    #![allow(unused)]
+
+    struct Newtype(String);
+
+    impl ToSchema for Newtype {
+        fn name() -> std::borrow::Cow<'static, str> {
+            std::borrow::Cow::Borrowed("Newtype")
+        }
+    }
+
+    impl utoipa::PartialSchema for Newtype {
+        fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            String::schema()
+        }
+    }
+
+    let value = api_doc! {
+        struct Dto {
+            customer: Newtype
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "customer": {
+                    "$ref": "#/components/schemas/Newtype"
+                }
+            },
+            "required": ["customer"],
+            "type": "object"
+        })
+    )
+}

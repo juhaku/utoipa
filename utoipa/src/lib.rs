@@ -443,6 +443,58 @@ pub trait ToSchema: PartialSchema {
             .unwrap_or(type_name_without_generic);
         Cow::Borrowed(type_name)
     }
+
+    /// Implement reference [`utoipa::openapi::schema::Schema`]s for this type.
+    ///
+    /// When [`ToSchema`] is being derived this is implemented automatically but if one needs to
+    /// manually implement [`ToSchema`] trait then this is needed for `utoipa` to know
+    /// referencing schemas that need to be present in the resulting OpenAPI spec.
+    ///
+    /// The implementation should push to `schemas` [`Vec`] all such field and variant types that
+    /// implement `ToSchema` and then call `<MyType as ToSchema>::schemas(schemas)` on that type
+    /// to forward the recursive reference collection call on that type.
+    ///
+    /// # Examples
+    ///
+    /// _**Implement `ToSchema` manually with references.**_
+    ///
+    /// ```rust
+    /// # use utoipa::{ToSchema, PartialSchema};
+    /// #
+    /// #[derive(ToSchema)]
+    /// struct Owner {
+    ///     name: String
+    /// }
+    ///
+    /// struct Pet {
+    ///     owner: Owner,
+    ///     name: String
+    /// }
+    /// impl PartialSchema for Pet {
+    ///     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+    ///         utoipa::openapi::schema::Object::builder()
+    ///             .property("owner", Owner::schema())
+    ///             .property("name", String::schema())
+    ///             .into()
+    ///     }
+    /// }
+    /// impl ToSchema for Pet {
+    ///     fn schemas(schemas:
+    ///         &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+    ///         schemas.push((Owner::name().into(), Owner::schema()));
+    ///         <Owner as ToSchema>::schemas(schemas);
+    ///     }
+    /// }
+    /// ```
+    #[allow(unused)]
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        // nothing by default
+    }
 }
 
 impl<T: ToSchema> From<T> for openapi::RefOr<openapi::schema::Schema> {
@@ -1332,6 +1384,7 @@ pub mod __dev {
         }
     }
 
+    // For types not implementing `ToSchema`
     pub trait SchemaReferences {
         fn schemas(
             schemas: &mut Vec<(
