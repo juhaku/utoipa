@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use utoipa::ToSchema;
+use utoipa::{OpenApi, ToSchema};
 use utoipa_config::Config;
 
 #[test]
@@ -83,4 +83,89 @@ fn test_to_schema_with_aliases() {
 
     println!("{actual}");
     assert_eq!(expected.trim(), actual.trim())
+}
+
+#[test]
+fn test_schema_with_enum_aliases() {
+    #![allow(unused)]
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Transactions)))]
+    struct ApiDoc;
+
+    #[derive(ToSchema)]
+    pub enum Transactions {
+        Transaction(EntryAlias),
+        TransactionEntryString(EntryString),
+    }
+
+    pub type EntryAlias = Entry<i32>;
+    pub type EntryString = Entry<String>;
+
+    #[derive(ToSchema)]
+    pub struct Entry<I> {
+        pub entry_id: I,
+    }
+
+    let api = ApiDoc::openapi();
+    let value = serde_json::to_value(api).expect("OpenApi must be JSON serializable");
+    let schemas = value
+        .pointer("/components/schemas")
+        .expect("Must have schemas");
+
+    let expected = r###"{
+  "Entry_String": {
+    "properties": {
+      "entry_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "entry_id"
+    ],
+    "type": "object"
+  },
+  "Entry_i32": {
+    "properties": {
+      "entry_id": {
+        "format": "int32",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "entry_id"
+    ],
+    "type": "object"
+  },
+  "Transactions": {
+    "oneOf": [
+      {
+        "properties": {
+          "Transaction": {
+            "$ref": "#/components/schemas/Entry_i32"
+          }
+        },
+        "required": [
+          "Transaction"
+        ],
+        "type": "object"
+      },
+      {
+        "properties": {
+          "TransactionEntryString": {
+            "$ref": "#/components/schemas/Entry_String"
+          }
+        },
+        "required": [
+          "TransactionEntryString"
+        ],
+        "type": "object"
+      }
+    ]
+  }
+}"###;
+    assert_eq!(
+        serde_json::to_string_pretty(schemas).unwrap().trim(),
+        expected
+    );
 }
