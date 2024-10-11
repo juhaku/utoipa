@@ -89,6 +89,13 @@
 * Enhance OpenApi nesting with tags support (https://github.com/juhaku/utoipa/pull/932)
 * allow for multiple req body content_type (https://github.com/juhaku/utoipa/pull/876)
 
+## 4.3.1 - October 7 2024
+
+### Changes
+
+* Bump up `utoipa-gen` patch version
+* change pub(super) enum to pub enum (#926) @cuiihaoo
+
 ## 4.3.0 - May 5 2024
 
 ### Added

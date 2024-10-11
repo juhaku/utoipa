@@ -12,6 +12,7 @@
 
 ### Changed
 
+* Add test for aliases on enum variant values
 * Fixed broken tests at `utoipa-config`
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc version
