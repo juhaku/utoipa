@@ -1184,7 +1184,10 @@ impl ComponentSchema {
                     let mut object_schema_reference = SchemaReference::default();
 
                     if let Some(children) = &type_tree.children {
-                        let children_name = Self::compose_name(children)?;
+                        let children_name = Self::compose_name(
+                            Self::filter_const_generics(children, container.generics),
+                            container.generics,
+                        )?;
                         name_tokens.extend(quote! { std::borrow::Cow::Owned(format!("{}_{}", < #rewritten_path as utoipa::ToSchema >::name(), #children_name)) });
                     } else {
                         name_tokens.extend(
@@ -1205,7 +1208,8 @@ impl ComponentSchema {
                             schema_references.extend(Self::compose_child_references(children)?);
 
                             let composed_generics =
-                                Self::compose_generics(children)?.collect::<Array<_>>();
+                                Self::compose_generics(children, container.generics)?
+                                    .collect::<Array<_>>();
                             quote_spanned! {type_path.span()=>
                                 <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
                             }
@@ -1242,8 +1246,11 @@ impl ComponentSchema {
                         // only set schema references tokens for concrete non generic types
                         if index.is_none() {
                             let reference_tokens = if let Some(children) = &type_tree.children {
-                                let composed_generics =
-                                    Self::compose_generics(children)?.collect::<Array<_>>();
+                                let composed_generics = Self::compose_generics(
+                                    Self::filter_const_generics(children, container.generics),
+                                    container.generics,
+                                )?
+                                .collect::<Array<_>>();
                                 quote! { <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec()) }
                             } else {
                                 quote! { <#rewritten_path as utoipa::PartialSchema>::schema() }
@@ -1356,7 +1363,10 @@ impl ComponentSchema {
         Ok(())
     }
 
-    fn compose_name<'tr, I>(children: I) -> Result<TokenStream, Diagnostics>
+    fn compose_name<'tr, I>(
+        children: I,
+        generics: &'tr Generics,
+    ) -> Result<TokenStream, Diagnostics>
     where
         I: IntoIterator<Item = &'tr TypeTree<'tr>>,
     {
@@ -1365,12 +1375,12 @@ impl ComponentSchema {
             .map(|type_tree| {
                 let name = type_tree
                     .path
-                    .as_ref()
+                    .as_deref()
                     .expect("Generic ValueType::Object must have path");
-                let rewritten_name = name.as_ref().rewrite_path()?;
+                let rewritten_name = name.rewrite_path()?;
 
                 if let Some(children) = &type_tree.children {
-                    let children_name = Self::compose_name(children)?;
+                    let children_name = Self::compose_name(Self::filter_const_generics(children, generics), generics)?;
 
                     Ok(quote! { std::borrow::Cow::Owned(format!("{}_{}", <#rewritten_name as utoipa::ToSchema>::name(), #children_name)) })
                 } else {
@@ -1384,6 +1394,7 @@ impl ComponentSchema {
 
     fn compose_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
         children: I,
+        generics: &'v Generics,
     ) -> Result<impl Iterator<Item = TokenStream> + 'v, Diagnostics>
     where
         <I as std::iter::IntoIterator>::IntoIter: 'v,
@@ -1395,7 +1406,7 @@ impl ComponentSchema {
                 .expect("inline TypeTree ValueType::Object must have child path if generic");
             let rewritten_path = path.rewrite_path()?;
             if let Some(children) = &child.children {
-                let items = Self::compose_generics(children)?.collect::<Array<_>>();
+                let items = Self::compose_generics(Self::filter_const_generics(children, generics), generics)?.collect::<Array<_>>();
                 Ok(quote! { <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) })
             } else {
                 Ok(quote! { <#rewritten_path as utoipa::PartialSchema>::schema() })
@@ -1404,6 +1415,31 @@ impl ComponentSchema {
         .into_iter();
 
         Ok(iter)
+    }
+
+    fn filter_const_generics<'v, I: IntoIterator<Item = &'v TypeTree<'v>>>(
+        children: I,
+        generics: &'v Generics,
+    ) -> impl IntoIterator<Item = &'v TypeTree<'v>> + 'v
+    where
+        <I as std::iter::IntoIterator>::IntoIter: 'v,
+    {
+        children.into_iter().filter(|type_tree| {
+            let path = type_tree
+                .path
+                .as_deref()
+                .expect("child TypeTree must have a Path, did you call this on array or tuple?");
+            let is_const = path
+                .get_ident()
+                .map(|path_ident| {
+                    generics.params.iter().any(
+                        |param| matches!(param, GenericParam::Const(ty) if ty.ident == *path_ident),
+                    )
+                })
+                .unwrap_or(false);
+
+            !is_const
+        })
     }
 
     fn compose_child_references<'a, I: IntoIterator<Item = &'a TypeTree<'a>> + 'a>(
@@ -1416,8 +1452,8 @@ impl ComponentSchema {
             } else if type_tree.value_type == ValueType::Object {
                 let type_path = type_tree
                     .path
-                    .as_ref()
-                    .expect("Object TypePath must have type path, compose child references").as_ref();
+                    .as_deref()
+                    .expect("Object TypePath must have type path, compose child references");
 
                 let rewritten_path = type_path.rewrite_path()?;
 
