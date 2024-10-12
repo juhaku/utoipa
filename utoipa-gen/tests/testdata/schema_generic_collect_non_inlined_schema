@@ -1,0 +1,253 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Account": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "FooStruct_BTreeMap_String_Person_Value": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "name",
+                "account",
+                "t"
+              ],
+              "properties": {
+                "account": {
+                  "$ref": "#/components/schemas/Account"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "t": {
+                  "type": "string"
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FooStruct_BTreeMap_Ty_Ky_Person_Value": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "name",
+                "account",
+                "t"
+              ],
+              "properties": {
+                "account": {
+                  "$ref": "#/components/schemas/Account"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "t": {
+                  "type": "object",
+                  "required": [
+                    "t"
+                  ],
+                  "properties": {
+                    "t": {
+                      "type": "string",
+                      "enum": [
+                        "One",
+                        "Two"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "object",
+              "required": [
+                "t"
+              ],
+              "properties": {
+                "t": {
+                  "type": "object",
+                  "required": [
+                    "t"
+                  ],
+                  "properties": {
+                    "t": {
+                      "type": "string",
+                      "enum": [
+                        "One",
+                        "Two"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "FooStruct_HashMap_i32_Person_i64": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "name",
+                "account",
+                "t"
+              ],
+              "properties": {
+                "account": {
+                  "$ref": "#/components/schemas/Account"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "t": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "FooStruct_HashSet_i32": {
+        "type": "object",
+        "required": [
+          "foo"
+        ],
+        "properties": {
+          "foo": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "uniqueItems": true
+          }
+        }
+      },
+      "FoosEnum": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "LinkedList"
+            ],
+            "properties": {
+              "LinkedList": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Person_Value"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "BTreeMap"
+            ],
+            "properties": {
+              "BTreeMap": {
+                "$ref": "#/components/schemas/FooStruct_BTreeMap_String_Person_Value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "HashMap"
+            ],
+            "properties": {
+              "HashMap": {
+                "$ref": "#/components/schemas/FooStruct_HashMap_i32_Person_i64"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "HashSet"
+            ],
+            "properties": {
+              "HashSet": {
+                "$ref": "#/components/schemas/FooStruct_HashSet_i32"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Btre"
+            ],
+            "properties": {
+              "Btre": {
+                "$ref": "#/components/schemas/FooStruct_BTreeMap_Ty_Ky_Person_Value"
+              }
+            }
+          }
+        ]
+      },
+      "Person_Value": {
+        "type": "object",
+        "required": [
+          "name",
+          "account",
+          "t"
+        ],
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "name": {
+            "type": "string"
+          },
+          "t": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

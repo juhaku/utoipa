@@ -202,6 +202,16 @@ impl Schema<'_> {
             Self::Ext(ext) => ext.get_component_schema(),
         }
     }
+
+    pub fn is_inline(&self) -> bool {
+        match self {
+            Self::Default(def) => match def {
+                DefaultSchema::TypePath(parsed) => parsed.is_inline,
+                _ => false,
+            },
+            Self::Ext(_) => false,
+        }
+    }
 }
 
 impl ToTokensDiagnostics for Schema<'_> {

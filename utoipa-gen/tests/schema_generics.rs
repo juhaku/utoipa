@@ -153,7 +153,6 @@ fn derive_generic_schema_enum_variants() {
     let schema = FoosEnum::schema();
     let json = serde_json::to_string_pretty(&schema).expect("Schema is JSON serializable");
     let value = json.trim();
-    // println!("{value}");
 
     #[derive(OpenApi)]
     #[openapi(components(schemas(FoosEnum)))]
@@ -164,6 +163,65 @@ fn derive_generic_schema_enum_variants() {
     let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
     println!("{api_json}");
     let expected = include_str!("./testdata/schema_generic_enum_variant_with_generic_type");
+    assert_eq!(expected.trim(), api_json.trim());
+}
+
+#[test]
+fn derive_generic_schema_collect_recursive_schema_not_inlined() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct FooStruct<B> {
+        pub foo: B,
+    }
+
+    #[derive(ToSchema)]
+    pub struct Value(String);
+
+    #[derive(ToSchema)]
+    pub struct Person<T> {
+        name: String,
+        account: Account,
+        t: T,
+    }
+
+    #[derive(ToSchema)]
+    pub struct Account {
+        name: String,
+    }
+
+    #[derive(ToSchema, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct Ty<T> {
+        t: T,
+    }
+
+    #[derive(ToSchema, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    enum Ky {
+        One,
+        Two,
+    }
+
+    #[derive(ToSchema)]
+    enum FoosEnum {
+        LinkedList(std::collections::LinkedList<Person<Value>>),
+        BTreeMap(FooStruct<std::collections::BTreeMap<String, Person<Value>>>),
+        HashMap(FooStruct<std::collections::HashMap<i32, Person<i64>>>),
+        HashSet(FooStruct<std::collections::HashSet<i32>>),
+        Btre(FooStruct<std::collections::BTreeMap<Ty<Ky>, Person<Value>>>),
+    }
+    let schema = FoosEnum::schema();
+    let json = serde_json::to_string_pretty(&schema).expect("Schema is JSON serializable");
+    let value = json.trim();
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(FoosEnum)))]
+    struct Api;
+
+    let mut api = Api::openapi();
+    api.info = Info::new("title", "version");
+    let api_json = api.to_pretty_json().expect("OpenAPI is JSON serializable");
+    println!("{api_json}");
+    let expected = include_str!("./testdata/schema_generic_collect_non_inlined_schema");
     assert_eq!(expected.trim(), api_json.trim());
 }
 

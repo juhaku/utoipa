@@ -474,14 +474,27 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
 
         fn to_schema_references(
             mut schemas: TokenStream2,
-            component_schema: ComponentSchema,
+            (is_inline, component_schema): (bool, ComponentSchema),
         ) -> TokenStream2 {
             for reference in component_schema.schema_references {
                 let name = &reference.name;
                 let tokens = &reference.tokens;
                 let references = &reference.references;
 
-                schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+                #[cfg(feature = "config")]
+                let should_collect_schema = (matches!(
+                    crate::CONFIG.schema_collect,
+                    utoipa_config::SchemaCollect::NonInlined
+                ) && !is_inline)
+                    || matches!(
+                        crate::CONFIG.schema_collect,
+                        utoipa_config::SchemaCollect::All
+                    );
+                #[cfg(not(feature = "config"))]
+                let should_collect_schema = !is_inline;
+                if should_collect_schema {
+                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+                }
                 schemas.extend(quote!( #references; ));
             }
 

@@ -1,8 +1,14 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
-//! This crate provides global configuration capabilities for [`utoipa`](https://docs.rs/utoipa/latest/utoipa/). Currently only
-//! supports providing Rust type aliases.
+//! This crate provides global configuration capabilities for [`utoipa`](https://docs.rs/utoipa/latest/utoipa/).
+//!
+//! ## Config options
+//!
+//! * Define rust type aliases for `utoipa` with `.alias_for(...)` method.
+//! * Define schema collect mode for `utoipa` with `.schema_collect(...)` method.
+//!   * [`SchemaCollect::All`] will collect all schemas from usages including inlined with `inline(T)`
+//!   * [`SchemaCollect::NonInlined`] will only collect non inlined schemas from usages.
 //!
 //! ## Install
 //!
@@ -29,13 +35,14 @@
 //! }
 //! ```
 //!
-//! See full [example for utoipa-config](https://github.com/juhaku/utoipa/tree/master/examples/config-test-crate/).
+//! See full [example for utoipa-config](https://github.com/juhaku/utoipa/tree/master/examples/utoipa-config-test/).
 
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
 
 /// Global configuration initialized in `build.rs` of user project.
@@ -50,6 +57,61 @@ pub struct Config<'c> {
     /// A map of global aliases `utoipa` will recognize as types.
     #[doc(hidden)]
     pub aliases: HashMap<Cow<'c, str>, Cow<'c, str>>,
+    /// Schema collect mode for `utoipa`. By default only non inlined schemas are collected.
+    pub schema_collect: SchemaCollect,
+}
+
+/// Configures schema collect mode. By default only non explicitly inlined schemas are collected.
+/// but this behavior can be changed to collect also inlined schemas by setting
+/// [`SchemaCollect::All`].
+#[derive(Default)]
+pub enum SchemaCollect {
+    /// Makes sure that all schemas from usages are collected including inlined.
+    All,
+    /// Collect only non explicitly inlined schemas to the OpenAPI. This will result smaller schema
+    /// foot print in the OpenAPI if schemas are typically inlined with `inline(T)` on usage.
+    #[default]
+    NonInlined,
+}
+
+impl Serialize for SchemaCollect {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::All => serializer.serialize_str("all"),
+            Self::NonInlined => serializer.serialize_str("non_inlined"),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SchemaCollect {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct SchemaCollectVisitor;
+        impl<'d> Visitor<'d> for SchemaCollectVisitor {
+            type Value = SchemaCollect;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("expected str `all` or `non_inlined`")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                if v == "all" {
+                    Ok(SchemaCollect::All)
+                } else {
+                    Ok(SchemaCollect::NonInlined)
+                }
+            }
+        }
+
+        deserializer.deserialize_str(SchemaCollectVisitor)
+    }
 }
 
 impl<'c> Config<'c> {
@@ -100,6 +162,20 @@ impl<'c> Config<'c> {
     pub fn alias_for(mut self, alias: &'c str, value: &'c str) -> Config<'c> {
         self.aliases
             .insert(Cow::Borrowed(alias), Cow::Borrowed(value));
+
+        self
+    }
+
+    /// Define schema collect mode for `utoipa`.
+    ///
+    /// Method accepts one argument [`SchemaCollect`] which defines the collect mode to be used by
+    /// `utiopa`. If none is defined [`SchemaCollect::NonInlined`] schemas will be collected by
+    /// default.
+    ///
+    /// This can be changed to [`SchemaCollect::All`] if schemas called with `inline(T)` is wished
+    /// to be collected to the resulting OpenAPI.
+    pub fn schema_collect(mut self, schema_collect: SchemaCollect) -> Self {
+        self.schema_collect = schema_collect;
 
         self
     }

@@ -2531,6 +2531,114 @@ fn derive_path_test_collect_request_body() {
 }
 
 #[test]
+fn derive_path_test_do_not_collect_inlined_schema() {
+    #![allow(dead_code)]
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        account: Account,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = inline(Person),
+        path = "/test-collect-schemas",
+    )]
+    async fn test_collect_schemas(_body: Person) {}
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi)]
+    #[openapi(paths(test_collect_schemas))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = doc
+        .pointer("/components/schemas")
+        .expect("OpenApi must have schemas");
+
+    assert_json_eq!(
+        &schemas,
+        json!({
+            "Account": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format":  "int32",
+                    },
+                },
+                "required": ["id"],
+                "type": "object"
+            }
+        })
+    );
+}
+
+#[test]
+fn derive_path_test_do_not_collect_recursive_inlined() {
+    #![allow(dead_code)]
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        #[schema(inline)]
+        account: Account,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = inline(Person),
+        path = "/test-collect-schemas",
+    )]
+    async fn test_collect_schemas(_body: Person) {}
+
+    use utoipa::OpenApi;
+    #[derive(OpenApi)]
+    #[openapi(paths(test_collect_schemas))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = doc.pointer("/components/schemas");
+    let body = doc
+        .pointer("/paths/~1test-collect-schemas/post/requestBody/content/application~1json/schema")
+        .expect("request body must have schema");
+
+    assert_eq!(None, schemas);
+    assert_json_eq!(
+        body,
+        json!({
+            "properties": {
+                "name": {
+                    "type": "string",
+                },
+                "account": {
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "format":  "int32",
+                        },
+                    },
+                    "required": ["id"],
+                    "type": "object"
+                }
+            },
+            "required": ["name", "account"],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 fn derive_path_test_collect_generic_array_request_body() {
     #![allow(dead_code)]
 

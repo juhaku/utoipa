@@ -12,6 +12,7 @@
 
 ### Changed
 
+* Chore enhance generic schema collection (https://github.com/juhaku/utoipa/pull/1116)
 * Add test for aliases on enum variant values
 * Fixed broken tests at `utoipa-config`
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
