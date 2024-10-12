@@ -5854,3 +5854,35 @@ fn schema_manual_impl() {
         })
     )
 }
+
+#[test]
+fn const_generic_test() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct ArrayResponse<T: ToSchema, const N: usize> {
+        array: [T; N],
+    }
+
+    #[derive(ToSchema)]
+    struct CombinedResponse<T: ToSchema, const N: usize> {
+        pub array_response: ArrayResponse<T, N>,
+    }
+
+    use utoipa::PartialSchema;
+    let schema = <CombinedResponse<String, 1> as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_eq! {
+        value,
+        json!({
+            "properties": {
+                "array_response": {
+                    "$ref": "#/components/schemas/ArrayResponse_String"
+                }
+            },
+            "required": ["array_response"],
+            "type": "object"
+        })
+    }
+}
