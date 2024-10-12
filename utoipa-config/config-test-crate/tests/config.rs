@@ -1,15 +1,14 @@
 use std::borrow::Cow;
 
 use utoipa::{OpenApi, ToSchema};
-use utoipa_config::Config;
+use utoipa_config::{Config, SchemaCollect};
 
 #[test]
 fn test_create_config_with_aliases() {
-    Config::new()
-        .alias_for("i32", "Option<String>")
-        .write_to_file();
+    let config: Config<'_> = Config::new().alias_for("i32", "Option<String>");
+    let json = serde_json::to_string(&config).expect("config is json serializable");
 
-    let config = Config::read_from_file();
+    let config: Config = serde_json::from_str(&json).expect("config is json deserializable");
 
     assert!(!config.aliases.is_empty());
     assert!(config.aliases.contains_key("i32"));
@@ -17,6 +16,16 @@ fn test_create_config_with_aliases() {
         config.aliases.get("i32"),
         Some(&Cow::Borrowed("Option<String>"))
     );
+}
+
+#[test]
+fn test_config_with_collect_all() {
+    let config: Config<'_> = Config::new().schema_collect(utoipa_config::SchemaCollect::All);
+    let json = serde_json::to_string(&config).expect("config is json serializable");
+
+    let config: Config = serde_json::from_str(&json).expect("config is json deserializable");
+
+    assert!(matches!(config.schema_collect, SchemaCollect::All));
 }
 
 #[test]

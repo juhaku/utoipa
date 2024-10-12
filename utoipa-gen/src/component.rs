@@ -727,6 +727,7 @@ pub struct SchemaReference {
     pub name: TokenStream,
     pub tokens: TokenStream,
     pub references: TokenStream,
+    pub is_inline: bool,
 }
 
 impl SchemaReference {
@@ -1199,6 +1200,7 @@ impl ComponentSchema {
                     let title_tokens = as_tokens_or_diagnostics!(&title);
 
                     if is_inline {
+                        object_schema_reference.is_inline = true;
                         let items_tokens = if let Some(children) = &type_tree.children {
                             schema_references.extend(Self::compose_child_references(children)?);
 
@@ -1237,7 +1239,7 @@ impl ComponentSchema {
                         schema.to_tokens(tokens);
                     } else {
                         let index = container.generics.get_generic_type_param_index(type_tree);
-                        // only set schema references for concrete non generic types
+                        // only set schema references tokens for concrete non generic types
                         if index.is_none() {
                             let reference_tokens = if let Some(children) = &type_tree.children {
                                 let composed_generics =
@@ -1247,9 +1249,11 @@ impl ComponentSchema {
                                 quote! { <#rewritten_path as utoipa::PartialSchema>::schema() }
                             };
                             object_schema_reference.tokens = reference_tokens;
-                            object_schema_reference.references =
-                                quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
                         }
+                        // any case the references call should be passed down in generic and non
+                        // non generic likewise.
+                        object_schema_reference.references =
+                            quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
                             if let Some(index) = &index {
                                 quote_spanned! {type_path.span()=>
@@ -1421,6 +1425,7 @@ impl ComponentSchema {
                     name: quote! { String::from(< #rewritten_path as utoipa::ToSchema >::name().as_ref()) },
                     tokens: quote! { <#rewritten_path as utoipa::PartialSchema>::schema() },
                     references: quote !{ <#rewritten_path as utoipa::ToSchema>::schemas(schemas) },
+                    is_inline: false,
                 }))
                 )
             } else {

@@ -51,7 +51,7 @@ impl Parse for Response<'_> {
 impl Response<'_> {
     pub fn get_component_schemas(
         &self,
-    ) -> Result<impl Iterator<Item = ComponentSchema>, Diagnostics> {
+    ) -> Result<impl Iterator<Item = (bool, ComponentSchema)>, Diagnostics> {
         match self {
             Self::Tuple(tuple) => match &tuple.inner {
                 // Only tuple type will have `ComponentSchema`s as of now
@@ -60,7 +60,15 @@ impl Response<'_> {
                         value
                             .content
                             .iter()
-                            .map(|media_type| media_type.schema.get_component_schema())
+                            .map(
+                                |media_type| match media_type.schema.get_component_schema() {
+                                    Ok(component_schema) => {
+                                        Ok(Some(media_type.schema.is_inline())
+                                            .zip(component_schema))
+                                    }
+                                    Err(error) => Err(error),
+                                },
+                            )
                             .collect::<Result<Vec<_>, Diagnostics>>()?
                             .into_iter()
                             .flatten(),

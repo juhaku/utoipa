@@ -78,11 +78,11 @@ impl ToTokensDiagnostics for Schema<'_> {
             attributes: self.attributes,
         };
         let variant = SchemaVariant::new(self.data, &root)?;
-        let schema_references = variant
+        let (generic_references, schema_references): (Vec<_>, Vec<_>) = variant
             .get_schema_references()
-            .filter(|schema_reference| !schema_reference.is_partial());
+            .partition(|schema_reference| schema_reference.is_partial());
 
-        struct SchemaRef<'a>(&'a TokenStream, &'a TokenStream, &'a TokenStream);
+        struct SchemaRef<'a>(&'a TokenStream, &'a TokenStream, &'a TokenStream, bool);
         impl ToTokens for SchemaRef<'_> {
             fn to_tokens(&self, tokens: &mut TokenStream) {
                 let SchemaRef(name, ref_tokens, ..) = self;
@@ -90,23 +90,51 @@ impl ToTokensDiagnostics for Schema<'_> {
             }
         }
         let schema_refs = schema_references
+            .iter()
             .map(|schema_reference| {
                 SchemaRef(
                     &schema_reference.name,
                     &schema_reference.tokens,
                     &schema_reference.references,
+                    schema_reference.is_inline,
                 )
             })
             .collect::<Array<SchemaRef>>();
 
         let references = schema_refs.iter().fold(
             TokenStream::new(),
-            |mut tokens, SchemaRef(_, _, references)| {
+            |mut tokens, SchemaRef(_, _, references, _)| {
                 tokens.extend(quote!( #references; ));
 
                 tokens
             },
         );
+        let generic_references = generic_references
+            .into_iter()
+            .map(|schema_reference| {
+                let reference = &schema_reference.references;
+                quote! {#reference;}
+            })
+            .collect::<TokenStream>();
+
+        let schema_refs = schema_refs
+            .iter()
+            .filter(|SchemaRef(_, _, _, is_inline)| {
+                #[cfg(feature = "config")]
+                {
+                    (matches!(
+                        crate::CONFIG.schema_collect,
+                        utoipa_config::SchemaCollect::NonInlined
+                    ) && !is_inline)
+                        || matches!(
+                            crate::CONFIG.schema_collect,
+                            utoipa_config::SchemaCollect::All
+                        )
+                }
+                #[cfg(not(feature = "config"))]
+                !is_inline
+            })
+            .collect::<Array<_>>();
 
         let name = if let Some(schema_as) = variant.get_schema_as() {
             schema_as.to_schema_formatted_string()
@@ -114,6 +142,7 @@ impl ToTokensDiagnostics for Schema<'_> {
             ident.to_string()
         };
 
+        // TODO refactor this to avoid clone
         if let Some(Bound(bound)) = variant.get_schema_bound() {
             where_clause.predicates.extend(bound.clone());
         } else {
@@ -142,6 +171,7 @@ impl ToTokensDiagnostics for Schema<'_> {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                     schemas.extend(#schema_refs);
                     #references;
+                    #generic_references
                 }
             }
         });

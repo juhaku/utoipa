@@ -7,110 +7,6 @@
   "paths": {},
   "components": {
     "schemas": {
-      "FooStruct_BTreeMap_String_String": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "FooStruct_BTreeSet_i32": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            },
-            "uniqueItems": true
-          }
-        }
-      },
-      "FooStruct_HashMap_i32_String": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        }
-      },
-      "FooStruct_HashSet_i32": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            },
-            "uniqueItems": true
-          }
-        }
-      },
-      "FooStruct_LinkedList_i32": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        }
-      },
-      "FooStruct_Option_Vec_i32": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "allOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "array",
-                "items": {
-                  "type": "integer",
-                  "format": "int32"
-                }
-              }
-            ]
-          }
-        }
-      },
       "FooStruct_Option_i32": {
         "type": "object",
         "required": [
@@ -127,21 +23,6 @@
                 "format": "int32"
               }
             ]
-          }
-        }
-      },
-      "FooStruct_Vec_i32": {
-        "type": "object",
-        "required": [
-          "foo"
-        ],
-        "properties": {
-          "foo": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int32"
-            }
           }
         }
       },
