@@ -1413,7 +1413,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// **actix_extras** feature gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
 ///
-/// 1. Ability to parse `path` from **actix-web** path attribute macros e.g. _`#[get(...)]`_.
+/// 1. Ability to parse `path` from **actix-web** path attribute macros e.g. _`#[get(...)]`_ or
+///    `#[route(...)]`.
 /// 2. Ability to parse [`std::primitive`]  or [`String`] or [`tuple`] typed `path` parameters from **actix-web** _`web::Path<...>`_.
 /// 3. Ability to parse `path` and `query` parameters form **actix-web** _`web::Path<...>`_, _`web::Query<...>`_ types
 ///    with [`IntoParams`][into_params] trait.
