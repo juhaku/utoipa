@@ -26,16 +26,31 @@
 //!
 //! # Choose your flavor and document your API with ice cold IPA
 //!
-//! Existing [examples](https://github.com/juhaku/utoipa/tree/master/examples) for following frameworks:
+//! |Flavor|Support|
+//! |--|--|
+//! |[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs][actix_path]|
+//! |[axum](https://github.com/tokio-rs/axum)|Parse path and query parameters, recognize request body and response body, [`utoipa-axum` bindings](https://docs.rs/utoipa-axum). See more at [docs][axum_path]|
+//! |[rocket](https://github.com/SergioBenitez/Rocket)| Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs][rocket_path]|
+//! |Others*| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|
 //!
-//! * **actix-web**
-//! * **axum**
-//! * **warp**
-//! * **tide**
-//! * **rocket**
+//! > Others* = For example [warp](https://github.com/seanmonstar/warp) but could be anything.
 //!
-//! Even if there is no example for your favorite framework `utoipa` can be used with any
-//! web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
+//! Refer to the existing [examples](https://github.com/juhaku/utoipa/tree/master/examples) to find out more.
+//!
+//! ## Features
+//!
+//! * OpenAPI 3.1
+//! * Pluggable, easy setup and integration with frameworks.
+//! * No bloat, enable what you need.
+//! * Support for generic types
+//!   * **Note!**<br>
+//!     Tuples, arrays and slices cannot be used as generic arguments on types. Types implementing `ToSchema` manually should not have generic arguments, as
+//!     they are not composeable and will result compile error.
+//! * Automatic schema collection from usages recursively.
+//!   * Request body from either handler function arguments (if supported by framework) or from `request_body` attribute.
+//!   * Response body from response `body` attribute or response `content` attribute.
+//! * Various OpenAPI visualization tools supported out of the box.
+//! * Rust type aliases via [`utoipa-config`][utoipa_config].
 //!
 //! # What's up with the word play?
 //!
@@ -99,7 +114,10 @@
 //! * **`config`** Enables [`utoipa-config`](https://docs.rs/utoipa-config/) for the project which allows
 //!   defining global configuration options for `utoipa`.
 //!
-//! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
+//! ### Default Library Support
+//!
+//! * Implicit partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
+//! * Support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 //!
 //! # Install
 //!
@@ -109,113 +127,54 @@
 //! utoipa = "4"
 //! ```
 //!
-//! To enable more features such as use actix framework extras you could define the
-//! dependency as follows.
-//! ```toml
-//! [dependencies]
-//! utoipa = { version = "4", features = ["actix_extras"] }
-//! ```
-//!
-//! **Note!** To use `utoipa` together with Swagger UI you can use the [`utoipa-swagger-ui`][utoipa_swagger] crate.
-//!
-//! [utoipa_swagger]: <https://docs.rs/utoipa-swagger-ui/>
-//!
 //! # Examples
 //!
-//! Create a struct, or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
-//! as a component in openapi schema.
+//! _**Create type with `ToSchema` and use it in `#[utoipa::path(...)]` that is registered to the `OpenApi`.**_
+//!
 //! ```rust
-//! use utoipa::ToSchema;
+//! use utoipa::{OpenApi, ToSchema};
+//!
 //! #[derive(ToSchema)]
 //! struct Pet {
 //!    id: u64,
 //!    name: String,
 //!    age: Option<i32>,
 //! }
-//! ```
-//!
-//! Create an handler that would handle your business logic and add `path` proc attribute macro over it.
-//! ```rust
-//! mod pet_api {
-//! #     use utoipa::ToSchema;
+//! # #[derive(Debug)]
+//! # struct NotFound;
 //! #
-//! #     #[derive(ToSchema)]
-//! #     struct Pet {
-//! #       id: u64,
-//! #       name: String,
-//! #       age: Option<i32>,
-//! #     }
-//!     /// Get pet by id
-//!     ///
-//!     /// Get pet from database by pet id
-//!     #[utoipa::path(
-//!         get,
-//!         path = "/pets/{id}",
-//!         responses(
-//!             (status = 200, description = "Pet found successfully", body = Pet),
-//!             (status = NOT_FOUND, description = "Pet was not found")
-//!         ),
-//!         params(
-//!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
-//!         )
-//!     )]
-//!     async fn get_pet_by_id(pet_id: u64) -> Pet {
-//!         Pet {
-//!             id: pet_id,
-//!             age: None,
-//!             name: "lightning".to_string(),
-//!         }
-//!     }
+//! # impl std::error::Error for NotFound {}
+//! #
+//! # impl std::fmt::Display for NotFound {
+//! #    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//! #        f.write_str("NotFound")
+//! #    }
+//! # }
+//!
+//! /// Get pet by id
+//! ///
+//! /// Get pet from database by pet id
+//! #[utoipa::path(
+//!     get,
+//!     path = "/pets/{id}",
+//!     responses(
+//!         (status = 200, description = "Pet found successfully", body = Pet),
+//!         (status = NOT_FOUND, description = "Pet was not found")
+//!     ),
+//!     params(
+//!         ("id" = u64, Path, description = "Pet database id to get Pet for"),
+//!     )
+//! )]
+//! async fn get_pet_by_id(pet_id: u64) -> Result<Pet, NotFound> {
+//!     Ok(Pet {
+//!         id: pet_id,
+//!         age: None,
+//!         name: "lightning".to_string(),
+//!     })
 //! }
-//! ```
 //!
-//! Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
-//!
-//! Tie the above component and api to the openapi schema with following `OpenApi` derive proc macro.
-//! ```rust
-//! # mod pet_api {
-//! #     use utoipa::ToSchema;
-//! #
-//! #     #[derive(ToSchema)]
-//! #     struct Pet {
-//! #       id: u64,
-//! #       name: String,
-//! #       age: Option<i32>,
-//! #     }
-//! #
-//! #     /// Get pet by id
-//! #     ///
-//! #     /// Get pet from database by pet id
-//! #     #[utoipa::path(
-//! #         get,
-//! #         path = "/pets/{id}",
-//! #         responses(
-//! #             (status = 200, description = "Pet found successfully", body = Pet),
-//! #             (status = 404, description = "Pet was not found")
-//! #         ),
-//! #         params(
-//! #             ("id" = u64, Path, description = "Pet database id to get Pet for"),
-//! #         )
-//! #     )]
-//! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
-//! #         Pet {
-//! #             id: pet_id,
-//! #             age: None,
-//! #             name: "lightning".to_string(),
-//! #         }
-//! #     }
-//! # }
-//! # use utoipa::ToSchema;
-//! #
-//! # #[derive(ToSchema)]
-//! # struct Pet {
-//! #   id: u64,
-//! #   name: String,
-//! #   age: Option<i32>,
-//! # }
-//! use utoipa::OpenApi;
 //! #[derive(OpenApi)]
-//! #[openapi(paths(pet_api::get_pet_by_id), components(schemas(Pet)))]
+//! #[openapi(paths(get_pet_by_id))]
 //! struct ApiDoc;
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
@@ -263,10 +222,12 @@
 //! * Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 //!
 //! [path]: attr.path.html
-//! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
-//! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
-//! [axum_path]: attr.path.html#axum_extras-support-for-axum
+//! [rocket_path]: attr.path.html#rocket_extras-feature-support-for-rocket
+//! [actix_path]: attr.path.html#actix_extras-feature-support-for-actix-web
+//! [axum_path]: attr.path.html#axum_extras-feature-support-for-axum
 //! [serde]: derive.ToSchema.html#partial-serde-attributes-support
+//! [utoipa_swagger]: https://docs.rs/utoipa-swagger-ui/
+//! [utoipa_config]: https://docs.rs/utoipa-config/
 //!
 //! [security]: openapi/security/index.html
 //! [to_schema_derive]: derive.ToSchema.html
