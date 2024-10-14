@@ -26,6 +26,7 @@
 
 ### Fixed
 
+* Fix path rewrite (https://github.com/juhaku/utoipa/pull/1120)
 * Chore filter const generics (https://github.com/juhaku/utoipa/pull/1118)
 * Fix impl `ToSchema` for container types (https://github.com/juhaku/utoipa/pull/1107)
 * Fix description on `inline` field (https://github.com/juhaku/utoipa/pull/1102)

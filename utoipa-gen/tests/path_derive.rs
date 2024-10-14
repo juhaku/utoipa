@@ -3071,3 +3071,53 @@ fn derive_images_as_application_octet_stream() {
         })
     );
 }
+
+#[test]
+fn derive_const_generic_request_body_compiles() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct ArrayResponse<T: ToSchema, const N: usize> {
+        array: [T; N],
+    }
+
+    #[derive(ToSchema)]
+    struct CombinedResponse<T: ToSchema, const N: usize> {
+        pub array_response: ArrayResponse<T, N>,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = CombinedResponse<String, 3>,
+        path = "/test_const_generic",
+    )]
+    async fn test_const_generic(_body: Vec<u8>) {}
+
+    let _ = serde_json::to_value(__path_test_const_generic::operation())
+        .expect("Operation is JSON serializable");
+}
+
+#[test]
+fn derive_lifetime_generic_request_body_compiles() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct ArrayResponse<'a, T: ToSchema, const N: usize> {
+        array: &'a [T; N],
+    }
+
+    #[derive(ToSchema)]
+    struct CombinedResponse<'a, T: ToSchema, const N: usize> {
+        pub array_response: ArrayResponse<'a, T, N>,
+    }
+
+    #[utoipa::path(
+        post,
+        request_body = CombinedResponse<String, 3>,
+        path = "/test_const_generic",
+    )]
+    async fn test_const_generic(_body: Vec<u8>) {}
+
+    let _ = serde_json::to_value(__path_test_const_generic::operation())
+        .expect("Operation is JSON serializable");
+}

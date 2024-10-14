@@ -149,27 +149,30 @@ impl<'p> SynPathExt for &'p Path {
             let args = anglebracketed_args.args.iter().try_fold(
                 Punctuated::<GenericArgument, Comma>::new(),
                 |mut args, generic_arg| {
-                    if let GenericArgument::Type(ty) = generic_arg {
-                        let type_tree = TypeTree::from_type(ty)?;
-                        let alias_type = type_tree.get_alias_type()?;
-                        let alias_type_tree =
-                            alias_type.as_ref().map(TypeTree::from_type).transpose()?;
-                        let type_tree = alias_type_tree.unwrap_or(type_tree);
+                    match generic_arg {
+                        GenericArgument::Type(ty) => {
+                            let type_tree = TypeTree::from_type(ty)?;
+                            let alias_type = type_tree.get_alias_type()?;
+                            let alias_type_tree =
+                                alias_type.as_ref().map(TypeTree::from_type).transpose()?;
+                            let type_tree = alias_type_tree.unwrap_or(type_tree);
 
-                        let path = type_tree
-                            .path
-                            .as_ref()
-                            .expect("TypeTree must have a path")
-                            .as_ref();
+                            let path = type_tree
+                                .path
+                                .as_ref()
+                                .expect("TypeTree must have a path")
+                                .as_ref();
 
-                        if let Some(default_type) = PrimitiveType::new(path) {
-                            args.push(GenericArgument::Type(default_type.ty.clone()));
-                        } else {
-                            let inner = path.rewrite_path()?;
-                            args.push(GenericArgument::Type(syn::Type::Path(
-                                syn::parse_quote!(#inner),
-                            )))
+                            if let Some(default_type) = PrimitiveType::new(path) {
+                                args.push(GenericArgument::Type(default_type.ty.clone()));
+                            } else {
+                                let inner = path.rewrite_path()?;
+                                args.push(GenericArgument::Type(syn::Type::Path(
+                                    syn::parse_quote!(#inner),
+                                )))
+                            }
                         }
+                        other => args.push(other.clone()),
                     }
 
                     Result::<_, Diagnostics>::Ok(args)
