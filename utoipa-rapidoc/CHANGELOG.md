@@ -1,6 +1,6 @@
 # Changelog - utoipa-rapidoc
 
-## Unreleased
+## 5.0.0 - Oct 14 2024
 
 ### Added
 

@@ -1,6 +1,6 @@
 # Changelog - utoipa-config
 
-## Unreleased
+## 0.1.0 - Oct 14 2024
 
 ### Added
 
