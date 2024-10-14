@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Added
+
+* Implement schema traits for indexset (https://github.com/juhaku/utoipa/pull/1129)
+
 ## 5.0.0 - Oct 14 2024
 
 ### Added
