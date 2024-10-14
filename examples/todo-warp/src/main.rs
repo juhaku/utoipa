@@ -20,9 +20,8 @@ async fn main() {
 
     #[derive(OpenApi)]
     #[openapi(
-        paths(todo::list_todos, todo::create_todo, todo::delete_todo),
-        components(
-            schemas(todo::Todo)
+        nest(
+            (path = "/api", api = todo::TodoApi)
         ),
         modifiers(&SecurityAddon),
         tags(
@@ -54,9 +53,13 @@ async fn main() {
         .and(warp::any().map(move || config.clone()))
         .and_then(serve_swagger);
 
-    warp::serve(api_doc.or(swagger_ui).or(todo::handlers()))
-        .run((Ipv4Addr::UNSPECIFIED, 8080))
-        .await
+    warp::serve(
+        api_doc
+            .or(swagger_ui)
+            .or(warp::path("api").and(todo::handlers())),
+    )
+    .run((Ipv4Addr::UNSPECIFIED, 8080))
+    .await
 }
 
 async fn serve_swagger(
@@ -98,8 +101,12 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{IntoParams, ToSchema};
+    use utoipa::{IntoParams, OpenApi, ToSchema};
     use warp::{hyper::StatusCode, Filter, Rejection, Reply};
+
+    #[derive(OpenApi)]
+    #[openapi(paths(list_todos, create_todo, delete_todo))]
+    pub struct TodoApi;
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 
