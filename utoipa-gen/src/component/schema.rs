@@ -9,7 +9,7 @@ use syn::{
 
 use crate::{
     as_tokens_or_diagnostics,
-    component::features::attributes::{Rename, ValueType},
+    component::features::attributes::{Rename, Title, ValueType},
     doc_comment::CommentAttributes,
     Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -219,7 +219,7 @@ impl<'a> SchemaVariant<'a> {
                         named_features,
                     )?))
                 }
-                Fields::Unit => Ok(Self::Unit(UnitStructVariant)),
+                Fields::Unit => Ok(Self::Unit(UnitStructVariant::new(root)?)),
             },
             Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(root, &content.variants)?)),
             _ => Err(Diagnostics::with_span(
@@ -269,13 +269,39 @@ impl ToTokens for SchemaVariant<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct UnitStructVariant;
+struct UnitStructVariant(TokenStream);
+
+impl UnitStructVariant {
+    fn new(root: &Root<'_>) -> Result<Self, Diagnostics> {
+        let mut tokens = quote! {
+            utoipa::openapi::Object::builder()
+                .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
+                .default(Some(serde_json::Value::Null))
+        };
+
+        let mut features = features::parse_schema_features_with(root.attributes, |input| {
+            Ok(parse_features!(input as Title, Description))
+        })?
+        .unwrap_or_default();
+
+        let description = pop_feature!(features => Feature::Description(_) as Option<Description>);
+
+        let comment = CommentAttributes::from_attributes(root.attributes);
+        let description = description
+            .as_ref()
+            .map(ComponentDescription::Description)
+            .or(Some(ComponentDescription::CommentAttributes(&comment)));
+
+        description.to_tokens(&mut tokens);
+        tokens.extend(features.to_token_stream());
+
+        Ok(Self(tokens))
+    }
+}
 
 impl ToTokens for UnitStructVariant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(quote! {
-            utoipa::openapi::schema::empty()
-        });
+        self.0.to_tokens(tokens);
     }
 }
 
