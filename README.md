@@ -121,15 +121,12 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 
 ## Install
 
-Add minimal dependency declaration to `Cargo.toml`.
+Add dependency declaration to `Cargo.toml`.
 
 ```toml
 [dependencies]
 utoipa = "5"
 ```
-
-> [!NOTE]
-> 5.0.0 is not yet fully released. Please refer to a tag like `utoipa-4.2.3` for examples of that version.
 
 ## Examples
 

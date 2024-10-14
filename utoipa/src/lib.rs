@@ -121,10 +121,10 @@
 //!
 //! # Install
 //!
-//! Add minimal dependency declaration to Cargo.toml.
+//! Add dependency declaration to Cargo.toml.
 //! ```toml
 //! [dependencies]
-//! utoipa = "4"
+//! utoipa = "5"
 //! ```
 //!
 //! # Examples
