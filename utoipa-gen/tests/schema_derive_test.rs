@@ -5886,3 +5886,26 @@ fn const_generic_test() {
         })
     }
 }
+
+#[test]
+fn unit_struct_schema() {
+    #![allow(unused)]
+
+    /// This is description
+    #[derive(ToSchema)]
+    #[schema(title = "Title")]
+    struct UnitType;
+
+    use utoipa::PartialSchema;
+    let schema = <UnitType as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_eq! {
+        value,
+        json!({
+            "description": "This is description",
+            "title": "Title",
+            "default": null,
+        })
+    }
+}

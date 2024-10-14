@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add support for title and description for unit struct schema (https://github.com/juhaku/utoipa/pull/1122)
 * Add support for `schema(ignore)` and `param(ignore)` (https://github.com/juhaku/utoipa/pull/1090)
 * Add support for `property_names` for object (https://github.com/juhaku/utoipa/pull/1084)
 * Add `bound` attribute for customizing generic impl bounds. (https://github.com/juhaku/utoipa/pull/1079)
