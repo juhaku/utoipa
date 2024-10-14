@@ -1,7 +1,10 @@
 use std::net::Ipv4Addr;
 
 use utoipa::{
-    openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
+    openapi::{
+        security::{ApiKey, ApiKeyValue, SecurityScheme},
+        Components,
+    },
     Modify, OpenApi,
 };
 use utoipa_redoc::{FileConfig, Redoc};
@@ -13,9 +16,8 @@ async fn main() {
 
     #[derive(OpenApi)]
     #[openapi(
-        paths(todo::list_todos, todo::create_todo, todo::delete_todo),
-        components(
-            schemas(todo::Todo)
+        nest(
+            (path = "/api", api = todo::TodoApi)
         ),
         modifiers(&SecurityAddon),
         tags(
@@ -28,7 +30,7 @@ async fn main() {
 
     impl Modify for SecurityAddon {
         fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-            let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
+            let components = openapi.components.get_or_insert(Components::new());
             components.add_security_scheme(
                 "api_key",
                 SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("todo_apikey"))),
@@ -41,7 +43,7 @@ async fn main() {
         .and(warp::get())
         .map(move || warp::reply::html(redoc_ui.to_html()));
 
-    warp::serve(redoc.or(todo::handlers()))
+    warp::serve(redoc.or(warp::path("api").and(todo::handlers())))
         .run((Ipv4Addr::UNSPECIFIED, 8080))
         .await
 }
@@ -53,8 +55,12 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{IntoParams, ToSchema};
+    use utoipa::{IntoParams, OpenApi, ToSchema};
     use warp::{hyper::StatusCode, Filter, Rejection, Reply};
+
+    #[derive(OpenApi)]
+    #[openapi(paths(list_todos, create_todo, delete_todo))]
+    pub struct TodoApi;
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 

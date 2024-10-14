@@ -11,17 +11,14 @@ use utoipa::{IntoParams, OpenApi, ToSchema};
 use crate::{LogApiKey, RequireApiKey};
 
 #[derive(OpenApi)]
-#[openapi(
-    paths(
-        get_todos,
-        create_todo,
-        delete_todo,
-        get_todo_by_id,
-        update_todo,
-        search_todos
-    ),
-    components(schemas(Todo, TodoUpdateRequest, ErrorResponse))
-)]
+#[openapi(paths(
+    get_todos,
+    create_todo,
+    delete_todo,
+    get_todo_by_id,
+    update_todo,
+    search_todos
+))]
 pub(super) struct TodoApi;
 
 #[derive(Default)]
@@ -202,7 +199,6 @@ async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Resp
 /// updated according `TodoUpdateRequest` and updated `Todo` is returned with status 200.
 /// If todo is not found then 404 not found is returned.
 #[utoipa::path(
-    request_body = TodoUpdateRequest,
     responses(
         (status = 200, description = "Todo updated successfully", body = Todo),
         (status = 404, description = "Todo not found by id", body = ErrorResponse, example = json!(ErrorResponse::NotFound(String::from("id = 1"))))
