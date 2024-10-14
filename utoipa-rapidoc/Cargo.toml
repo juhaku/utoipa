@@ -2,7 +2,7 @@
 name = "utoipa-rapidoc"
 description = "RapiDoc for utoipa"
 edition = "2021"
-version = "4.0.1-rc.0"
+version = "5.0.0"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["rapidoc", "openapi", "documentation"]
@@ -18,10 +18,14 @@ rustdoc-args = ["--cfg", "doc_cfg"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-utoipa = { version = "5.0.0-rc", path = "../utoipa", default-features = false, features = ["macros"] }
+utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
+    "macros",
+] }
 actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5", features = ["json"], optional = true }
-axum = { version = "0.7", default-features = false, features = ["json"], optional = true }
+axum = { version = "0.7", default-features = false, features = [
+    "json",
+], optional = true }
 
 [dev-dependencies]
 utoipa-rapidoc = { path = ".", features = ["actix-web", "axum", "rocket"] }
