@@ -683,6 +683,22 @@ where
     }
 }
 
+#[cfg(all(feature = "macros", feature = "indexmap"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+impl<K: ToSchema> ToSchema for indexmap::IndexSet<K>
+where
+    indexmap::IndexSet<K>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+    }
+}
+
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 impl<T: ToSchema> ToSchema for std::boxed::Box<T>
@@ -1447,6 +1463,19 @@ pub mod __dev {
             utoipa::openapi::ObjectBuilder::new()
                 .property_names(Some(K::compose(schemas.clone())))
                 .additional_properties(Some(T::compose(schemas)))
+                .into()
+        }
+    }
+
+    #[cfg(feature = "indexmap")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+    impl<K: ComposeSchema> ComposeSchema for indexmap::IndexSet<K> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(K::compose(schemas))
+                .unique_items(true)
                 .into()
         }
     }
