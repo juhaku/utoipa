@@ -103,6 +103,7 @@ pub enum Feature {
     Discriminator(attributes::Discriminator),
     Bound(attributes::Bound),
     Ignore(attributes::Ignore),
+    NoRecursion(attributes::NoRecursion),
     MultipleOf(validation::MultipleOf),
     Maximum(validation::Maximum),
     Minimum(validation::Minimum),
@@ -229,6 +230,7 @@ impl ToTokensDiagnostics for Feature {
                 // inline feature is ignored by `ToTokens`
                 TokenStream::new()
             }
+            Feature::NoRecursion(_) => return Err(Diagnostics::new("NoRecurse does not support `ToTokens`")),
             Feature::IntoParamsNames(_) => {
                 return Err(Diagnostics::new("Names feature does not support `ToTokens`")
                     .help("Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."))
@@ -303,6 +305,7 @@ impl Display for Feature {
             Feature::Discriminator(discriminator) => discriminator.fmt(f),
             Feature::Bound(bound) => bound.fmt(f),
             Feature::Ignore(ignore) => ignore.fmt(f),
+            Feature::NoRecursion(no_recursion) => no_recursion.fmt(f),
         }
     }
 }
@@ -353,6 +356,7 @@ impl Validatable for Feature {
             Feature::Discriminator(discriminator) => discriminator.is_validatable(),
             Feature::Bound(bound) => bound.is_validatable(),
             Feature::Ignore(ignore) => ignore.is_validatable(),
+            Feature::NoRecursion(no_recursion) => no_recursion.is_validatable(),
         }
     }
 }
@@ -401,6 +405,7 @@ is_validatable! {
     attributes::Discriminator,
     attributes::Bound,
     attributes::Ignore,
+    attributes::NoRecursion,
     validation::MultipleOf = true,
     validation::Maximum = true,
     validation::Minimum = true,
@@ -630,6 +635,7 @@ impl_feature_into_inner! {
     attributes::Discriminator,
     attributes::Bound,
     attributes::Ignore,
+    attributes::NoRecursion,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,

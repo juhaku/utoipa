@@ -5909,3 +5909,54 @@ fn unit_struct_schema() {
         })
     }
 }
+
+#[test]
+fn test_recursion_compiles() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct Instance {
+        #[schema(no_recursion)]
+        kind: Kind,
+    }
+
+    #[derive(ToSchema)]
+    pub enum Kind {
+        MultipleNested(Vec<Instance>),
+    }
+
+    #[derive(ToSchema)]
+    pub struct Error {
+        instance: Instance,
+    }
+
+    #[derive(ToSchema)]
+    pub enum Recursion {
+        Named {
+            #[schema(no_recursion)]
+            foobar: Box<Recur>,
+        },
+        #[schema(no_recursion)]
+        Unnamed(Box<Recur>),
+        NoValue,
+    }
+
+    #[derive(ToSchema)]
+    pub struct Recur {
+        unname: UnnamedError,
+        e: Recursion,
+    }
+
+    #[derive(ToSchema)]
+    #[schema(no_recursion)]
+    pub struct UnnamedError(Kind);
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Error, Recur)))]
+    pub struct ApiDoc {}
+
+    let json = ApiDoc::openapi()
+        .to_pretty_json()
+        .expect("OpenApi is JSON serializable");
+    println!("{json}")
+}

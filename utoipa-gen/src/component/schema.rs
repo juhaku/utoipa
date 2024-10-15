@@ -80,6 +80,7 @@ impl ToTokensDiagnostics for Schema<'_> {
         let variant = SchemaVariant::new(self.data, &root)?;
         let (generic_references, schema_references): (Vec<_>, Vec<_>) = variant
             .get_schema_references()
+            .filter(|schema_reference| !schema_reference.no_recursion)
             .partition(|schema_reference| schema_reference.is_partial());
 
         struct SchemaRef<'a>(&'a TokenStream, &'a TokenStream, &'a TokenStream, bool);

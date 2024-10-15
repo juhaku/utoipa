@@ -7,9 +7,9 @@ use crate::{
     component::features::{
         attributes::{
             AdditionalProperties, As, Bound, ContentEncoding, ContentMediaType, Deprecated,
-            Description, Discriminator, Example, Examples, Format, Ignore, Inline, Nullable,
-            ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType, WriteOnly,
-            XmlAttr,
+            Description, Discriminator, Example, Examples, Format, Ignore, Inline, NoRecursion,
+            Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType,
+            WriteOnly, XmlAttr,
         },
         impl_into_inner, impl_merge, parse_features,
         validation::{
@@ -62,7 +62,8 @@ impl Parse for UnnamedFieldStructFeatures {
             Description,
             ContentEncoding,
             ContentMediaType,
-            Bound
+            Bound,
+            NoRecursion
         )))
     }
 }
@@ -141,7 +142,8 @@ impl Parse for NamedFieldFeatures {
             Deprecated,
             ContentEncoding,
             ContentMediaType,
-            Ignore
+            Ignore,
+            NoRecursion
         )))
     }
 }
@@ -181,7 +183,8 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
             Format,
             ValueType,
             Rename,
-            Deprecated
+            Deprecated,
+            NoRecursion
         )))
     }
 }
