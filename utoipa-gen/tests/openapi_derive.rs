@@ -252,6 +252,26 @@ fn derive_openapi_with_servers() {
 }
 
 #[test]
+fn derive_openapi_with_licence() {
+    #[derive(OpenApi)]
+    #[openapi(info(license(name = "licence_name", identifier = "MIT"), version = "1.0.0",))]
+    struct ApiDoc;
+
+    let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let info = value.pointer("/info/license");
+    dbg!(&info);
+
+    assert_json_include!(
+        actual: info,
+        expected:
+            json!({
+                "name": "licence_name",
+                "identifier": "MIT",
+            })
+    )
+}
+
+#[test]
 fn derive_openapi_with_custom_info() {
     #[derive(OpenApi)]
     #[openapi(info(

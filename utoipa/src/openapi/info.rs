@@ -212,6 +212,13 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub url: Option<String>,
 
+        /// An [SPDX-Licenses][spdx_licence] expression for the API. The _`identifier`_ field
+        /// is mutually exclusive of the _`url`_ field. E.g. Apache-2.0
+        ///
+        /// [spdx_licence]: <https://spdx.org/licenses/>
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub identifier: Option<String>,
+
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -244,6 +251,14 @@ impl LicenseBuilder {
     /// Add openapi extensions (x-something) of the API.
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Set identifier of the licence as [SPDX-Licenses][spdx_licence] expression for the API.
+    /// The _`identifier`_ field is mutually exclusive of the _`url`_ field. E.g. Apache-2.0
+    ///
+    /// [spdx_licence]: <https://spdx.org/licenses/>
+    pub fn identifier<S: Into<String>>(mut self, identifier: Option<S>) -> Self {
+        set_value!(self identifier identifier.map(|identifier| identifier.into()))
     }
 }
 
