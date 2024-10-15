@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Fixed
+
+* Chore explicit FromIterator for edition 2018 (https://github.com/juhaku/utoipa/pull/1131)
+
 ## 5.0.0 - Oct 14 2024
 
 ### Added
