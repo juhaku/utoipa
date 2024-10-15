@@ -313,7 +313,7 @@ fn derive_struct_with_default_attr_field() {
         json!({
             "properties": {
                 "favorite_book": {
-                    "allOf": [
+                    "oneOf": [
                         {
                             "$ref": "#/components/schemas/Book",
                         },
@@ -348,7 +348,7 @@ fn derive_struct_with_default_attr_field() {
                     "type": "object",
                 },
                 "authored": {
-                    "allOf": [
+                    "oneOf": [
                         {
                             "type": "null"
                         },
@@ -447,7 +447,7 @@ fn derive_struct_with_optional_properties() {
                     }
                 },
                 "optional_book": {
-                    "allOf": [
+                    "oneOf": [
                         {
                             "type": "null"
                         },
@@ -943,7 +943,7 @@ fn derive_struct_with_inline() {
                     "type": "object"
                 },
                 "foo2": {
-                    "allOf": [
+                    "oneOf": [
                     {
                         "type": "null"
                     },
@@ -961,7 +961,7 @@ fn derive_struct_with_inline() {
                     ]
                 },
                 "foo3": {
-                    "allOf": [
+                    "oneOf": [
                     {
                         "type": "null"
                     },
@@ -5748,7 +5748,7 @@ fn derive_schema_unnamed_title() {
         enum_value,
         json!({
             "title": "This is enum ref title",
-            "allOf": [
+            "oneOf": [
                 {
                     "$ref": "#/components/schemas/UnnamedEnum"
                 }
@@ -5793,7 +5793,7 @@ fn derive_struct_inline_with_description() {
                 },
                 "with_description": {
                     "description": "This is description",
-                    "allOf": [
+                    "oneOf": [
                         {
                             "properties": {
                                 "name": {

@@ -6,6 +6,10 @@
 
 * Chore explicit FromIterator for edition 2018 (https://github.com/juhaku/utoipa/pull/1131)
 
+### Changed
+
+- Switch to `oneOf` instead `allOf` to handle nullable values (https://github.com/juhaku/utoipa/pull/1135)
+
 ## 5.0.0 - Oct 14 2024
 
 ### Added

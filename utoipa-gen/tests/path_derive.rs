@@ -477,7 +477,7 @@ fn derive_path_with_parameter_schema() {
                 "name": "since",
                 "required": false,
                 "schema": {
-                    "allOf": [
+                    "oneOf": [
                         {
                             "type": "null"
                         },
@@ -549,7 +549,7 @@ fn derive_path_with_parameter_inline_schema() {
                 "name": "since",
                 "required": false,
                 "schema": {
-                    "allOf": [
+                    "oneOf": [
                         {
                             "type": "null"
                         },
@@ -1196,7 +1196,7 @@ fn derive_path_params_intoparams() {
                 "name": "foo_inline_option",
                 "required": false,
                 "schema": {
-                    "allOf": [
+                    "oneOf": [
                         {
                             "type": "null",
                         },

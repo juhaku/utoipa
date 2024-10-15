@@ -1175,7 +1175,7 @@ impl ComponentSchema {
                             #description_stream #deprecated
                     })
                 } else {
-                    fn nullable_all_of_item(nullable: bool) -> Option<TokenStream> {
+                    fn nullable_one_of_item(nullable: bool) -> Option<TokenStream> {
                         if nullable {
                             Some(
                                 quote! { .item(utoipa::openapi::schema::ObjectBuilder::new().schema_type(utoipa::openapi::schema::Type::Null)) },
@@ -1186,7 +1186,7 @@ impl ComponentSchema {
                     }
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let rewritten_path = type_path.rewrite_path()?;
-                    let nullable_item = nullable_all_of_item(nullable);
+                    let nullable_item = nullable_one_of_item(nullable);
                     let mut object_schema_reference = SchemaReference::default();
 
                     if let Some(children) = &type_tree.children {
@@ -1235,7 +1235,7 @@ impl ComponentSchema {
                             || !description_tokens.is_empty()
                         {
                             quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::AllOfBuilder::new()
+                                utoipa::openapi::schema::OneOfBuilder::new()
                                     #nullable_item
                                     .item(#items_tokens)
                                 #title_tokens
@@ -1292,7 +1292,7 @@ impl ComponentSchema {
                         // `description` of the ref. Should we consider supporting the summary?
                         let schema = if default.is_some() || nullable || title.is_some() {
                             composed_or_ref(quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::AllOfBuilder::new()
+                                utoipa::openapi::schema::OneOfBuilder::new()
                                     #nullable_item
                                     .item(utoipa::openapi::schema::RefBuilder::new()
                                         #description_stream
