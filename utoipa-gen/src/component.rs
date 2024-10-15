@@ -889,9 +889,12 @@ impl ComponentSchema {
         if let Some(nullable) = nullable {
             let nullable_schema_type = nullable.into_schema_type_token_stream();
             let schema_type = if nullable.value() && !nullable_schema_type.is_empty() {
-                Some(
-                    quote! { utoipa::openapi::schema::SchemaType::from_iter([#schema_type_inner, #nullable_schema_type]) },
-                )
+                Some(quote! {
+                    {
+                        use std::iter::FromIterator;
+                        utoipa::openapi::schema::SchemaType::from_iter([#schema_type_inner, #nullable_schema_type])
+                    }
+                })
             } else {
                 None
             };

@@ -236,10 +236,15 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             nullable: bool,
         ) {
             if nullable {
-                tokens.extend(quote! { utoipa::openapi::schema::SchemaType::from_iter([
-                    #schema_type,
-                    utoipa::openapi::schema::Type::Null
-                ])})
+                tokens.extend(quote! {
+                    {
+                        use std::iter::FromIterator;
+                        utoipa::openapi::schema::SchemaType::from_iter([
+                            #schema_type,
+                            utoipa::openapi::schema::Type::Null
+                        ])
+                    }
+                })
             } else {
                 tokens.extend(quote! { utoipa::openapi::schema::SchemaType::new(#schema_type)});
             }
