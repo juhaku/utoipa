@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add `identifier` for `Info` (https://github.com/juhaku/utoipa/pull/1140)
 * Add `no_recursion` feature for `ToSchema` (https://github.com/juhaku/utoipa/pull/1137)
 
 ### Fixed

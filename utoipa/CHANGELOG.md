@@ -7,6 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Added
 
+* Add `identifier` for `Info` (https://github.com/juhaku/utoipa/pull/1140)
 * Implement schema traits for indexset (https://github.com/juhaku/utoipa/pull/1129)
 * Add `ToSchema` implementation for serde_json::Value (https://github.com/juhaku/utoipa/pull/1132)
 

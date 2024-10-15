@@ -179,6 +179,7 @@ impl ToTokens for Info<'_> {
 pub(super) struct License<'l> {
     name: Cow<'l, str>,
     url: Option<Cow<'l, str>>,
+    identifier: Cow<'l, str>,
 }
 
 impl Parse for License<'_> {
@@ -199,6 +200,11 @@ impl Parse for License<'_> {
                     license.url = Some(Cow::Owned(
                         parse_utils::parse_next(input, || input.parse::<LitStr>())?.value(),
                     ))
+                }
+                "identifier" => {
+                    license.identifier = Cow::Owned(
+                        parse_utils::parse_next(input, || input.parse::<LitStr>())?.value(),
+                    )
                 }
                 _ => {
                     return Err(Error::new(
@@ -222,11 +228,18 @@ impl ToTokens for License<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let name = &self.name;
         let url = self.url.as_ref().map(|url| quote! { .url(Some(#url))});
+        let identifier = if !self.identifier.is_empty() {
+            let identifier = self.identifier.as_ref();
+            quote! { .identifier(Some(#identifier))}
+        } else {
+            TokenStream2::new()
+        };
 
         tokens.extend(quote! {
             utoipa::openapi::info::LicenseBuilder::new()
                 .name(#name)
                 #url
+                #identifier
                 .build()
         })
     }
