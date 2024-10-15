@@ -60,7 +60,7 @@
               "properties": {
                 "accounts": {
                   "items": {
-                    "allOf": [
+                    "oneOf": [
                       {
                         "type": "null"
                       },
@@ -206,7 +206,7 @@
       "properties": {
         "accounts": {
           "items": {
-            "allOf": [
+            "oneOf": [
               {
                 "type": "null"
               },
@@ -238,7 +238,7 @@
       "properties": {
         "accounts": {
           "items": {
-            "allOf": [
+            "oneOf": [
               {
                 "type": "null"
               },

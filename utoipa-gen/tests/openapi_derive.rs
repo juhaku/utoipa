@@ -671,7 +671,7 @@ fn openapi_resolvle_recursive_references() {
                 "properties": {
                     "accounts": {
                         "items": {
-                            "allOf": [
+                            "oneOf": [
                                 {
                                     "type": "null",
                                 },

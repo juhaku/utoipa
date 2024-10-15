@@ -620,7 +620,7 @@ fn derive_request_body_complex_required_explicit_false_success() {
             "content": {
                 "text/xml": {
                     "schema": {
-                        "allOf": [
+                        "oneOf": [
                             {
                                 "type": "null"
                             },
