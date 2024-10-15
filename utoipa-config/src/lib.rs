@@ -16,7 +16,7 @@
 //!
 //! ```toml
 //! [build-dependencies]
-//! utoipa_config = "0.1"
+//! utoipa-config = "0.1"
 //! ```
 //!
 //! ## Examples
