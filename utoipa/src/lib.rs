@@ -973,11 +973,11 @@ pub trait Path {
 /// See more about [`OpenApi`][derive] derive at [derive documentation][derive].
 ///
 /// [derive]: derive.OpenApi.html
-/// [security_schema]: openapi/security/enum.SecuritySchema.html
+/// [security_scheme]: openapi/security/enum.SecurityScheme.html
 ///
 /// # Examples
 ///
-/// Add custom JWT [`SecuritySchema`][security_schema] to [`OpenApi`][`openapi::OpenApi`].
+/// Add custom JWT [`SecurityScheme`][security_scheme] to [`OpenApi`][`openapi::OpenApi`].
 /// ```rust
 /// # use utoipa::{OpenApi, Modify};
 /// # use utoipa::openapi::security::{SecurityScheme, HttpBuilder, HttpAuthScheme};

@@ -101,10 +101,10 @@ impl Components {
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         &mut self,
         name: N,
-        security_schema: S,
+        security_scheme: S,
     ) {
         self.security_schemes
-            .insert(name.into(), security_schema.into());
+            .insert(name.into(), security_scheme.into());
     }
 
     /// Add iterator of [`SecurityScheme`]s to [`Components`].
@@ -251,10 +251,10 @@ impl ComponentsBuilder {
     pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
-        security_schema: S,
+        security_scheme: S,
     ) -> Self {
         self.security_schemes
-            .insert(name.into(), security_schema.into());
+            .insert(name.into(), security_scheme.into());
 
         self
     }
