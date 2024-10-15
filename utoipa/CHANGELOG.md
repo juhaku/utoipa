@@ -8,6 +8,7 @@ to look into changes introduced to **`utoipa-gen`**.
 ### Added
 
 * Implement schema traits for indexset (https://github.com/juhaku/utoipa/pull/1129)
+* Add `ToSchema` implementation for serde_json::Value (https://github.com/juhaku/utoipa/pull/1132)
 
 ## 5.0.0 - Oct 14 2024
 

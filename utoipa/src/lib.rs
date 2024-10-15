@@ -779,6 +779,16 @@ where
     }
 }
 
+impl PartialSchema for serde_json::Value {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        utoipa::openapi::schema::Object::builder()
+            .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
+            .into()
+    }
+}
+
+impl ToSchema for serde_json::Value {}
+
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
 #[doc(hidden)]
