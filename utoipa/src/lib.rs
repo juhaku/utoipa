@@ -1360,7 +1360,7 @@ pub mod __dev {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-            utoipa::openapi::schema::AllOfBuilder::new()
+            utoipa::openapi::schema::OneOfBuilder::new()
                 .item(
                     utoipa::openapi::schema::ObjectBuilder::new()
                         .schema_type(utoipa::openapi::schema::Type::Null),

@@ -11,6 +11,10 @@ to look into changes introduced to **`utoipa-gen`**.
 * Implement schema traits for indexset (https://github.com/juhaku/utoipa/pull/1129)
 * Add `ToSchema` implementation for serde_json::Value (https://github.com/juhaku/utoipa/pull/1132)
 
+### Changed
+
+* Change Option<T> compose to OneOfBuilder (https://github.com/juhaku/utoipa/pull/1141)
+
 ## 5.0.0 - Oct 14 2024
 
 ### Added

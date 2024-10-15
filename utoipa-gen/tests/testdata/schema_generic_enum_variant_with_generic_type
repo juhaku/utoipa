@@ -14,7 +14,7 @@
         ],
         "properties": {
           "foo": {
-            "allOf": [
+            "oneOf": [
               {
                 "type": "null"
               },
@@ -75,7 +75,7 @@
                 ],
                 "properties": {
                   "foo": {
-                    "allOf": [
+                    "oneOf": [
                       {
                         "type": "null"
                       },
