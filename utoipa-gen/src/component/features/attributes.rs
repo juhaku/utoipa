@@ -1004,3 +1004,26 @@ impl From<Ignore> for Feature {
         Self::Ignore(value)
     }
 }
+
+// Nothing to parse, it is considered to be set when attribute itself is parsed via
+// `parse_features!`.
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct NoRecursion;
+}
+
+impl Parse for NoRecursion {
+    fn parse(_: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<NoRecursion> for Feature {
+    fn from(value: NoRecursion) -> Self {
+        Self::NoRecursion(value)
+    }
+}

@@ -76,8 +76,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
 /// `schema`
 /// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
-/// at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
-/// not have any effect.
+/// at item level or field and variant levels in structs and enum.
 ///
 /// You can use the Rust's own `#[deprecated]` attribute on any struct, enum or field to mark it as deprecated and it will
 /// reflect to the generated OpenAPI spec.
@@ -88,6 +87,11 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 /// Doc comments on fields will resolve to field descriptions in generated OpenAPI doc. On struct
 /// level doc comments will resolve to object descriptions.
+///
+/// Schemas derived with `ToSchema` will be automatically collected from usage. In case of looping
+/// schema tree _`no_recursion`_ attribute must be used to break from recurring into infinite loop.
+/// See [more details from example][derive@ToSchema#examples]. All arguments of generic schemas
+/// must implement `ToSchema` trait.
 ///
 /// ```rust
 /// /// This is a pet
@@ -188,6 +192,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
 ///* `ignore` Can be used to skip the field from being serialized to OpenAPI schema.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Field nullability and required rules
 ///
@@ -250,6 +257,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 ///
@@ -394,6 +404,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Mixed Enum Unnamed Field Variant's Field Configuration Options
 ///
@@ -783,6 +796,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///     field: Bar,
 /// };
 /// ```
+/// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
 /// _**Serde `rename` / `rename_all` will take precedence over schema `rename` / `rename_all`.**_
 /// ```rust
@@ -854,8 +868,6 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///  }
 /// ```
 ///
-/// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
-///
 /// _**Use `bound` attribute to override the default impl bounds.**_
 ///
 /// `bound = ...` accepts a string containing zero or more where-predicates separated by comma, as
@@ -880,6 +892,29 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// struct Unused<T> {
 ///     #[serde(skip)]
 ///     _marker: std::marker::PhantomData<T>,
+/// }
+/// ```
+///
+/// _**Use `no_recursion` attribute to break from looping schema tree e.g. `Pet` -> `Owner` ->
+/// `Pet`.**_
+///
+/// `no_recurse` attribute can be provided on named field of a struct, on unnamed struct or unnamed
+/// enum variant. It must be provided in case of looping schema tree in order to stop recursion.
+/// Failing to do so will cause runtime **panic**.
+/// ```rust
+/// # use utoipa::ToSchema;
+/// #
+/// #[derive(ToSchema)]
+/// pub struct Pet {
+///     name: String,
+///     owner: Owner,
+/// }
+///
+/// #[derive(ToSchema)]
+/// pub struct Owner {
+///     name: String,
+///     #[schema(no_recursion)]
+///     pets: Vec<Pet>,
 /// }
 /// ```
 ///

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+* Add `no_recursion` feature for `ToSchema` (https://github.com/juhaku/utoipa/pull/1137)
+
 ### Fixed
 
 * Chore explicit FromIterator for edition 2018 (https://github.com/juhaku/utoipa/pull/1131)

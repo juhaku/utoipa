@@ -731,6 +731,7 @@ pub struct SchemaReference {
     pub tokens: TokenStream,
     pub references: TokenStream,
     pub is_inline: bool,
+    pub no_recursion: bool,
 }
 
 impl SchemaReference {
@@ -1188,6 +1189,9 @@ impl ComponentSchema {
                     let rewritten_path = type_path.rewrite_path()?;
                     let nullable_item = nullable_one_of_item(nullable);
                     let mut object_schema_reference = SchemaReference::default();
+                    object_schema_reference.no_recursion = features
+                        .iter()
+                        .any(|feature| matches!(feature, Feature::NoRecursion(_)));
 
                     if let Some(children) = &type_tree.children {
                         let children_name = Self::compose_name(
@@ -1468,6 +1472,7 @@ impl ComponentSchema {
                     tokens: quote! { <#rewritten_path as utoipa::PartialSchema>::schema() },
                     references: quote !{ <#rewritten_path as utoipa::ToSchema>::schemas(schemas) },
                     is_inline: false,
+                    no_recursion: false,
                 }))
                 )
             } else {
