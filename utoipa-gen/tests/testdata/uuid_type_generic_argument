@@ -17,7 +17,7 @@
         ],
         "properties": {
           "high": {
-            "allOf": [
+            "oneOf": [
               {
                 "type": "null"
               },
