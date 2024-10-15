@@ -16,7 +16,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! utoipa_axum = "0.1"
+//! utoipa-axum = "0.1"
 //! ```
 //!
 //! ## Examples
