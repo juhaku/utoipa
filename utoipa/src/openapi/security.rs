@@ -1042,7 +1042,7 @@ mod tests {
     }
 
     test_fn! {
-    security_schema_correct_http_bearer_json:
+    security_scheme_correct_http_bearer_json:
     SecurityScheme::Http(
         HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build()
     );
@@ -1054,7 +1054,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_basic_auth:
+        security_scheme_correct_basic_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::Basic));
         r###"{
   "type": "http",
@@ -1063,7 +1063,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_digest_auth:
+        security_scheme_correct_digest_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::Digest));
         r###"{
   "type": "http",
@@ -1072,7 +1072,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_hoba_auth:
+        security_scheme_correct_hoba_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::Hoba));
         r###"{
   "type": "http",
@@ -1081,7 +1081,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_mutual_auth:
+        security_scheme_correct_mutual_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::Mutual));
         r###"{
   "type": "http",
@@ -1090,7 +1090,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_negotiate_auth:
+        security_scheme_correct_negotiate_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::Negotiate));
         r###"{
   "type": "http",
@@ -1099,7 +1099,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_oauth_auth:
+        security_scheme_correct_oauth_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::OAuth));
         r###"{
   "type": "http",
@@ -1108,7 +1108,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_scram_sha1_auth:
+        security_scheme_correct_scram_sha1_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::ScramSha1));
         r###"{
   "type": "http",
@@ -1117,7 +1117,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_scram_sha256_auth:
+        security_scheme_correct_scram_sha256_auth:
         SecurityScheme::Http(Http::new(HttpAuthScheme::ScramSha256));
         r###"{
   "type": "http",
@@ -1126,7 +1126,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_api_key_cookie_auth:
+        security_scheme_correct_api_key_cookie_auth:
         SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new(String::from("api_key"))));
         r###"{
   "type": "apiKey",
@@ -1136,7 +1136,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_api_key_header_auth:
+        security_scheme_correct_api_key_header_auth:
         SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("api_key")));
         r###"{
   "type": "apiKey",
@@ -1146,7 +1146,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_api_key_query_auth:
+        security_scheme_correct_api_key_query_auth:
         SecurityScheme::ApiKey(ApiKey::Query(ApiKeyValue::new(String::from("api_key"))));
         r###"{
   "type": "apiKey",
@@ -1156,7 +1156,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_open_id_connect_auth:
+        security_scheme_correct_open_id_connect_auth:
         SecurityScheme::OpenIdConnect(OpenIdConnect::new("https://localhost/openid"));
         r###"{
   "type": "openIdConnect",
@@ -1165,7 +1165,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_oauth2_implicit:
+        security_scheme_correct_oauth2_implicit:
         SecurityScheme::OAuth2(
             OAuth2::with_description([Flow::Implicit(
                 Implicit::new(
@@ -1193,7 +1193,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_oauth2_password:
+        security_scheme_correct_oauth2_password:
         SecurityScheme::OAuth2(
             OAuth2::with_description([Flow::Password(
                 Password::with_refresh_url(
@@ -1223,7 +1223,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_oauth2_client_credentials:
+        security_scheme_correct_oauth2_client_credentials:
         SecurityScheme::OAuth2(
             OAuth2::new([Flow::ClientCredentials(
                 ClientCredentials::with_refresh_url(
@@ -1252,7 +1252,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_oauth2_authorization_code:
+        security_scheme_correct_oauth2_authorization_code:
         SecurityScheme::OAuth2(
             OAuth2::new([Flow::AuthorizationCode(
                 AuthorizationCode::with_refresh_url(
@@ -1283,7 +1283,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_oauth2_authorization_code_no_scopes:
+        security_scheme_correct_oauth2_authorization_code_no_scopes:
         SecurityScheme::OAuth2(
             OAuth2::new([Flow::AuthorizationCode(
                 AuthorizationCode::with_refresh_url(
@@ -1308,7 +1308,7 @@ mod tests {
     }
 
     test_fn! {
-        security_schema_correct_mutual_tls:
+        security_scheme_correct_mutual_tls:
         SecurityScheme::MutualTls {
             description: Some(String::from("authorization is performed with client side certificate")),
             extensions: None,

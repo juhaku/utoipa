@@ -1237,8 +1237,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ```text
 /// responses(
 ///    (status = 200, content(
-///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
-///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+///            (User = "application/vnd.user.v1+json", example = json!(User {id: "id".to_string()})),
+///            (User2 = "application/vnd.user.v2+json", example = json!(User2 {id: 2}))
 ///        )
 ///    )
 /// )
@@ -1417,9 +1417,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # Security Requirement Attributes
 ///
 /// * `name` Define the name for security requirement. This must match to name of existing
-///   [`SecuritySchema`][security_schema].
+///   [`SecurityScheme`][security_scheme].
 /// * `scopes = [...]` Define the list of scopes needed. These must be scopes defined already in
-///   existing [`SecuritySchema`][security_schema].
+///   existing [`SecurityScheme`][security_scheme].
 ///
 /// **Security Requirement supported formats:**
 ///
@@ -1828,7 +1828,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [to_schema]: trait.ToSchema.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
-/// [security_schema]: openapi/security/enum.SecurityScheme.html
+/// [security_scheme]: openapi/security/enum.SecurityScheme.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html
