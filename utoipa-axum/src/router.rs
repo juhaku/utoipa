@@ -134,6 +134,20 @@ where
 /// extends capabilities for few to collect the OpenAPI information. Methods that are not
 /// implemented can be easily called after converting this router to [`axum::Router`] by
 /// [`Into::into`].
+///
+/// # Examples
+///
+/// _**Create new [`OpenApiRouter`] with default values populated from cargo environment variables.**_
+/// ```rust
+/// # use utoipa_axum::router::OpenApiRouter;
+/// let _: OpenApiRouter = OpenApiRouter::new();
+/// ```
+///
+/// _**Instantiate a new [`OpenApiRouter`] with new empty [`utoipa::openapi::OpenApi`].**_
+/// ```rust
+/// # use utoipa_axum::router::OpenApiRouter;
+/// let _: OpenApiRouter = OpenApiRouter::default();
+/// ```
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiRouter<S = ()>(Router<S>, utoipa::openapi::OpenApi);
@@ -142,12 +156,18 @@ impl<S> OpenApiRouter<S>
 where
     S: Send + Sync + Clone + 'static,
 {
-    /// Instantiate a new [`OpenApiRouter`] with new empty [`utoipa::openapi::OpenApi`].
+    /// Instantiate a new [`OpenApiRouter`] with default values populated from cargo environment
+    /// variables. This creates an `OpenApi` similar of creating a new `OpenApi` via
+    /// `#[derive(OpenApi)]`
     ///
-    /// This is essentially same as calling
-    /// _`OpenApiRouter::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())`_.
+    /// If you want to create [`OpenApiRouter`] with completely empty [`utoipa::openapi::OpenApi`]
+    /// instance, use [`OpenApiRouter::default()`].
     pub fn new() -> OpenApiRouter<S> {
-        Self::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())
+        use utoipa::OpenApi;
+        #[derive(OpenApi)]
+        struct Api;
+
+        Self::with_openapi(Api::openapi())
     }
 
     /// Instantiates a new [`OpenApiRouter`] with given _`openapi`_ instance.
@@ -370,7 +390,7 @@ where
     S: Send + Sync + Clone + 'static,
 {
     fn default() -> Self {
-        Self::new()
+        Self::with_openapi(utoipa::openapi::OpenApiBuilder::new().build())
     }
 }
 

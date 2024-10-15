@@ -1,5 +1,11 @@
 # Changelog - utoipa-axum
 
+## Unreleased
+
+### Changed
+
+* Use OpenApiRouter::default for empty OpenApi (https://github.com/juhaku/utoipa/pull/1133)
+
 ## 0.1.0 - Oct 14 2024
 
 ### Added
