@@ -1,6 +1,6 @@
 # Changelog - utoipa-gen
 
-## Unreleased
+## 5.1.0 - Oct 16 2024
 
 ### Added
 

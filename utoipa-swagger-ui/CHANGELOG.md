@@ -1,6 +1,6 @@
 # Changelog - utoipa-swagger-ui
 
-## Unreleased
+## 8.0.1 - Oct 16 2024
 
 ### Changed
 
