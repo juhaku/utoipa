@@ -230,7 +230,7 @@ impl ToTokensDiagnostics for Feature {
                 // inline feature is ignored by `ToTokens`
                 TokenStream::new()
             }
-            Feature::NoRecursion(_) => return Err(Diagnostics::new("NoRecurse does not support `ToTokens`")),
+            Feature::NoRecursion(_) => return Err(Diagnostics::new("NoRecursion does not support `ToTokens`")),
             Feature::IntoParamsNames(_) => {
                 return Err(Diagnostics::new("Names feature does not support `ToTokens`")
                     .help("Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."))
