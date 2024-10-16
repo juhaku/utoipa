@@ -5960,3 +5960,44 @@ fn test_recursion_compiles() {
         .expect("OpenApi is JSON serializable");
     println!("{json}")
 }
+
+#[test]
+fn test_named_and_enum_container_recursion_compiles() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    #[schema(no_recursion)]
+    pub struct Tree {
+        left: Box<Tree>,
+        right: Box<Tree>,
+    }
+
+    #[derive(ToSchema)]
+    #[schema(no_recursion)]
+    pub enum TreeRecursion {
+        Named { left: Box<TreeRecursion> },
+        Unnamed(Box<TreeRecursion>),
+        NoValue,
+    }
+
+    #[derive(ToSchema)]
+    pub enum Recursion {
+        #[schema(no_recursion)]
+        Named {
+            left: Box<Recursion>,
+            right: Box<Recursion>,
+        },
+        #[schema(no_recursion)]
+        Unnamed(Box<Recursion>),
+        NoValue,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Recursion, Tree, TreeRecursion)))]
+    pub struct ApiDoc {}
+
+    let json = ApiDoc::openapi()
+        .to_pretty_json()
+        .expect("OpenApi is JSON serializable");
+    println!("{json}")
+}

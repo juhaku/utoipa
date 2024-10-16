@@ -1188,10 +1188,12 @@ impl ComponentSchema {
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let rewritten_path = type_path.rewrite_path()?;
                     let nullable_item = nullable_one_of_item(nullable);
-                    let mut object_schema_reference = SchemaReference::default();
-                    object_schema_reference.no_recursion = features
-                        .iter()
-                        .any(|feature| matches!(feature, Feature::NoRecursion(_)));
+                    let mut object_schema_reference = SchemaReference {
+                        no_recursion: features
+                            .iter()
+                            .any(|feature| matches!(feature, Feature::NoRecursion(_))),
+                        ..SchemaReference::default()
+                    };
 
                     if let Some(children) = &type_tree.children {
                         let children_name = Self::compose_name(
