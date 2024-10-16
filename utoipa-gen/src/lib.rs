@@ -327,7 +327,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   syntax][derive@ToSchema#schemadiscriminator-syntax].
 ///
 ///  ### `#[schema(discriminator)]` syntax
-///  
+///
 ///  Discriminator can **only** be used with enums having **`#[serde(untagged)]`** attribute and
 ///  each variant must have only one unnamed field schema reference to type implementing
 ///  _`ToSchema`_.
@@ -898,7 +898,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// _**Use `no_recursion` attribute to break from looping schema tree e.g. `Pet` -> `Owner` ->
 /// `Pet`.**_
 ///
-/// `no_recurse` attribute can be provided on named field of a struct, on unnamed struct or unnamed
+/// `no_recursion` attribute can be provided on named field of a struct, on unnamed struct or unnamed
 /// enum variant. It must be provided in case of looping schema tree in order to stop recursion.
 /// Failing to do so will cause runtime **panic**.
 /// ```rust
