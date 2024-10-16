@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## Unreleased
+
+### Changed
+
+* Update Swagger UI with latest release 5.7.14 (https://github.com/juhaku/utoipa/pull/1142)
+
 ## 8.0.0 - Oct 14 2024
 
 ### Added

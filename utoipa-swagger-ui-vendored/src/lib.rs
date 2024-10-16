@@ -5,7 +5,7 @@
 //! Vendored Swagger UI provides the means to serve Swagger UI in sandboxed environments where network access or
 //! even other means to provide Swagger UI is not possible.
 //!
-//! **Swagger UI version: `5.17.12`**
+//! **Swagger UI version: `5.17.14`**
 //!
 //! ## License
 //!
@@ -16,4 +16,4 @@
 
 /// Swagger UI zip bytes
 #[doc(hidden)]
-pub const SWAGGER_UI_VENDORED: &[u8] = std::include_bytes!("../res/v5.17.12.zip");
+pub const SWAGGER_UI_VENDORED: &[u8] = std::include_bytes!("../res/v5.17.14.zip");
