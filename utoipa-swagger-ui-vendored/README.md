@@ -12,7 +12,7 @@ Swagger UI when `vendored` crate feature is enabled for `utoipa-swagger-ui` crat
 Vendored Swagger UI provides the means to serve Swagger UI in sandboxed environments where network access or
 even other means to provide Swagger UI is not possible.
 
-**Swagger UI version: `5.17.12`**
+**Swagger UI version: `5.17.14`**
 
 ## License
 
