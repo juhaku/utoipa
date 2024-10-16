@@ -38,7 +38,8 @@ impl Parse for NamedFieldStructFeatures {
             crate::component::features::attributes::Default,
             Deprecated,
             Description,
-            Bound
+            Bound,
+            NoRecursion
         )))
     }
 }
@@ -103,7 +104,8 @@ impl Parse for MixedEnumFeatures {
             As,
             Deprecated,
             Description,
-            Discriminator
+            Discriminator,
+            NoRecursion
         )))
     }
 }
@@ -164,7 +166,8 @@ impl Parse for EnumNamedFieldVariantFeatures {
             RenameAll,
             Deprecated,
             MaxProperties,
-            MinProperties
+            MinProperties,
+            NoRecursion
         )))
     }
 }

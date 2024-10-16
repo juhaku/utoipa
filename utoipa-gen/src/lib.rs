@@ -134,6 +134,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   contain. Value must be a number.
 /// * `min_properties = ...` Can be used to define minimum number of properties this struct can
 ///   contain. Value must be a number.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
+///  struct level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
 /// ## Named Fields Optional Configuration Options for `#[schema(...)]`
 ///
@@ -325,6 +329,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `discriminator = ...` or `discriminator(...)` Can be used to define OpenAPI discriminator
 ///   field for enums with single unnamed _`ToSchema`_ reference field. See the [discriminator
 ///   syntax][derive@ToSchema#schemadiscriminator-syntax].
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
+///  enum level the _`no_recursion`_ rule will be applied to all of its variants.
 ///
 ///  ### `#[schema(discriminator)]` syntax
 ///
@@ -336,7 +344,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 ///  Can be literal string or expression e.g. [_`const`_][const] reference. It can be defined as
 ///  _`discriminator = "value"`_ where the assigned value is the
-/// discriminator field that must exists in each variant referencing schema.
+///  discriminator field that must exists in each variant referencing schema.
 ///
 /// **Complex form `discriminator(...)`**
 ///
@@ -377,6 +385,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   contain. Value must be a number.
 /// * `min_properties = ...` Can be used to define minimum number of properties this struct can
 ///   contain. Value must be a number.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
+///  named field variant level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
 /// ## Mixed Enum Unnamed Field Variant Optional Configuration Options for `#[serde(schema)]`
 ///

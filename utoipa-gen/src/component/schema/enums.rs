@@ -8,7 +8,8 @@ use crate::{
     component::{
         features::{
             attributes::{
-                Deprecated, Description, Discriminator, Example, Examples, Rename, RenameAll, Title,
+                Deprecated, Description, Discriminator, Example, Examples, NoRecursion, Rename,
+                RenameAll, Title,
             },
             parse_features, pop_feature, Feature, IntoInner, IsInline, ToTokensExt,
         },
@@ -334,14 +335,20 @@ impl<'p> MixedEnum<'p> {
 
         let mut items = variants
             .into_iter()
-            .map(|(variant, variant_serde_rules, features)| {
+            .map(|(variant, variant_serde_rules, mut variant_features)| {
+                if features
+                    .iter()
+                    .any(|feature| matches!(feature, Feature::NoRecursion(_)))
+                {
+                    variant_features.push(Feature::NoRecursion(NoRecursion));
+                }
                 MixedEnumContent::new(
                     variant,
                     root,
                     &container_rules,
                     rename_all.as_ref(),
                     variant_serde_rules,
-                    features,
+                    variant_features,
                 )
             })
             .collect::<Result<Vec<MixedEnumContent>, Diagnostics>>()?;
@@ -356,6 +363,7 @@ impl<'p> MixedEnum<'p> {
             discriminator,
         };
 
+        let _ = pop_feature!(features => Feature::NoRecursion(_));
         let mut tokens = one_of_enum.to_token_stream();
         tokens.extend(features.to_token_stream());
 

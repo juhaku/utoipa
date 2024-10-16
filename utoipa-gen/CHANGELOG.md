@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Changed
+
+*  Enhance no_recursion rule to apply also containers (https://github.com/juhaku/utoipa/pull/1144)
+
 ## 5.1.0 - Oct 16 2024
 
 ### Added

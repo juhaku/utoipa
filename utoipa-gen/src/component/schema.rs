@@ -24,7 +24,7 @@ use self::{
 
 use super::{
     features::{
-        attributes::{As, Bound, Description, RenameAll},
+        attributes::{As, Bound, Description, NoRecursion, RenameAll},
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
@@ -515,6 +515,7 @@ impl NamedStructSchema {
             features.push(Feature::Deprecated(true.into()));
         }
 
+        let _ = pop_feature!(features => Feature::NoRecursion(_));
         tokens.extend(features.to_token_stream()?);
 
         let comments = CommentAttributes::from_attributes(root.attributes);
@@ -555,6 +556,13 @@ impl NamedStructSchema {
             // skip ignored field
             return Ok(None);
         };
+
+        if features
+            .iter()
+            .any(|feature| matches!(feature, Feature::NoRecursion(_)))
+        {
+            field_features.push(Feature::NoRecursion(NoRecursion));
+        }
 
         let schema_default = features.iter().any(|f| matches!(f, Feature::Default(_)));
         let serde_default = container_rules.default;
