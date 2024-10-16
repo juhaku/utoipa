@@ -1,6 +1,6 @@
 # Changelog - utoipa-swagger-ui-vendored
 
-## Unreleased
+## 0.1.2 - Oct 16 2024
 
 ### Fixed
 

@@ -1,5 +1,11 @@
 # Changelog - utoipa-config
 
+## Unreleased
+
+### Fixed
+
+* Fix utoipa-config docs crate name
+
 ## 0.1.0 - Oct 14 2024
 
 ### Added
