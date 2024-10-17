@@ -259,7 +259,6 @@ fn derive_openapi_with_licence() {
 
     let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let info = value.pointer("/info/license");
-    dbg!(&info);
 
     assert_json_include!(
         actual: info,
