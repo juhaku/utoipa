@@ -14,6 +14,12 @@ This crate provides global configuration capabilities for `utoipa`.
   * `SchemaCollect:All` will collect all schemas from usages including inlined with `inline(T)`
   * `SchemaCollect::NonInlined` will only collect non inlined schemas from usages.
 
+> [!WARNING]
+> The build config will be stored to projects `OUTPUT` directory. It is then read from there via `OUTPUT` environment
+> variable which will return **any instance** rust compiler might find at that time (Whatever the `OUTPUT` environment variable points to).
+> **Be aware** that sometimes you might face a situation where the config is not aligned with your Rust aliases. 
+> This might need you to change something on your code before changed config might apply.
+
 ## Install
 
 Add dependency declaration to `Cargo.toml`.
