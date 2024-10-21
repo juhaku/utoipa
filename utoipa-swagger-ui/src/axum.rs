@@ -45,10 +45,27 @@ where
         let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config)));
         let path: &str = swagger_ui.path.as_ref();
 
-        router
-            .route(path, handler.clone())
-            .route(&format!("{}/", path), handler.clone())
-            .route(&format!("{}/*rest", path), handler)
+        if path == "/" {
+            router
+                .route(path, handler.clone())
+                .route(&format!("{}*rest", path), handler)
+        } else {
+            let path = if path.ends_with('/') {
+                &path[..path.len() - 1]
+            } else {
+                path
+            };
+            debug_assert!(!path.is_empty());
+
+            let slash_path = format!("{}/", path);
+            router
+                .route(
+                    path,
+                    routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
+                )
+                .route(&format!("{}/", path), handler.clone())
+                .route(&format!("{}/*rest", path), handler)
+        }
     }
 }
 
@@ -94,5 +111,45 @@ async fn serve_swagger_ui(
             })
             .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response()),
         Err(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum_test::TestServer;
+
+    #[tokio::test]
+    async fn mount_onto_root() {
+        let app = Router::<()>::from(SwaggerUi::new("/"));
+        let server = TestServer::new(app).unwrap();
+        let response = server.get("/").await;
+        response.assert_status_ok();
+        let response = server.get("/swagger-ui.css").await;
+        response.assert_status_ok();
+    }
+
+    #[tokio::test]
+    async fn mount_onto_path_ends_with_slash() {
+        let app = Router::<()>::from(SwaggerUi::new("/swagger-ui/"));
+        let server = TestServer::new(app).unwrap();
+        let response = server.get("/swagger-ui").await;
+        response.assert_status_see_other();
+        let response = server.get("/swagger-ui/").await;
+        response.assert_status_ok();
+        let response = server.get("/swagger-ui/swagger-ui.css").await;
+        response.assert_status_ok();
+    }
+
+    #[tokio::test]
+    async fn mount_onto_path_not_end_with_slash() {
+        let app = Router::<()>::from(SwaggerUi::new("/swagger-ui"));
+        let server = TestServer::new(app).unwrap();
+        let response = server.get("/swagger-ui").await;
+        response.assert_status_see_other();
+        let response = server.get("/swagger-ui/").await;
+        response.assert_status_ok();
+        let response = server.get("/swagger-ui/swagger-ui.css").await;
+        response.assert_status_ok();
     }
 }
