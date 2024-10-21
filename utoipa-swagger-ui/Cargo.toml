@@ -34,7 +34,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 
 [dev-dependencies]
+axum-test = "16.2.0"
 similar = "2.5"
+tokio = { version = "1", features = ["macros"] }
 utoipa-swagger-ui = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
 [package.metadata.docs.rs]
