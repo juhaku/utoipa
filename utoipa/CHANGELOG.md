@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Added
+
+* Add implementation for utoipa-actix-web bindings (https://github.com/juhaku/utoipa/pull/1158)
+
 ## 5.1.1 - Oct 16 2024
 
 ### Changed
