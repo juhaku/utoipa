@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## 8.0.2 - Oct 21 2024
+
+### Fixed
+
+* Fix regression due to a985d8c1340f80ab69b2b0e5de799df98d567732 (https://github.com/juhaku/utoipa/pull/1155)
+
 ## 8.0.1 - Oct 16 2024
 
 ### Changed
