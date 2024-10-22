@@ -13,6 +13,7 @@ members = [
     "utoipa-scalar",
     "utoipa-axum",
     "utoipa-config",
+    "utoipa-actix-web",
 ]
 
 [workspace.metadata.publish]
@@ -26,4 +27,5 @@ order = [
     "utoipa-rapidoc",
     "utoipa-scalar",
     "utoipa-axum",
+    "utoipa-actix-web",
 ]

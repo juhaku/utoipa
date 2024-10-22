@@ -6,7 +6,7 @@ set -e
 : "${CARGO:=cargo}"
 : "${CARGO_COMMAND:=test}"
 
-crates="${1:-utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc utoipa-scalar utoipa-axum}"
+crates="${1:-utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc utoipa-scalar utoipa-axum utoipa-config utoipa-actix-web}"
 
 for crate in $crates; do
     echo "Testing crate: $crate..."
@@ -44,5 +44,7 @@ for crate in $crates; do
         pushd utoipa-config/config-test-crate/
         $CARGO ${CARGO_COMMAND}
         popd
+    elif [[ "$crate" == "utoipa-actix-web" ]]; then
+        $CARGO ${CARGO_COMMAND} -p utoipa-actix-web
     fi
 done

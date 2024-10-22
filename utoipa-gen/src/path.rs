@@ -31,12 +31,10 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 
 #[inline]
 pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
-    {
-        Cow::Owned(quote::format_ident!(
-            "{PATH_STRUCT_PREFIX}{}",
-            fn_name.as_ref()
-        ))
-    }
+    Cow::Owned(quote::format_ident!(
+        "{PATH_STRUCT_PREFIX}{}",
+        fn_name.as_ref()
+    ))
 }
 
 #[derive(Default)]
@@ -538,6 +536,42 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 #[derive(Clone)]
                 pub struct #path_struct;
             });
+
+            #[cfg(feature = "actix_extras")]
+            {
+                // Add supporting passthrough implementations only if actix-web service config
+                // is implemented and no impl_for has been defined
+                if self.path_attr.impl_for.is_none() && !self.ext_methods.is_empty() {
+                    let fn_ident = self.fn_ident;
+                    tokens.extend(quote! {
+                        impl ::actix_web::dev::HttpServiceFactory for #path_struct {
+                            fn register(self, __config: &mut actix_web::dev::AppService) {
+                                ::actix_web::dev::HttpServiceFactory::register(#fn_ident, __config);
+                            }
+                        }
+                        impl utoipa::Path for #fn_ident {
+                            fn path() -> String {
+                                #path_struct::path()
+                            }
+
+                            fn methods() -> Vec<utoipa::openapi::path::HttpMethod> {
+                                #path_struct::methods()
+                            }
+
+                            fn operation() -> utoipa::openapi::path::Operation {
+                                #path_struct::operation()
+                            }
+                        }
+
+                        impl utoipa::__dev::SchemaReferences for #fn_ident {
+                            fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                                <#path_struct as utoipa::__dev::SchemaReferences>::schemas(schemas);
+                            }
+                        }
+                    })
+                }
+            }
+
             path_struct
         };
 

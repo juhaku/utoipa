@@ -1,0 +1,140 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {
+    "/api/v1/inner/inner_handler": {
+      "get": {
+        "operationId": "inner_handler",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Foobar"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inner/inner_handler3": {
+      "get": {
+        "operationId": "inner_handler3",
+        "responses": {}
+      }
+    },
+    "/handler": {
+      "get": {
+        "operationId": "handler",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Value12"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/handler3": {
+      "get": {
+        "operationId": "handler3",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Value1"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/path-prefix/handler2": {
+      "get": {
+        "operationId": "handler2",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValueValue"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Bar": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "Foobar": {
+        "type": "object",
+        "required": [
+          "bar"
+        ],
+        "properties": {
+          "bar": {
+            "$ref": "#/components/schemas/Bar"
+          }
+        }
+      },
+      "Value1": {
+        "type": "object",
+        "required": [
+          "bar"
+        ],
+        "properties": {
+          "bar": {
+            "$ref": "#/components/schemas/Value2"
+          }
+        }
+      },
+      "Value12": {
+        "type": "object",
+        "required": [
+          "v"
+        ],
+        "properties": {
+          "v": {
+            "type": "string"
+          }
+        }
+      },
+      "Value2": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "ValueValue": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  }
+}

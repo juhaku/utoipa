@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Added
+
+* Add implementation for utoipa-actix-web bindings (https://github.com/juhaku/utoipa/pull/1158)
+
 ## 5.1.1 - Oct 16 2024
 
 ### Changed
