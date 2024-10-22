@@ -1170,8 +1170,8 @@ impl ObjectBuilder {
     }
 
     /// Add or change default value for the object which is provided when user has not provided the input in Swagger UI.
-    pub fn default(mut self, default: Option<Value>) -> Self {
-        set_value!(self default default)
+    pub fn default<V: Into<Value>>(mut self, default: Option<V>) -> Self {
+        set_value!(self default default.map(Into::into))
     }
 
     /// Add or change deprecated status for [`Object`].
@@ -2149,7 +2149,7 @@ mod tests {
                                         .schema_type(Type::Integer)
                                         .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                                         .description(Some("Id of credential"))
-                                        .default(Some(json!(1i32))),
+                                        .default(Some(1i32)),
                                 )
                                 .property(
                                     "name",
@@ -2161,7 +2161,7 @@ mod tests {
                                     "status",
                                     ObjectBuilder::new()
                                         .schema_type(Type::String)
-                                        .default(Some(json!("Active")))
+                                        .default(Some("Active"))
                                         .description(Some("Credential status"))
                                         .enum_values(Some([
                                             "Active",
@@ -2255,7 +2255,7 @@ mod tests {
                     .schema_type(Type::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
-                    .default(Some(json!(1i32))),
+                    .default(Some(1i32)),
             )
             .property(
                 "name",
@@ -2267,7 +2267,7 @@ mod tests {
                 "status",
                 ObjectBuilder::new()
                     .schema_type(Type::String)
-                    .default(Some(json!("Active")))
+                    .default(Some("Active"))
                     .description(Some("Credential status"))
                     .enum_values(Some(["Active", "NotActive", "Locked", "Expired"])),
             )
@@ -2380,7 +2380,7 @@ mod tests {
                     .schema_type(Type::Integer)
                     .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                     .description(Some("Id of credential"))
-                    .default(Some(json!(1i32))),
+                    .default(Some(1i32)),
             ),
         );
 
@@ -2397,7 +2397,7 @@ mod tests {
                         .schema_type(Type::Integer)
                         .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
                         .description(Some("Id of credential"))
-                        .default(Some(json!(1i32))),
+                        .default(Some(1i32)),
                 ),
             )
             .build();
