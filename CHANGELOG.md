@@ -4,6 +4,7 @@ Changelogs are kept separately for each create in this repository.
 
 * [utoipa changelog](./utoipa/CHANGELOG.md)
 * [utoipa-gen changelog](./utoipa-gen/CHANGELOG.md)
+* [utoipa-actix-web changelog](./utoipa-actix-web/CHANGELOG.md)
 * [utoipa-axum changelog](./utoipa-axum/CHANGELOG.md)
 * [utoipa-config changelog](./utoipa-config/CHANGELOG.md)
 * [utoipa-rapidoc changelog](./utoipa-rapidoc/CHANGELOG.md)
