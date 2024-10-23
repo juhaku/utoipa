@@ -1,6 +1,6 @@
 # Changelog - utoipa-actix-web
 
-## Unreleased
+## 0.1.0 - Oct 23 2024
 
 ### Added
 

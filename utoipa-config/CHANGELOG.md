@@ -1,5 +1,11 @@
 # Changelog - utoipa-config
 
+## 0.1.2 - Oct 23 2024
+
+### Changed
+
+* Added warning message to docs
+
 ## 0.1.1 - Oct 16 2024
 
 ### Fixed

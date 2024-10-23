@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## 8.0.3 - Oct 23 2024
+
+### Fixed
+
+* Fixed version number from docs main page
+
 ## 8.0.2 - Oct 21 2024
 
 ### Fixed
