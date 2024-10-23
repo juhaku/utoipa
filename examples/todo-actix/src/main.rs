@@ -7,7 +7,7 @@ use std::{
 use actix_web::{
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     middleware::Logger,
-    web::{self, Data},
+    web::Data,
     App, HttpResponse, HttpServer,
 };
 use futures::future::LocalBoxFuture;
@@ -15,6 +15,7 @@ use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
+use utoipa_actix_web::AppExt;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_scalar::{Scalar, Servable as ScalarServable};
@@ -35,9 +36,6 @@ async fn main() -> Result<(), impl Error> {
 
     #[derive(OpenApi)]
     #[openapi(
-        nest(
-            (path = "/api", api = todo::TodoApi)
-        ),
         tags(
             (name = "todo", description = "Todo management endpoints.")
         ),
@@ -58,25 +56,26 @@ async fn main() -> Result<(), impl Error> {
     }
 
     let store = Data::new(TodoStore::default());
-    // Make instance variable of ApiDoc so all worker threads gets the same instance.
-    let openapi = ApiDoc::openapi();
 
     HttpServer::new(move || {
         // This factory closure is called on each worker thread independently.
         App::new()
-            .wrap(Logger::default())
-            .service(web::scope("/api").configure(todo::configure(store.clone())))
-            .service(Redoc::with_url("/redoc", openapi.clone()))
-            .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
-            )
+            .into_utoipa_app()
+            .openapi(ApiDoc::openapi())
+            .map(|app| app.wrap(Logger::default()))
+            .service(utoipa_actix_web::scope("/api/todo").configure(todo::configure(store.clone())))
+            .openapi_service(|api| Redoc::with_url("/redoc", api))
+            .openapi_service(|api| {
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api)
+            })
             // There is no need to create RapiDoc::with_openapi because the OpenApi is served
             // via SwaggerUi. Instead we only make rapidoc to point to the existing doc.
             //
             // If we wanted to serve the schema, the following would work:
-            // .service(RapiDoc::with_openapi("/api-docs/openapi2.json", openapi.clone()).path("/rapidoc"))
-            .service(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
-            .service(Scalar::with_url("/scalar", openapi.clone()))
+            // .openapi_service(|api| RapiDoc::with_openapi("/api-docs/openapi2.json", api).path("/rapidoc"))
+            .map(|app| app.service(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc")))
+            .openapi_service(|api| Scalar::with_url("/scalar", api))
+            .into_app()
     })
     .bind((Ipv4Addr::UNSPECIFIED, 8080))?
     .run()
