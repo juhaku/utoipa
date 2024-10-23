@@ -4,7 +4,7 @@ use serde::{
     de::{Error, Expected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::{fmt::Formatter, mem};
+use std::fmt::Formatter;
 
 use self::path::PathsMap;
 pub use self::{
@@ -201,17 +201,7 @@ impl OpenApi {
         }
 
         if !other.paths.paths.is_empty() {
-            for (path, that) in &mut other.paths.paths {
-                if let Some(this) = self.paths.paths.get_mut(path) {
-                    that.merge_operations(mem::take(this));
-                }
-            }
-            self.paths.paths.extend(other.paths.paths);
-
-            if let Some(other_paths_extensions) = other.paths.extensions {
-                let paths_extensions = self.paths.extensions.get_or_insert(Extensions::default());
-                paths_extensions.merge(other_paths_extensions);
-            }
+            self.paths.merge(other.paths);
         };
 
         if let Some(other_components) = &mut other.components {

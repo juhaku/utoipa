@@ -549,6 +549,11 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                                 ::actix_web::dev::HttpServiceFactory::register(#fn_ident, __config);
                             }
                         }
+                        impl<'t> utoipa::__dev::Tags<'t> for #fn_ident {
+                            fn tags() -> Vec<&'t str> {
+                                #path_struct::tags()
+                            }
+                        }
                         impl utoipa::Path for #fn_ident {
                             fn path() -> String {
                                 #path_struct::path()
