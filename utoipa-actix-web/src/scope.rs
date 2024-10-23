@@ -112,7 +112,7 @@ where
             cfg_fn(&mut service_config);
 
             let other_paths = service_config.1.take();
-            openapi.paths.paths.extend(other_paths.paths);
+            openapi.paths.merge(other_paths);
             let schemas = service_config.2.take();
             let components = openapi
                 .components
@@ -139,8 +139,7 @@ where
             let mut openapi = self.1.borrow_mut();
             let other_paths = factory.paths();
             factory.schemas(&mut schemas);
-
-            openapi.paths.paths.extend(other_paths.paths);
+            openapi.paths.merge(other_paths);
             let components = openapi
                 .components
                 .get_or_insert(utoipa::openapi::Components::new());

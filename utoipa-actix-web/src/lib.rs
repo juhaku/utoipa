@@ -46,7 +46,6 @@
 
 use core::fmt;
 use std::future::Future;
-use std::rc::Rc;
 
 use actix_service::{IntoServiceFactory, ServiceFactory};
 use actix_web::dev::{HttpServiceFactory, ServiceRequest, ServiceResponse};
@@ -75,7 +74,9 @@ pub trait OpenApiFactory {
     );
 }
 
-impl<T: utoipa::Path + utoipa::__dev::SchemaReferences> OpenApiFactory for T {
+impl<'t, T: utoipa::Path + utoipa::__dev::SchemaReferences + utoipa::__dev::Tags<'t>> OpenApiFactory
+    for T
+{
     fn paths(&self) -> utoipa::openapi::path::Paths {
         let methods = T::methods();
 
@@ -84,7 +85,15 @@ impl<T: utoipa::Path + utoipa::__dev::SchemaReferences> OpenApiFactory for T {
             .fold(
                 utoipa::openapi::path::Paths::builder(),
                 |mut builder, method| {
-                    builder = builder.path(T::path(), PathItem::new(method, T::operation()));
+                    let mut operation = T::operation();
+                    let other_tags = T::tags();
+                    if !other_tags.is_empty() {
+                        let tags = operation.tags.get_or_insert(Vec::new());
+                        tags.extend(other_tags.into_iter().map(ToString::to_string));
+                    };
+
+                    let path_item = PathItem::new(method, operation);
+                    builder = builder.path(T::path(), path_item);
 
                     builder
                 },
@@ -144,13 +153,13 @@ impl<T> AppExt<T> for actix_web::App<T> {
 /// # use actix_web::App;
 /// let a: UtoipaApp<_> = actix_web::App::new().into();
 /// ```
-pub struct UtoipaApp<T>(actix_web::App<T>, Rc<utoipa::openapi::OpenApi>);
+pub struct UtoipaApp<T>(actix_web::App<T>, utoipa::openapi::OpenApi);
 
 impl<T> From<actix_web::App<T>> for UtoipaApp<T> {
     fn from(value: actix_web::App<T>) -> Self {
         #[derive(OpenApi)]
         struct Api;
-        UtoipaApp(value, Rc::new(Api::openapi()))
+        UtoipaApp(value, Api::openapi())
     }
 }
 
@@ -177,7 +186,7 @@ where
     /// let _ = actix_web::App::new().into_utoipa_app().openapi(Api::openapi());
     /// ```
     pub fn openapi(mut self, openapi: utoipa::openapi::OpenApi) -> Self {
-        self.1 = Rc::new(openapi);
+        self.1 = openapi;
 
         self
     }
@@ -203,20 +212,11 @@ where
 
     /// Extended version of [`actix_web::App::configure`] which handles _`schema`_ and _`path`_
     /// collection from [`ServiceConfig`] into the wrapped [`utoipa::openapi::OpenApi`] instance.
-    ///
-    /// # Panics
-    ///
-    /// If [`UtoipaApp::configure`] is called after [`UtoipaApp::openapi_service`] call. This is because
-    /// reference count is increase on each call and configuration cannot modify
-    /// [`utoipa::openapi::OpenApi`] that is already served.
-    pub fn configure<F>(mut self, f: F) -> Self
+    pub fn configure<F>(self, f: F) -> Self
     where
         F: FnOnce(&mut ServiceConfig),
     {
-        // TODO get OpenAPI paths????
-        let api = Rc::<utoipa::openapi::OpenApi>::get_mut(&mut self.1).expect(
-            "OpenApi should not have more than one reference when building App with `configure`",
-        );
+        let mut openapi = self.1;
 
         let app = self.0.configure(|config| {
             let mut service_config = ServiceConfig::new(config);
@@ -224,15 +224,15 @@ where
             f(&mut service_config);
 
             let paths = service_config.1.take();
-            api.paths.paths.extend(paths.paths);
+            openapi.paths.merge(paths);
             let schemas = service_config.2.take();
-            let components = api
+            let components = openapi
                 .components
                 .get_or_insert(utoipa::openapi::Components::new());
             components.schemas.extend(schemas);
         });
 
-        Self(app, self.1)
+        Self(app, openapi)
     }
 
     /// Passthrough implementation for [`actix_web::App::route`].
@@ -244,13 +244,7 @@ where
 
     /// Extended version of [`actix_web::App::service`] method which handles _`schema`_ and _`path`_
     /// collection from [`HttpServiceFactory`].
-    ///
-    /// # Panics
-    ///
-    /// If [`UtoipaApp::service`] is called after [`UtoipaApp::openapi_service`] call. This is because
-    /// reference count is increase on each call and we should have only one instance of
-    /// [`utoipa::openapi::OpenApi`] that is being built.
-    pub fn service<F>(mut self, factory: F) -> Self
+    pub fn service<F>(self, factory: F) -> Self
     where
         F: HttpServiceFactory + OpenApiFactory + 'static,
     {
@@ -262,20 +256,17 @@ where
         factory.schemas(&mut schemas);
         let paths = factory.paths();
 
-        // TODO should this be `make_mut`?
-        let api = Rc::<utoipa::openapi::OpenApi>::get_mut(&mut self.1).expect(
-            "OpenApi should not have more than one reference when building App with `service`",
-        );
+        let mut openapi = self.1;
 
-        api.paths.paths.extend(paths.paths);
-        let components = api
+        openapi.paths.merge(paths);
+        let components = openapi
             .components
             .get_or_insert(utoipa::openapi::Components::new());
         components.schemas.extend(schemas);
 
         let app = self.0.service(factory);
 
-        Self(app, self.1)
+        Self(app, openapi)
     }
 
     /// Helper method to serve wrapped [`utoipa::openapi::OpenApi`] via [`HttpServiceFactory`].
@@ -284,7 +275,7 @@ where
     /// first call [`UtoipaApp::split_for_parts`] and then calling [`actix_web::App::service`].
     pub fn openapi_service<O, F>(self, factory: F) -> Self
     where
-        F: FnOnce(Rc<utoipa::openapi::OpenApi>) -> O,
+        F: FnOnce(utoipa::openapi::OpenApi) -> O,
         O: HttpServiceFactory + 'static,
     {
         let service = factory(self.1.clone());
@@ -352,10 +343,18 @@ where
     /// Split this [`UtoipaApp`] into parts returning tuple of [`actix_web::App`] and
     /// [`utoipa::openapi::OpenApi`] of this instance.
     pub fn split_for_parts(self) -> (actix_web::App<T>, utoipa::openapi::OpenApi) {
-        (
-            self.0,
-            Rc::try_unwrap(self.1).unwrap_or_else(|rc| (*rc).clone()),
-        )
+        (self.0, self.1)
+    }
+
+    /// Converts this [`UtoipaApp`] into the wrapped [`actix_web::App`].
+    pub fn into_app(self) -> actix_web::App<T> {
+        self.0
+    }
+}
+
+impl<T> From<UtoipaApp<T>> for actix_web::App<T> {
+    fn from(value: UtoipaApp<T>) -> Self {
+        value.0
     }
 }
 

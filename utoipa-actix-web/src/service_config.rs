@@ -73,7 +73,8 @@ impl<'s> ServiceConfig<'s> {
     {
         let mut paths = self.1.take();
         let other_paths = factory.paths();
-        paths.paths.extend(other_paths.paths);
+        paths.merge(other_paths);
+
         let mut schemas = self.2.take();
         factory.schemas(&mut schemas);
         self.2.set(schemas);

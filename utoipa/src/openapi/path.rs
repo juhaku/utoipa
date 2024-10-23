@@ -135,6 +135,24 @@ impl Paths {
             );
         }
     }
+
+    /// Merge _`other_paths`_ into `self`. On conflicting path the path item operations will be
+    /// merged into existing [`PathItem`]. Otherwise path with [`PathItem`] will be appended to
+    /// `self`. All [`Extensions`] will be merged from _`other_paths`_ into `self`.
+    pub fn merge(&mut self, other_paths: Paths) {
+        for (path, that) in other_paths.paths {
+            if let Some(this) = self.paths.get_mut(&path) {
+                this.merge_operations(that);
+            } else {
+                self.paths.insert(path, that);
+            }
+        }
+
+        if let Some(other_paths_extensions) = other_paths.extensions {
+            let paths_extensions = self.extensions.get_or_insert(Extensions::default());
+            paths_extensions.merge(other_paths_extensions);
+        }
+    }
 }
 
 impl PathsBuilder {
@@ -311,30 +329,31 @@ impl PathItem {
         path_item
     }
 
-    /// Merge all defined [`Operation`]s from given [`PathItem`] to `self`.
+    /// Merge all defined [`Operation`]s from given [`PathItem`] to `self` if `self` does not have
+    /// existing operation.
     pub fn merge_operations(&mut self, path_item: PathItem) {
-        if path_item.get.is_some() {
+        if path_item.get.is_some() && self.get.is_none() {
             self.get = path_item.get;
         }
-        if path_item.put.is_some() {
+        if path_item.put.is_some() && self.put.is_none() {
             self.put = path_item.put;
         }
-        if path_item.post.is_some() {
+        if path_item.post.is_some() && self.post.is_none() {
             self.post = path_item.post;
         }
-        if path_item.delete.is_some() {
+        if path_item.delete.is_some() && self.delete.is_none() {
             self.delete = path_item.delete;
         }
-        if path_item.options.is_some() {
+        if path_item.options.is_some() && self.options.is_none() {
             self.options = path_item.options;
         }
-        if path_item.head.is_some() {
+        if path_item.head.is_some() && self.head.is_none() {
             self.head = path_item.head;
         }
-        if path_item.patch.is_some() {
+        if path_item.patch.is_some() && self.patch.is_none() {
             self.patch = path_item.patch;
         }
-        if path_item.trace.is_some() {
+        if path_item.trace.is_some() && self.trace.is_none() {
             self.trace = path_item.trace;
         }
     }

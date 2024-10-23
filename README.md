@@ -31,7 +31,7 @@ being portable and standalone, one of its key aspects is simple integration with
 
 |Flavor|Support|
 |--|--|
-|[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-feature-support-for-actix-web)|
+|[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body, [`utoipa-actix-web` bindings](./utoipa-actix-web/README.md). See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-feature-support-for-actix-web)|
 |[axum](https://github.com/tokio-rs/axum)|Parse path and query parameters, recognize request body and response body, [`utoipa-axum` bindings](./utoipa-axum/README.md). See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)|
 |[rocket](https://github.com/SergioBenitez/Rocket)| Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-feature-support-for-rocket)|
 |Others*| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|

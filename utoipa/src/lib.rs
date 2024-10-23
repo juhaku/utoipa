@@ -28,7 +28,7 @@
 //!
 //! |Flavor|Support|
 //! |--|--|
-//! |[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs][actix_path]|
+//! |[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body, [`utoipa-actix-web` bindings](https://docs.rs/utoipa-actix-web). See more at [docs][actix_path]|
 //! |[axum](https://github.com/tokio-rs/axum)|Parse path and query parameters, recognize request body and response body, [`utoipa-axum` bindings](https://docs.rs/utoipa-axum). See more at [docs][axum_path]|
 //! |[rocket](https://github.com/SergioBenitez/Rocket)| Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs][rocket_path]|
 //! |Others*| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|
