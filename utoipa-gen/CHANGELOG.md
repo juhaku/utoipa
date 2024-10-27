@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Fixed
+
+* Fix `no_recursion` support on maps (https://github.com/juhaku/utoipa/pull/1167)
+
 ## 5.1.2 - Oct 16 2024
 
 ### Added

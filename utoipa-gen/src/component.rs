@@ -1149,6 +1149,7 @@ impl ComponentSchema {
                 for feature in features.iter().filter(|feature| feature.is_validatable()) {
                     feature.validate(&schema_type, type_tree);
                 }
+                let _ = pop_feature!(features => Feature::NoRecursion(_)); // primitive types are not recursive
                 tokens.extend(features.to_token_stream()?);
             }
             ValueType::Value => {

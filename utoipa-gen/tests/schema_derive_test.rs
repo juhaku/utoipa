@@ -5970,6 +5970,7 @@ fn test_named_and_enum_container_recursion_compiles() {
     pub struct Tree {
         left: Box<Tree>,
         right: Box<Tree>,
+        map: HashMap<String, Tree>,
     }
 
     #[derive(ToSchema)]
@@ -5988,7 +5989,7 @@ fn test_named_and_enum_container_recursion_compiles() {
             right: Box<Recursion>,
         },
         #[schema(no_recursion)]
-        Unnamed(Box<Recursion>),
+        Unnamed(HashMap<String, Recursion>),
         NoValue,
     }
 
