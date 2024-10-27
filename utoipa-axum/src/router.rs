@@ -291,7 +291,7 @@ where
         Self(self.0.route_service(path, service), self.1)
     }
 
-    /// Nest `router` to `self` under given `path`. Router routes will be nestsed with
+    /// Nest `router` to `self` under given `path`. Router routes will be nested with
     /// [`axum::Router::nest`].
     ///
     /// This method expects [`OpenApiRouter`] instance in order to nest OpenApi paths and router
