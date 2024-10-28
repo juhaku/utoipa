@@ -253,8 +253,15 @@ where
             })
         };
 
-        // add current paths to the OpenApi
-        self.1.paths.paths.extend(paths.paths.clone());
+        // add or merge current paths to the OpenApi
+        for (path, item) in paths.paths {
+            if let Some(it) = self.1.paths.paths.get_mut(&path) {
+                it.merge_operations(item);
+            } else {
+                self.1.paths.paths.insert(path, item);
+            }
+        }
+
         let components = self
             .1
             .components
