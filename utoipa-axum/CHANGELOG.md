@@ -1,6 +1,8 @@
 # Changelog - utoipa-axum
 
-## Unreleased
+## 0.1.2 - Oct 29 2024
+
+### Changed
 
 * Merge paths if they already are added to the paths map in utoipa-axum (https://github.com/juhaku/utoipa/pull/1171)
 

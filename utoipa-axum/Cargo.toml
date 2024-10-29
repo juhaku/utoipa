@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-axum"
 description = "Utoipa's axum bindings for seamless integration for the two"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
