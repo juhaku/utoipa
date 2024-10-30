@@ -363,10 +363,10 @@ mod tests {
     #![allow(unused)]
 
     use actix_service::Service;
-    use actix_web::guard::Guard;
+    use actix_web::guard::{Get, Guard};
     use actix_web::http::header::{HeaderValue, CONTENT_TYPE};
-    use actix_web::web::Data;
-    use actix_web::{get, App};
+    use actix_web::web::{self, Data};
+    use actix_web::{get, App, HttpRequest, HttpResponse};
     use utoipa::ToSchema;
 
     use super::*;
@@ -441,10 +441,16 @@ mod tests {
         }
     }
 
+    #[get("/normal_service")]
+    async fn normal_service() -> &'static str {
+        "str"
+    }
+
     #[test]
     fn test_app_generate_correct_openapi() {
         fn config(cfg: &mut service_config::ServiceConfig) {
-            cfg.service(handler3);
+            cfg.service(handler3)
+                .map(|config| config.service(normal_service));
         }
 
         let (_, mut api) = App::new()
