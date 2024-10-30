@@ -94,4 +94,18 @@ impl<'s> ServiceConfig<'s> {
         self.0.external_resource(name, url);
         self
     }
+
+    /// Synonymous for [`UtoipaApp::map`][utoipa_app_map]
+    ///
+    /// [utoipa_app_map]: ../struct.UtoipaApp.html#method.map
+    pub fn map<
+        F: FnOnce(&mut actix_web::web::ServiceConfig) -> &mut actix_web::web::ServiceConfig,
+    >(
+        &mut self,
+        op: F,
+    ) -> &mut Self {
+        op(self.0);
+
+        self
+    }
 }

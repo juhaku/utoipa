@@ -1,5 +1,11 @@
 # Changelog - utoipa-actix-web
 
+## 0.1.1 - Oct 30 2024
+
+### Changed
+
+* Add `map` support for `ServiceConfig` (https://github.com/juhaku/utoipa/pull/1174)
+
 ## 0.1.0 - Oct 23 2024
 
 ### Added
