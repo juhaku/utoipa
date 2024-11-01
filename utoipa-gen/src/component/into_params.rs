@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
     Generics, Ident,
@@ -25,6 +25,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
+    parse_utils::LitBoolOrExprPath,
     Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
@@ -122,7 +123,7 @@ impl ToTokensDiagnostics for IntoParams {
             .collect::<Result<Vec<_>, Diagnostics>>()?
             .into_iter()
             .filter_map(|(index, field, field_serde_params, field_features)| {
-                if field_serde_params.skip || field_features.iter().any(|feature| matches!(feature, Feature::Ignore(_))) {
+                if field_serde_params.skip {
                     None
                 } else {
                     Some((index, field, field_serde_params, field_features))
@@ -158,7 +159,7 @@ impl ToTokensDiagnostics for IntoParams {
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
-                    #params.to_vec()
+                    #params.into_iter().filter(Option::is_some).flatten().collect()
                 }
             }
         });
@@ -339,6 +340,7 @@ impl Param {
             Param::resolve_field_features(field_features, &container_attributes)
                 .map_err(Diagnostics::from)?;
 
+        let ignore = pop_feature!(param_features => Feature::Ignore(_));
         let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
             .map(|rename| rename.into_value());
         let rename_to = field_serde_params
@@ -412,6 +414,28 @@ impl Param {
 
             tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
         }
+
+        let tokens = match ignore {
+            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(bool)))) => {
+                quote_spanned! {
+                    bool.span() => if #bool {
+                        None
+                    } else {
+                        Some(#tokens)
+                    }
+                }
+            }
+            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
+                quote_spanned! {
+                    path.span() => if #path() {
+                        None
+                    } else {
+                        Some(#tokens)
+                    }
+                }
+            }
+            _ => quote! { Some(#tokens) },
+        };
 
         Ok(Self { tokens })
     }

@@ -5,6 +5,7 @@
 ### Changed
 
 * Added missing formats for `KnownFormat` parsing (https://github.com/juhaku/utoipa/pull/1178)
+* The `#[schema(ignore)]` attribute now accepts an optional bool value/function path (https://github.com/juhaku/utoipa/pull/1177)
 
 ## 5.1.3 - Oct 27 2024
 

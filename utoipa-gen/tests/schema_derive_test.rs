@@ -5727,6 +5727,69 @@ fn derive_schema_with_ignored_field() {
 }
 
 #[test]
+fn derive_schema_with_ignore_eq_false_field() {
+    #![allow(unused)]
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore = false)]
+            this_is_not_private: String,
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "value": {
+                    "type": "string"
+                },
+                "this_is_not_private": {
+                    "type": "string"
+                }
+            },
+            "required": [ "value", "this_is_not_private" ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
+fn derive_schema_with_ignore_eq_call_field() {
+    #![allow(unused)]
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore = Self::ignore)]
+            this_is_not_private: String,
+        }
+
+        impl SchemaIgnoredField {
+            fn ignore() -> bool {
+                false
+            }
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "properties": {
+                "value": {
+                    "type": "string"
+                },
+                "this_is_not_private": {
+                    "type": "string"
+                }
+            },
+            "required": [ "value", "this_is_not_private" ],
+            "type": "object"
+        })
+    )
+}
+
+#[test]
 fn derive_schema_unnamed_title() {
     #![allow(unused)]
 

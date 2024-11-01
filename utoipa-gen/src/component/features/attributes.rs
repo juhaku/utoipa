@@ -9,7 +9,7 @@ use syn::{Error, LitStr, Token, TypePath, WherePredicate};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
-use crate::parse_utils::LitStrOrExpr;
+use crate::parse_utils::{LitBoolOrExprPath, LitStrOrExpr};
 use crate::path::parameter::{self, ParameterStyle};
 use crate::schema_type::KnownFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
@@ -983,25 +983,37 @@ impl From<Bound> for Feature {
     }
 }
 
-// Nothing to parse, it will be parsed true via `parse_features!` when defined as `ignore`
 impl_feature! {
+    /// Ignore feature parsed from macro attributes.
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Ignore;
+    pub struct Ignore(pub LitBoolOrExprPath);
 }
 
 impl Parse for Ignore {
-    fn parse(_: ParseStream, _: Ident) -> syn::Result<Self>
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
     where
         Self: std::marker::Sized,
     {
-        Ok(Self)
+        parse_utils::parse_next_literal_bool_or_call(input).map(Self)
+    }
+}
+
+impl ToTokens for Ignore {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.0.to_token_stream())
     }
 }
 
 impl From<Ignore> for Feature {
     fn from(value: Ignore) -> Self {
         Self::Ignore(value)
+    }
+}
+
+impl From<bool> for Ignore {
+    fn from(value: bool) -> Self {
+        Self(value.into())
     }
 }
 
