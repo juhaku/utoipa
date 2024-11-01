@@ -326,6 +326,7 @@ pub enum KnownFormat {
     Binary,
     Date,
     DateTime,
+    Duration,
     Password,
     #[cfg(feature = "uuid")]
     Uuid,
@@ -333,10 +334,26 @@ pub enum KnownFormat {
     Ulid,
     #[cfg(feature = "url")]
     Uri,
+    #[cfg(feature = "url")]
+    UriReference,
+    #[cfg(feature = "url")]
+    Iri,
+    #[cfg(feature = "url")]
+    IriReference,
+    Email,
+    IdnEmail,
+    Hostname,
+    IdnHostname,
+    Ipv4,
+    Ipv6,
+    UriTemplate,
+    JsonPointer,
+    RelativeJsonPointer,
+    Regex,
     /// Custom format is reserved only for manual entry.
     Custom(String),
-    /// This is not really tokenized, but is actually only for purpose of having some format in
-    /// case we do not know what the format is actually.
+    /// This is not tokenized, but is present for purpose of having some format in
+    /// case we do not know the format. E.g. We cannot determine the format based on type path.
     #[allow(unused)]
     Unknown,
 }
@@ -408,10 +425,8 @@ impl KnownFormat {
     pub fn is_known_format(&self) -> bool {
         !matches!(self, Self::Unknown)
     }
-}
 
-impl Parse for KnownFormat {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn get_allowed_formats() -> String {
         let default_formats = [
             "Int32",
             "Int64",
@@ -421,6 +436,7 @@ impl Parse for KnownFormat {
             "Binary",
             "Date",
             "DateTime",
+            "Duration",
             "Password",
             #[cfg(feature = "uuid")]
             "Uuid",
@@ -428,6 +444,22 @@ impl Parse for KnownFormat {
             "Ulid",
             #[cfg(feature = "url")]
             "Uri",
+            #[cfg(feature = "url")]
+            "UriReference",
+            #[cfg(feature = "url")]
+            "Iri",
+            #[cfg(feature = "url")]
+            "IriReference",
+            "Email",
+            "IdnEmail",
+            "Hostname",
+            "IdnHostname",
+            "Ipv4",
+            "Ipv6",
+            "UriTemplate",
+            "JsonPointer",
+            "RelativeJsonPointer",
+            "Regex",
         ];
         #[cfg(feature = "non_strict_integers")]
         let non_strict_integer_formats = [
@@ -448,6 +480,14 @@ impl Parse for KnownFormat {
             let formats = default_formats.into_iter().collect::<Vec<_>>();
             formats.join(", ")
         };
+
+        formats
+    }
+}
+
+impl Parse for KnownFormat {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let formats = KnownFormat::get_allowed_formats();
 
         let lookahead = input.lookahead1();
         if lookahead.peek(Ident) {
@@ -475,6 +515,7 @@ impl Parse for KnownFormat {
                 "Binary" => Ok(Self::Binary),
                 "Date" => Ok(Self::Date),
                 "DateTime" => Ok(Self::DateTime),
+                "Duration" => Ok(Self::Duration),
                 "Password" => Ok(Self::Password),
                 #[cfg(feature = "uuid")]
                 "Uuid" => Ok(Self::Uuid),
@@ -482,6 +523,22 @@ impl Parse for KnownFormat {
                 "Ulid" => Ok(Self::Ulid),
                 #[cfg(feature = "url")]
                 "Uri" => Ok(Self::Uri),
+                #[cfg(feature = "url")]
+                "UriReference" => Ok(Self::UriReference),
+                #[cfg(feature = "url")]
+                "Iri" => Ok(Self::Iri),
+                #[cfg(feature = "url")]
+                "IriReference" => Ok(Self::IriReference),
+                "Email" => Ok(Self::Email),
+                "IdnEmail" => Ok(Self::IdnEmail),
+                "Hostname" => Ok(Self::Hostname),
+                "IdnHostname" => Ok(Self::IdnHostname),
+                "Ipv4" => Ok(Self::Ipv4),
+                "Ipv6" => Ok(Self::Ipv6),
+                "UriTemplate" => Ok(Self::UriTemplate),
+                "JsonPointer" => Ok(Self::JsonPointer),
+                "RelativeJsonPointer" => Ok(Self::RelativeJsonPointer),
+                "Regex" => Ok(Self::Regex),
                 _ => Err(Error::new(
                     format.span(),
                     format!("unexpected format: {name}, expected one of: {formats}"),
@@ -500,61 +557,106 @@ impl ToTokens for KnownFormat {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             #[cfg(feature = "non_strict_integers")]
-            Self::Int8 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int8)}),
+            Self::Int8 => tokens.extend(quote! {utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::Int8)}),
             #[cfg(feature = "non_strict_integers")]
-            Self::Int16 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::Int16)}),
-            Self::Int32 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Int32
+            Self::Int16 => tokens.extend(quote! {utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::Int16)}),
+            Self::Int32 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Int32
             ))),
-            Self::Int64 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Int64
-            ))),
-            #[cfg(feature = "non_strict_integers")]
-            Self::UInt8 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt8)}),
-            #[cfg(feature = "non_strict_integers")]
-            Self::UInt16 => tokens.extend(quote! {utoipa::openapi::SchemaFormat::KnownFormat(utoipa::openapi::KnownFormat::UInt16)}),
-            #[cfg(feature = "non_strict_integers")]
-            Self::UInt32 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::UInt32
+            Self::Int64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Int64
             ))),
             #[cfg(feature = "non_strict_integers")]
-            Self::UInt64 => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::UInt64
+            Self::UInt8 => tokens.extend(quote! {utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::UInt8)}),
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt16 => tokens.extend(quote! {utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::UInt16)}),
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt32 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::UInt32
             ))),
-            Self::Float => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Float
+            #[cfg(feature = "non_strict_integers")]
+            Self::UInt64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::UInt64
             ))),
-            Self::Double => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Double
+            Self::Float => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Float
             ))),
-            Self::Byte => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Byte
+            Self::Double => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Double
             ))),
-            Self::Binary => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Binary
+            Self::Byte => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Byte
             ))),
-            Self::Date => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Date
+            Self::Binary => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Binary
             ))),
-            Self::DateTime => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::DateTime
+            Self::Date => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Date
             ))),
-            Self::Password => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Password
+            Self::DateTime => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::DateTime
+            ))),
+            Self::Duration => tokens.extend(quote! {utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Duration
+            ) }),
+            Self::Password => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Password
             ))),
             #[cfg(feature = "uuid")]
-            Self::Uuid => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Uuid
+            Self::Uuid => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Uuid
             ))),
             #[cfg(feature = "ulid")]
-            Self::Ulid => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Ulid
+            Self::Ulid => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Ulid
             ))),
             #[cfg(feature = "url")]
-            Self::Uri => tokens.extend(quote!(utoipa::openapi::SchemaFormat::KnownFormat(
-                utoipa::openapi::KnownFormat::Uri
+            Self::Uri => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Uri
             ))),
-            Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::SchemaFormat::Custom(
+            #[cfg(feature = "url")]
+            Self::UriReference => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::UriReference
+            ))),
+            #[cfg(feature = "url")]
+            Self::Iri => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Iri
+            ))),
+            #[cfg(feature = "url")]
+            Self::IriReference => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::IriReference
+            ))),
+            Self::Email => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Email
+            ))),
+            Self::IdnEmail => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::IdnEmail
+            ))),
+            Self::Hostname => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Hostname
+            ))),
+            Self::IdnHostname => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::IdnHostname
+            ))),
+            Self::Ipv4 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Ipv4
+            ))),
+            Self::Ipv6 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Ipv6
+            ))),
+            Self::UriTemplate => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::UriTemplate
+            ))),
+            Self::JsonPointer => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::JsonPointer
+            ))),
+            Self::RelativeJsonPointer => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::RelativeJsonPointer
+            ))),
+            Self::Regex => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Regex
+            ))),
+            Self::Custom(value) => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::Custom(
                 String::from(#value)
             ))),
             Self::Unknown => (), // unknown we just skip it
