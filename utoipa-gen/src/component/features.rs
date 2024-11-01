@@ -242,7 +242,7 @@ impl ToTokensDiagnostics for Feature {
                 let name = <attributes::Required as FeatureLike>::get_name();
                 quote! { .#name(#required) }
             }
-            Feature::Ignore(_) => return Err(Diagnostics::new("Feature::Ignore does not support ToTokens")),
+            Feature::Ignore(_) => return Err(Diagnostics::new("Ignore does not support `ToTokens`")),
         };
 
         tokens.extend(feature);

@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, Cow};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
     Fields, FieldsNamed, FieldsUnnamed, Generics, Variant,
@@ -11,6 +11,7 @@ use crate::{
     as_tokens_or_diagnostics,
     component::features::attributes::{Rename, Title, ValueType},
     doc_comment::CommentAttributes,
+    parse_utils::LitBoolOrExprPath,
     Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
 
@@ -24,7 +25,7 @@ use self::{
 
 use super::{
     features::{
-        attributes::{As, Bound, Description, NoRecursion, RenameAll},
+        attributes::{self, As, Bound, Description, NoRecursion, RenameAll},
         parse_features, pop_feature, Feature, FeaturesExt, IntoInner, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
@@ -320,6 +321,7 @@ struct NamedStructFieldOptions<'a> {
     renamed_field: Option<Cow<'a, str>>,
     required: Option<super::features::attributes::Required>,
     is_option: bool,
+    ignore: Option<LitBoolOrExprPath>,
 }
 
 impl NamedStructSchema {
@@ -383,7 +385,7 @@ impl NamedStructSchema {
             .flatten()
             .collect::<Vec<_>>();
 
-        let mut object_tokens = fields_vec
+        let object_tokens = fields_vec
             .iter()
             .filter(|(_, field_rules, ..)| !field_rules.skip && !field_rules.flatten)
             .map(|(property, field_rules, field_name, field)| {
@@ -398,13 +400,14 @@ impl NamedStructSchema {
             .collect::<Result<Vec<_>, Diagnostics>>()?
             .into_iter()
             .fold(
-                quote! { utoipa::openapi::ObjectBuilder::new() },
+                quote! { let mut object = utoipa::openapi::ObjectBuilder::new(); },
                 |mut object_tokens,
                  (
                     NamedStructFieldOptions {
                         renamed_field,
                         required,
                         is_option,
+                        ignore,
                         ..
                     },
                     field_rules,
@@ -425,9 +428,9 @@ impl NamedStructSchema {
                         super::rename::<FieldRename>(field_name.borrow(), rename_to, rename_all)
                             .unwrap_or(Cow::Borrowed(field_name.borrow()));
 
-                    object_tokens.extend(quote! {
-                        .property(#name, #field_schema)
-                    });
+                    let mut property_tokens = quote! {
+                        object = object.property(#name, #field_schema)
+                    };
                     let component_required =
                         !is_option && super::is_required(field_rules, &container_rules);
                     let required = match (required, component_required) {
@@ -436,14 +439,32 @@ impl NamedStructSchema {
                     };
 
                     if required {
-                        object_tokens.extend(quote! {
+                        property_tokens.extend(quote! {
                             .required(#name)
                         })
                     }
 
+                    object_tokens.extend(match ignore {
+                        Some(LitBoolOrExprPath::LitBool(bool)) => quote_spanned! {
+                            bool.span() => if !#bool {
+                                #property_tokens;
+                            }
+                        },
+                        Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
+                            path.span() => if !#path() {
+                                #property_tokens;
+                            }
+                        },
+                        None => quote! { #property_tokens; },
+                    });
+
                     object_tokens
                 },
             );
+
+        let mut object_tokens = quote! {
+            { #object_tokens; object }
+        };
 
         let flatten_fields = fields_vec
             .iter()
@@ -549,14 +570,6 @@ impl NamedStructSchema {
             .into_inner()
             .unwrap_or_default();
 
-        if field_features
-            .iter()
-            .any(|feature| matches!(feature, Feature::Ignore(_)))
-        {
-            // skip ignored field
-            return Ok(None);
-        };
-
         if features
             .iter()
             .any(|feature| matches!(feature, Feature::NoRecursion(_)))
@@ -614,6 +627,11 @@ impl NamedStructSchema {
 
         let is_option = type_tree.is_option();
 
+        let ignore = match pop_feature!(field_features => Feature::Ignore(_)) {
+            Some(Feature::Ignore(attributes::Ignore(bool_or_exp))) => Some(bool_or_exp),
+            _ => None,
+        };
+
         Ok(Some(NamedStructFieldOptions {
             property: if let Some(schema_with) = schema_with {
                 Property::SchemaWith(schema_with)
@@ -636,6 +654,7 @@ impl NamedStructSchema {
             renamed_field: rename_field,
             required,
             is_option,
+            ignore,
         }))
     }
 }

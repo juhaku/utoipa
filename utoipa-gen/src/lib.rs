@@ -194,8 +194,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `content_encoding = ...` Can be used to define content encoding used for underlying schema object.
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
-///   See [`Object::content_media_type`][schema_object_media_type]
-///* `ignore` Can be used to skip the field from being serialized to OpenAPI schema.
+///   See [`Object::content_media_type`][schema_object_`media_type]
+///* `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`).
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
 ///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
@@ -2349,7 +2350,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// * `ignore` Can be used to skip the field from being serialized to OpenAPI schema.
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`).
 ///
 /// #### Field nullability and required rules
 ///
@@ -3632,13 +3634,14 @@ mod parse_utils {
     use std::fmt::Display;
 
     use proc_macro2::{Group, Ident, TokenStream};
-    use quote::ToTokens;
+    use quote::{quote, ToTokens};
     use syn::{
         parenthesized,
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
+        spanned::Spanned,
         token::Comma,
-        Error, Expr, LitBool, LitStr, Token,
+        Error, Expr, ExprPath, LitBool, LitStr, Token,
     };
 
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -3791,6 +3794,63 @@ mod parse_utils {
                 input.span(),
                 "unexpected token, expected json!(...)",
             ))
+        }
+    }
+
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    #[derive(Clone)]
+    pub enum LitBoolOrExprPath {
+        LitBool(LitBool),
+        ExprPath(ExprPath),
+    }
+
+    impl From<bool> for LitBoolOrExprPath {
+        fn from(value: bool) -> Self {
+            Self::LitBool(LitBool::new(value, proc_macro2::Span::call_site()))
+        }
+    }
+
+    impl Default for LitBoolOrExprPath {
+        fn default() -> Self {
+            Self::LitBool(LitBool::new(false, proc_macro2::Span::call_site()))
+        }
+    }
+
+    impl Parse for LitBoolOrExprPath {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            if input.peek(LitBool) {
+                Ok(LitBoolOrExprPath::LitBool(input.parse::<LitBool>()?))
+            } else {
+                let expr = input.parse::<Expr>()?;
+
+                match expr {
+                    Expr::Path(expr_path) => Ok(LitBoolOrExprPath::ExprPath(expr_path)),
+                    _ => Err(syn::Error::new(
+                        expr.span(),
+                        format!(
+                            "expected literal bool or path to a function that returns bool, found: {}",
+                            quote! {#expr}
+                        ),
+                    )),
+                }
+            }
+        }
+    }
+
+    impl ToTokens for LitBoolOrExprPath {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                Self::LitBool(bool) => bool.to_tokens(tokens),
+                Self::ExprPath(call) => call.to_tokens(tokens),
+            }
+        }
+    }
+
+    pub fn parse_next_literal_bool_or_call(input: ParseStream) -> syn::Result<LitBoolOrExprPath> {
+        if input.peek(Token![=]) {
+            parse_next(input, || LitBoolOrExprPath::parse(input))
+        } else {
+            Ok(LitBoolOrExprPath::from(true))
         }
     }
 }
