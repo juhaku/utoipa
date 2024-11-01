@@ -3340,6 +3340,19 @@ fn derive_unnamed_struct_schema_type_override_with_format() {
 }
 
 #[test]
+fn derive_unnamed_struct_schema_ipv4() {
+    let value = api_doc! {
+        #[schema(format = Ipv4)]
+        struct Ipv4(String);
+    };
+
+    assert_value! {value=>
+        "type" = r#""string""#, "Value type"
+        "format" = r#""ipv4""#, "Value format"
+    }
+}
+
+#[test]
 fn derive_struct_override_type_with_object_type() {
     let value = api_doc! {
         struct Value {

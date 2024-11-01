@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Changed
+
+* Added missing formats for `KnownFormat` parsing (https://github.com/juhaku/utoipa/pull/1178)
+
 ## 5.1.3 - Oct 27 2024
 
 ### Fixed
