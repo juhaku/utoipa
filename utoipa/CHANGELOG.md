@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## 5.2.0 - Nov 2024
+
+### Changed
+
+* Incremented `utoipa-gen` version to `5.2.0`
+
 ## 5.1.3 - Oct 27 2024
 
 ### Changed 
