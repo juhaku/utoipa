@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+* Fix alias support for `IntoParams` (https://github.com/juhaku/utoipa/pull/1179)
+
 ### Changed
 
 * Added missing formats for `KnownFormat` parsing (https://github.com/juhaku/utoipa/pull/1178)

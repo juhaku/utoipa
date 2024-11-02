@@ -388,6 +388,9 @@ impl Param {
                 .as_ref()
                 .map_try(|value_type| value_type.as_type_tree())?
                 .unwrap_or(type_tree);
+            let alias_type = component.get_alias_type()?;
+            let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
+            let component = alias_type_tree.as_ref().unwrap_or(&component);
 
             let required: Option<features::attributes::Required> =
                 pop_feature!(param_features => Feature::Required(_)).into_inner();
@@ -405,7 +408,7 @@ impl Param {
             tokens.extend(param_features.to_token_stream()?);
 
             let schema = ComponentSchema::new(component::ComponentSchemaProps {
-                type_tree: &component,
+                type_tree: component,
                 features: schema_features,
                 description: None,
                 container: &Container { generics },
