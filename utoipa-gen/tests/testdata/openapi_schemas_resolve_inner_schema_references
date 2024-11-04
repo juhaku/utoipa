@@ -40,7 +40,7 @@
           "properties": {
             "Many": {
               "items": {
-                "type": "object"
+                "type": "string"
               },
               "type": "array"
             }
@@ -95,6 +95,32 @@
           "properties": {
             "Many": {
               "items": {
+                "properties": {
+                  "accounts": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "$ref": "#/components/schemas/Account"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  },
+                  "foo_bar": {
+                    "$ref": "#/components/schemas/Foobar"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "foo_bar",
+                  "accounts"
+                ],
                 "type": "object"
               },
               "type": "array"
