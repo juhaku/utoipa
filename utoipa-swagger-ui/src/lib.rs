@@ -663,6 +663,10 @@ pub struct Config<'a> {
     #[serde(skip)]
     oauth: Option<oauth::Config>,
 
+    /// Defines syntax highlighting specific options.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    syntax_highlight: Option<SyntaxHighlight>,
+
     /// The layout of Swagger UI uses, default is `"StandaloneLayout"`.
     layout: &'a str,
 }
@@ -1243,6 +1247,27 @@ impl<'a> Config<'a> {
 
         self
     }
+
+    /// Set a specific configuration for syntax highlighting responses
+    /// and curl commands.
+    ///
+    /// By default, swagger-ui does syntax highlighting of responses
+    /// and curl commands.  This may consume considerable resources in
+    /// the browser when executed on large responses.
+    ///
+    /// # Example
+    ///
+    /// Disable syntax highlighting.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-docs/openapi.json"])
+    ///     .with_syntax_highlight(false);
+    /// ```
+    pub fn with_syntax_highlight<H: Into<SyntaxHighlight>>(mut self, syntax_highlight: H) -> Self {
+        self.syntax_highlight = Some(syntax_highlight.into());
+
+        self
+    }
 }
 
 impl Default for Config<'_> {
@@ -1274,6 +1299,7 @@ impl Default for Config<'_> {
             with_credentials: Default::default(),
             persist_authorization: Default::default(),
             oauth: Default::default(),
+            syntax_highlight: Default::default(),
             layout: SWAGGER_STANDALONE_LAYOUT,
         }
     }
@@ -1288,6 +1314,54 @@ impl<'a> From<&'a str> for Config<'a> {
 impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
         Self::new([s])
+    }
+}
+
+/// Represents settings related to syntax highlighting of payloads and
+/// cURL commands.
+#[derive(Serialize, Clone)]
+#[non_exhaustive]
+pub struct SyntaxHighlight {
+    /// Boolean telling whether syntax highlighting should be
+    /// activated or not. Defaults to `true`.
+    pub activated: bool,
+    /// Highlight.js syntax coloring theme to use.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<&'static str>,
+}
+
+impl Default for SyntaxHighlight {
+    fn default() -> Self {
+        Self {
+            activated: true,
+            theme: None,
+        }
+    }
+}
+
+impl From<bool> for SyntaxHighlight {
+    fn from(value: bool) -> Self {
+        Self {
+            activated: value,
+            ..Default::default()
+        }
+    }
+}
+
+impl SyntaxHighlight {
+    /// Explicitely specifies whether syntax highlighting is to be
+    /// activated or not.  Defaults to true.
+    pub fn activated(mut self, activated: bool) -> Self {
+        self.activated = activated;
+        self
+    }
+
+    /// Explicitely specifies the
+    /// [Highlight.js](https://highlightjs.org/) coloring theme to
+    /// utilize for syntax highlighting.
+    pub fn theme(mut self, theme: &'static str) -> Self {
+        self.theme = Some(theme);
+        self
     }
 }
 
@@ -1680,6 +1754,133 @@ window.ui = SwaggerUIBundle({
   "withCredentials": true,
   "persistAuthorization": true,
   "layout": "BaseLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_default() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"])
+                .with_syntax_highlight(SyntaxHighlight::default()),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": true
+  },
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_on() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"]).with_syntax_highlight(true),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": true
+  },
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_off() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"]).with_syntax_highlight(false),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": false
+  },
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_default_with_theme() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"])
+                .with_syntax_highlight(SyntaxHighlight::default().theme("monokai")),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": true,
+    "theme": "monokai"
+  },
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset
