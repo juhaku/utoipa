@@ -1349,14 +1349,14 @@ impl From<bool> for SyntaxHighlight {
 }
 
 impl SyntaxHighlight {
-    /// Explicitely specifies whether syntax highlighting is to be
+    /// Explicitly specifies whether syntax highlighting is to be
     /// activated or not.  Defaults to true.
     pub fn activated(mut self, activated: bool) -> Self {
         self.activated = activated;
         self
     }
 
-    /// Explicitely specifies the
+    /// Explicitly specifies the
     /// [Highlight.js](https://highlightjs.org/) coloring theme to
     /// utilize for syntax highlighting.
     pub fn theme(mut self, theme: &'static str) -> Self {
