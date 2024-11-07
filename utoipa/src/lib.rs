@@ -373,7 +373,7 @@ pub trait ToSchema: PartialSchema {
     /// The default implementation naively takes the TypeName by removing
     /// the module path and generic elements.
     /// But you probably don't want to use the default implementation for generic elements.
-    /// That will produce coliision between generics. (eq. `Foo<String>` )
+    /// That will produce collision between generics. (eq. `Foo<String>` )
     ///
     /// # Example
     ///
