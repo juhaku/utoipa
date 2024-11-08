@@ -5,7 +5,7 @@
 use core::fmt;
 use std::cell::{Cell, RefCell};
 
-use actix_service::{IntoServiceFactory, ServiceFactory};
+use actix_service::{IntoServiceFactory, ServiceFactory, Transform};
 use actix_web::body::MessageBody;
 use actix_web::dev::{AppService, HttpServiceFactory, ServiceRequest, ServiceResponse};
 use actix_web::guard::Guard;
@@ -95,6 +95,16 @@ where
     /// Passthrough implementation for [`actix_web::Scope::app_data`].
     pub fn app_data<U: 'static>(self, data: U) -> Self {
         Self(self.0.app_data(data), self.1, self.2)
+    }
+
+    /// Passthrough implementation for [`actix_web::Scope::wrap`].
+    pub fn wrap<M, B>(self, middleware: M) -> Scope<impl ServiceFactory<ServiceRequest, Config = (), Response = ServiceResponse<B>, Error = Error, InitError = ()>>
+    where
+        M: Transform<T::Service, ServiceRequest, Response = ServiceResponse<B>, Error = Error, InitError = ()> + 'static,
+        B: MessageBody,
+    {
+        let scope = self.0.wrap(middleware);
+        Scope(scope, self.1, self.2)
     }
 
     /// Synonymous for [`UtoipaApp::configure`][utoipa_app_configure]
