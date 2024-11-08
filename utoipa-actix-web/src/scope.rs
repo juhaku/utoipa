@@ -98,9 +98,26 @@ where
     }
 
     /// Passthrough implementation for [`actix_web::Scope::wrap`].
-    pub fn wrap<M, B>(self, middleware: M) -> Scope<impl ServiceFactory<ServiceRequest, Config = (), Response = ServiceResponse<B>, Error = Error, InitError = ()>>
+    pub fn wrap<M, B>(
+        self,
+        middleware: M,
+    ) -> Scope<
+        impl ServiceFactory<
+            ServiceRequest,
+            Config = (),
+            Response = ServiceResponse<B>,
+            Error = Error,
+            InitError = (),
+        >,
+    >
     where
-        M: Transform<T::Service, ServiceRequest, Response = ServiceResponse<B>, Error = Error, InitError = ()> + 'static,
+        M: Transform<
+                T::Service,
+                ServiceRequest,
+                Response = ServiceResponse<B>,
+                Error = Error,
+                InitError = (),
+            > + 'static,
         B: MessageBody,
     {
         let scope = self.0.wrap(middleware);
