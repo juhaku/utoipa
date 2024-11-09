@@ -279,7 +279,26 @@ impl OpenApi {
     ///     .build();
     ///  let nested = api.nest("/api/v1/user", user_api);
     /// ```
-    pub fn nest<P: Into<String>, O: Into<OpenApi>>(mut self, path: P, other: O) -> Self {
+    pub fn nest<P: Into<String>, O: Into<OpenApi>>(self, path: P, other: O) -> Self {
+        self.nest_with_path_composer(path, other, |base, path| format!("{base}{path}"))
+    }
+
+    /// Nest `other` [`OpenApi`] with custom path composer.
+    ///
+    /// In most cases you should use [`OpenApi::nest`] instead.
+    /// Only use this method if you need custom path composition for a specific use case.
+    ///
+    /// `composer` is a function that takes two strings, the base path and the path to nest, and returns the composed path for the API Specification.
+    pub fn nest_with_path_composer<
+        P: Into<String>,
+        O: Into<OpenApi>,
+        F: Fn(&str, &str) -> String,
+    >(
+        mut self,
+        path: P,
+        other: O,
+        composer: F,
+    ) -> Self {
         let path: String = path.into();
         let mut other_api: OpenApi = other.into();
 
@@ -288,7 +307,7 @@ impl OpenApi {
             .paths
             .into_iter()
             .map(|(item_path, item)| {
-                let path = format!("{path}{item_path}");
+                let path = composer(&path, &item_path);
                 (path, item)
             })
             .collect::<PathsMap<_, _>>();
