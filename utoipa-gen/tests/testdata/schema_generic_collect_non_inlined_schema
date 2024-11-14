@@ -74,19 +74,7 @@
                   "type": "string"
                 },
                 "t": {
-                  "type": "object",
-                  "required": [
-                    "t"
-                  ],
-                  "properties": {
-                    "t": {
-                      "type": "string",
-                      "enum": [
-                        "One",
-                        "Two"
-                      ]
-                    }
-                  }
+                  "type": "string"
                 }
               }
             },
@@ -97,19 +85,11 @@
               ],
               "properties": {
                 "t": {
-                  "type": "object",
-                  "required": [
-                    "t"
-                  ],
-                  "properties": {
-                    "t": {
-                      "type": "string",
-                      "enum": [
-                        "One",
-                        "Two"
-                      ]
-                    }
-                  }
+                  "type": "string",
+                  "enum": [
+                    "One",
+                    "Two"
+                  ]
                 }
               }
             }
@@ -140,7 +120,7 @@
                 },
                 "t": {
                   "type": "integer",
-                  "format": "int32"
+                  "format": "int64"
                 }
               }
             },
