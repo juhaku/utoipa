@@ -1343,6 +1343,17 @@ pub mod __dev {
         i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
     );
 
+    fn schema_or_compose<T: ComposeSchema>(
+        schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        index: usize,
+    ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        if let Some(schema) = schemas.get(index) {
+            schema.clone()
+        } else {
+            T::compose(schemas)
+        }
+    }
+
     impl ComposeSchema for &str {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1365,7 +1376,7 @@ pub mod __dev {
                     utoipa::openapi::schema::ObjectBuilder::new()
                         .schema_type(utoipa::openapi::schema::Type::Null),
                 )
-                .item(T::compose(schemas))
+                .item(schema_or_compose::<T>(schemas, 0))
                 .into()
         }
     }
@@ -1375,7 +1386,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(T::compose(schemas))
+                .items(schema_or_compose::<T>(schemas, 0))
                 .into()
         }
     }
@@ -1385,7 +1396,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(T::compose(schemas))
+                .items(schema_or_compose::<T>(schemas, 0))
                 .into()
         }
     }
@@ -1395,7 +1406,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(T::compose(schemas))
+                .items(schema_or_compose::<T>(schemas, 0))
                 .into()
         }
     }
@@ -1405,7 +1416,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(T::compose(schemas))
+                .items(schema_or_compose::<T>(schemas, 0))
                 .into()
         }
     }
@@ -1415,7 +1426,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(T::compose(schemas))
+                .items(schema_or_compose::<T>(schemas, 0))
                 .into()
         }
     }
@@ -1425,8 +1436,8 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::ObjectBuilder::new()
-                .property_names(Some(K::compose(schemas.clone())))
-                .additional_properties(Some(T::compose(schemas)))
+                .property_names(Some(schema_or_compose::<K>(schemas.clone(), 0)))
+                .additional_properties(Some(schema_or_compose::<T>(schemas, 1)))
                 .into()
         }
     }
@@ -1436,8 +1447,8 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::ObjectBuilder::new()
-                .property_names(Some(K::compose(schemas.clone())))
-                .additional_properties(Some(T::compose(schemas)))
+                .property_names(Some(schema_or_compose::<K>(schemas.clone(), 0)))
+                .additional_properties(Some(schema_or_compose::<T>(schemas, 1)))
                 .into()
         }
     }
@@ -1447,7 +1458,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(K::compose(schemas))
+                .items(schema_or_compose::<K>(schemas, 0))
                 .unique_items(true)
                 .into()
         }
@@ -1458,7 +1469,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(K::compose(schemas))
+                .items(schema_or_compose::<K>(schemas, 0))
                 .unique_items(true)
                 .into()
         }
@@ -1471,8 +1482,8 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::ObjectBuilder::new()
-                .property_names(Some(K::compose(schemas.clone())))
-                .additional_properties(Some(T::compose(schemas)))
+                .property_names(Some(schema_or_compose::<K>(schemas.clone(), 0)))
+                .additional_properties(Some(schema_or_compose::<T>(schemas, 1)))
                 .into()
         }
     }
@@ -1484,7 +1495,7 @@ pub mod __dev {
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
             utoipa::openapi::schema::ArrayBuilder::new()
-                .items(K::compose(schemas))
+                .items(schema_or_compose::<K>(schemas, 0))
                 .unique_items(true)
                 .into()
         }
@@ -1494,7 +1505,7 @@ pub mod __dev {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-            T::compose(schemas)
+            schema_or_compose::<T>(schemas, 0)
         }
     }
 
@@ -1502,7 +1513,7 @@ pub mod __dev {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-            T::compose(schemas)
+            schema_or_compose::<T>(schemas, 0)
         }
     }
 
@@ -1510,7 +1521,7 @@ pub mod __dev {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-            T::compose(schemas)
+            schema_or_compose::<T>(schemas, 0)
         }
     }
 
@@ -1520,7 +1531,7 @@ pub mod __dev {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-            T::compose(schemas)
+            schema_or_compose::<T>(schemas, 0)
         }
     }
 
@@ -1530,7 +1541,7 @@ pub mod __dev {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-            T::compose(schemas)
+            schema_or_compose::<T>(schemas, 0)
         }
     }
 
