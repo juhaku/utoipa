@@ -554,6 +554,64 @@ fn derive_nest_openapi_with_tags() {
 }
 
 #[test]
+fn openapi_schemas_resolve_generic_enum_schema() {
+    #![allow(dead_code)]
+    use utoipa::ToSchema;
+
+    #[derive(ToSchema)]
+    enum Element<T> {
+        One(T),
+        Many(Vec<T>),
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Element<String>)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+
+    let value = serde_json::to_value(&doc).expect("OpenAPI is JSON serializable");
+    let schemas = value.pointer("/components/schemas").unwrap();
+    let json = serde_json::to_string_pretty(&schemas).expect("OpenAPI is json serializable");
+    println!("{json}");
+
+    assert_json_eq!(
+        schemas,
+        json!({
+            "Element_String": {
+                "oneOf": [
+                    {
+                    "properties": {
+                        "One": {
+                        "type": "string"
+                        }
+                    },
+                    "required": [
+                        "One"
+                    ],
+                    "type": "object"
+                    },
+                    {
+                    "properties": {
+                        "Many": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                        }
+                    },
+                    "required": [
+                        "Many"
+                    ],
+                    "type": "object"
+                    }
+                ]
+            }
+        })
+    )
+}
+
+#[test]
 fn openapi_schemas_resolve_schema_references() {
     #![allow(dead_code)]
     use utoipa::ToSchema;

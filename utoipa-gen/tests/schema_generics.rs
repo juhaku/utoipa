@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
+use assert_json_diff::assert_json_eq;
 use serde::Serialize;
+use serde_json::json;
 use utoipa::openapi::{Info, RefOr, Schema};
 use utoipa::{schema, OpenApi, PartialSchema, ToSchema};
 
@@ -21,6 +23,132 @@ fn generic_schema_custom_bound() {
     fn assert_is_to_schema<T: ToSchema>() {}
 
     assert_is_to_schema::<Type<NoToSchema>>();
+}
+
+#[test]
+fn generic_request_body_schema() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    #[schema(as = path::MyType<T>)]
+    struct Type<T> {
+        #[schema(inline)]
+        t: T,
+    }
+
+    #[derive(ToSchema)]
+    struct Person<T: Sized, P> {
+        field: T,
+        #[schema(inline)]
+        t: P,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/handler",
+        request_body = inline(Person<String, Type<i32>>),
+    )]
+    async fn handler() {}
+
+    #[derive(OpenApi)]
+    #[openapi(
+        components(
+            schemas(
+                Person::<String, Type<i32>>,
+            )
+        ),
+        paths(
+            handler
+        )
+    )]
+    struct ApiDoc;
+
+    let mut doc = ApiDoc::openapi();
+    doc.info = Info::new("title", "version");
+
+    let actual = serde_json::to_value(&doc).expect("operation is JSON serializable");
+    let json = serde_json::to_string_pretty(&actual).unwrap();
+
+    println!("{json}");
+
+    assert_json_eq!(
+        actual,
+        json!({
+            "openapi": "3.1.0",
+            "info": {
+                "title": "title",
+                "version": "version"
+            },
+            "paths": {
+                "/handler": {
+                    "get": {
+                        "tags": [],
+                        "operationId": "handler",
+                        "requestBody": {
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "required": [
+                                            "field",
+                                            "t"
+                                        ],
+                                        "properties": {
+                                            "field": {
+                                                "type": "string"
+                                            },
+                                            "t": {
+                                                "type": "object",
+                                                "required": [
+                                                    "t"
+                                                ],
+                                                "properties": {
+                                                    "t": {
+                                                        "type": "integer",
+                                                        "format": "int32"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "required": true
+                        },
+                        "responses": {}
+                    }
+                }
+            },
+            "components": {
+                "schemas": {
+                    "Person_String_path.MyType_i32": {
+                        "type": "object",
+                        "required": [
+                            "field",
+                            "t"
+                        ],
+                        "properties": {
+                            "field": {
+                                "type": "string"
+                            },
+                            "t": {
+                                "type": "object",
+                                "required": [
+                                    "t"
+                                ],
+                                "properties": {
+                                    "t": {
+                                        "type": "integer",
+                                        "format": "int32"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    );
 }
 
 #[test]
@@ -107,6 +235,7 @@ fn schema_with_non_generic_root() {
 
     #[derive(ToSchema)]
     struct Bar<T> {
+        #[schema(inline)]
         value: T,
     }
 
@@ -231,6 +360,7 @@ fn high_order_types() {
 
     #[derive(ToSchema)]
     pub struct High<T> {
+        #[schema(inline)]
         high: T,
     }
 
