@@ -517,12 +517,24 @@ impl MixedEnumContent {
                     MixedEnumContent::split_enum_features(variant_features);
                 let schema = NamedStructSchema::new(root, fields, variant_features)?;
 
-                let schema_tokens = schema.to_token_stream();
+                let mut schema_tokens = schema.to_token_stream();
                 (
-                    EnumSchema::<ObjectSchema>::tagged(schema_tokens)
-                        .tag(tag, PlainSchema::for_name(name.as_ref()))
-                        .features(enum_features)
-                        .to_token_stream(),
+                    if schema.is_all_of {
+                        let object_builder_tokens = quote! { utoipa::openapi::schema::Object::builder() };
+                        let enum_schema_tokens = EnumSchema::<ObjectSchema>::tagged(object_builder_tokens)
+                            .tag(tag, PlainSchema::for_name(name.as_ref()))
+                            .features(enum_features)
+                            .to_token_stream();
+                        schema_tokens.extend(quote! {
+                            .item(#enum_schema_tokens)
+                        });
+                        schema_tokens
+                    } else {
+                        EnumSchema::<ObjectSchema>::tagged(schema_tokens)
+                            .tag(tag, PlainSchema::for_name(name.as_ref()))
+                            .features(enum_features)
+                            .to_token_stream()
+                    },
                     schema.fields_references,
                 )
             }

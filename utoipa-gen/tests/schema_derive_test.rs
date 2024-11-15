@@ -1090,6 +1090,55 @@ fn derive_simple_enum_serde_tag() {
 }
 
 #[test]
+fn derive_simple_enum_serde_tag_with_flatten_content() {
+    #[derive(Serialize, ToSchema)]
+    #[allow(unused)]
+    struct Foo {
+        name: &'static str,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag")]
+        enum Bar {
+            One {
+                #[serde(flatten)]
+                foo: Foo,
+            },
+        }
+    };
+
+    assert_json_eq!(
+        value,
+        json!({
+            "oneOf": [
+                {
+                    "allOf": [
+                        {
+                            "$ref": "#/components/schemas/Foo",
+                        },
+                         {
+                            "type": "object",
+                            "properties":  {
+                                "tag":  {
+                                    "type": "string",
+                                    "enum":  [
+                                        "One",
+                                    ],
+                                },
+                            },
+                            "required":  [
+                                "tag",
+                            ],
+                        },
+                    ],
+                },
+            ],
+        })
+    );
+}
+
+#[test]
 fn derive_simple_enum_serde_untagged() {
     let value: Value = api_doc! {
         #[derive(Serialize)]

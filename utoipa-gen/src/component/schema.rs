@@ -313,6 +313,7 @@ pub struct NamedStructSchema {
     pub schema_as: Option<As>,
     fields_references: Vec<SchemaReference>,
     bound: Option<Bound>,
+    is_all_of: bool,
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -385,6 +386,7 @@ impl NamedStructSchema {
             .flatten()
             .collect::<Vec<_>>();
 
+        let mut object_tokens_empty = true;
         let object_tokens = fields_vec
             .iter()
             .filter(|(_, field_rules, ..)| !field_rules.skip && !field_rules.flatten)
@@ -415,6 +417,7 @@ impl NamedStructSchema {
                     _field,
                     field_schema,
                 )| {
+                    object_tokens_empty = false;
                     let rename_to = field_rules
                         .rename
                         .as_deref()
@@ -513,8 +516,13 @@ impl NamedStructSchema {
                 tokens.extend(quote! {
                     utoipa::openapi::AllOfBuilder::new()
                         #flattened_tokens
-                    .item(#object_tokens)
+
                 });
+                if !object_tokens_empty {
+                    tokens.extend(quote! {
+                        .item(#object_tokens)
+                    });
+                }
                 true
             }
         } else {
@@ -552,6 +560,7 @@ impl NamedStructSchema {
             schema_as,
             fields_references,
             bound,
+            is_all_of: all_of,
         })
     }
 
