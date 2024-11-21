@@ -9,6 +9,13 @@ use std::{
 use regex::Regex;
 use zip::{result::ZipError, ZipArchive};
 
+#[path = "src/internal/mod.rs"]
+#[cfg(feature = "cache")]
+mod internal;
+
+#[cfg(feature = "cache")]
+use internal::dirs::cache_dir;
+
 /// the following env variables control the build process:
 /// 1. SWAGGER_UI_DOWNLOAD_URL:
 /// + the url from where to download the swagger-ui zip file if starts with http:// or https://
@@ -23,6 +30,11 @@ const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
 
 const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
+
+// wget <url> && sha256sum <file> | tr '[a-z]' '[A-Z]'
+#[cfg(feature = "cache")]
+const SWAGGER_UI_FILE_HASH: &str =
+    "481244D0812097B11FBAEEF79F71D942B171617F9C9F9514E63ACBE13E71CCDC";
 
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
@@ -139,7 +151,7 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
     let zip_filename = url.split('/').last().unwrap().to_string();
     let zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
-    if env::var("CARGO_FEATURE_VENDORED").is_ok() {
+    if cfg!(feature = "vendored") {
         #[cfg(not(feature = "vendored"))]
         unreachable!("Cannot get vendored Swagger UI without `vendored` flag");
 
@@ -173,15 +185,26 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             .expect("failed to open file protocol copied Swagger UI");
         SwaggerZip::File(zip)
     } else if url.starts_with("http://") || url.starts_with("https://") {
-        println!("start download to : {:?}", zip_path);
+        let mut cache_dir = cache_dir()
+            .expect("could not determine cache directory")
+            .join("swagger-ui")
+            .join(SWAGGER_UI_FILE_HASH);
 
-        // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
-        println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
+        if fs::create_dir_all(&cache_dir).is_err() {
+            cache_dir = env::var("OUT_DIR").unwrap().into();
+        }
+        let zip_cache_path = cache_dir.join(&zip_filename);
 
-        download_file(url, zip_path.clone())
-            .unwrap_or_else(|error| panic!("failed to download Swagger UI: {error}"));
-        let swagger_ui_zip =
-            File::open([target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
+        if zip_cache_path.exists() {
+            println!("using cached zip path from : {:?}", zip_cache_path);
+        } else {
+            println!("start download to : {:?}", zip_cache_path);
+
+            // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
+            println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
+            download_file(url, &zip_cache_path).expect("failed to download Swagger UI");
+        }
+        let swagger_ui_zip = File::open(&zip_cache_path).unwrap();
         let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
         SwaggerZip::File(zip)
     } else {
@@ -223,21 +246,20 @@ struct SwaggerUiDist;
     fs::write(path, contents).unwrap();
 }
 
-fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
-    let reqwest_feature = env::var("CARGO_FEATURE_REQWEST");
-    println!("reqwest feature: {reqwest_feature:?}");
-    if reqwest_feature.is_ok() {
-        #[cfg(feature = "reqwest")]
-        download_file_reqwest(url, path)?;
-        Ok(())
-    } else {
+fn download_file(url: &str, path: &Path) -> Result<(), Box<dyn Error>> {
+    #[cfg(feature = "reqwest")]
+    {
+        download_file_reqwest(url, path)
+    }
+    #[cfg(not(feature = "reqwest"))]
+    {
         println!("trying to download using `curl` system package");
-        download_file_curl(url, path.as_path())
+        download_file_curl(url, path)
     }
 }
 
 #[cfg(feature = "reqwest")]
-fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn download_file_reqwest(url: &str, path: &Path) -> Result<(), Box<dyn Error>> {
     let mut client_builder = reqwest::blocking::Client::builder();
 
     if let Ok(cainfo) = env::var("CARGO_HTTP_CAINFO") {
@@ -266,6 +288,7 @@ fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
     Ok(cert)
 }
 
+#[cfg(not(feature = "reqwest"))]
 fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Box<dyn Error>> {
     // Not using `CARGO_CFG_TARGET_OS` because of the possibility of cross-compilation.
     // When targeting `x86_64-pc-windows-gnu` on Linux for example, `cfg!()` in the

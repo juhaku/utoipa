@@ -18,6 +18,7 @@ debug-embed = ["rust-embed/debug-embed"]
 reqwest = ["dep:reqwest"]
 url = ["dep:url"]
 vendored = ["dep:utoipa-swagger-ui-vendored"]
+cache = []
 
 [dependencies]
 rust-embed = { version = "8" }
