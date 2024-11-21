@@ -1,5 +1,11 @@
 # Changelog - utoipa-axum
 
+## Unreleased
+
+### Fixed
+
+* Fix diverging axum route and openapi spec (https://github.com/juhaku/utoipa/pull/1199)
+
 ## 0.1.2 - Oct 29 2024
 
 ### Changed
