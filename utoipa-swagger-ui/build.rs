@@ -191,6 +191,7 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
         // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
         println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
 
+        // Update zip_path to point to the resolved cache directory
         #[cfg(feature = "cache")]
         {
             // Compute cache key based hashed URL + crate version
@@ -199,10 +200,12 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             cache_key.push_str(&env::var("CARGO_PKG_VERSION").unwrap_or_default());
             let cache_key = sha256(cache_key.as_bytes());
             // Store the cache in the cache_key directory inside the OS's default cache folder
-            let mut cache_dir = get_cache_dir()
-                .expect("could not determine cache directory")
-                .join("swagger-ui")
-                .join(cache_key);
+            let mut cache_dir = if let Some(dir) = get_cache_dir() {
+                dir.join("swagger-ui").join(&cache_key)
+            } else {
+                println!("cargo:warning=Could not determine cache directory, using OUT_DIR");
+                PathBuf::from(env::var("OUT_DIR").unwrap())
+            };
             if fs::create_dir_all(&cache_dir).is_err() {
                 cache_dir = env::var("OUT_DIR").unwrap().into();
             }
