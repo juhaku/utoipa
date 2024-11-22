@@ -154,7 +154,7 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
     #[allow(unused_mut)]
     let mut zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
-    if cfg!(feature = "vendored") {
+    if env::var("CARGO_FEATURE_VENDORED").is_ok() {
         #[cfg(not(feature = "vendored"))]
         unreachable!("Cannot get vendored Swagger UI without `vendored` flag");
 
@@ -213,9 +213,9 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
 
             // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
             println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
-            download_file(url, &zip_path).expect("failed to download Swagger UI");
+            download_file(url, zip_path.clone()).expect("failed to download Swagger UI");
         }
-        let swagger_ui_zip = File::open(&zip_path).unwrap();
+        let swagger_ui_zip = File::open(zip_path).unwrap();
         let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
         SwaggerZip::File(zip)
     } else {
@@ -257,15 +257,16 @@ struct SwaggerUiDist;
     fs::write(path, contents).unwrap();
 }
 
-fn download_file(url: &str, path: &Path) -> Result<(), Box<dyn Error>> {
-    #[cfg(feature = "reqwest")]
-    {
-        download_file_reqwest(url, path)
-    }
-    #[cfg(not(feature = "reqwest"))]
-    {
+fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
+    let reqwest_feature = env::var("CARGO_FEATURE_REQWEST");
+    println!("reqwest feature: {reqwest_feature:?}");
+    if reqwest_feature.is_ok() {
+        #[cfg(feature = "reqwest")]
+        download_file_reqwest(url, path)?;
+        Ok(())
+    } else {
         println!("trying to download using `curl` system package");
-        download_file_curl(url, path)
+        download_file_curl(url, path.as_path())
     }
 }
 
@@ -299,7 +300,6 @@ fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
     Ok(cert)
 }
 
-#[cfg(not(feature = "reqwest"))]
 fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Box<dyn Error>> {
     // Not using `CARGO_CFG_TARGET_OS` because of the possibility of cross-compilation.
     // When targeting `x86_64-pc-windows-gnu` on Linux for example, `cfg!()` in the
