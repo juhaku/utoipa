@@ -4,7 +4,7 @@
 
 ### Added
 
-* Cache swagger ui zip in build script (https://github.com/juhaku/utoipa/pull/1214)
+* Add `cache` feature to cache swagger ui zip in build script (https://github.com/juhaku/utoipa/pull/1214)
 
 ### Added
 
