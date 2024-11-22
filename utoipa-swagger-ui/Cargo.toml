@@ -18,6 +18,7 @@ debug-embed = ["rust-embed/debug-embed"]
 reqwest = ["dep:reqwest"]
 url = ["dep:url"]
 vendored = ["dep:utoipa-swagger-ui-vendored"]
+# Cache swagger ui zip
 cache = ["dep:dirs", "dep:sha2"]
 
 [dependencies]
@@ -41,7 +42,7 @@ tokio = { version = "1", features = ["macros"] }
 utoipa-swagger-ui = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
 [package.metadata.docs.rs]
-features = ["actix-web", "axum", "rocket", "vendored"]
+features = ["actix-web", "axum", "rocket", "vendored", "cache"]
 no-default-features = true
 rustdoc-args = ["--cfg", "doc_cfg"]
 
