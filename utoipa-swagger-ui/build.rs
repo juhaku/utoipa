@@ -9,13 +9,6 @@ use std::{
 use regex::Regex;
 use zip::{result::ZipError, ZipArchive};
 
-#[path = "src/internal/mod.rs"]
-#[cfg(feature = "cache")]
-mod internal;
-
-#[cfg(feature = "cache")]
-use internal::dirs::cache_dir;
-
 /// the following env variables control the build process:
 /// 1. SWAGGER_UI_DOWNLOAD_URL:
 /// + the url from where to download the swagger-ui zip file if starts with http:// or https://
@@ -31,10 +24,19 @@ const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
 const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
 
-// wget <url> && sha256sum <file> | tr '[a-z]' '[A-Z]'
 #[cfg(feature = "cache")]
-const SWAGGER_UI_FILE_HASH: &str =
-    "481244D0812097B11FBAEEF79F71D942B171617F9C9F9514E63ACBE13E71CCDC";
+fn sha256(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    let hash = hasher.finalize();
+    format!("{:x}", hash).to_uppercase()
+}
+
+#[cfg(feature = "cache")]
+fn get_cache_dir() -> Option<PathBuf> {
+    dirs::cache_dir().map(|p| p.join("utoipa-swagger-ui"))
+}
 
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
@@ -149,7 +151,8 @@ impl SwaggerZip {
 
 fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
     let zip_filename = url.split('/').last().unwrap().to_string();
-    let zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
+    #[allow(unused_mut)]
+    let mut zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
     if cfg!(feature = "vendored") {
         #[cfg(not(feature = "vendored"))]
@@ -185,26 +188,34 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             .expect("failed to open file protocol copied Swagger UI");
         SwaggerZip::File(zip)
     } else if url.starts_with("http://") || url.starts_with("https://") {
-        let mut cache_dir = cache_dir()
-            .expect("could not determine cache directory")
-            .join("swagger-ui")
-            .join(SWAGGER_UI_FILE_HASH);
-
-        if fs::create_dir_all(&cache_dir).is_err() {
-            cache_dir = env::var("OUT_DIR").unwrap().into();
+        #[cfg(feature = "cache")]
+        {
+            // Compute cache key based hashed URL + crate version
+            let mut cache_key = String::new();
+            cache_key.push_str(url);
+            cache_key.push_str(&env::var("CARGO_PKG_VERSION").unwrap_or_default());
+            let cache_key = sha256(cache_key.as_bytes());
+            // Store the cache in the cache_key directory inside the OS's default cache folder
+            let mut cache_dir = get_cache_dir()
+                .expect("could not determine cache directory")
+                .join("swagger-ui")
+                .join(cache_key);
+            if fs::create_dir_all(&cache_dir).is_err() {
+                cache_dir = env::var("OUT_DIR").unwrap().into();
+            }
+            zip_path = cache_dir.join(&zip_filename);
         }
-        let zip_cache_path = cache_dir.join(&zip_filename);
 
-        if zip_cache_path.exists() {
-            println!("using cached zip path from : {:?}", zip_cache_path);
+        if zip_path.exists() {
+            println!("using cached zip path from : {:?}", zip_path);
         } else {
-            println!("start download to : {:?}", zip_cache_path);
+            println!("start download to : {:?}", zip_path);
 
             // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
             println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
-            download_file(url, &zip_cache_path).expect("failed to download Swagger UI");
+            download_file(url, &zip_path).expect("failed to download Swagger UI");
         }
-        let swagger_ui_zip = File::open(&zip_cache_path).unwrap();
+        let swagger_ui_zip = File::open(&zip_path).unwrap();
         let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
         SwaggerZip::File(zip)
     } else {
