@@ -188,6 +188,9 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             .expect("failed to open file protocol copied Swagger UI");
         SwaggerZip::File(zip)
     } else if url.starts_with("http://") || url.starts_with("https://") {
+        // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
+        println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
+
         #[cfg(feature = "cache")]
         {
             // Compute cache key based hashed URL + crate version
@@ -210,9 +213,6 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             println!("using cached zip path from : {:?}", zip_path);
         } else {
             println!("start download to : {:?}", zip_path);
-
-            // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
-            println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
             download_file(url, zip_path.clone()).expect("failed to download Swagger UI");
         }
         let swagger_ui_zip = File::open(zip_path).unwrap();
