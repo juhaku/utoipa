@@ -271,7 +271,7 @@ fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(feature = "reqwest")]
-fn download_file_reqwest(url: &str, path: &Path) -> Result<(), Box<dyn Error>> {
+fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let mut client_builder = reqwest::blocking::Client::builder();
 
     if let Ok(cainfo) = env::var("CARGO_HTTP_CAINFO") {
