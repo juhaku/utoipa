@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Fixed
+
+* Fix diverging axum route and openapi spec (https://github.com/juhaku/utoipa/pull/1199)
+
 ## 5.2.0 - Nov 2024
 
 ### Changed

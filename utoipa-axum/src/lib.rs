@@ -313,7 +313,7 @@ mod tests {
         let paths = router.to_openapi().paths;
         let expected_paths = utoipa::openapi::path::PathsBuilder::new()
             .path(
-                "/api/customer/",
+                "/api/customer",
                 utoipa::openapi::PathItem::new(
                     utoipa::openapi::path::HttpMethod::Get,
                     utoipa::openapi::path::OperationBuilder::new()
