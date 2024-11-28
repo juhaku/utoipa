@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Fixed
+
+* Fix tagged enum with flatten fields (https://github.com/juhaku/utoipa/pull/1208)
+
 ## 5.2.0 - Nov 2024
 
 ### Fixed
@@ -454,7 +460,7 @@
 * Add support for multiple examples in response (https://github.com/juhaku/utoipa/pull/403)
 * Add Example type to OpenApi types (https://github.com/juhaku/utoipa/pull/402)
 * Add derive info support for derive OpenApi (https://github.com/juhaku/utoipa/pull/400)
-* Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397) 
+* Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397)
 * Add derive servers attribute for OpenApi (https://github.com/juhaku/utoipa/pull/395)
 * Add support for unit sructs (https://github.com/juhaku/utoipa/pull/392)
 * Add support for `schema_with` custom fn reference (https://github.com/juhaku/utoipa/pull/390)
