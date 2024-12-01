@@ -34,6 +34,8 @@ impl ArgumentResolver for PathOperations {
                     .map(|(value_arg, macro_arg)| ValueArgument {
                         name: match macro_arg {
                             MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+                            #[cfg(feature = "rocket_extras")]
+                            MacroArg::Query(_) => None,
                         },
                         argument_in: value_arg.argument_in,
                         type_tree: value_arg.type_tree,

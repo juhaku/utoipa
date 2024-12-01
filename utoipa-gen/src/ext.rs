@@ -50,6 +50,8 @@ impl<'v> From<(MacroArg, TypeTree<'v>)> for ValueArgument<'v> {
         Self {
             name: match macro_arg {
                 MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+                #[cfg(feature = "rocket_extras")]
+                MacroArg::Query(_) => None,
             },
             type_tree: Some(primitive_arg),
             argument_in: ArgumentIn::Path,
