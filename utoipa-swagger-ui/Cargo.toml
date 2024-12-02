@@ -18,6 +18,8 @@ debug-embed = ["rust-embed/debug-embed"]
 reqwest = ["dep:reqwest"]
 url = ["dep:url"]
 vendored = ["dep:utoipa-swagger-ui-vendored"]
+# cache swagger ui zip
+cache = ["dep:dirs", "dep:sha2"]
 
 [dependencies]
 rust-embed = { version = "8" }
@@ -40,13 +42,17 @@ tokio = { version = "1", features = ["macros"] }
 utoipa-swagger-ui = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
 [package.metadata.docs.rs]
-features = ["actix-web", "axum", "rocket", "vendored"]
+features = ["actix-web", "axum", "rocket", "vendored", "cache"]
 no-default-features = true
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
 zip = { version = "2", default-features = false, features = ["deflate"] }
 regex = "1.7"
+
+# used by cache feature
+dirs = { version = "5.0.1", optional = true }
+sha2 = { version = "0.10.8", optional = true }
 
 # enabled optionally to allow rust only build with expense of bigger dependency tree and platform
 # independent build. By default `curl` system package is tried for downloading the Swagger UI.
