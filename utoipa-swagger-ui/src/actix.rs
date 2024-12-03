@@ -57,7 +57,9 @@ impl HttpServiceFactory for SwaggerUi {
                     }
                     return Box::pin(future::ready(Ok(ServiceResponse::new(
                         req.request().clone(),
-                        HttpResponse::Unauthorized().finish(),
+                        HttpResponse::Unauthorized()
+                            .insert_header(("WWW-Authenticate", "Basic realm=\":\""))
+                            .finish(),
                     ))));
                 }
                 srv.call(req)
