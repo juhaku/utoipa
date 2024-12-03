@@ -3,10 +3,16 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::Path, http::StatusCode, response::IntoResponse, routing, Extension, Json, Router,
+    body::Body,
+    extract::Path,
+    http::{HeaderMap, Request, Response, StatusCode},
+    middleware::{self, Next},
+    response::IntoResponse,
+    routing, Extension, Json, Router,
 };
+use base64::{prelude::BASE64_STANDARD, Engine};
 
-use crate::{ApiDoc, Config, SwaggerUi, Url};
+use crate::{ApiDoc, BasicAuth, Config, SwaggerUi, Url};
 
 impl<S> From<SwaggerUi> for Router<S>
 where
@@ -42,10 +48,10 @@ where
             Config::new(urls)
         };
 
-        let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config)));
+        let handler = routing::get(serve_swagger_ui).layer(Extension(Arc::new(config.clone())));
         let path: &str = swagger_ui.path.as_ref();
 
-        if path == "/" {
+        let mut router = if path == "/" {
             router
                 .route(path, handler.clone())
                 .route(&format!("{}*rest", path), handler)
@@ -65,7 +71,38 @@ where
                 )
                 .route(&format!("{}/", path), handler.clone())
                 .route(&format!("{}/*rest", path), handler)
+        };
+
+        if let Some(BasicAuth { username, password }) = config.basic_auth {
+            let username = Arc::new(username);
+            let password = Arc::new(password);
+            let basic_auth_middleware =
+                move |headers: HeaderMap, req: Request<Body>, next: Next| {
+                    let username = username.clone();
+                    let password = password.clone();
+                    async move {
+                        if let Some(header) = headers.get("Authorization") {
+                            if let Ok(header_str) = header.to_str() {
+                                let base64_encoded_credentials =
+                                    BASE64_STANDARD.encode(format!("{}:{}", &username, &password));
+                                if header_str == format!("Basic {}", base64_encoded_credentials) {
+                                    return Ok::<Response<Body>, StatusCode>(next.run(req).await);
+                                }
+                            }
+                        }
+                        Ok::<Response<Body>, StatusCode>(
+                            (
+                                StatusCode::UNAUTHORIZED,
+                                [("WWW-Authenticate", "Basic realm=\":\"")],
+                            )
+                                .into_response(),
+                        )
+                    }
+                };
+            router = router.layer(middleware::from_fn(basic_auth_middleware));
         }
+
+        router
     }
 }
 
@@ -150,6 +187,35 @@ mod tests {
         let response = server.get("/swagger-ui/").await;
         response.assert_status_ok();
         let response = server.get("/swagger-ui/swagger-ui.css").await;
+        response.assert_status_ok();
+    }
+
+    #[tokio::test]
+    async fn basic_auth() {
+        let swagger_ui =
+            SwaggerUi::new("/swagger-ui").config(Config::default().basic_auth(BasicAuth {
+                username: "admin".to_string(),
+                password: "password".to_string(),
+            }));
+        let app = Router::<()>::from(swagger_ui);
+        let server = TestServer::new(app).unwrap();
+        let response = server.get("/swagger-ui").await;
+        response.assert_status_unauthorized();
+        let encoded_credentials = BASE64_STANDARD.encode("admin:password");
+        let response = server
+            .get("/swagger-ui")
+            .authorization(format!("Basic {}", encoded_credentials))
+            .await;
+        response.assert_status_see_other();
+        let response = server
+            .get("/swagger-ui/")
+            .authorization(format!("Basic {}", encoded_credentials))
+            .await;
+        response.assert_status_ok();
+        let response = server
+            .get("/swagger-ui/swagger-ui.css")
+            .authorization(format!("Basic {}", encoded_credentials))
+            .await;
         response.assert_status_ok();
     }
 }
