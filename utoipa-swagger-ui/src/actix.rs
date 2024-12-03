@@ -3,7 +3,11 @@
 use std::future;
 
 use actix_web::{
-    web, dev::{HttpServiceFactory, Service, ServiceResponse}, guard::Get, web::Data, HttpResponse, Resource, Responder as ActixResponder
+    dev::{HttpServiceFactory, Service, ServiceResponse},
+    guard::Get,
+    web,
+    web::Data,
+    HttpResponse, Resource, Responder as ActixResponder,
 };
 use base64::Engine;
 
@@ -25,34 +29,40 @@ impl HttpServiceFactory for SwaggerUi {
         });
         urls.extend(external_api_docs);
 
-
         let swagger_resource = Resource::new(self.path.as_ref())
-        .guard(Get())
-        .app_data(Data::new(if let Some(config) = self.config.clone() {
-            if config.url.is_some() || !config.urls.is_empty() {
-                config
-            } else {
-                config.configure_defaults(urls)
-            }
-        } else {
-            Config::new(urls)
-        }))
-        .wrap_fn(move |req, srv| {
-            if let Some(BasicAuth { username, password }) = self.config.as_ref().and_then(|config| config.basic_auth.clone()) {
-                let encoded_credentials = format!("Basic {}", base64::prelude::BASE64_STANDARD.encode(format!("{username}:{password}")));
-                if let Some(auth_header) = req.headers().get("Authorization") {
-                    if auth_header.to_str().unwrap() == encoded_credentials {
-                        return srv.call(req);
-                    }
+            .guard(Get())
+            .app_data(Data::new(if let Some(config) = self.config.clone() {
+                if config.url.is_some() || !config.urls.is_empty() {
+                    config
+                } else {
+                    config.configure_defaults(urls)
                 }
-                return Box::pin(future::ready(Ok(ServiceResponse::new(
-                    req.request().clone(),
-                    HttpResponse::Unauthorized().finish(),
-                ))))
-            }
-            srv.call(req)
-        })
-        .to(serve_swagger_ui);
+            } else {
+                Config::new(urls)
+            }))
+            .wrap_fn(move |req, srv| {
+                if let Some(BasicAuth { username, password }) = self
+                    .config
+                    .as_ref()
+                    .and_then(|config| config.basic_auth.clone())
+                {
+                    let encoded_credentials = format!(
+                        "Basic {}",
+                        base64::prelude::BASE64_STANDARD.encode(format!("{username}:{password}"))
+                    );
+                    if let Some(auth_header) = req.headers().get("Authorization") {
+                        if auth_header.to_str().unwrap() == encoded_credentials {
+                            return srv.call(req);
+                        }
+                    }
+                    return Box::pin(future::ready(Ok(ServiceResponse::new(
+                        req.request().clone(),
+                        HttpResponse::Unauthorized().finish(),
+                    ))));
+                }
+                srv.call(req)
+            })
+            .to(serve_swagger_ui);
 
         HttpServiceFactory::register(swagger_resource, config);
     }
@@ -99,18 +109,24 @@ mod tests {
 
         assert!(resp.status().is_success());
     }
-    
+
     #[actix_web::test]
     async fn basic_auth() {
-        let swagger_ui = SwaggerUi::new("/swagger-ui/{_:.*}")
-            .config(Config::default().basic_auth(BasicAuth { username: "admin".to_string(), password: "password".to_string() }));
+        let swagger_ui =
+            SwaggerUi::new("/swagger-ui/{_:.*}").config(Config::default().basic_auth(BasicAuth {
+                username: "admin".to_string(),
+                password: "password".to_string(),
+            }));
 
         let app = test::init_service(App::new().service(swagger_ui)).await;
         let req = test::TestRequest::get().uri("/swagger-ui/").to_request();
         let resp = test::call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
         let encoded_credentials = BASE64_STANDARD.encode("admin:password");
-        let req = test::TestRequest::get().uri("/swagger-ui/").insert_header(("Authorization", format!("Basic {}", encoded_credentials))).to_request();
+        let req = test::TestRequest::get()
+            .uri("/swagger-ui/")
+            .insert_header(("Authorization", format!("Basic {}", encoded_credentials)))
+            .to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
     }

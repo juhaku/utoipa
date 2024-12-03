@@ -4,7 +4,12 @@ use std::{borrow::Cow, io::Cursor, sync::Arc};
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use rocket::{
-    http::{Header, Status}, request::{self, FromRequest}, response::{status::NotFound, Responder as RocketResponder}, route::{Handler, Outcome}, serde::json::Json, Data as RocketData, Request, Response, Route
+    http::{Header, Status},
+    request::{self, FromRequest},
+    response::{status::NotFound, Responder as RocketResponder},
+    route::{Handler, Outcome},
+    serde::json::Json,
+    Data as RocketData, Request, Response, Route,
 };
 
 use crate::{ApiDoc, BasicAuth, Config, SwaggerFile, SwaggerUi};
@@ -76,7 +81,11 @@ impl Handler for ServeSwagger {
         if let Some(basic_auth) = &self.1.clone().basic_auth {
             let request_guard = request.guard::<BasicAuth>().await;
             match request_guard {
-                request::Outcome::Success(BasicAuth { username, password }) if username == basic_auth.username && password == basic_auth.password => (),
+                request::Outcome::Success(BasicAuth { username, password })
+                    if username == basic_auth.username && password == basic_auth.password =>
+                {
+                    ()
+                }
                 _ => return Outcome::from(request, BasicAuthErrorResponse),
             }
         }
@@ -148,7 +157,10 @@ impl<'r> FromRequest<'r> for BasicAuth {
                     .and_then(|b| String::from_utf8(b).ok())
                     .and_then(|s| {
                         if let Some((username, password)) = s.split_once(':') {
-                            Some(BasicAuth { username: username.to_string(), password: password.to_string() })
+                            Some(BasicAuth {
+                                username: username.to_string(),
+                                password: password.to_string(),
+                            })
                         } else {
                             None
                         }
@@ -182,15 +194,24 @@ mod tests {
 
     #[test]
     fn basic_auth() {
-        let swagger_ui = SwaggerUi::new("/swagger-ui")
-            .config(Config::default().basic_auth(BasicAuth { username: "admin".to_string(), password: "password".to_string() }));
+        let swagger_ui =
+            SwaggerUi::new("/swagger-ui").config(Config::default().basic_auth(BasicAuth {
+                username: "admin".to_string(),
+                password: "password".to_string(),
+            }));
         let routes: Vec<Route> = swagger_ui.into();
         let rocket = rocket::build().mount("/", routes);
         let client = Client::tracked(rocket).unwrap();
         let response = client.get("/swagger-ui").dispatch();
         assert_eq!(response.status(), Status::Unauthorized);
         let encoded_credentials = BASE64_STANDARD.encode("admin:password");
-        let response = client.get("/swagger-ui").header(Header::new("Authorization", format!("Basic {}", encoded_credentials))).dispatch();
+        let response = client
+            .get("/swagger-ui")
+            .header(Header::new(
+                "Authorization",
+                format!("Basic {}", encoded_credentials),
+            ))
+            .dispatch();
         assert_eq!(response.status(), Status::Ok);
     }
 }
