@@ -34,6 +34,7 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
   variable. This is only enabled by default on _Windows_.
 * **`url`** Enabled by default for parsing and encoding the download URL.
 * **`vendored`** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
+- **`cache`** Enables caching of the Swagger UI download in `utoipa-swagger-ui` during the build process.
 
 ## Install
 
