@@ -22,7 +22,7 @@ vendored = ["dep:utoipa-swagger-ui-vendored"]
 [dependencies]
 rust-embed = { version = "8" }
 mime_guess = { version = "2.0" }
-actix-web = { version = "4", optional = true, default-features = false }
+actix-web = { version = "4", optional = true, default-features = false, features = ["macros"] }
 rocket = { version = "0.5", features = ["json"], optional = true }
 axum = { version = "0.7", default-features = false, features = [
     "json",
