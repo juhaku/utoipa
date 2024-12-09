@@ -669,6 +669,10 @@ pub struct Config<'a> {
 
     /// The layout of Swagger UI uses, default is `"StandaloneLayout"`.
     layout: &'a str,
+
+    /// Basic authentication configuration. If configured, the Swagger UI will prompt for basic auth credentials.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    basic_auth: Option<BasicAuth>,
 }
 
 impl<'a> Config<'a> {
@@ -1268,6 +1272,25 @@ impl<'a> Config<'a> {
 
         self
     }
+
+    /// Set basic authentication configuration.
+    /// If configured, the Swagger UI will prompt for basic auth credentials.
+    /// username and password are required. "{username}:{password}" will be base64 encoded and added to the "Authorization" header.
+    /// If not provided or wrong credentials are provided, the user will be prompted again.
+    /// # Examples
+    ///
+    /// Configure basic authentication.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// # use utoipa_swagger_ui::BasicAuth;
+    /// let config = Config::new(["/api-docs/openapi.json"])
+    ///     .basic_auth(BasicAuth { username: "admin".to_string(), password: "password".to_string() });
+    /// ```
+    pub fn basic_auth(mut self, basic_auth: BasicAuth) -> Self {
+        self.basic_auth = Some(basic_auth);
+
+        self
+    }
 }
 
 impl Default for Config<'_> {
@@ -1301,6 +1324,7 @@ impl Default for Config<'_> {
             oauth: Default::default(),
             syntax_highlight: Default::default(),
             layout: SWAGGER_STANDALONE_LAYOUT,
+            basic_auth: Default::default(),
         }
     }
 }
@@ -1315,6 +1339,16 @@ impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
         Self::new([s])
     }
+}
+
+/// Basic auth options for Swagger UI. By providing `BasicAuth` to `Config::basic_auth` the access to the
+/// Swagger UI can be restricted behind given basic authentication.
+#[derive(Serialize, Clone)]
+pub struct BasicAuth {
+    /// Username for the `BasicAuth`
+    pub username: String,
+    /// Password of the _`username`_ for the `BasicAuth`
+    pub password: String,
 }
 
 /// Represents settings related to syntax highlighting of payloads and
