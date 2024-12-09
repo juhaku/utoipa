@@ -4,6 +4,7 @@
 
 ### Fixed
 
+* Fix axum path nesting (https://github.com/juhaku/utoipa/pull/1231)
 * Fix diverging axum route and openapi spec (https://github.com/juhaku/utoipa/pull/1199)
 
 ## 0.1.2 - Oct 29 2024
