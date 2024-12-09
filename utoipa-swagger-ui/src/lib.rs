@@ -1345,6 +1345,7 @@ impl From<String> for Config<'_> {
 /// Swagger UI can be restricted behind given basic authentication. 
 #[derive(Serialize, Clone)]
 pub struct BasicAuth {
+    /// Username for the `BasicAuth`
     pub username: String,
     pub password: String,
 }
