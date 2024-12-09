@@ -4,8 +4,8 @@
 
 ### Added
 
-* Allow disabling syntax highlighting (https://github.com/juhaku/utoipa/pull/1188)
 * Add basic auth support for actix, rocket, axum (https://github.com/juhaku/utoipa/pull/1221)
+* Allow disabling syntax highlighting (https://github.com/juhaku/utoipa/pull/1188)
 
 ## 8.0.3 - Oct 23 2024
 
