@@ -5,6 +5,7 @@
 ### Added
 
 * Add basic auth support for actix, rocket, axum (https://github.com/juhaku/utoipa/pull/1221)
+* Add `cache` feature to cache swagger ui zip in build script (https://github.com/juhaku/utoipa/pull/1214)
 * Allow disabling syntax highlighting (https://github.com/juhaku/utoipa/pull/1188)
 
 ## 8.0.3 - Oct 23 2024

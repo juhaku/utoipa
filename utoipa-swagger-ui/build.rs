@@ -24,6 +24,20 @@ const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
 const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
 
+#[cfg(feature = "cache")]
+fn sha256(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    let hash = hasher.finalize();
+    format!("{:x}", hash).to_uppercase()
+}
+
+#[cfg(feature = "cache")]
+fn get_cache_dir() -> Option<PathBuf> {
+    dirs::cache_dir().map(|p| p.join("utoipa-swagger-ui"))
+}
+
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
     println!("OUT_DIR: {target_dir}");
@@ -137,7 +151,8 @@ impl SwaggerZip {
 
 fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
     let zip_filename = url.split('/').last().unwrap().to_string();
-    let zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
+    #[allow(unused_mut)]
+    let mut zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
     if env::var("CARGO_FEATURE_VENDORED").is_ok() {
         #[cfg(not(feature = "vendored"))]
@@ -173,15 +188,37 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             .expect("failed to open file protocol copied Swagger UI");
         SwaggerZip::File(zip)
     } else if url.starts_with("http://") || url.starts_with("https://") {
-        println!("start download to : {:?}", zip_path);
-
         // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
         println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
 
-        download_file(url, zip_path.clone())
-            .unwrap_or_else(|error| panic!("failed to download Swagger UI: {error}"));
-        let swagger_ui_zip =
-            File::open([target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
+        // Update zip_path to point to the resolved cache directory
+        #[cfg(feature = "cache")]
+        {
+            // Compute cache key based hashed URL + crate version
+            let mut cache_key = String::new();
+            cache_key.push_str(url);
+            cache_key.push_str(&env::var("CARGO_PKG_VERSION").unwrap_or_default());
+            let cache_key = sha256(cache_key.as_bytes());
+            // Store the cache in the cache_key directory inside the OS's default cache folder
+            let mut cache_dir = if let Some(dir) = get_cache_dir() {
+                dir.join("swagger-ui").join(&cache_key)
+            } else {
+                println!("cargo:warning=Could not determine cache directory, using OUT_DIR");
+                PathBuf::from(env::var("OUT_DIR").unwrap())
+            };
+            if fs::create_dir_all(&cache_dir).is_err() {
+                cache_dir = env::var("OUT_DIR").unwrap().into();
+            }
+            zip_path = cache_dir.join(&zip_filename);
+        }
+
+        if zip_path.exists() {
+            println!("using cached zip path from : {:?}", zip_path);
+        } else {
+            println!("start download to : {:?}", zip_path);
+            download_file(url, zip_path.clone()).expect("failed to download Swagger UI");
+        }
+        let swagger_ui_zip = File::open(zip_path).unwrap();
         let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
         SwaggerZip::File(zip)
     } else {
