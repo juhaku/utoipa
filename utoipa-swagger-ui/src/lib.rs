@@ -1342,7 +1342,7 @@ impl From<String> for Config<'_> {
 }
 
 /// Basic auth options for Swagger UI. By providing `BasicAuth` to `Config::basic_auth` the access to the
-/// Swagger UI can be restricted behind given basic authentication. 
+/// Swagger UI can be restricted behind given basic authentication.
 #[derive(Serialize, Clone)]
 pub struct BasicAuth {
     /// Username for the `BasicAuth`
