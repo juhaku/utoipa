@@ -1347,6 +1347,7 @@ impl From<String> for Config<'_> {
 pub struct BasicAuth {
     /// Username for the `BasicAuth`
     pub username: String,
+    /// Password of the _`username`_ for the `BasicAuth`
     pub password: String,
 }
 
