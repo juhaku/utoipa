@@ -90,7 +90,7 @@ impl<'m> MediaTypeAttr<'m> {
     }
 
     pub fn parse_named_attributes(
-        media_type: &mut MediaTypeAttr,
+        &mut self,
         input: ParseStream,
         attribute: &Ident,
     ) -> syn::Result<()> {
@@ -98,12 +98,12 @@ impl<'m> MediaTypeAttr<'m> {
 
         match name {
             "example" => {
-                media_type.example = Some(parse_utils::parse_next(input, || {
+                self.example = Some(parse_utils::parse_next(input, || {
                     AnyValue::parse_any(input)
                 })?)
             }
             "examples" => {
-                media_type.examples = parse_utils::parse_comma_separated_within_parenthesis(input)?
+                self.examples = parse_utils::parse_comma_separated_within_parenthesis(input)?
             }
             // // TODO implement encoding support
             // "encoding" => (),

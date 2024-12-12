@@ -5,6 +5,7 @@
 ### Changed
 
 * Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
+* Make `parse_named_attributes` a method of `MediaTypeAttr` (https://github.com/juhaku/utoipa/pull/1236)
 
 ### Fixed
 

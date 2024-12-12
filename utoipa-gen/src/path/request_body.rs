@@ -174,14 +174,11 @@ impl Parse for RequestBodyAttr<'_> {
                         request_body_attr.description = Some(parse::description(&group)?);
                     }
                     _ => {
-                        MediaTypeAttr::parse_named_attributes(
-                            request_body_attr
-                                .content
-                                .get_mut(0)
-                                .expect("parse request body named attributes must have media type"),
-                            &group,
-                            &ident,
-                        )?;
+                        request_body_attr
+                            .content
+                            .get_mut(0)
+                            .expect("parse request body named attributes must have media type")
+                            .parse_named_attributes(&group, &ident)?;
                     }
                 }
 
