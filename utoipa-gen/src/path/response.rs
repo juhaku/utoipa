@@ -323,13 +323,12 @@ impl<'r> ResponseValue<'r> {
                 self.links = parse_utils::parse_comma_separated_within_parenthesis(input)?;
             }
             _ => {
-                MediaTypeAttr::parse_named_attributes(
-                    self.content.get_mut(0).expect(
+                self.content
+                    .get_mut(0)
+                    .expect(
                         "parse named attributes response value must have one media type by default",
-                    ),
-                    input,
-                    attribute,
-                )?;
+                    )
+                    .parse_named_attributes(input, attribute)?;
             }
         }
         Ok(())
