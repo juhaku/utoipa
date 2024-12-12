@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -16,11 +17,15 @@ use crate::{parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics};
 use super::example::Example;
 use super::PathTypeTree;
 
+pub mod encoding;
+
+use encoding::Encoding;
+
 /// Parse OpenAPI Media Type object params
 /// ( Schema )
 /// ( Schema = "content/type" )
 /// ( "content/type", ),
-/// ( "content/type", example = ..., examples(..., ...), encoding(...) )
+/// ( "content/type", example = ..., examples(..., ...), encoding(("exampleField" = (...)), ...) )
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct MediaTypeAttr<'m> {
@@ -28,7 +33,7 @@ pub struct MediaTypeAttr<'m> {
     pub schema: Schema<'m>,
     pub example: Option<AnyValue>,
     pub examples: Punctuated<Example, Comma>,
-    // econding: String, // TODO parse encoding
+    pub encoding: BTreeMap<String, Encoding>,
 }
 
 impl Parse for MediaTypeAttr<'_> {
@@ -105,13 +110,41 @@ impl<'m> MediaTypeAttr<'m> {
             "examples" => {
                 self.examples = parse_utils::parse_comma_separated_within_parenthesis(input)?
             }
-            // // TODO implement encoding support
-            // "encoding" => (),
+            "encoding" => {
+                struct KV {
+                    k: String,
+                    v: Encoding,
+                }
+
+                impl Parse for KV {
+                    fn parse(input: ParseStream) -> syn::Result<Self> {
+                        let key_val;
+
+                        syn::parenthesized!(key_val in input);
+
+                        let k = key_val.parse::<syn::LitStr>()?.value();
+
+                        key_val.parse::<Token![=]>()?;
+
+                        let v = key_val.parse::<Encoding>()?;
+
+                        if !key_val.is_empty() {
+                            key_val.parse::<Comma>()?;
+                        }
+
+                        Ok(KV{k, v})
+                    }
+                }
+
+                let fields = parse_utils::parse_comma_separated_within_parenthesis::<KV>(input)?;
+
+                self.encoding = fields.into_iter().map(|x| (x.k, x.v)).collect();
+            }
             unexpected => {
                 return Err(syn::Error::new(
                     attribute.span(),
                     format!(
-                        "unexpected attribute: {unexpected}, expected any of: example, examples"
+                        "unexpected attribute: {unexpected}, expected any of: example, examples, encoding(...)"
                     ),
                 ))
             }
@@ -151,12 +184,17 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
         } else {
             None
         };
+        let encoding = self
+            .encoding
+            .iter()
+            .map(|(field_name, encoding)| quote!(.encoding(#field_name, #encoding)));
 
         tokens.extend(quote! {
             utoipa::openapi::content::ContentBuilder::new()
                 #schema_tokens
                 #example
                 #examples
+                #(#encoding)*
                 .into()
         });
 

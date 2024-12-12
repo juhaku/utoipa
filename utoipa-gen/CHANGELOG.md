@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+* Add `encoding` support for `request_body` (https://github.com/juhaku/utoipa/pull/1237)
+
 ### Changed
 
 * Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)

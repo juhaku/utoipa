@@ -386,7 +386,7 @@ fn multiple_content_with_examples() {
                     ("example2" = (value = json!("example value"), description = "example value") ),
                     ),
                 ),
-                ( Foo = "text/xml", example = "Value" ) 
+                ( Foo = "text/xml", example = "Value" )
             ),
         ),
         responses(

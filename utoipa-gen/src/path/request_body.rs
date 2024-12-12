@@ -1,7 +1,6 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
-use syn::punctuated::Punctuated;
 use syn::token::Paren;
 use syn::{parse::Parse, Error, Token};
 
@@ -110,7 +109,7 @@ impl<'r> RequestBodyAttr<'r> {
 impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: content, content_type, description, examples, example";
+            "unexpected attribute, expected any of: content, content_type, description, examples, example, encoding";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
@@ -193,9 +192,7 @@ impl Parse for RequestBodyAttr<'_> {
 
             let media_type = MediaTypeAttr {
                 schema: Schema::Default(MediaTypeAttr::parse_schema(input)?),
-                content_type: None,
-                example: None,
-                examples: Punctuated::default(),
+                ..MediaTypeAttr::default()
             };
 
             Ok(RequestBodyAttr {

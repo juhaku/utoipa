@@ -360,6 +360,7 @@ impl<'r> ResponseValue<'r> {
                 .examples
                 .map(|(examples, _)| examples)
                 .unwrap_or_default(),
+            ..MediaTypeAttr::default()
         };
 
         Self {
@@ -389,6 +390,7 @@ impl<'r> ResponseValue<'r> {
                 .examples
                 .map(|(examples, _)| examples)
                 .unwrap_or_default(),
+            ..MediaTypeAttr::default()
         };
 
         ResponseValue {

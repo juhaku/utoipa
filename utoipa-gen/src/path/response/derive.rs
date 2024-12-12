@@ -649,6 +649,7 @@ impl<'r> EnumResponse<'r> {
                             schema: schema.unwrap_or_else(|| Schema::Default(DefaultSchema::None)),
                             example,
                             examples: examples.unwrap_or_default(),
+                            ..MediaTypeAttr::default()
                         }
                     },
                 )
