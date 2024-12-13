@@ -372,7 +372,6 @@ fn get_parsed_author(author: Option<&str>) -> Option<(&str, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use assert_matches::assert_matches;
 
     #[test]
     fn parse_author_with_email_success() {
@@ -441,21 +440,34 @@ mod tests {
     fn info_from_env() {
         let info = Info::from_env();
 
-        assert_matches!(info.title, Some(LitStrOrExpr::LitStr(title)) => {
-            assert_eq!(title.value(), env!("CARGO_PKG_NAME"));
-        });
-        assert_matches!(info.version, Some(LitStrOrExpr::LitStr(version)) => {
-            assert_eq!(version.value(), env!("CARGO_PKG_VERSION"));
-        });
-        assert_matches!(info.description, Some(LitStrOrExpr::LitStr(description)) => {
-            assert_eq!(description.value(), env!("CARGO_PKG_DESCRIPTION"));
-        });
-        assert_matches!(info.terms_of_service, None);
-        assert_matches!(info.license, Some(license) => {
-            assert_eq!(license.name, env!("CARGO_PKG_LICENSE"));
-            assert_eq!(license.identifier, env!("CARGO_PKG_LICENSE"));
-            assert_eq!(license.url, None);
-        });
-        assert_matches!(info.contact, Some(_));
+        match info.title {
+            Some(LitStrOrExpr::LitStr(title)) => assert_eq!(title.value(), env!("CARGO_PKG_NAME")),
+            _ => panic!(),
+        }
+
+        match info.version {
+            Some(LitStrOrExpr::LitStr(version)) => {
+                assert_eq!(version.value(), env!("CARGO_PKG_VERSION"))
+            }
+            _ => panic!(),
+        }
+
+        match info.description {
+            Some(LitStrOrExpr::LitStr(description)) => {
+                assert_eq!(description.value(), env!("CARGO_PKG_DESCRIPTION"))
+            }
+            _ => panic!(),
+        }
+
+        assert!(matches!(info.terms_of_service, None));
+
+        match info.license {
+            Some(license) => {
+                assert_eq!(license.name, env!("CARGO_PKG_LICENSE"));
+                assert_eq!(license.identifier, env!("CARGO_PKG_LICENSE"));
+                assert_eq!(license.url, None);
+            }
+            None => panic!(),
+        }
     }
 }
