@@ -15,6 +15,10 @@
 
 * Fix tagged enum with flatten fields (https://github.com/juhaku/utoipa/pull/1208)
 
+### Changed
+
+* `Info::from_env()` sets `License::identifier` (https://github.com/juhaku/utoipa/pull/1233)
+
 ## 5.2.0 - Nov 2024
 
 ### Fixed
