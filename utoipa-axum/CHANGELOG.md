@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+* Allow trailing comma in `routes!()` macro (https://github.com/juhaku/utoipa/pull/1238)
+
 ### Fixed
 
 * Fix axum path nesting (https://github.com/juhaku/utoipa/pull/1231)
