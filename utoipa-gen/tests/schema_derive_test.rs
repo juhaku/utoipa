@@ -6127,3 +6127,23 @@ fn test_named_and_enum_container_recursion_compiles() {
         .expect("OpenApi is JSON serializable");
     println!("{json}")
 }
+
+#[test]
+fn test_new_type_struct_pattern() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(pattern = r#"^([a-zA-Z0-9_\-]{3,32}$)"#)]
+    struct Username(String);
+
+    use utoipa::PartialSchema;
+    let schema = <Username as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_eq! {
+        value,
+        json!({
+            "pattern": r#"^([a-zA-Z0-9_\-]{3,32}$)"#,
+            "type": "string"
+        })
+    }
+}

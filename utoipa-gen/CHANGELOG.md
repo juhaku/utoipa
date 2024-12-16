@@ -10,6 +10,10 @@
 
 * `Info::from_env()` sets `License::identifier` (https://github.com/juhaku/utoipa/pull/1233)
 
+### Added
+
+* Add support for `#[schema(pattern = "...")]` on new type structs (https://github.com/juhaku/utoipa/pull/{PR_NUMBER})
+
 ## 5.2.0 - Nov 2024
 
 ### Fixed
