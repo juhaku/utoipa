@@ -750,7 +750,7 @@ impl UnnamedStructSchema {
                 // Pattern Attribute is only allowed for unnamed structs with single field
                 if fields_len > 1 {
                     return Err(Diagnostics::with_span(
-                        root.ident.span(),
+                        pattern.span(),
                         "Pattern attribute is not allowed for unnamed structs with multiple fields",
                     ));
                 }
