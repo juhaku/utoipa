@@ -12,7 +12,7 @@
 
 ### Added
 
-* Add support for `#[schema(pattern = "...")]` on new type structs (https://github.com/juhaku/utoipa/pull/{PR_NUMBER})
+* Add support for `#[schema(pattern = "...")]` on new type structs (https://github.com/juhaku/utoipa/pull/1241)
 
 ## 5.2.0 - Nov 2024
 
