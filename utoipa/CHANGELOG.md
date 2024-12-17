@@ -9,6 +9,10 @@ to look into changes introduced to **`utoipa-gen`**.
 
 * Fix diverging axum route and openapi spec (https://github.com/juhaku/utoipa/pull/1199)
 
+### Changed
+
+* Use a re-exported `serde_json` dependency in macros instead of implicitly requiring it as dependency in end projects (https://github.com/juhaku/utoipa/pull/1243)
+
 ## 5.2.0 - Nov 2024
 
 ### Changed

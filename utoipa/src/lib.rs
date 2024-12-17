@@ -234,6 +234,12 @@
 
 pub mod openapi;
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[doc(hidden)]
+/// Public re-exports for utoipa-gen.
+pub mod gen;
+
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::option::Option;
