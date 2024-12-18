@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+* Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
+
 ### Fixed
 
 * Fix tagged enum with flatten fields (https://github.com/juhaku/utoipa/pull/1208)

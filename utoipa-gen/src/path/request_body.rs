@@ -213,42 +213,34 @@ impl Parse for RequestBodyAttr<'_> {
 
 impl ToTokensDiagnostics for RequestBodyAttr<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let media_types = self
-            .content
-            .iter()
-            .map(|media_type| {
-                let default_content_type_result = media_type.schema.get_default_content_type();
-                let type_tree = media_type.schema.get_type_tree();
-
-                match (default_content_type_result, type_tree) {
-                    (Ok(content_type), Ok(type_tree)) => Ok((content_type, media_type, type_tree)),
-                    (Err(diagnostics), _) => Err(diagnostics),
-                    (_, Err(diagnostics)) => Err(diagnostics),
-                }
-            })
-            .collect::<Result<Vec<_>, Diagnostics>>()?;
-
-        let any_required = media_types.iter().any(|(_, _, type_tree)| {
-            type_tree
-                .as_ref()
-                .map(|type_tree| !type_tree.is_option())
-                .unwrap_or(false)
-        });
-
         tokens.extend(quote! {
             utoipa::openapi::request_body::RequestBodyBuilder::new()
         });
-        for (content_type, media_type, _) in media_types {
-            let content_type_tokens = media_type
-                .content_type
-                .as_ref()
-                .map(|content_type| content_type.to_token_stream())
-                .unwrap_or_else(|| content_type.to_token_stream());
+
+        let mut any_required = false;
+
+        for media_type in self.content.iter() {
+            let content_type_tokens = match media_type.content_type.as_ref() {
+                Some(ct) => ct.to_token_stream(),
+                None => media_type
+                    .schema
+                    .get_default_content_type()?
+                    .to_token_stream(),
+            };
+
             let content_tokens = media_type.try_to_token_stream()?;
 
             tokens.extend(quote! {
                 .content(#content_type_tokens, #content_tokens)
             });
+
+            any_required = any_required
+                || media_type
+                    .schema
+                    .get_type_tree()?
+                    .as_ref()
+                    .map(|t| !t.is_option())
+                    .unwrap_or(false);
         }
 
         if any_required {
