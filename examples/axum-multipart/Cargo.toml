@@ -11,6 +11,5 @@ utoipa = { version = "5", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 utoipa-axum = "0.1"
 serde = { features = ["derive"], version = "1" }
-serde_json = "1"
 
 [workspace]

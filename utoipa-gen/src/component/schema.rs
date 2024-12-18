@@ -281,7 +281,7 @@ impl UnitStructVariant {
         let mut tokens = quote! {
             utoipa::openapi::Object::builder()
                 .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
-                .default(Some(serde_json::Value::Null))
+                .default(Some(utoipa::gen::serde_json::Value::Null))
         };
 
         let mut features = features::parse_schema_features_with(root.attributes, |input| {

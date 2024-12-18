@@ -2,16 +2,14 @@
 
 ## Unreleased
 
-### Changed
-
-* Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
-
 ### Fixed
 
 * Fix tagged enum with flatten fields (https://github.com/juhaku/utoipa/pull/1208)
 
 ### Changed
 
+* Use a re-exported `serde_json` dependency in macros instead of implicitly requiring it as dependency in end projects (https://github.com/juhaku/utoipa/pull/1243)
+* Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
 * `Info::from_env()` sets `License::identifier` (https://github.com/juhaku/utoipa/pull/1233)
 
 ### Added
