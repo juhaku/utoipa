@@ -64,7 +64,8 @@ impl Parse for UnnamedFieldStructFeatures {
             ContentEncoding,
             ContentMediaType,
             Bound,
-            NoRecursion
+            NoRecursion,
+            Pattern
         )))
     }
 }

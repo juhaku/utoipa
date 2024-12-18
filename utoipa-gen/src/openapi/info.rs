@@ -41,7 +41,15 @@ impl Info<'_> {
                     Some(contact)
                 }
             });
-        let license = std::env::var("CARGO_PKG_LICENSE").ok().map(License::from);
+        let license = std::env::var("CARGO_PKG_LICENSE")
+            .ok()
+            .map(|spdx_expr| License {
+                name: Cow::Owned(spdx_expr.clone()),
+                // CARGO_PKG_LICENSE contains an SPDX expression as described in the Cargo Book.
+                // It can be set to `info.license.identifier`.
+                identifier: Cow::Owned(spdx_expr),
+                ..Default::default()
+            });
 
         Info {
             title: name.map(|name| name.into()),
@@ -426,5 +434,40 @@ mod tests {
 
         assert!(contact.name.is_none(), "Contact name should be empty");
         assert!(contact.email.is_none(), "Contact email should be empty");
+    }
+
+    #[test]
+    fn info_from_env() {
+        let info = Info::from_env();
+
+        match info.title {
+            Some(LitStrOrExpr::LitStr(title)) => assert_eq!(title.value(), env!("CARGO_PKG_NAME")),
+            _ => panic!(),
+        }
+
+        match info.version {
+            Some(LitStrOrExpr::LitStr(version)) => {
+                assert_eq!(version.value(), env!("CARGO_PKG_VERSION"))
+            }
+            _ => panic!(),
+        }
+
+        match info.description {
+            Some(LitStrOrExpr::LitStr(description)) => {
+                assert_eq!(description.value(), env!("CARGO_PKG_DESCRIPTION"))
+            }
+            _ => panic!(),
+        }
+
+        assert!(matches!(info.terms_of_service, None));
+
+        match info.license {
+            Some(license) => {
+                assert_eq!(license.name, env!("CARGO_PKG_LICENSE"));
+                assert_eq!(license.identifier, env!("CARGO_PKG_LICENSE"));
+                assert_eq!(license.url, None);
+            }
+            None => panic!(),
+        }
     }
 }

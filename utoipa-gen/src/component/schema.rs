@@ -9,7 +9,10 @@ use syn::{
 
 use crate::{
     as_tokens_or_diagnostics,
-    component::features::attributes::{Rename, Title, ValueType},
+    component::features::{
+        attributes::{Rename, Title, ValueType},
+        validation::Pattern,
+    },
     doc_comment::CommentAttributes,
     parse_utils::LitBoolOrExprPath,
     Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
@@ -741,6 +744,20 @@ impl UnnamedStructSchema {
                     ));
                 }
             }
+            let pattern = if let Some(pattern) =
+                pop_feature!(features => Feature::Pattern(_) as Option<Pattern>)
+            {
+                // Pattern Attribute is only allowed for unnamed structs with single field
+                if fields_len > 1 {
+                    return Err(Diagnostics::with_span(
+                        pattern.span(),
+                        "Pattern attribute is not allowed for unnamed structs with multiple fields",
+                    ));
+                }
+                Some(pattern.to_token_stream())
+            } else {
+                None
+            };
 
             let comments = CommentAttributes::from_attributes(root.attributes);
             let description = description
@@ -763,6 +780,11 @@ impl UnnamedStructSchema {
             })?;
 
             tokens.extend(schema.to_token_stream());
+            if let Some(pattern) = pattern {
+                tokens.extend(quote! {
+                    .pattern(Some(#pattern))
+                });
+            }
             schema_references = std::mem::take(&mut schema.schema_references);
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.

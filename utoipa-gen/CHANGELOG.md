@@ -4,12 +4,20 @@
 
 ### Changed
 
-* Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
 * Make `parse_named_attributes` a method of `MediaTypeAttr` (https://github.com/juhaku/utoipa/pull/1236)
+* Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
 
 ### Fixed
 
 * Fix tagged enum with flatten fields (https://github.com/juhaku/utoipa/pull/1208)
+
+### Changed
+
+* `Info::from_env()` sets `License::identifier` (https://github.com/juhaku/utoipa/pull/1233)
+
+### Added
+
+* Add support for `#[schema(pattern = "...")]` on new type structs (https://github.com/juhaku/utoipa/pull/1241)
 
 ## 5.2.0 - Nov 2024
 
