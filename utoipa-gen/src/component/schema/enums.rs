@@ -774,7 +774,7 @@ where
             tokens.extend(quote! {
                 utoipa::openapi::schema::Object::builder()
                     .schema_type(utoipa::openapi::schema::Type::Null)
-                    .default(Some(serde_json::Value::Null))
+                    .default(Some(utoipa::gen::serde_json::Value::Null))
             })
         }
 
