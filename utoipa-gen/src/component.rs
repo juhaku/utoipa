@@ -694,6 +694,18 @@ pub struct ComponentSchemaProps<'c> {
     pub description: Option<&'c ComponentDescription<'c>>,
 }
 
+impl ComponentSchemaProps<'_> {
+    fn set_nullable(&mut self) {
+        if !self
+            .features
+            .iter()
+            .any(|feature| matches!(feature, Feature::Nullable(_)))
+        {
+            self.features.push(Nullable::new().into());
+        }
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ComponentDescription<'c> {
     CommentAttributes(&'c CommentAttributes),
