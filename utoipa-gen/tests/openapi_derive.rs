@@ -1,6 +1,7 @@
 use std::{borrow::Cow, marker::PhantomData};
 
 use assert_json_diff::{assert_json_eq, assert_json_include};
+use insta::assert_json_snapshot;
 use serde::Serialize;
 use serde_json::{json, Value};
 use utoipa::{
@@ -686,12 +687,8 @@ fn openapi_schemas_resolve_schema_references() {
 
     let value = serde_json::to_value(&doc).expect("OpenAPI is JSON serializable");
     let schemas = value.pointer("/components").unwrap();
-    let json = serde_json::to_string_pretty(&schemas).expect("OpenAPI is json serializable");
-    println!("{json}");
 
-    let expected =
-        include_str!("./testdata/openapi_schemas_resolve_inner_schema_references").trim();
-    assert_eq!(expected, json.trim());
+    assert_json_snapshot!(schemas);
 }
 
 #[test]
