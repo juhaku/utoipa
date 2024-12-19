@@ -13,6 +13,7 @@
 
 ### Changed
 
+* Use `insta` for snapshot testing (https://github.com/juhaku/utoipa/pull/1247)
 * Make `parse_named_attributes` a method of `MediaTypeAttr` (https://github.com/juhaku/utoipa/pull/1236)
 * Use a re-exported `serde_json` dependency in macros instead of implicitly requiring it as dependency in end projects (https://github.com/juhaku/utoipa/pull/1243)
 * Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
