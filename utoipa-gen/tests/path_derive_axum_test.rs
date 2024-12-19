@@ -729,7 +729,7 @@ fn derive_path_with_validation_attributes_axum() {
             },
             {
                 "schema": {
-                    "type": ["string", "null"],
+                    "type": "string",
                     "minLength": 3,
                 },
                 "required": false,

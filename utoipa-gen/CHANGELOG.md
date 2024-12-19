@@ -13,6 +13,7 @@
 
 ### Changed
 
+* Adjust params code to not set `nullable` on `Option` for `Query` params (https://github.com/juhaku/utoipa/pull/1248)
 * Use `insta` for snapshot testing (https://github.com/juhaku/utoipa/pull/1247)
 * Make `parse_named_attributes` a method of `MediaTypeAttr` (https://github.com/juhaku/utoipa/pull/1236)
 * Use a re-exported `serde_json` dependency in macros instead of implicitly requiring it as dependency in end projects (https://github.com/juhaku/utoipa/pull/1243)

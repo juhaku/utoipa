@@ -249,9 +249,7 @@ fn derive_path_with_extra_attributes_without_nested_module() {
         "parameters.[1].in" = r#""query""#, "Parameter 1 in"
         "parameters.[1].name" = r#""since""#, "Parameter 1 name"
         "parameters.[1].required" = r#"false"#, "Parameter 1 required"
-        "parameters.[1].schema.allOf.[0].format" = r#"null"#, "Parameter 1 schema format"
-        "parameters.[1].schema.allOf.[0].type" = r#"null"#, "Parameter 1 schema type"
-        "parameters.[1].schema.allOf.nullable" = r#"null"#, "Parameter 1 schema type"
+        "parameters.[1].schema.type" = r#""string""#, "Parameter 1 schema type"
     }
 }
 
@@ -477,14 +475,7 @@ fn derive_path_with_parameter_schema() {
                 "name": "since",
                 "required": false,
                 "schema": {
-                    "oneOf": [
-                        {
-                            "type": "null"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Since"
-                        }
-                    ],
+                    "$ref": "#/components/schemas/Since"
                 }
             }
         ])
@@ -549,28 +540,21 @@ fn derive_path_with_parameter_inline_schema() {
                 "name": "since",
                 "required": false,
                 "schema": {
-                    "oneOf": [
-                        {
-                            "type": "null"
+                    "properties": {
+                        "date": {
+                            "description": "Some date",
+                            "type": "string"
                         },
-                        {
-                            "properties": {
-                                "date": {
-                                    "description": "Some date",
-                                    "type": "string"
-                                },
-                                "time": {
-                                    "description": "Some time",
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "date",
-                                "time"
-                            ],
-                            "type": "object"
+                        "time": {
+                            "description": "Some time",
+                            "type": "string"
                         }
+                    },
+                    "required": [
+                        "date",
+                        "time"
                     ],
+                    "type": "object"
                 }
             }
         ])
@@ -831,7 +815,7 @@ fn derive_required_path_params() {
                 "name": "vec_default",
                 "required": false,
                 "schema": {
-                    "type": ["array", "null"],
+                    "type": "array",
                     "items": {
                         "type": "string"
                     }
@@ -842,7 +826,7 @@ fn derive_required_path_params() {
                 "name": "string_default",
                 "required": false,
                 "schema": {
-                    "type": ["string", "null"]
+                    "type": "string"
                 }
             },
             {
@@ -872,7 +856,7 @@ fn derive_required_path_params() {
                     "items": {
                         "type": "string"
                     },
-                    "type": ["array", "null"],
+                    "type": "array",
                 },
             },
             {
@@ -880,7 +864,7 @@ fn derive_required_path_params() {
                 "name": "string_option",
                 "required": false,
                 "schema": {
-                    "type": ["string", "null"]
+                    "type": "string"
                 }
             },
             {
@@ -938,7 +922,7 @@ fn derive_path_params_with_serde_and_custom_rename() {
                 "name": "vecDefault",
                 "required": false,
                 "schema": {
-                    "type": ["array", "null"],
+                    "type": "array",
                     "items": {
                         "type": "string"
                     }
@@ -949,7 +933,7 @@ fn derive_path_params_with_serde_and_custom_rename() {
                 "name": "STRING",
                 "required": false,
                 "schema": {
-                    "type": ["string", "null"]
+                    "type": "string"
                 }
             },
             {
@@ -1001,7 +985,7 @@ fn derive_path_params_custom_rename_all() {
                 "name": "vecDefault",
                 "required": false,
                 "schema": {
-                    "type": ["array", "null"],
+                    "type": "array",
                     "items": {
                         "type": "string"
                     }
@@ -1030,7 +1014,7 @@ fn derive_path_params_custom_rename_all_serde_will_override() {
                 "name": "VEC_DEFAULT",
                 "required": false,
                 "schema": {
-                    "type": ["array", "null"],
+                    "type": "array",
                     "items": {
                         "type": "string"
                     }
@@ -1163,7 +1147,7 @@ fn derive_path_params_intoparams() {
                 "name": "since",
                 "required": false,
                 "schema": {
-                    "type": ["string", "null"]
+                    "type": "string"
                 },
                 "style": "form"
             },
@@ -1196,17 +1180,10 @@ fn derive_path_params_intoparams() {
                 "name": "foo_inline_option",
                 "required": false,
                 "schema": {
-                    "oneOf": [
-                        {
-                            "type": "null",
-                        },
-                        {
-                            "default": "foo1",
-                            "example": "foo1",
-                            "enum": ["foo1", "foo2"],
-                            "type": "string",
-                        }
-                    ],
+                    "default": "foo1",
+                    "example": "foo1",
+                    "enum": ["foo1", "foo2"],
+                    "type": "string",
                 },
                 "style": "form"
             },
@@ -1343,7 +1320,7 @@ fn derive_path_params_into_params_with_value_type() {
             "name": "value3",
             "required": false,
             "schema": {
-                "type": ["string", "null"]
+                "type": "string"
             }
         },
         {
@@ -1351,7 +1328,7 @@ fn derive_path_params_into_params_with_value_type() {
             "name": "value4",
             "required": false,
             "schema": {
-                "type": ["object", "null"]
+                "type": "object"
             }
         },
         {
@@ -1776,7 +1753,7 @@ fn derive_into_params_required() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": ["string", "null"],
+                  "type": "string",
               },
           },
           {
@@ -1784,7 +1761,7 @@ fn derive_into_params_required() {
               "name": "name3",
               "required": true,
               "schema": {
-                  "type": ["string", "null"],
+                  "type": "string",
               },
           },
         ])
@@ -1830,7 +1807,7 @@ fn derive_into_params_with_serde_skip() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": ["string", "null"],
+                  "type": "string",
               },
           },
         ])
@@ -1878,7 +1855,7 @@ fn derive_into_params_with_serde_skip_deserializing() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": ["string", "null"],
+                  "type": "string",
               },
           },
         ])
@@ -1924,7 +1901,7 @@ fn derive_into_params_with_serde_skip_serializing() {
               "name": "name2",
               "required": false,
               "schema": {
-                  "type": ["string", "null"],
+                  "type": "string",
               },
           },
         ])
