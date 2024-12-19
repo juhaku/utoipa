@@ -694,6 +694,18 @@ pub struct ComponentSchemaProps<'c> {
     pub description: Option<&'c ComponentDescription<'c>>,
 }
 
+impl ComponentSchemaProps<'_> {
+    fn set_nullable(&mut self) {
+        if !self
+            .features
+            .iter()
+            .any(|feature| matches!(feature, Feature::Nullable(_)))
+        {
+            self.features.push(Nullable::new().into());
+        }
+    }
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ComponentDescription<'c> {
     CommentAttributes(&'c CommentAttributes),
@@ -750,11 +762,33 @@ pub struct ComponentSchema {
 }
 
 impl ComponentSchema {
-    pub fn new(
+    pub fn for_params(
+        mut schema_props: ComponentSchemaProps,
+        option_is_nullable: bool,
+    ) -> Result<Self, Diagnostics> {
+        // Add nullable feature if not already exists.
+        // Option is always nullable, except when used in query parameters.
+        if schema_props.type_tree.is_option() && option_is_nullable {
+            schema_props.set_nullable()
+        }
+
+        Self::new_inner(schema_props)
+    }
+
+    pub fn new(mut schema_props: ComponentSchemaProps) -> Result<Self, Diagnostics> {
+        // Add nullable feature if not already exists. Option is always nullable
+        if schema_props.type_tree.is_option() {
+            schema_props.set_nullable();
+        }
+
+        Self::new_inner(schema_props)
+    }
+
+    fn new_inner(
         ComponentSchemaProps {
             container,
             type_tree,
-            mut features,
+            features,
             description,
         }: ComponentSchemaProps,
     ) -> Result<Self, Diagnostics> {
@@ -791,13 +825,6 @@ impl ComponentSchema {
                 description,
             )?,
             Some(GenericType::Option) => {
-                // Add nullable feature if not already exists. Option is always nullable
-                if !features
-                    .iter()
-                    .any(|feature| matches!(feature, Feature::Nullable(_)))
-                {
-                    features.push(Nullable::new().into());
-                }
                 let child = type_tree
                     .children
                     .as_ref()

@@ -414,6 +414,12 @@ impl_feature! {
     pub struct ParameterIn(parameter::ParameterIn);
 }
 
+impl ParameterIn {
+    pub fn is_query(&self) -> bool {
+        matches!(self.0, parameter::ParameterIn::Query)
+    }
+}
+
 impl Parse for ParameterIn {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))

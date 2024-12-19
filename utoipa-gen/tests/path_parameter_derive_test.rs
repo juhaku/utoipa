@@ -194,7 +194,7 @@ fn derive_parameters_with_all_types() {
         "[2].description" = r#""Foo numbers list""#, "Parameter description"
         "[2].required" = r#"false"#, "Parameter required"
         "[2].deprecated" = r#"null"#, "Parameter deprecated"
-        "[2].schema.type" = r#"["array","null"]"#, "Parameter schema type"
+        "[2].schema.type" = r#""array""#, "Parameter schema type"
         "[2].schema.format" = r#"null"#, "Parameter schema format"
         "[2].schema.items.type" = r#""integer""#, "Parameter schema items type"
         "[2].schema.items.format" = r#""int64""#, "Parameter schema items format"
@@ -286,7 +286,7 @@ fn derive_params_with_params_ext() {
         "[0].description" = r#""Foo value description""#, "Parameter description"
         "[0].required" = r#"false"#, "Parameter required"
         "[0].deprecated" = r#"true"#, "Parameter deprecated"
-        "[0].schema.type" = r#"["array","null"]"#, "Parameter schema type"
+        "[0].schema.type" = r#""array""#, "Parameter schema type"
         "[0].schema.items.type" = r#""string""#, "Parameter schema items type"
         "[0].style" = r#""form""#, "Parameter style"
         "[0].allowReserved" = r#"true"#, "Parameter allowReserved"
@@ -330,7 +330,7 @@ fn derive_path_params_with_parameter_type_args() {
                   "deprecated": true,
                   "description": "Foo value description",
                   "schema": {
-                      "type": ["array", "null"],
+                      "type": "array",
                       "items": {
                           "maxLength": 20,
                           "pattern": r"\w",
@@ -424,10 +424,7 @@ fn derive_into_params_required_custom_query_parameter_required() {
                 "schema": {
                     "format": "int32",
                     "minimum": 0,
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
+                    "type": "integer"
                 }
             },
             {
@@ -439,10 +436,7 @@ fn derive_into_params_required_custom_query_parameter_required() {
                 "schema": {
                     "format": "int32",
                     "minimum": 0,
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
+                    "type": "integer"
                 }
             }
         ])

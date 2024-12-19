@@ -126,16 +126,21 @@ impl ToTokensDiagnostics for Parameter<'_> {
 ))]
 impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
     fn from(argument: crate::ext::ValueArgument<'a>) -> Self {
+        let parameter_in = if argument.argument_in == crate::ext::ArgumentIn::Path {
+            ParameterIn::Path
+        } else {
+            ParameterIn::Query
+        };
+
+        let option_is_nullable = parameter_in != ParameterIn::Query;
+
         Self::Value(ValueParameter {
             name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
-            parameter_in: if argument.argument_in == crate::ext::ArgumentIn::Path {
-                ParameterIn::Path
-            } else {
-                ParameterIn::Query
-            },
+            parameter_in,
             parameter_schema: argument.type_tree.map(|type_tree| ParameterSchema {
                 parameter_type: ParameterType::External(type_tree),
                 features: Vec::new(),
+                option_is_nullable,
             }),
             ..Default::default()
         })
@@ -160,6 +165,7 @@ impl<'a> From<crate::ext::IntoParamsType<'a>> for Parameter<'a> {
 struct ParameterSchema<'p> {
     parameter_type: ParameterType<'p>,
     features: Vec<Feature>,
+    option_is_nullable: bool,
 }
 
 impl ToTokensDiagnostics for ParameterSchema<'_> {
@@ -178,14 +184,17 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 let required: Required = (!type_tree.is_option()).into();
 
                 to_tokens(
-                    ComponentSchema::new(component::ComponentSchemaProps {
-                        type_tree,
-                        features: self.features.clone(),
-                        description: None,
-                        container: &Container {
-                            generics: &Generics::default(),
+                    ComponentSchema::for_params(
+                        component::ComponentSchemaProps {
+                            type_tree,
+                            features: self.features.clone(),
+                            description: None,
+                            container: &Container {
+                                generics: &Generics::default(),
+                            },
                         },
-                    })?
+                        self.option_is_nullable,
+                    )?
                     .to_token_stream(),
                     required,
                 );
@@ -199,14 +208,17 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
                 to_tokens(
-                    ComponentSchema::new(component::ComponentSchemaProps {
-                        type_tree: &type_tree,
-                        features: schema_features,
-                        description: None,
-                        container: &Container {
-                            generics: &Generics::default(),
+                    ComponentSchema::for_params(
+                        component::ComponentSchemaProps {
+                            type_tree: &type_tree,
+                            features: schema_features,
+                            description: None,
+                            container: &Container {
+                                generics: &Generics::default(),
+                            },
                         },
-                    })?
+                        self.option_is_nullable,
+                    )?
                     .to_token_stream(),
                     required,
                 );
@@ -267,6 +279,7 @@ impl Parse for ValueParameter<'_> {
                         })
                     })?),
                     features: Vec::new(),
+                    option_is_nullable: true,
                 });
             }
         } else {
@@ -289,6 +302,10 @@ impl Parse for ValueParameter<'_> {
         parameter.features = (schema_features.clone(), parameter_features);
         if let Some(parameter_schema) = &mut parameter.parameter_schema {
             parameter_schema.features = schema_features;
+
+            if parameter.parameter_in == ParameterIn::Query {
+                parameter_schema.option_is_nullable = false;
+            }
         }
 
         Ok(parameter)

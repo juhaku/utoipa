@@ -407,12 +407,18 @@ impl Param {
             });
             tokens.extend(param_features.to_token_stream()?);
 
-            let schema = ComponentSchema::new(component::ComponentSchemaProps {
-                type_tree: component,
-                features: schema_features,
-                description: None,
-                container: &Container { generics },
-            })?;
+            let is_query = matches!(container_attributes.parameter_in, Some(Feature::ParameterIn(p)) if p.is_query());
+            let option_is_nullable = !is_query;
+
+            let schema = ComponentSchema::for_params(
+                component::ComponentSchemaProps {
+                    type_tree: component,
+                    features: schema_features,
+                    description: None,
+                    container: &Container { generics },
+                },
+                option_is_nullable,
+            )?;
             let schema_tokens = schema.to_token_stream();
 
             tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
