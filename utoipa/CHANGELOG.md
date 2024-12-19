@@ -3,7 +3,7 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
-## Unreleased
+## 5.3.0 - Dec 19 2024
 
 ### Fixed
 
@@ -11,9 +11,10 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Changed
 
+* Migrate to `utoipa-gen` `5.3.0` version (https://github.com/juhaku/utoipa/pull/1250)
 * Use a re-exported `serde_json` dependency in macros instead of implicitly requiring it as dependency in end projects (https://github.com/juhaku/utoipa/pull/1243)
 
-## 5.2.0 - Nov 2024
+## 5.2.0 - Nov 2 2024
 
 ### Changed
 

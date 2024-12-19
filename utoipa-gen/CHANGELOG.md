@@ -1,6 +1,6 @@
 # Changelog - utoipa-gen
 
-## Unreleased
+## 5.3.0 - Dec 19 2024
 
 ### Fixed
 
@@ -20,7 +20,7 @@
 * Simplified `ToTokensDiagnostics` for `request_body` (https://github.com/juhaku/utoipa/pull/1235)
 * `Info::from_env()` sets `License::identifier` (https://github.com/juhaku/utoipa/pull/1233)
 
-## 5.2.0 - Nov 2024
+## 5.2.0 - Nov 2 2024
 
 ### Fixed
 
