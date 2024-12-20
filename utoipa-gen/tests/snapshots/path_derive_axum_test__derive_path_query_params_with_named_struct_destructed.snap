@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

@@ -1,0 +1,25 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  {
+    "in": "path",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
