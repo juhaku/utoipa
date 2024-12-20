@@ -42,7 +42,6 @@ rocket = { version = "0.5", features = ["json"] }
 smallvec = { version = "1.10", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
-assert-json-diff = "2"
 time = { version = "0.3", features = ["serde-human-readable"] }
 serde_with = "3.0"
 insta = { version = "1.41", features = ["json"] }
