@@ -1,5 +1,5 @@
-use assert_json_diff::assert_json_eq;
-use serde_json::{json, Value};
+use insta::assert_json_snapshot;
+use serde_json::Value;
 use utoipa::openapi::{RefOr, Response};
 use utoipa::{OpenApi, Path, ToResponse};
 
@@ -103,18 +103,7 @@ test_fn! {
 fn derive_http_status_code_responses() {
     let doc = api_doc!(module: http_status_code_responses);
     let responses = doc.pointer("/responses");
-
-    assert_json_eq!(
-        responses,
-        json!({
-            "200": {
-                "description": "success"
-            },
-            "404": {
-                "description": "not found"
-            }
-        })
-    )
+    assert_json_snapshot!(responses);
 }
 
 struct ReusableResponse;
@@ -279,36 +268,7 @@ fn derive_response_body_inline_schema_component() {
     }
 
     let doc: Value = api_doc!(module: response_body_inline_schema);
-
-    assert_json_eq!(
-        doc,
-        json!({
-            "operationId": "get_foo",
-            "responses": {
-                "200": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "name"
-                                ],
-                                "type": "object"
-                            }
-                        }
-                    },
-                    "description": "success"
-                }
-            },
-            "tags": [
-              "response_body_inline_schema"
-            ]
-        })
-    );
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -349,58 +309,8 @@ fn derive_path_with_multiple_responses_via_content_attribute_auto_collect_respon
         .pointer("/components/schemas")
         .expect("doc must have schemas");
 
-    assert_json_eq!(
-        schemas,
-        json!({
-            "User": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                    }
-                },
-                "required": ["id"],
-                "type": "object",
-            },
-            "User2": {
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "format": "int32",
-                    }
-                },
-                "required": ["id"],
-                "type": "object",
-            }
-        })
-    );
-
-    assert_json_eq!(
-        responses,
-        json!({
-            "200": {
-                "content": {
-                    "application/vnd.user.v1+json": {
-                        "example": {
-                            "id": "id",
-                        },
-                        "schema": {
-                            "$ref":
-                                "#/components/schemas/User",
-                        },
-                    },
-                    "application/vnd.user.v2+json": {
-                        "example": {
-                            "id": 2,
-                        },
-                        "schema": {
-                            "$ref": "#/components/schemas/User2",
-                        },
-                    },
-                },
-                "description": "",
-            },
-        })
-    )
+    assert_json_snapshot!(schemas);
+    assert_json_snapshot!(responses);
 }
 
 #[test]
@@ -437,51 +347,8 @@ fn derive_path_with_multiple_examples_auto_collect_schemas() {
         .pointer("/components/schemas")
         .expect("doc must have schemas");
 
-    assert_json_eq!(
-        schemas,
-        json!({
-            "User": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                    }
-                },
-                "required": ["name"],
-                "type": "object",
-            }
-        })
-    );
-    assert_json_eq!(
-        responses,
-        json!({
-            "200": {
-                "content": {
-                    "application/json": {
-                        "examples": {
-                            "Demo": {
-                                "summary": "This is summary",
-                                "description": "Long description",
-                                "value": {
-                                    "name": "Demo"
-                                }
-                            },
-                            "John": {
-                                "summary": "Another user",
-                                "value": {
-                                    "name": "John"
-                                }
-                            }
-                        },
-                        "schema": {
-                            "$ref":
-                                "#/components/schemas/User",
-                        },
-                    },
-                },
-                "description": "",
-            },
-        })
-    )
+    assert_json_snapshot!(schemas);
+    assert_json_snapshot!(responses);
 }
 
 #[test]
@@ -528,52 +395,7 @@ fn derive_path_with_multiple_responses_with_multiple_examples() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
-
-    assert_json_eq!(
-        responses,
-        json!({
-            "200": {
-                "content": {
-                    "application/vnd.user.v1+json": {
-                        "examples": {
-                            "StringUser": {
-                                "value": {
-                                    "id": "1"
-                                }
-                            },
-                            "StringUser2": {
-                                "value": {
-                                    "id": "2"
-                                }
-                            }
-                        },
-                        "schema": {
-                            "$ref":
-                                "#/components/schemas/User",
-                        },
-                    },
-                    "application/vnd.user.v2+json": {
-                        "examples": {
-                            "IntUser": {
-                                "value": {
-                                    "id": 1
-                                }
-                            },
-                            "IntUser2": {
-                                "value": {
-                                    "id": 2
-                                }
-                            }
-                        },
-                        "schema": {
-                            "$ref": "#/components/schemas/User2",
-                        },
-                    },
-                },
-                "description": "",
-            },
-        })
-    )
+    assert_json_snapshot!(responses);
 }
 
 #[test]
@@ -594,23 +416,7 @@ fn path_response_with_external_ref() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
-
-    assert_json_eq!(
-        responses,
-        json!({
-            "200": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref":
-                                "./MyUser.json",
-                        },
-                    },
-                },
-                "description": "",
-            },
-        })
-    )
+    assert_json_snapshot!(responses);
 }
 
 #[test]
@@ -637,28 +443,7 @@ fn path_response_with_inline_ref_type() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/paths/~1foo/get/responses").unwrap();
-
-    assert_json_eq!(
-        responses,
-        json!({
-            "200": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["name"],
-                            "type": "object",
-                        },
-                    },
-                },
-                "description": "",
-            },
-        })
-    )
+    assert_json_snapshot!(responses);
 }
 
 #[test]
@@ -671,19 +456,7 @@ fn path_response_default_no_value_nor_ref() {
 
     let operation = __path_post_secret::operation();
     let value = serde_json::to_value(operation).expect("operation is JSON serializable");
-
-    assert_json_eq!(
-        value,
-        json!({
-            "operationId": "post_secret",
-            "responses": {
-                "200": {
-                    "description": ""
-                }
-            },
-            "summary": "Post some secret inner handler"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -698,20 +471,5 @@ fn path_response_with_no_schema() {
 
     let operation = __path_post_secret::operation();
     let value = serde_json::to_value(operation).expect("operation is JSON serializable");
-
-    assert_json_eq!(
-        value,
-        json!({
-            "operationId": "post_secret",
-            "responses": {
-                "200": {
-                    "content": {
-                        "application/octet-stream": {}
-                    },
-                    "description": ""
-                }
-            },
-            "summary": "Post some secret inner handler"
-        })
-    )
+    assert_json_snapshot!(value);
 }
