@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: body
+snapshot_kind: text
+---
+{
+  "content": {
+    "text/xml": {
+      "schema": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/Foo"
+          }
+        ]
+      }
+    }
+  },
+  "description": "Create new Foo"
+}
