@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "201": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/Foo"
+        }
+      }
+    },
+    "description": ""
+  }
+}
