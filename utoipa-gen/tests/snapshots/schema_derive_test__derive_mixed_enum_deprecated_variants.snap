@@ -1,0 +1,58 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "deprecated": true,
+      "enum": [
+        "UnitValue"
+      ],
+      "type": "string"
+    },
+    {
+      "deprecated": true,
+      "properties": {
+        "NamedFields": {
+          "deprecated": true,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "names": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "NamedFields"
+      ],
+      "type": "object"
+    },
+    {
+      "deprecated": true,
+      "properties": {
+        "UnnamedFields": {
+          "$ref": "#/components/schemas/Foo"
+        }
+      },
+      "required": [
+        "UnnamedFields"
+      ],
+      "type": "object"
+    }
+  ]
+}

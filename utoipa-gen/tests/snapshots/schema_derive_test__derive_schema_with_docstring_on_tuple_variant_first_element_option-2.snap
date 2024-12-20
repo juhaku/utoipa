@@ -1,0 +1,46 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "description": "top level doc for My enum",
+  "oneOf": [
+    {
+      "description": "doc for tuple variant with Option as first element - I now produce a description",
+      "properties": {
+        "TupleVariantWithOptionFirst": {
+          "description": "doc for tuple variant with Option as first element - I now produce a description",
+          "items": {
+            "type": "object"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "TupleVariantWithOptionFirst"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "doc for tuple variant without Option as first element - I produce a description",
+      "properties": {
+        "TupleVariantWithOptionSecond": {
+          "description": "doc for tuple variant without Option as first element - I produce a description",
+          "items": {
+            "type": "object"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "TupleVariantWithOptionSecond"
+      ],
+      "type": "object"
+    }
+  ]
+}

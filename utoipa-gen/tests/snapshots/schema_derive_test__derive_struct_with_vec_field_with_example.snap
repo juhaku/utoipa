@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: post
+snapshot_kind: text
+---
+{
+  "properties": {
+    "id": {
+      "format": "int32",
+      "type": "integer"
+    },
+    "value": {
+      "example": [
+        "foobar",
+        "barfoo"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "value"
+  ],
+  "type": "object"
+}

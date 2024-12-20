@@ -1,0 +1,42 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "i16": {
+      "format": "u-int16",
+      "type": "string"
+    },
+    "i8": {
+      "format": "int8",
+      "type": "string"
+    },
+    "ui16": {
+      "format": "u-int16",
+      "type": "string"
+    },
+    "ui32": {
+      "format": "u-int32",
+      "type": "string"
+    },
+    "ui64": {
+      "format": "u-int64",
+      "type": "string"
+    },
+    "ui8": {
+      "format": "u-int8",
+      "type": "string"
+    }
+  },
+  "required": [
+    "ui8",
+    "ui16",
+    "ui32",
+    "ui64",
+    "i16",
+    "i8"
+  ],
+  "type": "object"
+}

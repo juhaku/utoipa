@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: map
+snapshot_kind: text
+---
+{
+  "properties": {
+    "map": {
+      "additionalProperties": true,
+      "type": "object"
+    }
+  },
+  "required": [
+    "map"
+  ],
+  "type": "object"
+}

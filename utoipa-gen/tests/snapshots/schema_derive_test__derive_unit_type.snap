@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: data
+snapshot_kind: text
+---
+{
+  "properties": {
+    "unit_type": {
+      "default": null
+    }
+  },
+  "required": [
+    "unit_type"
+  ],
+  "type": "object"
+}
