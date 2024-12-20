@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
+use insta::assert_json_snapshot;
 use paste::paste;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -323,32 +323,7 @@ fn derive_path_with_datetime_format_query_parameter() {
     };
 
     let parameters: &Value = operation.get("parameters").unwrap();
-
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Foo database id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer",
-                }
-            },
-            {
-                "description": "Datetime since foo is updated",
-                "in": "path",
-                "name": "start",
-                "required": true,
-                "schema": {
-                    "format": "date-time",
-                    "type": "string",
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -389,32 +364,7 @@ fn derive_path_with_datetime_format_path_parameter() {
     };
 
     let parameters: &Value = operation.get("parameters").unwrap();
-
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Foo database id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer",
-                }
-            },
-            {
-                "description": "Datetime since foo is updated",
-                "in": "query",
-                "name": "start",
-                "required": true,
-                "schema": {
-                    "format": "date-time",
-                    "type": "string",
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -455,31 +405,7 @@ fn derive_path_with_parameter_schema() {
     };
 
     let parameters: &Value = operation.get("parameters").unwrap();
-
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Foo database id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer",
-                }
-            },
-            {
-                "description": "Datetime since foo is updated",
-                "in": "query",
-                "name": "since",
-                "required": false,
-                "schema": {
-                    "$ref": "#/components/schemas/Since"
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -520,45 +446,7 @@ fn derive_path_with_parameter_inline_schema() {
     };
 
     let parameters: &Value = operation.get("parameters").unwrap();
-
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Foo database id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer",
-                }
-            },
-            {
-                "description": "Datetime since foo is updated",
-                "in": "query",
-                "name": "since",
-                "required": false,
-                "schema": {
-                    "properties": {
-                        "date": {
-                            "description": "Some date",
-                            "type": "string"
-                        },
-                        "time": {
-                            "description": "Some time",
-                            "type": "string"
-                        }
-                    },
-                    "required": [
-                        "date",
-                        "time"
-                    ],
-                    "type": "object"
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -598,40 +486,7 @@ fn derive_path_params_map() {
     };
 
     let parameters = operation.get("parameters").unwrap();
-
-    assert_json_eq! {
-        parameters,
-        json!{[
-            {
-            "in": "path",
-            "name": "with_ref",
-            "required": true,
-            "schema": {
-                "propertyNames": {
-                    "type": "string"
-                },
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/Foo"
-                },
-                  "type": "object"
-            }
-          },
-          {
-            "in": "path",
-            "name": "with_type",
-            "required": true,
-            "schema": {
-                "propertyNames": {
-                    "type": "string"
-                },
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object"
-            }
-          }
-        ]}
-    }
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -645,41 +500,7 @@ fn derive_path_params_with_examples() {
         }
     };
     let parameters = operation.get("parameters").unwrap();
-
-    assert_json_eq! {
-        parameters,
-        json!{[
-            {
-            "in": "path",
-            "name": "map",
-            "required": true,
-            "example": {
-                "key": "value"
-            },
-            "schema": {
-                "propertyNames": {
-                    "type": "string"
-                },
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object"
-            }
-          },
-          {
-            "in": "path",
-            "name": "vec",
-            "required": true,
-            "example": ["value1", "value2"],
-            "schema": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          }
-        ]}
-    }
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -691,21 +512,7 @@ fn path_parameters_with_free_form_properties() {
         }
     };
     let parameters = operation.get("parameters").unwrap();
-
-    assert_json_eq! {
-        parameters,
-        json!{[
-            {
-            "in": "path",
-            "name": "map",
-            "required": true,
-            "schema": {
-              "additionalProperties": true,
-              "type": "object"
-            }
-          }
-        ]}
-    }
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -721,35 +528,7 @@ fn derive_path_query_params_with_schema_features() {
         }
     };
     let parameters = operation.get("parameters").unwrap();
-
-    assert_json_eq! {
-        parameters,
-        json!{[
-            {
-            "in": "query",
-            "name": "value",
-            "required": false,
-            "schema": {
-                "default": "value",
-                "type": ["string", "null"],
-                "readOnly": true,
-                "writeOnly": true,
-                "xml": {
-                    "name": "xml_value"
-                }
-            }
-          },
-          {
-            "in": "query",
-            "name": "int",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "binary"
-            }
-          }
-        ]}
-    }
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -762,20 +541,7 @@ fn derive_path_params_always_required() {
         }
     };
     let parameters = operation.get("parameters").unwrap();
-
-    assert_json_eq! {
-        parameters,
-        json!{[
-            {
-            "in": "path",
-            "name": "value",
-            "required": true,
-            "schema": {
-                "type": "string",
-            }
-          }
-        ]}
-    }
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -807,87 +573,7 @@ fn derive_required_path_params() {
 
     let parameters = operation.get("parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "vec_default",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            {
-                "in": "query",
-                "name": "string_default",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "vec_default_required",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            {
-                "in": "query",
-                "name": "string_default_required",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                },
-            },
-            {
-                "in": "query",
-                "name": "vec_option",
-                "required": false,
-                "schema": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array",
-                },
-            },
-            {
-                "in": "query",
-                "name": "string_option",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "vec",
-                "required": true,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            {
-                "in": "query",
-                "name": "string",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -914,57 +600,7 @@ fn derive_path_params_with_serde_and_custom_rename() {
     };
     let parameters = operation.get("parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "vecDefault",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            {
-                "in": "query",
-                "name": "STRING",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "VEC",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            {
-                "in": "query",
-                "name": "string_r2",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                },
-            },
-            {
-                "in": "query",
-                "name": "string",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -977,22 +613,7 @@ fn derive_path_params_custom_rename_all() {
     };
     let parameters = operation.get("parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "vecDefault",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-        ])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1006,22 +627,7 @@ fn derive_path_params_custom_rename_all_serde_will_override() {
     };
     let parameters = operation.get("parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "VEC_DEFAULT",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-        ])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1037,30 +643,7 @@ fn derive_path_parameters_container_level_default() {
     };
     let parameters = operation.get("parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "vec_default",
-                "required": false,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            {
-                "in": "query",
-                "name": "string",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                },
-            }
-        ])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1125,96 +708,7 @@ fn derive_path_params_intoparams() {
 
     let parameters = operation.get("parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Foo database id.",
-                "example": 1,
-                "in": "query",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer",
-                },
-                "style": "form"
-            },
-            {
-                "description": "Datetime since foo is updated.",
-                "example": "2020-04-12T10:23:00Z",
-                "in": "query",
-                "name": "since",
-                "required": false,
-                "schema": {
-                    "type": "string"
-                },
-                "style": "form"
-            },
-            {
-                "description": "A Foo item ref.",
-                "in": "query",
-                "name": "foo_ref",
-                "required": true,
-                "schema": {
-                    "$ref": "#/components/schemas/Foo"
-                },
-                "style": "form"
-            },
-            {
-                "description": "A Foo item inline.",
-                "in": "query",
-                "name": "foo_inline",
-                "required": true,
-                "schema": {
-                    "default": "foo1",
-                    "example": "foo1",
-                    "enum": ["foo1", "foo2"],
-                    "type": "string",
-                },
-                "style": "form"
-            },
-            {
-                "description": "An optional Foo item inline.",
-                "in": "query",
-                "name": "foo_inline_option",
-                "required": false,
-                "schema": {
-                    "default": "foo1",
-                    "example": "foo1",
-                    "enum": ["foo1", "foo2"],
-                    "type": "string",
-                },
-                "style": "form"
-            },
-            {
-                "description": "A vector of Foo item inline.",
-                "in": "query",
-                "name": "foo_inline_vec",
-                "required": true,
-                "schema": {
-                    "items": {
-                        "default": "foo1",
-                        "example": "foo1",
-                        "enum": ["foo1", "foo2"],
-                        "type": "string",
-                    },
-                    "type": "array",
-                },
-                "style": "form",
-            },
-            {
-                "description": "Id of some items to list",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1270,90 +764,7 @@ fn derive_path_params_into_params_with_value_type() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([{
-            "in": "query",
-            "name": "id",
-            "required": true,
-            "style": "simple",
-            "schema": {
-                "format": "int64",
-                "type": "integer"
-            }
-        },
-        {
-            "in": "query",
-            "name": "another_id",
-            "required": true,
-            "schema": {
-                "type": "object"
-            }
-        },
-        {
-            "in": "query",
-            "name": "value1",
-            "required": true,
-            "schema": {
-                "items": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "type": "array"
-            }
-        },
-        {
-            "in": "query",
-            "name": "value2",
-            "required": true,
-            "schema": {
-                "items": {
-                    "type": "string"
-                },
-                "type": "array"
-            }
-        },
-        {
-            "in": "query",
-            "name": "value3",
-            "required": false,
-            "schema": {
-                "type": "string"
-            }
-        },
-        {
-            "in": "query",
-            "name": "value4",
-            "required": false,
-            "schema": {
-                "type": "object"
-            }
-        },
-        {
-            "in": "query",
-            "name": "value5",
-            "required": true,
-            "schema": {
-                "items": {
-                    "type": "object"
-                },
-                "type": "array"
-            }
-        },
-        {
-            "in": "query",
-            "name": "value6",
-            "required": true,
-            "schema": {
-                "items": {
-                    "$ref": "#/components/schemas/Foo"
-                },
-                "type": "array"
-            }
-        }])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1385,17 +796,7 @@ fn derive_path_params_into_params_with_raw_identifier() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([{
-            "in": "path",
-            "name": "in",
-            "required": true,
-            "schema": {
-                "type": "string"
-            }
-        }])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1427,17 +828,7 @@ fn derive_path_params_into_params_with_unit_type() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([{
-            "in": "path",
-            "name": "in",
-            "required": true,
-            "schema": {
-                "default": null,
-            }
-        }])
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[test]
@@ -1460,7 +851,7 @@ fn arbitrary_expr_in_operation_id() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let operation_id = doc.pointer("/paths/foo/get/operationId").unwrap();
 
-    assert_json_eq!(operation_id, json!("8"))
+    assert_json_snapshot!(operation_id)
 }
 
 #[test]
@@ -1497,51 +888,7 @@ fn derive_path_with_validation_attributes() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
-
-    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
-
-    assert_json_matches!(
-        parameters,
-        json!([
-            {
-                "schema": {
-                    "format": "int32",
-                    "type": "integer",
-                    "maximum": 10.0,
-                    "minimum": 5.0,
-                    "multipleOf": 2.5,
-                },
-                "required": true,
-                "name": "id",
-                "in": "path"
-            },
-            {
-                "schema": {
-                    "type": "string",
-                    "maxLength": 10,
-                    "minLength": 5,
-                    "pattern": "[a-z]*"
-                },
-                "required": true,
-                "name": "value",
-                "in": "path"
-            },
-            {
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                    },
-                    "maxItems": 5,
-                    "minItems": 1,
-                },
-                "required": true,
-                "name": "items",
-                "in": "path"
-            }
-        ]),
-        config
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -1574,17 +921,7 @@ fn derive_path_with_into_responses() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let parameters = doc.pointer("/paths/foo/get/responses").unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!({
-            "200": {
-                "description": "Ok"
-            },
-            "404": {
-                "description": "Not Found"
-            }
-        })
-    )
+    assert_json_snapshot!(parameters)
 }
 
 #[cfg(feature = "uuid")]
@@ -1697,21 +1034,7 @@ fn derive_path_with_into_params_custom_schema() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-            {
-                "in": "query",
-                "name": "email",
-                "required": false,
-                "schema": {
-                    "description": "this is the description",
-                    "type": "string",
-                    "format": "email"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 #[test]
@@ -1737,35 +1060,7 @@ fn derive_into_params_required() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-          {
-              "in": "query",
-              "name": "name",
-              "required": true,
-              "schema": {
-                  "type": "string",
-              },
-          },
-          {
-              "in": "query",
-              "name": "name2",
-              "required": false,
-              "schema": {
-                  "type": "string",
-              },
-          },
-          {
-              "in": "query",
-              "name": "name3",
-              "required": true,
-              "schema": {
-                  "type": "string",
-              },
-          },
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 #[test]
@@ -1791,27 +1086,7 @@ fn derive_into_params_with_serde_skip() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-          {
-              "in": "query",
-              "name": "name",
-              "required": true,
-              "schema": {
-                  "type": "string",
-              },
-          },
-          {
-              "in": "query",
-              "name": "name2",
-              "required": false,
-              "schema": {
-                  "type": "string",
-              },
-          },
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 // TODO: IntoParams seems not to follow Option<T> is automatically nullable rule!
@@ -1839,27 +1114,7 @@ fn derive_into_params_with_serde_skip_deserializing() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-          {
-              "in": "query",
-              "name": "name",
-              "required": true,
-              "schema": {
-                  "type": "string",
-              },
-          },
-          {
-              "in": "query",
-              "name": "name2",
-              "required": false,
-              "schema": {
-                  "type": "string",
-              },
-          },
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 #[test]
@@ -1885,27 +1140,7 @@ fn derive_into_params_with_serde_skip_serializing() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-          {
-              "in": "query",
-              "name": "name",
-              "required": true,
-              "schema": {
-                  "type": "string",
-              },
-          },
-          {
-              "in": "query",
-              "name": "name2",
-              "required": false,
-              "schema": {
-                  "type": "string",
-              },
-          },
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 #[test]
@@ -2009,18 +1244,7 @@ fn derive_path_with_tag_constant() {
     };
 
     assert_ne!(operation, Value::Null);
-    assert_json_eq!(
-        &operation,
-        json!({
-            "operationId": "get_items",
-            "responses": {
-                "200": {
-                    "description": "success response",
-                },
-            },
-            "tags": ["mytag"]
-        })
-    );
+    assert_json_snapshot!(&operation);
 }
 
 #[test]
@@ -2050,18 +1274,7 @@ fn derive_path_with_multiple_tags() {
     };
 
     assert_ne!(operation, Value::Null);
-    assert_json_eq!(
-        &operation,
-        json!({
-            "operationId": "get_items",
-            "responses": {
-                "200": {
-                    "description": "success response",
-                },
-            },
-            "tags": ["mytag", "one", "two","another"]
-        })
-    );
+    assert_json_snapshot!(&operation);
 }
 
 #[test]
@@ -2094,20 +1307,7 @@ split to multiple lines";
         path: "/test-description"
     };
 
-    assert_json_eq!(
-        &operation,
-        json!({
-            "description": "This is description override",
-            "operationId": "test_description_summary",
-            "responses": {
-                "200": {
-                    "description": "success response",
-                },
-            },
-            "summary": "This is summary override that is\nsplit to multiple lines",
-            "tags": []
-        })
-    );
+    assert_json_snapshot!(&operation);
 }
 
 #[test]
@@ -2132,19 +1332,7 @@ fn derive_path_include_str_description() {
         path: "/test-description"
     };
 
-    assert_json_eq!(
-        &operation,
-        json!({
-            "description": "This is description from include_str!\n",
-            "operationId": "test_description_summary",
-            "responses": {
-                "200": {
-                    "description": "success response",
-                },
-            },
-            "tags": []
-        })
-    );
+    assert_json_snapshot!(&operation);
 }
 
 #[test]
@@ -2184,25 +1372,7 @@ fn path_and_nest_with_default_tags_from_path() {
         .pointer("/paths")
         .expect("should find /paths from the OpenAPI spec");
 
-    assert_json_eq!(
-        &paths,
-        json!({
-            "/api/nest/test": {
-                "get": {
-                    "operationId": "test_path_nested",
-                    "responses": {},
-                    "tags": ["test_nest"]
-                }
-            },
-            "/test": {
-                "get": {
-                    "operationId": "test_path",
-                    "responses": {},
-                    "tags": ["test_path"]
-                }
-            }
-        })
-    );
+    assert_json_snapshot!(&paths);
 }
 
 #[test]
@@ -2242,25 +1412,7 @@ fn path_and_nest_with_additional_tags() {
         .pointer("/paths")
         .expect("should find /paths from the OpenAPI spec");
 
-    assert_json_eq!(
-        &paths,
-        json!({
-            "/api/nest/test": {
-                "get": {
-                    "operationId": "test_path_nested",
-                    "responses": {},
-                    "tags": ["this_is_tag:nest", "additional:nest"]
-                },
-            },
-            "/test": {
-                "get": {
-                    "operationId": "test_path",
-                    "responses": {},
-                    "tags": ["this_is_tag", "additional"]
-                },
-            }
-        })
-    );
+    assert_json_snapshot!(&paths);
 }
 
 #[test]
@@ -2302,25 +1454,7 @@ fn path_nest_without_any_tags() {
         .pointer("/paths")
         .expect("should find /paths from the OpenAPI spec");
 
-    assert_json_eq!(
-        &paths,
-        json!({
-            "/api/nest/test": {
-                "get": {
-                    "operationId": "test_path_nested",
-                    "responses": {},
-                    "tags": []
-                },
-            },
-            "/test": {
-                "get": {
-                    "operationId": "test_path",
-                    "responses": {},
-                    "tags": []
-                },
-            }
-        })
-    );
+    assert_json_snapshot!(&paths);
 }
 
 #[test]
@@ -2345,31 +1479,7 @@ fn derive_path_with_multiple_methods() {
     let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
     let paths = doc.pointer("/paths").expect("OpenApi must have paths");
 
-    assert_json_eq!(
-        &paths,
-        json!({
-            "/test-multiple": {
-                "get": {
-                    "operationId": "test_multiple",
-                    "responses": {
-                        "200": {
-                            "description": "success response",
-                        },
-                    },
-                    "tags": []
-                },
-                "head": {
-                    "operationId": "test_multiple",
-                    "responses": {
-                        "200": {
-                            "description": "success response",
-                        },
-                    },
-                    "tags": []
-                }
-            }
-        })
-    );
+    assert_json_snapshot!(&paths);
 }
 
 #[test]
@@ -2407,38 +1517,7 @@ fn derive_path_with_response_links() {
     let doc = &serde_json::to_value(ApiDoc::openapi()).unwrap();
     let paths = doc.pointer("/paths").expect("OpenApi must have paths");
 
-    assert_json_eq!(
-        &paths,
-        json!({
-            "/test-links": {
-                "get": {
-                    "operationId": "test_links",
-                    "responses": {
-                        "200": {
-                            "description": "success response",
-                            "links": {
-                                "getFoo": {
-                                    "operation_id": "test_links",
-                                    "parameters": {
-                                        "json_value": 1,
-                                        "key": "value"
-                                    },
-                                    "request_body": "this is body",
-                                    "server": {
-                                        "url": "http://localhost"
-                                    }
-                                },
-                                "getBar": {
-                                    "operation_ref": "this is ref"
-                                }
-                            },
-                        },
-                    },
-                    "tags": []
-                },
-            }
-        })
-    );
+    assert_json_snapshot!(&paths);
 }
 
 #[test]
@@ -2478,33 +1557,7 @@ fn derive_path_test_collect_request_body() {
         .pointer("/components/schemas")
         .expect("OpenApi must have schemas");
 
-    assert_json_eq!(
-        &schemas,
-        json!({
-            "Person": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                    },
-                    "account": {
-                        "$ref": "#/components/schemas/Account"
-                    }
-                },
-                "required": ["name", "account"],
-                "type": "object"
-            },
-            "Account": {
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "format":  "int32",
-                    },
-                },
-                "required": ["id"],
-                "type": "object"
-            }
-        })
-    );
+    assert_json_snapshot!(&schemas);
 }
 
 #[test]
@@ -2539,21 +1592,7 @@ fn derive_path_test_do_not_collect_inlined_schema() {
         .pointer("/components/schemas")
         .expect("OpenApi must have schemas");
 
-    assert_json_eq!(
-        &schemas,
-        json!({
-            "Account": {
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "format":  "int32",
-                    },
-                },
-                "required": ["id"],
-                "type": "object"
-            }
-        })
-    );
+    assert_json_snapshot!(&schemas);
 }
 
 #[test]
@@ -2591,28 +1630,7 @@ fn derive_path_test_do_not_collect_recursive_inlined() {
         .expect("request body must have schema");
 
     assert_eq!(None, schemas);
-    assert_json_eq!(
-        body,
-        json!({
-            "properties": {
-                "name": {
-                    "type": "string",
-                },
-                "account": {
-                    "properties": {
-                        "id": {
-                            "type": "integer",
-                            "format":  "int32",
-                        },
-                    },
-                    "required": ["id"],
-                    "type": "object"
-                }
-            },
-            "required": ["name", "account"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(body)
 }
 
 #[test]
@@ -2657,51 +1675,7 @@ fn derive_path_test_collect_generic_array_request_body() {
         .pointer("/components/schemas")
         .expect("OpenApi must have schemas");
 
-    assert_json_eq!(
-        &schemas,
-        json!({
-            "CreateRequest_Person": {
-                "properties": {
-                    "value": {
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                            },
-                            "account": {
-                                "$ref": "#/components/schemas/Account"
-                            }
-                        },
-                        "required": ["name", "account"],
-                        "type": "object"
-                    }
-                },
-                "required": ["value"],
-                "type": "object"
-            },
-            "Person": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                    },
-                    "account": {
-                        "$ref": "#/components/schemas/Account"
-                    }
-                },
-                "required": ["name", "account"],
-                "type": "object"
-            },
-            "Account": {
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "format":  "int32",
-                    },
-                },
-                "required": ["id"],
-                "type": "object"
-            }
-        })
-    );
+    assert_json_snapshot!(&schemas);
 }
 
 #[test]
@@ -2746,51 +1720,7 @@ fn derive_path_test_collect_generic_request_body() {
         .pointer("/components/schemas")
         .expect("OpenApi must have schemas");
 
-    assert_json_eq!(
-        &schemas,
-        json!({
-            "CreateRequest_Person": {
-                "properties": {
-                    "value": {
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                            },
-                            "account": {
-                                "$ref": "#/components/schemas/Account"
-                            }
-                        },
-                        "required": ["name", "account"],
-                        "type": "object"
-                    }
-                },
-                "required": ["value"],
-                "type": "object"
-            },
-            "Person": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                    },
-                    "account": {
-                        "$ref": "#/components/schemas/Account"
-                    }
-                },
-                "required": ["name", "account"],
-                "type": "object"
-            },
-            "Account": {
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "format":  "int32",
-                    },
-                },
-                "required": ["id"],
-                "type": "object"
-            }
-        })
-    );
+    assert_json_snapshot!(&schemas);
 }
 
 #[test]
@@ -2817,24 +1747,7 @@ fn path_derive_with_body_ref_using_as_attribute_schema() {
     let operation = __path_handler::operation();
     let operation = serde_json::to_value(&operation).expect("operation is JSON serializable");
 
-    assert_json_eq!(
-        operation,
-        json!({
-            "operationId": "handler",
-            "responses": {
-                "200": {
-                    "description": "Get calculated cost of an assembly.",
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/types.calculation.calculation_assembly_cost.v1.CalculationAssemblyCostResponse"
-                            },
-                        }
-                    }
-                }
-            }
-        })
-    );
+    assert_json_snapshot!(operation);
 }
 
 #[test]
@@ -2860,19 +1773,7 @@ fn derive_into_params_with_ignored_field() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-            {
-                "in": "query",
-                "name": "name",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 #[test]
@@ -2898,27 +1799,7 @@ fn derive_into_params_with_ignored_eq_false_field() {
 
     let value = operation.pointer("/parameters");
 
-    assert_json_eq!(
-        value,
-        json!([
-            {
-                "in": "query",
-                "name": "name",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "__this_is_private",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(value)
 }
 
 #[test]
@@ -2941,24 +1822,7 @@ fn derive_octet_stream_request_body() {
         .pointer("/requestBody")
         .expect("must have request body");
 
-    assert_json_eq!(
-        &request_body,
-        json!({
-            "content": {
-                "application/octet-stream": {
-                    "schema": {
-                        "items": {
-                            "type": "integer",
-                            "format": "int32",
-                            "minimum": 0,
-                        },
-                        "type": "array",
-                    },
-                },
-            },
-            "required": true,
-        })
-    );
+    assert_json_snapshot!(&request_body);
 }
 
 #[test]
@@ -2985,20 +1849,7 @@ fn derive_img_png_request_body() {
         .pointer("/requestBody")
         .expect("must have request body");
 
-    assert_json_eq!(
-        &request_body,
-        json!({
-            "content": {
-                "image/png": {
-                    "schema": {
-                        "type": "string",
-                        "contentEncoding": "base64"
-                    },
-                },
-            },
-            "required": true,
-        })
-    );
+    assert_json_snapshot!(&request_body);
 }
 
 #[test]
@@ -3028,35 +1879,7 @@ fn derive_multipart_form_data() {
         .pointer("/requestBody")
         .expect("must have request body");
 
-    assert_json_eq!(
-        &request_body,
-        json!({
-            "content": {
-                "multipart/form-data": {
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "order_id": {
-                                "type": "integer",
-                                "format": "int32"
-                            },
-                            "file_bytes": {
-                                "type": "array",
-                                "items": {
-                                    "type": "integer",
-                                    "format": "int32",
-                                    "minimum": 0,
-                                },
-                                "contentMediaType": "application/octet-stream"
-                            },
-                        },
-                        "required": ["order_id", "file_bytes"]
-                    },
-                },
-            },
-            "required": true,
-        })
-    );
+    assert_json_snapshot!(&request_body);
 }
 
 #[test]
@@ -3084,15 +1907,7 @@ fn derive_images_as_application_octet_stream() {
         .pointer("/requestBody")
         .expect("must have request body");
 
-    assert_json_eq!(
-        &request_body,
-        json!({
-            "content": {
-                "image/jpg": {},
-                "image/png": {},
-            },
-        })
-    );
+    assert_json_snapshot!(&request_body);
 }
 
 #[test]

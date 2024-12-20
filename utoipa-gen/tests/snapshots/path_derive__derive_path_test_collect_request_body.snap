@@ -1,0 +1,34 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&schemas"
+snapshot_kind: text
+---
+{
+  "Account": {
+    "properties": {
+      "id": {
+        "format": "int32",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "type": "object"
+  },
+  "Person": {
+    "properties": {
+      "account": {
+        "$ref": "#/components/schemas/Account"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "account"
+    ],
+    "type": "object"
+  }
+}
