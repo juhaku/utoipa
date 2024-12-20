@@ -1,12 +1,11 @@
 #![cfg(feature = "rocket_extras")]
 
-use std::io::Error;
-
-use assert_json_diff::assert_json_eq;
+use insta::assert_json_snapshot;
 use rocket::request::FromParam;
 use rocket::serde::json::Json;
 use rocket::{get, post, FromForm};
-use serde_json::{json, Value};
+use serde_json::Value;
+use std::io::Error;
 use utoipa::openapi::path::ParameterBuilder;
 use utoipa::{IntoParams, OpenApi, Path, ToSchema};
 use utoipa_gen::schema;
@@ -126,22 +125,7 @@ fn resolve_get_with_optional_query_args() {
         "expected paths.hello.get.parameters not null"
     );
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "colors",
-                "required": false,
-                "schema": {
-                    "items": {
-                        "type": "string",
-                    },
-                    "type": "array",
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -388,38 +372,7 @@ fn resolve_path_query_params_from_form() {
         .pointer("/paths/~1hello~1{id}/get/parameters")
         .unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Hello id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "type": "integer"
-                }
-            },
-            {
-                "in": "query",
-                "name": "foo",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "bar",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -468,71 +421,8 @@ fn path_with_all_args_and_body() {
     let value = &serde_json::to_value(&openapi).unwrap();
     let operation = value.pointer("/paths/~1hello~1{id}~1{name}/post").unwrap();
 
-    assert_json_eq!(
-        operation.pointer("/parameters"),
-        json!([
-            {
-                "description": "Hello id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "type": "integer"
-                }
-            },
-            {
-                "in": "query",
-                "name": "foo",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "bar",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer"
-                }
-            },
-            {
-                "in": "query",
-                "name": "colors",
-                "required": true,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            {
-                "in": "path",
-                "name": "name",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }
-
-        ])
-    );
-    assert_json_eq!(
-        &operation.pointer("/requestBody"),
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Hello"
-                    }
-                }
-            },
-            "required": true
-        })
-    );
+    assert_json_snapshot!(operation.pointer("/parameters"));
+    assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
 #[test]
@@ -593,23 +483,7 @@ fn path_with_enum_path_param() {
     let value = &serde_json::to_value(&openapi).unwrap();
     let operation = value.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        operation.pointer("/parameters"),
-        json!([
-            {
-                "description": "",
-                "in": "path",
-                "name": "api_version",
-                "required": true,
-                "schema": {
-                    "type": "string",
-                    "enum": [
-                        "V1"
-                    ]
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(operation.pointer("/parameters"));
 }
 
 macro_rules! test_derive_path_operations {
@@ -689,56 +563,5 @@ fn derive_rocket_path_with_query_params_in_option() {
     let operation = __path_list_items::operation();
     let value = serde_json::to_value(&operation).expect("operation is JSON serializable");
 
-    assert_json_eq!(
-        value,
-        json!({
-            "operationId": "list_items",
-            "parameters": [
-                {
-                    "in": "query",
-                    "name": "page",
-                    "required": true,
-                    "schema": {
-                        "format": "int64",
-                        "minimum": 0,
-                        "type": "integer"
-                    },
-                    "style": "form"
-                },
-                {
-                    "in": "query",
-                    "name": "per_page",
-                    "required": true,
-                    "schema": {
-                        "format": "int64",
-                        "minimum": 0,
-                        "type": "integer"
-                    },
-                    "style": "form"
-                }
-            ],
-            "responses": {
-                "200": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "default": null,
-                            }
-                        }
-                    },
-                    "description": ""
-                },
-                "400": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "default": null,
-                            }
-                        }
-                    },
-                    "description": ""
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(value);
 }
