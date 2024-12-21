@@ -24,12 +24,12 @@ for crate in $crates; do
 
         $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_auto_into_responses --features auto_into_responses,utoipa/uuid,uuid,utoipa/macros
         $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,utoipa/uuid,uuid,utoipa/chrono,chrono,utoipa/time,time,utoipa/macros
-        $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,utoipa/auto_into_responses,utoipa/uuid,uuid,utoipa/macros
+        $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,auto_into_responses,utoipa/uuid,uuid,utoipa/macros
 
         $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_rocket --features rocket_extras,utoipa/macros
 
         $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_axum_test --features axum_extras,utoipa/macros
-        $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_auto_into_responses_axum --features axum_extras,utoipa/auto_into_responses,utoipa/macros
+        $CARGO ${CARGO_COMMAND} -p utoipa-gen --test path_derive_auto_into_responses_axum --features axum_extras,auto_into_responses,utoipa/macros
     elif [[ "$crate" == "utoipa-swagger-ui" ]]; then
         $CARGO ${CARGO_COMMAND} -p utoipa-swagger-ui --features actix-web,rocket,axum,utoipa/macros
     elif [[ "$crate" == "utoipa-redoc" ]]; then
