@@ -1,0 +1,19 @@
+---
+source: utoipa-gen/tests/path_derive_rocket.rs
+expression: "operation.pointer(\"/parameters\")"
+snapshot_kind: text
+---
+[
+  {
+    "description": "",
+    "in": "path",
+    "name": "api_version",
+    "required": true,
+    "schema": {
+      "enum": [
+        "V1"
+      ],
+      "type": "string"
+    }
+  }
+]

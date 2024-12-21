@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: schema
+snapshot_kind: text
+---
+{
+  "properties": {
+    "value": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "value"
+  ],
+  "type": "object"
+}

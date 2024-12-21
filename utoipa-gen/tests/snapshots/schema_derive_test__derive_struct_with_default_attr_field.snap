@@ -1,0 +1,63 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: owner
+snapshot_kind: text
+---
+{
+  "properties": {
+    "authored": {
+      "default": {
+        "name": "My Book"
+      },
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/components/schemas/Book"
+        }
+      ]
+    },
+    "books": {
+      "default": [
+        {
+          "name": "The Fellowship Of The Ring"
+        }
+      ],
+      "items": {
+        "$ref": "#/components/schemas/Book"
+      },
+      "type": "array"
+    },
+    "favorite_book": {
+      "default": {
+        "name": "Dune"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/Book"
+        }
+      ]
+    },
+    "leases": {
+      "additionalProperties": {
+        "$ref": "#/components/schemas/Book"
+      },
+      "default": {
+        "National Library": {
+          "name": "The Stranger"
+        }
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "favorite_book",
+    "books",
+    "leases"
+  ],
+  "type": "object"
+}

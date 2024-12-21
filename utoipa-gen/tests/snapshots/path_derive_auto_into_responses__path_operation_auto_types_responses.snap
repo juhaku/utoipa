@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/path_derive_auto_into_responses.rs
+expression: "&path.pointer(\"/responses\").unwrap()"
+snapshot_kind: text
+---
+{
+  "200": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/Item"
+        }
+      }
+    },
+    "description": "Item found"
+  },
+  "404": {
+    "description": "No item found"
+  }
+}

@@ -1,0 +1,39 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "example": {
+      "key": "value"
+    },
+    "in": "path",
+    "name": "map",
+    "required": true,
+    "schema": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  {
+    "example": [
+      "value1",
+      "value2"
+    ],
+    "in": "path",
+    "name": "vec",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  }
+]

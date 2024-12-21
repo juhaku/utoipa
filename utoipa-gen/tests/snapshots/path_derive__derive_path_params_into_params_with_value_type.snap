@@ -1,0 +1,88 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "style": "simple"
+  },
+  {
+    "in": "query",
+    "name": "another_id",
+    "required": true,
+    "schema": {
+      "type": "object"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value1",
+    "required": true,
+    "schema": {
+      "items": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value2",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value3",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value4",
+    "required": false,
+    "schema": {
+      "type": "object"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value5",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value6",
+    "required": true,
+    "schema": {
+      "items": {
+        "$ref": "#/components/schemas/Foo"
+      },
+      "type": "array"
+    }
+  }
+]

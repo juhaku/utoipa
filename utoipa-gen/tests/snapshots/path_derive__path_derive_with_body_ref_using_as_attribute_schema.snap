@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: operation
+snapshot_kind: text
+---
+{
+  "operationId": "handler",
+  "responses": {
+    "200": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/types.calculation.calculation_assembly_cost.v1.CalculationAssemblyCostResponse"
+          }
+        }
+      },
+      "description": "Get calculated cost of an assembly."
+    }
+  }
+}

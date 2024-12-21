@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "discriminator": {
+    "mapping": {
+      "bar": "#/components/schemas/BarBarInternal",
+      "foo": "#/components/schemas/FooInternal"
+    },
+    "propertyName": "bar_type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/components/schemas/BarBarInternal"
+    },
+    {
+      "$ref": "#/components/schemas/FooInternal"
+    }
+  ]
+}

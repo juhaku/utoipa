@@ -1,0 +1,51 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "tag": {
+          "enum": [
+            "A"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "tag": {
+          "enum": [
+            "B"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "tag": {
+          "enum": [
+            "C"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "type": "object"
+    }
+  ]
+}

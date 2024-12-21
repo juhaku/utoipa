@@ -1,0 +1,13 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "200": {
+    "description": "success"
+  },
+  "404": {
+    "description": "not found"
+  }
+}

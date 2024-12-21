@@ -1,0 +1,98 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "description": "Id of Foo to get",
+    "in": "path",
+    "name": "foo_id",
+    "required": true,
+    "schema": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "maximum": 10,
+      "minimum": 5,
+      "multipleOf": 2.5,
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "value",
+    "required": true,
+    "schema": {
+      "maxLength": 10,
+      "minLength": 5,
+      "pattern": "[a-z]*",
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "items",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  {
+    "description": "Foo name",
+    "in": "path",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "minLength": 3,
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  {
+    "description": "Foo nonnullable",
+    "in": "path",
+    "name": "nonnullable",
+    "required": true,
+    "schema": {
+      "maxLength": 10,
+      "minLength": 3,
+      "type": "string"
+    }
+  },
+  {
+    "description": "Foo name",
+    "in": "query",
+    "name": "namequery",
+    "required": false,
+    "schema": {
+      "minLength": 3,
+      "type": "string"
+    }
+  },
+  {
+    "description": "Foo nonnullable",
+    "in": "query",
+    "name": "nonnullablequery",
+    "required": true,
+    "schema": {
+      "maxLength": 10,
+      "minLength": 3,
+      "type": "string"
+    }
+  }
+]

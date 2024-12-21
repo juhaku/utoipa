@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive_actix.rs
+expression: "&operation.pointer(\"/requestBody\")"
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/Item"
+      }
+    }
+  },
+  "required": true
+}

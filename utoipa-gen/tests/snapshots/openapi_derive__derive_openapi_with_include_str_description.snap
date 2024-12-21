@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: info
+snapshot_kind: text
+---
+{
+  "contact": {
+    "name": "Test"
+  },
+  "description": "this is include description\n",
+  "license": {
+    "identifier": "MIT OR Apache-2.0",
+    "name": "MIT OR Apache-2.0"
+  },
+  "title": "title override",
+  "version": "5.3.0"
+}

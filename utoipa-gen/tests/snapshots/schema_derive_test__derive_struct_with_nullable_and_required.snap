@@ -1,0 +1,58 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: user
+snapshot_kind: text
+---
+{
+  "properties": {
+    "edit_history": {
+      "items": {
+        "type": "string"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "email": {
+      "type": "string"
+    },
+    "fax": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "friends": {
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": "array"
+    },
+    "name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updated": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "email",
+    "name",
+    "edit_history",
+    "updated"
+  ],
+  "type": "object"
+}

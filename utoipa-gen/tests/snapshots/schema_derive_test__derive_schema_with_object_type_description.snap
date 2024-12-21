@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "object": {
+      "description": "This is object value",
+      "type": "object"
+    }
+  },
+  "required": [
+    "object"
+  ],
+  "type": "object"
+}

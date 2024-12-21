@@ -1,0 +1,10 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "MyResponse": {
+    "description": "Ok"
+  }
+}

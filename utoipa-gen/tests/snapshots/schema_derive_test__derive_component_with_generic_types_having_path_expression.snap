@@ -1,0 +1,14 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: args
+snapshot_kind: text
+---
+{
+  "items": {
+    "items": {
+      "type": "string"
+    },
+    "type": "array"
+  },
+  "type": "array"
+}

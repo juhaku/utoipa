@@ -1,0 +1,34 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&request_body"
+snapshot_kind: text
+---
+{
+  "content": {
+    "multipart/form-data": {
+      "schema": {
+        "properties": {
+          "file_bytes": {
+            "contentMediaType": "application/octet-stream",
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "order_id": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "file_bytes"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "required": true
+}

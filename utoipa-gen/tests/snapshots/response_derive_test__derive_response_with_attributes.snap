@@ -1,0 +1,41 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: v
+snapshot_kind: text
+---
+{
+  "description": "Override description for response",
+  "headers": {
+    "csrf-token": {
+      "schema": {
+        "type": "string"
+      },
+      "description": "response csrf token"
+    },
+    "random-id": {
+      "schema": {
+        "type": "integer",
+        "format": "int32"
+      }
+    }
+  },
+  "content": {
+    "text/xml": {
+      "schema": {
+        "type": "object",
+        "description": "This is description\n\nIt will also be used in `ToSchema` if present",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "example": {
+        "name": "the name"
+      }
+    }
+  }
+}

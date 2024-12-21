@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: request_body
+snapshot_kind: text
+---
+{
+  "content": {
+    "text/xml": {
+      "schema": {
+        "description": "Some struct",
+        "properties": {
+          "name": {
+            "description": "Some name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "description": "Create new Foo",
+  "required": true
+}

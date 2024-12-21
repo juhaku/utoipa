@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: content
+snapshot_kind: text
+---
+{
+  "application/octet-stream": {
+    "schema": {
+      "items": {
+        "format": "int32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  }
+}

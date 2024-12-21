@@ -1,0 +1,8 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "$ref": "#/components/schemas/Username"
+}

@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "previous": {
+      "$ref": "#/components/schemas/Item"
+    }
+  },
+  "required": [
+    "id",
+    "previous"
+  ],
+  "type": "object"
+}

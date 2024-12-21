@@ -1,0 +1,11 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: map
+snapshot_kind: text
+---
+{
+  "additionalProperties": {
+    "$ref": "#/components/schemas/Foo"
+  },
+  "type": "object"
+}

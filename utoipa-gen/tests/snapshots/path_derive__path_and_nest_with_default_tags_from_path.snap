@@ -1,0 +1,25 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&paths"
+snapshot_kind: text
+---
+{
+  "/api/nest/test": {
+    "get": {
+      "operationId": "test_path_nested",
+      "responses": {},
+      "tags": [
+        "test_nest"
+      ]
+    }
+  },
+  "/test": {
+    "get": {
+      "operationId": "test_path",
+      "responses": {},
+      "tags": [
+        "test_path"
+      ]
+    }
+  }
+}

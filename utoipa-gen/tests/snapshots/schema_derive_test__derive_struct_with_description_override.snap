@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "description": "This is overridden description",
+  "properties": {
+    "field1": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "field1"
+  ],
+  "type": "object"
+}

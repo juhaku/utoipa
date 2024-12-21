@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "number": {
+      "default": -1,
+      "format": "double",
+      "minimum": -2.1,
+      "type": "number"
+    },
+    "solid_number": {
+      "default": -2,
+      "format": "int64",
+      "maximum": -3,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "number",
+    "solid_number"
+  ],
+  "type": "object"
+}

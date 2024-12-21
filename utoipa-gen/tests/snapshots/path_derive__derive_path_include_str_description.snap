@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&operation"
+snapshot_kind: text
+---
+{
+  "description": "This is description from include_str!\n",
+  "operationId": "test_description_summary",
+  "responses": {
+    "200": {
+      "description": "success response"
+    }
+  },
+  "tags": []
+}

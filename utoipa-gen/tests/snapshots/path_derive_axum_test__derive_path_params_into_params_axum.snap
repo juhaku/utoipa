@@ -1,0 +1,42 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "description": "Id of person",
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  {
+    "description": "Name of person",
+    "in": "path",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "deprecated": true,
+    "description": "Age filter for user",
+    "in": "query",
+    "name": "age",
+    "required": false,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    }
+  }
+]

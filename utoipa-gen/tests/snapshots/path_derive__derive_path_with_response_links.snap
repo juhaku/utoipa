@@ -1,0 +1,34 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&paths"
+snapshot_kind: text
+---
+{
+  "/test-links": {
+    "get": {
+      "operationId": "test_links",
+      "responses": {
+        "200": {
+          "description": "success response",
+          "links": {
+            "getBar": {
+              "operation_ref": "this is ref"
+            },
+            "getFoo": {
+              "operation_id": "test_links",
+              "parameters": {
+                "json_value": 1,
+                "key": "value"
+              },
+              "request_body": "this is body",
+              "server": {
+                "url": "http://localhost"
+              }
+            }
+          }
+        }
+      },
+      "tags": []
+    }
+  }
+}

@@ -1,0 +1,40 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "string_value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "string_value"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "number": {
+          "properties": {
+            "id": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "number"
+      ],
+      "type": "object"
+    }
+  ]
+}

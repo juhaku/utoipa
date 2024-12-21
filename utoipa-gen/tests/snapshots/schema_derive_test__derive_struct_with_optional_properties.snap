@@ -1,0 +1,55 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: owner
+snapshot_kind: text
+---
+{
+  "properties": {
+    "books": {
+      "items": {
+        "$ref": "#/components/schemas/Book"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "enabled": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "id": {
+      "default": 1,
+      "format": "int64",
+      "type": "integer"
+    },
+    "metadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "optional_book": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/components/schemas/Book"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object"
+}

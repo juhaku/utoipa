@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "format": "int32",
+      "type": "integer"
+    },
+    {
+      "type": "string"
+    }
+  ],
+  "title": "FooTitle"
+}

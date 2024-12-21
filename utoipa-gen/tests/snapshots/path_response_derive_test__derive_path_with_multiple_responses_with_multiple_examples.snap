@@ -1,0 +1,46 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "200": {
+    "content": {
+      "application/vnd.user.v1+json": {
+        "examples": {
+          "StringUser": {
+            "value": {
+              "id": "1"
+            }
+          },
+          "StringUser2": {
+            "value": {
+              "id": "2"
+            }
+          }
+        },
+        "schema": {
+          "$ref": "#/components/schemas/User"
+        }
+      },
+      "application/vnd.user.v2+json": {
+        "examples": {
+          "IntUser": {
+            "value": {
+              "id": 1
+            }
+          },
+          "IntUser2": {
+            "value": {
+              "id": 2
+            }
+          }
+        },
+        "schema": {
+          "$ref": "#/components/schemas/User2"
+        }
+      }
+    },
+    "description": ""
+  }
+}

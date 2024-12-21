@@ -1,0 +1,13 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "field": {
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

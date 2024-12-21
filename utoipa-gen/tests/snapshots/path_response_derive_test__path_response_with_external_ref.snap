@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "200": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "./MyUser.json"
+        }
+      }
+    },
+    "description": ""
+  }
+}

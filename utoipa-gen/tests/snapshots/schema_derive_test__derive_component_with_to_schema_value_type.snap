@@ -1,0 +1,64 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "properties": {
+    "another_id": {
+      "type": "object"
+    },
+    "id": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "value1": {
+      "items": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "type": "array"
+    },
+    "value2": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "value3": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "value4": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "value5": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "value6": {
+      "items": {
+        "$ref": "#/components/schemas/Foo"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "another_id",
+    "value1",
+    "value2",
+    "value5",
+    "value6"
+  ],
+  "type": "object"
+}

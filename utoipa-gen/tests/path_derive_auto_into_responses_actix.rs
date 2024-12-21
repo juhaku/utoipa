@@ -6,7 +6,7 @@ use utoipa::OpenApi;
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::{post, HttpResponse, Responder};
-use assert_json_diff::assert_json_eq;
+use insta::assert_json_snapshot;
 
 // TODO this test is currently failing to compile
 //
@@ -69,27 +69,7 @@ use assert_json_diff::assert_json_eq;
 //     let value = serde_json::to_value(&doc).unwrap();
 //     let path = value.pointer("/paths/~1item/get").unwrap();
 //
-//     assert_json_eq!(
-//         &path.pointer("/responses").unwrap(),
-//         serde_json::json!({
-//             "200": {
-//                 "content": {
-//                     "application/json": {
-//                         "schema": {
-//                             "$ref": "#/components/schemas/Item"
-//                         }
-//                     }
-//                 },
-//                 "description": "Item found",
-//             },
-//             "404": {
-//                 "description": "No item found"
-//             },
-//             "500": {
-//                 "description": "Error"
-//             }
-//         })
-//     )
+//     assert_json_snapshot!(&path.pointer("/responses").unwrap());
 // }
 
 #[test]
@@ -144,38 +124,8 @@ fn path_operation_auto_types_fn_parameters() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        &path.pointer("/responses").unwrap(),
-        serde_json::json!({
-            "200": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/Item"
-                        }
-                    }
-                },
-                "description": "Item found",
-            },
-            "404": {
-                "description": "No item found"
-            },
-        })
-    );
-
-    assert_json_eq!(
-        &path.pointer("/requestBody"),
-        serde_json::json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/ItemBody"
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&path.pointer("/responses").unwrap());
+    assert_json_snapshot!(&path.pointer("/requestBody"));
 }
 
 #[test]
@@ -230,37 +180,8 @@ fn path_operation_optional_json_body() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        &path.pointer("/responses").unwrap(),
-        serde_json::json!({
-            "200": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/Item"
-                        }
-                    }
-                },
-                "description": "Item found",
-            },
-            "404": {
-                "description": "No item found"
-            },
-        })
-    );
-
-    assert_json_eq!(
-        &path.pointer("/requestBody"),
-        serde_json::json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/ItemBody"
-                    }
-                }
-            },
-        })
-    )
+    assert_json_snapshot!(&path.pointer("/responses").unwrap());
+    assert_json_snapshot!(&path.pointer("/requestBody"));
 }
 
 #[test]
@@ -311,34 +232,7 @@ fn path_operation_auto_types_tuple() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        &path.pointer("/requestBody"),
-        serde_json::json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "prefixItems": [
-                            {
-                                "properties": {
-                                    "value": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["value"],
-                                "type": "object"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
-                        "items": false,
-                        "type": "array",
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&path.pointer("/requestBody"));
 }
 
 // TODO this test is currently failing to compile
@@ -391,21 +285,7 @@ fn path_operation_auto_types_tuple() {
 //     let value = serde_json::to_value(&doc).unwrap();
 //     let path = value.pointer("/paths/~1item/post").unwrap();
 //
-//     assert_json_eq!(
-//         &path.pointer("/requestBody"),
-//         serde_json::json!({
-//             "content": {
-//                 "application/octet-stream": {
-//                     "schema": {
-//                         "type": "string",
-//                         "format": "binary",
-//                     }
-//                 }
-//             },
-//             "description": "",
-//             "required": true,
-//         })
-//     )
+//     assert_json_snapshot!(&path.pointer("/requestBody"));
 // }
 
 #[test]
@@ -456,17 +336,5 @@ fn path_operation_request_body_form() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        &path.pointer("/requestBody"),
-        serde_json::json!({
-            "content": {
-                "application/x-www-form-urlencoded": {
-                    "schema": {
-                        "$ref": "#/components/schemas/ItemBody"
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&path.pointer("/requestBody"))
 }

@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "description": "Since OpenAPI 3.1 the comments can be added to the Ref types as well",
+      "properties": {
+        "UnnamedFieldWithCommentReference": {
+          "$ref": "#/components/schemas/CommentedReference",
+          "description": "Since OpenAPI 3.1 the comments can be added to the Ref types as well"
+        }
+      },
+      "required": [
+        "UnnamedFieldWithCommentReference"
+      ],
+      "type": "object"
+    }
+  ]
+}

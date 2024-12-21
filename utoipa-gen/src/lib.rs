@@ -3033,7 +3033,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 ///             .required("name")
 ///     )
 /// ));
-/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&schema).unwrap(), serde_json::to_value(&generated).unwrap());
+/// # insta::assert_json_snapshot!("schema", &schema);
 /// ```
 ///
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html

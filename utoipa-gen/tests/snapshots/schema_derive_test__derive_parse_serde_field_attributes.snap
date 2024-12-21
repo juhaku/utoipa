@@ -1,0 +1,21 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: post
+snapshot_kind: text
+---
+{
+  "properties": {
+    "longFieldNum": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "uuid": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "uuid",
+    "longFieldNum"
+  ],
+  "type": "object"
+}

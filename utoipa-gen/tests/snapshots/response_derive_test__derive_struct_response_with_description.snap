@@ -1,0 +1,24 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: v
+snapshot_kind: text
+---
+{
+  "description": "This is description\n\nIt will also be used in `ToSchema` if present",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "description": "This is description\n\nIt will also be used in `ToSchema` if present",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

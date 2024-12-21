@@ -1,0 +1,10 @@
+---
+source: utoipa-gen/tests/path_derive_actix.rs
+expression: "&schemas"
+snapshot_kind: text
+---
+{
+  "Item": {
+    "type": "string"
+  }
+}

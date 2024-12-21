@@ -5,9 +5,9 @@ use actix_web::{
     web::{Json, Path, Query},
     FromRequest, Responder, ResponseError,
 };
-use assert_json_diff::assert_json_eq;
+use insta::assert_json_snapshot;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::{fmt::Display, future::Ready, todo};
 use utoipa::{
     openapi::{
@@ -838,58 +838,8 @@ fn path_with_all_args() {
     let doc = serde_json::to_value(Doc::openapi()).unwrap();
     let operation = doc.pointer("/paths/~1item~1{id}~1{name}/post").unwrap();
 
-    assert_json_eq!(
-        &operation.pointer("/parameters").unwrap(),
-        json!([
-              {
-                  "in": "query",
-                  "name": "age",
-                  "required": true,
-                  "schema": {
-                      "format": "int32",
-                      "type": "integer"
-                  }
-              },
-              {
-                  "in": "query",
-                  "name": "status",
-                  "required": true,
-                  "schema": {
-                      "type": "string"
-                  }
-              },
-              {
-                  "in": "path",
-                  "name": "id",
-                  "required": true,
-                  "schema": {
-                      "format": "int32",
-                      "type": "integer"
-                  }
-              },
-              {
-                  "in": "path",
-                  "name": "name",
-                  "required": true,
-                  "schema": {
-                      "type": "string"
-                  }
-              }
-        ])
-    );
-    assert_json_eq!(
-        &operation.pointer("/requestBody"),
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&operation.pointer("/parameters").unwrap());
+    assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
 #[test]
@@ -925,33 +875,8 @@ fn path_with_all_args_using_uuid() {
     let doc = serde_json::to_value(Doc::openapi()).unwrap();
     let operation = doc.pointer("/paths/~1item~1{uuid}/post").unwrap();
 
-    assert_json_eq!(
-        &operation.pointer("/parameters").unwrap(),
-        json!([
-              {
-                  "in": "path",
-                  "name": "uuid",
-                  "required": true,
-                  "schema": {
-                      "format": "uuid",
-                      "type": "string"
-                  }
-              },
-        ])
-    );
-    assert_json_eq!(
-        &operation.pointer("/requestBody"),
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&operation.pointer("/parameters").unwrap());
+    assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
 #[test]
@@ -1003,33 +928,8 @@ fn path_with_all_args_using_custom_uuid() {
     let doc = serde_json::to_value(Doc::openapi()).unwrap();
     let operation = doc.pointer("/paths/~1item~1{custom_uuid}/post").unwrap();
 
-    assert_json_eq!(
-        &operation.pointer("/parameters").unwrap(),
-        json!([
-              {
-                  "in": "path",
-                  "name": "custom_uuid",
-                  "required": true,
-                  "schema": {
-                      "format": "uuid",
-                      "type": "string"
-                  }
-              },
-        ])
-    );
-    assert_json_eq!(
-        &operation.pointer("/requestBody"),
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&operation.pointer("/parameters").unwrap());
+    assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
 macro_rules! test_derive_path_operations {
@@ -1103,27 +1003,8 @@ fn path_derive_custom_generic_wrapper() {
     let schemas = doc.pointer("/components/schemas").unwrap();
     let operation = doc.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        &schemas,
-        json!({
-            "Item": {
-                "type": "string"
-            }
-        })
-    );
-    assert_json_eq!(
-        &operation.pointer("/requestBody"),
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Item"
-                    }
-                }
-            },
-            "required": true,
-        })
-    )
+    assert_json_snapshot!(&schemas);
+    assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
 test_derive_path_operations! {

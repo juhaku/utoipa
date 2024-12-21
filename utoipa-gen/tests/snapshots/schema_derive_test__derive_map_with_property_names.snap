@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "additionalProperties": {
+    "type": "string"
+  },
+  "propertyNames": {
+    "enum": [
+      "Foo",
+      "Bar"
+    ],
+    "type": "string"
+  },
+  "type": "object"
+}

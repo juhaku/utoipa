@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "allOf": [
+    {
+      "$ref": "#/components/schemas/Metadata"
+    },
+    {
+      "properties": {
+        "amount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "description"
+      ],
+      "type": "object"
+    }
+  ]
+}

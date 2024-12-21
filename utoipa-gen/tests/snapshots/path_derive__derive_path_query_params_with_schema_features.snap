@@ -1,0 +1,33 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "value",
+    "required": false,
+    "schema": {
+      "default": "value",
+      "readOnly": true,
+      "type": [
+        "string",
+        "null"
+      ],
+      "writeOnly": true,
+      "xml": {
+        "name": "xml_value"
+      }
+    }
+  },
+  {
+    "in": "query",
+    "name": "int",
+    "required": true,
+    "schema": {
+      "format": "binary",
+      "type": "string"
+    }
+  }
+]

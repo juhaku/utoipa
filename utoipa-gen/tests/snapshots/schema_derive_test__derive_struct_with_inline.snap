@@ -1,0 +1,75 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: "&greeting"
+snapshot_kind: text
+---
+{
+  "properties": {
+    "foo1": {
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "foo2": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "foo3": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "foo4": {
+      "items": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "foo1",
+    "foo4"
+  ],
+  "type": "object"
+}

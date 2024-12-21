@@ -1,0 +1,19 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: bar
+snapshot_kind: text
+---
+{
+  "properties": {
+    "links": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "links"
+  ],
+  "type": "object"
+}

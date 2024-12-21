@@ -1,0 +1,6 @@
+---
+source: utoipa-gen/tests/path_derive_auto_into_responses.rs
+expression: "&path.pointer(\"/responses\").unwrap()"
+snapshot_kind: text
+---
+{}

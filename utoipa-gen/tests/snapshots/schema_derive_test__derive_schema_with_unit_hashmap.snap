@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "volumes": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "default": null
+        },
+        "propertyNames": {
+          "default": null
+        },
+        "type": "object"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "volumes"
+  ],
+  "type": "object"
+}

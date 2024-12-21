@@ -1,5 +1,4 @@
-use assert_json_diff::assert_json_eq;
-use serde_json::json;
+use insta::assert_json_snapshot;
 use utoipa::{OpenApi, Path};
 
 mod common;
@@ -320,30 +319,7 @@ fn derive_path_params_with_parameter_type_args() {
 
     common::assert_json_array_len(parameters, 1);
 
-    assert_json_eq!(
-        parameters,
-        json!([
-              {
-                  "in": "query",
-                  "name": "value",
-                  "required": false,
-                  "deprecated": true,
-                  "description": "Foo value description",
-                  "schema": {
-                      "type": "array",
-                      "items": {
-                          "maxLength": 20,
-                          "pattern": r"\w",
-                          "type": "string"
-                      },
-                      "maxItems": 1,
-                  },
-                  "style": "form",
-                  "allowReserved": true,
-                  "explode": true
-              }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 macro_rules! into_params {
@@ -388,57 +364,5 @@ fn derive_into_params_required_custom_query_parameter_required() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!([
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "limit",
-                "required": false,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                }
-            },
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "limit_explisit_required",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                }
-            },
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "not_required",
-                "required": false,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                }
-            },
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "option_required",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(value);
 }

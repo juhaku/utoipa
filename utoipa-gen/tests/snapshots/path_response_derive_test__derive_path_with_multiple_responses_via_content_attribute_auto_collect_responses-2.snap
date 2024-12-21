@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "200": {
+    "content": {
+      "application/vnd.user.v1+json": {
+        "example": {
+          "id": "id"
+        },
+        "schema": {
+          "$ref": "#/components/schemas/User"
+        }
+      },
+      "application/vnd.user.v2+json": {
+        "example": {
+          "id": 2
+        },
+        "schema": {
+          "$ref": "#/components/schemas/User2"
+        }
+      }
+    },
+    "description": ""
+  }
+}

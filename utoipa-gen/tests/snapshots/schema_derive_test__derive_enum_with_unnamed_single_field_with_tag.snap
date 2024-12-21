@@ -1,0 +1,30 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/ReferenceValue"
+        },
+        {
+          "properties": {
+            "enum": {
+              "enum": [
+                "Value"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "enum"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  ]
+}

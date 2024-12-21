@@ -1,0 +1,9 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "pattern": "^([a-zA-Z0-9_\\-]{3,32}$)",
+  "type": "string"
+}

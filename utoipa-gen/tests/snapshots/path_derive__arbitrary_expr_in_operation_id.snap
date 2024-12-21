@@ -1,0 +1,6 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: operation_id
+snapshot_kind: text
+---
+"8"

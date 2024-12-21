@@ -1,0 +1,14 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "operationId": "post_secret",
+  "responses": {
+    "200": {
+      "description": ""
+    }
+  },
+  "summary": "Post some secret inner handler"
+}

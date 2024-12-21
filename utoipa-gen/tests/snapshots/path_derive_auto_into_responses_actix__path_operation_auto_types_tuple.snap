@@ -1,0 +1,32 @@
+---
+source: utoipa-gen/tests/path_derive_auto_into_responses_actix.rs
+expression: "&path.pointer(\"/requestBody\")"
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "schema": {
+        "items": false,
+        "prefixItems": [
+          {
+            "properties": {
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "type": "array"
+      }
+    }
+  },
+  "required": true
+}

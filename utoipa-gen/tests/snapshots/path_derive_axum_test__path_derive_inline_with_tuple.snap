@@ -1,0 +1,31 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "operationId": "inline_tuple",
+  "parameters": [
+    {
+      "in": "path",
+      "name": "resource_type",
+      "required": true,
+      "schema": {
+        "enum": [
+          "Type1",
+          "Type2"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "in": "path",
+      "name": "id",
+      "required": true,
+      "schema": {
+        "type": "string"
+      }
+    }
+  ],
+  "responses": {}
+}

@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive_rocket.rs
+expression: "&operation.pointer(\"/requestBody\")"
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/Hello"
+      }
+    }
+  },
+  "required": true
+}

@@ -1,5 +1,5 @@
-use assert_json_diff::assert_json_eq;
-use serde_json::{json, Value};
+use insta::assert_json_snapshot;
+use serde_json::Value;
 use utoipa::{OpenApi, Path};
 use utoipa_gen::ToSchema;
 
@@ -98,21 +98,7 @@ fn derive_request_body_option_array_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let body = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        body,
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "items": {
-                            "$ref": "#/components/schemas/Foo"
-                        },
-                        "type": ["array", "null"],
-                    },
-                }
-            },
-        })
-    );
+    assert_json_snapshot!(body);
 }
 
 test_fn! {
@@ -160,12 +146,7 @@ fn request_body_with_only_single_content_type() {
         .pointer("/paths/~1foo/post/requestBody/content")
         .unwrap();
 
-    assert_json_eq!(
-        content,
-        json!({
-            "application/json": {}
-        })
-    );
+    assert_json_snapshot!(content);
 }
 
 test_fn! {
@@ -184,22 +165,7 @@ fn derive_request_body_primitive_array_success() {
         .pointer("/paths/~1foo/post/requestBody/content")
         .unwrap();
 
-    assert_json_eq!(
-        content,
-        json!(
-        {
-            "application/json": {
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int64",
-                    }
-                }
-            }
-        }
-        )
-    );
+    assert_json_snapshot!(content);
 }
 
 test_fn! {
@@ -217,20 +183,7 @@ fn derive_request_body_complex_success() {
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    }
-                }
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 #[test]
@@ -257,25 +210,7 @@ fn derive_request_body_complex_multi_content_type_success() {
     let operation = serde_json::to_value(__path_post_foo::operation()).unwrap();
     let request_body: &Value = operation.pointer("/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    }
-                },
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    }
-                }
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 #[test]
@@ -302,25 +237,7 @@ fn derive_request_body_with_multiple_content_type_guess_default_content_type() {
     let operation = serde_json::to_value(__path_post_foo::operation()).unwrap();
     let request_body: &Value = operation.pointer("/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    }
-                },
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    }
-                }
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 #[test]
@@ -347,21 +264,7 @@ fn multiple_request_body_with_only_content_type() {
     let operation = serde_json::to_value(__path_post_foo::operation()).unwrap();
     let request_body = operation.pointer("/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    }
-                },
-                "application/json": { },
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 #[test]
@@ -398,36 +301,7 @@ fn multiple_content_with_examples() {
     let operation = serde_json::to_value(__path_post_foo::operation()).unwrap();
     let request_body = operation.pointer("/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    },
-                    "example": "Value"
-                },
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Foo"
-                    },
-                    "examples": {
-                        "example1": {
-                            "description": "Foo name example",
-                            "value": "Foo name"
-                        },
-                         "example2": {
-                            "description": "example value",
-                            "value": "example value"
-                        }
-                   }
-                },
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 test_fn! {
@@ -445,30 +319,7 @@ fn derive_request_body_complex_success_inline() {
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "description": "Some struct",
-                        "properties": {
-                            "name": {
-                                "description": "Some name",
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "name"
-                        ],
-                        "type": "object"
-                    }
-                }
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 test_fn! {
@@ -486,23 +337,7 @@ fn derive_request_body_complex_success_array() {
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "items": {
-                            "$ref": "#/components/schemas/Foo"
-                        },
-                        "type": "array"
-                    }
-                }
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 test_fn! {
@@ -520,33 +355,7 @@ fn derive_request_body_complex_success_inline_array() {
 
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "items": {
-                            "description": "Some struct",
-                            "properties": {
-                                "name": {
-                                    "description": "Some name",
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "name"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                }
-            },
-            "description": "Create new Foo",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 test_fn! {
@@ -563,29 +372,7 @@ fn derive_request_body_simple_inline_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let request_body: &Value = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "description": "Some struct",
-                        "properties": {
-                            "name": {
-                                "description": "Some name",
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "name"
-                        ],
-                        "type": "object"
-                    }
-                }
-            },
-            "required": true
-        })
-    );
+    assert_json_snapshot!(request_body);
 }
 
 #[test]
@@ -614,26 +401,7 @@ fn derive_request_body_complex_required_explicit_false_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let body = doc.pointer("/paths/~1foo/post/requestBody").unwrap();
 
-    assert_json_eq!(
-        body,
-        json!({
-            "content": {
-                "text/xml": {
-                    "schema": {
-                        "oneOf": [
-                            {
-                                "type": "null"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Foo"
-                            }
-                        ],
-                    }
-                }
-            },
-            "description": "Create new Foo",
-        })
-    );
+    assert_json_snapshot!(body);
 }
 
 test_fn! {
@@ -651,22 +419,7 @@ fn derive_request_body_complex_primitive_array_success() {
     let content = doc
         .pointer("/paths/~1foo/post/requestBody/content")
         .unwrap();
-    assert_json_eq!(
-        content,
-        json!(
-        {
-            "application/json": {
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32",
-                    }
-                }
-            }
-        }
-        )
-    );
+    assert_json_snapshot!(content);
 }
 
 #[test]
@@ -726,19 +479,7 @@ fn unit_type_request_body() {
         .pointer("/paths/~1unit_type_test/post/requestBody")
         .unwrap();
 
-    assert_json_eq!(
-        request_body,
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "default": null,
-                    }
-                }
-            },
-            "required": true
-        })
-    )
+    assert_json_snapshot!(request_body);
 }
 
 #[test]
@@ -762,19 +503,7 @@ fn request_body_with_example() {
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
         .unwrap();
-    assert_json_eq!(
-        content,
-        json!(
-            {"application/json": {
-                "example": {
-                    "value": "this is value"
-                },
-                "schema": {
-                    "$ref": "#/components/schemas/Foo"
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(content);
 }
 
 #[test]
@@ -807,28 +536,7 @@ fn request_body_with_examples() {
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
         .unwrap();
-    assert_json_eq!(
-        content,
-        json!(
-            {"application/json": {
-                "examples": {
-                    "Value1": {
-                        "value": {
-                            "value": "this is value"
-                        }
-                    },
-                    "Value2": {
-                        "value": {
-                            "value": "this is value2"
-                        }
-                    }
-                },
-                "schema": {
-                    "$ref": "#/components/schemas/Foo"
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(content);
 }
 
 #[test]
@@ -847,21 +555,7 @@ fn request_body_with_binary() {
         .pointer("/paths/~1item/get/requestBody/content")
         .unwrap();
 
-    assert_json_eq!(
-        content,
-        json!(
-            {"application/octet-stream": {
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "format": "int32",
-                        "minimum": 0,
-                        "type": "integer"
-                    }
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(content);
 }
 
 #[test]
@@ -879,14 +573,5 @@ fn request_body_with_external_ref() {
     let content = doc
         .pointer("/paths/~1item/get/requestBody/content")
         .unwrap();
-    assert_json_eq!(
-        content,
-        json!(
-            {"application/json": {
-                "schema": {
-                    "$ref": "./MyUser.json"
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(content);
 }

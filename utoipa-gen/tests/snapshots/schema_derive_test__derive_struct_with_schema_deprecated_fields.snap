@@ -1,0 +1,51 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: account
+snapshot_kind: text
+---
+{
+  "properties": {
+    "foobars": {
+      "deprecated": true,
+      "items": {
+        "$ref": "#/components/schemas/Foobar"
+      },
+      "type": "array"
+    },
+    "id": {
+      "deprecated": true,
+      "format": "int64",
+      "type": "integer"
+    },
+    "map": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "deprecated": true,
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "role_ids": {
+      "deprecated": true,
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "username": {
+      "deprecated": true,
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "username",
+    "role_ids",
+    "foobars",
+    "map"
+  ],
+  "type": "object"
+}

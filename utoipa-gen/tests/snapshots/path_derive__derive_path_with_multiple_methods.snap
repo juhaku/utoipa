@@ -1,0 +1,27 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&paths"
+snapshot_kind: text
+---
+{
+  "/test-multiple": {
+    "get": {
+      "operationId": "test_multiple",
+      "responses": {
+        "200": {
+          "description": "success response"
+        }
+      },
+      "tags": []
+    },
+    "head": {
+      "operationId": "test_multiple",
+      "responses": {
+        "200": {
+          "description": "success response"
+        }
+      },
+      "tags": []
+    }
+  }
+}

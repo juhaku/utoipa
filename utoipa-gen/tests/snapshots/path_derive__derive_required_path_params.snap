@@ -1,0 +1,83 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "vec_default",
+    "required": false,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "string_default",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "vec_default_required",
+    "required": false,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "string_default_required",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "vec_option",
+    "required": false,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "string_option",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "vec",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "query",
+    "name": "string",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

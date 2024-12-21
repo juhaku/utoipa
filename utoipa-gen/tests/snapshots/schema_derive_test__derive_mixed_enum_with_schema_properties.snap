@@ -1,0 +1,58 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "default": {
+    "Variant": {
+      "id": "1"
+    }
+  },
+  "description": "This is the description",
+  "example": {
+    "Variant2": {
+      "name": "foobar"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "Variant": {
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Variant"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "Variant2": {
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Variant2"
+      ],
+      "type": "object"
+    }
+  ]
+}

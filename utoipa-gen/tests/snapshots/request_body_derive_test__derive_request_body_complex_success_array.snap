@@ -1,0 +1,19 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: request_body
+snapshot_kind: text
+---
+{
+  "content": {
+    "text/xml": {
+      "schema": {
+        "items": {
+          "$ref": "#/components/schemas/Foo"
+        },
+        "type": "array"
+      }
+    }
+  },
+  "description": "Create new Foo",
+  "required": true
+}

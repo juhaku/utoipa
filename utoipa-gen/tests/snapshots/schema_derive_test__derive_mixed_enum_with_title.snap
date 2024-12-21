@@ -1,0 +1,49 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "Admin": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "Admin"
+      ],
+      "title": "admin",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "Moderator": {
+          "properties": {
+            "id": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Moderator"
+      ],
+      "title": "moderator",
+      "type": "object"
+    },
+    {
+      "enum": [
+        "User"
+      ],
+      "title": "user",
+      "type": "string"
+    }
+  ]
+}

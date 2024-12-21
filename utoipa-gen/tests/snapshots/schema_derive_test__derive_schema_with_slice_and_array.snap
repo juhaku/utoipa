@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "array": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "slice": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "array",
+    "slice"
+  ],
+  "type": "object"
+}

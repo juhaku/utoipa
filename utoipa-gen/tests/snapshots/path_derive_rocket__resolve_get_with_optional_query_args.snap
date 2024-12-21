@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/path_derive_rocket.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "colors",
+    "required": false,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  }
+]

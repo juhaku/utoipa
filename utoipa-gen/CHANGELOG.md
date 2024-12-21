@@ -4,6 +4,7 @@
 
 ### Changed
 
+* Replace `assert-json-diff` with snapshot testing via `insta` (https://github.com/juhaku/utoipa/pull/1253)
 * scripts/test.sh: Fix `auto_into_responses` feature declaration (https://github.com/juhaku/utoipa/pull/1252)
 
 ## 5.3.0 - Dec 19 2024

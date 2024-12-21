@@ -1,0 +1,31 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: "&times"
+snapshot_kind: text
+---
+{
+  "properties": {
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "datetime": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "duration": {
+      "type": "string"
+    },
+    "primitive_date_time": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "datetime",
+    "primitive_date_time",
+    "date",
+    "duration"
+  ],
+  "type": "object"
+}

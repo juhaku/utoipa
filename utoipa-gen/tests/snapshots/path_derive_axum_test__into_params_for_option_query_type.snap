@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: "operation.pointer(\"/parameters\")"
+snapshot_kind: text
+---
+[
+  {
+    "description": "",
+    "in": "query",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  }
+]

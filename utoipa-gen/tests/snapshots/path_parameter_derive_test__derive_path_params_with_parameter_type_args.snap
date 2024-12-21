@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/path_parameter_derive_test.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "allowReserved": true,
+    "deprecated": true,
+    "description": "Foo value description",
+    "explode": true,
+    "in": "query",
+    "name": "value",
+    "required": false,
+    "schema": {
+      "items": {
+        "maxLength": 20,
+        "pattern": "\\w",
+        "type": "string"
+      },
+      "maxItems": 1,
+      "type": "array"
+    },
+    "style": "form"
+  }
+]

@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "200": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "description": "This is success response",
+          "properties": {
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "description": "This is success response"
+  }
+}

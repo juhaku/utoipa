@@ -1,0 +1,54 @@
+---
+source: utoipa-gen/tests/path_derive_rocket.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "operationId": "list_items",
+  "parameters": [
+    {
+      "in": "query",
+      "name": "page",
+      "required": true,
+      "schema": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "style": "form"
+    },
+    {
+      "in": "query",
+      "name": "per_page",
+      "required": true,
+      "schema": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "style": "form"
+    }
+  ],
+  "responses": {
+    "200": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "default": null
+          }
+        }
+      },
+      "description": ""
+    },
+    "400": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "default": null
+          }
+        }
+      },
+      "description": ""
+    }
+  }
+}

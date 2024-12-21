@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: "operation.pointer(\"/parameters\")"
+snapshot_kind: text
+---
+[
+  {
+    "description": "",
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
