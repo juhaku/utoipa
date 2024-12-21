@@ -1,0 +1,8 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: content
+snapshot_kind: text
+---
+{
+  "application/json": {}
+}

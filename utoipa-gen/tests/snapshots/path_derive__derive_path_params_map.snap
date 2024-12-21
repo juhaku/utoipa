@@ -1,0 +1,35 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "path",
+    "name": "with_ref",
+    "required": true,
+    "schema": {
+      "additionalProperties": {
+        "$ref": "#/components/schemas/Foo"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  {
+    "in": "path",
+    "name": "with_type",
+    "required": true,
+    "schema": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  }
+]

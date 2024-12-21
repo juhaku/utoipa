@@ -1,0 +1,46 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "content": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "tag": {
+          "enum": [
+            "Bar"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "tag"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "tag": {
+          "enum": [
+            "Baz"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "tag"
+      ],
+      "type": "object"
+    }
+  ]
+}

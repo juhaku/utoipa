@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "description": "Foo database id",
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  {
+    "description": "Datetime since foo is updated",
+    "in": "query",
+    "name": "since",
+    "required": false,
+    "schema": {
+      "$ref": "#/components/schemas/Since"
+    }
+  }
+]

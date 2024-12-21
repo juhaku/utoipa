@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive_auto_into_responses_actix.rs
+expression: "&path.pointer(\"/requestBody\")"
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/x-www-form-urlencoded": {
+      "schema": {
+        "$ref": "#/components/schemas/ItemBody"
+      }
+    }
+  },
+  "required": true
+}

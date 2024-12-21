@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "properties": {
+    "in": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "in"
+  ],
+  "type": "object"
+}

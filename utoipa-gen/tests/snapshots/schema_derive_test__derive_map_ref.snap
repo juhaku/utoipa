@@ -1,0 +1,35 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: map
+snapshot_kind: text
+---
+{
+  "properties": {
+    "map": {
+      "additionalProperties": {
+        "$ref": "#/components/schemas/Foo"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "map2": {
+      "additionalProperties": {
+        "enum": [
+          "Variant"
+        ],
+        "type": "string"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "map",
+    "map2"
+  ],
+  "type": "object"
+}

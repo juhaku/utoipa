@@ -1,0 +1,48 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "limit": {
+      "description": "Maximum number of results to return.",
+      "example": 12,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "limit_explisit_required": {
+      "description": "Maximum number of results to return.",
+      "example": 12,
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "not_required": {
+      "description": "Maximum number of results to return.",
+      "example": 12,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "option_required": {
+      "description": "Maximum number of results to return.",
+      "example": 12,
+      "format": "int32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "limit_explisit_required",
+    "option_required"
+  ],
+  "type": "object"
+}

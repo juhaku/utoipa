@@ -1,0 +1,30 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: servers
+snapshot_kind: text
+---
+[
+  {
+    "description": "this is description",
+    "url": "http://localhost:8989"
+  },
+  {
+    "description": "remote api",
+    "url": "http://api.{username}:{port}",
+    "variables": {
+      "port": {
+        "default": "8080",
+        "description": "Supported ports for the API",
+        "enum": [
+          "8080",
+          "5000",
+          "3030"
+        ]
+      },
+      "username": {
+        "default": "demo",
+        "description": "Default username for API"
+      }
+    }
+  }
+]

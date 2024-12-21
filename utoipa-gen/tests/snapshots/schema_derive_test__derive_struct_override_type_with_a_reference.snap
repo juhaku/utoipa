@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "field": {
+      "$ref": "#/components/schemas/NewBar"
+    }
+  },
+  "required": [
+    "field"
+  ],
+  "type": "object"
+}

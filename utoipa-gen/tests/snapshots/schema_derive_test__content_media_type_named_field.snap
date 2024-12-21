@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: item
+snapshot_kind: text
+---
+{
+  "properties": {
+    "doc": {
+      "contentMediaType": "application/octet-stream",
+      "type": "string"
+    }
+  },
+  "required": [
+    "doc"
+  ],
+  "type": "object"
+}

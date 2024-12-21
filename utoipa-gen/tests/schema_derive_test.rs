@@ -1,8 +1,8 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData};
 
-use assert_json_diff::{assert_json_eq, assert_json_matches, CompareMode, Config, NumericMode};
+use insta::assert_json_snapshot;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
 
@@ -57,34 +57,7 @@ fn derive_map_ref() {
         }
     };
 
-    assert_json_eq!(
-        map,
-        json!({
-            "properties": {
-                "map": {
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "$ref": "#/components/schemas/Foo"
-                    },
-                    "type": "object",
-                },
-                "map2": {
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "type": "string",
-                        "enum": ["Variant"]
-                    },
-                    "type": "object"
-                }
-            },
-            "required": ["map", "map2"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(map);
 }
 
 #[test]
@@ -96,19 +69,7 @@ fn derive_map_free_form_property() {
         }
     };
 
-    assert_json_eq!(
-        map,
-        json!({
-            "properties": {
-                "map": {
-                    "additionalProperties": true,
-                    "type": "object",
-                },
-            },
-            "required": ["map"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(map);
 }
 
 #[test]
@@ -121,13 +82,7 @@ fn derive_flattened_map_string_property() {
         }
     };
 
-    assert_json_eq!(
-        map,
-        json!({
-            "additionalProperties": {"type": "string"},
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(map);
 }
 
 #[test]
@@ -146,13 +101,7 @@ fn derive_flattened_map_ref_property() {
         }
     };
 
-    assert_json_eq!(
-        map,
-        json!({
-            "additionalProperties": {"$ref": "#/components/schemas/Foo"},
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(map);
 }
 
 #[test]
@@ -308,67 +257,7 @@ fn derive_struct_with_default_attr_field() {
         }
     };
 
-    assert_json_eq!(
-        owner,
-        json!({
-            "properties": {
-                "favorite_book": {
-                    "oneOf": [
-                        {
-                            "$ref": "#/components/schemas/Book",
-                        },
-                    ],
-                    "default": {
-                        "name": "Dune",
-                    },
-                },
-                "books": {
-                    "items": {
-                        "$ref": "#/components/schemas/Book",
-                    },
-                    "type": "array",
-                    "default": [
-                        {
-                            "name": "The Fellowship Of The Ring"
-                        }
-                    ]
-                },
-                "leases": {
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "$ref": "#/components/schemas/Book",
-                    },
-                    "default": {
-                        "National Library": {
-                            "name": "The Stranger",
-                        },
-                    },
-                    "type": "object",
-                },
-                "authored": {
-                    "oneOf": [
-                        {
-                            "type": "null"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Book",
-                        },
-                    ],
-                    "default": {
-                        "name": "My Book",
-                    }
-                },
-            },
-            "required": [
-                "favorite_book",
-                "books",
-                "leases",
-            ],
-            "type": "object",
-        })
-    );
+    assert_json_snapshot!(owner);
 }
 
 #[test]
@@ -419,50 +308,7 @@ fn derive_struct_with_optional_properties() {
         }
     };
 
-    assert_json_eq!(
-        owner,
-        json!({
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "format": "int64",
-                    "default": 1,
-                },
-                "enabled": {
-                    "type": ["boolean", "null"],
-                },
-                "books": {
-                    "items": {
-                        "$ref": "#/components/schemas/Book",
-                    },
-                    "type": ["array", "null"]
-                },
-                "metadata": {
-                    "type": ["object", "null"],
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "optional_book": {
-                    "oneOf": [
-                        {
-                            "type": "null"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Book"
-                        }
-                    ]
-                }
-            },
-            "required": [
-                "id",
-            ],
-            "type": "object"
-        })
-    );
+    assert_json_snapshot!(owner);
 }
 
 #[test]
@@ -488,50 +334,7 @@ fn derive_struct_with_comments() {
         }
     };
 
-    assert_json_eq!(
-        account,
-        json!({
-            "description": "This is user account dto object\n\nDetailed documentation here.\nMore than the first line is added to the description as well.",
-            "properties": {
-                "foobars": {
-                    "description": "Foobars",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/components/schemas/Foobar"
-                    }
-                },
-                "id": {
-                    "type": "integer",
-                    "format": "int64",
-                    "description": "Database autogenerated id",
-                },
-                "role_ids": {
-                    "description": "Role ids",
-                    "type": "array",
-                    "items": {
-                        "type": "integer",
-                        "format": "int32",
-                    }
-                },
-                "username": {
-                    "type": "string",
-                    "description": "Users username",
-                },
-                "map": {
-                    "description": "Map description",
-                    "type": "object",
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                }
-            },
-            "required": ["id", "username", "role_ids", "foobars", "map"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(account);
 }
 
 #[test]
@@ -927,79 +730,7 @@ fn derive_struct_with_inline() {
         }
     };
 
-    assert_json_eq!(
-        &greeting,
-        json!({
-            "properties": {
-                "foo1": {
-                    "properties": {
-                        "name": {
-                            "type": "string"
-                        },
-                    },
-                    "required": [
-                        "name"
-                    ],
-                    "type": "object"
-                },
-                "foo2": {
-                    "oneOf": [
-                    {
-                        "type": "null"
-                    },
-                     {
-                         "properties": {
-                             "name": {
-                                 "type": "string"
-                             },
-                         },
-                         "required": [
-                             "name"
-                         ],
-                         "type": "object"
-                     }
-                    ]
-                },
-                "foo3": {
-                    "oneOf": [
-                    {
-                        "type": "null"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                        },
-                        "required": [
-                            "name"
-                        ],
-                        "type": "object"
-                    }
-                    ]
-                },
-                "foo4": {
-                    "items": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                        },
-                        "required": [
-                            "name"
-                        ],
-                        "type": "object"
-                    },
-                    "type": "array"
-                },
-            },
-            "required": [
-                "foo1",
-                "foo4",
-            ],
-            "type": "object"
-        })
-    );
+    assert_json_snapshot!(&greeting);
 }
 
 #[test]
@@ -1013,17 +744,7 @@ fn derive_simple_enum() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "enum": [
-                "A",
-                "B",
-                "C",
-            ],
-            "type": "string",
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1038,55 +759,7 @@ fn derive_simple_enum_serde_tag() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "A",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "B",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "C",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1108,34 +781,7 @@ fn derive_simple_enum_serde_tag_with_flatten_content() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "allOf": [
-                        {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                         {
-                            "type": "object",
-                            "properties":  {
-                                "tag":  {
-                                    "type": "string",
-                                    "enum":  [
-                                        "One",
-                                    ],
-                                },
-                            },
-                            "required":  [
-                                "tag",
-                            ],
-                        },
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1149,13 +795,7 @@ fn derive_simple_enum_serde_untagged() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "type": "null",
-            "default": null,
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1171,13 +811,7 @@ fn derive_struct_unnamed_field_reference_with_comment() {
         struct Foo(Bar);
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "$ref": "#/components/schemas/Bar",
-            "description": "Since OpenAPI 3.1 the description can be applied to Ref types"
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 /// Derive a mixed enum with named and unnamed fields.
@@ -1194,24 +828,7 @@ fn derive_complex_unnamed_field_reference_with_comment() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "description": "Since OpenAPI 3.1 the comments can be added to the Ref types as well",
-                    "properties": {
-                        "UnnamedFieldWithCommentReference": {
-                            "$ref": "#/components/schemas/CommentedReference",
-                            "description": "Since OpenAPI 3.1 the comments can be added to the Ref types as well"
-                        },
-                    },
-                    "required": ["UnnamedFieldWithCommentReference"],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1224,23 +841,7 @@ fn derive_enum_with_unnamed_primitive_field_with_tag() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": ["Value"]
-                        },
-                    },
-                    "required": ["tag"]
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1260,54 +861,7 @@ fn derive_mixed_enum_with_schema_properties() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "description": "This is the description",
-            "default": {
-                "Variant": {
-                    "id": "1"
-                }
-            },
-            "example": {
-                "Variant2": {
-                    "name": "foobar"
-                }
-            },
-            "oneOf": [
-                {
-                    "properties": {
-                        "Variant": {
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["id"],
-                            "type": "object"
-                        }
-                    },
-                    "required": ["Variant"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "Variant2": {
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["name"],
-                            "type": "object"
-                        }
-                    },
-                    "required": ["Variant2"],
-                    "type": "object"
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 // TODO fixme https://github.com/juhaku/utoipa/issues/285#issuecomment-1249625860
@@ -1324,31 +878,7 @@ fn derive_enum_with_unnamed_single_field_with_tag() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "allOf": [
-                        {
-                            "$ref": "#/components/schemas/ReferenceValue",
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "enum": {
-                                    "type": "string",
-                                    "enum": ["Value"]
-
-                                },
-                            },
-                            "required": ["enum"]
-                        },
-                    ],
-                }
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1369,67 +899,7 @@ fn derive_enum_with_named_fields_with_reference_with_tag() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "a": {
-                            "type": "string"
-                        },
-                        "enum": {
-                            "enum": [
-                                "Value"
-                            ],
-                            "type": "string"
-                        },
-                        "field": {
-                            "$ref": "#/components/schemas/ReferenceValue"
-                        }
-                    },
-                    "required": [
-                        "field",
-                        "a",
-                        "enum"
-                    ],
-                    "type": "object"
-                },
-                {
-                    "allOf": [
-                        {
-                            "$ref": "#/components/schemas/ReferenceValue",
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "enum": {
-                                    "type": "string",
-                                    "enum": ["UnnamedValue"]
-
-                                },
-                            },
-                            "required": ["enum"]
-                        }
-                    ],
-                },
-                {
-                    "properties": {
-                        "enum": {
-                            "enum": [
-                                "UnitValue"
-                            ],
-                            "type": "string"
-                        }
-                    },
-                    "required": [
-                        "enum"
-                    ],
-                    "type": "object"
-                }
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1449,51 +919,7 @@ fn derive_mixed_enum() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "string",
-                    "enum": [
-                        "UnitValue",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "NamedFields": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                },
-                                "names": {
-                                    "type": ["array", "null"],
-                                    "items": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                            "required": [
-                                "id",
-                            ],
-                        },
-                    },
-                    "required": ["NamedFields"],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "UnnamedFields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": ["UnnamedFields"],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1518,55 +944,7 @@ fn derive_mixed_enum_deprecated_variants() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "deprecated": true,
-                    "type": "string",
-                    "enum": [
-                        "UnitValue",
-                    ],
-                },
-                {
-                    "deprecated": true,
-                    "type": "object",
-                    "properties": {
-                        "NamedFields": {
-                            "deprecated": true,
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                },
-                                "names": {
-                                    "type": ["array", "null"],
-                                    "items": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                            "required": [
-                                "id",
-                            ],
-                        },
-                    },
-                    "required": ["NamedFields"],
-                },
-                {
-                    "deprecated": true,
-                    "type": "object",
-                    "properties": {
-                        "UnnamedFields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": ["UnnamedFields"],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 #[test]
 fn derive_mixed_enum_title() {
@@ -1587,48 +965,7 @@ fn derive_mixed_enum_title() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "string",
-                    "title": "Unit",
-                    "enum": [
-                        "UnitValue",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "title": "Named",
-                    "properties": {
-                        "NamedFields": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                },
-                            },
-                            "required": [
-                                "id",
-                            ],
-                        },
-                    },
-                    "required": ["NamedFields"],
-                },
-                {
-                    "type": "object",
-                    "title": "Unnamed",
-                    "properties": {
-                        "UnnamedFields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": ["UnnamedFields"]
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1651,49 +988,7 @@ fn derive_mixed_enum_example() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "string",
-                    "example": "EX: Unit",
-                    "enum": [
-                        "UnitValue",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "example": "EX: Named",
-                    "properties": {
-                        "NamedFields": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "example": "EX: Named id field",
-                                },
-                            },
-                            "required": [
-                                "id",
-                            ],
-                        },
-                    },
-                    "required": ["NamedFields"]
-                },
-                {
-                    "type": "object",
-                    "example": "EX: Unnamed",
-                    "properties": {
-                        "UnnamedFields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": ["UnnamedFields"]
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1714,51 +1009,7 @@ fn derive_mixed_enum_serde_rename_all() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "string",
-                    "enum": [
-                        "unit_value",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "named_fields": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                },
-                                "names": {
-                                    "type": ["array", "null"],
-                                    "items": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                            "required": [
-                                "id",
-                            ],
-                        },
-                    },
-                    "required": ["named_fields"]
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "unnamed_fields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": ["unnamed_fields"]
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1783,51 +1034,7 @@ fn derive_mixed_enum_serde_rename_variant() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "string",
-                    "enum": [
-                        "renamed_unit_value",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "renamed_named_fields": {
-                            "type": "object",
-                            "properties": {
-                                "renamed_id": {
-                                    "type": "string",
-                                },
-                                "renamed_names": {
-                                    "type": [ "array", "null" ],
-                                    "items": {
-                                        "type": "string",
-                                    },
-                                },
-                            },
-                            "required": [
-                                "renamed_id",
-                            ],
-                        },
-                    },
-                    "required": ["renamed_named_fields"]
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "renamed_unnamed_fields": {
-                            "$ref": "#/components/schemas/Foo",
-                        },
-                    },
-                    "required": ["renamed_unnamed_fields"]
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1842,30 +1049,7 @@ fn derive_struct_custom_rename() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "POST-ID": {
-                    "type": "integer",
-                    "format": "int64",
-                },
-                "CREATED-AT": {
-                    "type": "integer",
-                    "format": "int64",
-                },
-                "post_comment": {
-                    "type": "string",
-                },
-            },
-            "type": "object",
-            "required": [
-                "POST-ID",
-                "CREATED-AT",
-                "post_comment"
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1889,67 +1073,7 @@ fn derive_mixed_enum_custom_rename() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "NEWPOST": {
-                            "type": "string"
-                        }
-                    },
-                    "required": ["NEWPOST"],
-                    "type": "object",
-                },
-                {
-                    "properties": {
-                        "update_post": {
-                            "properties": {
-                                "PostId": {
-                                    "type": "integer",
-                                    "format": "int64",
-                                },
-                                "CreatedAt": {
-                                    "type": "integer",
-                                    "format": "int64",
-                                },
-                                "post_comment": {
-                                    "type": "string",
-                                },
-                            },
-                            "type": "object",
-                            "required": [
-                                "PostId",
-                                "CreatedAt",
-                                "post_comment"
-                            ]
-                        }
-                    },
-                    "required": ["update_post"],
-                    "type": "object",
-                },
-                {
-                    "properties": {
-                        "RANDOMVALUE": {
-                            "properties": {
-                                "id": {
-                                    "type": "integer",
-                                    "format": "int64",
-                                },
-                            },
-                            "type": "object",
-                            "required": [
-                                "id",
-                            ]
-                        }
-                    },
-                    "required": ["RANDOMVALUE"],
-                    "type": "object",
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -1969,38 +1093,7 @@ fn derive_mixed_enum_use_serde_rename_over_custom_rename() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "string_value": {
-                            "type": "string",
-                        },
-                    },
-                    "type": "object",
-                    "required": ["string_value"]
-                },
-                {
-                    "properties": {
-                        "number": {
-                            "properties": {
-                                "id": {
-                                    "type": "integer",
-                                    "format": "int32",
-                                }
-                            },
-                            "type": "object",
-                            "required": ["id"]
-                        }
-                    },
-                    "type": "object",
-                    "required": ["number"]
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2012,20 +1105,7 @@ fn derive_struct_with_title() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "format": "int64",
-                }
-            },
-            "title": "Post",
-            "required": ["id"],
-            "type": "object",
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2039,14 +1119,7 @@ fn derive_enum_with_title() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "enum": ["Admin", "Moderator", "User"],
-            "title": "UserType",
-            "type": "string",
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2062,45 +1135,7 @@ fn derive_mixed_enum_with_title() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "Admin": {
-                            "type": "string"
-                        }
-                    },
-                    "title": "admin",
-                    "type": "object",
-                    "required": ["Admin"]
-                },
-                {
-                    "properties": {
-                        "Moderator": {
-                            "properties": {
-                                "id": {
-                                    "type": "integer",
-                                    "format": "int32",
-                                }
-                            },
-                            "required": ["id"],
-                            "type": "object",
-                        }
-                    },
-                    "required": ["Moderator"],
-                    "title": "moderator",
-                    "type": "object",
-                },
-                {
-                    "enum": ["User"],
-                    "title": "user",
-                    "type": "string"
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 /// Derive a mixed enum with the serde `tag` container attribute applied for internal tagging.
@@ -2123,51 +1158,7 @@ fn derive_mixed_enum_serde_tag() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "UnitValue",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                        },
-                        "names": {
-                            "type": ["array", "null"],
-                            "items": {
-                                "type": "string",
-                            },
-                        },
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "NamedFields",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "id",
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2204,32 +1195,7 @@ fn derive_serde_flatten() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "allOf": [
-            {
-                "$ref": "#/components/schemas/Metadata"
-            },
-            {
-                "type": "object",
-                "properties": {
-                    "amount": {
-                        "type": "integer",
-                        "format": "int64"
-                    },
-                    "description": {
-                        "type": "string",
-                    },
-                },
-                "required": [
-                    "amount",
-                    "description"
-                ],
-            },
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 
     // Multiple flatten fields, with field that contain flatten as well.
     // Record contain Metadata that is flatten as well, but it doesn't matter
@@ -2245,30 +1211,7 @@ fn derive_serde_flatten() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "allOf": [
-            {
-                "$ref": "#/components/schemas/Record"
-            },
-            {
-                "$ref": "#/components/schemas/Pagination"
-            },
-            {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                    },
-                },
-                "required": [
-                    "id",
-                ],
-            },
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2283,21 +1226,7 @@ fn derive_mixed_enum_serde_untagged() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "title": "FooTitle",
-            "oneOf": [
-                {
-                    "format": "int32",
-                    "type": "integer",
-                },
-                {
-                    "type": "string",
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2311,21 +1240,7 @@ fn derive_untagged_with_unit_variant() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "format": "int32",
-                    "type": "integer",
-                },
-                {
-                    "type": "null",
-                    "default": null,
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2345,20 +1260,7 @@ fn derive_mixed_enum_with_ref_serde_untagged() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "format": "int32",
-                    "type": "integer",
-                },
-                {
-                    "$ref": "#/components/schemas/Foo",
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2378,36 +1280,7 @@ fn derive_mixed_enum_with_ref_serde_untagged_named_fields() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                      "n": {
-                        "format": "int32",
-                        "type": "integer"
-                      }
-                    },
-                    "required": [
-                      "n"
-                    ],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                      "bar": {
-                        "$ref": "#/components/schemas/Bar"
-                      }
-                    },
-                    "required": [
-                      "bar"
-                    ],
-                    "type": "object"
-                }
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2429,36 +1302,7 @@ fn derive_mixed_enum_with_ref_serde_untagged_named_fields_rename_all() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                      "someNumber": {
-                        "format": "int32",
-                        "type": "integer"
-                      }
-                    },
-                    "required": [
-                      "someNumber"
-                    ],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                      "someBar": {
-                        "$ref": "#/components/schemas/Bar"
-                      }
-                    },
-                    "required": [
-                      "someBar"
-                    ],
-                    "type": "object"
-                }
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2472,50 +1316,7 @@ fn derive_mixed_enum_serde_adjacently_tagged() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "Bar",
-                            ],
-                        },
-                        "content": {
-                            "format": "int32",
-                            "type": "integer",
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "Baz",
-                            ]
-                        },
-                        "content": {
-                            "type": "string",
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2535,50 +1336,7 @@ fn derive_mixed_enum_with_ref_serde_adjacently_tagged() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "Baz",
-                            ],
-                        },
-                        "content": {
-                            "type": "integer",
-                            "format": "int32",
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "FooBar",
-                            ],
-                        },
-                        "content": {
-                            "$ref": "#/components/schemas/Foo"
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2605,22 +1363,7 @@ fn derive_mixed_enum_with_discriminator_simple_form() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "$ref": "#/components/schemas/BarBarInternal"
-                },
-                {
-                    "$ref": "#/components/schemas/FooInternal"
-                },
-            ],
-            "discriminator": {
-                "propertyName": "bar",
-            }
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2651,26 +1394,7 @@ fn derive_mixed_enum_with_discriminator_with_mapping() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "$ref": "#/components/schemas/BarBarInternal"
-                },
-                {
-                    "$ref": "#/components/schemas/FooInternal"
-                },
-            ],
-            "discriminator": {
-                "propertyName": "bar_type",
-                "mapping": {
-                    "bar": "#/components/schemas/BarBarInternal",
-                    "foo": "#/components/schemas/FooInternal"
-                }
-            }
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2690,66 +1414,7 @@ fn derive_mixed_enum_with_ref_serde_adjacently_tagged_named_fields() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "One",
-                            ],
-                        },
-                        "content": {
-                            "type": "object",
-                            "properties": {
-                                "n": {
-                                    "format": "int32",
-                                    "type": "integer",
-                                },
-                            },
-                            "required": [
-                                "n",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "Two",
-                            ],
-                        },
-                        "content": {
-                            "type": "object",
-                            "properties": {
-                                "bar": {
-                                    "$ref": "#/components/schemas/Bar",
-                                },
-                            },
-                            "required": [
-                                "bar",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2771,66 +1436,7 @@ fn derive_mixed_enum_with_ref_serde_adjacently_tagged_named_fields_rename_all() 
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "One",
-                            ],
-                        },
-                        "content": {
-                            "type": "object",
-                            "properties": {
-                                "someNumber": {
-                                    "format": "int32",
-                                    "type": "integer",
-                                },
-                            },
-                            "required": [
-                                "someNumber",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "Two",
-                            ],
-                        },
-                        "content": {
-                            "type": "object",
-                            "properties": {
-                                "someBar": {
-                                    "$ref": "#/components/schemas/Bar",
-                                },
-                            },
-                            "required": [
-                                "someBar",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "content",
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2852,47 +1458,7 @@ fn derive_mixed_enum_serde_tag_title() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "title": "Unit",
-                    "properties": {
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "UnitValue",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "title": "Named",
-                    "properties": {
-                        "id": {
-                            "type": "string",
-                        },
-                        "tag": {
-                            "type": "string",
-                            "enum": [
-                                "NamedFields",
-                            ],
-                        },
-                    },
-                    "required": [
-                        "id",
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -2938,47 +1504,7 @@ fn derive_struct_with_nullable_and_required() {
         }
     };
 
-    assert_json_eq!(
-        user,
-        json!({
-            "properties": {
-                "fax": {
-                    "type": ["string", "null"],
-                },
-                "phone": {
-                    "type": ["string", "null"],
-                },
-                "email": {
-                    "type": "string",
-                },
-                "name": {
-                    "type": "string",
-                },
-                "edit_history": {
-                    "type": ["array", "null"],
-                    "items": {
-                        "type": "string"
-                    },
-                },
-                "friends": {
-                    "type": "array",
-                    "items": {
-                        "type": ["string", "null"],
-                    },
-                },
-                "updated": {
-                    "type": ["string", "null"],
-                }
-            },
-            "required": [
-                "email",
-                "name",
-                "edit_history",
-                "updated",
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(user);
 }
 
 #[test]
@@ -3013,52 +1539,7 @@ fn derive_enum_with_inline_variant() {
         }
     };
 
-    assert_json_eq!(
-        card,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "Number": {
-                            "enum": [
-                                "One",
-                                "Two",
-                                "Three",
-                                "Four",
-                                "Five",
-                                "Six",
-                                "Seven",
-                                "Height",
-                                "Nine",
-                            ],
-                            "type": "string",
-                        },
-                    },
-                    "required": [
-                        "Number",
-                    ],
-                    "type": "object",
-                },
-                {
-                    "properties": {
-                        "Color": {
-                            "enum": [
-                                "Spade",
-                                "Heart",
-                                "Club",
-                                "Diamond",
-                            ],
-                            "type": "string",
-                        },
-                    },
-                    "required": [
-                        "Color",
-                    ],
-                    "type": "object",
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(card);
 }
 
 #[test]
@@ -3125,39 +1606,7 @@ fn derive_struct_xml_with_optional_vec() {
         }
     };
 
-    assert_json_eq!(
-        user,
-        json!({
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "format": "int64",
-                    "xml": {
-                        "attribute": true,
-                        "prefix": "u"
-                    }
-                },
-                "links": {
-                    "type": ["array", "null"],
-                    "items": {
-                        "type": "string",
-                        "xml": {
-                            "name": "link"
-                        }
-                    },
-                    "xml": {
-                        "name": "linkList",
-                        "wrapped": true,
-                    }
-                }
-            },
-            "required": ["id"],
-            "type": "object",
-            "xml": {
-                "name": "user"
-            }
-        })
-    );
+    assert_json_snapshot!(user);
 }
 
 #[cfg(feature = "chrono")]
@@ -3213,35 +1662,7 @@ fn derive_component_with_time_feature() {
         }
     };
 
-    assert_json_eq!(
-        &times,
-        json!({
-            "properties": {
-                "date": {
-                    "format": "date",
-                    "type": "string"
-                },
-                "datetime": {
-                    "format": "date-time",
-                    "type": "string"
-                },
-                "primitive_date_time": {
-                    "format": "date-time",
-                    "type": "string"
-                },
-                "duration": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "datetime",
-                "primitive_date_time",
-                "date",
-                "duration"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(&times);
 }
 
 #[test]
@@ -3410,18 +1831,7 @@ fn derive_struct_override_type_with_object_type() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "type": "object",
-            "properties": {
-                "field": {
-                    "type": "object"
-                }
-            },
-            "required": ["field"]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -3439,18 +1849,7 @@ fn derive_struct_override_type_with_a_reference() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "type": "object",
-            "properties": {
-                "field": {
-                    "$ref": "#/components/schemas/NewBar"
-                }
-            },
-            "required": ["field"]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[cfg(feature = "decimal")]
@@ -3604,25 +2003,7 @@ fn derive_parse_serde_field_attributes() {
         }
     };
 
-    assert_json_eq!(
-        post,
-        json!({
-            "properties": {
-                "longFieldNum": {
-                    "format": "int64",
-                    "type": "integer"
-                },
-                "uuid": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "uuid",
-                "longFieldNum"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(post);
 }
 
 #[test]
@@ -3687,18 +2068,7 @@ fn derive_component_with_generic_types_having_path_expression() {
 
     let args = ty.pointer("/properties/args").unwrap();
 
-    assert_json_eq!(
-        args,
-        json!({
-            "items": {
-                "items": {
-                    "type": "string"
-                },
-                "type": "array"
-            },
-            "type": "array"
-        })
-    );
+    assert_json_snapshot!(args);
 }
 
 #[test]
@@ -3722,28 +2092,7 @@ fn derive_mixed_enum_as() {
         .pointer("/components/schemas/named.BarBar")
         .expect("Should have BarBar named to named.BarBar");
 
-    assert_json_eq!(
-        &value,
-        json!({
-            "oneOf": [
-            {
-                "properties": {
-                    "Foo": {
-                        "properties": {
-                            "foo": {
-                                "$ref": "#/components/schemas/Foobar"
-                            }
-                        },
-                        "required": ["foo"],
-                        "type": "object"
-                    }
-                },
-                "required": ["Foo"],
-                "type": "object",
-            }
-            ]
-        })
-    )
+    assert_json_snapshot!(&value);
 }
 
 #[test]
@@ -3777,62 +2126,7 @@ fn derive_component_with_to_schema_value_type() {
         }
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "properties": {
-                "another_id": {
-                    "type": "object"
-                },
-                "id": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "value1": {
-                    "items": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "type": "array"
-                },
-                "value2": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "value3": {
-                    "type": ["string", "null"],
-                },
-                "value4": {
-                    "type": ["object", "null"],
-                },
-                "value5": {
-                    "items": {
-                        "type": "object"
-                    },
-                    "type": "array"
-                },
-                "value6": {
-                    "items": {
-                        "$ref": "#/components/schemas/Foo"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": [
-                "id",
-                "another_id",
-                "value1",
-                "value2",
-                "value5",
-                "value6",
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -3851,36 +2145,7 @@ fn derive_component_with_mixed_enum_lifetimes() {
         }
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "A": {
-                            "properties": {
-                                "foo": {
-                                    "$ref": "#/components/schemas/Foo"
-                                }
-                            },
-                            "required": ["foo"],
-                            "type": "object"
-                        },
-                    },
-                    "required": ["A"],
-                    "type": "object"
-                },
-                {
-                    "enum": ["B"],
-                    "type": "string"
-                },
-                {
-                    "enum": ["C"],
-                    "type": "string"
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -3891,18 +2156,7 @@ fn derive_component_with_raw_identifier() {
         }
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "properties": {
-                "in": {
-                    "type": "string"
-                }
-            },
-            "required": ["in"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -3915,22 +2169,7 @@ fn derive_component_with_linked_list() {
         }
     };
 
-    assert_json_eq!(
-        example_schema,
-        json!({
-            "properties": {
-                "values": {
-                    "items": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": ["values"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(example_schema);
 }
 
 #[test]
@@ -3944,21 +2183,7 @@ fn derive_component_with_smallvec_feature() {
         }
     };
 
-    assert_json_eq!(
-        bar,
-        json!({
-            "properties": {
-                "links": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array",
-                }
-            },
-            "required": ["links"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(bar);
 }
 
 #[test]
@@ -3971,17 +2196,7 @@ fn derive_schema_with_default_field() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "field": {
-                    "type": "string"
-                }
-            },
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -3994,18 +2209,7 @@ fn derive_schema_with_default_struct() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "field": {
-                    "type": "string",
-                    "default": ""
-                }
-            },
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4018,19 +2222,7 @@ fn derive_struct_with_no_additional_properties() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "field": {
-                    "type": "string",
-                }
-            },
-            "required": ["field"],
-            "additionalProperties": false,
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4047,15 +2239,7 @@ fn derive_schema_for_repr_enum() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "enum": [-1, 0, 1],
-            "type": "integer",
-            "default": 0,
-            "example": 1,
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4072,55 +2256,7 @@ fn derive_schema_for_tagged_repr_enum() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "integer",
-                            "enum": [
-                                0,
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "integer",
-                            "enum": [
-                                1,
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "tag": {
-                            "type": "integer",
-                            "enum": [
-                                2,
-                            ],
-                        },
-                    },
-                    "required": [
-                        "tag",
-                    ],
-                },
-            ],
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4200,26 +2336,7 @@ fn derive_struct_with_vec_field_with_example() {
         }
     };
 
-    assert_json_eq!(
-        post,
-        json!({
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "value": {
-                    "type": "array",
-                    "example": ["foobar", "barfoo"],
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            "required": ["id", "value"]
-        })
-    );
+    assert_json_snapshot!(post);
 }
 
 #[test]
@@ -4243,52 +2360,7 @@ fn derive_struct_field_with_example() {
         }
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "properties": {
-                "field1": {
-                    "type": "string",
-                    "example": "test"
-                },
-                "field2": {
-                    "type": "string",
-                    "example": "test"
-                },
-                "field3": {
-                    "type": "object",
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "type": "string",
-                    },
-                    "example": {
-                        "key1": "value1"
-                    }
-                },
-                "field4": {
-                    "type": "object",
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "$ref": "#/components/schemas/MyStruct",
-                    },
-                    "example": {
-                        "key1": "value1"
-                    }
-                }
-            },
-            "required": [
-                "field1",
-                "field2",
-                "field3",
-                "field4"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -4299,13 +2371,7 @@ fn derive_unnamed_structs_with_examples() {
         struct UsernameRequestWrapper(String);
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "type": "string",
-            "examples": ["kim", "jim"]
-        })
-    );
+    assert_json_snapshot!(doc);
 
     #[derive(ToSchema, serde::Serialize, serde::Deserialize)]
     struct Username(String);
@@ -4317,12 +2383,7 @@ fn derive_unnamed_structs_with_examples() {
         struct UsernameRequestWrapper(Username);
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "$ref": "#/components/schemas/Username",
-        })
-    )
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -4336,25 +2397,7 @@ fn derive_struct_with_examples() {
         }
     };
 
-    assert_json_eq!(
-        doc,
-        json!({
-            "properties": {
-                "username": {
-                    "type": "string",
-                    "examples": ["foobar", "barfoo"]
-                },
-            },
-            "required": [
-                "username",
-            ],
-            "type": "object",
-            "examples": [
-                {"username": "kim"},
-                {"username": "jim"}
-            ]
-        })
-    )
+    assert_json_snapshot!(doc);
 }
 
 #[test]
@@ -4366,21 +2409,7 @@ fn derive_struct_with_self_reference() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "id": {
-                    "type": "string",
-                },
-                "previous": {
-                    "$ref": "#/components/schemas/Item",
-                },
-            },
-            "type": "object",
-            "required": ["id", "previous"]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4389,12 +2418,7 @@ fn derive_unnamed_struct_with_self_reference() {
         struct Item(Box<Item>);
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "$ref": "#/components/schemas/Item"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4408,37 +2432,7 @@ fn derive_enum_with_self_reference() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "properties": {
-                        "Item": {
-                            "$ref": "#/components/schemas/EnumValue"
-                        }
-                    },
-                    "type": "object",
-                    "required": ["Item"],
-                },
-                {
-                    "properties": {
-                        "Item2": {
-                            "properties": {
-                                "value": {
-                                    "$ref": "#/components/schemas/EnumValue"
-                                }
-                            },
-                            "required": ["value"],
-                            "type": "object",
-                        }
-                    },
-                    "required": ["Item2"],
-                    "type": "object",
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4462,107 +2456,11 @@ fn derive_struct_with_validation_fields() {
         }
     };
 
-    let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
-
-    #[cfg(feature = "non_strict_integers")]
-    assert_json_matches!(
-        value,
-        json!({
-            "properties": {
-                "id": {
-                    "format": "int32",
-                    "type": "integer",
-                    "maximum": 10.0,
-                    "minimum": 5.0,
-                    "multipleOf": 2.5,
-                },
-                "value": {
-                    "type": "string",
-                    "maxLength": 10,
-                    "minLength": 5,
-                    "pattern": "[a-z]*"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minLength": 1,
-                    },
-                    "maxItems": 5,
-                    "minItems": 1,
-                },
-                "unsigned": {
-                    "type": "integer",
-                    "format": "uint16",
-                    "minimum": 0.0
-                },
-                "unsigned_value": {
-                    "type": "integer",
-                    "format": "uint32",
-                    "minimum": 2.0,
-                }
-            },
-            "type": "object",
-            "required": [
-                "id",
-                "value",
-                "items",
-                "unsigned",
-                "unsigned_value"
-            ]
-        }),
-        config
-    );
-
-    #[cfg(not(feature = "non_strict_integers"))]
-    assert_json_matches!(
-        value,
-        json!({
-            "properties": {
-                "id": {
-                    "format": "int32",
-                    "type": "integer",
-                    "maximum": 10.0,
-                    "minimum": 5.0,
-                    "multipleOf": 2.5,
-                },
-                "value": {
-                    "type": "string",
-                    "maxLength": 10,
-                    "minLength": 5,
-                    "pattern": "[a-z]*"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "minLength": 1,
-                    },
-                    "maxItems": 5,
-                    "minItems": 1,
-                },
-                "unsigned": {
-                    "type": "integer",
-                    "format": "int32",
-                    "minimum": 0.0
-                },
-                "unsigned_value": {
-                    "type": "integer",
-                    "format": "int32",
-                    "minimum": 2.0,
-                }
-            },
-            "type": "object",
-            "required": [
-                "id",
-                "value",
-                "items",
-                "unsigned",
-                "unsigned_value"
-            ]
-        }),
-        config
-    );
+    if cfg!(feature = "non_strict_integers") {
+        assert_json_snapshot!("non_strict_integers", value);
+    } else {
+        assert_json_snapshot!("strict_integers", value);
+    }
 }
 
 #[test]
@@ -4585,37 +2483,7 @@ fn uint_non_strict_integers_format() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "ui8": {
-                    "type": "integer",
-                    "format": "uint8"
-                },
-                "ui16": {
-                    "type": "integer",
-                    "format": "uint16"
-                },
-                "ui32": {
-                    "type": "integer",
-                    "format": "uint32"
-                },
-                "ui64": {
-                    "type": "integer",
-                    "format": "uint64"
-                },
-                "i16": {
-                    "type": "integer",
-                    "format": "int16"
-                },
-                "i8": {
-                    "type": "integer",
-                    "format": "int8"
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4627,30 +2495,7 @@ fn derive_schema_with_slice_and_array() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "array": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "slice": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            "required": [
-                "array",
-                "slice"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4664,17 +2509,7 @@ fn derive_schema_multiple_serde_definitions() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "ID": {
-                    "type": "string",
-                }
-            },
-            "type": "object",
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4695,20 +2530,7 @@ fn derive_schema_with_custom_field_with_schema() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "id": {
-                    "description": "this is the description",
-                    "type": "string",
-                    "format": "email"
-                }
-            },
-            "required": [ "id" ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4719,18 +2541,7 @@ fn derive_unit_type() {
         }
     };
 
-    assert_json_eq!(
-        data,
-        json!({
-            "type": "object",
-            "required": [ "unit_type" ],
-            "properties": {
-                "unit_type": {
-                    "default": null,
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(data);
 }
 
 #[test]
@@ -4739,12 +2550,7 @@ fn derive_unit_struct_schema() {
         struct UnitValue;
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "default": null,
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4757,20 +2563,7 @@ fn derive_schema_with_multiple_schema_attributes() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "minLength": 5,
-                    "maxLength": 10,
-                }
-            },
-            "required": ["name"]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4792,49 +2585,7 @@ fn derive_struct_with_deprecated_fields() {
         }
     };
 
-    assert_json_eq!(
-        account,
-        json!({
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "format": "int64",
-                    "deprecated": true
-                },
-                "username": {
-                    "type": "string",
-                    "deprecated": true
-                },
-                "role_ids": {
-                    "type": "array",
-                    "deprecated": true,
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
-                },
-                "foobars": {
-                    "type": "array",
-                    "deprecated": true,
-                    "items": {
-                        "$ref": "#/components/schemas/Foobar"
-                    }
-                },
-                "map": {
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "deprecated": true,
-                    "type": "object"
-                }
-            },
-            "required": ["id", "username", "role_ids", "foobars", "map"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(account);
 }
 
 #[test]
@@ -4856,49 +2607,7 @@ fn derive_struct_with_schema_deprecated_fields() {
         }
     };
 
-    assert_json_eq!(
-        account,
-        json!({
-            "properties": {
-                "id": {
-                    "type": "integer",
-                    "format": "int64",
-                    "deprecated": true
-                },
-                "username": {
-                    "type": "string",
-                    "deprecated": true
-                },
-                "role_ids": {
-                    "type": "array",
-                    "deprecated": true,
-                    "items": {
-                        "type": "integer",
-                        "format": "int32"
-                    }
-                },
-                "foobars": {
-                    "type": "array",
-                    "deprecated": true,
-                    "items": {
-                        "$ref": "#/components/schemas/Foobar"
-                    }
-                },
-                "map": {
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "deprecated": true,
-                    "type": "object"
-                }
-            },
-            "required": ["id", "username", "role_ids", "foobars", "map"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(account);
 }
 
 #[test]
@@ -4911,19 +2620,7 @@ fn derive_schema_with_object_type_description() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "object": {
-                    "description": "This is object value",
-                    "type": "object"
-                },
-            },
-            "required": ["object"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4935,17 +2632,7 @@ fn derive_schema_with_explicit_value_type() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "any": {
-                },
-            },
-            "required": ["any"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4956,17 +2643,7 @@ fn derive_schema_with_implicit_value_type() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "any": {
-                },
-            },
-            "required": ["any"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -4983,40 +2660,7 @@ fn derive_tuple_named_struct_field() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "info": {
-                    "prefixItems": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "integer",
-                            "format": "int64",
-                        },
-                        {
-                            "type": "boolean",
-                        },
-                        {
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["name"],
-                            "type": "object"
-                        }
-                    ],
-                    "items": false,
-                    "type": "array"
-                }
-            },
-            "type": "object",
-            "required": ["info"]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5029,29 +2673,7 @@ fn derive_nullable_tuple() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "info": {
-                    "prefixItems": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "integer",
-                            "format": "int64",
-                        },
-                    ],
-                    "items": false,
-                    "type": ["array", "null"],
-                    "deprecated": true,
-                    "description": "This is description",
-                }
-            },
-            "type": "object",
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5068,20 +2690,7 @@ fn derive_unit_type_untagged_enum() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "oneOf": [
-                {
-                    "$ref": "#/components/schemas/AggregationRequest"
-                },
-                {
-                    "type": "null",
-                    "default": null,
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5092,32 +2701,7 @@ fn derive_schema_with_unit_hashmap() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "volumes": {
-                    "propertyNames": {
-                        "type": "string"
-                    },
-                    "additionalProperties": {
-                        "propertyNames": {
-                            "default": null,
-                        },
-                        "additionalProperties": {
-                            "default": null,
-                        },
-                        "type": "object"
-                    },
-                    "type": "object"
-                },
-            },
-            "required": [
-                "volumes"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5131,20 +2715,7 @@ fn derive_struct_with_arc() {
         }
     };
 
-    assert_json_eq!(
-        greeting,
-        json!({
-            "properties": {
-                "greeting": {
-                    "type": "string"
-                },
-            },
-            "required": [
-                "greeting"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(greeting);
 }
 
 #[test]
@@ -5159,20 +2730,7 @@ fn derive_struct_with_nested_arc() {
         }
     };
 
-    assert_json_eq!(
-        greeting,
-        json!({
-            "properties": {
-                "greeting": {
-                    "type": "string"
-                },
-            },
-            "required": [
-                "greeting"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(greeting);
 }
 
 #[test]
@@ -5186,23 +2744,7 @@ fn derive_struct_with_collection_of_arcs() {
         }
     };
 
-    assert_json_eq!(
-        greeting,
-        json!({
-            "properties": {
-                "greeting": {
-                    "items": {
-                        "type": "string",
-                    },
-                    "type": "array"
-                },
-            },
-            "required": [
-                "greeting"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(greeting);
 }
 
 #[test]
@@ -5216,20 +2758,7 @@ fn derive_struct_with_rc() {
         }
     };
 
-    assert_json_eq!(
-        greeting,
-        json!({
-            "properties": {
-                "greeting": {
-                    "type": "string"
-                },
-            },
-            "required": [
-                "greeting"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(greeting);
 }
 
 #[test]
@@ -5242,24 +2771,7 @@ fn derive_btreeset() {
         }
     };
 
-    assert_json_eq!(
-        greeting,
-        json!({
-            "properties": {
-                "values": {
-                    "type": "array",
-                    "uniqueItems": true,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            "required": [
-                "values"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(greeting);
 }
 
 #[test]
@@ -5272,24 +2784,7 @@ fn derive_hashset() {
         }
     };
 
-    assert_json_eq!(
-        greeting,
-        json!({
-            "properties": {
-                "values": {
-                    "type": "array",
-                    "uniqueItems": true,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-            },
-            "required": [
-                "values"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(greeting);
 }
 
 #[test]
@@ -5319,34 +2814,7 @@ fn derive_schema_with_docstring_on_unit_variant_of_enum() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "description": "top level doc for My enum",
-            "oneOf": [
-                {
-                    "description": "unit variant doc",
-                    "enum": [
-                        "UnitVariant"
-                    ],
-                    "type": "string"
-                },
-                {
-                    "description": "non-unit doc",
-                    "properties": {
-                        "NonUnitVariant": {
-                            "description": "non-unit doc",
-                            "type": "string"
-                        }
-                    },
-                    "required": [
-                        "NonUnitVariant"
-                    ],
-                    "type": "object"
-                }
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5362,38 +2830,7 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!(
-            {
-                "oneOf": [
-                    {
-                        "type": "object",
-                        "required": [ "TupleVariantWithOptionFirst" ],
-                        "description": "doc for tuple variant with Option as first element - I now produce a description",
-                        "properties": {
-                            "TupleVariantWithOptionFirst": {
-                                "type": ["string", "null"],
-                                "description": "doc for tuple variant with Option as first element - I now produce a description"
-                            }
-                        }
-                    },
-                    {
-                        "type": "object",
-                        "required": [ "TupleVariantWithNoOption" ],
-                        "description": "doc for tuple variant without Option as first element - I produce a description",
-                        "properties": {
-                            "TupleVariantWithNoOption": {
-                                "type": "string",
-                                "description": "doc for tuple variant without Option as first element - I produce a description"
-                            }
-                        }
-                    }
-                ],
-                "description": "top level doc for My enum"
-            }
-        )
-    );
+    assert_json_snapshot!(value);
 
     let value: Value = api_doc! {
         /// top level doc for My enum
@@ -5406,50 +2843,7 @@ fn derive_schema_with_docstring_on_tuple_variant_first_element_option() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "description": "top level doc for My enum",
-            "oneOf": [
-                {
-                    "description": "doc for tuple variant with Option as first element - I now produce a description",
-                    "properties": {
-                        "TupleVariantWithOptionFirst": {
-                            "description": "doc for tuple variant with Option as first element - I now produce a description",
-                            "items": {
-                                "type": "object"
-                            },
-                            "maxItems": 2,
-                            "minItems": 2,
-                            "type": "array"
-                        }
-                    },
-                    "required": [
-                        "TupleVariantWithOptionFirst"
-                    ],
-                    "type": "object"
-                },
-                {
-                    "description": "doc for tuple variant without Option as first element - I produce a description",
-                    "properties": {
-                        "TupleVariantWithOptionSecond": {
-                            "description": "doc for tuple variant without Option as first element - I produce a description",
-                            "items": {
-                                "type": "object"
-                            },
-                            "maxItems": 2,
-                            "minItems": 2,
-                            "type": "array"
-                        }
-                    },
-                    "required": [
-                        "TupleVariantWithOptionSecond"
-                    ],
-                    "type": "object"
-                }
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5464,19 +2858,7 @@ fn derive_struct_with_description_override() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "field1": {
-                    "type": "string"
-                }
-            },
-            "required": ["field1"],
-            "description": "This is overridden description",
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5489,13 +2871,7 @@ fn derive_unnamed_struct_with_description_override() {
         struct SchemaDescOverride(&'static str);
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "description": "This is description from include_str!\n",
-            "type": "string"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5510,14 +2886,7 @@ fn derive_simple_enum_description_override() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "description": "This is description from include_str!\n",
-            "type": "string",
-            "enum": [ "Value1" ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5538,27 +2907,7 @@ fn derive_mixed_enum_description_override() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "description": "This is description from include_str!\n",
-            "oneOf": [
-                {
-                    "type": "string",
-                    "enum": [ "Value1" ]
-                },
-                {
-                    "type": "object",
-                    "properties": {
-                        "User": {
-                            "$ref": "#/components/schemas/User"
-                        }
-                    },
-                    "required": [ "User" ]
-                }
-            ]
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5570,21 +2919,7 @@ fn content_encoding_named_field() {
         }
     };
 
-    assert_json_eq!(
-        item,
-        json!({
-            "properties": {
-                "picture": {
-                    "type": "string",
-                    "contentEncoding": "bas64"
-                }
-            },
-            "required": [
-                "picture"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(item);
 }
 
 #[test]
@@ -5596,21 +2931,7 @@ fn content_media_type_named_field() {
         }
     };
 
-    assert_json_eq!(
-        item,
-        json!({
-            "properties": {
-                "doc": {
-                    "type": "string",
-                    "contentMediaType": "application/octet-stream"
-                }
-            },
-            "required": [
-                "doc"
-            ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(item);
 }
 
 #[test]
@@ -5636,52 +2957,7 @@ fn derive_schema_required_custom_type_required() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "limit": {
-                    "description": "Maximum number of results to return.",
-                    "example": 12,
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                },
-                "limit_explisit_required": {
-                    "description": "Maximum number of results to return.",
-                    "example": 12,
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                },
-                "not_required": {
-                    "description": "Maximum number of results to return.",
-                    "example": 12,
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
-                },
-                "option_required": {
-                    "description": "Maximum number of results to return.",
-                    "example": 12,
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
-                }
-            },
-            "type": "object",
-            "required": [
-                "limit_explisit_required",
-                "option_required"
-            ]
-        })
-    );
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5697,27 +2973,7 @@ fn derive_negative_numbers() {
         }
     };
 
-    assert_json_eq! {
-        value,
-        json!({
-            "properties": {
-                "number": {
-                    "type": "number",
-                    "format": "double",
-                    "default": -1,
-                    "minimum": -2.1
-                },
-                "solid_number": {
-                    "format": "int64",
-                    "type": "integer",
-                    "default": -2,
-                    "maximum": -3,
-                }
-            },
-            "required": [ "number", "solid_number" ],
-            "type": "object"
-        })
-    }
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5734,19 +2990,7 @@ fn derive_map_with_property_names() {
         struct Mapped(std::collections::BTreeMap<Names, String>);
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "propertyNames": {
-                "type": "string",
-                "enum": ["Foo", "Bar"]
-            },
-            "additionalProperties": {
-                "type": "string"
-            },
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5761,18 +3005,7 @@ fn derive_schema_with_ignored_field() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "value": {
-                    "type": "string"
-                }
-            },
-            "required": [ "value" ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5786,21 +3019,7 @@ fn derive_schema_with_ignore_eq_false_field() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "value": {
-                    "type": "string"
-                },
-                "this_is_not_private": {
-                    "type": "string"
-                }
-            },
-            "required": [ "value", "this_is_not_private" ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5821,21 +3040,7 @@ fn derive_schema_with_ignore_eq_call_field() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "value": {
-                    "type": "string"
-                },
-                "this_is_not_private": {
-                    "type": "string"
-                }
-            },
-            "required": [ "value", "this_is_not_private" ],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5847,16 +3052,7 @@ fn derive_schema_unnamed_title() {
         struct SchemaIgnoredField (Vec<String>);
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "title": "This is vec title",
-            "items": {
-                "type": "string"
-            },
-            "type": "array"
-        })
-    );
+    assert_json_snapshot!(value);
 
     #[derive(ToSchema)]
     enum UnnamedEnum {
@@ -5869,17 +3065,7 @@ fn derive_schema_unnamed_title() {
         struct SchemaIgnoredField (UnnamedEnum);
     };
 
-    assert_json_eq!(
-        enum_value,
-        json!({
-            "title": "This is enum ref title",
-            "oneOf": [
-                {
-                    "$ref": "#/components/schemas/UnnamedEnum"
-                }
-            ],
-        })
-    )
+    assert_json_snapshot!(enum_value);
 }
 
 #[test]
@@ -5901,45 +3087,7 @@ fn derive_struct_inline_with_description() {
         }
     };
 
-    assert_json_eq!(
-        &value,
-        json!({
-            "properties": {
-                "no_description_inline": {
-                    "properties": {
-                        "name": {
-                            "type": "string"
-                        },
-                    },
-                    "required": [
-                        "name"
-                    ],
-                    "type": "object"
-                },
-                "with_description": {
-                    "description": "This is description",
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                            },
-                            "required": [
-                                "name"
-                            ],
-                            "type": "object"
-                        }
-                    ]
-                },
-            },
-            "required": [
-                "with_description",
-                "no_description_inline",
-            ],
-            "type": "object"
-        })
-    );
+    assert_json_snapshot!(&value);
 }
 
 #[test]
@@ -5966,18 +3114,7 @@ fn schema_manual_impl() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!({
-            "properties": {
-                "customer": {
-                    "$ref": "#/components/schemas/Newtype"
-                }
-            },
-            "required": ["customer"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -5998,18 +3135,7 @@ fn const_generic_test() {
     let schema = <CombinedResponse<String, 1> as PartialSchema>::schema();
     let value = serde_json::to_value(schema).expect("schema is JSON serializable");
 
-    assert_json_eq! {
-        value,
-        json!({
-            "properties": {
-                "array_response": {
-                    "$ref": "#/components/schemas/ArrayResponse_String"
-                }
-            },
-            "required": ["array_response"],
-            "type": "object"
-        })
-    }
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -6025,14 +3151,7 @@ fn unit_struct_schema() {
     let schema = <UnitType as PartialSchema>::schema();
     let value = serde_json::to_value(schema).expect("schema is JSON serializable");
 
-    assert_json_eq! {
-        value,
-        json!({
-            "description": "This is description",
-            "title": "Title",
-            "default": null,
-        })
-    }
+    assert_json_snapshot!(value);
 }
 
 #[test]
@@ -6139,11 +3258,5 @@ fn test_new_type_struct_pattern() {
     let schema = <Username as PartialSchema>::schema();
     let value = serde_json::to_value(schema).expect("schema is JSON serializable");
 
-    assert_json_eq! {
-        value,
-        json!({
-            "pattern": r#"^([a-zA-Z0-9_\-]{3,32}$)"#,
-            "type": "string"
-        })
-    }
+    assert_json_snapshot!(value);
 }

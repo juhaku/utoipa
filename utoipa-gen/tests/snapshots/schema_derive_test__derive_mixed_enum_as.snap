@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: "&value"
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "Foo": {
+          "properties": {
+            "foo": {
+              "$ref": "#/components/schemas/Foobar"
+            }
+          },
+          "required": [
+            "foo"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Foo"
+      ],
+      "type": "object"
+    }
+  ]
+}
