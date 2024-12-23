@@ -263,8 +263,7 @@ impl ResponseExt for ResponseBuilder {
 #[cfg(test)]
 mod tests {
     use super::{Content, ResponseBuilder, Responses};
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
+    use insta::assert_json_snapshot;
 
     #[test]
     fn responses_new() {
@@ -274,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn response_builder() -> Result<(), serde_json::Error> {
+    fn response_builder() {
         let request_body = ResponseBuilder::new()
             .description("A sample response")
             .content(
@@ -284,31 +283,14 @@ mod tests {
                 ))),
             )
             .build();
-        let serialized = serde_json::to_string_pretty(&request_body)?;
-        println!("serialized json:\n {serialized}");
-        assert_json_eq!(
-            request_body,
-            json!({
-              "description": "A sample response",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/MySchemaPayload"
-                  }
-                }
-              }
-            })
-        );
-        Ok(())
+        assert_json_snapshot!(request_body);
     }
 }
 
 #[cfg(all(test, feature = "openapi_extensions"))]
 mod openapi_extensions_tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
     use crate::openapi::ResponseBuilder;
+    use insta::assert_json_snapshot;
 
     use super::ResponseExt;
 
@@ -319,19 +301,7 @@ mod openapi_extensions_tests {
             .build()
             .json_schema_ref("MySchemaPayload");
 
-        assert_json_eq!(
-            request_body,
-            json!({
-              "description": "A sample response",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/MySchemaPayload"
-                  }
-                }
-              }
-            })
-        );
+        assert_json_snapshot!(request_body);
     }
 
     #[test]
@@ -340,18 +310,6 @@ mod openapi_extensions_tests {
             .description("A sample response")
             .json_schema_ref("MySchemaPayload")
             .build();
-        assert_json_eq!(
-            request_body,
-            json!({
-              "description": "A sample response",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/MySchemaPayload"
-                  }
-                }
-              }
-            })
-        );
+        assert_json_snapshot!(request_body);
     }
 }

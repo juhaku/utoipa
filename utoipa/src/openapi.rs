@@ -656,13 +656,11 @@ pub(crate) use builder;
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
     use crate::openapi::{
         info::InfoBuilder,
         path::{OperationBuilder, PathsBuilder},
     };
+    use insta::assert_json_snapshot;
 
     use super::{response::Response, *};
 
@@ -673,8 +671,7 @@ mod tests {
     }
 
     #[test]
-    fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
+    fn serialize_openapi_json_minimal_success() {
         let openapi = OpenApi::new(
             InfoBuilder::new()
                 .title("My api")
@@ -689,17 +686,12 @@ mod tests {
                 .build(),
             Paths::new(),
         );
-        let serialized = serde_json::to_string_pretty(&openapi)?;
 
-        assert_eq!(
-            serialized, raw_json,
-            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"
-        );
-        Ok(())
+        assert_json_snapshot!(openapi);
     }
 
     #[test]
-    fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
+    fn serialize_openapi_json_with_paths_success() {
         let openapi = OpenApi::new(
             Info::new("My big api", "1.1.0"),
             PathsBuilder::new()
@@ -726,14 +718,7 @@ mod tests {
                 ),
         );
 
-        let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("./openapi/testdata/expected_openapi_with_paths.json");
-
-        assert_eq!(
-            serialized, expected,
-            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{expected}"
-        );
-        Ok(())
+        assert_json_snapshot!(openapi);
     }
 
     #[test]
@@ -795,61 +780,10 @@ mod tests {
             .build();
 
         api_1.merge(api_2);
-        let value = serde_json::to_value(&api_1).unwrap();
 
-        assert_eq!(
-            value,
-            json!(
-                {
-                  "openapi": "3.1.0",
-                  "info": {
-                    "title": "Api",
-                    "version": "v1"
-                  },
-                  "paths": {
-                    "/ap/v2/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success 2"
-                          }
-                        }
-                      }
-                    },
-                    "/api/v1/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success"
-                          }
-                        }
-                      }
-                    },
-                    "/api/v2/user": {
-                      "post": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "components": {
-                    "schemas": {
-                      "User2": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-            )
-        )
+        assert_json_snapshot!(api_1, {
+            ".paths" => insta::sorted_redaction()
+        });
     }
 
     #[test]
@@ -922,68 +856,10 @@ mod tests {
             .build();
 
         api_1.merge(api_2);
-        let value = serde_json::to_value(&api_1).unwrap();
 
-        assert_eq!(
-            value,
-            json!(
-                {
-                  "openapi": "3.1.0",
-                  "info": {
-                    "title": "Api",
-                    "version": "v1"
-                  },
-                  "paths": {
-                    "/api/v2/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success 2"
-                          }
-                        }
-                      },
-                      "post": {
-                        "responses": {
-                          "200": {
-                            "description": "Post user success 2"
-                          }
-                        }
-                      }
-                    },
-                    "/api/v1/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success 1"
-                          }
-                        }
-                      },
-                      "post": {
-                        "responses": {
-                          "200": {
-                            "description": "Post user success 1"
-                          }
-                        }
-                      }
-                    },
-                    "x-random": "Value",
-                    "x-v1-api": true,
-                  },
-                  "components": {
-                    "schemas": {
-                      "User2": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-            )
-        )
+        assert_json_snapshot!(api_1, {
+            ".paths" => insta::sorted_redaction()
+        });
     }
 
     #[test]
@@ -1027,28 +903,7 @@ mod tests {
             .pointer("/paths")
             .expect("paths should exits in openapi");
 
-        assert_json_eq!(
-            paths,
-            json!({
-                "/api/v1/status": {
-                        "get": {
-                        "description": "Get status",
-                        "responses": {}
-                    }
-                },
-                "/api/v1/user/": {
-                    "get": {
-                        "description": "Get user details",
-                        "responses": {}
-                    }
-                },
-                "/api/v1/user/foo": {
-                    "post": {
-                        "responses": {}
-                    }
-                }
-            })
-        )
+        assert_json_snapshot!(paths);
     }
 
     #[test]
@@ -1060,19 +915,6 @@ mod tests {
             String::from("anything that serializes to Json").into(),
         );
 
-        let api_json = serde_json::to_value(api).expect("OpenApi must serialize to JSON");
-
-        assert_json_eq!(
-            api_json,
-            json!({
-                "info": {
-                    "title": "",
-                    "version": ""
-                },
-                "openapi": "3.1.0",
-                "paths": {},
-                "x-tagGroup": "anything that serializes to Json",
-            })
-        )
+        assert_json_snapshot!(api);
     }
 }

@@ -126,10 +126,8 @@ impl RequestBodyExt for RequestBodyBuilder {
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
     use super::{Content, RequestBody, RequestBodyBuilder, Required};
+    use insta::assert_json_snapshot;
 
     #[test]
     fn request_body_new() {
@@ -141,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn request_body_builder() -> Result<(), serde_json::Error> {
+    fn request_body_builder() {
         let request_body = RequestBodyBuilder::new()
             .description(Some("A sample requestBody"))
             .required(Some(Required::True))
@@ -150,33 +148,15 @@ mod tests {
                 Content::new(Some(crate::openapi::Ref::from_schema_name("EmailPayload"))),
             )
             .build();
-        let serialized = serde_json::to_string_pretty(&request_body)?;
-        println!("serialized json:\n {serialized}");
-        assert_json_eq!(
-            request_body,
-            json!({
-              "description": "A sample requestBody",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EmailPayload"
-                  }
-                }
-              },
-              "required": true
-            })
-        );
-        Ok(())
+        assert_json_snapshot!(request_body);
     }
 }
 
 #[cfg(all(test, feature = "openapi_extensions"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "openapi_extensions")))]
 mod openapi_extensions_tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
     use crate::openapi::request_body::RequestBodyBuilder;
+    use insta::assert_json_snapshot;
 
     use super::RequestBodyExt;
 
@@ -186,18 +166,7 @@ mod openapi_extensions_tests {
             .build()
             // build a RequestBody first to test the method
             .json_schema_ref("EmailPayload");
-        assert_json_eq!(
-            request_body,
-            json!({
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EmailPayload"
-                  }
-                }
-              }
-            })
-        );
+        assert_json_snapshot!(request_body);
     }
 
     #[test]
@@ -205,17 +174,6 @@ mod openapi_extensions_tests {
         let request_body = RequestBodyBuilder::new()
             .json_schema_ref("EmailPayload")
             .build();
-        assert_json_eq!(
-            request_body,
-            json!({
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EmailPayload"
-                  }
-                }
-              }
-            })
-        );
+        assert_json_snapshot!(request_body);
     }
 }
