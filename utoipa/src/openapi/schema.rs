@@ -2125,7 +2125,7 @@ pub enum KnownFormat {
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
+    use insta::assert_json_snapshot;
     use serde_json::{json, Value};
 
     use super::*;
@@ -2297,72 +2297,72 @@ mod tests {
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(ObjectBuilder::new().schema_type(Type::String)))
             .build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "additionalProperties": {
-                    "type": "string"
-                }
-            })
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+        "#);
 
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(ArrayBuilder::new().items(ArrayItems::RefOrSchema(
                 Box::new(ObjectBuilder::new().schema_type(Type::Number).into()),
             ))))
             .build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "additionalProperties": {
-                    "items": {
-                        "type": "number",
-                    },
-                    "type": "array",
-                }
-            })
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+        "#);
 
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(Ref::from_schema_name("ComplexModel")))
             .build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ComplexModel"
-                }
-            })
-        )
+        assert_json_snapshot!(json_value, @r##"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/components/schemas/ComplexModel"
+          }
+        }
+        "##);
     }
 
     #[test]
     fn test_object_with_title() {
         let json_value = ObjectBuilder::new().title(Some("SomeName")).build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "title": "SomeName"
-            })
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "title": "SomeName"
+        }
+        "#);
     }
 
     #[test]
     fn derive_object_with_examples() {
-        let expected = r#"{"type":"object","examples":[{"age":20,"name":"bob the cat"}]}"#;
         let json_value = ObjectBuilder::new()
             .examples([Some(json!({"age": 20, "name": "bob the cat"}))])
             .build();
-
-        let value_string = serde_json::to_string(&json_value).unwrap();
-        assert_eq!(
-            value_string, expected,
-            "value string != expected string, {value_string} != {expected}"
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "examples": [
+            {
+              "age": 20,
+              "name": "bob the cat"
+            }
+          ]
+        }
+        "#);
     }
 
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
@@ -2771,24 +2771,21 @@ mod tests {
             .item(Ref::from_schema_name("MyInt"))
             .discriminator(Some(discriminator))
             .build();
-        let json_value = serde_json::to_value(one_of).unwrap();
-
-        assert_json_eq!(
-            json_value,
-            json!({
-                "oneOf": [
-                    {
-                        "$ref": "#/components/schemas/MyInt"
-                    }
-                ],
-                "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                        "int": "#/components/schemas/MyInt"
-                    }
-                }
-            })
-        );
+        assert_json_snapshot!(one_of, @r##"
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/MyInt"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type",
+            "mapping": {
+              "int": "#/components/schemas/MyInt"
+            }
+          }
+        }
+        "##);
     }
 
     #[test]

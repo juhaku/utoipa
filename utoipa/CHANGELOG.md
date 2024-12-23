@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Changed
+
+* Replace `assert-json-diff` with snapshot testing via `insta` (https://github.com/juhaku/utoipa/pull/1254)
+
 ## 5.3.0 - Dec 19 2024
 
 ### Fixed

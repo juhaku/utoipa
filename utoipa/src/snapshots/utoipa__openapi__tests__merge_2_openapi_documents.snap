@@ -1,0 +1,53 @@
+---
+source: utoipa/src/openapi.rs
+expression: api_1
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Api",
+    "version": "v1"
+  },
+  "paths": {
+    "/ap/v2/user": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Get user success 2"
+          }
+        }
+      }
+    },
+    "/api/v1/user": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Get user success"
+          }
+        }
+      }
+    },
+    "/api/v2/user": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Get user success"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User2": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

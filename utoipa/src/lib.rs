@@ -848,7 +848,7 @@ mod utoipa {
 ///             .build()
 ///         )
 ///     );
-/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
+/// # assert_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
 /// ```
 ///
 /// _**Construct a Pet object schema manually.**_
@@ -1564,7 +1564,7 @@ pub mod __dev {
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
+    use insta::assert_compact_json_snapshot;
     use serde_json::json;
 
     use super::*;
@@ -1600,117 +1600,31 @@ mod tests {
     #[cfg(not(feature = "non_strict_integers"))]
     #[test]
     fn test_partial_schema_strict_integers() {
-        use assert_json_diff::{assert_json_matches, CompareMode, Config, NumericMode};
-
-        for (name, schema, value) in [
-            (
-                "i8",
-                i8::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i16",
-                i16::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i32",
-                i32::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i64",
-                i64::schema(),
-                json!({"type": "integer", "format": "int64"}),
-            ),
-            ("i128", i128::schema(), json!({"type": "integer"})),
-            ("isize", isize::schema(), json!({"type": "integer"})),
-            (
-                "u8",
-                u8::schema(),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
-            ),
-            (
-                "u16",
-                u16::schema(),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
-            ),
-            (
-                "u32",
-                u32::schema(),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
-            ),
-            (
-                "u64",
-                u64::schema(),
-                json!({"type": "integer", "format": "int64", "minimum": 0.0}),
-            ),
-        ] {
-            println!(
-                "{name}: {json}",
-                json = serde_json::to_string(&schema).unwrap()
-            );
-            let schema = serde_json::to_value(schema).unwrap();
-
-            let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
-            assert_json_matches!(schema, value, config);
-        }
+        assert_compact_json_snapshot!(i8::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i16::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(i128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(isize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(u8::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
     }
 
     #[cfg(feature = "non_strict_integers")]
     #[test]
     fn test_partial_schema_non_strict_integers() {
-        for (name, schema, value) in [
-            (
-                "i8",
-                i8::schema(),
-                json!({"type": "integer", "format": "int8"}),
-            ),
-            (
-                "i16",
-                i16::schema(),
-                json!({"type": "integer", "format": "int16"}),
-            ),
-            (
-                "i32",
-                i32::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i64",
-                i64::schema(),
-                json!({"type": "integer", "format": "int64"}),
-            ),
-            ("i128", i128::schema(), json!({"type": "integer"})),
-            ("isize", isize::schema(), json!({"type": "integer"})),
-            (
-                "u8",
-                u8::schema(),
-                json!({"type": "integer", "format": "uint8", "minimum": 0}),
-            ),
-            (
-                "u16",
-                u16::schema(),
-                json!({"type": "integer", "format": "uint16", "minimum": 0}),
-            ),
-            (
-                "u32",
-                u32::schema(),
-                json!({"type": "integer", "format": "uint32", "minimum": 0}),
-            ),
-            (
-                "u64",
-                u64::schema(),
-                json!({"type": "integer", "format": "uint64", "minimum": 0}),
-            ),
-        ] {
-            println!(
-                "{name}: {json}",
-                json = serde_json::to_string(&schema).unwrap()
-            );
-            let schema = serde_json::to_value(schema).unwrap();
-            assert_json_eq!(schema, value);
-        }
+        assert_compact_json_snapshot!(i8::schema(), @r#"{"type": "integer", "format": "int8"}"#);
+        assert_compact_json_snapshot!(i16::schema(), @r#"{"type": "integer", "format": "int16"}"#);
+        assert_compact_json_snapshot!(i32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(i128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(isize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(u8::schema(), @r#"{"type": "integer", "format": "uint8", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
     }
 
     #[test]
@@ -1736,7 +1650,7 @@ mod tests {
                 json = serde_json::to_string(&schema).unwrap()
             );
             let schema = serde_json::to_value(schema).unwrap();
-            assert_json_eq!(schema, value);
+            assert_eq!(schema, value);
         }
     }
 }
