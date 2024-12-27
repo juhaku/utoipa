@@ -403,6 +403,11 @@ where
         &self.1
     }
 
+    /// Get mutable reference to the [`utoipa::openapi::OpenApi`] instance of the router.
+    pub fn get_openapi_mut(&mut self) -> &mut utoipa::openapi::OpenApi {
+        &mut self.1
+    }
+
     /// Split the content of the [`OpenApiRouter`] to parts. Method will return a tuple of
     /// inner [`axum::Router`] and [`utoipa::openapi::OpenApi`].
     pub fn split_for_parts(self) -> (axum::Router<S>, utoipa::openapi::OpenApi) {
