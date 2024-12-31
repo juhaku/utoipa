@@ -11,14 +11,6 @@ use tower_layer::Layer;
 use tower_service::Service;
 
 #[inline]
-fn colonized_params<S: AsRef<str>>(path: S) -> String
-where
-    String: From<S>,
-{
-    String::from(path).replace('}', "").replace('{', ":")
-}
-
-#[inline]
 fn path_template<S: AsRef<str>>(path: S) -> String {
     path.as_ref()
         .split('/')
@@ -245,11 +237,11 @@ where
             };
             let path = if path.is_empty() { "/" } else { path };
 
-            self.0.route(&colonized_params(path), method_router)
+            self.0.route(path, method_router)
         } else {
             paths.paths.iter().fold(self.0, |this, (path, _)| {
                 let path = if path.is_empty() { "/" } else { path };
-                this.route(&colonized_params(path), method_router.clone())
+                this.route(path, method_router.clone())
             })
         };
 
@@ -273,7 +265,7 @@ where
 
     /// Pass through method for [`axum::Router<S>::route`].
     pub fn route(self, path: &str, method_router: MethodRouter<S>) -> Self {
-        Self(self.0.route(&colonized_params(path), method_router), self.1)
+        Self(self.0.route(path, method_router), self.1)
     }
 
     /// Pass through method for [`axum::Router::route_layer`].
@@ -340,7 +332,7 @@ where
             router.1,
             path_for_nested_route,
         );
-        let router = self.0.nest(&colonized_params(path), router.0);
+        let router = self.0.nest(path, router.0);
 
         Self(router, api)
     }
