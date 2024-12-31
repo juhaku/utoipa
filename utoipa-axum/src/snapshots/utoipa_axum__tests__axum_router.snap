@@ -1,0 +1,34 @@
+---
+source: utoipa-axum/src/lib.rs
+expression: openapi
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "",
+    "version": ""
+  },
+  "paths": {
+    "/pet/{pet_id}": {
+      "get": {
+        "operationId": "get_pet_by_id",
+        "parameters": [
+          {
+            "name": "pet_id",
+            "in": "path",
+            "description": "ID of pet to return",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {}
+      }
+    }
+  },
+  "components": {}
+}
