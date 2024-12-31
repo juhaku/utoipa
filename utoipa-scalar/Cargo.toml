@@ -23,7 +23,7 @@ utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, feat
 ] }
 actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5", features = ["json"], optional = true }
-axum = { version = "0.7", default-features = false, optional = true }
+axum = { version = "0.8.0", default-features = false, optional = true }
 
 [dev-dependencies]
 utoipa-scalar = { path = ".", features = ["actix-web", "axum", "rocket"] }

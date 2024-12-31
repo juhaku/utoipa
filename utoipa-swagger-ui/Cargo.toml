@@ -26,7 +26,7 @@ rust-embed = { version = "8" }
 mime_guess = { version = "2.0" }
 actix-web = { version = "4", optional = true, default-features = false, features = ["macros"] }
 rocket = { version = "0.5", features = ["json"], optional = true }
-axum = { version = "0.7", default-features = false, features = [
+axum = { version = "0.8.0", default-features = false, features = [
     "json",
 ], optional = true }
 utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [

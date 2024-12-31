@@ -8,7 +8,7 @@ authors = ["Elli Example <example@example.com>"]
 
 
 [dependencies]
-axum = "0.7"
+axum = "0.8.0"
 hyper = { version = "1.0.1", features = ["full"] }
 tokio = { version = "1.17", features = ["full"] }
 tower = "0.5"
