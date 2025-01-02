@@ -1,5 +1,11 @@
 # Changelog - utoipa-scalar
 
+## Unreleased
+
+### Changed
+
+* Update axum to v0.8 (https://github.com/juhaku/utoipa/pull/1269)
+
 ## 0.2.0 - Oct 14 2024
 
 ### Added

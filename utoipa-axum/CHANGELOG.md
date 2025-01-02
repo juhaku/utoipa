@@ -4,6 +4,7 @@
 
 ### Changed
 
+* Update axum to v0.8 (https://github.com/juhaku/utoipa/pull/1269)
 * Added mutable getter for the openapi instance of a OpenApiRouter (https://github.com/juhaku/utoipa/pull/1262)
 * utoipa-axum: Add basic path params test (https://github.com/juhaku/utoipa/pull/1268)
 
