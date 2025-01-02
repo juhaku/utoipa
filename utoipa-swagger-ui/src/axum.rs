@@ -154,40 +154,41 @@ async fn serve_swagger_ui(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum_test::TestServer;
+    use http::header::AUTHORIZATION;
+    use http::HeaderValue;
+    use tower::util::ServiceExt;
 
     #[tokio::test]
     async fn mount_onto_root() {
         let app = Router::<()>::from(SwaggerUi::new("/"));
-        let server = TestServer::new(app).unwrap();
-        let response = server.get("/").await;
-        response.assert_status_ok();
-        let response = server.get("/swagger-ui.css").await;
-        response.assert_status_ok();
+        let response = app.clone().oneshot(get("/")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = app.clone().oneshot(get("/swagger-ui.css")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn mount_onto_path_ends_with_slash() {
         let app = Router::<()>::from(SwaggerUi::new("/swagger-ui/"));
-        let server = TestServer::new(app).unwrap();
-        let response = server.get("/swagger-ui").await;
-        response.assert_status_see_other();
-        let response = server.get("/swagger-ui/").await;
-        response.assert_status_ok();
-        let response = server.get("/swagger-ui/swagger-ui.css").await;
-        response.assert_status_ok();
+        let response = app.clone().oneshot(get("/swagger-ui")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        let response = app.clone().oneshot(get("/swagger-ui/")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let request = get("/swagger-ui/swagger-ui.css");
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
     async fn mount_onto_path_not_end_with_slash() {
         let app = Router::<()>::from(SwaggerUi::new("/swagger-ui"));
-        let server = TestServer::new(app).unwrap();
-        let response = server.get("/swagger-ui").await;
-        response.assert_status_see_other();
-        let response = server.get("/swagger-ui/").await;
-        response.assert_status_ok();
-        let response = server.get("/swagger-ui/swagger-ui.css").await;
-        response.assert_status_ok();
+        let response = app.clone().oneshot(get("/swagger-ui")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        let response = app.clone().oneshot(get("/swagger-ui/")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let request = get("/swagger-ui/swagger-ui.css");
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
@@ -198,24 +199,30 @@ mod tests {
                 password: "password".to_string(),
             }));
         let app = Router::<()>::from(swagger_ui);
-        let server = TestServer::new(app).unwrap();
-        let response = server.get("/swagger-ui").await;
-        response.assert_status_unauthorized();
+        let response = app.clone().oneshot(get("/swagger-ui")).await.unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let encoded_credentials = BASE64_STANDARD.encode("admin:password");
-        let response = server
-            .get("/swagger-ui")
-            .authorization(format!("Basic {}", encoded_credentials))
-            .await;
-        response.assert_status_see_other();
-        let response = server
-            .get("/swagger-ui/")
-            .authorization(format!("Basic {}", encoded_credentials))
-            .await;
-        response.assert_status_ok();
-        let response = server
-            .get("/swagger-ui/swagger-ui.css")
-            .authorization(format!("Basic {}", encoded_credentials))
-            .await;
-        response.assert_status_ok();
+        let authorization = format!("Basic {}", encoded_credentials);
+        let request = authorized_get("/swagger-ui", &authorization);
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        let request = authorized_get("/swagger-ui/", &authorization);
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let request = authorized_get("/swagger-ui/swagger-ui.css", &authorization);
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    fn get(url: &str) -> Request<Body> {
+        Request::builder().uri(url).body(Body::empty()).unwrap()
+    }
+
+    fn authorized_get(url: &str, authorization: &str) -> Request<Body> {
+        Request::builder()
+            .uri(url)
+            .header(AUTHORIZATION, HeaderValue::from_str(authorization).unwrap())
+            .body(Body::empty())
+            .unwrap()
     }
 }
