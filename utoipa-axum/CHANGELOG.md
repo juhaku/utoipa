@@ -4,6 +4,7 @@
 
 ### Changed
 
+* Added mutable getter for the openapi instance of a OpenApiRouter (https://github.com/juhaku/utoipa/pull/1262)
 * utoipa-axum: Add basic path params test (https://github.com/juhaku/utoipa/pull/1268)
 
 ## 0.1.3 - Dec 19 2024
