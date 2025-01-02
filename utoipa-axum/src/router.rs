@@ -1,5 +1,4 @@
 //! Implements Router for composing handlers and collecting OpenAPI information.
-use std::borrow::Cow;
 use std::convert::Infallible;
 
 use axum::extract::Request;
