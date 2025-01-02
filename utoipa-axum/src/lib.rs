@@ -196,9 +196,11 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use axum::extract::State;
+    use axum::extract::{Path, State};
+    use insta::assert_json_snapshot;
     use router::*;
-    use utoipa::openapi::{Content, Ref, ResponseBuilder};
+    use tower::util::ServiceExt;
+    use utoipa::openapi::{Content, OpenApi, Ref, ResponseBuilder};
     use utoipa::PartialSchema;
 
     #[utoipa::path(get, path = "/")]
@@ -422,5 +424,43 @@ mod tests {
                 ),
             );
         assert_eq!(expected_paths.build(), paths);
+    }
+
+    #[tokio::test]
+    async fn test_axum_router() {
+        #[utoipa::path(
+            get,
+            path = "/pet/{pet_id}",
+            params(("pet_id" = u32, Path, description = "ID of pet to return")),
+        )]
+        pub async fn get_pet_by_id(Path(pet_id): Path<u32>) -> String {
+            pet_id.to_string()
+        }
+
+        let (router, openapi) = OpenApiRouter::with_openapi(OpenApi::default())
+            .routes(routes!(get_pet_by_id))
+            .split_for_parts();
+
+        assert_json_snapshot!(openapi);
+
+        let request = http::Request::builder()
+            .uri("/pet/1")
+            .body("".to_string())
+            .unwrap();
+
+        let response = router.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+
+        let body = response.into_body();
+        let body = axum::body::to_bytes(body, usize::MAX).await.unwrap();
+        assert_eq!(body, "1");
+
+        let request = http::Request::builder()
+            .uri("/pet/foo")
+            .body("".to_string())
+            .unwrap();
+
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), http::StatusCode::BAD_REQUEST);
     }
 }
