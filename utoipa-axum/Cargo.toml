@@ -15,7 +15,7 @@ rust-version.workspace = true
 debug = []
 
 [dependencies]
-axum = { version = "0.7", default-features = false }
+axum = { version = "0.8.0", default-features = false }
 utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
@@ -25,7 +25,7 @@ paste = "1.0"
 
 [dev-dependencies]
 utoipa = { path = "../utoipa", features = ["debug"] }
-axum = { version = "0.7", default-features = false, features = ["json"] }
+axum = { version = "0.8.0", default-features = false, features = ["json"] }
 http = "1.2"
 insta = { version = "1.41", features = ["json"] }
 serde = "1"

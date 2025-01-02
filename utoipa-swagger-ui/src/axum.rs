@@ -54,7 +54,7 @@ where
         let mut router = if path == "/" {
             router
                 .route(path, handler.clone())
-                .route(&format!("{}*rest", path), handler)
+                .route(&format!("{}{{*rest}}", path), handler)
         } else {
             let path = if path.ends_with('/') {
                 &path[..path.len() - 1]
@@ -70,7 +70,7 @@ where
                     routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
                 )
                 .route(&format!("{}/", path), handler.clone())
-                .route(&format!("{}/*rest", path), handler)
+                .route(&format!("{}/{{*rest}}", path), handler)
         };
 
         if let Some(BasicAuth { username, password }) = config.basic_auth {

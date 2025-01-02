@@ -33,7 +33,7 @@ utoipa = { path = "../utoipa", features = [
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
-axum = { version = "0.7", default-features = false, features = [
+axum = { version = "0.8.0", default-features = false, features = [
     "json",
     "query",
 ] }

@@ -7,6 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Changed
 
+* Update axum to v0.8 (https://github.com/juhaku/utoipa/pull/1269)
 * Replace `assert-json-diff` with snapshot testing via `insta` (https://github.com/juhaku/utoipa/pull/1254)
 
 ## 5.3.0 - Dec 19 2024

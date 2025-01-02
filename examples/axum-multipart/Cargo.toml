@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.7", features = ["multipart"] }
+axum = { version = "0.8.0", features = ["multipart"] }
 tokio = { version = "1", features = ["full"] }
 tower = "0.5"
-utoipa = { version = "5", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "8", features = ["axum"] }
-utoipa-axum = "0.1"
+utoipa = { path = "../../utoipa", features = ["axum_extras"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
+utoipa-axum = { path = "../../utoipa-axum" }
 serde = { features = ["derive"], version = "1" }
 
 [workspace]

@@ -10,29 +10,6 @@ use axum::Router;
 use tower_layer::Layer;
 use tower_service::Service;
 
-#[inline]
-fn colonized_params<S: AsRef<str>>(path: S) -> String
-where
-    String: From<S>,
-{
-    String::from(path).replace('}', "").replace('{', ":")
-}
-
-#[inline]
-fn path_template<S: AsRef<str>>(path: S) -> String {
-    path.as_ref()
-        .split('/')
-        .map(|segment| {
-            if !segment.is_empty() && segment[0..1] == *":" {
-                Cow::Owned(format!("{{{}}}", &segment[1..]))
-            } else {
-                Cow::Borrowed(segment)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
 /// Wrapper type for [`utoipa::openapi::path::Paths`] and [`axum::routing::MethodRouter`].
 ///
 /// This is used with [`OpenApiRouter::routes`] method to register current _`paths`_ to the
@@ -63,8 +40,8 @@ where
     /// routes.
     fn layer<L, NewError>(self, layer: L) -> UtoipaMethodRouter<S, NewError>
     where
-        L: Layer<Route<E>> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route<E>> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<NewError> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -103,8 +80,8 @@ where
 {
     fn layer<L, NewError>(self, layer: L) -> UtoipaMethodRouter<S, NewError>
     where
-        L: Layer<Route<E>> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route<E>> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<NewError> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -211,7 +188,7 @@ where
     /// Pass through method for [`axum::Router::fallback_service`].
     pub fn fallback_service<T>(self, service: T) -> Self
     where
-        T: Service<Request, Error = Infallible> + Clone + Send + 'static,
+        T: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         T::Response: IntoResponse,
         T::Future: Send + 'static,
     {
@@ -221,8 +198,8 @@ where
     /// Pass through method for [`axum::Router::layer`].
     pub fn layer<L>(self, layer: L) -> Self
     where
-        L: Layer<Route> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -245,11 +222,11 @@ where
             };
             let path = if path.is_empty() { "/" } else { path };
 
-            self.0.route(&colonized_params(path), method_router)
+            self.0.route(path, method_router)
         } else {
             paths.paths.iter().fold(self.0, |this, (path, _)| {
                 let path = if path.is_empty() { "/" } else { path };
-                this.route(&colonized_params(path), method_router.clone())
+                this.route(path, method_router.clone())
             })
         };
 
@@ -273,14 +250,14 @@ where
 
     /// Pass through method for [`axum::Router<S>::route`].
     pub fn route(self, path: &str, method_router: MethodRouter<S>) -> Self {
-        Self(self.0.route(&colonized_params(path), method_router), self.1)
+        Self(self.0.route(path, method_router), self.1)
     }
 
     /// Pass through method for [`axum::Router::route_layer`].
     pub fn route_layer<L>(self, layer: L) -> Self
     where
-        L: Layer<Route> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -291,7 +268,7 @@ where
     /// Pass through method for [`axum::Router<S>::route_service`].
     pub fn route_service<T>(self, path: &str, service: T) -> Self
     where
-        T: Service<Request, Error = Infallible> + Clone + Send + 'static,
+        T: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         T::Response: IntoResponse,
         T::Future: Send + 'static,
     {
@@ -336,11 +313,11 @@ where
         }
 
         let api = self.1.nest_with_path_composer(
-            path_for_nested_route(&path_template(path), "/"),
+            path_for_nested_route(path, "/"),
             router.1,
             path_for_nested_route,
         );
-        let router = self.0.nest(&colonized_params(path), router.0);
+        let router = self.0.nest(path, router.0);
 
         Self(router, api)
     }
@@ -348,7 +325,7 @@ where
     /// Pass through method for [`axum::Router::nest_service`]. _**This does nothing for OpenApi paths.**_
     pub fn nest_service<T>(self, path: &str, service: T) -> Self
     where
-        T: Service<Request, Error = Infallible> + Clone + Send + 'static,
+        T: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         T::Response: IntoResponse,
         T::Future: Send + 'static,
     {
