@@ -1034,7 +1034,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `summary = ...` Allows overriding summary of the path. Value can be literal string or valid
 ///   rust expression e.g. `include_str!(...)` or `const` reference.
-/// 
+///
 /// * `description = ...` Allows overriding description of the path. Value can be literal string or valid
 ///   rust expression e.g. `include_str!(...)` or `const` reference.
 ///
