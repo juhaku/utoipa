@@ -10,21 +10,6 @@ use axum::Router;
 use tower_layer::Layer;
 use tower_service::Service;
 
-#[inline]
-fn path_template<S: AsRef<str>>(path: S) -> String {
-    path.as_ref()
-        .split('/')
-        .map(|segment| {
-            if !segment.is_empty() && segment[0..1] == *":" {
-                Cow::Owned(format!("{{{}}}", &segment[1..]))
-            } else {
-                Cow::Borrowed(segment)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
 /// Wrapper type for [`utoipa::openapi::path::Paths`] and [`axum::routing::MethodRouter`].
 ///
 /// This is used with [`OpenApiRouter::routes`] method to register current _`paths`_ to the
@@ -328,7 +313,7 @@ where
         }
 
         let api = self.1.nest_with_path_composer(
-            path_for_nested_route(&path_template(path), "/"),
+            path_for_nested_route(path, "/"),
             router.1,
             path_for_nested_route,
         );
