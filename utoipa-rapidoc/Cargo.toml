@@ -2,7 +2,7 @@
 name = "utoipa-rapidoc"
 description = "RapiDoc for utoipa"
 edition = "2021"
-version = "5.0.0"
+version = "5.0.1"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["rapidoc", "openapi", "documentation"]

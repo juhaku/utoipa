@@ -1,6 +1,6 @@
 # Changelog - utoipa-redoc
 
-## Unreleased
+## 5.0.1 - Jan 6 2025
 
 ### Changed
 
