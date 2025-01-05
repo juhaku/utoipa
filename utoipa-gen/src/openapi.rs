@@ -633,7 +633,7 @@ impl Parse for Components {
     }
 }
 
-impl crate::ToTokensDiagnostics for Components {
+impl ToTokensDiagnostics for Components {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         if self.schemas.is_empty() && self.responses.is_empty() {
             return Ok(());
@@ -659,7 +659,10 @@ impl crate::ToTokensDiagnostics for Components {
                         <#type_path as utoipa::ToSchema>::schemas(&mut schemas);
                         schemas
                     } )});
-                    components.extend(quote! { .schema(#name, #schema) });
+                    components.extend(quote! { .schema(#name, {
+                        let mut generics = Vec::<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>::new();
+                        #schema
+                    }) });
 
                     components
                 },

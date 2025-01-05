@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+* Fix bug in generic schemas on OpenApi derive macro (https://github.com/juhaku/utoipa/pull/1277)
+
 ### Changed
 
 * Update axum to v0.8 (https://github.com/juhaku/utoipa/pull/1269)

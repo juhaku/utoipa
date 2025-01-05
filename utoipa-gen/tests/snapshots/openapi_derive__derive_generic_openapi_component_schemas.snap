@@ -1,0 +1,41 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: schemas
+snapshot_kind: text
+---
+{
+  "schemas": {
+    "dto.page.Response_dto.get.unit.Response": {
+      "properties": {
+        "list": {
+          "items": {
+            "$ref": "#/components/schemas/dto.get.unit.Response"
+          },
+          "type": "array"
+        },
+        "num": {
+          "format": "int64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "size": {
+          "format": "int64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total": {
+          "format": "int64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "list",
+        "num",
+        "size",
+        "total"
+      ],
+      "type": "object"
+    }
+  }
+}
