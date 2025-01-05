@@ -1344,6 +1344,7 @@ impl From<String> for Config<'_> {
 /// Basic auth options for Swagger UI. By providing `BasicAuth` to `Config::basic_auth` the access to the
 /// Swagger UI can be restricted behind given basic authentication.
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct BasicAuth {
     /// Username for the `BasicAuth`
     pub username: String,
@@ -1354,6 +1355,7 @@ pub struct BasicAuth {
 /// Represents settings related to syntax highlighting of payloads and
 /// cURL commands.
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[non_exhaustive]
 pub struct SyntaxHighlight {
     /// Boolean telling whether syntax highlighting should be

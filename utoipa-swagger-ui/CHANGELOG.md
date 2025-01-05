@@ -6,6 +6,10 @@
 
 * Update axum to v0.8 (https://github.com/juhaku/utoipa/pull/1269)
 
+### Fixed
+
+* Add debug implementation for SwaggerUi (https://github.com/juhaku/utoipa/pull/1276)
+
 ## 8.1.0 - Dec 19 2024
 
 ### Added
