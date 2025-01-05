@@ -1,6 +1,6 @@
 # Changelog - utoipa-scalar
 
-## Unreleased
+## 0.2.1 - Jan 6 2025
 
 ### Changed
 

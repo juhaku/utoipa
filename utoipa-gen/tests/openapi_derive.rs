@@ -251,7 +251,10 @@ fn derive_openapi_with_include_str_description() {
     ))]
     struct ApiDoc;
 
-    let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let mut doc = ApiDoc::openapi();
+    doc.info.version = "static".to_string();
+
+    let value = serde_json::to_value(doc).unwrap();
     let info = value.pointer("/info");
 
     assert_json_snapshot!(info);

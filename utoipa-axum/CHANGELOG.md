@@ -1,6 +1,6 @@
 # Changelog - utoipa-axum
 
-## Unreleased
+## 0.1.4 - Jan 6 2025
 
 ### Changed
 
