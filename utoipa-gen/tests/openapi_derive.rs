@@ -525,3 +525,51 @@ fn openapi_resolvle_recursive_references() {
 
     assert_json_snapshot!(schemas);
 }
+
+#[test]
+fn derive_generic_openapi_component_schemas() {
+    #[derive(Serialize, ToSchema)]
+    #[schema(as = dto::page::Response)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Response<T: Serialize> {
+        pub list: Vec<T>,
+        pub num: u64,
+        pub size: u64,
+        pub total: u64,
+    }
+
+    pub mod unit {
+        use serde::Serialize;
+        use utoipa::ToSchema;
+
+        #[derive(Serialize, ToSchema)]
+        #[schema(as = dto::get::unit::Response)]
+        #[serde(rename_all = "camelCase")]
+        pub struct Response {
+            pub id: i64,
+            pub latitude: f64,
+            pub longitude: f64,
+            pub title: String,
+            pub description: Option<String>,
+            pub country: String,
+            pub region: Option<String>,
+            pub city: String,
+            pub address: String,
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        components(
+            schemas(
+                Response<unit::Response>,
+            )
+        )
+    )]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).expect("OpenApi is JSON serializable");
+    let schemas = doc.pointer("/components");
+
+    assert_json_snapshot!(schemas)
+}
