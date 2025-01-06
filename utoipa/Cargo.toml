@@ -30,7 +30,7 @@ chrono = ["utoipa-gen?/chrono"]
 decimal = ["utoipa-gen?/decimal"]
 decimal_float = ["utoipa-gen?/decimal_float"]
 non_strict_integers = ["utoipa-gen?/non_strict_integers"]
-yaml = ["serde_yaml", "utoipa-gen?/yaml"]
+yaml = ["serde_yml", "utoipa-gen?/yaml"]
 uuid = ["utoipa-gen?/uuid"]
 ulid = ["utoipa-gen?/ulid"]
 url = ["utoipa-gen?/url"]
@@ -51,7 +51,7 @@ auto_into_responses = ["utoipa-gen?/auto_into_responses"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-serde_yaml = { version = "0.9", optional = true }
+serde_yml = { version = "0.0", optional = true }
 utoipa-gen = { version = "5.3.1", path = "../utoipa-gen", optional = true }
 indexmap = { version = "2", features = ["serde"] }
 
