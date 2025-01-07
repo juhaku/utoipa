@@ -1,0 +1,13 @@
+[package]
+name = "simple-x-amazon-apigateway"
+description = "Demonstration of `utoipa::path` macro with extensions. The demonstration is applied for generating an openapi definition using the OpenAPI extensions for AWS API Gateway"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+env_logger = "0"
+utoipa = { path = "../../utoipa", features = [ "yaml", ] }
+serde_json = "1"
+
+[workspace]

@@ -1038,6 +1038,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `description = ...` Allows overriding description of the path. Value can be literal string or valid
 ///   rust expression e.g. `include_str!(...)` or `const` reference.
 ///
+/// * `extensions(...)` List of extensions local to the path operation.
+///
 /// # Request Body Attributes
 ///
 /// ## Simple format definition by `request_body = ...`
@@ -1470,6 +1472,23 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ("api_key" = []),
 /// ("key" = [], "key2" = []),
 /// ```
+///
+/// # Extensions Requirements Attributes
+///
+/// * `property` defines the name of the extension.
+/// * `value` defines the value associated with the named extension as a `serde_json::Value`.
+///
+/// **Extensions Requitement supported formats:**
+///
+/// ```text
+/// (property = "x-amazon-apigateway-integration", value = json!({ "type": "mock" }) ),
+/// (property = "x-amazon-apigateway-validation", value = json!( "body" ) ),
+/// ```
+///
+/// You must define multiple extensions within the same parenthesis seperated by comma.
+///
+/// Note: if using this for AWS API Gateway, the resulting API definition must be downgraded to 
+/// OpenAPI v3.0.x.
 ///
 /// # actix_extras feature support for actix-web
 ///
