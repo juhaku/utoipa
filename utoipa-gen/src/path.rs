@@ -26,6 +26,8 @@ pub mod parameter;
 mod request_body;
 pub mod response;
 mod status;
+mod extensions;
+use self::{extensions::Extensions};
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
@@ -53,6 +55,7 @@ pub struct PathAttr<'p> {
     impl_for: Option<Ident>,
     description: Option<parse_utils::LitStrOrExpr>,
     summary: Option<parse_utils::LitStrOrExpr>,
+    extensions: Option<Extensions<'p>>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -182,6 +185,9 @@ impl Parse for PathAttr<'_> {
                 "summary" => {
                     path_attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
+                "extensions" => {
+                    path_attr.extensions = Some(input.parse::<Extensions>()?);
+                },
                 _ => {
                     if let Some(path_operation) =
                         attribute_name.parse::<HttpMethod>().into_iter().next()
@@ -467,6 +473,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             request_body: self.path_attr.request_body.as_ref(),
             responses: self.path_attr.responses.as_ref(),
             security: self.path_attr.security.as_ref(),
+            extensions: self.path_attr.extensions.as_ref(),
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
@@ -625,6 +632,7 @@ struct Operation<'a> {
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
+    extensions: Option<&'a Extensions<'a>>,
 }
 
 impl ToTokensDiagnostics for Operation<'_> {
@@ -668,6 +676,10 @@ impl ToTokensDiagnostics for Operation<'_> {
 
         for parameter in self.parameters {
             parameter.to_tokens(tokens)?;
+        }
+
+        if let Some(extensions) = self.extensions {
+          extensions.to_tokens(tokens)?;
         }
 
         Ok(())
