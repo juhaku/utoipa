@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Changed
+
+* Replaced `serde_yaml` with `serde_yml` (https://github.com/juhaku/utoipa/pull/1280)
+
 ## 5.3.1 - Jan 6 2025
 
 ### Changed
