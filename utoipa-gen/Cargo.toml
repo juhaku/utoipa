@@ -9,6 +9,14 @@ keywords = ["openapi", "codegen", "proc-macro", "documentation", "compile-time"]
 repository = "https://github.com/juhaku/utoipa"
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
+include = [
+    "README.md",
+    "src/**/*.rs",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "CHANGELOG.md",
+    "Cargo.toml",
+]
 
 [lib]
 proc-macro = true
