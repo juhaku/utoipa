@@ -17,6 +17,8 @@ use crate::{parse_utils, AnyValue, Array, Diagnostics};
 use super::{impl_feature, Feature, Parse};
 use quote::quote;
 
+pub mod extensions;
+
 impl_feature! {
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]

@@ -6,6 +6,7 @@ use syn::{parse::Parse, Error, Token};
 
 use crate::component::ComponentSchema;
 use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
+use crate::component::features::attributes::extensions::Extensions;
 
 use super::media_type::{MediaTypeAttr, Schema};
 use super::parse;
@@ -61,6 +62,7 @@ use super::parse;
 pub struct RequestBodyAttr<'r> {
     description: Option<parse_utils::LitStrOrExpr>,
     content: Vec<MediaTypeAttr<'r>>,
+    extensions: Option<Extensions>,
 }
 
 impl<'r> RequestBodyAttr<'r> {
@@ -68,6 +70,7 @@ impl<'r> RequestBodyAttr<'r> {
         Self {
             description: Default::default(),
             content: vec![MediaTypeAttr::default()],
+            extensions: Default::default(),
         }
     }
 
@@ -109,7 +112,7 @@ impl<'r> RequestBodyAttr<'r> {
 impl Parse for RequestBodyAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE_MESSAGE: &str =
-            "unexpected attribute, expected any of: content, content_type, description, examples, example, encoding";
+            "unexpected attribute, expected any of: content, content_type, description, examples, example, encoding, extensions";
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Paren) {
@@ -172,6 +175,9 @@ impl Parse for RequestBodyAttr<'_> {
                     "description" => {
                         request_body_attr.description = Some(parse::description(&group)?);
                     }
+                    "extensions" => {
+                        request_body_attr.extensions = Some(group.parse::<Extensions>()?);
+                    }
                     _ => {
                         request_body_attr
                             .content
@@ -198,6 +204,7 @@ impl Parse for RequestBodyAttr<'_> {
             Ok(RequestBodyAttr {
                 content: vec![media_type],
                 description: None,
+                extensions: None,
             })
         } else {
             Err(lookahead.error())
@@ -247,6 +254,11 @@ impl ToTokensDiagnostics for RequestBodyAttr<'_> {
             tokens.extend(quote! {
                 .description(Some(#description))
             })
+        }
+        if let Some(ref extensions) = self.extensions {
+            tokens.extend(quote! {
+                .extensions(Some(#extensions))
+            });
         }
 
         tokens.extend(quote! { .build() });
