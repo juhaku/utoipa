@@ -1352,6 +1352,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
+/// * `extensions(...)` List of extensions local to the parameter
+///
 /// ##### Parameter type attributes
 ///
 /// These attributes supported when _`parameter_type`_ is present. Either by manually providing one
@@ -1486,9 +1488,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// You must define multiple extensions within the same parenthesis seperated by comma.
-///
-/// Note: if using this for AWS API Gateway, the resulting API definition must be downgraded to 
-/// OpenAPI v3.0.x.
 ///
 /// # actix_extras feature support for actix-web
 ///

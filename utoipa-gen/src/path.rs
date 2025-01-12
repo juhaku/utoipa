@@ -26,8 +26,7 @@ pub mod parameter;
 mod request_body;
 pub mod response;
 mod status;
-mod extensions;
-use self::{extensions::Extensions};
+use crate::component::features::attributes::extensions::Extensions;
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
@@ -55,7 +54,7 @@ pub struct PathAttr<'p> {
     impl_for: Option<Ident>,
     description: Option<parse_utils::LitStrOrExpr>,
     summary: Option<parse_utils::LitStrOrExpr>,
-    extensions: Option<Extensions<'p>>,
+    extensions: Option<Extensions>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -632,7 +631,7 @@ struct Operation<'a> {
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
-    extensions: Option<&'a Extensions<'a>>,
+    extensions: Option<&'a Extensions>,
 }
 
 impl ToTokensDiagnostics for Operation<'_> {
@@ -679,7 +678,7 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         if let Some(extensions) = self.extensions {
-          extensions.to_tokens(tokens)?;
+          crate::ToTokensDiagnostics::to_tokens(extensions, tokens)?;
         }
 
         Ok(())
