@@ -10,7 +10,14 @@ repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
-
+include = [
+    "README.md",
+    "src/**/*.rs",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "CHANGELOG.md",
+    "Cargo.toml",
+]
 [features]
 debug = []
 
