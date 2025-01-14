@@ -1,13 +1,13 @@
 use super::*;
 
-/// Parse the following into a set of extensions:
-/// ```
-/// extensions(
-///   ("foo_extension" = json!("foo")),
-///   ("bar_extension" = json!("bar")),
-/// )
-/// ```
 impl_feature! {
+  /// Parse the following into a set of extensions:
+  /// ```text
+  /// extensions(
+  ///   ("foo_extension" = json!("foo")),
+  ///   ("bar_extension" = json!("bar")),
+  /// )
+  /// ```
   #[derive(Clone, Default)]
   #[cfg_attr(feature = "debug", derive(Debug))]
   pub struct Extensions {
@@ -61,7 +61,7 @@ impl From<Extensions> for Feature {
 }
 
 /// Parse the following into an extension:
-/// ```
+/// ```text
 /// ("foo_extension" = json!("value"))
 /// ```
 #[derive(Clone)]

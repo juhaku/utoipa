@@ -144,6 +144,11 @@ impl utoipa::Modify for ApiModify {
         ),
       ),
     ),
+    security(
+      (),
+      ("api_key" = []),
+      ("key" = [], "key2" = []),
+    ),
 )]
 async fn get_openapi() -> impl actix_web::Responder {
   use utoipa::OpenApi;
@@ -157,10 +162,6 @@ async fn get_openapi() -> impl actix_web::Responder {
 async fn main() -> std::io::Result<()> {
   env_logger::init();
 
-  use utoipa::OpenApi;
-  print!("{}", ApiDoc::openapi().to_yaml().unwrap());
-  Ok(())
-/*
   actix_web::HttpServer::new(move || {
     actix_web::App::new()
     .route("/openapi", actix_web::web::get().to(get_openapi))
@@ -168,5 +169,4 @@ async fn main() -> std::io::Result<()> {
   .bind((std::net::Ipv4Addr::UNSPECIFIED, 8080))?
   .run()
   .await
-  */
 }
