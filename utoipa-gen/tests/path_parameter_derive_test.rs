@@ -366,3 +366,23 @@ fn derive_into_params_required_custom_query_parameter_required() {
 
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn path_parameter_with_extensions() {
+  #[utoipa::path(get, path = "/pets",
+    params(
+      ( "a_param" = String,
+        Query,
+        extensions(
+          ("x-param-extension" = json!( { "type": "param" }) )
+        )
+      )
+    ),
+  )]
+  #[allow(unused)]
+  fn get_pets() {}
+  let operation = __path_get_pets::operation();
+  let value = serde_json::to_value(operation).expect("operation is JSON serializable");
+  let params = value.pointer("/parameters").unwrap();
+  assert_json_snapshot!(params);
+}

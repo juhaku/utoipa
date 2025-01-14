@@ -294,14 +294,12 @@ fn derive_path_with_extensions() {
             (status = 200, description = "success response")
         ),
         extensions(
-            (property = "x-extension-1", value = json!({ "type": "extension1" })),
-            (property = "x-extension-2", value = json!({ "type": "extension2", "value": 2 })),
+            ("x-extension-1" = json!({ "type": "extension1" })),
+            ("x-extension-2" = json!({ "type": "extension2", "value": 2 })),
         )
     )]
     #[allow(unused)]
-    fn get_items() -> String {
-        "".to_string()
-    }
+    fn get_items() {}
     let operation = test_api_fn_doc! {
         get_items,
         operation: get,

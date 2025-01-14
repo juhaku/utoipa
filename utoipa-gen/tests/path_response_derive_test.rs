@@ -473,3 +473,30 @@ fn path_response_with_no_schema() {
     let value = serde_json::to_value(operation).expect("operation is JSON serializable");
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn path_response_with_extensions() {
+  #[utoipa::path(get, path = "/pets", 
+    responses(
+      ( status = OK, 
+        description = "Operation success",
+        extensions(
+          ("x-response-extension1" = json!( { "type": "response" } ) ),
+        ),
+        content(
+          ( str = "text/plain",
+            extensions(
+              ("x-content-extension2" = json!( { "type": "content" } ) ),
+            ),
+          )
+        ),
+      ),
+    ),
+  )]
+  #[allow(unused)]
+  fn get_pets() {}
+  let operation = __path_get_pets::operation();
+  let value = serde_json::to_value(operation).expect("operation is JSON serializable");
+  let responses = value.pointer("/responses").unwrap();
+  assert_json_snapshot!(responses);
+}
