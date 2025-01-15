@@ -1483,11 +1483,12 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// **Extensions Requitement supported formats:**
 ///
 /// ```text
-/// (property = "x-amazon-apigateway-integration", value = json!({ "type": "mock" }) ),
-/// (property = "x-amazon-apigateway-validation", value = json!( "body" ) ),
+/// (property = "x-an-extension", value = json!({ "type": "mock" }) ),
+/// (property = "x-another-extension", value = json!( "body" ) ),
 /// ```
 ///
-/// You must define multiple extensions within the same parenthesis seperated by comma.
+/// Note: Define all extensions within a single `extensions( ... )` parenthesis at each level otherwise only the extensions
+/// defined in the latest parenthesis are taken into account.
 ///
 /// # actix_extras feature support for actix-web
 ///

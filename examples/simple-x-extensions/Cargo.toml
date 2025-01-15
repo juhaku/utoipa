@@ -1,6 +1,6 @@
 [package]
-name = "simple-x-amazon-apigateway"
-description = "Demonstration of `utoipa::path` macro with extensions. The demonstration is applied for generating an openapi definition using the OpenAPI extensions for AWS API Gateway"
+name = "simple-x-extensions"
+description = "Demonstration of setting extensions via `utoipa::path` macro as well as using the `Modify` trait for comparison purposes."
 version = "0.1.0"
 edition = "2021"
 

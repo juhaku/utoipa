@@ -71,7 +71,6 @@ impl utoipa::Modify for ApiModify {
       extend_servers(&mut i.servers, "[Modify] openapi>Paths>PathItem");
       extend_parameters(&mut i.parameters, "[Modify] openapi>Paths>PathItem");
 
-
       /* Extend operation */
       fn extend_operation(operation: &mut utoipa::openapi::path::Operation, text: &str) {
         extend(&mut operation.extensions, text);

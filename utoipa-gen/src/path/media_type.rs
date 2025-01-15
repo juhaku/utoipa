@@ -8,12 +8,11 @@ use syn::punctuated::Punctuated;
 use syn::token::{Comma, Paren};
 use syn::{Error, Generics, Ident, Token, Type};
 
-use crate::component::features::attributes::Inline;
+use crate::component::features::attributes::{Inline, Extensions};
 use crate::component::features::Feature;
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree, ValueType};
 use crate::ext::ExtSchema;
 use crate::{parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics};
-use crate::component::features::attributes::extensions::Extensions;
 
 use super::example::Example;
 use super::PathTypeTree;
