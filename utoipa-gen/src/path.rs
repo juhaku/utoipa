@@ -11,6 +11,7 @@ use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr};
 
 use crate::component::{features::attributes::Extensions, ComponentSchema, GenericType, TypeTree};
+use crate::openapi::Server;
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -54,6 +55,7 @@ pub struct PathAttr<'p> {
     description: Option<parse_utils::LitStrOrExpr>,
     summary: Option<parse_utils::LitStrOrExpr>,
     extensions: Option<Extensions>,
+    servers: Vec<Server>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -185,6 +187,13 @@ impl Parse for PathAttr<'_> {
                 }
                 "extensions" => {
                     path_attr.extensions = Some(input.parse::<Extensions>()?);
+                }
+                "servers" => {
+                    let servers;
+                    syn::parenthesized!(servers in input);
+                    path_attr.servers = Punctuated::<Server, Token![,]>::parse_terminated(&servers)?
+                        .into_iter()
+                        .collect();
                 }
                 _ => {
                     if let Some(path_operation) =
@@ -472,6 +481,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             responses: self.path_attr.responses.as_ref(),
             security: self.path_attr.security.as_ref(),
             extensions: self.path_attr.extensions.as_ref(),
+            servers: self.path_attr.servers.as_ref(),
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
@@ -631,6 +641,7 @@ struct Operation<'a> {
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
     extensions: Option<&'a Extensions>,
+    servers: &'a Vec<Server>,
 }
 
 impl ToTokensDiagnostics for Operation<'_> {
@@ -645,7 +656,7 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         let responses = Responses(self.responses);
-        let responses = as_tokens_or_diagnostics!(&responses);
+        let responses = as_tokens_or_diagnostics!(&responses);        
         tokens.extend(quote! {
             .responses(#responses)
         });
@@ -658,6 +669,13 @@ impl ToTokensDiagnostics for Operation<'_> {
         tokens.extend(quote_spanned! { operation_id.span() =>
             .operation_id(Some(#operation_id))
         });
+
+        if !self.servers.is_empty() {
+            let servers = self.servers.iter().collect::<Array<_>>();
+            tokens.extend(quote! {
+                .servers(Some(#servers))
+            })
+        }
 
         if self.deprecated {
             let deprecated: Deprecated = self.deprecated.into();
