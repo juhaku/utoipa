@@ -1957,6 +1957,213 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     handler.to_token_stream().into()
 }
 
+/// HttpMethod Get
+///
+/// ```rust
+/// use utoipa::get;
+///
+/// #[get("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(get, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn get(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("get, path={}", attr.to_string()).parse().unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Post
+///
+/// ```rust
+/// use utoipa::post;
+///
+/// #[post("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(post, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn post(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("post, path={}", attr.to_string()).parse().unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Put
+///
+/// ```rust
+/// use utoipa::put;
+///
+/// #[put("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(put, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn put(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("put, path={}", attr.to_string()).parse().unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Delete
+///
+/// ```rust
+/// use utoipa::delete;
+///
+/// #[delete("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(delete, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn delete(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("delete, path={}", attr.to_string())
+            .parse()
+            .unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Options
+///
+/// ```rust
+/// use utoipa::options;
+///
+/// #[options("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(options, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn options(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("options, path={}", attr.to_string())
+            .parse()
+            .unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Head
+///
+/// ```rust
+/// use utoipa::head;
+///
+/// #[head("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(head, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn head(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("head, path={}", attr.to_string()).parse().unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Patch
+///
+/// ```rust
+/// use utoipa::patch;
+///
+/// #[patch("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(patch, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn patch(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("patch, path={}", attr.to_string()).parse().unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Trace
+///
+/// ```rust
+/// use utoipa::trace;
+///
+/// #[trace("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(trace, path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn trace(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!("trace, path={}", attr.to_string()).parse().unwrap(),
+        item,
+    )
+}
+
+/// HttpMethod Any
+///
+/// ```rust
+/// use utoipa::any;
+///
+/// #[any("/")]
+/// async fn root() {}
+///
+/// ```
+/// Equivalent to:
+/// ```rust
+/// #[utoipa::path(method(get,post,put,delete,options,head,patch,trace), path = "/")]
+/// async fn root() {}
+/// ```
+#[proc_macro_attribute]
+pub fn any(attr: TokenStream, item: TokenStream) -> TokenStream {
+    path(
+        format!(
+            "method(get,post,put,delete,options,head,patch,trace), path={}",
+            attr.to_string()
+        )
+        .parse()
+        .unwrap(),
+        item,
+    )
+}
+
 #[proc_macro_derive(OpenApi, attributes(openapi))]
 /// Generate OpenApi base object with defaults from
 /// project settings.
