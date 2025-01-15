@@ -45,15 +45,6 @@ impl ToTokens for Extensions {
   }
 }
 
-impl crate::ToTokensDiagnostics for Extensions {
-  fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-    tokens.extend(quote! {
-      .extensions(Some( #self ))
-    });
-    Ok(())
-  }
-}
-
 impl From<Extensions> for Feature {
   fn from(value: Extensions) -> Self {
     Feature::Extensions(value)
@@ -68,7 +59,7 @@ impl From<Extensions> for Feature {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Extension {
   name: parse_utils::LitStrOrExpr,
-  value: crate::TokenStream2,
+  value: TokenStream,
 }
 
 impl syn::parse::Parse for Extension {
@@ -93,77 +84,3 @@ impl ToTokens for Extension {
   }
 }
 
-/*
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub enum Extension {
-  Tuple(ExtensionTuple),
-}
-
-impl Parse for Extension {
-  fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-    let response;
-    syn::parenthesized!(response in input);
-    Ok(Self::Tuple(response.parse()?))
-  }
-}
-
-impl ToTokensDiagnostics for Extension {
-  fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-    match self {
-      Extension::Tuple(e) => e.to_tokens(tokens),
-    }
-  }
-}
-
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct ExtensionTuple {
-  name: String,
-  value: TokenStream2,
-}
-
-impl syn::parse::Parse for ExtensionTuple {
-  fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-    let mut name = None; let mut value = None;
-    let span = input.span();
-
-    while ! input.is_empty() {
-      let ident = input.parse::<Ident>().map_err(|error| {
-        syn::Error::new(
-          error.span(),
-          format!("Unexpected attribute. {error}"),
-        )
-      })?;
-      let name = &*ident.to_string();
-      match name {
-        "property" => {
-          name = Some(parse_utils::parse_next_literal_str(input)?);
-        },
-        "value" => {
-          value = Some(parse_utils::parse_next(input, || parse_utils::parse_json_token_stream(input))?);
-        },
-        _ => {
-          return Err(syn::Error::new(span, format!("Unexpected attribute {name}")));
-        },
-      }
-
-      if !input.is_empty() { input.parse::<Token![,]>()?; }
-    }
-
-    if let (Some(name), Some(value)) = (name, value) {
-      Ok(ExtensionTuple { name, value })
-    } else {
-      Err(syn::Error::new(span, "Property and/or is not set"))
-    }
-  }
-}
-
-impl ToTokensDiagnostics for ExtensionTuple {
-  fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-    let k = self.name.as_str(); let json = &self.value;
-    tokens.extend(quote! {
-      .add(#k, serde_json::json!(#json))
-    });
-    Ok(())
-  }
-}
-*/

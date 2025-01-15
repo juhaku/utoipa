@@ -116,7 +116,7 @@ pub enum Feature {
     MinItems(validation::MinItems),
     MaxProperties(validation::MaxProperties),
     MinProperties(validation::MinProperties),
-    Extensions(attributes::extensions::Extensions),
+    Extensions(attributes::Extensions),
 }
 
 impl Feature {
@@ -422,7 +422,7 @@ is_validatable! {
     validation::MinItems = true,
     validation::MaxProperties,
     validation::MinProperties,
-    attributes::extensions::Extensions
+    attributes::Extensions
 }
 
 macro_rules! parse_features {

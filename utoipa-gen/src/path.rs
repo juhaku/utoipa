@@ -10,7 +10,9 @@ use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr};
 
-use crate::component::{ComponentSchema, GenericType, TypeTree};
+use crate::component::{ComponentSchema, GenericType, TypeTree,
+    features::attributes::Extensions
+};
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -26,7 +28,6 @@ pub mod parameter;
 mod request_body;
 pub mod response;
 mod status;
-use crate::component::features::attributes::extensions::Extensions;
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
@@ -678,7 +679,7 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         if let Some(extensions) = self.extensions {
-          crate::ToTokensDiagnostics::to_tokens(extensions, tokens)?;
+          tokens.extend(quote! { .extensions(Some(#extensions)) })
         }
 
         Ok(())

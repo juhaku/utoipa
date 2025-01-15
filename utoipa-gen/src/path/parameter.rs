@@ -15,7 +15,7 @@ use crate::{
         features::{
             attributes::{
                 AllowReserved, Description, Example, Explode, Format, Nullable, ReadOnly, Style,
-                WriteOnly, XmlAttr, extensions::Extensions,
+                WriteOnly, XmlAttr, Extensions,
             },
             impl_into_inner, parse_features,
             validation::{

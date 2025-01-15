@@ -306,11 +306,9 @@ fn derive_path_with_extensions() {
         path: "/items"
     };
 
-    assert_value! {operation=>
-        "x-extension-1.type" = r###""extension1""###, "Dummy extension 1 with only a type"
-        "x-extension-2.type" = r###""extension2""###, "Dummy extension 2"
-        "x-extension-2.value" = "2", "Value associated in dummy extension 2"
-    }
+    /* Testing limited to extensions values */
+    assert_json_snapshot!(operation.pointer("/x-extension-1").unwrap());
+    assert_json_snapshot!(operation.pointer("/x-extension-2").unwrap());
 }
 
 #[test]
