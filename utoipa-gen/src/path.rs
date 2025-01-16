@@ -191,9 +191,10 @@ impl Parse for PathAttr<'_> {
                 "servers" => {
                     let servers;
                     syn::parenthesized!(servers in input);
-                    path_attr.servers = Punctuated::<Server, Token![,]>::parse_terminated(&servers)?
-                        .into_iter()
-                        .collect();
+                    path_attr.servers =
+                        Punctuated::<Server, Token![,]>::parse_terminated(&servers)?
+                            .into_iter()
+                            .collect();
                 }
                 _ => {
                     if let Some(path_operation) =
@@ -656,7 +657,7 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         let responses = Responses(self.responses);
-        let responses = as_tokens_or_diagnostics!(&responses);        
+        let responses = as_tokens_or_diagnostics!(&responses);
         tokens.extend(quote! {
             .responses(#responses)
         });
