@@ -1,5 +1,11 @@
 # Changelog - utoipa-scalar
 
+## 0.3.0 - Thu 16 2025
+
+### Changed
+
+* Re-release 0.2.1 since axum upgrade is a breaking change (https://github.com/juhaku/utoipa/pull/1295)
+
 ## 0.2.1 - Jan 6 2025
 
 ### Changed
