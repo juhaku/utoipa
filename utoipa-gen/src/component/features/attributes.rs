@@ -17,7 +17,8 @@ use crate::{parse_utils, AnyValue, Array, Diagnostics};
 use super::{impl_feature, Feature, Parse};
 use quote::quote;
 
-mod extensions; pub use extensions::Extensions;
+mod extensions;
+pub use extensions::Extensions;
 
 impl_feature! {
     #[derive(Clone)]

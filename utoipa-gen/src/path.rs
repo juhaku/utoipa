@@ -10,9 +10,7 @@ use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr};
 
-use crate::component::{ComponentSchema, GenericType, TypeTree,
-    features::attributes::Extensions
-};
+use crate::component::{features::attributes::Extensions, ComponentSchema, GenericType, TypeTree};
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -187,7 +185,7 @@ impl Parse for PathAttr<'_> {
                 }
                 "extensions" => {
                     path_attr.extensions = Some(input.parse::<Extensions>()?);
-                },
+                }
                 _ => {
                     if let Some(path_operation) =
                         attribute_name.parse::<HttpMethod>().into_iter().next()
@@ -679,7 +677,7 @@ impl ToTokensDiagnostics for Operation<'_> {
         }
 
         if let Some(extensions) = self.extensions {
-          tokens.extend(quote! { .extensions(Some(#extensions)) })
+            tokens.extend(quote! { .extensions(Some(#extensions)) })
         }
 
         Ok(())

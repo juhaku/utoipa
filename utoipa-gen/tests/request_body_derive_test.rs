@@ -578,24 +578,25 @@ fn request_body_with_external_ref() {
 
 #[test]
 fn request_body_with_extensions() {
-  #[utoipa::path(get, path = "/pets",
-    request_body(
-      extensions(
-        ("x-request-body-ext1" = json!( { "type": "request_body" }))
-      ),
-      content(
-        ( "text/plain",
-          extensions(
-            ("x-request-body-ext2" = json!( { "type": "request_body/text/plain" }) )
-          )
+    #[utoipa::path(get, path = "/pets",
+        request_body(
+            extensions(
+                ("x-request-body-ext1" = json!( { "type": "request_body" }))
+            ),
+            content(
+                (
+                    "text/plain",
+                    extensions(
+                        ("x-request-body-ext2" = json!( { "type": "request_body/text/plain" }) )
+                    )
+                )
+            )
         )
-      )
-    )
-  )]
-  #[allow(unused)]
-  fn get_pets() {}
-  let operation = __path_get_pets::operation();
-  let value = serde_json::to_value(operation).expect("operation is JSON serializable");
-  let request_body = value.pointer("/requestBody").unwrap();
-  assert_json_snapshot!(request_body);
+    )]
+    #[allow(unused)]
+    fn get_pets() {}
+    let operation = __path_get_pets::operation();
+    let value = serde_json::to_value(operation).expect("operation is JSON serializable");
+    let request_body = value.pointer("/requestBody").unwrap();
+    assert_json_snapshot!(request_body);
 }
