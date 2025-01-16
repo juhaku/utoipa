@@ -1487,9 +1487,6 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// (property = "x-another-extension", value = json!( "body" ) ),
 /// ```
 ///
-/// Note: Define all extensions within a single `extensions( ... )` parenthesis at each level otherwise only the extensions
-/// defined in the latest parenthesis are taken into account.
-///
 /// # actix_extras feature support for actix-web
 ///
 /// **actix_extras** feature gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
