@@ -4,7 +4,7 @@ use syn::parse::ParseStream;
 use syn::token::Paren;
 use syn::{parse::Parse, Error, Token};
 
-use crate::component::{ComponentSchema, features::attributes::Extensions};
+use crate::component::{features::attributes::Extensions, ComponentSchema};
 use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
 
 use super::media_type::{MediaTypeAttr, Schema};

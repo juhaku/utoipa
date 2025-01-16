@@ -11,8 +11,8 @@ use syn::{
 };
 
 use crate::{
-    component::ComponentSchema, parse_utils, path::media_type::Schema, AnyValue, Diagnostics,
-    ToTokensDiagnostics, features::attributes::Extensions,
+    component::ComponentSchema, features::attributes::Extensions, parse_utils,
+    path::media_type::Schema, AnyValue, Diagnostics, ToTokensDiagnostics,
 };
 
 use self::{header::Header, link::LinkTuple};

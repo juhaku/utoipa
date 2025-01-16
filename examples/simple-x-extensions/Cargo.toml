@@ -7,7 +7,6 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 env_logger = "0"
-utoipa = { path = "../../utoipa", features = [ "yaml", "debug" ] }
-serde_json = "1"
+utoipa = { path = "../../utoipa", features = [ "yaml" ] }
 
 [workspace]

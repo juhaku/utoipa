@@ -8,7 +8,7 @@ use syn::punctuated::Punctuated;
 use syn::token::{Comma, Paren};
 use syn::{Error, Generics, Ident, Token, Type};
 
-use crate::component::features::attributes::{Inline, Extensions};
+use crate::component::features::attributes::{Extensions, Inline};
 use crate::component::features::Feature;
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree, ValueType};
 use crate::ext::ExtSchema;
@@ -192,8 +192,10 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
             .encoding
             .iter()
             .map(|(field_name, encoding)| quote!(.encoding(#field_name, #encoding)));
-        let extensions = self.extensions.as_ref()
-        .map(|e| quote! { .extensions(Some(#e)) });
+        let extensions = self
+            .extensions
+            .as_ref()
+            .map(|e| quote! { .extensions(Some(#e)) });
 
         tokens.extend(quote! {
             utoipa::openapi::content::ContentBuilder::new()
