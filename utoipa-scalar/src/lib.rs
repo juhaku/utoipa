@@ -20,13 +20,13 @@
 //! Use Scalar only without any boiler plate implementation.
 //! ```toml
 //! [dependencies]
-//! utoipa-scalar = "0.1"
+//! utoipa-scalar = "0.3"
 //! ```
 //!
 //! Enable actix-web integration with Scalar.
 //! ```toml
 //! [dependencies]
-//! utoipa-scalar = { version = "0.1", features = ["actix-web"] }
+//! utoipa-scalar = { version = "0.3", features = ["actix-web"] }
 //! ```
 //!
 //! # Using standalone

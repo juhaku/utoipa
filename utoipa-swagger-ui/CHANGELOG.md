@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## 9.0.0 - Thu 16 2025
+
+### Changed
+
+* Re-release 8.1.1 since axum upgrade is a breaking change (https://github.com/juhaku/utoipa/pull/1295)
+
 ## 8.1.1 - Jan 6 2025
 
 ### Changed
