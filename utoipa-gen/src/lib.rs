@@ -1477,14 +1477,15 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// # Extensions Requirements Attributes
 ///
-/// * `property` defines the name of the extension.
-/// * `value` defines the value associated with the named extension as a `serde_json::Value`.
+/// * `x-property` defines the name of the extension.
+/// * `json!(...)` defines the value associated with the named extension as a `serde_json::Value`.
 ///
 /// **Extensions Requitement supported formats:**
 ///
 /// ```text
-/// (property = "x-an-extension", value = json!({ "type": "mock" }) ),
-/// (property = "x-another-extension", value = json!( "body" ) ),
+/// ("x-property" = json!({ "type": "mock" }) ),
+/// ("x-an-extension" = json!({ "type": "mock" }) ),
+/// ("x-another-extension" = json!( "body" ) ),
 /// ```
 ///
 /// # actix_extras feature support for actix-web
