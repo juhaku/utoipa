@@ -2,7 +2,7 @@
 
 ## 0.2.0 - Thu 16 2025
 
-* Re-release of what was released in 0.1.4
+* Re-release of what was released in 0.1.4 (https://github.com/juhaku/utoipa/pull/1295)
 
 ## 0.1.4 - Jan 6 2025
 
