@@ -16,7 +16,7 @@ use crate::{parse_utils, Array};
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Server {
-    url: String,
+    url: parse_utils::LitStrOrExpr,
     description: Option<String>,
     variables: Punctuated<ServerVariable, Comma>,
 }
@@ -32,7 +32,7 @@ impl Parse for Server {
 
             match attribute_name {
                 "url" => {
-                    server.url = parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value()
+                    server.url = parse_utils::parse_next_literal_str_or_expr(&server_stream)?
                 }
                 "description" => {
                     server.description =
