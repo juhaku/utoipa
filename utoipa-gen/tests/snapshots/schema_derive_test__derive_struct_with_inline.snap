@@ -19,9 +19,6 @@ snapshot_kind: text
     "foo2": {
       "oneOf": [
         {
-          "type": "null"
-        },
-        {
           "properties": {
             "name": {
               "type": "string"
@@ -31,15 +28,15 @@ snapshot_kind: text
             "name"
           ],
           "type": "object"
+        },
+        {
+          "type": "null"
         }
       ]
     },
     "foo3": {
       "oneOf": [
         {
-          "type": "null"
-        },
-        {
           "properties": {
             "name": {
               "type": "string"
@@ -49,6 +46,9 @@ snapshot_kind: text
             "name"
           ],
           "type": "object"
+        },
+        {
+          "type": "null"
         }
       ]
     },
