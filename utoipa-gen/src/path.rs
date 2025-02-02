@@ -334,26 +334,7 @@ impl<'p> Path<'p> {
 
 impl<'p> ToTokensDiagnostics for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-        let fn_name = &*self.fn_ident.to_string();
-        let operation_id = self
-            .path_attr
-            .operation_id
-            .clone()
-            .or(Some(
-                ExprLit {
-                    attrs: vec![],
-                    lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
-                }
-                .into(),
-            ))
-            .ok_or_else(|| {
-                Diagnostics::new("operation id is not defined for path")
-                    .help(format!(
-                        "Try to define it in #[utoipa::path(operation_id = {})]",
-                        &fn_name
-                    ))
-                    .help("Did you define the #[utoipa::path(...)] over function?")
-            })?;
+        // let fn_name = &*self.fn_ident.to_string();
 
         let methods = if !self.path_attr.methods.is_empty() {
             &self.path_attr.methods
@@ -404,25 +385,51 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 diagnostics()
             })?;
 
-        let path_with_context_path = self
-            .path_attr
-            .context_path
-            .as_ref()
+        let context_path_opt = self.path_attr.context_path.as_ref();
+
+        let path_with_context_path = context_path_opt
             .map(|context_path| {
-                let context_path = context_path.to_token_stream();
-                let context_path_tokens = quote! {
-                    format!("{}{}",
-                        #context_path,
-                        #path
-                    )
-                };
-                context_path_tokens
+                let context_path_tokens = context_path.to_token_stream();
+                quote! {
+                    format!("{}{}", #context_path_tokens, #path)
+                }
             })
             .unwrap_or_else(|| {
                 quote! {
                     String::from(#path)
                 }
             });
+
+        let path_with_context_path_str = context_path_opt
+            .map(|context_path| format!("{}{}", context_path, path))
+            .unwrap_or_else(|| format!("{}", path));
+
+        let operation_id = self
+            .path_attr
+            .operation_id
+            .clone()
+            .or_else(|| {
+                Some(
+                    ExprLit {
+                        attrs: vec![],
+                        lit: Lit::Str(LitStr::new(
+                            &path_with_context_path_str
+                                .replace("\"", "")
+                                .replace("/", "_"),
+                            Span::call_site(),
+                        )),
+                    }
+                    .into(),
+                )
+            })
+            .ok_or_else(|| {
+                Diagnostics::new("operation id is not defined for path")
+                    .help(format!(
+                        "Try to define it in #[utoipa::path(operation_id = {})]",
+                        path_with_context_path_str
+                    ))
+                    .help("Did you define the #[utoipa::path(...)] over function?")
+            })?;
 
         let split_comment = self.doc_comments.as_ref().map(|comments| {
             let mut split = comments.split(|comment| comment.trim().is_empty());

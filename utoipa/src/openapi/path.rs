@@ -362,16 +362,62 @@ impl PathItem {
 impl PathItemBuilder {
     /// Append a new [`Operation`] by [`HttpMethod`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`HttpMethod`].
-    pub fn operation<O: Into<Operation>>(mut self, http_method: HttpMethod, operation: O) -> Self {
+    pub fn operation<O: Into<Operation> + Clone>(
+        mut self,
+        http_method: HttpMethod,
+        operation: O,
+    ) -> Self {
         match http_method {
-            HttpMethod::Get => self.get = Some(operation.into()),
-            HttpMethod::Put => self.put = Some(operation.into()),
-            HttpMethod::Post => self.post = Some(operation.into()),
-            HttpMethod::Delete => self.delete = Some(operation.into()),
-            HttpMethod::Options => self.options = Some(operation.into()),
-            HttpMethod::Head => self.head = Some(operation.into()),
-            HttpMethod::Patch => self.patch = Some(operation.into()),
-            HttpMethod::Trace => self.trace = Some(operation.into()),
+            HttpMethod::Get => {
+                self.get = Some(operation.clone().into());
+                if let Some(ref mut op) = self.get {
+                    op.operation_id = Some(format!("{}_get", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Put => {
+                self.put = Some(operation.clone().into());
+                if let Some(ref mut op) = self.put {
+                    op.operation_id = Some(format!("{}_put", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Post => {
+                self.post = Some(operation.clone().into());
+                if let Some(ref mut op) = self.post {
+                    op.operation_id = Some(format!("{}_post", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Delete => {
+                self.delete = Some(operation.clone().into());
+                if let Some(ref mut op) = self.delete {
+                    op.operation_id =
+                        Some(format!("{}_delete", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Options => {
+                self.options = Some(operation.clone().into());
+                if let Some(ref mut op) = self.options {
+                    op.operation_id =
+                        Some(format!("{}_options", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Head => {
+                self.head = Some(operation.clone().into());
+                if let Some(ref mut op) = self.head {
+                    op.operation_id = Some(format!("{}_head", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Patch => {
+                self.patch = Some(operation.clone().into());
+                if let Some(ref mut op) = self.patch {
+                    op.operation_id = Some(format!("{}_patch", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Trace => {
+                self.trace = Some(operation.clone().into());
+                if let Some(ref mut op) = self.trace {
+                    op.operation_id = Some(format!("{}_trace", &op.operation_id.as_ref().unwrap()));
+                }
+            }
         };
 
         self
