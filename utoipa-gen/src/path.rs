@@ -334,8 +334,6 @@ impl<'p> Path<'p> {
 
 impl<'p> ToTokensDiagnostics for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
-        // let fn_name = &*self.fn_ident.to_string();
-
         let methods = if !self.path_attr.methods.is_empty() {
             &self.path_attr.methods
         } else {
