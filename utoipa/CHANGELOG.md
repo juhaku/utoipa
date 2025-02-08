@@ -7,7 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Changed
 
-* Replaced `serde_yaml` with `serde_yml` (https://github.com/juhaku/utoipa/pull/1280)
+* Replaced `serde_yaml` with `serde_norway` (https://github.com/juhaku/utoipa/pull/1311)
 
 ## 5.3.1 - Jan 6 2025
 
