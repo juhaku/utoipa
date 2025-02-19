@@ -608,9 +608,9 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<K: ToSchema, T: ToSchema> ToSchema for std::collections::HashMap<K, T>
+impl<K: ToSchema, T: ToSchema, S> ToSchema for std::collections::HashMap<K, T, S>
 where
-    std::collections::HashMap<K, T>: PartialSchema,
+    std::collections::HashMap<K, T, S>: PartialSchema,
 {
     fn schemas(
         schemas: &mut Vec<(
@@ -642,9 +642,9 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<K: ToSchema> ToSchema for std::collections::HashSet<K>
+impl<K: ToSchema, S> ToSchema for std::collections::HashSet<K, S>
 where
-    std::collections::HashSet<K>: PartialSchema,
+    std::collections::HashSet<K, S>: PartialSchema,
 {
     fn schemas(
         schemas: &mut Vec<(
@@ -1437,7 +1437,7 @@ pub mod __dev {
         }
     }
 
-    impl<K: ComposeSchema, T: ComposeSchema> ComposeSchema for std::collections::HashMap<K, T> {
+    impl<K: ComposeSchema, T: ComposeSchema, S> ComposeSchema for std::collections::HashMap<K, T, S> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
@@ -1459,7 +1459,7 @@ pub mod __dev {
         }
     }
 
-    impl<K: ComposeSchema> ComposeSchema for std::collections::HashSet<K> {
+    impl<K: ComposeSchema, S> ComposeSchema for std::collections::HashSet<K, S> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
