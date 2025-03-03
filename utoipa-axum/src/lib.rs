@@ -123,30 +123,96 @@ pub use paste::paste;
 /// ```
 #[macro_export]
 macro_rules! routes {
-    ( $handler:path $(, $tail:path)* $(,)? ) => {
+    ( $( $gen:ty | )? @code $schemas:tt: $router:ident: $paths:ident: $( $handler:tt )* ) => {
         {
-            use $crate::PathItemExt;
+            let (path, item, types) = $crate::routes!(@resolve_types $($handler)* : $schemas );
+            let router = types.iter().by_ref().fold($router, |router, path_type| {
+                router.on(path_type.to_method_filter(), $($handler)* $( :: < $gen > )? )
+            });
+            $paths.add_path_operation(&path, types, item);
+            ($schemas, $paths, router)
+        }
+    };
+    ( $( $gen:ty | )? @code $( $handler:tt )* ) => {
+        {
             let mut paths = utoipa::openapi::path::Paths::new();
             let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
-            let (path, item, types) = $crate::routes!(@resolve_types $handler : schemas);
+            let (path, item, types) = $crate::routes!(@resolve_types $($handler)* : schemas );
             #[allow(unused_mut)]
             let mut method_router = types.iter().by_ref().fold(axum::routing::MethodRouter::new(), |router, path_type| {
-                router.on(path_type.to_method_filter(), $handler)
+                router.on(path_type.to_method_filter(), $($handler)* $( :: < $gen >)?)
             });
             paths.add_path_operation(&path, types, item);
-            $( method_router = $crate::routes!( schemas: method_router: paths: $tail ); )*
             (schemas, paths, method_router)
         }
     };
-    ( $schemas:tt: $router:ident: $paths:ident: $handler:path $(, $tail:tt)* ) => {
+    (
+        @parse_paths
+        [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
+        { $( $path:tt )* }
+        ::
+        < $gen:ty >
+        $( $tt:tt )*
+    ) => {
+        $crate::routes!(
+            $gen |
+            @parse_paths
+            [ $( $schemas: $router: $paths: )? ]
+            { $($path)* }
+            $( $tt )*
+        )
+    };
+    (
+        $( $gen:ty  | )?
+        @parse_paths
+        [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
+        { $( $path:tt )* }
+        ,
+        $( $tt:tt )+
+    ) => {
         {
-            let (path, item, types) = $crate::routes!(@resolve_types $handler : $schemas);
-            let router = types.iter().by_ref().fold($router, |router, path_type| {
-                router.on(path_type.to_method_filter(), $handler)
-            });
-            $paths.add_path_operation(&path, types, item);
-            router
+            let (mut schemas, mut paths, router) = $crate::routes!(
+                $( $gen | )?
+                @code
+                $( $schemas: $router: $paths: )?
+                $( $path )*
+            );
+
+            $crate::routes!(
+                @parse_paths
+                [ schemas: router: paths: ]
+                { }
+                $( $tt )+
+            )
         }
+    };
+    (
+        $( $gen:ty | )?
+        @parse_paths
+        [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
+        { $( $path:tt )* }
+        $(,)?
+    ) => {
+        $crate::routes!(
+            $( $gen | )?
+            @code
+            $( $schemas: $router: $paths: )?
+            $( $path )*
+        )
+    };
+    (
+        @parse_paths
+        [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
+        { $( $path:tt )* }
+        $t:tt
+        $($tt:tt)*
+    ) => {
+        $crate::routes!(
+            @parse_paths
+            [ $( $schemas: $router: $paths: )? ]
+            { $( $path )* $t }
+            $( $tt )*
+        )
     };
     ( @resolve_types $handler:path : $schemas:tt ) => {
         {
@@ -186,6 +252,12 @@ macro_rules! routes {
             $crate::paste! {
                 $( $tt :: )* [<__path_ $handler>]::$op $( $args )*
             }
+        }
+    };
+    ( $($tt:tt)* ) => {
+        {
+            use $crate::PathItemExt;
+            $crate::routes!( @parse_paths [] {} $($tt)* )
         }
     };
     ( ) => {};
@@ -235,6 +307,15 @@ mod tests {
     #[utoipa::path(get, path = "/search")]
     async fn search_customer(State(_s): State<String>) {}
 
+    #[utoipa::path(get, path = "/cart")]
+    async fn get_cart<T>(State(_s): State<T>) {}
+
+    #[utoipa::path(post, path = "/cart")]
+    async fn post_cart<T>(State(_s): State<T>) {}
+
+    #[utoipa::path(patch, path = "/cart")]
+    async fn patch_cart<T>(State(_s): State<T>) {}
+
     #[test]
     fn axum_router_nest_openapi_routes_compile() {
         let user_router: OpenApiRouter = OpenApiRouter::new()
@@ -244,6 +325,8 @@ mod tests {
         let customer_router: OpenApiRouter = OpenApiRouter::new()
             .routes(routes!(get_customer, post_customer, delete_customer))
             .routes(routes!(search_customer))
+            .routes(routes!(post_cart::<String>, patch_cart::<String>))
+            .routes(routes!(get_cart::<String>))
             .with_state(String::new());
 
         let router = OpenApiRouter::new()
