@@ -158,13 +158,24 @@ impl SchemaType<'_> {
                 | "u64"
                 | "u128"
                 | "usize"
+                | "NonZeroU8"
+                | "NonZeroU16"
+                | "NonZeroU32"
+                | "NonZeroU64"
         )
     }
 
     pub fn is_unsigned_integer(&self) -> bool {
         matches!(
             &*self.last_segment_to_string(),
-            "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "NonZeroU8" | "NonZeroU16" | "NonZeroU32" | "NonZeroU64"
+        )
+    }
+
+    pub fn is_nonzero_integer(&self) -> bool {
+        matches!(
+            &*self.last_segment_to_string(),
+            "NonZeroU8" | "NonZeroU16" | "NonZeroU32" | "NonZeroU64"
         )
     }
 
@@ -207,6 +218,10 @@ fn is_primitive(name: &str) -> bool {
             | "i128"
             | "f32"
             | "f64"
+            | "NonZeroU8"
+            | "NonZeroU16"
+            | "NonZeroU32"
+            | "NonZeroU64"
     )
 }
 
@@ -263,7 +278,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             "bool" => schema_type_tokens(tokens, SchemaTypeInner::Boolean, self.nullable),
 
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => {
+            | "u128" | "usize" | "NonZeroU8" | "NonZeroU16" | "NonZeroU32" | "NonZeroU64" => {
                 schema_type_tokens(tokens, SchemaTypeInner::Integer, self.nullable)
             }
             "f32" | "f64" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
@@ -327,6 +342,18 @@ pub enum KnownFormat {
     UInt32,
     #[cfg(feature = "non_strict_integers")]
     UInt64,
+    #[cfg(not(feature = "non_strict_integers"))]
+    NonZeroInt32,
+    #[cfg(not(feature = "non_strict_integers"))]
+    NonZeroInt64,
+    #[cfg(feature = "non_strict_integers")]
+    NonZeroUInt8,
+    #[cfg(feature = "non_strict_integers")]
+    NonZeroUInt16,
+    #[cfg(feature = "non_strict_integers")]
+    NonZeroUInt32,
+    #[cfg(feature = "non_strict_integers")]
+    NonZeroUInt64,
     Float,
     Double,
     Byte,
@@ -388,12 +415,26 @@ impl KnownFormat {
             "u32" => Self::UInt32,
             #[cfg(feature = "non_strict_integers")]
             "u64" => Self::UInt64,
+            #[cfg(feature = "non_strict_integers")]
+            "NonZeroU8" => Self::NonZeroUInt8,
+            #[cfg(feature = "non_strict_integers")]
+            "NonZeroU16" => Self::NonZeroUInt16,
+            #[cfg(feature = "non_strict_integers")]
+            "NonZeroU32" => Self::NonZeroUInt32,
+            #[cfg(feature = "non_strict_integers")]
+            "NonZeroU64" => Self::NonZeroUInt64,
 
             #[cfg(not(feature = "non_strict_integers"))]
             "i8" | "i16" | "u8" | "u16" | "u32" => Self::Int32,
 
             #[cfg(not(feature = "non_strict_integers"))]
+            "NonZeroU8" | "NonZeroU16" | "NonZeroU32" => Self::NonZeroInt32,
+
+            #[cfg(not(feature = "non_strict_integers"))]
             "u64" => Self::Int64,
+
+            #[cfg(not(feature = "non_strict_integers"))]
+            "NonZeroU64" => Self::NonZeroInt64,
 
             "i32" => Self::Int32,
             "i64" => Self::Int64,
@@ -471,9 +512,15 @@ impl KnownFormat {
             "RelativeJsonPointer",
             "Regex",
         ];
+        #[cfg(not(feature = "non_strict_integers"))]
+        let strict_integer_formats = [
+            "NonZeroInt32",
+            "NonZeroInt64"
+        ];
         #[cfg(feature = "non_strict_integers")]
         let non_strict_integer_formats = [
             "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16", "UInt32", "UInt64",
+            "NonZeroU8", "NonZeroU16", "NonZeroU32", "NonZeroU64"
         ];
 
         #[cfg(feature = "non_strict_integers")]
@@ -487,7 +534,8 @@ impl KnownFormat {
         };
         #[cfg(not(feature = "non_strict_integers"))]
         let formats = {
-            let formats = default_formats.into_iter().collect::<Vec<_>>();
+            let mut formats = default_formats.into_iter().chain(strict_integer_formats).collect::<Vec<_>>();
+            formats.sort_unstable();
             formats.join(", ")
         };
 
@@ -519,6 +567,18 @@ impl Parse for KnownFormat {
                 "UInt32" => Ok(Self::UInt32),
                 #[cfg(feature = "non_strict_integers")]
                 "UInt64" => Ok(Self::UInt64),
+                #[cfg(not(feature = "non_strict_integers"))]
+                "NonZeroInt32" => Ok(Self::NonZeroInt32),
+                #[cfg(not(feature = "non_strict_integers"))]
+                "NonZeroInt64" => Ok(Self::NonZeroInt64),
+                #[cfg(feature = "non_strict_integers")]
+                "NonZeroUInt8" => Ok(Self::NonZeroUInt8),
+                #[cfg(feature = "non_strict_integers")]
+                "NonZeroUInt16" => Ok(Self::NonZeroUInt16),
+                #[cfg(feature = "non_strict_integers")]
+                "NonZeroUInt32" => Ok(Self::NonZeroUInt32),
+                #[cfg(feature = "non_strict_integers")]
+                "NonZeroUInt64" => Ok(Self::NonZeroUInt64),
                 "Float" => Ok(Self::Float),
                 "Double" => Ok(Self::Double),
                 "Byte" => Ok(Self::Byte),
@@ -588,6 +648,18 @@ impl ToTokens for KnownFormat {
             Self::UInt64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
                 utoipa::openapi::schema::KnownFormat::UInt64
             ))),
+            #[cfg(not(feature = "non_strict_integers"))]
+            Self::NonZeroInt32 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::Int32))),
+            #[cfg(not(feature = "non_strict_integers"))]
+            Self::NonZeroInt64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::Int64))),
+            #[cfg(feature = "non_strict_integers")]
+            Self::NonZeroUInt8 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::UInt8))),
+            #[cfg(feature = "non_strict_integers")]
+            Self::NonZeroUInt16 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::UInt16))),
+            #[cfg(feature = "non_strict_integers")]
+            Self::NonZeroUInt32 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::UInt32))),
+            #[cfg(feature = "non_strict_integers")]
+            Self::NonZeroUInt64 => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(utoipa::openapi::schema::KnownFormat::UInt64))),
             Self::Float => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
                 utoipa::openapi::schema::KnownFormat::Float
             ))),
@@ -697,6 +769,7 @@ impl PrimitiveType {
 
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
             | "u128" | "usize" => syn::parse_quote!(#path),
+            "NonZeroU8" | "NonZeroU16" | "NonZeroU32" | "NonZeroU64" => syn::parse_quote!(#path),
             "f32" | "f64" => syn::parse_quote!(#path),
 
             #[cfg(feature = "chrono")]
