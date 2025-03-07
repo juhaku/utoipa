@@ -123,24 +123,24 @@ pub use paste::paste;
 /// ```
 #[macro_export]
 macro_rules! routes {
-    ( $( $gen:ty | )? @code $schemas:tt: $router:ident: $paths:ident: $( $handler:tt )* ) => {
+    ( $( $($gen:ty),* | )? @code $schemas:tt: $router:ident: $paths:ident: $( $handler:tt )* ) => {
         {
             let (path, item, types) = $crate::routes!(@resolve_types $($handler)* : $schemas );
             let router = types.iter().by_ref().fold($router, |router, path_type| {
-                router.on(path_type.to_method_filter(), $($handler)* $( :: < $gen > )? )
+                router.on(path_type.to_method_filter(), $($handler)* $( :: < $($gen),* > )? )
             });
             $paths.add_path_operation(&path, types, item);
             ($schemas, $paths, router)
         }
     };
-    ( $( $gen:ty | )? @code $( $handler:tt )* ) => {
+    ( $( $($gen:ty),* | )? @code $( $handler:tt )* ) => {
         {
             let mut paths = utoipa::openapi::path::Paths::new();
             let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
             let (path, item, types) = $crate::routes!(@resolve_types $($handler)* : schemas );
             #[allow(unused_mut)]
             let mut method_router = types.iter().by_ref().fold(axum::routing::MethodRouter::new(), |router, path_type| {
-                router.on(path_type.to_method_filter(), $($handler)* $( :: < $gen >)?)
+                router.on(path_type.to_method_filter(), $($handler)* $( :: < $($gen),* >)?)
             });
             paths.add_path_operation(&path, types, item);
             (schemas, paths, method_router)
@@ -151,11 +151,11 @@ macro_rules! routes {
         [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
         { $( $path:tt )* }
         ::
-        < $gen:ty >
+        < $($gen:ty),* $(,)? >
         $( $tt:tt )*
     ) => {
         $crate::routes!(
-            $gen |
+            $($gen),* |
             @parse_paths
             [ $( $schemas: $router: $paths: )? ]
             { $($path)* }
@@ -163,7 +163,7 @@ macro_rules! routes {
         )
     };
     (
-        $( $gen:ty  | )?
+        $( $($gen:ty),*  | )?
         @parse_paths
         [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
         { $( $path:tt )* }
@@ -172,7 +172,7 @@ macro_rules! routes {
     ) => {
         {
             let (mut schemas, mut paths, router) = $crate::routes!(
-                $( $gen | )?
+                $( $($gen),* | )?
                 @code
                 $( $schemas: $router: $paths: )?
                 $( $path )*
@@ -187,14 +187,14 @@ macro_rules! routes {
         }
     };
     (
-        $( $gen:ty | )?
+        $( $($gen:ty),* | )?
         @parse_paths
         [ $( $schemas:tt: $router:ident: $paths:ident: )? ]
         { $( $path:tt )* }
         $(,)?
     ) => {
         $crate::routes!(
-            $( $gen | )?
+            $( $($gen),* | )?
             @code
             $( $schemas: $router: $paths: )?
             $( $path )*
@@ -308,13 +308,16 @@ mod tests {
     async fn search_customer(State(_s): State<String>) {}
 
     #[utoipa::path(get, path = "/cart")]
-    async fn get_cart<T>(State(_s): State<T>) {}
+    async fn get_cart<T>(State(_t): State<T>) {}
 
     #[utoipa::path(post, path = "/cart")]
-    async fn post_cart<T>(State(_s): State<T>) {}
+    async fn post_cart<T>(State(_t): State<T>) {}
 
     #[utoipa::path(patch, path = "/cart")]
     async fn patch_cart<T>(State(_s): State<T>) {}
+
+    #[utoipa::path(get, path = "/browse")]
+    async fn browse_store<T, U, V>(State(_t): State<T>, _u: U, _v: V) {}
 
     #[test]
     fn axum_router_nest_openapi_routes_compile() {
@@ -327,6 +330,9 @@ mod tests {
             .routes(routes!(search_customer))
             .routes(routes!(post_cart::<String>, patch_cart::<String>))
             .routes(routes!(get_cart::<String>))
+            .routes(routes!(
+                browse_store::<String, axum::http::HeaderMap, axum::http::Method>
+            ))
             .with_state(String::new());
 
         let router = OpenApiRouter::new()
