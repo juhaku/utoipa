@@ -51,6 +51,7 @@ smallvec = { version = "1.10", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 time = { version = "0.3", features = ["serde-human-readable"] }
+jiff = { version = "0.2", features = ["serde"] }
 serde_with = "3.0"
 insta = { version = "1.41", features = ["json"] }
 
@@ -69,6 +70,7 @@ ulid = ["dep:ulid"]
 url = ["dep:url"]
 axum_extras = ["regex", "syn/extra-traits"]
 time = []
+jiff_0_2 = []
 smallvec = []
 repr = []
 indexmap = []
