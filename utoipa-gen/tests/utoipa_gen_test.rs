@@ -92,9 +92,9 @@ mod pet_api {
 struct ApiDoc;
 
 macro_rules! build_foo {
-    ($typ: ident, $d: ty, $r: ty) => {
+    ($type: ident, $d: ty, $r: ty) => {
         #[derive(Debug, Serialize, ToSchema)]
-        struct $typ {
+        struct $type {
             data: $d,
             resources: $r,
         }
