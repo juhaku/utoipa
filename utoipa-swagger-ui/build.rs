@@ -102,7 +102,7 @@ impl SwaggerZip {
             let mut file = self.by_index(index)?;
             let filepath = file
                 .enclosed_name()
-                .ok_or(ZipError::InvalidArchive("invalid path file"))?;
+                .ok_or(ZipError::InvalidArchive("invalid path file".into()))?;
 
             if index == 0 {
                 zip_top_level_folder = filepath
