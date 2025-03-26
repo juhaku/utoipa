@@ -10,7 +10,7 @@ use ntex::{
     IntoServiceFactory, ServiceFactory,
     web::{
         ErrorRenderer, Route, WebRequest, WebResponse, WebServiceFactory, dev::WebServiceConfig,
-        guard::Guard, stack::WebStack,
+        guard::Guard,
     },
 };
 
@@ -75,19 +75,22 @@ where
 /// _**Create new scoped service.**_
 ///
 /// ```rust
-/// # use ntex::web::{get, App};
-/// # use utoipa_ntex::{AppExt, scope};
-/// #
-///  #[utoipa::path()]
-///  #[get("/handler")]
-///  pub async fn handler() -> &'static str {
-///      "OK"
-///  }
-/// let _ = App::new()
-///     .into_utoipa_app()
-///     .service(scope::scope("/api/v1/inner").configure(|cfg| {
-///         cfg.service(handler);
-///     }));
+/// use ntex::web::{get, App};
+/// use utoipa_ntex::{AppExt, scope, handler::UtoipaHandler};
+///
+/// #[utoipa::path(get, path = "/handler", responses((status = 200)))]
+/// #[get("/handler")]
+/// async fn handler() -> &'static str {
+///     "OK"
+/// }
+///
+/// fn example() {
+///     let _ = App::new()
+///         .into_utoipa_app()
+///         .service(scope::scope("/api/v1/inner").configure(|cfg| {
+///             cfg.service(UtoipaHandler::<_, __path_handler>::new(handler));
+///         }));
+/// }
 /// ```
 pub fn scope<Err, M, T, I>(scope: I) -> Scope<Err, M, T>
 where
@@ -219,10 +222,11 @@ where
         Scope(self.0.filter(filter), self.1, self.2)
     }
 
-    /// Passthrough implementation for [`ntex::web::Scope::wrap`].
-    pub fn wrap<U>(self, mw: U) -> Scope<Err, WebStack<M, U, Err>, T> {
-        Scope(self.0.wrap(mw), self.1, self.2)
-    }
+    // Need to update this when ntex is updated to pub WebStack to available for passthrough the Scope::wrap
+    // / Passthrough implementation for [`ntex::web::Scope::wrap`].
+    // pub fn wrap<U>(self, mw: U) -> Scope<Err, WebStack<M, U, Err>, T> {
+    //     Scope(self.0.wrap(mw), self.1, self.2)
+    // }
 }
 
 impl<Err, M, T> OpenApiFactory for Scope<Err, M, T>
