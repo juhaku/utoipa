@@ -37,6 +37,7 @@ pub struct OpenApiAttr<'o> {
     external_docs: Option<ExternalDocs>,
     servers: Punctuated<Server, Comma>,
     nested: Vec<NestOpenApi>,
+    merged: Vec<MergeOpenApi>,
 }
 
 impl<'o> OpenApiAttr<'o> {
@@ -129,6 +130,11 @@ impl Parse for OpenApiAttr<'_> {
                     let nest;
                     parenthesized!(nest in input);
                     openapi.nested = parse_utils::parse_groups_collect(&nest)?;
+                }
+                "merge" => {
+                    let merge;
+                    parenthesized!(merge in input);
+                    openapi.merged = parse_utils::parse_groups_collect(&merge)?;
                 }
                 _ => {
                     return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE));
@@ -469,6 +475,50 @@ impl OpenApi<'_> {
             Some(nest_tokens)
         }
     }
+
+    fn merged_tokens(&self) -> Option<TokenStream> {
+        let merged = self.0.as_ref().map(|openapi| &openapi.merged)?;
+        let merge_tokens = merged
+            .iter()
+            .map(|item| {
+                let merge_api = &item
+                    .open_api
+                    .as_ref()
+                    .expect("type path of merged api is mandatory");
+                let merge_api_ident = &merge_api
+                    .path
+                    .segments
+                    .last()
+                    .expect("merge api must have at least one segment")
+                    .ident;
+                let merge_api_config = format_ident!("{}MergeConfig", merge_api_ident.to_string());
+
+                let tags = &item.tags.iter().collect::<Array<_>>();
+
+                let span = merge_api.span();
+                quote_spanned! {span=>
+                    .merge_from({
+                        #[allow(non_camel_case_types)]
+                        struct #merge_api_config;
+                        impl utoipa::__dev::NestedApiConfig for #merge_api_config {
+                            fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>, &'static str) {
+                                let api = <#merge_api as utoipa::OpenApi>::openapi();
+
+                                (api, #tags.into(), "")
+                            }
+                        }
+                        <#merge_api_config as utoipa::OpenApi>::openapi()
+                    })
+                }
+            })
+            .collect::<TokenStream>();
+
+        if merge_tokens.is_empty() {
+            None
+        } else {
+            Some(merge_tokens)
+        }
+    }
 }
 
 impl ToTokensDiagnostics for OpenApi<'_> {
@@ -557,6 +607,11 @@ impl ToTokensDiagnostics for OpenApi<'_> {
         let nested_tokens = self
             .nested_tokens()
             .map(|tokens| quote! {openapi = openapi #tokens;});
+
+        let merged_tokens = self
+            .merged_tokens()
+            .map(|tokens| quote! {openapi = openapi #tokens;});
+
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
@@ -575,6 +630,7 @@ impl ToTokensDiagnostics for OpenApi<'_> {
                     #handler_schemas
                     components.schemas.extend(schemas);
                     #nested_tokens
+                    #merged_tokens
 
                     #modifiers_tokens
 
@@ -825,5 +881,50 @@ impl Parse for NestOpenApi {
         }
 
         Ok(nest)
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Default)]
+struct MergeOpenApi {
+    open_api: Option<TypePath>,
+    tags: Punctuated<parse_utils::LitStrOrExpr, Comma>,
+}
+
+impl Parse for MergeOpenApi {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const ERROR_MESSAGE: &str = "unexpected identifier, expected any of: api, tags";
+        let mut merge = MergeOpenApi::default();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(error.span(), format!("{ERROR_MESSAGE}: {error}"))
+            })?;
+
+            match &*ident.to_string() {
+                "api" => merge.open_api = Some(parse_utils::parse_next(input, || input.parse())?),
+                "tags" => {
+                    merge.tags = parse_utils::parse_next(input, || {
+                        let tags;
+                        bracketed!(tags in input);
+                        Punctuated::parse_terminated(&tags)
+                    })?;
+                }
+                _ => return Err(syn::Error::new(ident.span(), ERROR_MESSAGE)),
+            }
+
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        if merge.open_api.is_none() {
+            return Err(syn::Error::new(
+                input.span(),
+                "`api = ...` argument is mandatory for merge(...) statement",
+            ));
+        }
+
+        Ok(merge)
     }
 }
