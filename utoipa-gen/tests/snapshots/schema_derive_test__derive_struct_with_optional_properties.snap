@@ -40,10 +40,10 @@ snapshot_kind: text
     "optional_book": {
       "oneOf": [
         {
-          "type": "null"
+          "$ref": "#/components/schemas/Book"
         },
         {
-          "$ref": "#/components/schemas/Book"
+          "type": "null"
         }
       ]
     }

@@ -1294,8 +1294,8 @@ impl ComponentSchema {
                         {
                             quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
-                                    #nullable_item
                                     .item(#items_tokens)
+                                    #nullable_item
                                 #title_tokens
                                 #default_tokens
                                 #description_stream
@@ -1361,11 +1361,11 @@ impl ComponentSchema {
                         let schema = if default.is_some() || nullable || title.is_some() {
                             composed_or_ref(quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
-                                    #nullable_item
                                     .item(utoipa::openapi::schema::RefBuilder::new()
                                         #description_stream
                                         .ref_location_from_schema_name(#name_tokens)
                                     )
+                                    #nullable_item
                                     #title_tokens
                                     #default_tokens
                             })
