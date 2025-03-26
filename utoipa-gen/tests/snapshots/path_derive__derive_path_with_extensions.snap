@@ -1,0 +1,8 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+assertion_line: 309
+expression: "operation.pointer(\"/x-extension-1\").unwrap()"
+---
+{
+  "type": "extension1"
+}

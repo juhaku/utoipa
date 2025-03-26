@@ -1,0 +1,12 @@
+[package]
+name = "simple-x-extensions"
+description = "Demonstration of setting extensions via `utoipa::path` macro as well as using the `Modify` trait for comparison purposes."
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+env_logger = "0"
+utoipa = { path = "../../utoipa", features = [ "yaml" ] }
+
+[workspace]

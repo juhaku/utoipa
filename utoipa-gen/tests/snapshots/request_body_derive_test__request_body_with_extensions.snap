@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+assertion_line: 600
+expression: request_body
+---
+{
+  "content": {
+    "text/plain": {
+      "x-request-body-ext2": {
+        "type": "request_body/text/plain"
+      }
+    }
+  },
+  "x-request-body-ext1": {
+    "type": "request_body"
+  }
+}
