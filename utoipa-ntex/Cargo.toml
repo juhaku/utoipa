@@ -12,13 +12,13 @@ rust-version.workspace = true
 
 [dependencies]
 utoipa = { path = "../utoipa", version = "5" }
+# Need to update this when ntex is updated to pub WebStack to available for passthrough the Scope::wrap
 ntex = { path = "../../ntex/ntex" }
 
 [dev-dependencies]
 utoipa = { path = "../utoipa", version = "5", features = ["macros", "debug"] }
-ntex = { path = "../../ntex/ntex", features = [
-    "tokio",
-] }
+# Need to update this when ntex is updated to pub WebStack to available for passthrough the Scope::wrap
+ntex = { path = "../../ntex/ntex", features = ["tokio"] }
 serde = "1"
 
 [package.metadata.docs.rs]

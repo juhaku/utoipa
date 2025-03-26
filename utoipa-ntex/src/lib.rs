@@ -43,6 +43,7 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+pub mod handler;
 pub mod scope;
 pub mod service_config;
 
@@ -321,6 +322,7 @@ where
     /// # use utoipa_btex::{AppExt, UtoipaApp};
     /// # use actix_service::Service;
     /// # use ntex::web::{App, http::header::{HeaderValue, CONTENT_TYPE}};
+    ///
     ///  let _ = App::new()
     ///     .into_utoipa_app()
     ///     .map(|app| {

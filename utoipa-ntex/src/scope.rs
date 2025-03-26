@@ -9,8 +9,8 @@ use std::{
 use ntex::{
     IntoServiceFactory, ServiceFactory,
     web::{
-        ErrorRenderer, Route, WebRequest, WebResponse, WebServiceFactory, guard::Guard,
-        stack::WebStack,
+        ErrorRenderer, Route, WebRequest, WebResponse, WebServiceFactory, dev::WebServiceConfig,
+        guard::Guard, stack::WebStack,
     },
 };
 
@@ -265,5 +265,15 @@ where
         if let Some(components) = &mut api.components {
             schemas.extend(std::mem::take(&mut components.schemas));
         }
+    }
+}
+
+impl<Err, M, T> WebServiceFactory<Err> for Scope<Err, M, T>
+where
+    ntex::web::Scope<Err, M, T>: WebServiceFactory<Err>,
+    Err: ErrorRenderer,
+{
+    fn register(self, config: &mut WebServiceConfig<Err>) {
+        self.0.register(config)
     }
 }
