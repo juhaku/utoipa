@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## Unreleased
+
+### Fixed
+
+* fix: mismatch error from InvalidArchive (#1343)
+
 ## 9.0.0 - Thu 16 2025
 
 ### Changed

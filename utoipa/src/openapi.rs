@@ -394,7 +394,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
     {
         struct VersionVisitor;
 
-        impl<'v> Visitor<'v> for VersionVisitor {
+        impl Visitor<'_> for VersionVisitor {
             type Value = OpenApiVersion;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
@@ -460,7 +460,7 @@ impl<'de> Deserialize<'de> for Deprecated {
         D: serde::Deserializer<'de>,
     {
         struct BoolVisitor;
-        impl<'de> Visitor<'de> for BoolVisitor {
+        impl Visitor<'_> for BoolVisitor {
             type Value = Deprecated;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -508,7 +508,7 @@ impl<'de> Deserialize<'de> for Required {
         D: serde::Deserializer<'de>,
     {
         struct BoolVisitor;
-        impl<'de> Visitor<'de> for BoolVisitor {
+        impl Visitor<'_> for BoolVisitor {
             type Value = Required;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

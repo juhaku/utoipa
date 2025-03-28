@@ -1507,7 +1507,7 @@ pub mod __dev {
         }
     }
 
-    impl<'a, T: ComposeSchema + Clone> ComposeSchema for std::borrow::Cow<'a, T> {
+    impl<T: ComposeSchema + Clone> ComposeSchema for std::borrow::Cow<'_, T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
         ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
