@@ -997,7 +997,7 @@ pub struct OneOf<'a, T: ToTokens> {
     discriminator: Option<Feature>,
 }
 
-impl<'a, T> ToTokens for OneOf<'a, T>
+impl<T> ToTokens for OneOf<'_, T>
 where
     T: ToTokens,
 {
@@ -1035,7 +1035,7 @@ pub enum Roo<'t, T> {
     Owned(T),
 }
 
-impl<'t, T> Deref for Roo<'t, T> {
+impl<T> Deref for Roo<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -1046,7 +1046,7 @@ impl<'t, T> Deref for Roo<'t, T> {
     }
 }
 
-impl<'t, T> AsRef<T> for Roo<'t, T> {
+impl<T> AsRef<T> for Roo<'_, T> {
     fn as_ref(&self) -> &T {
         self.deref()
     }

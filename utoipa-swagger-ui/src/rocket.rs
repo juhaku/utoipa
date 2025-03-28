@@ -82,10 +82,7 @@ impl Handler for ServeSwagger {
             let request_guard = request.guard::<BasicAuth>().await;
             match request_guard {
                 request::Outcome::Success(BasicAuth { username, password })
-                    if username == basic_auth.username && password == basic_auth.password =>
-                {
-                    ()
-                }
+                    if username == basic_auth.username && password == basic_auth.password => {}
                 _ => return Outcome::from(request, BasicAuthErrorResponse),
             }
         }
