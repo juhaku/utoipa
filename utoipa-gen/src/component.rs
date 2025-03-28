@@ -87,7 +87,7 @@ enum TypeTreeValueIter<'a, T> {
     Iter(Box<dyn std::iter::Iterator<Item = T> + 'a>),
 }
 
-impl<'a, T> TypeTreeValueIter<'a, T> {
+impl<T> TypeTreeValueIter<'_, T> {
     fn once(item: T) -> Self {
         Self::Once(std::iter::once(item))
     }
@@ -97,7 +97,7 @@ impl<'a, T> TypeTreeValueIter<'a, T> {
     }
 }
 
-impl<'a, T> Iterator for TypeTreeValueIter<'a, T> {
+impl<T> Iterator for TypeTreeValueIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -137,7 +137,7 @@ pub trait SynPathExt {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics>;
 }
 
-impl<'p> SynPathExt for &'p Path {
+impl SynPathExt for &Path {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics> {
         let last_segment = self
             .segments
@@ -1562,7 +1562,7 @@ enum ChildRefIter<'c, T> {
     Empty,
 }
 
-impl<'a, T> Iterator for ChildRefIter<'a, T> {
+impl<T> Iterator for ChildRefIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -102,7 +102,7 @@ impl<'de> Deserialize<'de> for SchemaCollect {
         D: serde::Deserializer<'de>,
     {
         struct SchemaCollectVisitor;
-        impl<'d> Visitor<'d> for SchemaCollectVisitor {
+        impl Visitor<'_> for SchemaCollectVisitor {
             type Value = SchemaCollect;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("expected str `all` or `non_inlined`")

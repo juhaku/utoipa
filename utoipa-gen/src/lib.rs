@@ -3123,7 +3123,7 @@ where
     }
 }
 
-impl<'a, T> Deref for Array<'a, T>
+impl<T> Deref for Array<'_, T>
 where
     T: Sized + ToTokens,
 {
@@ -3415,7 +3415,7 @@ trait GenericsExt {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
-impl<'g> GenericsExt for &'g syn::Generics {
+impl GenericsExt for &syn::Generics {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
         let ident = &type_tree
             .path
@@ -3615,7 +3615,7 @@ impl AttributesExt for Vec<syn::Attribute> {
     }
 }
 
-impl<'a> AttributesExt for &'a [syn::Attribute] {
+impl AttributesExt for &[syn::Attribute] {
     fn has_deprecated(&self) -> bool {
         self.iter().any(|attr| {
             matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")

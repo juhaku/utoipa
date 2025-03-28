@@ -498,7 +498,7 @@ impl From<String> for Url<'_> {
     }
 }
 
-impl<'a> From<Cow<'static, str>> for Url<'a> {
+impl From<Cow<'static, str>> for Url<'_> {
     fn from(url: Cow<'static, str>) -> Self {
         Self {
             url,

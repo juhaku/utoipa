@@ -378,25 +378,25 @@ pub mod fn_arg {
         }
     }
 
-    impl<'a> Ord for FnArg<'a> {
+    impl Ord for FnArg<'_> {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
             self.arg_type.cmp(&other.arg_type)
         }
     }
 
-    impl<'a> PartialOrd for FnArg<'a> {
+    impl PartialOrd for FnArg<'_> {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
             Some(self.arg_type.cmp(&other.arg_type))
         }
     }
 
-    impl<'a> PartialEq for FnArg<'a> {
+    impl PartialEq for FnArg<'_> {
         fn eq(&self, other: &Self) -> bool {
             self.ty == other.ty && self.arg_type == other.arg_type
         }
     }
 
-    impl<'a> Eq for FnArg<'a> {}
+    impl Eq for FnArg<'_> {}
 
     pub fn get_fn_args(
         fn_args: &Punctuated<syn::FnArg, Comma>,
