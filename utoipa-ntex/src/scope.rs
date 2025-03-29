@@ -10,7 +10,7 @@ use ntex::{
     IntoServiceFactory, ServiceFactory,
     web::{
         ErrorRenderer, Route, WebRequest, WebResponse, WebServiceFactory, dev::WebServiceConfig,
-        guard::Guard,
+        guard::Guard, stack::WebStack,
     },
 };
 
@@ -222,11 +222,10 @@ where
         Scope(self.0.filter(filter), self.1, self.2)
     }
 
-    // Need to update this when ntex is updated to pub WebStack to available for passthrough the Scope::wrap
-    // / Passthrough implementation for [`ntex::web::Scope::wrap`].
-    // pub fn wrap<U>(self, mw: U) -> Scope<Err, WebStack<M, U, Err>, T> {
-    //     Scope(self.0.wrap(mw), self.1, self.2)
-    // }
+    /// Passthrough implementation for [`ntex::web::Scope::wrap`].
+    pub fn wrap<U>(self, mw: U) -> Scope<Err, WebStack<M, U, Err>, T> {
+        Scope(self.0.wrap(mw), self.1, self.2)
+    }
 }
 
 impl<Err, M, T> OpenApiFactory for Scope<Err, M, T>

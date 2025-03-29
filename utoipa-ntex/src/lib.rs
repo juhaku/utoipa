@@ -66,7 +66,7 @@ use std::fmt;
 
 use ntex::{
     IntoServiceFactory, ServiceFactory,
-    web::{ErrorRenderer, Route, WebRequest, WebResponse, WebServiceFactory},
+    web::{ErrorRenderer, Route, WebRequest, WebResponse, WebServiceFactory, stack::WebStack},
 };
 use service_config::ServiceConfig;
 use utoipa::{OpenApi, openapi::PathItem};
@@ -359,9 +359,9 @@ where
     }
 
     /// Passthrough implementation for [`ntex::web::App::wrap`].
-    // pub fn wrap<U>(self, mw: U) -> UtoipaApp<WebStack<M, U, Err>, T, Err> {
-    //     UtoipaApp(self.0.wrap(mw), self.1)
-    // }
+    pub fn wrap<U>(self, mw: U) -> UtoipaApp<WebStack<M, U, Err>, T, Err> {
+        UtoipaApp(self.0.wrap(mw), self.1)
+    }
 
     /// Passthrough implementation for [`ntex::web::App::case_insensitive_routing`].
     pub fn case_insensitive_routing(self) -> Self {
