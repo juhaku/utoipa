@@ -824,8 +824,18 @@ impl ComponentSchema {
                 type_tree,
                 description,
             )?,
-            Some(GenericType::Option)
-            | Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
+            Some(
+                GenericType::Option | GenericType::Cow | GenericType::Box | GenericType::RefCell,
+            ) => ComponentSchema::wrapping_container_to_tokens(
+                &mut tokens,
+                &mut schema_references,
+                container,
+                features,
+                type_tree,
+                description,
+            )?,
+            #[cfg(feature = "rc_schema")]
+            Some(GenericType::Arc | GenericType::Rc) => {
                 ComponentSchema::wrapping_container_to_tokens(
                     &mut tokens,
                     &mut schema_references,
@@ -835,15 +845,6 @@ impl ComponentSchema {
                     description,
                 )?
             }
-            #[cfg(feature = "rc_schema")]
-            Some(GenericType::Arc) | Some(GenericType::Rc) => ComponentSchema::container_to_tokens(
-                &mut tokens,
-                &mut schema_references,
-                container,
-                features,
-                type_tree,
-                description,
-            )?,
             None => ComponentSchema::non_generic_to_tokens(
                 &mut tokens,
                 &mut name_tokens,
