@@ -487,14 +487,6 @@ impl ToSchema for TupleUnit {
     }
 }
 
-impl PartialSchema for std::ops::RangeFull {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        openapi::schema::empty().into()
-    }
-}
-
-impl ToSchema for std::ops::RangeFull {}
-
 macro_rules! impl_to_schema {
     ( $( $ty:ident ),* ) => {
         $(
@@ -819,6 +811,19 @@ where
 impl<T: ToSchema> ToSchema for std::ops::RangeTo<T>
 where
     std::ops::RangeTo<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+impl<T: ToSchema> ToSchema for std::ops::RangeFrom<T>
+where
+    std::ops::RangeFrom<T>: PartialSchema,
 {
     fn schemas(
         schemas: &mut Vec<(
@@ -1457,6 +1462,17 @@ pub mod __dev {
         }
     }
 
+    impl<T: ComposeSchema> ComposeSchema for std::ops::RangeFrom<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .property("start", schema_or_compose::<T>(schemas.clone(), 0))
+                .required("start")
+                .into()
+        }
+    }
+
     impl<T: ComposeSchema> ComposeSchema for std::collections::LinkedList<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1705,9 +1721,21 @@ mod tests {
                 f64::schema(),
                 json!({"type": "number", "format": "double"}),
             ),
-            ("Range", std::ops::Range::<usize>::schema(), json!({"type": "object", "properties": {"end": {"minimum": 0, "type": "integer"}, "start": {"minimum": 0, "type": "integer"}}, "required": ["start", "end"]})),
-            ("RangeTo", std::ops::RangeTo::<usize>::schema(), json!({"type": "object", "properties": {"end": {"minimum": 0, "type": "integer"}}, "required": ["end"]})),
-            ("RangeFull", std::ops::RangeFull::schema(), json!({"default":null})),
+            (
+                "Range",
+                std::ops::Range::<usize>::schema(),
+                json!({"type":"object","required":["start","end"],"properties":{"end":{"type":"integer","minimum":0},"start":{"type":"integer","minimum":0}}}),
+            ),
+            (
+                "RangeTo",
+                std::ops::RangeTo::<usize>::schema(),
+                json!({"type":"object","required":["end"],"properties":{"end":{"type":"integer","minimum":0}}}),
+            ),
+            (
+                "RangeFrom",
+                std::ops::RangeFrom::<usize>::schema(),
+                json!({"type":"object","required":["start"],"properties":{"start":{"type":"integer","minimum":0}}}),
+            ),
         ] {
             println!(
                 "{name}: {json}",

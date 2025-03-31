@@ -2201,13 +2201,13 @@ fn derive_component_with_range_to() {
 }
 
 #[test]
-fn derive_component_with_range_full() {
-    use std::ops::RangeFull;
+fn derive_component_with_range_from() {
+    use std::ops::RangeFrom;
 
     let example_schema = api_doc! {
         struct ExampleSchema {
             #[schema(inline)]
-            values: RangeFull
+            values: RangeFrom<f64>
         }
     };
 
