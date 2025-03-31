@@ -824,73 +824,26 @@ impl ComponentSchema {
                 type_tree,
                 description,
             )?,
-            Some(GenericType::Option) => {
-                let child = type_tree
-                    .children
-                    .as_ref()
-                    .expect("ComponentSchema generic container type should have children")
-                    .iter()
-                    .next()
-                    .expect("ComponentSchema generic container type should have 1 child");
-                let alias = child.get_alias_type()?;
-                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
-                let child = alias.as_ref().unwrap_or(child);
-
-                let schema = ComponentSchema::new(ComponentSchemaProps {
+            Some(GenericType::Option)
+            | Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
+                ComponentSchema::wrapping_container_to_tokens(
+                    &mut tokens,
+                    &mut schema_references,
                     container,
-                    type_tree: child,
                     features,
+                    type_tree,
                     description,
-                })?;
-                schema.to_tokens(&mut tokens);
-
-                schema_references.extend(schema.schema_references);
-            }
-            Some(GenericType::Cow | GenericType::Box | GenericType::RefCell) => {
-                let child = type_tree
-                    .children
-                    .as_ref()
-                    .expect("ComponentSchema generic container type should have children")
-                    .iter()
-                    .next()
-                    .expect("ComponentSchema generic container type should have 1 child");
-                let alias = child.get_alias_type()?;
-                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
-                let child = alias.as_ref().unwrap_or(child);
-
-                let schema = ComponentSchema::new(ComponentSchemaProps {
-                    container,
-                    type_tree: child,
-                    features,
-                    description,
-                })?;
-                schema.to_tokens(&mut tokens);
-
-                schema_references.extend(schema.schema_references);
+                )?
             }
             #[cfg(feature = "rc_schema")]
-            Some(GenericType::Arc) | Some(GenericType::Rc) => {
-                let child = type_tree
-                    .children
-                    .as_ref()
-                    .expect("ComponentSchema rc generic container type should have children")
-                    .iter()
-                    .next()
-                    .expect("ComponentSchema rc generic container type should have 1 child");
-                let alias = child.get_alias_type()?;
-                let alias = alias.as_ref().map_try(TypeTree::from_type)?;
-                let child = alias.as_ref().unwrap_or(child);
-
-                let schema = ComponentSchema::new(ComponentSchemaProps {
-                    container,
-                    type_tree: child,
-                    features,
-                    description,
-                })?;
-                schema.to_tokens(&mut tokens);
-
-                schema_references.extend(schema.schema_references);
-            }
+            Some(GenericType::Arc) | Some(GenericType::Rc) => ComponentSchema::container_to_tokens(
+                &mut tokens,
+                &mut schema_references,
+                container,
+                features,
+                type_tree,
+                description,
+            )?,
             None => ComponentSchema::non_generic_to_tokens(
                 &mut tokens,
                 &mut name_tokens,
@@ -1122,6 +1075,37 @@ impl ComponentSchema {
         example.to_tokens(tokens)?;
         xml.to_tokens(tokens)?;
 
+        Ok(())
+    }
+
+    fn wrapping_container_to_tokens(
+        tokens: &mut TokenStream,
+        schema_references: &mut Vec<SchemaReference>,
+        container: &Container,
+        features: Vec<Feature>,
+        type_tree: &TypeTree,
+        description: Option<&ComponentDescription<'_>>,
+    ) -> Result<(), Diagnostics> {
+        let child = type_tree
+            .children
+            .as_ref()
+            .expect("ComponentSchema generic container type should have children")
+            .iter()
+            .next()
+            .expect("ComponentSchema generic container type should have 1 child");
+        let alias = child.get_alias_type()?;
+        let alias = alias.as_ref().map_try(TypeTree::from_type)?;
+        let child = alias.as_ref().unwrap_or(child);
+
+        let schema = ComponentSchema::new(ComponentSchemaProps {
+            container,
+            type_tree: child,
+            features,
+            description,
+        })?;
+        schema.to_tokens(tokens);
+
+        schema_references.extend(schema.schema_references);
         Ok(())
     }
 
