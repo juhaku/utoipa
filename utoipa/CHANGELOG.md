@@ -5,6 +5,8 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ## Unreleased
 
+* Add support for `std::ops::{Range, RangeTo, RangeFull}` (https://github.com/juhaku/utoipa/pull/1354)
+
 ### Changed
 
 * Replaced `serde_yaml` with `serde_norway` (https://github.com/juhaku/utoipa/pull/1311)

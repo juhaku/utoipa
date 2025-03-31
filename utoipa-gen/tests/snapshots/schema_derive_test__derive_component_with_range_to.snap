@@ -1,0 +1,24 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: example_schema
+---
+{
+  "properties": {
+    "values": {
+      "properties": {
+        "end": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "end"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "values"
+  ],
+  "type": "object"
+}

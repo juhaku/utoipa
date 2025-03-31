@@ -487,6 +487,14 @@ impl ToSchema for TupleUnit {
     }
 }
 
+impl PartialSchema for std::ops::RangeFull {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        openapi::schema::empty().into()
+    }
+}
+
+impl ToSchema for std::ops::RangeFull {}
+
 macro_rules! impl_to_schema {
     ( $( $ty:ident ),* ) => {
         $(
@@ -794,6 +802,33 @@ impl PartialSchema for serde_json::Value {
 }
 
 impl ToSchema for serde_json::Value {}
+
+impl<T: ToSchema> ToSchema for std::ops::Range<T>
+where
+    std::ops::Range<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+impl<T: ToSchema> ToSchema for std::ops::RangeTo<T>
+where
+    std::ops::RangeTo<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
 
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
@@ -1397,6 +1432,31 @@ pub mod __dev {
         }
     }
 
+    impl<T: ComposeSchema> ComposeSchema for std::ops::Range<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            let schema = schema_or_compose::<T>(schemas.clone(), 0);
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .property("start", schema.clone())
+                .required("start")
+                .property("end", schema)
+                .required("end")
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for std::ops::RangeTo<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .property("end", schema_or_compose::<T>(schemas.clone(), 0))
+                .required("end")
+                .into()
+        }
+    }
+
     impl<T: ComposeSchema> ComposeSchema for std::collections::LinkedList<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1630,6 +1690,7 @@ mod tests {
     #[test]
     fn test_partial_schema() {
         for (name, schema, value) in [
+            ("TupleUnit", TupleUnit::schema(), json!({"default": null})),
             ("bool", bool::schema(), json!({"type": "boolean"})),
             ("str", str::schema(), json!({"type": "string"})),
             ("String", String::schema(), json!({"type": "string"})),
@@ -1644,6 +1705,9 @@ mod tests {
                 f64::schema(),
                 json!({"type": "number", "format": "double"}),
             ),
+            ("Range", std::ops::Range::<usize>::schema(), json!({"type": "object", "properties": {"end": {"minimum": 0, "type": "integer"}, "start": {"minimum": 0, "type": "integer"}}, "required": ["start", "end"]})),
+            ("RangeTo", std::ops::RangeTo::<usize>::schema(), json!({"type": "object", "properties": {"end": {"minimum": 0, "type": "integer"}}, "required": ["end"]})),
+            ("RangeFull", std::ops::RangeFull::schema(), json!({"default":null})),
         ] {
             println!(
                 "{name}: {json}",

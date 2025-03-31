@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: example_schema
+---
+{
+  "properties": {
+    "values": {
+      "default": null
+    }
+  },
+  "required": [
+    "values"
+  ],
+  "type": "object"
+}
