@@ -199,7 +199,9 @@ impl<'p> SynPathExt for &'p Path {
         let path = type_tree
             .path
             .as_ref()
-            .ok_or_else(|| Diagnostics::new("TypeTree for ident must have a path"))?
+            .ok_or_else(|| {
+                Diagnostics::with_span(self.span(), "TypeTree for ident must have a path")
+            })?
             .as_ref();
 
         if let Some(default_type) = PrimitiveType::new(path) {
@@ -210,7 +212,9 @@ impl<'p> SynPathExt for &'p Path {
         } else {
             let ident = path
                 .get_ident()
-                .ok_or_else(|| Diagnostics::new("Path of Ident must have Ident"))?
+                .ok_or_else(|| {
+                    Diagnostics::with_span(self.span(), "Path of Ident must have Ident")
+                })?
                 .clone();
             segment.ident = ident;
         }
