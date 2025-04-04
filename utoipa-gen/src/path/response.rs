@@ -86,7 +86,7 @@ pub enum ResponseComponentSchemaIter<'a, T> {
     Empty,
 }
 
-impl<'a, T> Iterator for ResponseComponentSchemaIter<'a, T> {
+impl<T> Iterator for ResponseComponentSchemaIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -1552,7 +1552,7 @@ mod array_items_false {
     pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
         struct ItemsFalseVisitor;
 
-        impl<'de> Visitor<'de> for ItemsFalseVisitor {
+        impl Visitor<'_> for ItemsFalseVisitor {
             type Value = ();
             fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
             where

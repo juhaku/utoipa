@@ -332,7 +332,7 @@ impl<'p> Path<'p> {
     }
 }
 
-impl<'p> ToTokensDiagnostics for Path<'p> {
+impl ToTokensDiagnostics for Path<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let fn_name = &*self.fn_ident.to_string();
         let operation_id = self
@@ -727,7 +727,7 @@ pub trait PathTypeTree {
     fn is_array(&self) -> bool;
 }
 
-impl<'p> PathTypeTree for TypeTree<'p> {
+impl PathTypeTree for TypeTree<'_> {
     /// Resolve default content type based on current [`Type`].
     fn get_default_content_type(&self) -> Cow<'static, str> {
         if self.is_array()
