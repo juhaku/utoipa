@@ -1,5 +1,12 @@
 # Changelog - utoipa-swagger-ui
 
+## 9.0.1 - Fri 4 Apr 2025
+
+### Fixed
+
+* fix(swagger-ui): fix build for breaking zip crate 2.6.0 change (#1363)
+* fix: mismatch error from InvalidArchive (#1343)
+
 ## 9.0.0 - Thu 16 2025
 
 ### Changed
