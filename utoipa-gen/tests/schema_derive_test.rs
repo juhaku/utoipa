@@ -4043,7 +4043,7 @@ fn derive_schema_for_repr_enum() {
         enum ExitCode {
             Error  = -1,
             Ok     = 0,
-            Unknow = 1,
+            Unknown = 1,
         }
     };
 
