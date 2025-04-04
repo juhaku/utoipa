@@ -1,0 +1,29 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 2817
+expression: value
+---
+{
+  "description": "top level doc for My enum",
+  "oneOf": [
+    {
+      "description": "non-unit doc",
+      "properties": {
+        "NonUnitVariant": {
+          "description": "non-unit doc",
+          "type": "string"
+        }
+      },
+      "required": [
+        "NonUnitVariant"
+      ],
+      "type": "object"
+    },
+    {
+      "enum": [
+        "UnitVariant"
+      ],
+      "type": "string"
+    }
+  ]
+}

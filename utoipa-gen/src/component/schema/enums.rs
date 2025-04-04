@@ -333,7 +333,8 @@ impl<'p> MixedEnum<'p> {
             .note("Read more about discriminators from the specs <https://spec.openapis.org/oas/latest.html#discriminator-object>"));
         }
 
-        let mut items = variants
+        // First, process all variants normally
+        let all_content = variants
             .into_iter()
             .map(|(variant, variant_serde_rules, mut variant_features)| {
                 if features
@@ -342,16 +343,189 @@ impl<'p> MixedEnum<'p> {
                 {
                     variant_features.push(Feature::NoRecursion(NoRecursion));
                 }
-                MixedEnumContent::new(
-                    variant,
-                    root,
-                    &container_rules,
-                    rename_all.as_ref(),
-                    variant_serde_rules,
-                    variant_features,
-                )
+                
+                (variant, variant_serde_rules, variant_features)
             })
-            .collect::<Result<Vec<MixedEnumContent>, Diagnostics>>()?;
+            .collect::<Vec<_>>();
+            
+        // Extract unit variants
+        let mut unit_variants = Vec::new();
+        let mut non_unit_variants = Vec::new();
+        
+        for (variant, variant_serde_rules, variant_features) in all_content {
+            match &variant.fields {
+                Fields::Unit => {
+                    // For unit variants, create MixedEnumContent immediately
+                    let name = variant.ident.to_string();
+                    let tokens = MixedEnumContent::get_unit_tokens(
+                        name,
+                        variant_features,
+                        &container_rules,
+                        variant_serde_rules,
+                        rename_all.as_ref(),
+                    );
+                    
+                    unit_variants.push(MixedEnumContent {
+                        tokens,
+                        schema_references: Vec::new(),
+                    });
+                },
+                _ => {
+                    let content = MixedEnumContent::new(
+                        variant,
+                        root,
+                        &container_rules,
+                        rename_all.as_ref(),
+                        variant_serde_rules,
+                        variant_features,
+                    )?;
+                    non_unit_variants.push(content);
+                }
+            }
+        }
+        
+        // Group simple unit variants (ones without title or description)
+        let mut items = Vec::new();
+        
+        // Start with non-unit variants
+        items.extend(non_unit_variants);
+        
+        if unit_variants.len() > 1 {
+            // Split unit variants into simple (can be grouped) and complex (needs to stay separate)
+            let (simple, complex): (Vec<_>, Vec<_>) = unit_variants.iter()
+                .partition(|content| {
+                    let tokens_str = content.tokens.to_string();
+                    // Simple variants don't have title or description attributes
+                    !tokens_str.contains("title") && !tokens_str.contains("description")
+                });
+            
+            // Extract the names of simple unit variants
+            let mut simple_names = Vec::new();
+            let mut first_simple_index = None;
+            let mut simple_values = std::collections::HashSet::new();
+            
+            for (i, content) in unit_variants.iter().enumerate() {
+                let tokens_str = content.tokens.to_string();
+                
+                // Skip complex variants
+                if tokens_str.contains("title") || tokens_str.contains("description") {
+                    continue;
+                }
+                
+                // Extract the enum value
+                if let Some(pos) = tokens_str.find("enum_values") {
+                    let after_enum = &tokens_str[pos..];
+                    if let Some(quote_pos) = after_enum.find('\"') {
+                        if let Some(quote_end) = after_enum[quote_pos + 1..].find('\"') {
+                            let value = &after_enum[quote_pos + 1..quote_pos + 1 + quote_end];
+                            simple_names.push(quote! { #value });
+                            simple_values.insert(value.to_string());
+                            
+                            // Record the position of the first simple unit variant
+                            if first_simple_index.is_none() {
+                                first_simple_index = Some(i);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Only combine if we have multiple simple unit variants
+            if simple_names.len() > 1 {
+                // Create the combined enum
+                let enum_tokens = match &container_rules.enum_repr {
+                    SerdeEnumRepr::ExternallyTagged => {
+                        let items = Array::Owned(simple_names);
+                        let schema_type = PlainSchema::get_default_types().0;
+                        let enum_type = PlainSchema::get_default_types().1;
+                        EnumSchema::<PlainSchema>::with_types(
+                            Roo::Owned(items),
+                            schema_type,
+                            enum_type,
+                        )
+                        .to_token_stream()
+                    },
+                    SerdeEnumRepr::InternallyTagged { tag } => {
+                        let items = Array::Owned(simple_names);
+                        let schema_type = PlainSchema::get_default_types().0;
+                        let enum_type = PlainSchema::get_default_types().1;
+                        EnumSchema::<PlainSchema>::with_types(
+                            Roo::Owned(items),
+                            schema_type,
+                            enum_type,
+                        )
+                        .tagged(tag)
+                        .to_token_stream()
+                    },
+                    SerdeEnumRepr::Untagged => {
+                        let v: EnumSchema = EnumSchema::untagged();
+                        v.to_token_stream()
+                    },
+                    SerdeEnumRepr::AdjacentlyTagged { tag, .. } => {
+                        let items = Array::Owned(simple_names);
+                        let schema_type = PlainSchema::get_default_types().0;
+                        let enum_type = PlainSchema::get_default_types().1;
+                        EnumSchema::<PlainSchema>::with_types(
+                            Roo::Owned(items),
+                            schema_type,
+                            enum_type,
+                        )
+                        .tagged(tag)
+                        .to_token_stream()
+                    },
+                    SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => unreachable!(
+                        "Invalid serde enum repr, serde should have panicked before reaching here"
+                    ),
+                };
+                
+                // The combined variant to insert
+                let combined_variant = MixedEnumContent {
+                    tokens: enum_tokens,
+                    schema_references: Vec::new(),
+                };
+                
+                // Add variants in order, replacing simple ones with the combined variant
+                let mut has_inserted_combined = false;
+                
+                // For each original unit variant
+                for (i, content) in unit_variants.into_iter().enumerate() {
+                    let tokens_str = content.tokens.to_string();
+                    let is_simple = if let Some(pos) = tokens_str.find("enum_values") {
+                        let after_enum = &tokens_str[pos..];
+                        if let Some(quote_pos) = after_enum.find('\"') {
+                            if let Some(quote_end) = after_enum[quote_pos + 1..].find('\"') {
+                                let value = after_enum[quote_pos + 1..quote_pos + 1 + quote_end].to_string();
+                                simple_values.contains(&value)
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    
+                    if is_simple {
+                        // Insert the combined variant in place of the first simple variant
+                        if !has_inserted_combined {
+                            items.push(combined_variant.clone());
+                            has_inserted_combined = true;
+                        }
+                        // Skip this variant as it's included in the combined one
+                    } else {
+                        // Keep complex variants
+                        items.push(content);
+                    }
+                }
+            } else {
+                // Just one or zero simple variants, no need to combine
+                items.extend(unit_variants);
+            }
+        } else {
+            // Just one unit variant total, no need for special handling
+            items.extend(unit_variants);
+        }
 
         let schema_references = items
             .iter_mut()
@@ -383,6 +557,7 @@ impl ToTokens for MixedEnum<'_> {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[derive(Clone)]
 struct MixedEnumContent {
     tokens: TokenStream,
     schema_references: Vec<SchemaReference>,

@@ -1,0 +1,54 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 1037
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "renamed_named_fields": {
+          "properties": {
+            "renamed_id": {
+              "type": "string"
+            },
+            "renamed_names": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "renamed_id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "renamed_named_fields"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "renamed_unnamed_fields": {
+          "$ref": "#/components/schemas/Foo"
+        }
+      },
+      "required": [
+        "renamed_unnamed_fields"
+      ],
+      "type": "object"
+    },
+    {
+      "enum": [
+        "renamed_unit_value"
+      ],
+      "type": "string"
+    }
+  ]
+}

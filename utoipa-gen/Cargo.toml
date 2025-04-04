@@ -27,7 +27,7 @@ once_cell = { version = "1.19.0", optional = true }
 proc-macro2 = "1.0"
 syn = { version = "2.0", features = ["full", "extra-traits"] }
 quote = "1.0"
-regex = { version = "1.7", optional = true }
+regex = "1.7"
 uuid = { version = "1", features = ["serde"], optional = true }
 ulid = { version = "1", optional = true, default-features = false }
 url = { version = "2", optional = true }
@@ -57,17 +57,17 @@ insta = { version = "1.41", features = ["json"] }
 [features]
 # See README.md for list and explanations of features
 debug = ["syn/extra-traits"]
-actix_extras = ["regex", "syn/extra-traits"]
+actix_extras = ["syn/extra-traits"]
 chrono = []
 yaml = []
 decimal = []
 decimal_float = []
-rocket_extras = ["regex", "syn/extra-traits"]
+rocket_extras = ["syn/extra-traits"]
 non_strict_integers = []
 uuid = ["dep:uuid"]
 ulid = ["dep:ulid"]
 url = ["dep:url"]
-axum_extras = ["regex", "syn/extra-traits"]
+axum_extras = ["syn/extra-traits"]
 time = []
 smallvec = []
 repr = []
