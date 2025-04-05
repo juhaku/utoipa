@@ -1,0 +1,49 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 991
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "example": "EX: Named",
+      "properties": {
+        "NamedFields": {
+          "properties": {
+            "id": {
+              "example": "EX: Named id field",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "NamedFields"
+      ],
+      "type": "object"
+    },
+    {
+      "example": "EX: Unnamed",
+      "properties": {
+        "UnnamedFields": {
+          "$ref": "#/components/schemas/Foo"
+        }
+      },
+      "required": [
+        "UnnamedFields"
+      ],
+      "type": "object"
+    },
+    {
+      "enum": [
+        "UnitValue"
+      ],
+      "example": "EX: Unit",
+      "type": "string"
+    }
+  ]
+}

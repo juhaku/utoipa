@@ -1,0 +1,27 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 2910
+expression: value
+---
+{
+  "description": "This is description from include_str!\n",
+  "oneOf": [
+    {
+      "properties": {
+        "User": {
+          "$ref": "#/components/schemas/User"
+        }
+      },
+      "required": [
+        "User"
+      ],
+      "type": "object"
+    },
+    {
+      "enum": [
+        "Value1"
+      ],
+      "type": "string"
+    }
+  ]
+}

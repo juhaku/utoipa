@@ -737,7 +737,7 @@ impl ToTokens for ComponentDescription<'_> {
 /// references. E.g. field: Vec<Foo> should have name: Foo::name(), tokens: Foo::schema() and
 /// references: Foo::schemas()
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SchemaReference {
     pub name: TokenStream,
     pub tokens: TokenStream,
