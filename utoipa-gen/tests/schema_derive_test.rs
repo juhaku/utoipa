@@ -2173,6 +2173,48 @@ fn derive_component_with_linked_list() {
 }
 
 #[test]
+fn derive_component_with_range() {
+    use std::ops::Range;
+
+    let example_schema = api_doc! {
+        struct ExampleSchema {
+            #[schema(inline)]
+            values: Range<f64>
+        }
+    };
+
+    assert_json_snapshot!(example_schema);
+}
+
+#[test]
+fn derive_component_with_range_to() {
+    use std::ops::RangeTo;
+
+    let example_schema = api_doc! {
+        struct ExampleSchema {
+            #[schema(inline)]
+            values: RangeTo<f64>
+        }
+    };
+
+    assert_json_snapshot!(example_schema);
+}
+
+#[test]
+fn derive_component_with_range_from() {
+    use std::ops::RangeFrom;
+
+    let example_schema = api_doc! {
+        struct ExampleSchema {
+            #[schema(inline)]
+            values: RangeFrom<f64>
+        }
+    };
+
+    assert_json_snapshot!(example_schema);
+}
+
+#[test]
 #[cfg(feature = "smallvec")]
 fn derive_component_with_smallvec_feature() {
     use smallvec::SmallVec;
