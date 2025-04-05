@@ -116,6 +116,7 @@ pub enum Feature {
     MinItems(validation::MinItems),
     MaxProperties(validation::MaxProperties),
     MinProperties(validation::MinProperties),
+    Extensions(attributes::Extensions),
 }
 
 impl Feature {
@@ -243,6 +244,7 @@ impl ToTokensDiagnostics for Feature {
                 quote! { .#name(#required) }
             }
             Feature::Ignore(_) => return Err(Diagnostics::new("Ignore does not support `ToTokens`")),
+            Feature::Extensions(extensions) => quote! { .extensions(Some(#extensions)) },
         };
 
         tokens.extend(feature);
@@ -306,6 +308,7 @@ impl Display for Feature {
             Feature::Bound(bound) => bound.fmt(f),
             Feature::Ignore(ignore) => ignore.fmt(f),
             Feature::NoRecursion(no_recursion) => no_recursion.fmt(f),
+            Feature::Extensions(extensions) => extensions.fmt(f),
         }
     }
 }
@@ -357,6 +360,7 @@ impl Validatable for Feature {
             Feature::Bound(bound) => bound.is_validatable(),
             Feature::Ignore(ignore) => ignore.is_validatable(),
             Feature::NoRecursion(no_recursion) => no_recursion.is_validatable(),
+            Feature::Extensions(extensions) => extensions.is_validatable(),
         }
     }
 }
@@ -417,7 +421,8 @@ is_validatable! {
     validation::MaxItems = true,
     validation::MinItems = true,
     validation::MaxProperties,
-    validation::MinProperties
+    validation::MinProperties,
+    attributes::Extensions
 }
 
 macro_rules! parse_features {
