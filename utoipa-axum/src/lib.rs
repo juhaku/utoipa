@@ -202,37 +202,47 @@ mod tests {
     use tower::util::ServiceExt;
     use utoipa::openapi::{Content, OpenApi, Ref, ResponseBuilder};
     use utoipa::PartialSchema;
+    use utoipa::{delete, get, post};
 
-    #[utoipa::path(get, path = "/")]
+    // #[utoipa::path(get, path = "/")]
+    #[get("/")]
     async fn root() {}
 
     // --- user
 
-    #[utoipa::path(get, path = "/")]
+    // #[utoipa::path(get, path = "/")]
+    #[get("/")]
     async fn get_user() {}
 
-    #[utoipa::path(post, path = "/")]
+    // #[utoipa::path(post, path = "/")]
+    #[post("/")]
     async fn post_user() {}
 
-    #[utoipa::path(delete, path = "/")]
+    // #[utoipa::path(delete, path = "/")]
+    #[delete("/")]
     async fn delete_user() {}
 
-    #[utoipa::path(get, path = "/search")]
+    // #[utoipa::path(get, path = "/search")]
+    #[get("/search")]
     async fn search_user() {}
 
     // --- customer
 
-    #[utoipa::path(get, path = "/")]
+    // #[utoipa::path(get, path = "/")]
+    #[get("/")]
     async fn get_customer() {}
 
-    #[utoipa::path(post, path = "/")]
+    // #[utoipa::path(post, path = "/")]
+    #[post("/")]
     async fn post_customer() {}
 
-    #[utoipa::path(delete, path = "/")]
+    // #[utoipa::path(delete, path = "/")]
+    #[delete("/")]
     async fn delete_customer() {}
 
     // test that with state handler compiles
-    #[utoipa::path(get, path = "/search")]
+    // #[utoipa::path(get, path = "/search")]
+    #[get("/search")]
     async fn search_customer(State(_s): State<String>) {}
 
     #[test]
