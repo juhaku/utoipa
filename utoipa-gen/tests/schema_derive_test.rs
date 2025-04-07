@@ -1665,6 +1665,19 @@ fn derive_component_with_time_feature() {
     assert_json_snapshot!(&times);
 }
 
+#[cfg(feature = "jiff_0_2")]
+#[test]
+fn derive_component_with_jiff_0_2_feature() {
+    let doc = api_doc! {
+        struct Timetest {
+            civil_date: jiff::civil::Date,
+            zoned: jiff::Zoned,
+        }
+    };
+
+    assert_json_snapshot!(&doc);
+}
+
 #[test]
 fn derive_struct_component_field_type_override() {
     let post = api_doc! {
