@@ -8,7 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let (router, api) = OpenApiRouter::new()
-        .routes(routes!(hello_form))
+        .routes(routes!(hello_form, foo_bar))
         .split_for_parts();
 
     let router = router.merge(SwaggerUi::new("/swagger-ui").url("/api/openapi.json", api));
@@ -25,6 +25,14 @@ struct HelloForm {
     name: String,
     #[schema(format = Binary, content_media_type = "application/octet-stream")]
     file: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/foobar",
+)]
+async fn foo_bar() -> String {
+    String::from("Foo Bar!")
 }
 
 #[utoipa::path(
