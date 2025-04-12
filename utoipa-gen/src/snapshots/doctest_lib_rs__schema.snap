@@ -1,0 +1,24 @@
+---
+source: utoipa-gen/src/lib.rs
+expression: "&schema"
+snapshot_kind: text
+---
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "name"
+    ],
+    "properties": {
+      "id": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "name": {
+        "type": "string"
+      }
+    }
+  }
+}

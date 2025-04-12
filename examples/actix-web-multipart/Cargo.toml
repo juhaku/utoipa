@@ -1,0 +1,13 @@
+[package]
+name = "actix-web-multipart"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+actix-multipart = "0.7"
+utoipa = { path = "../../utoipa", features = ["actix_extras"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
+utoipa-actix-web = { path = "../../utoipa-actix-web" }
+
+[workspace]

@@ -6,13 +6,14 @@ use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::{Comma, Paren};
+use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, Token};
-use syn::{Expr, ExprLit, Lit, LitStr, Type};
+use syn::{Expr, ExprLit, Lit, LitStr};
 
-use crate::component::{GenericType, TypeTree};
-use crate::path::request_body::RequestBody;
-use crate::{as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, ToTokensDiagnostics};
+use crate::component::{ComponentSchema, GenericType, TypeTree};
+use crate::{
+    as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
+};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
@@ -20,6 +21,7 @@ use self::{parameter::Parameter, request_body::RequestBodyAttr, response::Respon
 
 pub mod example;
 pub mod handler;
+pub mod media_type;
 pub mod parameter;
 mod request_body;
 pub mod response;
@@ -29,30 +31,28 @@ const PATH_STRUCT_PREFIX: &str = "__path_";
 
 #[inline]
 pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
-    {
-        Cow::Owned(quote::format_ident!(
-            "{PATH_STRUCT_PREFIX}{}",
-            fn_name.as_ref()
-        ))
-    }
+    Cow::Owned(quote::format_ident!(
+        "{PATH_STRUCT_PREFIX}{}",
+        fn_name.as_ref()
+    ))
 }
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct PathAttr<'p> {
     methods: Vec<HttpMethod>,
-    request_body: Option<RequestBody<'p>>,
+    request_body: Option<RequestBodyAttr<'p>>,
     responses: Vec<Response<'p>>,
-    pub(super) path: Option<parse_utils::Value>,
+    pub(super) path: Option<parse_utils::LitStrOrExpr>,
     operation_id: Option<Expr>,
-    tag: Option<parse_utils::Value>,
-    tags: Vec<parse_utils::Value>,
+    tag: Option<parse_utils::LitStrOrExpr>,
+    tags: Vec<parse_utils::LitStrOrExpr>,
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementsAttr>>,
-    context_path: Option<parse_utils::Value>,
+    context_path: Option<parse_utils::LitStrOrExpr>,
     impl_for: Option<Ident>,
-    description: Option<parse_utils::Value>,
-    summary: Option<parse_utils::Value>,
+    description: Option<parse_utils::LitStrOrExpr>,
+    summary: Option<parse_utils::LitStrOrExpr>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -67,13 +67,12 @@ impl<'p> PathAttr<'p> {
         feature = "rocket_extras",
         feature = "axum_extras"
     ))]
-    pub fn update_request_body(&mut self, request_body: Option<crate::ext::RequestBody<'p>>) {
-        use std::mem;
-
+    pub fn update_request_body(&mut self, schema: Option<crate::ext::ExtSchema<'p>>) {
+        use self::media_type::Schema;
         if self.request_body.is_none() {
-            self.request_body = request_body
-                .map(RequestBody::Ext)
-                .or(mem::take(&mut self.request_body));
+            if let Some(schema) = schema {
+                self.request_body = Some(RequestBodyAttr::from_schema(Schema::Ext(schema)));
+            }
         }
     }
 
@@ -135,8 +134,7 @@ impl Parse for PathAttr<'_> {
                     path_attr.path = Some(parse_utils::parse_next_literal_str_or_expr(input)?);
                 }
                 "request_body" => {
-                    path_attr.request_body =
-                        Some(RequestBody::Parsed(input.parse::<RequestBodyAttr>()?));
+                    path_attr.request_body = Some(input.parse::<RequestBodyAttr>()?);
                 }
                 "responses" => {
                     let responses;
@@ -159,7 +157,7 @@ impl Parse for PathAttr<'_> {
                     path_attr.tags = parse_utils::parse_next(input, || {
                         let tags;
                         syn::bracketed!(tags in input);
-                        Punctuated::<parse_utils::Value, Token![,]>::parse_terminated(&tags)
+                        Punctuated::<parse_utils::LitStrOrExpr, Token![,]>::parse_terminated(&tags)
                     })?
                     .into_iter()
                     .collect::<Vec<_>>();
@@ -167,7 +165,7 @@ impl Parse for PathAttr<'_> {
                 "security" => {
                     let security;
                     parenthesized!(security in input);
-                    path_attr.security = Some(parse_utils::parse_groups(&security)?)
+                    path_attr.security = Some(parse_utils::parse_groups_collect(&security)?)
                 }
                 "context_path" => {
                     path_attr.context_path =
@@ -472,6 +470,54 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
+        fn to_schema_references(
+            mut schemas: TokenStream2,
+            (is_inline, component_schema): (bool, ComponentSchema),
+        ) -> TokenStream2 {
+            for reference in component_schema.schema_references {
+                let name = &reference.name;
+                let tokens = &reference.tokens;
+                let references = &reference.references;
+
+                #[cfg(feature = "config")]
+                let should_collect_schema = (matches!(
+                    crate::CONFIG.schema_collect,
+                    utoipa_config::SchemaCollect::NonInlined
+                ) && !is_inline)
+                    || matches!(
+                        crate::CONFIG.schema_collect,
+                        utoipa_config::SchemaCollect::All
+                    );
+                #[cfg(not(feature = "config"))]
+                let should_collect_schema = !is_inline;
+                if should_collect_schema {
+                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+                }
+                schemas.extend(quote!( #references; ));
+            }
+
+            schemas
+        }
+
+        let response_schemas = self
+            .path_attr
+            .responses
+            .iter()
+            .map(|response| response.get_component_schemas())
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .flatten()
+            .fold(TokenStream2::new(), to_schema_references);
+
+        let schemas = self
+            .path_attr
+            .request_body
+            .as_ref()
+            .map_try(|request_body| request_body.get_component_schemas())?
+            .into_iter()
+            .flatten()
+            .fold(TokenStream2::new(), to_schema_references);
+
         let mut tags = self.path_attr.tags.clone();
         if let Some(tag) = self.path_attr.tag.as_ref() {
             // if defined tag is the first before the additional tags
@@ -490,6 +536,47 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 #[derive(Clone)]
                 pub struct #path_struct;
             });
+
+            #[cfg(feature = "actix_extras")]
+            {
+                // Add supporting passthrough implementations only if actix-web service config
+                // is implemented and no impl_for has been defined
+                if self.path_attr.impl_for.is_none() && !self.ext_methods.is_empty() {
+                    let fn_ident = self.fn_ident;
+                    tokens.extend(quote! {
+                        impl ::actix_web::dev::HttpServiceFactory for #path_struct {
+                            fn register(self, __config: &mut actix_web::dev::AppService) {
+                                ::actix_web::dev::HttpServiceFactory::register(#fn_ident, __config);
+                            }
+                        }
+                        impl<'t> utoipa::__dev::Tags<'t> for #fn_ident {
+                            fn tags() -> Vec<&'t str> {
+                                #path_struct::tags()
+                            }
+                        }
+                        impl utoipa::Path for #fn_ident {
+                            fn path() -> String {
+                                #path_struct::path()
+                            }
+
+                            fn methods() -> Vec<utoipa::openapi::path::HttpMethod> {
+                                #path_struct::methods()
+                            }
+
+                            fn operation() -> utoipa::openapi::path::Operation {
+                                #path_struct::operation()
+                            }
+                        }
+
+                        impl utoipa::__dev::SchemaReferences for #fn_ident {
+                            fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                                <#path_struct as utoipa::__dev::SchemaReferences>::schemas(schemas);
+                            }
+                        }
+                    })
+                }
+            }
+
             path_struct
         };
 
@@ -514,6 +601,14 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                     #operation.into()
                 }
             }
+
+            impl utoipa::__dev::SchemaReferences for #impl_for {
+                fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    #schemas
+                    #response_schemas
+                }
+            }
+
         });
 
         Ok(())
@@ -527,7 +622,7 @@ struct Operation<'a> {
     description: Option<Description<'a>>,
     deprecated: bool,
     parameters: &'a Vec<Parameter<'a>>,
-    request_body: Option<&'a RequestBody<'a>>,
+    request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
 }
@@ -581,7 +676,7 @@ impl ToTokensDiagnostics for Operation<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Description<'a> {
-    Value(&'a parse_utils::Value),
+    Value(&'a parse_utils::LitStrOrExpr),
     Vec(&'a [String]),
 }
 
@@ -606,7 +701,7 @@ impl ToTokens for Description<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum Summary<'a> {
-    Value(&'a parse_utils::Value),
+    Value(&'a parse_utils::LitStrOrExpr),
     Str(&'a str),
 }
 
@@ -624,89 +719,17 @@ impl ToTokens for Summary<'_> {
     }
 }
 
-/// Represents either `ref("...")` or `Type` that can be optionally inlined with `inline(Type)`.
-#[cfg_attr(feature = "debug", derive(Debug))]
-enum PathType<'p> {
-    Ref(String),
-    MediaType(InlineType<'p>),
-    InlineSchema(TokenStream2, Type),
-}
-
-impl Parse for PathType<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let fork = input.fork();
-        let is_ref = if (fork.parse::<Option<Token![ref]>>()?).is_some() {
-            fork.peek(Paren)
-        } else {
-            false
-        };
-
-        if is_ref {
-            input.parse::<Token![ref]>()?;
-            let ref_stream;
-            parenthesized!(ref_stream in input);
-            Ok(Self::Ref(ref_stream.parse::<LitStr>()?.value()))
-        } else {
-            Ok(Self::MediaType(input.parse()?))
-        }
-    }
-}
-
-// inline(syn::Type) | syn::Type
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct InlineType<'i> {
-    ty: Cow<'i, Type>,
-    is_inline: bool,
-}
-
-impl InlineType<'_> {
-    /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
-        TypeTree::from_type(&self.ty)
-    }
-}
-
-impl Parse for InlineType<'_> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let fork = input.fork();
-        let is_inline = if let Some(ident) = fork.parse::<Option<Ident>>()? {
-            ident == "inline" && fork.peek(Paren)
-        } else {
-            false
-        };
-
-        let ty = if is_inline {
-            input.parse::<Ident>()?;
-            let inlined;
-            parenthesized!(inlined in input);
-
-            inlined.parse::<Type>()?
-        } else {
-            input.parse::<Type>()?
-        };
-
-        Ok(InlineType {
-            ty: Cow::Owned(ty),
-            is_inline,
-        })
-    }
-}
-
 pub trait PathTypeTree {
     /// Resolve default content type based on current [`Type`].
-    fn get_default_content_type(&self) -> &str;
-
-    #[allow(unused)]
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool;
+    fn get_default_content_type(&self) -> Cow<'static, str>;
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
     fn is_array(&self) -> bool;
 }
 
-impl PathTypeTree for TypeTree<'_> {
+impl<'p> PathTypeTree for TypeTree<'p> {
     /// Resolve default content type based on current [`Type`].
-    fn get_default_content_type(&self) -> &'static str {
+    fn get_default_content_type(&self) -> Cow<'static, str> {
         if self.is_array()
             && self
                 .children
@@ -715,30 +738,31 @@ impl PathTypeTree for TypeTree<'_> {
                     children
                         .iter()
                         .flat_map(|child| child.path.as_ref().zip(Some(child.is_option())))
-                        .any(|(path, nullable)| SchemaType { path, nullable }.is_byte())
+                        .any(|(path, nullable)| {
+                            SchemaType {
+                                path: Cow::Borrowed(path),
+                                nullable,
+                            }
+                            .is_byte()
+                        })
                 })
                 .unwrap_or(false)
         {
-            "application/octet-stream"
+            Cow::Borrowed("application/octet-stream")
         } else if self
             .path
             .as_ref()
             .map(|path| SchemaType {
-                path: path.deref(),
+                path: Cow::Borrowed(path.deref()),
                 nullable: self.is_option(),
             })
             .map(|schema_type| schema_type.is_primitive())
             .unwrap_or(false)
         {
-            "text/plain"
+            Cow::Borrowed("text/plain")
         } else {
-            "application/json"
+            Cow::Borrowed("application/json")
         }
-    }
-
-    /// Check whether [`TypeTree`] an option
-    fn is_option(&self) -> bool {
-        matches!(self.generic_type, Some(GenericType::Option))
     }
 
     /// Check whether [`TypeTree`] is a Vec, slice, array or other supported array type
@@ -759,33 +783,15 @@ impl PathTypeTree for TypeTree<'_> {
 mod parse {
     use syn::parse::ParseStream;
     use syn::punctuated::Punctuated;
-    use syn::token::{Bracket, Comma};
-    use syn::{bracketed, Result};
+    use syn::token::Comma;
+    use syn::Result;
 
     use crate::path::example::Example;
     use crate::{parse_utils, AnyValue};
 
     #[inline]
-    pub(super) fn description(input: ParseStream) -> Result<parse_utils::Value> {
+    pub(super) fn description(input: ParseStream) -> Result<parse_utils::LitStrOrExpr> {
         parse_utils::parse_next_literal_str_or_expr(input)
-    }
-
-    #[inline]
-    pub(super) fn content_type(input: ParseStream) -> Result<Vec<parse_utils::Value>> {
-        parse_utils::parse_next(input, || {
-            let look_content_type = input.lookahead1();
-            if look_content_type.peek(Bracket) {
-                let content_types;
-                bracketed!(content_types in input);
-                Ok(
-                    Punctuated::<parse_utils::Value, Comma>::parse_terminated(&content_types)?
-                        .into_iter()
-                        .collect(),
-                )
-            } else {
-                Ok(vec![input.parse::<parse_utils::Value>()?])
-            }
-        })
     }
 
     #[inline]
@@ -795,6 +801,6 @@ mod parse {
 
     #[inline]
     pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Comma>> {
-        parse_utils::parse_punctuated_within_parenthesis(input)
+        parse_utils::parse_comma_separated_within_parenthesis(input)
     }
 }

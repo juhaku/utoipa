@@ -37,13 +37,13 @@
 //! Use only the raw types without any boiler plate implementation.
 //! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = "7"
+//! utoipa-swagger-ui = "9"
 //! ```
 //!
 //! Enable actix-web framework with Swagger UI you could define the dependency as follows.
 //! ```toml
 //! [dependencies]
-//! utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
+//! utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 //! ```
 //!
 //! **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
@@ -71,7 +71,7 @@
 //!
 //! * `SWAGGER_UI_DOWNLOAD_URL`: Defines the url from where to download the swagger-ui zip file.
 //!
-//!   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip>
+//!   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip>
 //!   * [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 //!
 //! * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files
@@ -663,8 +663,16 @@ pub struct Config<'a> {
     #[serde(skip)]
     oauth: Option<oauth::Config>,
 
+    /// Defines syntax highlighting specific options.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    syntax_highlight: Option<SyntaxHighlight>,
+
     /// The layout of Swagger UI uses, default is `"StandaloneLayout"`.
     layout: &'a str,
+
+    /// Basic authentication configuration. If configured, the Swagger UI will prompt for basic auth credentials.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    basic_auth: Option<BasicAuth>,
 }
 
 impl<'a> Config<'a> {
@@ -1243,6 +1251,46 @@ impl<'a> Config<'a> {
 
         self
     }
+
+    /// Set a specific configuration for syntax highlighting responses
+    /// and curl commands.
+    ///
+    /// By default, swagger-ui does syntax highlighting of responses
+    /// and curl commands.  This may consume considerable resources in
+    /// the browser when executed on large responses.
+    ///
+    /// # Example
+    ///
+    /// Disable syntax highlighting.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// let config = Config::new(["/api-docs/openapi.json"])
+    ///     .with_syntax_highlight(false);
+    /// ```
+    pub fn with_syntax_highlight<H: Into<SyntaxHighlight>>(mut self, syntax_highlight: H) -> Self {
+        self.syntax_highlight = Some(syntax_highlight.into());
+
+        self
+    }
+
+    /// Set basic authentication configuration.
+    /// If configured, the Swagger UI will prompt for basic auth credentials.
+    /// username and password are required. "{username}:{password}" will be base64 encoded and added to the "Authorization" header.
+    /// If not provided or wrong credentials are provided, the user will be prompted again.
+    /// # Examples
+    ///
+    /// Configure basic authentication.
+    /// ```rust
+    /// # use utoipa_swagger_ui::Config;
+    /// # use utoipa_swagger_ui::BasicAuth;
+    /// let config = Config::new(["/api-docs/openapi.json"])
+    ///     .basic_auth(BasicAuth { username: "admin".to_string(), password: "password".to_string() });
+    /// ```
+    pub fn basic_auth(mut self, basic_auth: BasicAuth) -> Self {
+        self.basic_auth = Some(basic_auth);
+
+        self
+    }
 }
 
 impl Default for Config<'_> {
@@ -1274,7 +1322,9 @@ impl Default for Config<'_> {
             with_credentials: Default::default(),
             persist_authorization: Default::default(),
             oauth: Default::default(),
+            syntax_highlight: Default::default(),
             layout: SWAGGER_STANDALONE_LAYOUT,
+            basic_auth: Default::default(),
         }
     }
 }
@@ -1288,6 +1338,66 @@ impl<'a> From<&'a str> for Config<'a> {
 impl From<String> for Config<'_> {
     fn from(s: String) -> Self {
         Self::new([s])
+    }
+}
+
+/// Basic auth options for Swagger UI. By providing `BasicAuth` to `Config::basic_auth` the access to the
+/// Swagger UI can be restricted behind given basic authentication.
+#[derive(Serialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct BasicAuth {
+    /// Username for the `BasicAuth`
+    pub username: String,
+    /// Password of the _`username`_ for the `BasicAuth`
+    pub password: String,
+}
+
+/// Represents settings related to syntax highlighting of payloads and
+/// cURL commands.
+#[derive(Serialize, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[non_exhaustive]
+pub struct SyntaxHighlight {
+    /// Boolean telling whether syntax highlighting should be
+    /// activated or not. Defaults to `true`.
+    pub activated: bool,
+    /// Highlight.js syntax coloring theme to use.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<&'static str>,
+}
+
+impl Default for SyntaxHighlight {
+    fn default() -> Self {
+        Self {
+            activated: true,
+            theme: None,
+        }
+    }
+}
+
+impl From<bool> for SyntaxHighlight {
+    fn from(value: bool) -> Self {
+        Self {
+            activated: value,
+            ..Default::default()
+        }
+    }
+}
+
+impl SyntaxHighlight {
+    /// Explicitly specifies whether syntax highlighting is to be
+    /// activated or not.  Defaults to true.
+    pub fn activated(mut self, activated: bool) -> Self {
+        self.activated = activated;
+        self
+    }
+
+    /// Explicitly specifies the
+    /// [Highlight.js](https://highlightjs.org/) coloring theme to
+    /// utilize for syntax highlighting.
+    pub fn theme(mut self, theme: &'static str) -> Self {
+        self.theme = Some(theme);
+        self
     }
 }
 
@@ -1680,6 +1790,133 @@ window.ui = SwaggerUIBundle({
   "withCredentials": true,
   "persistAuthorization": true,
   "layout": "BaseLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_default() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"])
+                .with_syntax_highlight(SyntaxHighlight::default()),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": true
+  },
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_on() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"]).with_syntax_highlight(true),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": true
+  },
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_off() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"]).with_syntax_highlight(false),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": false
+  },
+  "layout": "StandaloneLayout",
+  presets: [
+    SwaggerUIBundle.presets.apis,
+    SwaggerUIStandalonePreset
+  ],
+  plugins: [
+    SwaggerUIBundle.plugins.DownloadUrl
+  ],
+});"###;
+
+        assert_diff_equal(EXPECTED, &formatted_config);
+    }
+
+    #[test]
+    fn format_swagger_config_with_syntax_highlight_default_with_theme() {
+        let formatted_config = match format_config(
+            &Config::new(["/api-docs/openapi1.json"])
+                .with_syntax_highlight(SyntaxHighlight::default().theme("monokai")),
+            String::from(TEST_INITIAL_CONFIG),
+        ) {
+            Ok(file) => file,
+            Err(error) => panic!("{error}"),
+        };
+
+        const EXPECTED: &str = r###"
+window.ui = SwaggerUIBundle({
+    "dom_id": "#swagger-ui",
+  "url": "/api-docs/openapi1.json",
+  "deepLinking": true,
+  "syntaxHighlight": {
+    "activated": true,
+    "theme": "monokai"
+  },
+  "layout": "StandaloneLayout",
   presets: [
     SwaggerUIBundle.presets.apis,
     SwaggerUIStandalonePreset

@@ -2,32 +2,21 @@ use std::sync::Mutex;
 
 use actix_web::{
     delete, get, post, put,
-    web::{Data, Json, Path, Query, ServiceConfig},
+    web::{Data, Json, Path, Query},
     HttpResponse, Responder,
 };
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{IntoParams, ToSchema};
+use utoipa_actix_web::service_config::ServiceConfig;
 
 use crate::{LogApiKey, RequireApiKey};
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        get_todos,
-        create_todo,
-        delete_todo,
-        get_todo_by_id,
-        update_todo,
-        search_todos
-    ),
-    components(schemas(Todo, TodoUpdateRequest, ErrorResponse))
-)]
-pub(super) struct TodoApi;
 
 #[derive(Default)]
 pub(super) struct TodoStore {
     todos: Mutex<Vec<Todo>>,
 }
+
+const TODO: &str = "todo";
 
 pub(super) fn configure(store: Data<TodoStore>) -> impl FnOnce(&mut ServiceConfig) {
     |config: &mut ServiceConfig| {
@@ -85,11 +74,12 @@ pub(super) enum ErrorResponse {
 /// curl localhost:8080/todo
 /// ```
 #[utoipa::path(
+    tag = TODO,
     responses(
         (status = 200, description = "List current todo items", body = [Todo])
     )
 )]
-#[get("/todo")]
+#[get("")]
 async fn get_todos(todo_store: Data<TodoStore>) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
 
@@ -106,13 +96,13 @@ async fn get_todos(todo_store: Data<TodoStore>) -> impl Responder {
 /// curl localhost:8080/todo -d '{"id": 1, "value": "Buy movie ticket", "checked": false}'
 /// ```
 #[utoipa::path(
-    request_body = Todo,
+    tag = TODO,
     responses(
         (status = 201, description = "Todo created successfully", body = Todo),
         (status = 409, description = "Todo with id already exists", body = ErrorResponse, example = json!(ErrorResponse::Conflict(String::from("id = 1"))))
     )
 )]
-#[post("/todo")]
+#[post("")]
 async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -> impl Responder {
     let mut todos = todo_store.todos.lock().unwrap();
     let todo = &todo.into_inner();
@@ -126,7 +116,7 @@ async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -> impl Resp
         .unwrap_or_else(|| {
             todos.push(todo.clone());
 
-            HttpResponse::Ok().json(todo)
+            HttpResponse::Created().json(todo)
         })
 }
 
@@ -137,6 +127,7 @@ async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -> impl Resp
 /// Api will delete todo from shared in-memory storage by the provided id and return success 200.
 /// If storage does not contain `Todo` with given id 404 not found will be returned.
 #[utoipa::path(
+    tag = TODO,
     responses(
         (status = 200, description = "Todo deleted successfully"),
         (status = 401, description = "Unauthorized to delete Todo", body = ErrorResponse, example = json!(ErrorResponse::Unauthorized(String::from("missing api key")))),
@@ -149,7 +140,7 @@ async fn create_todo(todo: Json<Todo>, todo_store: Data<TodoStore>) -> impl Resp
         ("api_key" = [])
     )
 )]
-#[delete("/todo/{id}", wrap = "RequireApiKey")]
+#[delete("/{id}", wrap = "RequireApiKey")]
 async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
     let mut todos = todo_store.todos.lock().unwrap();
     let id = id.into_inner();
@@ -172,6 +163,7 @@ async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Respond
 ///
 /// Return found `Todo` with status 200 or 404 not found if `Todo` is not found from shared in-memory storage.
 #[utoipa::path(
+    tag = TODO,
     responses(
         (status = 200, description = "Todo found from storage", body = Todo),
         (status = 404, description = "Todo not found by id", body = ErrorResponse, example = json!(ErrorResponse::NotFound(String::from("id = 1"))))
@@ -180,7 +172,7 @@ async fn delete_todo(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Respond
         ("id", description = "Unique storage id of Todo")
     )
 )]
-#[get("/todo/{id}")]
+#[get("/{id}")]
 async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
     let id = id.into_inner();
@@ -202,7 +194,7 @@ async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Resp
 /// updated according `TodoUpdateRequest` and updated `Todo` is returned with status 200.
 /// If todo is not found then 404 not found is returned.
 #[utoipa::path(
-    request_body = TodoUpdateRequest,
+    tag = TODO,
     responses(
         (status = 200, description = "Todo updated successfully", body = Todo),
         (status = 404, description = "Todo not found by id", body = ErrorResponse, example = json!(ErrorResponse::NotFound(String::from("id = 1"))))
@@ -215,7 +207,7 @@ async fn get_todo_by_id(id: Path<i32>, todo_store: Data<TodoStore>) -> impl Resp
         ("api_key" = [])
     )
 )]
-#[put("/todo/{id}", wrap = "LogApiKey")]
+#[put("/{id}", wrap = "LogApiKey")]
 async fn update_todo(
     id: Path<i32>,
     todo: Json<TodoUpdateRequest>,
@@ -255,6 +247,7 @@ struct SearchTodos {
 /// Perform search from `Todo`s present in in-memory storage by matching Todo's value to
 /// value provided as query parameter. Returns 200 and matching `Todo` items.
 #[utoipa::path(
+    tag = TODO,
     params(
         SearchTodos
     ),
@@ -262,7 +255,7 @@ struct SearchTodos {
         (status = 200, description = "Search Todos did not result error", body = [Todo]),
     )
 )]
-#[get("/todo/search")]
+#[get("/search")]
 async fn search_todos(query: Query<SearchTodos>, todo_store: Data<TodoStore>) -> impl Responder {
     let todos = todo_store.todos.lock().unwrap();
 

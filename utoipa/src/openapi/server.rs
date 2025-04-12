@@ -45,6 +45,7 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
+use super::extensions::Extensions;
 use super::{builder, set_value};
 
 builder! {
@@ -75,6 +76,10 @@ builder! {
         /// Optional map of variable name and its substitution value used in [`Server::url`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub variables: Option<BTreeMap<String, ServerVariable>>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -144,6 +149,11 @@ impl ServerBuilder {
 
         self
     }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
+    }
 }
 
 builder! {
@@ -158,16 +168,20 @@ builder! {
     pub struct ServerVariable {
         /// Default value used to substitute parameter if no other value is being provided.
         #[serde(rename = "default")]
-        default_value: String,
+        pub default_value: String,
 
         /// Optional description describing the variable of substitution. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
+        pub description: Option<String>,
 
         /// Enum values can be used to limit possible options for substitution. If enum values is used
         /// the [`ServerVariable::default_value`] must contain one of the enum values.
         #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
-        enum_values: Option<Vec<String>>,
+        pub enum_values: Option<Vec<String>>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -189,6 +203,11 @@ impl ServerVariableBuilder {
     ) -> Self {
         set_value!(self enum_values enum_values
             .map(|enum_values| enum_values.into_iter().map(|value| value.into()).collect()))
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 

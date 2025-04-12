@@ -1,0 +1,41 @@
+---
+source: utoipa-gen/tests/path_derive_axum_test.rs
+expression: "&operation.pointer(\"/parameters\").unwrap()"
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "age",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "status",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "path",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

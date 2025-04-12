@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: example_schema
+snapshot_kind: text
+---
+{
+  "properties": {
+    "values": {
+      "items": {
+        "format": "double",
+        "type": "number"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "values"
+  ],
+  "type": "object"
+}

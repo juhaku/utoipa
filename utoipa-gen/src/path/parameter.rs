@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseBuffer, ParseStream},
-    Error, LitStr, Token, TypePath,
+    Error, Generics, LitStr, Token, TypePath,
 };
 
 use crate::{
@@ -24,12 +24,12 @@ use crate::{
             },
             Feature, ToTokensExt,
         },
-        ComponentSchema,
+        ComponentSchema, Container, TypeTree,
     },
     parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
 
-use super::InlineType;
+use super::media_type::ParsedType;
 
 /// Parameter of request such as in path, header, query or cookie
 ///
@@ -126,16 +126,21 @@ impl ToTokensDiagnostics for Parameter<'_> {
 ))]
 impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
     fn from(argument: crate::ext::ValueArgument<'a>) -> Self {
+        let parameter_in = if argument.argument_in == crate::ext::ArgumentIn::Path {
+            ParameterIn::Path
+        } else {
+            ParameterIn::Query
+        };
+
+        let option_is_nullable = parameter_in != ParameterIn::Query;
+
         Self::Value(ValueParameter {
             name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
-            parameter_in: if argument.argument_in == crate::ext::ArgumentIn::Path {
-                ParameterIn::Path
-            } else {
-                ParameterIn::Query
-            },
+            parameter_in,
             parameter_schema: argument.type_tree.map(|type_tree| ParameterSchema {
                 parameter_type: ParameterType::External(type_tree),
                 features: Vec::new(),
+                option_is_nullable,
             }),
             ..Default::default()
         })
@@ -160,6 +165,7 @@ impl<'a> From<crate::ext::IntoParamsType<'a>> for Parameter<'a> {
 struct ParameterSchema<'p> {
     parameter_type: ParameterType<'p>,
     features: Vec<Feature>,
+    option_is_nullable: bool,
 }
 
 impl ToTokensDiagnostics for ParameterSchema<'_> {
@@ -178,40 +184,42 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                 let required: Required = (!type_tree.is_option()).into();
 
                 to_tokens(
-                    as_tokens_or_diagnostics!(&ComponentSchema::new(
+                    ComponentSchema::for_params(
                         component::ComponentSchemaProps {
                             type_tree,
-                            features: Some(self.features.clone()),
+                            features: self.features.clone(),
                             description: None,
-                            deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
-                        }
-                    )?),
+                            container: &Container {
+                                generics: &Generics::default(),
+                            },
+                        },
+                        self.option_is_nullable,
+                    )?
+                    .to_token_stream(),
                     required,
                 );
                 Ok(())
             }
             ParameterType::Parsed(inline_type) => {
-                let type_tree = inline_type.as_type_tree()?;
+                let type_tree = TypeTree::from_type(inline_type.ty.as_ref())?;
                 let required: Required = (!type_tree.is_option()).into();
                 let mut schema_features = Vec::<Feature>::new();
                 schema_features.clone_from(&self.features);
                 schema_features.push(Feature::Inline(inline_type.is_inline.into()));
 
                 to_tokens(
-                    as_tokens_or_diagnostics!(&ComponentSchema::new(
+                    ComponentSchema::for_params(
                         component::ComponentSchemaProps {
                             type_tree: &type_tree,
-                            features: Some(schema_features),
+                            features: schema_features,
                             description: None,
-                            deprecated: None,
-                            object_name: "",
-                            // TODO check whether this is correct
-                            is_generics_type_arg: false
-                        }
-                    )?),
+                            container: &Container {
+                                generics: &Generics::default(),
+                            },
+                        },
+                        self.option_is_nullable,
+                    )?
+                    .to_token_stream(),
                     required,
                 );
                 Ok(())
@@ -228,7 +236,7 @@ enum ParameterType<'p> {
         feature = "axum_extras"
     ))]
     External(crate::component::TypeTree<'p>),
-    Parsed(InlineType<'p>),
+    Parsed(ParsedType<'p>),
 }
 
 #[derive(Default)]
@@ -271,6 +279,7 @@ impl Parse for ValueParameter<'_> {
                         })
                     })?),
                     features: Vec::new(),
+                    option_is_nullable: true,
                 });
             }
         } else {
@@ -293,6 +302,10 @@ impl Parse for ValueParameter<'_> {
         parameter.features = (schema_features.clone(), parameter_features);
         if let Some(parameter_schema) = &mut parameter.parameter_schema {
             parameter_schema.features = schema_features;
+
+            if parameter.parameter_in == ParameterIn::Query {
+                parameter_schema.option_is_nullable = false;
+            }
         }
 
         Ok(parameter)

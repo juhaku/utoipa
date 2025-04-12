@@ -1,0 +1,70 @@
+---
+source: utoipa-gen/tests/schema_generics.rs
+expression: api
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "HighBox": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/High_Box_i32"
+          }
+        }
+      },
+      "HighCow": {
+        "$ref": "#/components/schemas/High_Cow_i32"
+      },
+      "HighRefCell": {
+        "$ref": "#/components/schemas/High_RefCell_i32"
+      },
+      "High_Box_i32": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "High_Cow_i32": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "High_RefCell_i32": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  }
+}

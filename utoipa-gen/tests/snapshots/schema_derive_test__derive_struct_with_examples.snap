@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "examples": [
+    {
+      "username": "kim"
+    },
+    {
+      "username": "jim"
+    }
+  ],
+  "properties": {
+    "username": {
+      "examples": [
+        "foobar",
+        "barfoo"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "username"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "path",
+    "name": "in",
+    "required": true,
+    "schema": {
+      "default": null
+    }
+  }
+]

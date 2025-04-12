@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: value
+snapshot_kind: text
+---
+[
+  {
+    "in": "query",
+    "name": "email",
+    "required": false,
+    "schema": {
+      "description": "this is the description",
+      "format": "email",
+      "type": "string"
+    }
+  }
+]

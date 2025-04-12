@@ -43,7 +43,7 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Bracket,
-    DeriveInput, ExprPath, ItemFn, Lit, LitStr, Member, Token,
+    DeriveInput, ExprPath, GenericParam, ItemFn, Lit, LitStr, Member, Token,
 };
 
 mod component;
@@ -65,15 +65,18 @@ use self::{
     path::response::derive::{IntoResponses, ToResponse},
 };
 
-#[proc_macro_derive(ToSchema, attributes(schema, aliases))]
+#[cfg(feature = "config")]
+static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
+    once_cell::sync::Lazy::new(utoipa_config::Config::read_from_file);
+
+#[proc_macro_derive(ToSchema, attributes(schema))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].
 ///
 /// This is `#[derive]` implementation for [`ToSchema`][to_schema] trait. The macro accepts one
 /// `schema`
 /// attribute optionally which can be used to enhance generated documentation. The attribute can be placed
-/// at item level or field level in struct and enums. Currently placing this attribute to unnamed field does
-/// not have any effect.
+/// at item level or field and variant levels in structs and enum.
 ///
 /// You can use the Rust's own `#[deprecated]` attribute on any struct, enum or field to mark it as deprecated and it will
 /// reflect to the generated OpenAPI spec.
@@ -85,6 +88,11 @@ use self::{
 /// Doc comments on fields will resolve to field descriptions in generated OpenAPI doc. On struct
 /// level doc comments will resolve to object descriptions.
 ///
+/// Schemas derived with `ToSchema` will be automatically collected from usage. In case of looping
+/// schema tree _`no_recursion`_ attribute must be used to break from recurring into infinite loop.
+/// See [more details from example][derive@ToSchema#examples]. All arguments of generic schemas
+/// must implement `ToSchema` trait.
+///
 /// ```rust
 /// /// This is a pet
 /// #[derive(utoipa::ToSchema)]
@@ -94,12 +102,15 @@ use self::{
 /// }
 /// ```
 ///
-/// # Struct Optional Configuration Options for `#[schema(...)]`
+/// # Named Field Struct Optional Configuration Options for `#[schema(...)]`
+///
 /// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
 ///   `include_str!(...)` statement. This can be used to override **default** description what is
 ///   resolved from doc comments of the type.
-/// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
-///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 /// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -109,95 +120,32 @@ use self::{
 ///   __serde__ will take precedence.
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
 /// * `default` Can be used to populate default values on all fields using the struct's
 ///   [`Default`] implementation.
 /// * `deprecated` Can be used to mark all fields as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the fields as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
-
-/// # Enum Optional Configuration Options for `#[schema(...)]`
-/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
-///   `include_str!(...)` statement. This can be used to override **default** description what is
-///   resolved from doc comments of the type.
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
-/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
-///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
-/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
-///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
-///   are defined __serde__ will take precedence.
-/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
-///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
-/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
-///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
-///   Rust's own `#[deprecated]` attribute instead.
+/// * `max_properties = ...` Can be used to define maximum number of properties this struct can
+///   contain. Value must be a number.
+/// * `min_properties = ...` Can be used to define minimum number of properties this struct can
+///   contain. Value must be a number.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
+///  struct level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
-/// # Enum Variant Optional Configuration Options for `#[schema(...)]`
-/// Supports all variant specific configuration options e.g. if variant is _`UnnamedStruct`_ then
-/// unnamed struct type configuration options are supported.
+/// ## Named Fields Optional Configuration Options for `#[schema(...)]`
 ///
-/// In addition to the variant type specific configuration options enum variants support custom
-/// _`rename`_ attribute. It behaves similarly to serde's _`rename`_ attribute. If both _serde_
-/// _`rename`_ and _schema_ _`rename`_ are defined __serde__ will take precedence.
-///
-/// ## Enum Unnamed Variant Field Configuration Options
-///
-/// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
-///   will be inlined. **warning:** Don't use this for recursive data types!
-///
-///   _**Inline unnamed field variant schemas.**_
-///   ```rust
-///   # use utoipa::ToSchema;
-///   # #[derive(ToSchema)]
-///   # enum Number {
-///   #     One,
-///   # }
-///   #
-///   # #[derive(ToSchema)]
-///   # enum Color {
-///   #     Spade,
-///   # }
-///    #[derive(ToSchema)]
-///    enum Card {
-///        Number(#[schema(inline)] Number),
-///        Color(#[schema(inline)] Color),
-///    }
-///   ```
-///
-/// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
-/// * `description = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
-///   `include_str!(...)` statement. This can be used to override **default** description what is
-///   resolved from doc comments of the type.
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_. If no value is specified, and the struct has
-///   only one field, the field's default value in the schema will be set from the struct's
-///   [`Default`] implementation.
-/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
-///   an open value as a string. By default the format is derived from the type of the property
-///   according OpenApi spec.
-/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
-///   This is useful in cases where the default type does not correspond to the actual type e.g. when
-///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
-///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
-///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
-///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
-/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
-///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   struct.
-/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
-///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
-/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
-///   not in the code. If you'd like to mark the field as deprecated in the code as well use
-///   Rust's own `#[deprecated]` attribute instead.
-///
-/// # Named Fields Optional Configuration Options for `#[schema(...)]`
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
 ///   according OpenApi spec.
@@ -209,11 +157,15 @@ use self::{
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
+///   
+///   **Note!**<br>Using `inline` with generic arguments might lead to incorrect spec generation.
+///   This is due to the fact that during compilation we cannot know how to treat the generic
+///   argument and there is difference whether it is a primitive type or another generic type.
 /// * `required = ...` Can be used to enforce required status for the field. [See
 ///   rules][derive@ToSchema#field-nullability-and-required-rules]
 /// * `nullable` Defines property is nullable (note this is different to non-required).
@@ -243,6 +195,15 @@ use self::{
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+/// * `content_encoding = ...` Can be used to define content encoding used for underlying schema object.
+///   See [`Object::content_encoding`][schema_object_encoding]
+/// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
+///   See [`Object::content_media_type`][schema_object_media_type]
+///* `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`).
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Field nullability and required rules
 ///
@@ -266,6 +227,248 @@ use self::{
 ///
 /// See [`Xml`][xml] for more details.
 ///
+/// # Unnamed Field Struct Optional Configuration Options for `#[schema(...)]`
+///
+/// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_. If no value
+///   is specified, and the struct has only one field, the field's default value in the schema will be
+///   set from the struct's [`Default`] implementation.
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
+///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
+///   or _`Value`_.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
+/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+/// * `content_encoding = ...` Can be used to define content encoding used for underlying schema object.
+///   See [`Object::content_encoding`][schema_object_encoding]
+/// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
+///   See [`Object::content_media_type`][schema_object_media_type]
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
+///
+/// # Enum Optional Configuration Options for `#[schema(...)]`
+///
+/// ## Plain Enum having only `Unit` variants Optional Configuration Options for `#[schema(...)]`
+///
+/// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///
+/// ### Plain Enum Variant Optional Configuration Options for `#[schema(...)]`
+///
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence. **Note!** [`Repr enum`][macro@ToSchema#repr-attribute-support] variant does not
+///   support _`rename`_.
+///
+/// ## Mixed Enum Optional Configuration Options for `#[schema(...)]`
+///
+/// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
+///   `include_str!(...)` statement. This can be used to override **default** description what is
+///   resolved from doc comments of the type.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+/// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
+///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
+/// * `bound = ...` Can be used to override default trait bounds on generated `impl`s.
+///   See [Generic schemas section](#generic-schemas) below for more details.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+/// * `discriminator = ...` or `discriminator(...)` Can be used to define OpenAPI discriminator
+///   field for enums with single unnamed _`ToSchema`_ reference field. See the [discriminator
+///   syntax][derive@ToSchema#schemadiscriminator-syntax].
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
+///  enum level the _`no_recursion`_ rule will be applied to all of its variants.
+///
+///  ### `#[schema(discriminator)]` syntax
+///
+///  Discriminator can **only** be used with enums having **`#[serde(untagged)]`** attribute and
+///  each variant must have only one unnamed field schema reference to type implementing
+///  _`ToSchema`_.
+///
+///  **Simple form `discriminator = ...`**
+///
+///  Can be literal string or expression e.g. [_`const`_][const] reference. It can be defined as
+///  _`discriminator = "value"`_ where the assigned value is the
+///  discriminator field that must exists in each variant referencing schema.
+///
+/// **Complex form `discriminator(...)`**
+///
+/// * `property_name = ...` Can be literal string or expression e.g. [_`const`_][const] reference.
+/// * mapping `key` Can be literal string or expression e.g. [_`const`_][const] reference.
+/// * mapping `value` Can be literal string or expression e.g. [_`const`_][const] reference.
+///
+/// Additionally discriminator can be defined with custom mappings as show below. The _`mapping`_
+/// values defines _**key = value**_ pairs where _**key**_ is the expected value for _**property_name**_ field
+/// and _**value**_ is schema to map.
+/// ```text
+/// discriminator(property_name = "my_field", mapping(
+///      ("value" = "#/components/schemas/Schema1"),
+///      ("value2" = "#/components/schemas/Schema2")
+/// ))
+/// ```
+///
+/// ### Mixed Enum Named Field Variant Optional Configuration Options for `#[serde(schema)]`
+///
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   enum.
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
+/// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
+///   variant fields accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
+///   are defined __serde__ will take precedence.
+/// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+/// * `max_properties = ...` Can be used to define maximum number of properties this struct can
+///   contain. Value must be a number.
+/// * `min_properties = ...` Can be used to define minimum number of properties this struct can
+///   contain. Value must be a number.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
+///  named field variant level the _`no_recursion`_ rule will be applied to all of its fields.
+///
+/// ## Mixed Enum Unnamed Field Variant Optional Configuration Options for `#[serde(schema)]`
+///
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
+/// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
+///   an open value as a string. By default the format is derived from the type of the property
+///   according OpenApi spec.
+/// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
+///   This is useful in cases where the default type does not correspond to the actual type e.g. when
+///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
+///   The value can be any Rust type what normally could be used to serialize to JSON or either virtual type _`Object`_
+///   or _`Value`_.
+///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
+///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
+///
+/// #### Mixed Enum Unnamed Field Variant's Field Configuration Options
+///
+/// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
+///   will be inlined. **warning:** Don't use this for recursive data types!
+///
+///   **Note!**<br>Using `inline` with generic arguments might lead to incorrect spec generation.
+///   This is due to the fact that during compilation we cannot know how to treat the generic
+///   argument and there is difference whether it is a primitive type or another generic type.
+///
+///   _**Inline unnamed field variant schemas.**_
+///   ```rust
+///   # use utoipa::ToSchema;
+///   # #[derive(ToSchema)]
+///   # enum Number {
+///   #     One,
+///   # }
+///   #
+///   # #[derive(ToSchema)]
+///   # enum Color {
+///   #     Spade,
+///   # }
+///    #[derive(ToSchema)]
+///    enum Card {
+///        Number(#[schema(inline)] Number),
+///        Color(#[schema(inline)] Color),
+///    }
+///   ```
+///
+/// ## Mixed Enum Unit Field Variant Optional Configuration Options for `#[serde(schema)]`
+///
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+/// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
+///   document. Some OpenAPI code generation libraries also use this field as a name for the
+///   struct.
+/// * `rename = ...` Supports same syntax as _serde_ _`rename`_ attribute. Will rename variant
+///   accordingly. If both _serde_ `rename` and _schema_ _`rename`_ are defined __serde__ will take
+///   precedence.
+/// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
+///   not in the code. If you'd like to mark the field as deprecated in the code as well use
+///   Rust's own `#[deprecated]` attribute instead.
+///
 /// # Partial `#[serde(...)]` attributes support
 ///
 /// ToSchema derive has partial support for [serde attributes]. These supported attributes will reflect to the
@@ -279,7 +482,7 @@ use self::{
 /// * `skip_deserializing = "..."` Supported  **only** at the field or variant level.
 /// * `skip_serializing_if = "..."` Supported  **only** at the field level.
 /// * `with = ...` Supported **only at field level.**
-/// * `tag = "..."` Supported at the container level. `tag` attribute works as a [discriminator field][discriminator] for an enum.
+/// * `tag = "..."` Supported at the container level.
 /// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
@@ -291,8 +494,7 @@ use self::{
 ///
 /// Other _`serde`_ attributes works as is but does not have any effect on the generated OpenAPI doc.
 ///
-/// **Note!** `tag` attribute has some limitations like it cannot be used
-/// with **unnamed field structs** and **tuple types**.  See more at
+/// **Note!** `tag` attribute has some limitations like it cannot be used with **tuple types**. See more at
 /// [enum representation docs](https://serde.rs/enum-representations.html).
 ///
 /// **Note!** `with` attribute is used in tandem with [serde_with](https://github.com/jonasbb/serde_with) to recognize
@@ -360,14 +562,18 @@ use self::{
 ///
 /// **Supported schema attributes**
 ///
-/// * `example = ...` Can be method reference or _`json!(...)`_.
-/// * `default = ...` Can be method reference or _`json!(...)`_.
+/// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
+/// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   enum. __Note!__  ___Complex enum (enum with other than unit variants) does not support title!___
+///   struct.
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
-///   OpenAPI spec as _`path.to.Pet`_.
+///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated
+///   with `utoipa` when the type is being referenced in [`OpenApi`][openapi_derive] derive macro
+///   or in [`utoipa::path(...)`][path_macro] macro.
 ///
 /// _**Create enum with numeric values.**_
 /// ```rust
@@ -399,34 +605,52 @@ use self::{
 ///  }
 /// ```
 ///
-/// # Generic schemas with aliases
+/// # Generic schemas
 ///
-/// Schemas can also be generic which allows reusing types. This enables certain behaviour patterns
-/// where super type declares common code for type aliases.
+/// Utoipa supports full set of deeply nested generics as shown below. The type will implement
+/// [`ToSchema`][to_schema] if and only if all the generic types implement `ToSchema` by default.
+/// That is in Rust `impl<T> ToSchema for MyType<T> where T: Schema { ... }`.
+/// You can also specify `bound = ...` on the item to override the default auto bounds.
 ///
-/// In this example we have common `Status` type which accepts one generic type. It is then defined
-/// with `#[aliases(...)]` that it is going to be used with [`String`] and [`i32`] values.
-/// The generic argument could also be another [`ToSchema`][to_schema] as well.
+/// The _`as = ...`_ attribute is used to define the prefixed or alternative name for the component
+/// in question. This same name will be used throughout the OpenAPI generated with `utoipa` when
+/// the type is being referenced in [`OpenApi`][openapi_derive] derive macro or in [`utoipa::path(...)`][path_macro] macro.
+///
 /// ```rust
-/// # use utoipa::{ToSchema, OpenApi};
-/// #[derive(ToSchema)]
-/// #[aliases(StatusMessage = Status<String>, StatusNumber = Status<i32>)]
-/// struct Status<T> {
-///     value: T
-/// }
+/// # use utoipa::ToSchema;
+/// # use std::borrow::Cow;
+///  #[derive(ToSchema)]
+///  #[schema(as = path::MyType<T>)]
+///  struct Type<T> {
+///      t: T,
+///  }
 ///
-/// #[derive(OpenApi)]
-/// #[openapi(
-///     components(schemas(StatusMessage, StatusNumber))
-/// )]
-/// struct ApiDoc;
+///  #[derive(ToSchema)]
+///  struct Person<'p, T: Sized, P> {
+///      id: usize,
+///      name: Option<Cow<'p, str>>,
+///      field: T,
+///      t: P,
+///  }
+///
+///  #[derive(ToSchema)]
+///  #[schema(as = path::to::PageList)]
+///  struct Page<T> {
+///      total: usize,
+///      page: usize,
+///      pages: usize,
+///      items: Vec<T>,
+///  }
+///
+///  #[derive(ToSchema)]
+///  #[schema(as = path::to::Element<T>)]
+///  enum E<T> {
+///      One(T),
+///      Many(Vec<T>),
+///  }
 /// ```
-///
-/// The `#[aliases(...)]` is just syntactic sugar and will create Rust [type aliases](https://doc.rust-lang.org/reference/items/type-aliases.html)
-/// behind the scenes which then can be later referenced anywhere in code.
-///
-/// **Note!** You should never register generic type itself in `components(...)` so according above example `Status<...>` should not be registered
-/// because it will not render the type correctly and will cause an error in generated OpenAPI spec.
+/// When generic types are registered to the `OpenApi` the full type declaration must be provided.
+/// See the full example in test [schema_generics.rs](https://github.com/juhaku/utoipa/blob/master/utoipa-gen/tests/schema_generics.rs)
 ///
 /// # Examples
 ///
@@ -485,7 +709,7 @@ use self::{
 /// }
 /// ```
 ///
-/// _**Also you write complex enum combining all above types.**_
+/// _**Also you write mixed enum combining all above types.**_
 /// ```rust
 /// # use utoipa::ToSchema;
 /// #[derive(ToSchema)]
@@ -593,6 +817,7 @@ use self::{
 ///     field: Bar,
 /// };
 /// ```
+/// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
 ///
 /// _**Serde `rename` / `rename_all` will take precedence over schema `rename` / `rename_all`.**_
 /// ```rust
@@ -664,7 +889,55 @@ use self::{
 ///  }
 /// ```
 ///
-/// More examples for _`value_type`_ in [`IntoParams` derive docs][into_params].
+/// _**Use `bound` attribute to override the default impl bounds.**_
+///
+/// `bound = ...` accepts a string containing zero or more where-predicates separated by comma, as
+/// the similar syntax to [`serde(bound = ...)`](https://serde.rs/container-attrs.html#bound).
+/// If `bound = ...` exists, the default auto bounds (requiring all generic types to implement
+/// `ToSchema`) will not be applied anymore, and only the specified predicates are added to the
+/// `where` clause of generated `impl` blocks.
+///
+/// ```rust
+/// // Override the default bounds to only require `T: ToSchema`, ignoring unused `U`.
+/// #[derive(utoipa::ToSchema, serde::Serialize)]
+/// #[schema(bound = "T: utoipa::ToSchema")]
+/// struct Partial<T, U> {
+///     used_in_api: T,
+///     #[serde(skip)]
+///     not_in_api: std::marker::PhantomData<U>,
+/// }
+///
+/// // Just remove the auto-bounds. So we got `Unused<T>: ToSchema` for any `T`.
+/// #[derive(utoipa::ToSchema, serde::Serialize)]
+/// #[schema(bound = "")]
+/// struct Unused<T> {
+///     #[serde(skip)]
+///     _marker: std::marker::PhantomData<T>,
+/// }
+/// ```
+///
+/// _**Use `no_recursion` attribute to break from looping schema tree e.g. `Pet` -> `Owner` ->
+/// `Pet`.**_
+///
+/// `no_recursion` attribute can be provided on named field of a struct, on unnamed struct or unnamed
+/// enum variant. It must be provided in case of looping schema tree in order to stop recursion.
+/// Failing to do so will cause runtime **panic**.
+/// ```rust
+/// # use utoipa::ToSchema;
+/// #
+/// #[derive(ToSchema)]
+/// pub struct Pet {
+///     name: String,
+///     owner: Owner,
+/// }
+///
+/// #[derive(ToSchema)]
+/// pub struct Owner {
+///     name: String,
+///     #[schema(no_recursion)]
+///     pets: Vec<Pet>,
+/// }
+/// ```
 ///
 /// [to_schema]: trait.ToSchema.html
 /// [known_format]: openapi/schema/enum.KnownFormat.html
@@ -677,16 +950,20 @@ use self::{
 /// [enum_schema]: derive.ToSchema.html#enum-optional-configuration-options-for-schema
 /// [openapi_derive]: derive.OpenApi.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+/// [schema_object_encoding]: openapi/schema/struct.Object.html#structfield.content_encoding
+/// [schema_object_media_type]: openapi/schema/struct.Object.html#structfield.content_media_type
+/// [path_macro]: macro@path
+/// [const]: https://doc.rust-lang.org/std/keyword.const.html
 pub fn derive_to_schema(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
         ident,
         data,
         generics,
-        vis,
+        ..
     } = syn::parse_macro_input!(input);
 
-    Schema::new(&data, &attrs, &ident, &generics, &vis)
+    Schema::new(&data, &attrs, &ident, &generics)
         .as_ref()
         .map_or_else(Diagnostics::to_token_stream, Schema::to_token_stream)
         .into()
@@ -755,9 +1032,15 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `security(...)` List of [`SecurityRequirement`][security]s local to the path operation.
 ///
+/// * `summary = ...` Allows overriding summary of the path. Value can be literal string or valid
+///   rust expression e.g. `include_str!(...)` or `const` reference.
+///
+/// * `description = ...` Allows overriding description of the path. Value can be literal string or valid
+///   rust expression e.g. `include_str!(...)` or `const` reference.
+///
 /// # Request Body Attributes
 ///
-/// **Simple format definition by `request_body = ...`**
+/// ## Simple format definition by `request_body = ...`
 /// * _`request_body = Type`_, _`request_body = inline(Type)`_ or _`request_body = ref("...")`_.
 ///   The given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec or Map etc.
 ///   With _`inline(...)`_ the schema will be inlined instead of a referenced which is the default for
@@ -765,23 +1048,13 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   json file for body schema. **Note!** Utoipa does **not** guarantee that free form _`ref`_ is accessible via
 ///   OpenAPI doc or Swagger UI, users are responsible for making these guarantees.
 ///
-/// **Advanced format definition by `request_body(...)`**
-/// * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
-///   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
-///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
-///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
-///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
-///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
-///   these guarantees.
+/// ## Advanced format definition by `request_body(...)`
+///
+/// With advanced format the request body supports defining either one or multiple request bodies by `content` attribute.
+///
+/// ### Common request body attributes
 ///
 /// * `description = "..."` Define the description for the request body object as str.
-///
-/// * `content_type = "..."` or `content_type = [...]` Can be used to override the default behavior
-///   of auto resolving the content type from the `content` attribute. If defined the value should be valid
-///   content type such as _`application/json`_  or a slice of content types within brackets e.g.
-///   _`content_type = ["application/json", "text/html"]`_. By default the content type is _`text/plain`_
-///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
-///   for struct and complex enum types.
 ///
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
@@ -791,11 +1064,69 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   This has same syntax as _`examples(...)`_ in [Response Attributes](#response-attributes)
 ///   _examples(...)_
 ///
-/// _**Example request body definitions.**_
+/// ### Single request body content
+///
+/// * `content = ...` Can be _`content = Type`_, _`content = inline(Type)`_ or _`content = ref("...")`_. The
+///   given _`Type`_ can be any Rust type that is JSON parseable. It can be Option, Vec
+///   or Map etc. With _`inline(...)`_ the schema will be inlined instead of a referenced
+///   which is the default for [`ToSchema`][to_schema] types. _`ref("./external.json")`_
+///   can be used to reference external json file for body schema. **Note!** Utoipa does **not** guarantee
+///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
+///   these guarantees.
+///
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `content` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
+///
+/// _**Example of single request body definitions.**_
 /// ```text
 ///  request_body(content = String, description = "Xml as string request", content_type = "text/xml"),
+///  request_body(content_type = "application/json"),
 ///  request_body = Pet,
 ///  request_body = Option<[Pet]>,
+/// ```
+///
+/// ### Multiple request body content
+///
+/// * `content(...)` Can be tuple of content tuples according to format below.
+///   ```text
+///   ( schema )
+///   ( schema = "content/type", example = ..., examples(..., ...)  )
+///   ( "content/type", ),
+///   ( "content/type", example = ..., examples(..., ...) )
+///   ```
+///
+///   First argument of content tuple is _`schema`_, which is optional as long as either _`schema`_
+///   or _`content/type`_ is defined. The _`schema`_ and _`content/type`_ is separated with equals
+///   (=) sign. Optionally content tuple supports defining _`example`_  and _`examples`_ arguments. See
+///   [common request body attributes][macro@path#common-request-body-attributes]
+///
+/// _**Example of multiple request body definitions.**_
+///
+/// ```text
+///  // guess the content type for Pet and Pet2
+///  request_body(description = "Common description",
+///     content(
+///         (Pet),
+///         (Pet2)
+///     )
+///  ),
+///  // define explicit content types
+///  request_body(description = "Common description",
+///     content(
+///         (Pet = "application/json", examples(..., ...), example = ...),
+///         (Pet2 = "text/xml", examples(..., ...), example = ...)
+///     )
+///  ),
+///  // omit schema and accept arbitrary content types
+///  request_body(description = "Common description",
+///     content(
+///         ("application/json"),
+///         ("text/xml", examples(..., ...), example = ...)
+///     )
+///  ),
 /// ```
 ///
 /// # Response Attributes
@@ -815,15 +1146,11 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   that free form _`ref`_ is accessible via OpenAPI doc or Swagger UI, users are responsible for making
 ///   these guarantees.
 ///
-/// * `content_type = "..."` or `content_type = [...]` Can be used to override the default behavior of auto resolving the content type
-///   from the `body` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
-///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///   response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///   _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///   the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `body` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -833,26 +1160,82 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
 ///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 ///
-/// * `content((...), (...))` Can be used to define multiple return types for single response status. Supported format for single
-///   _content_ is `(content_type = response_body, example = "...", examples(...))`. _`example`_
-///   and _`examples`_ are optional arguments. Examples attribute behaves exactly same way as in
-///   the response and is mutually exclusive with the example attribute.
+/// * `content((...), (...))` Can be used to define multiple return types for single response status. Supports same syntax as
+///   [multiple request body content][`macro@path#multiple-request-body-content`].
 ///
 /// * `examples(...)` Define multiple examples for single response. This attribute is mutually
 ///   exclusive to the _`example`_ attribute and if both are defined this will override the _`example`_.
-///     * `name = ...` This is first attribute and value must be literal string.
-///     * `summary = ...` Short description of example. Value must be literal string.
-///     * `description = ...` Long description of example. Attribute supports markdown for rich text
-///       representation. Value must be literal string.
-///     * `value = ...` Example value. It must be _`json!(...)`_. _`json!(...)`_ should be something that
-///       _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
-///     * `external_value = ...` Define URI to literal example value. This is mutually exclusive to
-///       the _`value`_ attribute. Value must be literal string.
 ///
-///      _**Example of example definition.**_
+/// * `links(...)` Define a map of operations links that can be followed from the response.
+///
+/// ## Response `examples(...)` syntax
+///
+/// * `name = ...` This is first attribute and value must be literal string.
+/// * `summary = ...` Short description of example. Value must be literal string.
+/// * `description = ...` Long description of example. Attribute supports markdown for rich text
+///   representation. Value must be literal string.
+/// * `value = ...` Example value. It must be _`json!(...)`_. _`json!(...)`_ should be something that
+///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
+/// * `external_value = ...` Define URI to literal example value. This is mutually exclusive to
+///   the _`value`_ attribute. Value must be literal string.
+///
+///  _**Example of example definition.**_
+/// ```text
+///  ("John" = (summary = "This is John", value = json!({"name": "John"})))
+/// ```
+///
+/// ## Response `links(...)` syntax
+///
+/// * `operation_ref = ...` Define a relative or absolute URI reference to an OAS operation. This field is
+///   mutually exclusive of the _`operation_id`_ field, and **must** point to an [Operation Object][operation].
+///   Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+///   [`const`][const] reference.
+///
+/// * `operation_id = ...` Define the name of an existing, resolvable OAS operation, as defined with a unique
+///   _`operation_id`_. This field is mutually exclusive of the _`operation_ref`_ field.
+///   Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+///   [`const`][const] reference.
+///
+/// * `parameters(...)` A map representing parameters to pass to an operation as specified with _`operation_id`_
+///   or identified by _`operation_ref`_. The key is parameter name to be used and value can
+///   be any value supported by JSON or an [expression][expression] e.g. `$path.id`
+///     * `name = ...` Define name for the parameter.
+///       Value can be be [`str`] or an expression such as [`include_str!`][include_str] or static
+///       [`const`][const] reference.
+///     * `value` = Any value that can be supported by JSON or an [expression][expression].
+///
+///     _**Example of parameters syntax:**_
 ///     ```text
-///      ("John" = (summary = "This is John", value = json!({"name": "John"})))
+///     parameters(
+///          ("name" = value),
+///          ("name" = value)
+///     ),
 ///     ```
+///
+/// * `request_body = ...` Define a literal value or an [expression][expression] to be used as request body when
+///   operation is called
+///
+/// * `description = ...` Define description of the link. Value supports Markdown syntax.Value can be be [`str`] or
+///   an expression such as [`include_str!`][include_str] or static [`const`][const] reference.
+///
+/// * `server(...)` Define [Server][server] object to be used by the target operation. See
+///   [server syntax][server_derive_syntax]
+///
+/// **Links syntax example:** See the full example below in [examples](#examples).
+/// ```text
+/// responses(
+///     (status = 200, description = "success response",
+///         links(
+///             ("link_name" = (
+///                 operation_id = "test_links",
+///                 parameters(("key" = "value"), ("json_value" = json!(1))),
+///                 request_body = "this is body",
+///                 server(url = "http://localhost")
+///             ))
+///         )
+///     )
+/// )
+/// ```
 ///
 /// **Minimal response format:**
 /// ```text
@@ -875,21 +1258,14 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// )
 /// ```
 ///
-/// **Response with multiple response content types:**
-/// ```text
-/// responses(
-///     (status = 200, description = "Success response", body = Pet, content_type = ["application/json", "text/xml"])
-/// )
-/// ```
-///
 /// **Multiple response return types with _`content(...)`_ attribute:**
 ///
 /// _**Define multiple response return types for single response status with their own example.**_
 /// ```text
 /// responses(
 ///    (status = 200, content(
-///            ("application/vnd.user.v1+json" = User, example = json!(User {id: "id".to_string()})),
-///            ("application/vnd.user.v2+json" = User2, example = json!(User2 {id: 2}))
+///            (User = "application/vnd.user.v1+json", example = json!(User {id: "id".to_string()})),
+///            (User2 = "application/vnd.user.v2+json", example = json!(User2 {id: 2}))
 ///        )
 ///    )
 /// )
@@ -1016,10 +1392,18 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `min_items = ...` Can be used to define minimum items allowed for `array` fields. Value must
 ///   be non-negative integer.
 ///
+/// ##### Parameter Formats
+/// ```test
+/// ("name" = ParameterType, ParameterIn, ...)
+/// ("name", ParameterIn, ...)
+/// ```
+///
 /// **For example:**
 ///
 /// ```text
 /// params(
+///     ("limit" = i32, Query),
+///     ("x-custom-header" = String, Header, description = "Custom header"),
 ///     ("id" = String, Path, deprecated, description = "Pet database id"),
 ///     ("name", Path, deprecated, description = "Pet name"),
 ///     (
@@ -1060,9 +1444,9 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// # Security Requirement Attributes
 ///
 /// * `name` Define the name for security requirement. This must match to name of existing
-///   [`SecuritySchema`][security_schema].
+///   [`SecurityScheme`][security_scheme].
 /// * `scopes = [...]` Define the list of scopes needed. These must be scopes defined already in
-///   existing [`SecuritySchema`][security_schema].
+///   existing [`SecurityScheme`][security_scheme].
 ///
 /// **Security Requirement supported formats:**
 ///
@@ -1091,7 +1475,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// **actix_extras** feature gives **utoipa** ability to parse path operation information from **actix-web** types and macros.
 ///
-/// 1. Ability to parse `path` from **actix-web** path attribute macros e.g. _`#[get(...)]`_.
+/// 1. Ability to parse `path` from **actix-web** path attribute macros e.g. _`#[get(...)]`_ or
+///    `#[route(...)]`.
 /// 2. Ability to parse [`std::primitive`]  or [`String`] or [`tuple`] typed `path` parameters from **actix-web** _`web::Path<...>`_.
 /// 3. Ability to parse `path` and `query` parameters form **actix-web** _`web::Path<...>`_, _`web::Query<...>`_ types
 ///    with [`IntoParams`][into_params] trait.
@@ -1209,6 +1594,73 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// ) -> Json<Vec<String>> {
 ///     Json(vec![])
 /// }
+/// ```
+///
+/// # Defining file uploads
+///
+/// File uploads can be defined in accordance to Open API specification [file uploads][file_uploads].
+///
+///
+/// _**Example sending `jpg` and `png` images as `application/octet-stream`.**_
+/// ```rust
+/// #[utoipa::path(
+///     post,
+///     request_body(
+///         content(
+///             ("image/png"),
+///             ("image/jpg"),
+///         ),
+///     ),
+///     path = "/test_images"
+/// )]
+/// async fn test_images(_body: Vec<u8>) {}
+/// ```
+///
+/// _**Example of sending `multipart` form.**_
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// struct MyForm {
+///     order_id: i32,
+///     #[schema(content_media_type = "application/octet-stream")]
+///     file_bytes: Vec<u8>,
+/// }
+///
+/// #[utoipa::path(
+///     post,
+///     request_body(content = inline(MyForm), content_type = "multipart/form-data"),
+///     path = "/test_multipart"
+/// )]
+/// async fn test_multipart(_body: MyForm) {}
+/// ```
+///
+/// _**Example of sending arbitrary binary content as `application/octet-stream`.**_
+/// ```rust
+/// #[utoipa::path(
+///     post,
+///     request_body = Vec<u8>,
+///     path = "/test-octet-stream",
+///     responses(
+///         (status = 200, description = "success response")
+///     ),
+/// )]
+/// async fn test_octet_stream(_body: Vec<u8>) {}
+/// ```
+///
+/// _**Example of sending `png` image as `base64` encoded.**_
+/// ```rust
+/// #[derive(utoipa::ToSchema)]
+/// #[schema(content_encoding = "base64")]
+/// struct MyPng(String);
+///
+/// #[utoipa::path(
+///     post,
+///     request_body(content = inline(MyPng), content_type = "image/png"),
+///     path = "/test_png",
+///     responses(
+///         (status = 200, description = "success response")
+///     ),
+/// )]
+/// async fn test_png(_body: MyPng) {}
 /// ```
 ///
 /// # Examples
@@ -1336,8 +1788,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///     path = "/user",
 ///     responses(
 ///         (status = 200, content(
-///                 ("application/vnd.user.v1+json" = User1, example = json!({"id": "id".to_string()})),
-///                 ("application/vnd.user.v2+json" = User2, example = json!({"id": 2}))
+///                 (User1 = "application/vnd.user.v1+json", example = json!({"id": "id".to_string()})),
+///                 (User2 = "application/vnd.user.v2+json", example = json!({"id": 2}))
 ///             )
 ///         )
 ///     )
@@ -1371,12 +1823,39 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// _**Example of using links in response.**_
+/// ```rust
+/// # use serde_json::json;
+///  #[utoipa::path(
+///     get,
+///     path = "/test-links",
+///     responses(
+///         (status = 200, description = "success response",
+///             links(
+///                 ("getFoo" = (
+///                     operation_id = "test_links",
+///                     parameters(("key" = "value"), ("json_value" = json!(1))),
+///                     request_body = "this is body",
+///                     server(url = "http://localhost")
+///                 )),
+///                 ("getBar" = (
+///                     operation_ref = "this is ref"
+///                 ))
+///             )
+///         )
+///     ),
+/// )]
+/// async fn test_links() -> &'static str {
+///     ""
+/// }
+/// ```
+///
 /// [in_enum]: openapi/path/enum.ParameterIn.html
 /// [path]: trait.Path.html
 /// [to_schema]: trait.ToSchema.html
 /// [openapi]: derive.OpenApi.html
 /// [security]: openapi/security/struct.SecurityRequirement.html
-/// [security_schema]: openapi/security/enum.SecurityScheme.html
+/// [security_scheme]: openapi/security/enum.SecurityScheme.html
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [into_params]: trait.IntoParams.html
 /// [style]: openapi/path/enum.ParameterStyle.html
@@ -1386,6 +1865,14 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [known_format]: openapi/schema/enum.KnownFormat.html
 /// [xml]: openapi/xml/struct.Xml.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+/// [relative_references]: https://spec.openapis.org/oas/latest.html#relative-references-in-uris
+/// [operation]: openapi/path/struct.Operation.html
+/// [expression]: https://spec.openapis.org/oas/latest.html#runtime-expressions
+/// [const]: https://doc.rust-lang.org/std/keyword.const.html
+/// [include_str]: https://doc.rust-lang.org/std/macro.include_str.html
+/// [server_derive_syntax]: derive.OpenApi.html#servers-attribute-syntax
+/// [server]: openapi/server/struct.Server.html
+/// [file_uploads]: <https://spec.openapis.org/oas/v3.1.0.html#considerations-for-file-uploads>
 pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
     let path_attribute = syn::parse_macro_input!(attr as PathAttr);
 
@@ -1517,10 +2004,16 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # `info(...)` attribute syntax
 ///
-/// * `title = ...` Define title of the API. It can be literal string.
+/// * `title = ...` Define title of the API. It can be [`str`] or an
+///   expression such as [`include_str!`][include_str] or static [`const`][const] reference.
+/// * `terms_of_service = ...` Define URL to the Terms of Service for the API. It can be [`str`] or an
+///   expression such as [`include_str!`][include_str] or static [`const`][const] reference. Value
+///   must be valid URL.
 /// * `description = ...` Define description of the API. Markdown can be used for rich text
-///   representation. It can be literal string or [`include_str!`] statement.
-/// * `version = ...` Override default version from _`Cargo.toml`_. Value must be literal string.
+///   representation. It can be [`str`] or an expression such as [`include_str!`][include_str] or static
+///   [`const`][const] reference.
+/// * `version = ...` Override default version from _`Cargo.toml`_. Value can be [`str`] or an
+///   expression such as [`include_str!`][include_str] or static [`const`][const] reference.
 /// * `contact(...)` Used to override the whole contact generated from environment variables.
 ///     * `name = ...` Define identifying name of contact person / organization. It Can be a literal string.
 ///     * `email = ...` Define email address of the contact person / organization. It can be a literal string.
@@ -1531,10 +2024,10 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # `tags(...)` attribute syntax
 ///
-/// * `name = ...` Must be provided, can be either of static [`str`], [`String`] or an expression
-///   e.g. reference to static [`const`][const].
-/// * `description = ...` Optional description for the tag. Can be either or static [`str`] or
-///   _`include_str!(...)`_ macro call.
+/// * `name = ...` Must be provided, can be [`str`] or an expression such as [`include_str!`][include_str]
+///   or static [`const`][const] reference.
+/// * `description = ...` Optional description for the tag. Can be either or static [`str`]
+///   or an expression e.g. _`include_str!(...)`_ macro call or reference to static [`const`][const].
 /// * `external_docs(...)` Optional links to external documents.
 ///      * `url = ...` Mandatory URL for external documentation.
 ///      * `description = ...` Optional description for the _`url`_ link.
@@ -1724,6 +2217,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// [tags_syntax]: #tags-attribute-syntax
 /// [info_syntax]: #info-attribute-syntax
 /// [servers_syntax]: #servers-attribute-syntax
+/// [include_str]: https://doc.rust-lang.org/std/macro.include_str.html
 pub fn openapi(input: TokenStream) -> TokenStream {
     let DeriveInput { attrs, ident, .. } = syn::parse_macro_input!(input);
 
@@ -1811,7 +2305,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
 ///   The value can be any Rust type what normally could be used to serialize to JSON, or either virtual type _`Object`_
-///   or _`Value`_, or an alias defined using `#[aliases(..)]`.
+///   or _`Value`_.
 ///   _`Object`_ will be rendered as generic OpenAPI object _(`type: object`)_.
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 ///
@@ -1869,6 +2363,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
+///
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`).
 ///
 /// #### Field nullability and required rules
 ///
@@ -2192,15 +2689,11 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str. This can be used to
 ///   override the default description resolved from doc comments if present.
 ///
-/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
-///   from the `body` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
-///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `body` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2359,15 +2852,11 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 /// * `description = "..."` Define description for the response as str. This can be used to
 ///   override the default description resolved from doc comments if present.
 ///
-/// * `content_type = "..." | content_type = [...]` Can be used to override the default behavior of auto resolving the content type
-///   from the `body` attribute. If defined the value should be valid content type such as
-///   _`application/json`_. By default the content type is _`text/plain`_ for
-///   [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and
-///   _`application/json`_ for struct and complex enum types.
-///   Content type can also be slice of **content_type** values if the endpoint support returning multiple
-///    response content types. E.g _`["application/json", "text/xml"]`_ would indicate that endpoint can return both
-///    _`json`_ and _`xml`_ formats. **The order** of the content types define the default example show first in
-///    the Swagger UI. Swagger UI will use the first _`content_type`_ value as a default example.
+/// * `content_type = "..."` Can be used to override the default behavior
+///   of auto resolving the content type from the `body` attribute. If defined the value should be valid
+///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
+///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
+///   for struct and mixed enum types.
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -2514,12 +3003,13 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 /// be inlined to the schema output.
 ///
 /// ```rust
+/// # use utoipa::openapi::{RefOr, schema::Schema};
 /// # #[derive(utoipa::ToSchema)]
 /// # struct Pet {id: i32};
-/// let schema = utoipa::schema!(Vec<Pet>);
+/// let schema: RefOr<Schema> = utoipa::schema!(Vec<Pet>).into();
 ///
 /// // with inline
-/// let schema = utoipa::schema!(#[inline] Vec<Pet>);
+/// let schema: RefOr<Schema> = utoipa::schema!(#[inline] Vec<Pet>).into();
 /// ```
 ///
 /// # Examples
@@ -2549,7 +3039,7 @@ pub fn into_responses(input: TokenStream) -> TokenStream {
 ///             .required("name")
 ///     )
 /// ));
-/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&schema).unwrap(), serde_json::to_value(&generated).unwrap());
+/// # insta::assert_json_snapshot!("schema", &schema);
 /// ```
 ///
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
@@ -2584,19 +3074,32 @@ pub fn schema(input: TokenStream) -> TokenStream {
         Err(diagnostics) => return diagnostics.into_token_stream().into(),
     };
 
+    let generics = match type_tree.get_path_generics() {
+        Ok(generics) => generics,
+        Err(error) => return error.into_compile_error().into(),
+    };
+
     let schema = ComponentSchema::new(ComponentSchemaProps {
-        features: Some(vec![Feature::Inline(schema.inline.into())]),
+        features: vec![Feature::Inline(schema.inline.into())],
         type_tree: &type_tree,
-        deprecated: None,
         description: None,
-        object_name: "",
-        is_generics_type_arg: false, // it cannot be generic struct here
+        container: &component::Container {
+            generics: &generics,
+        },
     });
 
-    match schema {
-        Ok(schema) => schema.to_token_stream().into(),
-        Err(diagnostics) => diagnostics.to_token_stream().into(),
+    let schema = match schema {
+        Ok(schema) => schema.to_token_stream(),
+        Err(diagnostics) => return diagnostics.to_token_stream().into(),
+    };
+
+    quote! {
+        {
+            let mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>> = Vec::new();
+            #schema
+        }
     }
+    .into()
 }
 
 /// Tokenizes slice or Vec of tokenizable items as array either with reference (`&[...]`)
@@ -2610,8 +3113,6 @@ where
     #[allow(dead_code)]
     Borrowed(&'a [T]),
 }
-
-impl<T> Array<'_, T> where T: ToTokens + Sized {}
 
 impl<V> FromIterator<V> for Array<'_, V>
 where
@@ -2846,14 +3347,14 @@ impl ToTokens for AnyValue {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         match self {
             Self::Json(json) => tokens.extend(quote! {
-                serde_json::json!(#json)
+                utoipa::gen::serde_json::json!(#json)
             }),
             Self::String(string) => string.to_tokens(tokens),
             Self::DefaultTrait {
                 struct_ident,
                 field_ident,
             } => tokens.extend(quote! {
-                serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
+                utoipa::gen::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
             }),
         }
     }
@@ -2910,15 +3411,32 @@ impl<T> OptionExt<T> for Option<T> {
 }
 
 trait GenericsExt {
-    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool;
+    /// Get index of `GenericParam::Type` ignoring other generic param types.
+    fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
 impl<'g> GenericsExt for &'g syn::Generics {
-    fn any_match_type_tree(&self, type_tree: &TypeTree) -> bool {
-        self.params.iter().any(|generic| match generic {
-            syn::GenericParam::Type(generic_type) => type_tree.match_ident(&generic_type.ident),
-            _ => false,
-        })
+    fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
+        let ident = &type_tree
+            .path
+            .as_ref()
+            .expect("TypeTree of generic object must have a path")
+            .segments
+            .last()
+            .expect("Generic object path must have at least one segment")
+            .ident;
+
+        self.params
+            .iter()
+            .filter(|generic| matches!(generic, GenericParam::Type(_)))
+            .enumerate()
+            .find_map(|(index, generic)| {
+                if matches!(generic, GenericParam::Type(ty) if ty.ident == *ident) {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -2938,6 +3456,14 @@ trait ToTokensDiagnostics {
         match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
             Ok(_) => tokens,
             Err(error_stream) => Into::<Diagnostics>::into(error_stream).into_token_stream(),
+        }
+    }
+
+    fn try_to_token_stream(&self) -> Result<TokenStream2, Diagnostics> {
+        let mut tokens = TokenStream2::new();
+        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
+            Ok(_) => Ok(tokens),
+            Err(diagnostics) => Err(diagnostics),
         }
     }
 }
@@ -3084,9 +3610,8 @@ trait AttributesExt {
 
 impl AttributesExt for Vec<syn::Attribute> {
     fn has_deprecated(&self) -> bool {
-        self.iter().any(|attr| {
-            matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
-        })
+        let this = &**self;
+        this.has_deprecated()
     }
 }
 
@@ -3128,46 +3653,47 @@ mod parse_utils {
         parenthesized,
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
+        spanned::Spanned,
         token::Comma,
-        Error, Expr, LitBool, LitStr, Token,
+        Error, Expr, ExprPath, LitBool, LitStr, Token,
     };
 
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub enum Value {
+    pub enum LitStrOrExpr {
         LitStr(LitStr),
         Expr(Expr),
     }
 
-    impl From<String> for Value {
+    impl From<String> for LitStrOrExpr {
         fn from(value: String) -> Self {
             Self::LitStr(LitStr::new(&value, proc_macro2::Span::call_site()))
         }
     }
 
-    impl Value {
+    impl LitStrOrExpr {
         pub(crate) fn is_empty_litstr(&self) -> bool {
             matches!(self, Self::LitStr(s) if s.value().is_empty())
         }
     }
 
-    impl Default for Value {
+    impl Default for LitStrOrExpr {
         fn default() -> Self {
             Self::LitStr(LitStr::new("", proc_macro2::Span::call_site()))
         }
     }
 
-    impl Parse for Value {
+    impl Parse for LitStrOrExpr {
         fn parse(input: ParseStream) -> syn::Result<Self> {
             if input.peek(LitStr) {
-                Ok::<Value, Error>(Value::LitStr(input.parse::<LitStr>()?))
+                Ok::<LitStrOrExpr, Error>(LitStrOrExpr::LitStr(input.parse::<LitStr>()?))
             } else {
-                Ok(Value::Expr(input.parse::<Expr>()?))
+                Ok(LitStrOrExpr::Expr(input.parse::<Expr>()?))
             }
         }
     }
 
-    impl ToTokens for Value {
+    impl ToTokens for LitStrOrExpr {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
                 Self::LitStr(str) => str.to_tokens(tokens),
@@ -3176,7 +3702,7 @@ mod parse_utils {
         }
     }
 
-    impl Display for Value {
+    impl Display for LitStrOrExpr {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
                 Self::LitStr(str) => write!(f, "{str}", str = str.value()),
@@ -3197,12 +3723,8 @@ mod parse_utils {
         Ok(parse_next(input, || input.parse::<LitStr>())?.value())
     }
 
-    pub fn parse_next_literal_str_or_include_str(input: ParseStream) -> syn::Result<Str> {
-        parse_next(input, || input.parse::<Str>())
-    }
-
-    pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<Value> {
-        parse_next(input, || Value::parse(input)).map_err(|error| {
+    pub fn parse_next_literal_str_or_expr(input: ParseStream) -> syn::Result<LitStrOrExpr> {
+        parse_next(input, || LitStrOrExpr::parse(input)).map_err(|error| {
             syn::Error::new(
                 error.span(),
                 format!("expected literal string or expression argument: {error}"),
@@ -3210,7 +3732,7 @@ mod parse_utils {
         })
     }
 
-    pub fn parse_groups<T, R>(input: ParseStream) -> syn::Result<R>
+    pub fn parse_groups_collect<T, R>(input: ParseStream) -> syn::Result<R>
     where
         T: Sized,
         T: Parse,
@@ -3232,7 +3754,19 @@ mod parse_utils {
         Punctuated::parse_terminated(&group)
     }
 
-    pub fn parse_punctuated_within_parenthesis<T>(
+    pub fn parse_comma_separated_within_parethesis_with<T>(
+        input: ParseStream,
+        with: fn(ParseStream) -> syn::Result<T>,
+    ) -> syn::Result<Punctuated<T, Comma>>
+    where
+        T: Parse,
+    {
+        let content;
+        parenthesized!(content in input);
+        Punctuated::<T, Comma>::parse_terminated_with(&content, with)
+    }
+
+    pub fn parse_comma_separated_within_parenthesis<T>(
         input: ParseStream,
     ) -> syn::Result<Punctuated<T, Comma>>
     where
@@ -3277,39 +3811,60 @@ mod parse_utils {
         }
     }
 
-    #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub enum Str {
-        String(String),
-        IncludeStr(TokenStream),
+    #[derive(Clone)]
+    pub enum LitBoolOrExprPath {
+        LitBool(LitBool),
+        ExprPath(ExprPath),
     }
 
-    impl Parse for Str {
+    impl From<bool> for LitBoolOrExprPath {
+        fn from(value: bool) -> Self {
+            Self::LitBool(LitBool::new(value, proc_macro2::Span::call_site()))
+        }
+    }
+
+    impl Default for LitBoolOrExprPath {
+        fn default() -> Self {
+            Self::LitBool(LitBool::new(false, proc_macro2::Span::call_site()))
+        }
+    }
+
+    impl Parse for LitBoolOrExprPath {
         fn parse(input: ParseStream) -> syn::Result<Self> {
-            if input.peek(LitStr) {
-                Ok(Self::String(input.parse::<LitStr>()?.value()))
+            if input.peek(LitBool) {
+                Ok(LitBoolOrExprPath::LitBool(input.parse::<LitBool>()?))
             } else {
-                let include_str = input.parse::<Ident>()?;
-                let bang = input.parse::<Option<Token![!]>>()?;
-                if include_str != "include_str" || bang.is_none() {
-                    return Err(Error::new(
-                        include_str.span(),
-                        "unexpected token, expected either literal string or include_str!(...)",
-                    ));
+                let expr = input.parse::<Expr>()?;
+
+                match expr {
+                    Expr::Path(expr_path) => Ok(LitBoolOrExprPath::ExprPath(expr_path)),
+                    _ => Err(syn::Error::new(
+                        expr.span(),
+                        format!(
+                            "expected literal bool or path to a function that returns bool, found: {}",
+                            quote! {#expr}
+                        ),
+                    )),
                 }
-                Ok(Self::IncludeStr(input.parse::<Group>()?.stream()))
             }
         }
     }
 
-    impl ToTokens for Str {
+    impl ToTokens for LitBoolOrExprPath {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
-                Self::String(str) => str.to_tokens(tokens),
-                Self::IncludeStr(include_str) => {
-                    tokens.extend(quote! { include_str!(#include_str) })
-                }
+                Self::LitBool(bool) => bool.to_tokens(tokens),
+                Self::ExprPath(call) => call.to_tokens(tokens),
             }
+        }
+    }
+
+    pub fn parse_next_literal_bool_or_call(input: ParseStream) -> syn::Result<LitBoolOrExprPath> {
+        if input.peek(Token![=]) {
+            parse_next(input, || LitBoolOrExprPath::parse(input))
+        } else {
+            Ok(LitBoolOrExprPath::from(true))
         }
     }
 }

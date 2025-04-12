@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&operation"
+snapshot_kind: text
+---
+{
+  "operationId": "get_items",
+  "responses": {
+    "200": {
+      "description": "success response"
+    }
+  },
+  "tags": [
+    "mytag"
+  ]
+}

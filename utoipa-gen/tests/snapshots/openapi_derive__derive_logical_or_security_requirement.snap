@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: security
+snapshot_kind: text
+---
+[
+  {
+    "oauth": [
+      "a"
+    ]
+  },
+  {
+    "oauth": [
+      "b"
+    ]
+  }
+]

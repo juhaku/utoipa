@@ -1,14 +1,15 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
-use syn::parse_quote;
+use quote::ToTokens;
 use syn::spanned::Spanned;
+use syn::Generics;
 use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 
-use crate::component::{ComponentSchema, ComponentSchemaProps, TypeTree};
+use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
+use crate::path::media_type::MediaTypePathExt;
 use crate::path::{HttpMethod, PathTypeTree};
-use crate::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics};
+use crate::{Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -49,6 +50,8 @@ impl<'v> From<(MacroArg, TypeTree<'v>)> for ValueArgument<'v> {
         Self {
             name: match macro_arg {
                 MacroArg::Path(path) => Some(Cow::Owned(path.name)),
+                #[cfg(feature = "rocket_extras")]
+                MacroArg::Query(_) => None,
             },
             type_tree: Some(primitive_arg),
             argument_in: ArgumentIn::Path,
@@ -95,73 +98,79 @@ pub enum ArgumentIn {
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub struct RequestBody<'r> {
-    ty: TypeTree<'r>,
-}
+pub struct ExtSchema<'a>(TypeTree<'a>);
 
-impl<'t> From<TypeTree<'t>> for RequestBody<'t> {
-    fn from(value: TypeTree<'t>) -> RequestBody<'t> {
-        Self { ty: value }
+impl<'t> From<TypeTree<'t>> for ExtSchema<'t> {
+    fn from(value: TypeTree<'t>) -> ExtSchema<'t> {
+        Self(value)
     }
 }
 
-impl ToTokensDiagnostics for RequestBody<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let mut actual_body = get_actual_body_type(&self.ty)
-            .expect("should have found actual request body TypeTree")
-            .clone();
+impl ExtSchema<'_> {
+    fn get_actual_body(&self) -> Cow<'_, TypeTree<'_>> {
+        let actual_body_type = get_actual_body_type(&self.0);
 
-        if let Some(option) = find_option_type_tree(&self.ty) {
-            let path = option.path.clone();
-            actual_body = TypeTree {
-                children: Some(vec![actual_body]),
-                generic_type: Some(crate::component::GenericType::Option),
-                value_type: crate::component::ValueType::Object,
-                span: Some(path.span()),
-                path,
+        actual_body_type.map(|actual_body| {
+            if let Some(option_type) = find_option_type_tree(actual_body) {
+                let path = option_type.path.clone();
+                Cow::Owned(TypeTree {
+                    children: Some(vec![actual_body.clone()]),
+                    generic_type: Some(crate::component::GenericType::Option),
+                    value_type: crate::component::ValueType::Object,
+                    span: Some(path.span()),
+                    path,
+                })
+            } else {
+                Cow::Borrowed(actual_body)
             }
-        };
+        }).expect("ExtSchema must have actual request body resoved from TypeTree of handler fn argument")
+    }
 
-        let required = if actual_body.is_option() {
-            quote!(utoipa::openapi::Required::False)
+    pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
+        Ok(Some(Cow::Borrowed(&self.0)))
+    }
+
+    pub fn get_default_content_type(&self) -> Result<Cow<'static, str>, Diagnostics> {
+        let type_tree = &self.0;
+
+        let content_type = if type_tree.is("Bytes") {
+            Cow::Borrowed("application/octet-stream")
+        } else if type_tree.is("Form") {
+            Cow::Borrowed("application/x-www-form-urlencoded")
         } else {
-            quote!(utoipa::openapi::Required::True)
+            let get_actual_body = self.get_actual_body();
+            let actual_body = get_actual_body.as_ref();
+
+            actual_body.get_default_content_type()
         };
 
-        let mut create_body_tokens = |content_type: &str,
-                                      actual_body: &TypeTree|
-         -> Result<(), Diagnostics> {
-            let schema = as_tokens_or_diagnostics!(&ComponentSchema::new(ComponentSchemaProps {
-                type_tree: actual_body,
-                features: None,
-                description: None,
-                deprecated: None,
-                object_name: "",
-                // Currently Request body cannot know about possible generic types
-                is_generics_type_arg: false, // TODO check whether this is correct
-            })?);
+        Ok(content_type)
+    }
 
-            tokens.extend(quote_spanned! {actual_body.span.unwrap()=>
-                utoipa::openapi::request_body::RequestBodyBuilder::new()
-                    .content(#content_type,
-                        utoipa::openapi::content::Content::new(#schema)
-                    )
-                    .required(Some(#required))
-                    .description(Some(""))
-                    .build()
-            });
-            Ok(())
-        };
+    pub fn get_component_schema(&self) -> Result<Option<ComponentSchema>, Diagnostics> {
+        use crate::OptionExt;
 
-        if self.ty.is("Bytes") {
-            let bytes_as_bytes_vec = parse_quote!(Vec<u8>);
-            let ty = TypeTree::from_type(&bytes_as_bytes_vec)?;
-            create_body_tokens("application/octet-stream", &ty)?;
-        } else if self.ty.is("Form") {
-            create_body_tokens("application/x-www-form-urlencoded", &actual_body)?;
-        } else {
-            create_body_tokens(actual_body.get_default_content_type(), &actual_body)?;
-        };
+        let type_tree = &self.0;
+        let actual_body_type = get_actual_body_type(type_tree);
+
+        actual_body_type.and_then_try(|body_type| body_type.get_component_schema())
+    }
+}
+
+impl ToTokensDiagnostics for ExtSchema<'_> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
+        let get_actual_body = self.get_actual_body();
+        let type_tree = get_actual_body.as_ref();
+
+        let component_tokens = ComponentSchema::new(ComponentSchemaProps {
+            type_tree,
+            features: Vec::new(),
+            description: None,
+            container: &Container {
+                generics: &Generics::default(),
+            },
+        })?;
+        component_tokens.to_tokens(tokens);
 
         Ok(())
     }
@@ -270,7 +279,7 @@ pub struct ResolvedOperation {
 pub type Arguments<'a> = (
     Option<Vec<ValueArgument<'a>>>,
     Option<Vec<IntoParamsType<'a>>>,
-    Option<RequestBody<'a>>,
+    Option<ExtSchema<'a>>,
 );
 
 #[allow(unused)]

@@ -1,0 +1,23 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: v
+snapshot_kind: text
+---
+{
+  "description": "",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

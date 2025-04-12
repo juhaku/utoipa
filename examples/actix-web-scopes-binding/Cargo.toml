@@ -1,0 +1,19 @@
+[package]
+name = "actix-web-scopes-binding"
+description = "Simple actix-web demo to demonstrate utoipa-actix-web bidings with scopes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+serde = { version = "1.0", features = ["derive"] }
+env_logger = "0.11.0"
+log = "0.4"
+futures = "0.3"
+utoipa = { path = "../../utoipa", features = ["actix_extras"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = [
+    "actix-web",
+] }
+utoipa-actix-web = { path = "../../utoipa-actix-web" }
+
+[workspace]

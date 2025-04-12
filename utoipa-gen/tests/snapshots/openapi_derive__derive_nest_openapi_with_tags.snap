@@ -1,0 +1,66 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: paths
+snapshot_kind: text
+---
+{
+  "/api/v1/foobar/": {
+    "get": {
+      "operationId": "foobar",
+      "responses": {},
+      "tags": [
+        "mytag",
+        "yeah",
+        "wowow",
+        "foobarapi"
+      ]
+    }
+  },
+  "/api/v1/foobar/another": {
+    "get": {
+      "operationId": "foobaranother",
+      "responses": {},
+      "tags": [
+        "mytaganother",
+        "foobarapi"
+      ]
+    }
+  },
+  "/api/v1/foobar/nest2/": {
+    "get": {
+      "operationId": "foobar2",
+      "responses": {},
+      "tags": [
+        "yeah",
+        "wowow",
+        "foobarapi"
+      ]
+    }
+  },
+  "/api/v1/status": {
+    "get": {
+      "operationId": "test_path_status",
+      "responses": {},
+      "tags": []
+    }
+  },
+  "/api/v1/user/test": {
+    "get": {
+      "operationId": "user_test_path",
+      "responses": {},
+      "tags": [
+        "user",
+        "tag1"
+      ]
+    }
+  },
+  "/random": {
+    "get": {
+      "operationId": "random",
+      "responses": {},
+      "tags": [
+        "random"
+      ]
+    }
+  }
+}

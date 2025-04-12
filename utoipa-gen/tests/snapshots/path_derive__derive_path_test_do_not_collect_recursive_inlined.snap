@@ -1,0 +1,29 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: body
+snapshot_kind: text
+---
+{
+  "properties": {
+    "account": {
+      "properties": {
+        "id": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "account"
+  ],
+  "type": "object"
+}

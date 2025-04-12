@@ -11,3 +11,11 @@ Just run command below to run the demo application and browse to `http://localho
 cargo run
 ```
 
+## Run with Docker
+
+You have to build the crate with `--release` or set `debug-embed` in order to embed Swagger UI.
+```bash
+cargo build --release --target x86_64-unknown-linux-musl
+docker build -t axum-utoipa-nesting:latest .
+docker run -p 8080:8080 -t axum-utoipa-nesting:latest
+```

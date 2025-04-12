@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "allOf": [
+    {
+      "$ref": "#/components/schemas/Record"
+    },
+    {
+      "$ref": "#/components/schemas/Pagination"
+    },
+    {
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    }
+  ]
+}

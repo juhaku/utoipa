@@ -26,6 +26,8 @@ jobs:
           - utoipa-rapidoc
           - utoipa-scalar
           - utoipa-axum
+          - utoipa-config
+          - utoipa-actix-web
       fail-fast: true
     runs-on: ubuntu-latest
 
@@ -68,6 +70,10 @@ jobs:
             elif [[ "$change" == "utoipa-scalar" && "${{ matrix.crate }}" == "utoipa-scalar" && $changes == false ]]; then
               changes=true
             elif [[ "$change" == "utoipa-axum" && "${{ matrix.crate }}" == "utoipa-axum" && $changes == false ]]; then
+              changes=true
+            elif [[ "$change" == "utoipa-config" && "${{ matrix.crate }}" == "utoipa-config" && $changes == false ]]; then
+              changes=true
+            elif [[ "$change" == "utoipa-actix-web" && "${{ matrix.crate }}" == "utoipa-actix-web" && $changes == false ]]; then
               changes=true
             fi
           done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
@@ -131,7 +137,7 @@ jobs:
             ~/.cargo/git/db/
             examples/**/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}_examples
-      
+
       - name: Test that examples compile
         run: |
           ./scripts/validate-examples.sh

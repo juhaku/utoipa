@@ -24,13 +24,13 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 Use Scalar only without any boiler plate implementation.
 ```toml
 [dependencies]
-utoipa-scalar = "0.1"
+utoipa-scalar = "0.3"
 ```
 
 Enable actix-web integration with Scalar.
 ```toml
 [dependencies]
-utoipa-scalar = { version = "0.1", features = ["actix-web"] }
+utoipa-scalar = { version = "0.3", features = ["actix-web"] }
 ```
 
 # Using standalone
@@ -49,6 +49,35 @@ let scalar = Scalar::new(ApiDoc::openapi());
 let scalar = move || async {
     scalar.to_html()
 };
+```
+
+# Customization
+
+Scalar supports customization via [`Scalar::custom_html`] method which allows overriding the
+default HTML template with customized one. 
+
+**See more about configuration options.**
+
+* [Quick HTML configuration instructions](https://github.com/scalar/scalar/blob/main/documentation/integrations/html.md)
+* [Configuration options](https://github.com/scalar/scalar/blob/main/documentation/configuration.md)
+* [Themes](https://github.com/scalar/scalar/blob/main/documentation/themes.md)
+
+The HTML template must contain **`$spec`** variable which will be overridden during
+`Scalar::to_html` execution.
+
+* **`$spec`** Will be the `Spec` that will be rendered via `Scalar`.
+
+_**Overriding the HTML template with a custom one.**_
+```rust
+# use utoipa_redoc::Redoc;
+# use utoipa::OpenApi;
+# use serde_json::json;
+# #[derive(OpenApi)]
+# #[openapi()]
+# struct ApiDoc;
+#
+let html = "...";
+Redoc::new(ApiDoc::openapi()).custom_html(html);
 ```
 
 # Examples

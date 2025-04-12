@@ -1,0 +1,48 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "properties": {
+    "field1": {
+      "example": "test",
+      "type": "string"
+    },
+    "field2": {
+      "example": "test",
+      "type": "string"
+    },
+    "field3": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "example": {
+        "key1": "value1"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "field4": {
+      "additionalProperties": {
+        "$ref": "#/components/schemas/MyStruct"
+      },
+      "example": {
+        "key1": "value1"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "field1",
+    "field2",
+    "field3",
+    "field4"
+  ],
+  "type": "object"
+}

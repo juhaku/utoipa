@@ -1,0 +1,40 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "A": {
+          "properties": {
+            "foo": {
+              "$ref": "#/components/schemas/Foo"
+            }
+          },
+          "required": [
+            "foo"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "A"
+      ],
+      "type": "object"
+    },
+    {
+      "enum": [
+        "B"
+      ],
+      "type": "string"
+    },
+    {
+      "enum": [
+        "C"
+      ],
+      "type": "string"
+    }
+  ]
+}

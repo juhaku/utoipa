@@ -4,23 +4,23 @@ description = "Simple actix-web todo example api with utoipa and Swagger UI, Rap
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = [
-  "Example <example@example.com>"
-]
+authors = ["Example <example@example.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-env_logger = "0.10.0"
+env_logger = "0.11"
 log = "0.4"
 futures = "0.3"
 utoipa = { path = "../../utoipa", features = ["actix_extras"] }
-utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = [
+    "actix-web",
+] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["actix-web"] }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["actix-web"] }
 utoipa-scalar = { path = "../../utoipa-scalar", features = ["actix-web"] }
+utoipa-actix-web = { path = "../../utoipa-actix-web" }
 
 [workspace]

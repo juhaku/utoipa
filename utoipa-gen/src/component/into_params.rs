@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
     Generics, Ident,
@@ -13,7 +13,7 @@ use crate::{
         features::{
             self,
             attributes::{
-                AdditionalProperties, AllowReserved, Example, Explode, Format, Inline,
+                AdditionalProperties, AllowReserved, Example, Explode, Format, Ignore, Inline,
                 IntoParamsNames, Nullable, ReadOnly, Rename, RenameAll, SchemaWith, Style,
                 WriteOnly, XmlAttr,
             },
@@ -25,7 +25,8 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    Array, Diagnostics, GenericsExt, OptionExt, Required, ToTokensDiagnostics,
+    parse_utils::LitBoolOrExprPath,
+    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -34,7 +35,7 @@ use super::{
         Merge, ToTokensExt,
     },
     serde::{self, SerdeContainer, SerdeValue},
-    ComponentSchema, TypeTree,
+    ComponentSchema, Container, TypeTree,
 };
 
 impl_merge!(IntoParamsFeatures, FieldFeatures);
@@ -109,20 +110,26 @@ impl ToTokensDiagnostics for IntoParams {
         let params = self
             .get_struct_fields(&names.as_ref())?
             .enumerate()
-            .map(|(index, field)| match serde::parse_value(&field.attrs) {
-                Ok(serde_value) => Ok((index, field, serde_value)),
-                Err(diagnostics) => Err(diagnostics)
+            .map(|(index, field)| {
+                let field_features = match parse_field_features(field) {
+                    Ok(features) => features,
+                    Err(error) => return Err(error),
+                };
+                match serde::parse_value(&field.attrs) {
+                    Ok(serde_value) => Ok((index, field, serde_value, field_features)),
+                    Err(diagnostics) => Err(diagnostics)
+                }
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?
             .into_iter()
-            .filter_map(|(index, field, field_serde_params)| {
-                if !field_serde_params.skip {
-                    Some((index, field, field_serde_params))
-                } else {
+            .filter_map(|(index, field, field_serde_params, field_features)| {
+                if field_serde_params.skip {
                     None
+                } else {
+                    Some((index, field, field_serde_params, field_features))
                 }
             })
-            .map(|(index, field, field_serde_params)| {
+            .map(|(index, field, field_serde_params, field_features)| {
                 let name = names.as_ref()
                     .map_try(|names| names.get(index).ok_or_else(|| Diagnostics::with_span(
                         ident.span(),
@@ -132,10 +139,7 @@ impl ToTokensDiagnostics for IntoParams {
                     Ok(name) => name,
                     Err(diagnostics) => return Err(diagnostics)
                 };
-                let param = Param {
-                    field,
-                    field_serde_params,
-                    container_attributes: FieldParamContainerAttributes {
+                let param = Param::new(field, field_serde_params, field_features, FieldParamContainerAttributes {
                         rename_all: rename_all.as_ref().and_then(|feature| {
                             match feature {
                                 Feature::RenameAll(rename_all) => Some(rename_all),
@@ -145,29 +149,39 @@ impl ToTokensDiagnostics for IntoParams {
                         style: &style,
                         parameter_in: &parameter_in,
                         name,
-                    },
-                    serde_container: &serde_container,
-                    generics: &self.generics
-                };
+                    }, &serde_container, &self.generics)?;
 
-                let mut param_tokens = TokenStream::new();
-                match ToTokensDiagnostics::to_tokens(&param, &mut param_tokens) {
-                    Ok(_) => Ok(param_tokens),
-                    Err(diagnostics) => Err(diagnostics)
-                }
+
+                Ok(param.to_token_stream())
             })
             .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
-                    #params.to_vec()
+                    #params.into_iter().filter(Option::is_some).flatten().collect()
                 }
             }
         });
 
         Ok(())
     }
+}
+
+fn parse_field_features(field: &Field) -> Result<Vec<Feature>, Diagnostics> {
+    Ok(field
+        .attrs
+        .iter()
+        .filter(|attribute| attribute.path().is_ident("param"))
+        .map(|attribute| {
+            attribute
+                .parse_args::<FieldFeatures>()
+                .map(FieldFeatures::into_inner)
+        })
+        .collect::<Result<Vec<_>, syn::Error>>()?
+        .into_iter()
+        .reduce(|acc, item| acc.merge(item))
+        .unwrap_or_default())
 }
 
 impl IntoParams {
@@ -286,47 +300,164 @@ impl Parse for FieldFeatures {
             Pattern,
             MaxItems,
             MinItems,
-            AdditionalProperties
+            AdditionalProperties,
+            Ignore
         )))
     }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-struct Param<'a> {
-    /// Field in the container used to create a single parameter.
-    field: &'a Field,
-    //// Field serde params parsed from field attributes.
-    field_serde_params: SerdeValue,
-    /// Attributes on the container which are relevant for this macro.
-    container_attributes: FieldParamContainerAttributes<'a>,
-    /// Either serde rename all rule or into_params rename all rule if provided.
-    serde_container: &'a SerdeContainer,
-    /// Container gnerics
-    generics: &'a Generics,
+struct Param {
+    tokens: TokenStream,
 }
 
-impl Param<'_> {
+impl Param {
+    fn new(
+        field: &Field,
+        field_serde_params: SerdeValue,
+        field_features: Vec<Feature>,
+        container_attributes: FieldParamContainerAttributes<'_>,
+        serde_container: &SerdeContainer,
+        generics: &Generics,
+    ) -> Result<Self, Diagnostics> {
+        let mut tokens = TokenStream::new();
+        let field_serde_params = &field_serde_params;
+        let ident = &field.ident;
+        let mut name = &*ident
+            .as_ref()
+            .map(|ident| ident.to_string())
+            .or_else(|| container_attributes.name.cloned())
+            .ok_or_else(||
+                Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
+                    .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
+            )?;
+
+        if name.starts_with("r#") {
+            name = &name[2..];
+        }
+
+        let (schema_features, mut param_features) =
+            Param::resolve_field_features(field_features, &container_attributes)
+                .map_err(Diagnostics::from)?;
+
+        let ignore = pop_feature!(param_features => Feature::Ignore(_));
+        let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
+            .map(|rename| rename.into_value());
+        let rename_to = field_serde_params
+            .rename
+            .as_deref()
+            .map(Cow::Borrowed)
+            .or(rename.map(Cow::Owned));
+        let rename_all = serde_container.rename_all.as_ref().or(container_attributes
+            .rename_all
+            .map(|rename_all| rename_all.as_rename_rule()));
+        let name = super::rename::<FieldRename>(name, rename_to, rename_all)
+            .unwrap_or(Cow::Borrowed(name));
+        let type_tree = TypeTree::from_type(&field.ty)?;
+
+        tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
+            .name(#name)
+        });
+        tokens.extend(
+            if let Some(ref parameter_in) = &container_attributes.parameter_in {
+                parameter_in.to_token_stream()
+            } else {
+                quote! {
+                    .parameter_in(parameter_in_provider().unwrap_or_default())
+                }
+            },
+        );
+
+        if let Some(deprecated) = super::get_deprecated(&field.attrs) {
+            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
+
+        let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
+        if let Some(schema_with) = schema_with {
+            let schema_with = crate::as_tokens_or_diagnostics!(&schema_with);
+            tokens.extend(quote! { .schema(Some(#schema_with)).build() });
+        } else {
+            let description =
+                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
+            if !description.is_empty() {
+                tokens.extend(quote! { .description(Some(#description))})
+            }
+
+            let value_type = pop_feature!(param_features => Feature::ValueType(_) as Option<features::attributes::ValueType>);
+            let component = value_type
+                .as_ref()
+                .map_try(|value_type| value_type.as_type_tree())?
+                .unwrap_or(type_tree);
+            let alias_type = component.get_alias_type()?;
+            let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
+            let component = alias_type_tree.as_ref().unwrap_or(&component);
+
+            let required: Option<features::attributes::Required> =
+                pop_feature!(param_features => Feature::Required(_)).into_inner();
+            let component_required =
+                !component.is_option() && super::is_required(field_serde_params, serde_container);
+
+            let required = match (required, component_required) {
+                (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
+                (None, component_required) => Into::<Required>::into(component_required),
+            };
+
+            tokens.extend(quote! {
+                .required(#required)
+            });
+            tokens.extend(param_features.to_token_stream()?);
+
+            let is_query = matches!(container_attributes.parameter_in, Some(Feature::ParameterIn(p)) if p.is_query());
+            let option_is_nullable = !is_query;
+
+            let schema = ComponentSchema::for_params(
+                component::ComponentSchemaProps {
+                    type_tree: component,
+                    features: schema_features,
+                    description: None,
+                    container: &Container { generics },
+                },
+                option_is_nullable,
+            )?;
+            let schema_tokens = schema.to_token_stream();
+
+            tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
+        }
+
+        let tokens = match ignore {
+            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(bool)))) => {
+                quote_spanned! {
+                    bool.span() => if #bool {
+                        None
+                    } else {
+                        Some(#tokens)
+                    }
+                }
+            }
+            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
+                quote_spanned! {
+                    path.span() => if #path() {
+                        None
+                    } else {
+                        Some(#tokens)
+                    }
+                }
+            }
+            _ => quote! { Some(#tokens) },
+        };
+
+        Ok(Self { tokens })
+    }
+
     /// Resolve [`Param`] features and split features into two [`Vec`]s. Features are split by
     /// whether they should be rendered in [`Param`] itself or in [`Param`]s schema.
     ///
     /// Method returns a tuple containing two [`Vec`]s of [`Feature`].
-    fn resolve_field_features(&self) -> Result<(Vec<Feature>, Vec<Feature>), syn::Error> {
-        let mut field_features = self
-            .field
-            .attrs
-            .iter()
-            .filter(|attribute| attribute.path().is_ident("param"))
-            .map(|attribute| {
-                attribute
-                    .parse_args::<FieldFeatures>()
-                    .map(FieldFeatures::into_inner)
-            })
-            .collect::<Result<Vec<_>, syn::Error>>()?
-            .into_iter()
-            .reduce(|acc, item| acc.merge(item))
-            .unwrap_or_default();
-
-        if let Some(ref style) = self.container_attributes.style {
+    fn resolve_field_features(
+        mut field_features: Vec<Feature>,
+        container_attributes: &FieldParamContainerAttributes<'_>,
+    ) -> Result<(Vec<Feature>, Vec<Feature>), syn::Error> {
+        if let Some(ref style) = container_attributes.style {
             if !field_features
                 .iter()
                 .any(|feature| matches!(&feature, Feature::Style(_)))
@@ -370,104 +501,8 @@ impl Param<'_> {
     }
 }
 
-impl ToTokensDiagnostics for Param<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let field = self.field;
-        let field_serde_params = &self.field_serde_params;
-        let ident = &field.ident;
-        let mut name = &*ident
-            .as_ref()
-            .map(|ident| ident.to_string())
-            .or_else(|| self.container_attributes.name.cloned())
-            .ok_or_else(||
-                Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
-                    .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
-            )?;
-
-        if name.starts_with("r#") {
-            name = &name[2..];
-        }
-
-        let (schema_features, mut param_features) =
-            self.resolve_field_features().map_err(Diagnostics::from)?;
-
-        let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
-            .map(|rename| rename.into_value());
-        let rename_to = field_serde_params
-            .rename
-            .as_deref()
-            .map(Cow::Borrowed)
-            .or(rename.map(Cow::Owned));
-        let rename_all = self.serde_container.rename_all.as_ref().or(self
-            .container_attributes
-            .rename_all
-            .map(|rename_all| rename_all.as_rename_rule()));
-        let name = super::rename::<FieldRename>(name, rename_to, rename_all)
-            .unwrap_or(Cow::Borrowed(name));
-        let type_tree = TypeTree::from_type(&field.ty)?;
-
-        tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
-            .name(#name)
-        });
-        tokens.extend(
-            if let Some(ref parameter_in) = self.container_attributes.parameter_in {
-                parameter_in.to_token_stream()
-            } else {
-                quote! {
-                    .parameter_in(parameter_in_provider().unwrap_or_default())
-                }
-            },
-        );
-
-        if let Some(deprecated) = super::get_deprecated(&field.attrs) {
-            tokens.extend(quote! { .deprecated(Some(#deprecated)) });
-        }
-
-        let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
-        if let Some(schema_with) = schema_with {
-            let schema_with = crate::as_tokens_or_diagnostics!(&schema_with);
-            tokens.extend(quote! { .schema(Some(#schema_with)).build() });
-        } else {
-            let description =
-                CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
-            if !description.is_empty() {
-                tokens.extend(quote! { .description(Some(#description))})
-            }
-
-            let value_type = pop_feature!(param_features => Feature::ValueType(_) as Option<features::attributes::ValueType>);
-            let component = value_type
-                .as_ref()
-                .map_try(|value_type| value_type.as_type_tree())?
-                .unwrap_or(type_tree);
-
-            let required: Option<features::attributes::Required> =
-                pop_feature!(param_features => Feature::Required(_)).into_inner();
-            let component_required = !component.is_option()
-                && super::is_required(field_serde_params, self.serde_container);
-
-            let required = match (required, component_required) {
-                (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
-                (None, component_required) => Into::<Required>::into(component_required),
-            };
-
-            tokens.extend(quote! {
-                .required(#required)
-            });
-            tokens.extend(param_features.to_token_stream()?);
-
-            let schema = ComponentSchema::new(component::ComponentSchemaProps {
-                type_tree: &component,
-                features: Some(schema_features),
-                description: None,
-                deprecated: None,
-                object_name: "",
-                is_generics_type_arg: self.generics.any_match_type_tree(&component),
-            })?;
-            let schema_tokens = crate::as_tokens_or_diagnostics!(&schema);
-
-            tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
-        }
-
-        Ok(())
+impl ToTokens for Param {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.tokens.to_tokens(tokens)
     }
 }

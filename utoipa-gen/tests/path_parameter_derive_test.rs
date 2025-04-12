@@ -1,5 +1,4 @@
-use assert_json_diff::assert_json_eq;
-use serde_json::json;
+use insta::assert_json_snapshot;
 use utoipa::{OpenApi, Path};
 
 mod common;
@@ -194,7 +193,7 @@ fn derive_parameters_with_all_types() {
         "[2].description" = r#""Foo numbers list""#, "Parameter description"
         "[2].required" = r#"false"#, "Parameter required"
         "[2].deprecated" = r#"null"#, "Parameter deprecated"
-        "[2].schema.type" = r#"["array","null"]"#, "Parameter schema type"
+        "[2].schema.type" = r#""array""#, "Parameter schema type"
         "[2].schema.format" = r#"null"#, "Parameter schema format"
         "[2].schema.items.type" = r#""integer""#, "Parameter schema items type"
         "[2].schema.items.format" = r#""int64""#, "Parameter schema items format"
@@ -286,7 +285,7 @@ fn derive_params_with_params_ext() {
         "[0].description" = r#""Foo value description""#, "Parameter description"
         "[0].required" = r#"false"#, "Parameter required"
         "[0].deprecated" = r#"true"#, "Parameter deprecated"
-        "[0].schema.type" = r#"["array","null"]"#, "Parameter schema type"
+        "[0].schema.type" = r#""array""#, "Parameter schema type"
         "[0].schema.items.type" = r#""string""#, "Parameter schema items type"
         "[0].style" = r#""form""#, "Parameter style"
         "[0].allowReserved" = r#"true"#, "Parameter allowReserved"
@@ -320,30 +319,7 @@ fn derive_path_params_with_parameter_type_args() {
 
     common::assert_json_array_len(parameters, 1);
 
-    assert_json_eq!(
-        parameters,
-        json!([
-              {
-                  "in": "query",
-                  "name": "value",
-                  "required": false,
-                  "deprecated": true,
-                  "description": "Foo value description",
-                  "schema": {
-                      "type": ["array", "null"],
-                      "items": {
-                          "maxLength": 20,
-                          "pattern": r"\w",
-                          "type": "string"
-                      },
-                      "maxItems": 1,
-                  },
-                  "style": "form",
-                  "allowReserved": true,
-                  "explode": true
-              }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 macro_rules! into_params {
@@ -388,63 +364,5 @@ fn derive_into_params_required_custom_query_parameter_required() {
         }
     };
 
-    assert_json_eq!(
-        value,
-        json!([
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "limit",
-                "required": false,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                }
-            },
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "limit_explisit_required",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": "integer"
-                }
-            },
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "not_required",
-                "required": false,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
-                }
-            },
-            {
-                "description": "Maximum number of results to return.",
-                "example": 12,
-                "in": "query",
-                "name": "option_required",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "minimum": 0,
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(value);
 }

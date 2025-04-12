@@ -1,0 +1,33 @@
+[package]
+name = "utoipa-actix-web"
+description = "Utoipa's actix-web bindings for seamless integration of the two"
+version = "0.1.2"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["utoipa", "actix-web", "bindings"]
+repository = "https://github.com/juhaku/utoipa"
+categories = ["web-programming"]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
+rust-version.workspace = true
+
+[dependencies]
+utoipa = { path = "../utoipa", version = "5" }
+actix-web = { version = "4", default-features = false }
+actix-service = "2"
+
+[dev-dependencies]
+utoipa = { path = "../utoipa", version = "5", features = [
+    "actix_extras",
+    "macros",
+    "debug",
+] }
+actix-web = { version = "4", default-features = false, features = ["macros"] }
+serde = "1"
+
+[package.metadata.docs.rs]
+features = []
+rustdoc-args = ["--cfg", "doc_cfg"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }

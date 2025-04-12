@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: item
+snapshot_kind: text
+---
+{
+  "properties": {
+    "picture": {
+      "contentEncoding": "bas64",
+      "type": "string"
+    }
+  },
+  "required": [
+    "picture"
+  ],
+  "type": "object"
+}

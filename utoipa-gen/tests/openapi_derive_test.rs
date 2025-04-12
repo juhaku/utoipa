@@ -1,4 +1,3 @@
-#![cfg(feature = "yaml")]
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
@@ -54,7 +53,7 @@ mod pet_api {
 #[derive(Default, OpenApi)]
 #[openapi(
     paths(pet_api::get_pet_by_id),
-    components(schemas(Pet, GenericC, GenericD)),
+    components(schemas(Pet, C<A, B>, C<B, A>)),
     modifiers(&Foo),
     security(
         (),
@@ -75,7 +74,6 @@ struct B {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-#[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
 struct C<T, R> {
     field_1: R,
     field_2: T,
@@ -115,6 +113,7 @@ impl Modify for Foo {
 }
 
 #[test]
+#[cfg(feature = "yaml")]
 fn stable_yaml() {
     let left = ApiDoc::openapi().to_yaml().unwrap();
     let right = ApiDoc::openapi().to_yaml().unwrap();

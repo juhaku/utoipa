@@ -6,9 +6,10 @@ use syn::{
 use crate::{
     component::features::{
         attributes::{
-            AdditionalProperties, As, ContentEncoding, ContentMediaType, Deprecated, Description,
-            Example, Examples, Format, Inline, Nullable, ReadOnly, Rename, RenameAll, Required,
-            SchemaWith, Title, ValueType, WriteOnly, XmlAttr,
+            AdditionalProperties, As, Bound, ContentEncoding, ContentMediaType, Deprecated,
+            Description, Discriminator, Example, Examples, Format, Ignore, Inline, NoRecursion,
+            Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType,
+            WriteOnly, XmlAttr,
         },
         impl_into_inner, impl_merge, parse_features,
         validation::{
@@ -36,7 +37,9 @@ impl Parse for NamedFieldStructFeatures {
             As,
             crate::component::features::attributes::Default,
             Deprecated,
-            Description
+            Description,
+            Bound,
+            NoRecursion
         )))
     }
 }
@@ -57,7 +60,12 @@ impl Parse for UnnamedFieldStructFeatures {
             ValueType,
             As,
             Deprecated,
-            Description
+            Description,
+            ContentEncoding,
+            ContentMediaType,
+            Bound,
+            NoRecursion,
+            Pattern
         )))
     }
 }
@@ -76,30 +84,34 @@ impl Parse for EnumFeatures {
             RenameAll,
             As,
             Deprecated,
-            Description
+            Description,
+            Bound
         )))
     }
 }
 
 impl_into_inner!(EnumFeatures);
 
-pub struct ComplexEnumFeatures(Vec<Feature>);
+pub struct MixedEnumFeatures(Vec<Feature>);
 
-impl Parse for ComplexEnumFeatures {
+impl Parse for MixedEnumFeatures {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(ComplexEnumFeatures(parse_features!(
+        Ok(MixedEnumFeatures(parse_features!(
             input as Example,
             Examples,
             crate::component::features::attributes::Default,
+            Title,
             RenameAll,
             As,
             Deprecated,
-            Description
+            Description,
+            Discriminator,
+            NoRecursion
         )))
     }
 }
 
-impl_into_inner!(ComplexEnumFeatures);
+impl_into_inner!(MixedEnumFeatures);
 
 pub struct NamedFieldFeatures(Vec<Feature>);
 
@@ -132,7 +144,9 @@ impl Parse for NamedFieldFeatures {
             Required,
             Deprecated,
             ContentEncoding,
-            ContentMediaType
+            ContentMediaType,
+            Ignore,
+            NoRecursion
         )))
     }
 }
@@ -146,11 +160,15 @@ impl Parse for EnumNamedFieldVariantFeatures {
         Ok(EnumNamedFieldVariantFeatures(parse_features!(
             input as Example,
             Examples,
+            crate::component::features::attributes::Default,
             XmlAttr,
             Title,
             Rename,
             RenameAll,
-            Deprecated
+            Deprecated,
+            MaxProperties,
+            MinProperties,
+            NoRecursion
         )))
     }
 }
@@ -169,7 +187,8 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
             Format,
             ValueType,
             Rename,
-            Deprecated
+            Deprecated,
+            NoRecursion
         )))
     }
 }
@@ -204,7 +223,7 @@ impl_merge!(
     NamedFieldStructFeatures,
     UnnamedFieldStructFeatures,
     EnumFeatures,
-    ComplexEnumFeatures,
+    MixedEnumFeatures,
     NamedFieldFeatures,
     EnumNamedFieldVariantFeatures,
     EnumUnnamedFieldVariantFeatures

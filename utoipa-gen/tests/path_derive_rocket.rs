@@ -1,14 +1,13 @@
 #![cfg(feature = "rocket_extras")]
 
-use std::io::Error;
-
-use assert_json_diff::assert_json_eq;
-use rocket::post;
+use insta::assert_json_snapshot;
 use rocket::request::FromParam;
 use rocket::serde::json::Json;
-use serde_json::{json, Value};
+use rocket::{get, post, FromForm};
+use serde_json::Value;
+use std::io::Error;
 use utoipa::openapi::path::ParameterBuilder;
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, Path, ToSchema};
 use utoipa_gen::schema;
 
 mod common;
@@ -126,22 +125,7 @@ fn resolve_get_with_optional_query_args() {
         "expected paths.hello.get.parameters not null"
     );
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "in": "query",
-                "name": "colors",
-                "required": false,
-                "schema": {
-                    "items": {
-                        "type": "string",
-                    },
-                    "type": ["array", "null"],
-                }
-            }
-        ])
-    );
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -388,38 +372,7 @@ fn resolve_path_query_params_from_form() {
         .pointer("/paths/~1hello~1{id}/get/parameters")
         .unwrap();
 
-    assert_json_eq!(
-        parameters,
-        json!([
-            {
-                "description": "Hello id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "type": "integer"
-                }
-            },
-            {
-                "in": "query",
-                "name": "foo",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "bar",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer"
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(parameters);
 }
 
 #[test]
@@ -442,9 +395,7 @@ fn path_with_all_args_and_body() {
     // NOTE! temporarily disable automatic parameter recognition
     #[utoipa::path(
     responses(
-        (
-            status = 200, description = "Hello from server")
-        ),
+        (status = 200, description = "Hello from server")),
         params(
             ("id", description = "Hello id"),
             QueryParams
@@ -470,72 +421,8 @@ fn path_with_all_args_and_body() {
     let value = &serde_json::to_value(&openapi).unwrap();
     let operation = value.pointer("/paths/~1hello~1{id}~1{name}/post").unwrap();
 
-    assert_json_eq!(
-        operation.pointer("/parameters"),
-        json!([
-            {
-                "description": "Hello id",
-                "in": "path",
-                "name": "id",
-                "required": true,
-                "schema": {
-                    "format": "int32",
-                    "type": "integer"
-                }
-            },
-            {
-                "in": "query",
-                "name": "foo",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            },
-            {
-                "in": "query",
-                "name": "bar",
-                "required": true,
-                "schema": {
-                    "format": "int64",
-                    "type": "integer"
-                }
-            },
-            {
-                "in": "query",
-                "name": "colors",
-                "required": true,
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            {
-                "in": "path",
-                "name": "name",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }
-
-        ])
-    );
-    assert_json_eq!(
-        &operation.pointer("/requestBody"),
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/Hello"
-                    }
-                }
-            },
-            "description": "",
-            "required": true
-        })
-    );
+    assert_json_snapshot!(operation.pointer("/parameters"));
+    assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
 #[test]
@@ -596,23 +483,7 @@ fn path_with_enum_path_param() {
     let value = &serde_json::to_value(&openapi).unwrap();
     let operation = value.pointer("/paths/~1item/post").unwrap();
 
-    assert_json_eq!(
-        operation.pointer("/parameters"),
-        json!([
-            {
-                "description": "",
-                "in": "path",
-                "name": "api_version",
-                "required": true,
-                "schema": {
-                    "type": "string",
-                    "enum": [
-                        "V1"
-                    ]
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(operation.pointer("/parameters"));
 }
 
 macro_rules! test_derive_path_operations {
@@ -624,10 +495,10 @@ macro_rules! test_derive_path_operations {
                     use rocket::$operation;
 
                     #[utoipa::path(
-                                                responses(
-                                                    (status = 200, description = "Hello from server")
-                                                )
-                                            )]
+                        responses(
+                            (status = 200, description = "Hello from server")
+                        )
+                    )]
                     #[$operation("/hello")]
                     #[allow(unused)]
                     fn hello() -> String {
@@ -663,4 +534,34 @@ test_derive_path_operations! {
     derive_path_head: head
     derive_path_options: options
     derive_path_patch: patch
+}
+
+#[test]
+fn derive_rocket_path_with_query_params_in_option() {
+    #![allow(unused)]
+
+    #[derive(FromForm, IntoParams)]
+    #[into_params(parameter_in = Query, style = Form)]
+    pub struct PageParams {
+        pub page: u64,
+        pub per_page: u64,
+    }
+
+    #[utoipa::path(
+        context_path = "/user/api_keys",
+        params(
+            PageParams,
+        ),
+        responses(
+            (status = 200, body = ()),
+            (status = 400, body = ()),
+        ),
+    )]
+    #[get("/list?<page..>")]
+    async fn list_items(page: Option<PageParams>) {}
+
+    let operation = __path_list_items::operation();
+    let value = serde_json::to_value(&operation).expect("operation is JSON serializable");
+
+    assert_json_snapshot!(value);
 }

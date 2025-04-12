@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: schemas
+snapshot_kind: text
+---
+{
+  "User": {
+    "properties": {
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  }
+}

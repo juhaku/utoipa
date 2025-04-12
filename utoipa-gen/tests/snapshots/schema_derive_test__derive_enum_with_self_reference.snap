@@ -1,0 +1,39 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "Item": {
+          "$ref": "#/components/schemas/EnumValue"
+        }
+      },
+      "required": [
+        "Item"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "Item2": {
+          "properties": {
+            "value": {
+              "$ref": "#/components/schemas/EnumValue"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Item2"
+      ],
+      "type": "object"
+    }
+  ]
+}

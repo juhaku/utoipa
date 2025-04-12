@@ -1,0 +1,19 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: greeting
+snapshot_kind: text
+---
+{
+  "properties": {
+    "greeting": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "greeting"
+  ],
+  "type": "object"
+}

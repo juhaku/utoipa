@@ -2,7 +2,7 @@ use std::{
     env,
     error::Error,
     fs::{self, File},
-    io::{self, Cursor},
+    io::{self, Cursor, Read, Seek},
     path::{Path, PathBuf},
 };
 
@@ -19,10 +19,24 @@ use zip::{result::ZipError, ZipArchive};
 /// + absolute path to a folder containing files to overwrite the default swagger-ui files
 
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
-    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip";
+    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip";
 
 const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
+
+#[cfg(feature = "cache")]
+fn sha256(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(data);
+    let hash = hasher.finalize();
+    format!("{:x}", hash).to_uppercase()
+}
+
+#[cfg(feature = "cache")]
+fn get_cache_dir() -> Option<PathBuf> {
+    dirs::cache_dir().map(|p| p.join("utoipa-swagger-ui"))
+}
 
 fn main() {
     let target_dir = env::var("OUT_DIR").unwrap();
@@ -67,77 +81,75 @@ enum SwaggerZip {
 }
 
 impl SwaggerZip {
-    fn len(&self) -> usize {
-        match self {
-            Self::File(file) => file.len(),
-            Self::Bytes(bytes) => bytes.len(),
-        }
-    }
-
-    fn by_index(&mut self, index: usize) -> Result<zip::read::ZipFile, ZipError> {
-        match self {
-            Self::File(file) => file.by_index(index),
-            Self::Bytes(bytes) => bytes.by_index(index),
-        }
-    }
-
     fn extract_dist(&mut self, target_dir: &str) -> Result<String, ZipError> {
-        let mut zip_top_level_folder = String::new();
+        // Inner function that's generic over the type of zip files
+        fn extract<R: Seek + Read>(
+            zip: &mut ZipArchive<R>,
+            target_dir: &str,
+        ) -> Result<String, ZipError> {
+            let mut zip_top_level_folder = String::new();
 
-        for index in 0..self.len() {
-            let mut file = self.by_index(index)?;
-            let filepath = file
-                .enclosed_name()
-                .ok_or(ZipError::InvalidArchive("invalid path file"))?;
+            for index in 0..zip.len() {
+                let mut file = zip.by_index(index)?;
+                let filepath = file
+                    .enclosed_name()
+                    .ok_or(ZipError::InvalidArchive("invalid path file".into()))?;
 
-            if index == 0 {
-                zip_top_level_folder = filepath
+                if index == 0 {
+                    zip_top_level_folder = filepath
+                        .iter()
+                        .take(1)
+                        .map(|x| x.to_str().unwrap_or_default())
+                        .collect::<String>();
+                }
+
+                let next_folder = filepath
                     .iter()
+                    .skip(1)
                     .take(1)
                     .map(|x| x.to_str().unwrap_or_default())
                     .collect::<String>();
-            }
 
-            let next_folder = filepath
-                .iter()
-                .skip(1)
-                .take(1)
-                .map(|x| x.to_str().unwrap_or_default())
-                .collect::<String>();
+                if next_folder == "dist" {
+                    let directory = [&target_dir].iter().collect::<PathBuf>();
+                    let out_path = directory.join(filepath);
 
-            if next_folder == "dist" {
-                let directory = [&target_dir].iter().collect::<PathBuf>();
-                let out_path = directory.join(filepath);
-
-                if file.name().ends_with('/') {
-                    fs::create_dir_all(&out_path)?;
-                } else {
-                    if let Some(p) = out_path.parent() {
-                        if !p.exists() {
-                            fs::create_dir_all(p)?;
+                    if file.name().ends_with('/') {
+                        fs::create_dir_all(&out_path)?;
+                    } else {
+                        if let Some(p) = out_path.parent() {
+                            if !p.exists() {
+                                fs::create_dir_all(p)?;
+                            }
+                        }
+                        let mut out_file = fs::File::create(&out_path)?;
+                        io::copy(&mut file, &mut out_file)?;
+                    }
+                    // Get and Set permissions
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        if let Some(mode) = file.unix_mode() {
+                            fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
                         }
                     }
-                    let mut out_file = fs::File::create(&out_path)?;
-                    io::copy(&mut file, &mut out_file)?;
-                }
-                // Get and Set permissions
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Some(mode) = file.unix_mode() {
-                        fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
-                    }
                 }
             }
+
+            Ok(zip_top_level_folder)
         }
 
-        Ok(zip_top_level_folder)
+        match self {
+            Self::File(file) => extract(file, target_dir),
+            Self::Bytes(bytes) => extract(bytes, target_dir),
+        }
     }
 }
 
 fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
     let zip_filename = url.split('/').last().unwrap().to_string();
-    let zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
+    #[allow(unused_mut)]
+    let mut zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
     if env::var("CARGO_FEATURE_VENDORED").is_ok() {
         #[cfg(not(feature = "vendored"))]
@@ -173,15 +185,37 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
             .expect("failed to open file protocol copied Swagger UI");
         SwaggerZip::File(zip)
     } else if url.starts_with("http://") || url.starts_with("https://") {
-        println!("start download to : {:?}", zip_path);
-
         // with http protocol we update when the 'SWAGGER_UI_DOWNLOAD_URL' changes
         println!("cargo:rerun-if-env-changed={SWAGGER_UI_DOWNLOAD_URL}");
 
-        download_file(url, zip_path.clone())
-            .unwrap_or_else(|error| panic!("failed to download Swagger UI: {error}"));
-        let swagger_ui_zip =
-            File::open([target_dir, &zip_filename].iter().collect::<PathBuf>()).unwrap();
+        // Update zip_path to point to the resolved cache directory
+        #[cfg(feature = "cache")]
+        {
+            // Compute cache key based hashed URL + crate version
+            let mut cache_key = String::new();
+            cache_key.push_str(url);
+            cache_key.push_str(&env::var("CARGO_PKG_VERSION").unwrap_or_default());
+            let cache_key = sha256(cache_key.as_bytes());
+            // Store the cache in the cache_key directory inside the OS's default cache folder
+            let mut cache_dir = if let Some(dir) = get_cache_dir() {
+                dir.join("swagger-ui").join(&cache_key)
+            } else {
+                println!("cargo:warning=Could not determine cache directory, using OUT_DIR");
+                PathBuf::from(env::var("OUT_DIR").unwrap())
+            };
+            if fs::create_dir_all(&cache_dir).is_err() {
+                cache_dir = env::var("OUT_DIR").unwrap().into();
+            }
+            zip_path = cache_dir.join(&zip_filename);
+        }
+
+        if zip_path.exists() {
+            println!("using cached zip path from : {:?}", zip_path);
+        } else {
+            println!("start download to : {:?}", zip_path);
+            download_file(url, zip_path.clone()).expect("failed to download Swagger UI");
+        }
+        let swagger_ui_zip = File::open(zip_path).unwrap();
         let zip = ZipArchive::new(swagger_ui_zip).expect("failed to open downloaded Swagger UI");
         SwaggerZip::File(zip)
     } else {
@@ -226,15 +260,9 @@ struct SwaggerUiDist;
 fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let reqwest_feature = env::var("CARGO_FEATURE_REQWEST");
     println!("reqwest feature: {reqwest_feature:?}");
-    if reqwest_feature.is_ok()
-        || env::var("CARGO_CFG_TARGET_OS")
-            .map(|os| os == "windows")
-            .unwrap_or_default()
-    {
-        #[cfg(any(feature = "reqwest", target_os = "windows"))]
-        {
-            download_file_reqwest(url, path)?;
-        }
+    if reqwest_feature.is_ok() {
+        #[cfg(feature = "reqwest")]
+        download_file_reqwest(url, path)?;
         Ok(())
     } else {
         println!("trying to download using `curl` system package");
@@ -242,7 +270,7 @@ fn download_file(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     }
 }
 
-#[cfg(any(feature = "reqwest", target_os = "windows"))]
+#[cfg(feature = "reqwest")]
 fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>> {
     let mut client_builder = reqwest::blocking::Client::builder();
 
@@ -263,7 +291,7 @@ fn download_file_reqwest(url: &str, path: PathBuf) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-#[cfg(any(feature = "reqwest", target_os = "windows"))]
+#[cfg(feature = "reqwest")]
 fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
     let mut buf = Vec::new();
     use io::Read;
@@ -273,6 +301,16 @@ fn parse_ca_file(path: &str) -> Result<reqwest::Certificate, Box<dyn Error>> {
 }
 
 fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Box<dyn Error>> {
+    // Not using `CARGO_CFG_TARGET_OS` because of the possibility of cross-compilation.
+    // When targeting `x86_64-pc-windows-gnu` on Linux for example, `cfg!()` in the
+    // build script still reports `target_os = "linux"`, which is desirable.
+    let curl_bin_name = if cfg!(target_os = "windows") {
+        // powershell aliases `curl` to `Invoke-WebRequest`
+        "curl.exe"
+    } else {
+        "curl"
+    };
+
     #[cfg(feature = "url")]
     let url = url::Url::parse(url)?;
 
@@ -297,7 +335,7 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
         args.extend(["--cacert", &cacert]);
     }
 
-    let download = std::process::Command::new("curl")
+    let download = std::process::Command::new(curl_bin_name)
         .args(args)
         .spawn()
         .and_then(|mut child| child.wait());
@@ -315,7 +353,7 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
         })
         .map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
-                io::Error::new(error.kind(), "`curl` command not found".to_string())
+                io::Error::new(error.kind(), format!("`{curl_bin_name}` command not found"))
             } else {
                 error
             }

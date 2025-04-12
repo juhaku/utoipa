@@ -21,6 +21,8 @@ jobs:
           - utoipa-rapidoc
           - utoipa-scalar
           - utoipa-axum
+          - utoipa-config
+          - utoipa-actix-web
     runs-on: ubuntu-latest
 
     steps:

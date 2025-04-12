@@ -1,0 +1,14 @@
+---
+source: utoipa/src/openapi.rs
+expression: api
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "",
+    "version": ""
+  },
+  "paths": {},
+  "x-tagGroup": "anything that serializes to Json"
+}

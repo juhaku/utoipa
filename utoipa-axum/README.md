@@ -19,7 +19,7 @@ Add dependency declaration to `Cargo.toml`.
 
 ```toml
 [dependencies]
-utoipa_axum = "0.1"
+utoipa-axum = "0.2"
 ```
 
 ## Examples
@@ -27,21 +27,21 @@ utoipa_axum = "0.1"
 Use `OpenApiRouter` to collect handlers with `#[utoipa::path]` macro to compose service and form OpenAPI spec.
 
 ```rust
+use utoipa_axum::{routes, PathItemExt, router::OpenApiRouter};
+
 #[derive(utoipa::ToSchema)]
-struct Todo {
+struct User {
     id: i32,
 }
 
-#[derive(utoipa::OpenApi)]
-#[openapi(components(schemas(Todo)))]
-struct Api;
+#[utoipa::path(get, path = "/user", responses((status = OK, body = User)))]
+async fn get_user() -> Json<User> {
+    Json(User { id: 1 })
+}
 
-let mut router: OpenApiRouter = OpenApiRouter::with_openapi(Api::openapi())
-    .routes(routes!(search_user))
-    .routes(routes!(get_user, post_user, delete_user));
-
-let api = router.to_openapi();
-let axum_router: axum::Router = router.into();
+let (router, api) = OpenApiRouter::new()
+    .routes(routes!(get_user))
+    .split_for_parts();
 ```
 
 ## License

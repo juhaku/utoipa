@@ -1,0 +1,40 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: user
+snapshot_kind: text
+---
+{
+  "properties": {
+    "id": {
+      "format": "int64",
+      "type": "integer",
+      "xml": {
+        "attribute": true,
+        "prefix": "u"
+      }
+    },
+    "links": {
+      "items": {
+        "type": "string",
+        "xml": {
+          "name": "link"
+        }
+      },
+      "type": [
+        "array",
+        "null"
+      ],
+      "xml": {
+        "name": "linkList",
+        "wrapped": true
+      }
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "type": "object",
+  "xml": {
+    "name": "user"
+  }
+}

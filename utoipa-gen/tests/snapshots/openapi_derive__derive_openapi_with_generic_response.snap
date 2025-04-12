@@ -1,0 +1,23 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: response
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "schema": {
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "description": ""
+}

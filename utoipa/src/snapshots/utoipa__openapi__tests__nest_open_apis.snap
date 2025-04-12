@@ -1,0 +1,24 @@
+---
+source: utoipa/src/openapi.rs
+expression: paths
+snapshot_kind: text
+---
+{
+  "/api/v1/status": {
+    "get": {
+      "description": "Get status",
+      "responses": {}
+    }
+  },
+  "/api/v1/user/": {
+    "get": {
+      "description": "Get user details",
+      "responses": {}
+    }
+  },
+  "/api/v1/user/foo": {
+    "post": {
+      "responses": {}
+    }
+  }
+}

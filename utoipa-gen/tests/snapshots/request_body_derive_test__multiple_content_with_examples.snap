@@ -1,0 +1,32 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: request_body
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "examples": {
+        "example1": {
+          "description": "Foo name example",
+          "value": "Foo name"
+        },
+        "example2": {
+          "description": "example value",
+          "value": "example value"
+        }
+      },
+      "schema": {
+        "$ref": "#/components/schemas/Foo"
+      }
+    },
+    "text/xml": {
+      "example": "Value",
+      "schema": {
+        "$ref": "#/components/schemas/Foo"
+      }
+    }
+  },
+  "description": "Create new Foo",
+  "required": true
+}

@@ -13,9 +13,8 @@ async fn main() {
 
     #[derive(OpenApi)]
     #[openapi(
-        paths(todo::list_todos, todo::create_todo, todo::delete_todo),
-        components(
-            schemas(todo::Todo)
+        nest(
+            (path = "/api", api = todo::TodoApi)
         ),
         modifiers(&SecurityAddon),
         tags(
@@ -44,9 +43,13 @@ async fn main() {
         .and(warp::get())
         .map(|| warp::reply::html(RapiDoc::new("/api-doc.json").to_html()));
 
-    warp::serve(api_doc.or(rapidoc_handler).or(todo::handlers()))
-        .run((Ipv4Addr::UNSPECIFIED, 8080))
-        .await
+    warp::serve(
+        api_doc
+            .or(rapidoc_handler)
+            .or(warp::path("api").and(todo::handlers())),
+    )
+    .run((Ipv4Addr::UNSPECIFIED, 8080))
+    .await
 }
 
 mod todo {
@@ -56,8 +59,12 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{IntoParams, ToSchema};
+    use utoipa::{IntoParams, OpenApi, ToSchema};
     use warp::{hyper::StatusCode, Filter, Rejection, Reply};
+
+    #[derive(OpenApi)]
+    #[openapi(paths(list_todos, create_todo, delete_todo))]
+    pub struct TodoApi;
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 

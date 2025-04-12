@@ -29,28 +29,31 @@ being portable and standalone, one of its key aspects is simple integration with
 
 ## Choose your flavor and document your API with ice-cold IPA
 
-Refer to the existing [examples](./examples) for building the "todo" app in the following frameworks:
+|Flavor|Support|
+|--|--|
+|[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body, [`utoipa-actix-web` bindings](./utoipa-actix-web/README.md). See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-feature-support-for-actix-web)|
+|[axum](https://github.com/tokio-rs/axum)|Parse path and query parameters, recognize request body and response body, [`utoipa-axum` bindings](./utoipa-axum/README.md). See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)|
+|[rocket](https://github.com/SergioBenitez/Rocket)| Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-feature-support-for-rocket)|
+|Others*| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|
 
-- **[actix-web](https://github.com/actix/actix-web)**
-- **[axum](https://github.com/tokio-rs/axum)**
-- **[warp](https://github.com/seanmonstar/warp)**
-- **[tide](https://github.com/http-rs/tide)**
-- **[rocket](https://github.com/SergioBenitez/Rocket)** (`0.4` and `0.5`)
+> Others* = For example [warp](https://github.com/seanmonstar/warp) but could be anything.
 
-All examples include a [Swagger-UI](https://github.com/swagger-api/swagger-ui) unless stated otherwise.
+Refer to the existing [examples](./examples) to find out more.
 
-There are also examples of building multiple OpenAPI docs in one application, each separated in Swagger UI.
-These examples exist only for the **actix** and **warp** frameworks.
+## Features
 
-Even if there is no example for your favourite framework, `utoipa` can be used with any
-web framework which supports decorating functions with macros similarly to the **warp** and **tide** examples.
-
-### Community examples
-
-- **[graphul](https://github.com/graphul-rs/graphul/tree/main/examples/utoipa-swagger-ui)**
-- **[salvo](https://github.com/salvo-rs/salvo/tree/main/examples/todos-utoipa)**
-- **[viz](https://github.com/viz-rs/viz/tree/main/examples/routing/openapi)**
-- **[ntex](https://github.com/leon3s/ntex-rest-api-example)**
+* OpenAPI 3.1
+* Pluggable, easy setup and integration with frameworks. 
+* No bloat, enable what you need.
+* Support for generic types
+  * **Note!**<br>
+    Tuples, arrays and slices cannot be used as generic arguments on types. Types implementing `ToSchema` manually should not have generic arguments, as
+    they are not composeable and will result compile error.
+* Automatic schema collection from usages recursively. 
+  * Request body from either handler function arguments (if supported by framework) or from `request_body` attribute.
+  * Response body from response `body` attribute or response `content` attribute.
+* Various OpenAPI visualization tools supported out of the box.
+* Rust type aliases via [`utoipa-config`](./utoipa-config/README.md).
 
 ## What's up with the word play?
 
@@ -60,12 +63,12 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 ## Crate Features
 
 - **`macros`** Enable `utoipa-gen` macros. **This is enabled by default.**
-- **`yaml`**: Enables **serde_yaml** serialization of OpenAPI objects.
+- **`yaml`**: Enables **serde_norway** serialization of OpenAPI objects.
 - **`actix_extras`**: Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
   parse `path`, `path` and `query` parameters from actix web path attribute macros. See
-  [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-support-for-actix-web) or [examples](./examples) for more details.
+  [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-feature-support-for-actix-web) or [examples](./examples) for more details.
 - **`rocket_extras`**: Enhances [rocket](https://github.com/SergioBenitez/Rocket) framework integration with being
-  able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-support-for-rocket)
+  able to parse `path`, `path` and `query` parameters from rocket path attribute macros. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-feature-support-for-rocket)
   or [examples](./examples) for more details.
 - **`axum_extras`**: Enhances [axum](https://github.com/tokio-rs/axum) framework integration allowing users to use `IntoParams` without
   defining the `parameter_in` attribute. See [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)
@@ -109,35 +112,28 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **`non_strict_integers`**: Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
 - **`rc_schema`**: Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
+- **`config`** Enables [`utoipa-config`](./utoipa-config/README.md) for the project which allows defining global configuration options for `utoipa`.
 
-Utoipa implicitly has partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
+### Default Library Support
+
+* Implicit partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
+* Support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 
 ## Install
 
-Add minimal dependency declaration to `Cargo.toml`.
+Add dependency declaration to `Cargo.toml`.
 
 ```toml
 [dependencies]
-utoipa = "4"
+utoipa = "5"
 ```
-
-To enable more features such as use actix framework extras you could define the
-dependency as follows.
-
-```toml
-[dependencies]
-utoipa = { version = "4", features = ["actix_extras"] }
-```
-
-**Note!** To use `utoipa` together with Swagger UI you can use the [utoipa-swagger-ui](https://docs.rs/utoipa-swagger-ui/) crate.
 
 ## Examples
 
-Create a struct, or it could also be an enum. Add `ToSchema` derive macro to it, so it can be registered
-as an OpenAPI schema.
+_Create type with `ToSchema` and use it in `#[utoipa::path(...)]` that is registered to the `OpenApi`._
 
 ```rust
-use utoipa::ToSchema;
+use utoipa::{OpenApi, ToSchema};
 
 #[derive(ToSchema)]
 struct Pet {
@@ -145,11 +141,7 @@ struct Pet {
    name: String,
    age: Option<i32>,
 }
-```
 
-Create a handler that would handle your business logic and add `path` proc attribute macro over it.
-
-```rust
 mod pet_api {
     /// Get pet by id
     ///
@@ -165,35 +157,24 @@ mod pet_api {
             ("id" = u64, Path, description = "Pet database id to get Pet for"),
         )
     )]
-    async fn get_pet_by_id(pet_id: u64) -> Pet {
-        Pet {
+    async fn get_pet_by_id(pet_id: u64) -> Result<Pet, NotFound> {
+        Ok(Pet {
             id: pet_id,
             age: None,
             name: "lightning".to_string(),
-        }
+        })
     }
 }
-```
-
-Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
-
-_This attribute macro will create another struct named with `__path_` prefix + handler function name.
-So when you implement `some_handler` function in different file and want to export this, make sure `__path_some_handler`
-in the module can also be accessible from the root._
-
-Tie the `Schema` and the endpoint above to the OpenAPI schema with following `OpenApi` derive proc macro.
-
-```rust
-use utoipa::OpenApi;
 
 #[derive(OpenApi)]
-#[openapi(paths(pet_api::get_pet_by_id), components(schemas(Pet)))]
+#[openapi(paths(pet_api::get_pet_by_id))]
 struct ApiDoc;
 
 println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
 ```
 
-This would produce an API doc something similar to:
+<details>
+    <summary><i><b>Above example will produce an OpenAPI doc like this:</b></i></summary>
 
 ```json
 {
@@ -281,6 +262,8 @@ This would produce an API doc something similar to:
 }
 ```
 
+</details>
+
 ## Modify OpenAPI at runtime
 
 You can modify generated OpenAPI at runtime either via generated types directly or using
@@ -331,11 +314,6 @@ Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/t
 ### How to implement `ToSchema` for external type?
 
 There are few ways around this that are elaborated [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
-
-### How to use Rust's type aliases?
-
-At the moment that is not possible due to there is no way to evaluate the actual type behind the type token that is visible to the proc macro code generation.
-This might be possible in future if a global alias registry can be implemented. Here is an issue related to the topic [#766](https://github.com/juhaku/utoipa/issues/766).
 
 ### Auto discover for OpenAPI schemas and paths?
 

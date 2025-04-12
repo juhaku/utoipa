@@ -1,0 +1,60 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "200": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "description": "Success response",
+          "properties": {
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "description": "Success response"
+  },
+  "400": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/BadRequest"
+        }
+      }
+    },
+    "description": ""
+  },
+  "404": {
+    "description": ""
+  },
+  "418": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "properties": {
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "description": ""
+  },
+  "500": {
+    "$ref": "#/components/responses/Response"
+  }
+}

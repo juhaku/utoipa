@@ -1,0 +1,31 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "operationId": "get_foo",
+  "responses": {
+    "200": {
+      "content": {
+        "application/json": {
+          "schema": {
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "description": "success"
+    }
+  },
+  "tags": [
+    "response_body_inline_schema"
+  ]
+}

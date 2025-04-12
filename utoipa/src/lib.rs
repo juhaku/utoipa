@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+#![warn(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 //! Want to have your API documented with OpenAPI? But you don't want to see the
 //! trouble with manual yaml or json tweaking? Would like it to be so easy that it would almost
@@ -24,16 +26,31 @@
 //!
 //! # Choose your flavor and document your API with ice cold IPA
 //!
-//! Existing [examples](https://github.com/juhaku/utoipa/tree/master/examples) for following frameworks:
+//! |Flavor|Support|
+//! |--|--|
+//! |[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body, [`utoipa-actix-web` bindings](https://docs.rs/utoipa-actix-web). See more at [docs][actix_path]|
+//! |[axum](https://github.com/tokio-rs/axum)|Parse path and query parameters, recognize request body and response body, [`utoipa-axum` bindings](https://docs.rs/utoipa-axum). See more at [docs][axum_path]|
+//! |[rocket](https://github.com/SergioBenitez/Rocket)| Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs][rocket_path]|
+//! |Others*| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|
 //!
-//! * **actix-web**
-//! * **axum**
-//! * **warp**
-//! * **tide**
-//! * **rocket**
+//! > Others* = For example [warp](https://github.com/seanmonstar/warp) but could be anything.
 //!
-//! Even if there is no example for your favorite framework `utoipa` can be used with any
-//! web framework which supports decorating functions with macros similarly to **warp** and **tide** examples.
+//! Refer to the existing [examples](https://github.com/juhaku/utoipa/tree/master/examples) to find out more.
+//!
+//! ## Features
+//!
+//! * OpenAPI 3.1
+//! * Pluggable, easy setup and integration with frameworks.
+//! * No bloat, enable what you need.
+//! * Support for generic types
+//!   * **Note!**<br>
+//!     Tuples, arrays and slices cannot be used as generic arguments on types. Types implementing `ToSchema` manually should not have generic arguments, as
+//!     they are not composeable and will result compile error.
+//! * Automatic schema collection from usages recursively.
+//!   * Request body from either handler function arguments (if supported by framework) or from `request_body` attribute.
+//!   * Response body from response `body` attribute or response `content` attribute.
+//! * Various OpenAPI visualization tools supported out of the box.
+//! * Rust type aliases via [`utoipa-config`][utoipa_config].
 //!
 //! # What's up with the word play?
 //!
@@ -43,7 +60,7 @@
 //! # Crate Features
 //!
 //! * **`macros`** Enable `utoipa-gen` macros. **This is enabled by default.**
-//! * **`yaml`** Enables **serde_yaml** serialization of OpenAPI objects.
+//! * **`yaml`** Enables **serde_norway** serialization of OpenAPI objects.
 //! * **`actix_extras`** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
 //!   parse `path`, `path` and `query` parameters from actix web path attribute macros. See [actix extras support][actix_path] or
 //!   [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
@@ -94,124 +111,70 @@
 //! * **`non_strict_integers`** Add support for non-standard integer formats `int8`, `int16`, `uint8`, `uint16`, `uint32`, and `uint64`.
 //! * **`rc_schema`** Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
 //!   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
+//! * **`config`** Enables [`utoipa-config`](https://docs.rs/utoipa-config/) for the project which allows
+//!   defining global configuration options for `utoipa`.
 //!
-//! Utoipa implicitly has partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
+//! ### Default Library Support
+//!
+//! * Implicit partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
+//! * Support for [http](https://crates.io/crates/http) `StatusCode` in responses.
 //!
 //! # Install
 //!
-//! Add minimal dependency declaration to Cargo.toml.
+//! Add dependency declaration to Cargo.toml.
 //! ```toml
 //! [dependencies]
-//! utoipa = "4"
+//! utoipa = "5"
 //! ```
-//!
-//! To enable more features such as use actix framework extras you could define the
-//! dependency as follows.
-//! ```toml
-//! [dependencies]
-//! utoipa = { version = "4", features = ["actix_extras"] }
-//! ```
-//!
-//! **Note!** To use `utoipa` together with Swagger UI you can use the [`utoipa-swagger-ui`][utoipa_swagger] crate.
-//!
-//! [utoipa_swagger]: <https://docs.rs/utoipa-swagger-ui/>
 //!
 //! # Examples
 //!
-//! Create a struct, or it could be an enum also. Add `ToSchema` derive macro to it so it can be registered
-//! as a component in openapi schema.
+//! _**Create type with `ToSchema` and use it in `#[utoipa::path(...)]` that is registered to the `OpenApi`.**_
+//!
 //! ```rust
-//! use utoipa::ToSchema;
+//! use utoipa::{OpenApi, ToSchema};
+//!
 //! #[derive(ToSchema)]
 //! struct Pet {
 //!    id: u64,
 //!    name: String,
 //!    age: Option<i32>,
 //! }
-//! ```
-//!
-//! Create an handler that would handle your business logic and add `path` proc attribute macro over it.
-//! ```rust
-//! mod pet_api {
-//! #     use utoipa::ToSchema;
+//! # #[derive(Debug)]
+//! # struct NotFound;
 //! #
-//! #     #[derive(ToSchema)]
-//! #     struct Pet {
-//! #       id: u64,
-//! #       name: String,
-//! #       age: Option<i32>,
-//! #     }
-//!     /// Get pet by id
-//!     ///
-//!     /// Get pet from database by pet id
-//!     #[utoipa::path(
-//!         get,
-//!         path = "/pets/{id}",
-//!         responses(
-//!             (status = 200, description = "Pet found successfully", body = Pet),
-//!             (status = NOT_FOUND, description = "Pet was not found")
-//!         ),
-//!         params(
-//!             ("id" = u64, Path, description = "Pet database id to get Pet for"),
-//!         )
-//!     )]
-//!     async fn get_pet_by_id(pet_id: u64) -> Pet {
-//!         Pet {
-//!             id: pet_id,
-//!             age: None,
-//!             name: "lightning".to_string(),
-//!         }
-//!     }
+//! # impl std::error::Error for NotFound {}
+//! #
+//! # impl std::fmt::Display for NotFound {
+//! #    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//! #        f.write_str("NotFound")
+//! #    }
+//! # }
+//!
+//! /// Get pet by id
+//! ///
+//! /// Get pet from database by pet id
+//! #[utoipa::path(
+//!     get,
+//!     path = "/pets/{id}",
+//!     responses(
+//!         (status = 200, description = "Pet found successfully", body = Pet),
+//!         (status = NOT_FOUND, description = "Pet was not found")
+//!     ),
+//!     params(
+//!         ("id" = u64, Path, description = "Pet database id to get Pet for"),
+//!     )
+//! )]
+//! async fn get_pet_by_id(pet_id: u64) -> Result<Pet, NotFound> {
+//!     Ok(Pet {
+//!         id: pet_id,
+//!         age: None,
+//!         name: "lightning".to_string(),
+//!     })
 //! }
-//! ```
 //!
-//! Utoipa has support for [http](https://crates.io/crates/http) `StatusCode` in responses.
-//!
-//! Tie the above component and api to the openapi schema with following `OpenApi` derive proc macro.
-//! ```rust
-//! # mod pet_api {
-//! #     use utoipa::ToSchema;
-//! #
-//! #     #[derive(ToSchema)]
-//! #     struct Pet {
-//! #       id: u64,
-//! #       name: String,
-//! #       age: Option<i32>,
-//! #     }
-//! #
-//! #     /// Get pet by id
-//! #     ///
-//! #     /// Get pet from database by pet id
-//! #     #[utoipa::path(
-//! #         get,
-//! #         path = "/pets/{id}",
-//! #         responses(
-//! #             (status = 200, description = "Pet found successfully", body = Pet),
-//! #             (status = 404, description = "Pet was not found")
-//! #         ),
-//! #         params(
-//! #             ("id" = u64, Path, description = "Pet database id to get Pet for"),
-//! #         )
-//! #     )]
-//! #     async fn get_pet_by_id(pet_id: u64) -> Pet {
-//! #         Pet {
-//! #             id: pet_id,
-//! #             age: None,
-//! #             name: "lightning".to_string(),
-//! #         }
-//! #     }
-//! # }
-//! # use utoipa::ToSchema;
-//! #
-//! # #[derive(ToSchema)]
-//! # struct Pet {
-//! #   id: u64,
-//! #   name: String,
-//! #   age: Option<i32>,
-//! # }
-//! use utoipa::OpenApi;
 //! #[derive(OpenApi)]
-//! #[openapi(paths(pet_api::get_pet_by_id), components(schemas(Pet)))]
+//! #[openapi(paths(get_pet_by_id))]
 //! struct ApiDoc;
 //!
 //! println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
@@ -259,18 +222,27 @@
 //! * Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 //!
 //! [path]: attr.path.html
-//! [rocket_path]: attr.path.html#rocket_extras-support-for-rocket
-//! [actix_path]: attr.path.html#actix_extras-support-for-actix-web
-//! [axum_path]: attr.path.html#axum_extras-support-for-axum
+//! [rocket_path]: attr.path.html#rocket_extras-feature-support-for-rocket
+//! [actix_path]: attr.path.html#actix_extras-feature-support-for-actix-web
+//! [axum_path]: attr.path.html#axum_extras-feature-support-for-axum
 //! [serde]: derive.ToSchema.html#partial-serde-attributes-support
+//! [utoipa_swagger]: https://docs.rs/utoipa-swagger-ui/
+//! [utoipa_config]: https://docs.rs/utoipa-config/
 //!
 //! [security]: openapi/security/index.html
 //! [to_schema_derive]: derive.ToSchema.html
 
 pub mod openapi;
 
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[doc(hidden)]
+/// Public re-exports for utoipa-gen.
+pub mod gen;
+
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::option::Option;
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
@@ -321,6 +293,8 @@ pub use utoipa_gen::*;
 /// ```
 /// [derive]: derive.OpenApi.html
 pub trait OpenApi {
+    /// Return the [`openapi::OpenApi`] instance which can be parsed with serde or served via
+    /// OpenAPI visualization tool such as Swagger UI.
     fn openapi() -> openapi::OpenApi;
 }
 
@@ -355,8 +329,8 @@ pub trait OpenApi {
 /// #     age: Option<i32>,
 /// # }
 /// #
-/// impl<'__s> utoipa::ToSchema<'__s> for Pet {
-///     fn name() -> std::borrow::Cow<'__s, str> {
+/// impl utoipa::ToSchema for Pet {
+///     fn name() -> std::borrow::Cow<'static, str> {
 ///         std::borrow::Cow::Borrowed("Pet")
 ///     }
 /// }
@@ -393,24 +367,104 @@ pub trait OpenApi {
 ///     }
 /// }
 /// ```
-pub trait ToSchema<'__s>: PartialSchema {
-    /// Return a tuple of name and schema or reference to a schema that can be referenced by the
-    /// name or inlined directly to responses, request bodies or parameters.
-    fn name() -> Cow<'__s, str>;
-    // /// Return a tuple of name and schema or reference to a schema that can be referenced by the
-    // /// name or inlined directly to responses, request bodies or parameters.
-    // fn schema() -> (&'__s str, openapi::RefOr<openapi::schema::Schema>);
-
-    /// Optional set of alias schemas for the [`PartialSchema::schema`].
+pub trait ToSchema: PartialSchema {
+    /// Return name of the schema.
     ///
-    /// Typically there is no need to manually implement this method but it is instead implemented
-    /// by derive [`macro@ToSchema`] when `#[aliases(...)]` attribute is defined.
-    fn aliases() -> Vec<(&'__s str, openapi::schema::Schema)> {
-        Vec::new()
+    /// Name is used by referencing objects to point to this schema object returned with
+    /// [`PartialSchema::schema`] within the OpenAPI document.
+    ///
+    /// In case a generic schema the _`name`_ will be used as prefix for the name in the OpenAPI
+    /// documentation.
+    ///
+    /// The default implementation naively takes the TypeName by removing
+    /// the module path and generic elements.
+    /// But you probably don't want to use the default implementation for generic elements.
+    /// That will produce collision between generics. (eq. `Foo<String>` )
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use utoipa::ToSchema;
+    /// #
+    /// struct Foo<T>(T);
+    ///
+    /// impl<T: ToSchema> ToSchema for Foo<T> {}
+    /// # impl<T: ToSchema> utoipa::PartialSchema for Foo<T> {
+    /// #     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+    /// #         Default::default()
+    /// #     }
+    /// # }
+    ///
+    /// assert_eq!(Foo::<()>::name(), std::borrow::Cow::Borrowed("Foo"));
+    /// assert_eq!(Foo::<()>::name(), Foo::<i32>::name()); // WARNING: these types have the same name
+    /// ```
+    fn name() -> Cow<'static, str> {
+        let full_type_name = std::any::type_name::<Self>();
+        let type_name_without_generic = full_type_name
+            .split_once("<")
+            .map(|(s1, _)| s1)
+            .unwrap_or(full_type_name);
+        let type_name = type_name_without_generic
+            .rsplit_once("::")
+            .map(|(_, tn)| tn)
+            .unwrap_or(type_name_without_generic);
+        Cow::Borrowed(type_name)
+    }
+
+    /// Implement reference [`utoipa::openapi::schema::Schema`]s for this type.
+    ///
+    /// When [`ToSchema`] is being derived this is implemented automatically but if one needs to
+    /// manually implement [`ToSchema`] trait then this is needed for `utoipa` to know
+    /// referencing schemas that need to be present in the resulting OpenAPI spec.
+    ///
+    /// The implementation should push to `schemas` [`Vec`] all such field and variant types that
+    /// implement `ToSchema` and then call `<MyType as ToSchema>::schemas(schemas)` on that type
+    /// to forward the recursive reference collection call on that type.
+    ///
+    /// # Examples
+    ///
+    /// _**Implement `ToSchema` manually with references.**_
+    ///
+    /// ```rust
+    /// # use utoipa::{ToSchema, PartialSchema};
+    /// #
+    /// #[derive(ToSchema)]
+    /// struct Owner {
+    ///     name: String
+    /// }
+    ///
+    /// struct Pet {
+    ///     owner: Owner,
+    ///     name: String
+    /// }
+    /// impl PartialSchema for Pet {
+    ///     fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+    ///         utoipa::openapi::schema::Object::builder()
+    ///             .property("owner", Owner::schema())
+    ///             .property("name", String::schema())
+    ///             .into()
+    ///     }
+    /// }
+    /// impl ToSchema for Pet {
+    ///     fn schemas(schemas:
+    ///         &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+    ///         schemas.push((Owner::name().into(), Owner::schema()));
+    ///         <Owner as ToSchema>::schemas(schemas);
+    ///     }
+    /// }
+    /// ```
+    #[allow(unused)]
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        // nothing by default
     }
 }
 
-impl<'__s, T: ToSchema<'__s>> From<T> for openapi::RefOr<openapi::schema::Schema> {
+impl<T: ToSchema> From<T> for openapi::RefOr<openapi::schema::Schema> {
     fn from(_: T) -> Self {
         T::schema()
     }
@@ -427,35 +481,319 @@ impl PartialSchema for TupleUnit {
     }
 }
 
-impl<'__s> ToSchema<'__s> for TupleUnit {
-    fn name() -> Cow<'__s, str> {
+impl ToSchema for TupleUnit {
+    fn name() -> Cow<'static, str> {
         Cow::Borrowed("TupleUnit")
     }
 }
 
-macro_rules! impl_partial_schema {
-    ( $ty:path ) => {
-        impl_partial_schema!( @impl_schema $ty );
-    };
-    ( & $ty:path ) => {
-        impl_partial_schema!( @impl_schema &$ty );
-    };
-    ( @impl_schema $( $tt:tt )* ) => {
-        #[cfg(feature = "macros")]
-        #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-        impl PartialSchema for $($tt)* {
-            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-                schema!( $($tt)* ).into()
+macro_rules! impl_to_schema {
+    ( $( $ty:ident ),* ) => {
+        $(
+        impl ToSchema for $ty {
+            fn name() -> std::borrow::Cow<'static, str> {
+                std::borrow::Cow::Borrowed(stringify!( $ty ))
             }
         }
+        )*
     };
 }
 
-macro_rules! impl_partial_schema_primitive {
-    ( $( $tt:path  ),* ) => {
-        $( impl_partial_schema!( $tt ); )*
-    };
+#[rustfmt::skip]
+impl_to_schema!(
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+);
+
+impl ToSchema for &str {
+    fn name() -> Cow<'static, str> {
+        str::name()
+    }
 }
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<T: ToSchema> ToSchema for Option<T>
+where
+    Option<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<T: ToSchema> ToSchema for Vec<T>
+where
+    Vec<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<T: ToSchema> ToSchema for std::collections::LinkedList<T>
+where
+    std::collections::LinkedList<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<T: ToSchema> ToSchema for [T]
+where
+    [T]: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'t, T: ToSchema> ToSchema for &'t [T]
+where
+    &'t [T]: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'t, T: ToSchema> ToSchema for &'t mut [T]
+where
+    &'t mut [T]: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<K: ToSchema, T: ToSchema> ToSchema for std::collections::HashMap<K, T>
+where
+    std::collections::HashMap<K, T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<K: ToSchema, T: ToSchema> ToSchema for std::collections::BTreeMap<K, T>
+where
+    std::collections::BTreeMap<K, T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<K: ToSchema> ToSchema for std::collections::HashSet<K>
+where
+    std::collections::HashSet<K>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<K: ToSchema> ToSchema for std::collections::BTreeSet<K>
+where
+    std::collections::BTreeSet<K>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+    }
+}
+
+#[cfg(all(feature = "macros", feature = "indexmap"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+impl<K: ToSchema, T: ToSchema> ToSchema for indexmap::IndexMap<K, T>
+where
+    indexmap::IndexMap<K, T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(all(feature = "macros", feature = "indexmap"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+impl<K: ToSchema> ToSchema for indexmap::IndexSet<K>
+where
+    indexmap::IndexSet<K>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        K::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<T: ToSchema> ToSchema for std::boxed::Box<T>
+where
+    std::boxed::Box<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<'a, T: ToSchema + Clone> ToSchema for std::borrow::Cow<'a, T>
+where
+    std::borrow::Cow<'a, T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(feature = "macros")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+impl<T: ToSchema> ToSchema for std::cell::RefCell<T>
+where
+    std::cell::RefCell<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(all(feature = "macros", feature = "rc_schema"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+impl<T: ToSchema> ToSchema for std::rc::Rc<T>
+where
+    std::rc::Rc<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+#[cfg(all(feature = "macros", feature = "rc_schema"))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+impl<T: ToSchema> ToSchema for std::sync::Arc<T>
+where
+    std::sync::Arc<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
+impl PartialSchema for serde_json::Value {
+    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+        utoipa::openapi::schema::Object::builder()
+            .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
+            .into()
+    }
+}
+
+impl ToSchema for serde_json::Value {}
 
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
@@ -510,7 +848,7 @@ mod utoipa {
 ///             .build()
 ///         )
 ///     );
-/// # assert_json_diff::assert_json_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
+/// # assert_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
 /// ```
 ///
 /// _**Construct a Pet object schema manually.**_
@@ -534,176 +872,6 @@ pub trait PartialSchema {
     /// Return ref or schema of implementing type that can then be used to
     /// construct combined schemas.
     fn schema() -> openapi::RefOr<openapi::schema::Schema>;
-}
-
-#[rustfmt::skip]
-impl_partial_schema_primitive!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
-    Option<i8>, Option<i16>, Option<i32>, Option<i64>, Option<i128>, Option<isize>, Option<u8>, Option<u16>,
-    Option<u32>, Option<u64>, Option<u128>, Option<usize>, Option<bool>, Option<f32>, Option<f64>,
-    Option<String>, Option<&str>, Option<char>
-);
-
-impl_partial_schema!(&str);
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Vec<T> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(#[inline] Vec<T>).into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<Vec<T>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(#[inline] Option<Vec<T>>).into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for [T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            [T]
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &[T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            &[T]
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for &mut [T] {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            &mut [T]
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&[T]> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<&[T]>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<&mut [T]> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<&mut [T]>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, T: ToSchema<'__s>> PartialSchema for Option<T> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(#[inline] Option<T>).into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, V> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            BTreeMap<K, V>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for Option<BTreeMap<K, V>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<BTreeMap<K, V>>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for BTreeMap<K, Option<V>> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            BTreeMap<K, Option<V>>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema for std::collections::HashMap<K, V> {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            std::collections::HashMap<K, V>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
-    for Option<std::collections::HashMap<K, V>>
-{
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            Option<std::collections::HashMap<K, V>>
-        )
-        .into()
-    }
-}
-
-#[cfg(feature = "macros")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
-impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
-    for std::collections::HashMap<K, Option<V>>
-{
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        schema!(
-            #[inline]
-            std::collections::HashMap<K, Option<V>>
-        )
-        .into()
-    }
 }
 
 /// Trait for implementing OpenAPI PathItem object with path.
@@ -759,7 +927,7 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
 ///                                 .description("Pet found successfully")
 ///                                 .content("application/json",
 ///                                     utoipa::openapi::Content::new(
-///                                         utoipa::openapi::Ref::from_schema_name("Pet"),
+///                                         Some(utoipa::openapi::Ref::from_schema_name("Pet")),
 ///                                     ),
 ///                             ),
 ///                         )
@@ -789,10 +957,14 @@ impl<'__s, K: PartialSchema, V: ToSchema<'__s>> PartialSchema
 ///
 /// [derive]: attr.path.html
 pub trait Path {
+    /// List of HTTP methods this path operation is served at.
     fn methods() -> Vec<openapi::path::HttpMethod>;
 
+    /// The path this operation is served at.
     fn path() -> String;
 
+    /// [`openapi::path::Operation`] describing http operation details such as request bodies,
+    /// parameters and responses.
     fn operation() -> openapi::path::Operation;
 }
 
@@ -807,11 +979,11 @@ pub trait Path {
 /// See more about [`OpenApi`][derive] derive at [derive documentation][derive].
 ///
 /// [derive]: derive.OpenApi.html
-/// [security_schema]: openapi/security/enum.SecuritySchema.html
+/// [security_scheme]: openapi/security/enum.SecurityScheme.html
 ///
 /// # Examples
 ///
-/// Add custom JWT [`SecuritySchema`][security_schema] to [`OpenApi`][`openapi::OpenApi`].
+/// Add custom JWT [`SecurityScheme`][security_scheme] to [`OpenApi`][`openapi::OpenApi`].
 /// ```rust
 /// # use utoipa::{OpenApi, Modify};
 /// # use utoipa::openapi::security::{SecurityScheme, HttpBuilder, HttpAuthScheme};
@@ -860,6 +1032,11 @@ pub trait Path {
 ///
 /// [server]: https://spec.openapis.org/oas/latest.html#server-object
 pub trait Modify {
+    /// Apply mutation for [`openapi::OpenApi`] instance before it is returned by
+    /// [`openapi::OpenApi::openapi`] method call.
+    ///
+    /// This function allows users to run arbitrary code to change the generated
+    /// [`utoipa::OpenApi`] before it is served.
     fn modify(&self, openapi: &mut openapi::OpenApi);
 }
 
@@ -1035,8 +1212,11 @@ pub trait ToResponse<'__r> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum Number {
+    /// Signed integer e.g. `1` or `-2`
     Int(isize),
+    /// Unsigned integer value e.g. `0`. Unsigned integer cannot be below zero.
     UInt(usize),
+    /// Floating point number e.g. `1.34`
     Float(f64),
 }
 
@@ -1045,9 +1225,9 @@ impl Eq for Number {}
 impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Int(l0), Self::Int(r0)) => l0 == r0,
-            (Self::UInt(l0), Self::UInt(r0)) => l0 == r0,
-            (Self::Float(l0), Self::Float(r0)) => l0 == r0,
+            (Self::Int(left), Self::Int(right)) => left == right,
+            (Self::UInt(left), Self::UInt(right)) => left == right,
+            (Self::Float(left), Self::Float(right)) => left == right,
             _ => false,
         }
     }
@@ -1068,7 +1248,7 @@ macro_rules! impl_from_for_number {
 #[rustfmt::skip]
 impl_from_for_number!(
     f32 => Float as f64, f64 => Float,
-    i8 => Int as isize, i16 => Int as isize, i32 => Int as isize, i64 => Int as isize, 
+    i8 => Int as isize, i16 => Int as isize, i32 => Int as isize, i64 => Int as isize,
     u8 => UInt as usize, u16 => UInt as usize, u32 => UInt as usize, u64 => UInt as usize,
     isize => Int, usize => UInt
 );
@@ -1078,7 +1258,9 @@ impl_from_for_number!(
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 pub mod __dev {
-    use crate::{utoipa, OpenApi};
+    use utoipa_gen::schema;
+
+    use crate::{utoipa, OpenApi, PartialSchema};
 
     pub trait PathConfig {
         fn path() -> String;
@@ -1143,129 +1325,306 @@ pub mod __dev {
             api
         }
     }
+
+    pub trait ComposeSchema {
+        fn compose(
+            new_generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>;
+    }
+
+    macro_rules! impl_compose_schema {
+        ( $( $ty:ident ),* ) => {
+            $(
+            impl ComposeSchema for $ty {
+                fn compose(_: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+                    schema!( $ty ).into()
+                }
+            }
+            )*
+        };
+    }
+
+    #[rustfmt::skip]
+    impl_compose_schema!(
+        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+    );
+
+    fn schema_or_compose<T: ComposeSchema>(
+        schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        index: usize,
+    ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        if let Some(schema) = schemas.get(index) {
+            schema.clone()
+        } else {
+            T::compose(schemas)
+        }
+    }
+
+    impl ComposeSchema for &str {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            str::compose(schemas)
+        }
+    }
+
+    impl<T: ComposeSchema + ?Sized> PartialSchema for T {
+        fn schema() -> crate::openapi::RefOr<crate::openapi::schema::Schema> {
+            T::compose(Vec::new())
+        }
+    }
+    impl<T: ComposeSchema> ComposeSchema for Option<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::OneOfBuilder::new()
+                .item(
+                    utoipa::openapi::schema::ObjectBuilder::new()
+                        .schema_type(utoipa::openapi::schema::Type::Null),
+                )
+                .item(schema_or_compose::<T>(schemas, 0))
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for Vec<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<T>(schemas, 0))
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for std::collections::LinkedList<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<T>(schemas, 0))
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for [T] {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<T>(schemas, 0))
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for &[T] {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<T>(schemas, 0))
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for &mut [T] {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<T>(schemas, 0))
+                .into()
+        }
+    }
+
+    impl<K: ComposeSchema, T: ComposeSchema> ComposeSchema for std::collections::HashMap<K, T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::ObjectBuilder::new()
+                .property_names(Some(schema_or_compose::<K>(schemas.clone(), 0)))
+                .additional_properties(Some(schema_or_compose::<T>(schemas, 1)))
+                .into()
+        }
+    }
+
+    impl<K: ComposeSchema, T: ComposeSchema> ComposeSchema for std::collections::BTreeMap<K, T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::ObjectBuilder::new()
+                .property_names(Some(schema_or_compose::<K>(schemas.clone(), 0)))
+                .additional_properties(Some(schema_or_compose::<T>(schemas, 1)))
+                .into()
+        }
+    }
+
+    impl<K: ComposeSchema> ComposeSchema for std::collections::HashSet<K> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<K>(schemas, 0))
+                .unique_items(true)
+                .into()
+        }
+    }
+
+    impl<K: ComposeSchema> ComposeSchema for std::collections::BTreeSet<K> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<K>(schemas, 0))
+                .unique_items(true)
+                .into()
+        }
+    }
+
+    #[cfg(feature = "indexmap")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+    impl<K: ComposeSchema, T: ComposeSchema> ComposeSchema for indexmap::IndexMap<K, T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::ObjectBuilder::new()
+                .property_names(Some(schema_or_compose::<K>(schemas.clone(), 0)))
+                .additional_properties(Some(schema_or_compose::<T>(schemas, 1)))
+                .into()
+        }
+    }
+
+    #[cfg(feature = "indexmap")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+    impl<K: ComposeSchema> ComposeSchema for indexmap::IndexSet<K> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ArrayBuilder::new()
+                .items(schema_or_compose::<K>(schemas, 0))
+                .unique_items(true)
+                .into()
+        }
+    }
+
+    impl<'a, T: ComposeSchema + Clone> ComposeSchema for std::borrow::Cow<'a, T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            schema_or_compose::<T>(schemas, 0)
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for std::boxed::Box<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            schema_or_compose::<T>(schemas, 0)
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for std::cell::RefCell<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            schema_or_compose::<T>(schemas, 0)
+        }
+    }
+
+    #[cfg(feature = "rc_schema")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+    impl<T: ComposeSchema> ComposeSchema for std::rc::Rc<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            schema_or_compose::<T>(schemas, 0)
+        }
+    }
+
+    #[cfg(feature = "rc_schema")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+    impl<T: ComposeSchema> ComposeSchema for std::sync::Arc<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            schema_or_compose::<T>(schemas, 0)
+        }
+    }
+
+    // For types not implementing `ToSchema`
+    pub trait SchemaReferences {
+        fn schemas(
+            schemas: &mut Vec<(
+                String,
+                utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+            )>,
+        );
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
+    use insta::assert_compact_json_snapshot;
     use serde_json::json;
 
     use super::*;
 
+    #[test]
+    fn test_toschema_name() {
+        struct Foo;
+        impl ToSchema for Foo {}
+        impl PartialSchema for Foo {
+            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+                Default::default()
+            }
+        }
+        assert_eq!(Foo::name(), Cow::Borrowed("Foo"));
+
+        struct FooGeneric<T: ToSchema, U: ToSchema>(T, U);
+        impl<T: ToSchema, U: ToSchema> ToSchema for FooGeneric<T, U> {}
+        impl<T: ToSchema, U: ToSchema> PartialSchema for FooGeneric<T, U> {
+            fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+                Default::default()
+            }
+        }
+        assert_eq!(
+            FooGeneric::<Foo, String>::name(),
+            Cow::Borrowed("FooGeneric")
+        );
+        assert_eq!(
+            FooGeneric::<Foo, String>::name(),
+            FooGeneric::<(), ()>::name(),
+        );
+    }
+
     #[cfg(not(feature = "non_strict_integers"))]
     #[test]
     fn test_partial_schema_strict_integers() {
-        use assert_json_diff::{assert_json_matches, CompareMode, Config, NumericMode};
-
-        for (name, schema, value) in [
-            (
-                "i8",
-                i8::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i16",
-                i16::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i32",
-                i32::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i64",
-                i64::schema(),
-                json!({"type": "integer", "format": "int64"}),
-            ),
-            ("i128", i128::schema(), json!({"type": "integer"})),
-            ("isize", isize::schema(), json!({"type": "integer"})),
-            (
-                "u8",
-                u8::schema(),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
-            ),
-            (
-                "u16",
-                u16::schema(),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
-            ),
-            (
-                "u32",
-                u32::schema(),
-                json!({"type": "integer", "format": "int32", "minimum": 0.0}),
-            ),
-            (
-                "u64",
-                u64::schema(),
-                json!({"type": "integer", "format": "int64", "minimum": 0.0}),
-            ),
-        ] {
-            println!(
-                "{name}: {json}",
-                json = serde_json::to_string(&schema).unwrap()
-            );
-            let schema = serde_json::to_value(schema).unwrap();
-
-            let config = Config::new(CompareMode::Strict).numeric_mode(NumericMode::AssumeFloat);
-            assert_json_matches!(schema, value, config);
-        }
+        assert_compact_json_snapshot!(i8::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i16::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(i128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(isize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(u8::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
     }
 
     #[cfg(feature = "non_strict_integers")]
     #[test]
     fn test_partial_schema_non_strict_integers() {
-        for (name, schema, value) in [
-            (
-                "i8",
-                i8::schema(),
-                json!({"type": "integer", "format": "int8"}),
-            ),
-            (
-                "i16",
-                i16::schema(),
-                json!({"type": "integer", "format": "int16"}),
-            ),
-            (
-                "i32",
-                i32::schema(),
-                json!({"type": "integer", "format": "int32"}),
-            ),
-            (
-                "i64",
-                i64::schema(),
-                json!({"type": "integer", "format": "int64"}),
-            ),
-            ("i128", i128::schema(), json!({"type": "integer"})),
-            ("isize", isize::schema(), json!({"type": "integer"})),
-            (
-                "u8",
-                u8::schema(),
-                json!({"type": "integer", "format": "uint8", "minimum": 0}),
-            ),
-            (
-                "u16",
-                u16::schema(),
-                json!({"type": "integer", "format": "uint16", "minimum": 0}),
-            ),
-            (
-                "u32",
-                u32::schema(),
-                json!({"type": "integer", "format": "uint32", "minimum": 0}),
-            ),
-            (
-                "u64",
-                u64::schema(),
-                json!({"type": "integer", "format": "uint64", "minimum": 0}),
-            ),
-        ] {
-            println!(
-                "{name}: {json}",
-                json = serde_json::to_string(&schema).unwrap()
-            );
-            let schema = serde_json::to_value(schema).unwrap();
-            assert_json_eq!(schema, value);
-        }
+        assert_compact_json_snapshot!(i8::schema(), @r#"{"type": "integer", "format": "int8"}"#);
+        assert_compact_json_snapshot!(i16::schema(), @r#"{"type": "integer", "format": "int16"}"#);
+        assert_compact_json_snapshot!(i32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(i64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(i128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(isize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(u8::schema(), @r#"{"type": "integer", "format": "uint8", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
     }
 
     #[test]
@@ -1291,7 +1650,7 @@ mod tests {
                 json = serde_json::to_string(&schema).unwrap()
             );
             let schema = serde_json::to_value(schema).unwrap();
-            assert_json_eq!(schema, value);
+            assert_eq!(schema, value);
         }
     }
 }

@@ -1,0 +1,10 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: responses
+snapshot_kind: text
+---
+{
+  "404": {
+    "description": "Not found response"
+  }
+}

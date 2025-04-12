@@ -4,97 +4,123 @@
 
 output_file=""
 crate=""
+range=""
+auth=""
 while true; do
-	case $1 in
-	"--output-file")
-		shift
-		output_file="$1"
-		shift
-		;;
-	"--crate")
-		shift
-		crate="$1"
-		shift
-		;;
-	*)
-		break
-		;;
-	esac
+    case $1 in
+    "--output-file")
+        shift
+        output_file="$1"
+        shift
+        ;;
+    "--crate")
+        shift
+        crate="$1"
+        shift
+        ;;
+    "--range")
+        shift
+        range="$1"
+        shift
+        ;;
+    "--auth")
+        shift
+        auth="$1"
+        shift
+        ;;
+    *)
+        break
+        ;;
+    esac
 done
 
 if [[ "$output_file" == "" ]]; then
-	echo "Missing --output-file <file> option argument, define path to file or - for stdout" && exit 1
+    echo "Missing --output-file <file> option argument, define path to file or - for stdout" && exit 1
 fi
 if [[ "$crate" == "" ]]; then
-	echo "Missing --crate <crate> option argument, need an explisit crate to get git log for" && exit 1
-fi
-
-from_commit=HEAD
-last_release=$(git tag --sort=-committerdate | grep -E "$crate-[0-9]*\.[0-9]*\.[0-9]*" | head -1)
-echo "Found tag: $last_release"
-if [[ "$last_release" == "" ]]; then
-	last_release=$(git tag --sort=-committerdate | head -1) # get last tag
-	echo "Using latest tag: $last_release"
+    echo "Missing --crate <crate> option argument, need an explisit crate to get git log for" && exit 1
 fi
 
 commit_range=""
-if [[ $last_release != "" ]]; then
-	commit_range="$from_commit...$last_release"
+if [ -z "$range" ]; then
+    from_commit=HEAD
+    last_release=$(git tag --sort=-committerdate | grep -E "$crate-[0-9]*\.[0-9]*\.[0-9]*" | head -1)
+    echo "Found tag: $last_release"
+    if [[ "$last_release" == "" ]]; then
+        last_release=$(git tag --sort=-committerdate | head -1) # get last tag
+        echo "Using latest tag: $last_release"
+    fi
+
+    if [[ $last_release != "" ]]; then
+        commit_range="$from_commit...$last_release"
+    else
+        commit_range="$from_commit"
+    fi
 else
-	commit_range="$from_commit"
+    commit_range="$range"
 fi
 
 ancestry_path=""
 if [[ "$last_release" != "" ]]; then
-	ancestry_path="--ancestry-path"
+    ancestry_path="--ancestry-path"
 fi
 
 mapfile -t log_lines < <(git log --pretty=format:'(%h) %s' $ancestry_path "$commit_range")
 
 function is_crate_related {
-	commit="$1"
-	changes="$(git diff --name-only "$commit"~ "$commit" | awk -F / '{print $1}' | xargs)"
+    commit="$1"
+    changes="$(git diff --name-only "$commit"~ "$commit" | awk -F / '{print $1}' | xargs)"
+    IFS=" " read -r -a change_dirs <<<"$changes"
 
-	is_related=false
-	if [[ "$changes" == *"$crate"* ]]; then
-		is_related=true
-	fi
+    is_related=false
+    for change in "${change_dirs[@]}"; do
+        if [[ "$change" == "$crate" ]]; then
+            is_related=true
+            break
+        fi
+    done
 
-	echo $is_related
+    echo $is_related
 }
 
 get_username() {
-	commit=$1
-	curl -sSL \
-		-H "Accept: application/vnd.github+json" \
-		-H "X-GitHub-Api-Version: 2022-11-28" \
-		https://api.github.com/repos/juhaku/utoipa/commits/"$commit" | jq -r .author.login
+    commit=$1
+
+    args=()
+    if [ -n "$auth" ]; then
+        args=("${args[@]}" "-H" "Authorization: Bearer $auth")
+    fi
+
+    curl -sSL \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "${args[@]}" \
+        https://api.github.com/repos/juhaku/utoipa/commits/"$commit" | jq -r .author.login
 }
 
 log=""
 for line in "${log_lines[@]}"; do
-	commit=$(echo "$line" | awk -F ' ' '{print $1}')
-	commit=${commit//[\(\)]/}
+    commit=$(echo "$line" | awk -F ' ' '{print $1}')
+    commit=${commit//[\(\)]/}
 
-	if [[ $(is_crate_related "$commit") == true ]]; then
-		user=$(get_username "$commit")
-		log=$log"* $line @$user\n"
-	fi
+    if [[ $(is_crate_related "$commit") == true ]]; then
+        user=$(get_username "$commit")
+        log=$log"* $line @$user\n"
+    fi
 done
 
 if [[ "$output_file" != "" ]]; then
-	if [[ "$output_file" == "-" ]]; then
-		echo -e "$log"
-	else
-		echo -e "$log" >"$output_file"
-	fi
+    if [[ "$output_file" == "-" ]]; then
+        echo -e "$log"
+    else
+        echo -e "$log" >"$output_file"
+    fi
 fi
 
 if [[ "$last_release" == "" ]]; then
-	last_release=$(git rev-list --reverse HEAD | head -1)
+    last_release=$(git rev-list --reverse HEAD | head -1)
 fi
 
 if [ -n "$GITHUB_OUTPUT" ]; then
-	echo "last_release=$last_release" >>"$GITHUB_OUTPUT"
+    echo "last_release=$last_release" >>"$GITHUB_OUTPUT"
 fi
-

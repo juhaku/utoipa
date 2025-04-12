@@ -4,7 +4,7 @@ use serde::{
     de::{Error, Expected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::{collections::HashMap, fmt::Formatter, mem};
+use std::fmt::Formatter;
 
 use self::path::PathsMap;
 pub use self::{
@@ -27,9 +27,11 @@ pub use self::{
 pub mod content;
 pub mod encoding;
 pub mod example;
+pub mod extensions;
 pub mod external_docs;
 pub mod header;
 pub mod info;
+pub mod link;
 pub mod path;
 pub mod request_body;
 pub mod response;
@@ -87,7 +89,6 @@ builder! {
         /// Available paths and operations for the API.
         ///
         /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
-        #[serde(flatten)]
         pub paths: Paths,
 
         /// Holds various reusable schemas for the OpenAPI document.
@@ -127,7 +128,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -162,11 +163,11 @@ impl OpenApi {
         serde_json::to_string_pretty(self)
     }
 
-    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_yaml::to_string`] method.
+    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`serde_norway::to_string`] method.
     #[cfg(feature = "yaml")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "yaml")))]
-    pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
-        serde_yaml::to_string(self)
+    pub fn to_yaml(&self) -> Result<String, serde_norway::Error> {
+        serde_norway::to_string(self)
     }
 
     /// Merge `other` [`OpenApi`] moving `self` and returning combined [`OpenApi`].
@@ -200,12 +201,7 @@ impl OpenApi {
         }
 
         if !other.paths.paths.is_empty() {
-            for (path, that) in &mut other.paths.paths {
-                if let Some(this) = self.paths.paths.get_mut(path) {
-                    that.merge_operations(mem::take(this));
-                }
-            }
-            self.paths.paths.extend(other.paths.paths);
+            self.paths.merge(other.paths);
         };
 
         if let Some(other_components) = &mut other.components {
@@ -283,7 +279,26 @@ impl OpenApi {
     ///     .build();
     ///  let nested = api.nest("/api/v1/user", user_api);
     /// ```
-    pub fn nest<P: Into<String>, O: Into<OpenApi>>(mut self, path: P, other: O) -> Self {
+    pub fn nest<P: Into<String>, O: Into<OpenApi>>(self, path: P, other: O) -> Self {
+        self.nest_with_path_composer(path, other, |base, path| format!("{base}{path}"))
+    }
+
+    /// Nest `other` [`OpenApi`] with custom path composer.
+    ///
+    /// In most cases you should use [`OpenApi::nest`] instead.
+    /// Only use this method if you need custom path composition for a specific use case.
+    ///
+    /// `composer` is a function that takes two strings, the base path and the path to nest, and returns the composed path for the API Specification.
+    pub fn nest_with_path_composer<
+        P: Into<String>,
+        O: Into<OpenApi>,
+        F: Fn(&str, &str) -> String,
+    >(
+        mut self,
+        path: P,
+        other: O,
+        composer: F,
+    ) -> Self {
         let path: String = path.into();
         let mut other_api: OpenApi = other.into();
 
@@ -292,7 +307,7 @@ impl OpenApi {
             .paths
             .into_iter()
             .map(|(item_path, item)| {
-                let path = format!("{path}{item_path}");
+                let path = composer(&path, &item_path);
                 (path, item)
             })
             .collect::<PathsMap<_, _>>();
@@ -423,6 +438,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
 /// The value will serialize to boolean.
 #[derive(PartialEq, Eq, Clone, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
+#[allow(missing_docs)]
 pub enum Deprecated {
     True,
     #[default]
@@ -469,6 +485,7 @@ impl<'de> Deserialize<'de> for Deprecated {
 ///
 /// The value will serialize to boolean.
 #[derive(PartialEq, Eq, Clone, Default)]
+#[allow(missing_docs)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Required {
     True,
@@ -520,7 +537,11 @@ impl<'de> Deserialize<'de> for Required {
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged)]
 pub enum RefOr<T> {
+    /// Represents [`Ref`] reference to another OpenAPI object instance. e.g.
+    /// `$ref: #/components/schemas/Hello`
     Ref(Ref),
+    /// Represents any value that can be added to the [`struct@Components`] e.g. [`enum@Schema`]
+    /// or [`struct@Response`].
     T(T),
 }
 
@@ -580,17 +601,25 @@ pub(crate) use from;
 
 macro_rules! builder {
     ( $( #[$builder_meta:meta] )* $builder_name:ident; $(#[$meta:meta])* $vis:vis $key:ident $name:ident $( $tt:tt )* ) => {
-        builder!( @type_impl $( #[$meta] )* $vis $key $name $( $tt )* );
+        builder!( @type_impl $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
         builder!( @builder_impl $( #[$builder_meta] )* $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
     };
 
-    ( @type_impl $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
+    ( @type_impl $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
         { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
     ) => {
-
         $( #[$meta] )*
         $vis $key $name {
             $( $( #[$field_meta] )* $field_vis $field: $field_ty, )*
+        }
+
+        impl $name {
+            #[doc = concat!("Construct a new ", stringify!($builder_name), ".")]
+            #[doc = ""]
+            #[doc = concat!("This is effectively same as calling [`", stringify!($builder_name), "::new`]")]
+            $vis fn builder() -> $builder_name {
+                $builder_name::new()
+            }
         }
     };
 
@@ -622,17 +651,16 @@ macro_rules! builder {
         crate::openapi::from!($name $builder_name $( $field ),* );
     };
 }
+use crate::openapi::extensions::Extensions;
 pub(crate) use builder;
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
-    use serde_json::json;
-
     use crate::openapi::{
         info::InfoBuilder,
         path::{OperationBuilder, PathsBuilder},
     };
+    use insta::assert_json_snapshot;
 
     use super::{response::Response, *};
 
@@ -643,8 +671,7 @@ mod tests {
     }
 
     #[test]
-    fn serialize_openapi_json_minimal_success() -> Result<(), serde_json::Error> {
-        let raw_json = include_str!("openapi/testdata/expected_openapi_minimal.json");
+    fn serialize_openapi_json_minimal_success() {
         let openapi = OpenApi::new(
             InfoBuilder::new()
                 .title("My api")
@@ -659,17 +686,12 @@ mod tests {
                 .build(),
             Paths::new(),
         );
-        let serialized = serde_json::to_string_pretty(&openapi)?;
 
-        assert_eq!(
-            serialized, raw_json,
-            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{raw_json}"
-        );
-        Ok(())
+        assert_json_snapshot!(openapi);
     }
 
     #[test]
-    fn serialize_openapi_json_with_paths_success() -> Result<(), serde_json::Error> {
+    fn serialize_openapi_json_with_paths_success() {
         let openapi = OpenApi::new(
             Info::new("My big api", "1.1.0"),
             PathsBuilder::new()
@@ -696,14 +718,7 @@ mod tests {
                 ),
         );
 
-        let serialized = serde_json::to_string_pretty(&openapi)?;
-        let expected = include_str!("./openapi/testdata/expected_openapi_with_paths.json");
-
-        assert_eq!(
-            serialized, expected,
-            "expected serialized json to match raw: \nserialized: \n{serialized} \nraw: \n{expected}"
-        );
-        Ok(())
+        assert_json_snapshot!(openapi);
     }
 
     #[test]
@@ -765,61 +780,10 @@ mod tests {
             .build();
 
         api_1.merge(api_2);
-        let value = serde_json::to_value(&api_1).unwrap();
 
-        assert_eq!(
-            value,
-            json!(
-                {
-                  "openapi": "3.1.0",
-                  "info": {
-                    "title": "Api",
-                    "version": "v1"
-                  },
-                  "paths": {
-                    "/ap/v2/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success 2"
-                          }
-                        }
-                      }
-                    },
-                    "/api/v1/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success"
-                          }
-                        }
-                      }
-                    },
-                    "/api/v2/user": {
-                      "post": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "components": {
-                    "schemas": {
-                      "User2": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-            )
-        )
+        assert_json_snapshot!(api_1, {
+            ".paths" => insta::sorted_redaction()
+        });
     }
 
     #[test]
@@ -835,6 +799,7 @@ mod tests {
                             .response("200", Response::new("Get user success 1")),
                     ),
                 )
+                .extensions(Some(Extensions::from_iter([("x-v1-api", true)])))
                 .build(),
         );
 
@@ -874,6 +839,7 @@ mod tests {
                                 .response("200", Response::new("Post user success 2")),
                         ),
                     )
+                    .extensions(Some(Extensions::from_iter([("x-random", "Value")])))
                     .build(),
             )
             .components(Some(
@@ -890,66 +856,10 @@ mod tests {
             .build();
 
         api_1.merge(api_2);
-        let value = serde_json::to_value(&api_1).unwrap();
 
-        assert_eq!(
-            value,
-            json!(
-                {
-                  "openapi": "3.1.0",
-                  "info": {
-                    "title": "Api",
-                    "version": "v1"
-                  },
-                  "paths": {
-                    "/api/v2/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success 2"
-                          }
-                        }
-                      },
-                      "post": {
-                        "responses": {
-                          "200": {
-                            "description": "Post user success 2"
-                          }
-                        }
-                      }
-                    },
-                    "/api/v1/user": {
-                      "get": {
-                        "responses": {
-                          "200": {
-                            "description": "Get user success 1"
-                          }
-                        }
-                      },
-                      "post": {
-                        "responses": {
-                          "200": {
-                            "description": "Post user success 1"
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "components": {
-                    "schemas": {
-                      "User2": {
-                        "type": "object",
-                        "properties": {
-                          "name": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-            )
-        )
+        assert_json_snapshot!(api_1, {
+            ".paths" => insta::sorted_redaction()
+        });
     }
 
     #[test]
@@ -993,52 +903,18 @@ mod tests {
             .pointer("/paths")
             .expect("paths should exits in openapi");
 
-        assert_json_eq!(
-            paths,
-            json!({
-                "/api/v1/status": {
-                        "get": {
-                        "description": "Get status",
-                        "responses": {}
-                    }
-                },
-                "/api/v1/user/": {
-                    "get": {
-                        "description": "Get user details",
-                        "responses": {}
-                    }
-                },
-                "/api/v1/user/foo": {
-                    "post": {
-                        "responses": {}
-                    }
-                }
-            })
-        )
+        assert_json_snapshot!(paths);
     }
 
     #[test]
     fn openapi_custom_extension() {
         let mut api = OpenApiBuilder::new().build();
-        let extensions = api.extensions.get_or_insert(HashMap::new());
+        let extensions = api.extensions.get_or_insert(Default::default());
         extensions.insert(
             String::from("x-tagGroup"),
             String::from("anything that serializes to Json").into(),
         );
 
-        let api_json = serde_json::to_value(api).expect("OpenApi must serialize to JSON");
-
-        assert_json_eq!(
-            api_json,
-            json!({
-                "info": {
-                    "title": "",
-                    "version": ""
-                },
-                "openapi": "3.1.0",
-                "paths": {},
-                "x-tagGroup": "anything that serializes to Json",
-            })
-        )
+        assert_json_snapshot!(api);
     }
 }

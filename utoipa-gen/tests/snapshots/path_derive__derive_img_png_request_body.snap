@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&request_body"
+snapshot_kind: text
+---
+{
+  "content": {
+    "image/png": {
+      "schema": {
+        "contentEncoding": "base64",
+        "type": "string"
+      }
+    }
+  },
+  "required": true
+}

@@ -81,7 +81,7 @@ mod pet_api {
 #[derive(Default, OpenApi)]
 #[openapi(
     paths(pet_api::get_pet_by_id),
-    components(schemas(Pet, GenericC, GenericD)),
+    components(schemas(Pet, C<A, B>, C<B, A>)),
     modifiers(&Foo),
     security(
         (),
@@ -92,9 +92,9 @@ mod pet_api {
 struct ApiDoc;
 
 macro_rules! build_foo {
-    ($typ: ident, $d: ty, $r: ty) => {
+    ($type: ident, $d: ty, $r: ty) => {
         #[derive(Debug, Serialize, ToSchema)]
-        struct $typ {
+        struct $type {
             data: $d,
             resources: $r,
         }
@@ -112,7 +112,6 @@ struct B {
 }
 
 #[derive(Deserialize, Serialize, ToSchema)]
-#[aliases(GenericC = C<A, B>, GenericD = C<B, A>)]
 struct C<T, R> {
     field_1: R,
     field_2: T,

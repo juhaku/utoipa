@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: body
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "schema": {
+        "items": {
+          "$ref": "#/components/schemas/Foo"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      }
+    }
+  }
+}

@@ -1,27 +1,26 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
-use axum::Router;
 use std::io::Error;
 use tokio::net::TcpListener;
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
 };
+use utoipa_axum::router::OpenApiRouter;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_scalar::{Scalar, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
+
+const TODO_TAG: &str = "todo";
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
         modifiers(&SecurityAddon),
-        nest(
-            (path = "/api/v1/todos", api = todo::TodoApi)
-        ),
         tags(
-            (name = "todo", description = "Todo items management API")
+            (name = TODO_TAG, description = "Todo items management API")
         )
     )]
     struct ApiDoc;
@@ -39,20 +38,23 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let app = Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
+    let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .nest("/api/v1/todos", todo::router())
+        .split_for_parts();
+
+    let router = router
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api.clone()))
+        .merge(Redoc::with_url("/redoc", api.clone()))
         // There is no need to create `RapiDoc::with_openapi` because the OpenApi is served
         // via SwaggerUi instead we only make rapidoc to point to the existing doc.
         .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         // Alternative to above
-        // .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", ApiDoc::openapi()).path("/rapidoc"))
-        .merge(Scalar::with_url("/scalar", ApiDoc::openapi()))
-        .nest("/api/v1/todos", todo::router());
+        // .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", api).path("/rapidoc"))
+        .merge(Scalar::with_url("/scalar", api));
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
     let listener = TcpListener::bind(&address).await?;
-    axum::serve(listener, app.into_make_service()).await
+    axum::serve(listener, router.into_make_service()).await
 }
 
 mod todo {
@@ -61,19 +63,15 @@ mod todo {
     use axum::{
         extract::{Path, Query, State},
         response::IntoResponse,
-        routing, Json, Router,
+        Json,
     };
     use hyper::{HeaderMap, StatusCode};
     use serde::{Deserialize, Serialize};
     use tokio::sync::Mutex;
-    use utoipa::{IntoParams, OpenApi, ToSchema};
+    use utoipa::{IntoParams, ToSchema};
+    use utoipa_axum::{router::OpenApiRouter, routes};
 
-    #[derive(OpenApi)]
-    #[openapi(
-        paths(list_todos, search_todos, create_todo, mark_done, delete_todo,),
-        components(schemas(Todo, TodoError))
-    )]
-    pub(super) struct TodoApi;
+    use crate::TODO_TAG;
 
     /// In-memory todo store
     type Store = Mutex<Vec<Todo>>;
@@ -101,12 +99,12 @@ mod todo {
         Unauthorized(String),
     }
 
-    pub(super) fn router() -> Router {
+    pub(super) fn router() -> OpenApiRouter {
         let store = Arc::new(Store::default());
-        Router::new()
-            .route("/", routing::get(list_todos).post(create_todo))
-            .route("/search", routing::get(search_todos))
-            .route("/:id", routing::put(mark_done).delete(delete_todo))
+        OpenApiRouter::new()
+            .routes(routes!(list_todos, create_todo))
+            .routes(routes!(search_todos))
+            .routes(routes!(mark_done, delete_todo))
             .with_state(store)
     }
 
@@ -116,6 +114,7 @@ mod todo {
     #[utoipa::path(
         get,
         path = "",
+        tag = TODO_TAG,
         responses(
             (status = 200, description = "List all todos successfully", body = [Todo])
         )
@@ -141,6 +140,7 @@ mod todo {
     #[utoipa::path(
         get,
         path = "/search",
+        tag = TODO_TAG,
         params(
             TodoSearchQuery
         ),
@@ -172,7 +172,7 @@ mod todo {
     #[utoipa::path(
         post,
         path = "",
-        request_body = Todo,
+        tag = TODO_TAG,
         responses(
             (status = 201, description = "Todo item created successfully", body = Todo),
             (status = 409, description = "Todo already exists", body = TodoError)
@@ -210,6 +210,7 @@ mod todo {
     #[utoipa::path(
         put,
         path = "/{id}",
+        tag = TODO_TAG,
         responses(
             (status = 200, description = "Todo marked done successfully"),
             (status = 404, description = "Todo not found")
@@ -250,6 +251,7 @@ mod todo {
     #[utoipa::path(
         delete,
         path = "/{id}",
+        tag = TODO_TAG,
         responses(
             (status = 200, description = "Todo marked done successfully"),
             (status = 401, description = "Unauthorized to delete Todo", body = TodoError, example = json!(TodoError::Unauthorized(String::from("missing api key")))),

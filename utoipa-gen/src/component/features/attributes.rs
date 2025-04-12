@@ -4,12 +4,14 @@ use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
-use syn::{LitStr, Token, TypePath};
+use syn::token::Paren;
+use syn::{Error, LitStr, Token, TypePath, WherePredicate};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
+use crate::parse_utils::{LitBoolOrExprPath, LitStrOrExpr};
 use crate::path::parameter::{self, ParameterStyle};
-use crate::schema_type::SchemaFormat;
+use crate::schema_type::KnownFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
 
 use super::{impl_feature, Feature, Parse};
@@ -181,12 +183,12 @@ impl From<XmlAttr> for Feature {
 impl_feature! {
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Format(SchemaFormat<'static>);
+    pub struct Format(KnownFormat);
 }
 
 impl Parse for Format {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next(input, || input.parse::<SchemaFormat>()).map(Self)
+        parse_utils::parse_next(input, || input.parse::<KnownFormat>()).map(Self)
     }
 }
 
@@ -412,6 +414,12 @@ impl_feature! {
     pub struct ParameterIn(parameter::ParameterIn);
 }
 
+impl ParameterIn {
+    pub fn is_query(&self) -> bool {
+        matches!(self.0, parameter::ParameterIn::Query)
+    }
+}
+
 impl Parse for ParameterIn {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         parse_utils::parse_next(input, || input.parse::<parameter::ParameterIn>().map(Self))
@@ -543,7 +551,7 @@ impl IntoParamsNames {
 impl Parse for IntoParamsNames {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
-            parse_utils::parse_punctuated_within_parenthesis::<LitStr>(input)?
+            parse_utils::parse_comma_separated_within_parenthesis::<LitStr>(input)?
                 .iter()
                 .map(LitStr::value)
                 .collect(),
@@ -587,7 +595,7 @@ impl From<SchemaWith> for Feature {
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct Description(parse_utils::Value);
+    pub struct Description(parse_utils::LitStrOrExpr);
 }
 
 impl Parse for Description {
@@ -649,10 +657,32 @@ impl From<Deprecated> for Feature {
     }
 }
 
+impl From<bool> for Deprecated {
+    fn from(value: bool) -> Self {
+        Self(value)
+    }
+}
+
 impl_feature! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
     pub struct As(pub TypePath);
+}
+
+impl As {
+    /// Returns this `As` attribute type path formatted as string supported by OpenAPI spec whereas
+    /// double colons (::) are replaced with dot (.).
+    pub fn to_schema_formatted_string(&self) -> String {
+        // See: https://github.com/juhaku/utoipa/pull/187#issuecomment-1173101405
+        // :: are not officially supported in the spec
+        self.0
+            .path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join(".")
+    }
 }
 
 impl Parse for As {
@@ -802,5 +832,216 @@ impl ToTokens for ContentMediaType {
 impl From<ContentMediaType> for Feature {
     fn from(value: ContentMediaType) -> Self {
         Self::ContentMediaType(value)
+    }
+}
+
+// discriminator = ...
+// discriminator(property_name = ..., mapping(
+//      (value = ...),
+//      (value2 = ...)
+// ))
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Discriminator(LitStrOrExpr, Punctuated<(LitStrOrExpr, LitStrOrExpr), Token![,]>, Ident);
+}
+
+impl Discriminator {
+    fn new(attribute: Ident) -> Self {
+        Self(LitStrOrExpr::default(), Punctuated::default(), attribute)
+    }
+
+    pub fn get_attribute(&self) -> &Ident {
+        &self.2
+    }
+}
+
+impl Parse for Discriminator {
+    fn parse(input: ParseStream, attribute: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(Token![=]) {
+            parse_utils::parse_next_literal_str_or_expr(input)
+                .map(|property_name| Self(property_name, Punctuated::new(), attribute))
+        } else if lookahead.peek(Paren) {
+            let discriminator_stream;
+            syn::parenthesized!(discriminator_stream in input);
+
+            let mut discriminator = Discriminator::new(attribute);
+
+            while !discriminator_stream.is_empty() {
+                let property = discriminator_stream.parse::<Ident>()?;
+                let name = &*property.to_string();
+
+                match name {
+                    "property_name" => {
+                        discriminator.0 =
+                            parse_utils::parse_next_literal_str_or_expr(&discriminator_stream)?
+                    }
+                    "mapping" => {
+                        let mapping_stream;
+                        syn::parenthesized!(mapping_stream in &discriminator_stream);
+                        let mappings: Punctuated<(LitStrOrExpr, LitStrOrExpr), Token![,]> =
+                            Punctuated::parse_terminated_with(&mapping_stream, |input| {
+                                let inner;
+                                syn::parenthesized!(inner in input);
+
+                                let key = inner.parse::<LitStrOrExpr>()?;
+                                inner.parse::<Token![=]>()?;
+                                let value = inner.parse::<LitStrOrExpr>()?;
+
+                                Ok((key, value))
+                            })?;
+                        discriminator.1 = mappings;
+                    }
+                    unexpected => {
+                        return Err(Error::new(
+                            property.span(),
+                            format!(
+                                "unexpected identifier {}, expected any of: property_name, mapping",
+                                unexpected
+                            ),
+                        ))
+                    }
+                }
+
+                if !discriminator_stream.is_empty() {
+                    discriminator_stream.parse::<Token![,]>()?;
+                }
+            }
+
+            Ok(discriminator)
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl ToTokens for Discriminator {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Discriminator(property_name, mapping, _) = self;
+
+        struct Mapping<'m>(&'m LitStrOrExpr, &'m LitStrOrExpr);
+
+        impl ToTokens for Mapping<'_> {
+            fn to_tokens(&self, tokens: &mut TokenStream) {
+                let Mapping(property_name, value) = *self;
+
+                tokens.extend(quote! {
+                    (#property_name, #value)
+                })
+            }
+        }
+
+        let discriminator = if !mapping.is_empty() {
+            let mapping = mapping
+                .iter()
+                .map(|(key, value)| Mapping(key, value))
+                .collect::<Array<Mapping>>();
+
+            quote! {
+                utoipa::openapi::schema::Discriminator::with_mapping(#property_name, #mapping)
+            }
+        } else {
+            quote! {
+                utoipa::openapi::schema::Discriminator::new(#property_name)
+            }
+        };
+
+        discriminator.to_tokens(tokens);
+    }
+}
+
+impl From<Discriminator> for Feature {
+    fn from(value: Discriminator) -> Self {
+        Self::Discriminator(value)
+    }
+}
+
+// bound = "GenericTy: Trait"
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Bound(pub(crate) Punctuated<WherePredicate, Token![,]>);
+}
+
+impl Parse for Bound {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
+        let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
+        let bounds =
+            syn::parse::Parser::parse_str(<Punctuated<_, _>>::parse_terminated, &litstr.value())
+                .map_err(|err| syn::Error::new(litstr.span(), err.to_string()))?;
+        Ok(Self(bounds))
+    }
+}
+
+impl ToTokens for Bound {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Bound> for Feature {
+    fn from(value: Bound) -> Self {
+        Feature::Bound(value)
+    }
+}
+
+impl_feature! {
+    /// Ignore feature parsed from macro attributes.
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Ignore(pub LitBoolOrExprPath);
+}
+
+impl Parse for Ignore {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_bool_or_call(input).map(Self)
+    }
+}
+
+impl ToTokens for Ignore {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Ignore> for Feature {
+    fn from(value: Ignore) -> Self {
+        Self::Ignore(value)
+    }
+}
+
+impl From<bool> for Ignore {
+    fn from(value: bool) -> Self {
+        Self(value.into())
+    }
+}
+
+// Nothing to parse, it is considered to be set when attribute itself is parsed via
+// `parse_features!`.
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct NoRecursion;
+}
+
+impl Parse for NoRecursion {
+    fn parse(_: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<NoRecursion> for Feature {
+    fn from(value: NoRecursion) -> Self {
+        Self::NoRecursion(value)
     }
 }

@@ -14,19 +14,10 @@ use crate::todo::TodoStore;
 
 #[rocket::launch]
 fn rocket() -> Rocket<Build> {
-    env_logger::init();
-
     #[derive(OpenApi)]
     #[openapi(
-        paths(
-            todo::get_tasks,
-            todo::create_todo,
-            todo::mark_done,
-            todo::delete_todo,
-            todo::search_todos,
-        ),
-        components(
-            schemas(todo::Todo, todo::TodoError)
+        nest(
+            (path = "/api/todo", api = todo::TodoApi)
         ),
         tags(
             (name = "todo", description = "Todo management endpoints.")
@@ -49,7 +40,7 @@ fn rocket() -> Rocket<Build> {
 
     rocket::build()
         .manage(TodoStore::default())
-        .register("/todo", catchers![unauthorized])
+        .register("/api/todo", catchers![unauthorized])
         .mount(
             "/",
             SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
@@ -65,7 +56,7 @@ fn rocket() -> Rocket<Build> {
         .mount("/", Redoc::with_url("/redoc", ApiDoc::openapi()))
         .mount("/", Scalar::with_url("/scalar", ApiDoc::openapi()))
         .mount(
-            "/todo",
+            "/api/todo",
             routes![
                 todo::get_tasks,
                 todo::create_todo,
@@ -97,7 +88,11 @@ mod todo {
         FromForm, Request, State,
     };
     use serde::{Deserialize, Serialize};
-    use utoipa::{IntoParams, ToSchema};
+    use utoipa::{IntoParams, OpenApi, ToSchema};
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_tasks, create_todo, mark_done, delete_todo, search_todos,))]
+    pub struct TodoApi;
 
     pub(super) type TodoStore = Arc<Mutex<Vec<Todo>>>;
 
@@ -173,7 +168,6 @@ mod todo {
 
     /// List all available todo items.
     #[utoipa::path(
-        context_path = "/todo",
         responses(
             (status = 200, description = "Get all todos", body = [Todo])
         )
@@ -187,8 +181,6 @@ mod todo {
     ///
     /// Create new todo item and add it to the storage.
     #[utoipa::path(
-        context_path = "/todo",
-        request_body = Todo,
         responses(
             (status = 201, description = "Todo item created successfully", body = Todo),
             (status = 409, description = "Todo already exists", body = TodoError, example = json!(TodoError::Conflict(String::from("id = 1"))))
@@ -216,7 +208,6 @@ mod todo {
     /// Tries to find todo item by given id and mark it done if found. Will return not found in case todo
     /// item does not exists.
     #[utoipa::path(
-        context_path = "/todo",
         responses(
             (status = 200, description = "Todo item marked done successfully"),
             (status = 404, description = "Todo item not found from storage", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))
@@ -252,7 +243,6 @@ mod todo {
     ///
     /// Delete Todo from storage by Todo id if found.
     #[utoipa::path(
-        context_path = "/todo",
         responses(
             (status = 200, description = "Todo deleted successfully"),
             (status = 401, description = "Unauthorized to delete Todos", body = TodoError, example = json!(TodoError::Unauthorized(String::from("id = 1")))),
@@ -294,7 +284,6 @@ mod todo {
     ///
     /// Search is performed in case sensitive manner from value of Todo.
     #[utoipa::path(
-        context_path = "/todo",
         params(
             SearchParams
         ),

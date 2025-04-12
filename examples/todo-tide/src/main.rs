@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use serde_json::json;
-use tide::{http::Mime, Response};
+use tide::{http::Mime, Redirect, Response};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,
@@ -18,14 +18,8 @@ async fn main() -> std::io::Result<()> {
 
     #[derive(OpenApi)]
     #[openapi(
-        paths(
-            todo::list_todos,
-            todo::create_todo,
-            todo::delete_todo,
-            todo::mark_done
-        ),
-        components(
-            schemas(todo::Todo, todo::TodoError)
+        nest(
+            (path = "/api/todo", api = todo::TodoApi)
         ),
         modifiers(&SecurityAddon),
         tags(
@@ -51,6 +45,8 @@ async fn main() -> std::io::Result<()> {
         .get(|_| async move { Ok(Response::builder(200).body(json!(ApiDoc::openapi()))) });
 
     // serve Swagger UI
+    app.at("/swagger-ui")
+        .get(|_| async move { Ok(Redirect::new("/swagger-ui/index.html")) });
     app.at("/swagger-ui/*").get(serve_swagger);
 
     app.at("/api").nest({
@@ -91,7 +87,21 @@ mod todo {
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use tide::{Request, Response};
-    use utoipa::ToSchema;
+    use utoipa::{OpenApi, ToSchema};
+
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            list_todos,
+            create_todo,
+            delete_todo,
+            mark_done
+        ),
+        tags(
+            (name = "todo", description = "Todo items management endpoints.")
+        )
+    )]
+    pub struct TodoApi;
 
     /// Item to complete
     #[derive(Serialize, Deserialize, ToSchema, Clone)]
@@ -122,7 +132,7 @@ mod todo {
     /// List all todos from in memory storage.
     #[utoipa::path(
         get,
-        path = "/api/todo",
+        path = "",
         responses(
             (status = 200, description = "List all todos successfully", body = [Todo])
         )
@@ -138,7 +148,7 @@ mod todo {
     /// Create new todo to in-memory storage if not exists.
     #[utoipa::path(
         post,
-        path = "/api/todo",
+        path = "",
         request_body = Todo,
         responses(
             (status = 201, description = "Todo created successfully", body = Todo),
@@ -169,7 +179,7 @@ mod todo {
     /// Delete todo from in-memory storage.
     #[utoipa::path(
         delete,
-        path = "/api/todo/{id}",
+        path = "/{id}",
         responses(
             (status = 200, description = "Todo deleted successfully"),
             (status = 401, description = "Unauthorized to delete Todo"),
@@ -211,7 +221,7 @@ mod todo {
     /// Mark todo done by id
     #[utoipa::path(
         put,
-        path = "/api/todo/{id}",
+        path = "/{id}",
         responses(
             (status = 200, description = "Todo marked done successfully"),
             (status = 404, description = "Todo not found", body = TodoError, example = json!(TodoError::NotFound(String::from("id = 1"))))

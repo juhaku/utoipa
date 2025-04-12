@@ -1,0 +1,49 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+snapshot_kind: text
+---
+{
+  "properties": {
+    "id": {
+      "format": "int32",
+      "maximum": 10,
+      "minimum": 5,
+      "multipleOf": 2.5,
+      "type": "integer"
+    },
+    "items": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+    },
+    "unsigned": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "unsigned_value": {
+      "format": "int32",
+      "minimum": 2,
+      "type": "integer"
+    },
+    "value": {
+      "maxLength": 10,
+      "minLength": 5,
+      "pattern": "[a-z]*",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "value",
+    "items",
+    "unsigned",
+    "unsigned_value"
+  ],
+  "type": "object"
+}

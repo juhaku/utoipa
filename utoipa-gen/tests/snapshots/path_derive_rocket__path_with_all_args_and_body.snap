@@ -1,0 +1,53 @@
+---
+source: utoipa-gen/tests/path_derive_rocket.rs
+expression: "operation.pointer(\"/parameters\")"
+snapshot_kind: text
+---
+[
+  {
+    "description": "Hello id",
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "foo",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "bar",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "type": "integer"
+    }
+  },
+  {
+    "in": "query",
+    "name": "colors",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  {
+    "in": "path",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

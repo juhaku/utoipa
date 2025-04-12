@@ -7,6 +7,7 @@ use serde_json::Value;
 
 use super::builder;
 use super::example::Example;
+use super::extensions::Extensions;
 use super::{encoding::Encoding, set_value, RefOr, Schema};
 
 builder! {
@@ -14,12 +15,17 @@ builder! {
 
 
     /// Content holds request body content or response content.
+    ///
+    /// [`Content`] implements OpenAPI spec [Media Type Object][media_type]
+    ///
+    /// [media_type]: <https://spec.openapis.org/oas/latest.html#media-type-object>
     #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[non_exhaustive]
     pub struct Content {
         /// Schema used in response body or request body.
-        pub schema: RefOr<Schema>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub schema: Option<RefOr<Schema>>,
 
         /// Example for request body or response body.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -42,13 +48,18 @@ builder! {
         /// multipart or `application/x-www-form-urlencoded`.
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub encoding: BTreeMap<String, Encoding>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
 impl Content {
-    pub fn new<I: Into<RefOr<Schema>>>(schema: I) -> Self {
+    /// Construct a new [`Content`] object for provided _`schema`_.
+    pub fn new<I: Into<RefOr<Schema>>>(schema: Option<I>) -> Self {
         Self {
-            schema: schema.into(),
+            schema: schema.map(|schema| schema.into()),
             ..Self::default()
         }
     }
@@ -56,8 +67,8 @@ impl Content {
 
 impl ContentBuilder {
     /// Add schema.
-    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self schema component.into())
+    pub fn schema<I: Into<RefOr<Schema>>>(mut self, schema: Option<I>) -> Self {
+        set_value!(self schema schema.map(|schema| schema.into()))
     }
 
     /// Add example of schema.
@@ -104,5 +115,10 @@ impl ContentBuilder {
     ) -> Self {
         self.encoding.insert(property_name.into(), encoding.into());
         self
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }

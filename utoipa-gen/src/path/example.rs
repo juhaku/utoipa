@@ -9,7 +9,7 @@ use crate::{parse_utils, AnyValue};
 // (name = (summary = "...", description = "...", value = "..", external_value = "..."))
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-pub(super) struct Example {
+pub struct Example {
     pub(super) name: String,
     pub(super) summary: Option<String>,
     pub(super) description: Option<String>,

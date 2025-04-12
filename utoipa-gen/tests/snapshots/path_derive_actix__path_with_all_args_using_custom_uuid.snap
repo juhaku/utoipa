@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/path_derive_actix.rs
+expression: "&operation.pointer(\"/parameters\").unwrap()"
+snapshot_kind: text
+---
+[
+  {
+    "in": "path",
+    "name": "custom_uuid",
+    "required": true,
+    "schema": {
+      "format": "uuid",
+      "type": "string"
+    }
+  }
+]

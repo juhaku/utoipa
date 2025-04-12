@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: "&operation"
+snapshot_kind: text
+---
+{
+  "description": "This is description override",
+  "operationId": "test_description_summary",
+  "responses": {
+    "200": {
+      "description": "success response"
+    }
+  },
+  "summary": "This is summary override that is\nsplit to multiple lines",
+  "tags": []
+}

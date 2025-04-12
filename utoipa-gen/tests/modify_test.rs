@@ -9,7 +9,7 @@ use utoipa::{
 mod common;
 
 #[test]
-fn modify_openapi_add_security_schema() {
+fn modify_openapi_add_security_scheme() {
     #[derive(Default, OpenApi)]
     #[openapi(modifiers(&SecurityAddon))]
     struct ApiDoc;

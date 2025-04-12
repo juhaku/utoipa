@@ -1,0 +1,23 @@
+[package]
+name = "utoipa-config"
+description = "Config for controlling utoipa's various aspects"
+version = "0.1.2"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["utoipa", "config", "utoipa-gen", "openapi", "auto-generate"]
+repository = "https://github.com/juhaku/utoipa"
+categories = ["web-programming"]
+authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
+rust-version.workspace = true
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+
+[package.metadata.docs.rs]
+features = []
+rustdoc-args = ["--cfg", "doc_cfg"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }

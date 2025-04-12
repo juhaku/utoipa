@@ -6,11 +6,10 @@
 //! [info]: <https://spec.openapis.org/oas/latest.html#info-object>
 //! [openapi_trait]: ../../trait.OpenApi.html
 //! [derive]: ../../derive.OpenApi.html
-use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value};
+use super::{builder, extensions::Extensions, set_value};
 
 builder! {
     /// # Examples
@@ -71,7 +70,7 @@ builder! {
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -128,7 +127,7 @@ impl InfoBuilder {
     }
 
     /// Add openapi extensions (x-something) of the API.
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 }
@@ -159,6 +158,10 @@ builder! {
         /// Email of the contact person or the organization of the API.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub email: Option<String>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -184,6 +187,11 @@ impl ContactBuilder {
     pub fn email<S: Into<String>>(mut self, email: Option<S>) -> Self {
         set_value!(self email email.map(|email| email.into()))
     }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
+    }
 }
 
 builder! {
@@ -203,6 +211,17 @@ builder! {
         /// Optional url pointing to the license.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub url: Option<String>,
+
+        /// An [SPDX-Licenses][spdx_licence] expression for the API. The _`identifier`_ field
+        /// is mutually exclusive of the _`url`_ field. E.g. Apache-2.0
+        ///
+        /// [spdx_licence]: <https://spdx.org/licenses/>
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub identifier: Option<String>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -227,6 +246,19 @@ impl LicenseBuilder {
     /// Add url pointing to the license used in API.
     pub fn url<S: Into<String>>(mut self, url: Option<S>) -> Self {
         set_value!(self url url.map(|url| url.into()))
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
+    }
+
+    /// Set identifier of the licence as [SPDX-Licenses][spdx_licence] expression for the API.
+    /// The _`identifier`_ field is mutually exclusive of the _`url`_ field. E.g. Apache-2.0
+    ///
+    /// [spdx_licence]: <https://spdx.org/licenses/>
+    pub fn identifier<S: Into<String>>(mut self, identifier: Option<S>) -> Self {
+        set_value!(self identifier identifier.map(|identifier| identifier.into()))
     }
 }
 

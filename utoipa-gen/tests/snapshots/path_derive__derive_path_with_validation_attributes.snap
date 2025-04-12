@@ -1,0 +1,43 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+snapshot_kind: text
+---
+[
+  {
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int32",
+      "maximum": 10,
+      "minimum": 5,
+      "multipleOf": 2.5,
+      "type": "integer"
+    }
+  },
+  {
+    "in": "path",
+    "name": "value",
+    "required": true,
+    "schema": {
+      "maxLength": 10,
+      "minLength": 5,
+      "pattern": "[a-z]*",
+      "type": "string"
+    }
+  },
+  {
+    "in": "path",
+    "name": "items",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+    }
+  }
+]

@@ -1,0 +1,15 @@
+---
+source: utoipa/src/openapi/response.rs
+expression: request_body
+snapshot_kind: text
+---
+{
+  "description": "A sample response",
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/MySchemaPayload"
+      }
+    }
+  }
+}

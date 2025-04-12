@@ -1,0 +1,51 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: schemas
+snapshot_kind: text
+---
+{
+  "Account": {
+    "properties": {
+      "foobar": {
+        "$ref": "#/components/schemas/Foobar"
+      },
+      "id": {
+        "format": "int32",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "id",
+      "foobar"
+    ],
+    "type": "object"
+  },
+  "Foobar": {
+    "default": null
+  },
+  "Person": {
+    "properties": {
+      "accounts": {
+        "items": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/components/schemas/Account"
+            }
+          ]
+        },
+        "type": "array"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "accounts"
+    ],
+    "type": "object"
+  }
+}

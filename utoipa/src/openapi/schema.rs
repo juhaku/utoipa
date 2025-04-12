@@ -2,11 +2,12 @@
 //! used to define field properties, enum values, array or object types.
 //!
 //! [schema]: https://spec.openapis.org/oas/latest.html#schema-object
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::extensions::Extensions;
 use super::RefOr;
 use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
 use crate::{ToResponse, ToSchema};
@@ -77,6 +78,10 @@ builder! {
         /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub security_schemes: BTreeMap<String, SecurityScheme>,
+
+        /// Optional extensions "x-something".
+        #[serde(skip_serializing_if = "Option::is_none", flatten)]
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -96,10 +101,10 @@ impl Components {
     pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         &mut self,
         name: N,
-        security_schema: S,
+        security_scheme: S,
     ) {
         self.security_schemes
-            .insert(name.into(), security_schema.into());
+            .insert(name.into(), security_scheme.into());
     }
 
     /// Add iterator of [`SecurityScheme`]s to [`Components`].
@@ -134,21 +139,28 @@ impl ComponentsBuilder {
         self
     }
 
-    pub fn schema_from<'s, I: ToSchema<'s>>(mut self) -> Self {
-        let aliases = I::aliases();
+    /// Add [`Schema`] to [`Components`].
+    ///
+    /// This is effectively same as calling [`ComponentsBuilder::schema`] but expects to be called
+    /// with one generic argument that implements [`ToSchema`][trait@ToSchema] trait.
+    ///
+    /// # Examples
+    ///
+    /// _**Add schema from `Value` type that derives `ToSchema`.**_
+    ///
+    /// ```rust
+    /// # use utoipa::{ToSchema, openapi::schema::ComponentsBuilder};
+    ///  #[derive(ToSchema)]
+    ///  struct Value(String);
+    ///
+    ///  let _ = ComponentsBuilder::new().schema_from::<Value>().build();
+    /// ```
+    pub fn schema_from<I: ToSchema>(mut self) -> Self {
+        let name = I::name();
+        let schema = I::schema();
+        self.schemas.insert(name.to_string(), schema);
 
-        // TODO a temporal hack to add the main schema only if there are no aliases pre-defined.
-        // Eventually aliases functionality should be extracted out from the `ToSchema`. Aliases
-        // are created when the main schema is a generic type which should be included in OpenAPI
-        // spec in its generic form.
-        if aliases.is_empty() {
-            let name = I::name();
-            let schema = I::schema();
-            // let (name, schema) = I::schema();
-            self.schemas.insert(name.to_string(), schema);
-        }
-
-        self.schemas_from_iter(aliases)
+        self
     }
 
     /// Add [`Schema`]s from iterator.
@@ -186,6 +198,10 @@ impl ComponentsBuilder {
         self
     }
 
+    /// Add [`struct@Response`] to [`Components`].
+    ///
+    /// Method accepts tow arguments; `name` of the reusable response and `response` which is the
+    /// reusable response itself.
     pub fn response<S: Into<String>, R: Into<RefOr<Response>>>(
         mut self,
         name: S,
@@ -195,11 +211,20 @@ impl ComponentsBuilder {
         self
     }
 
+    /// Add [`struct@Response`] to [`Components`].
+    ///
+    /// This behaves the same way as [`ComponentsBuilder::schema_from`] but for responses. It
+    /// allows adding response from type implementing [`trait@ToResponse`] trait. Method is
+    /// expected to be called with one generic argument that implements the trait.
     pub fn response_from<'r, I: ToResponse<'r>>(self) -> Self {
         let (name, response) = I::response();
         self.response(name, response)
     }
 
+    /// Add multiple [`struct@Response`]s to [`Components`] from iterator.
+    ///
+    /// Like the [`ComponentsBuilder::schemas_from_iter`] this allows adding multiple responses by
+    /// any iterator what returns tuples of (name, response) values.
     pub fn responses_from_iter<
         I: IntoIterator<Item = (S, R)>,
         S: Into<String>,
@@ -226,12 +251,17 @@ impl ComponentsBuilder {
     pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
         mut self,
         name: N,
-        security_schema: S,
+        security_scheme: S,
     ) -> Self {
         self.security_schemes
-            .insert(name.into(), security_schema.into());
+            .insert(name.into(), security_scheme.into());
 
         self
+    }
+
+    /// Add openapi extensions (x-something) of the API.
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
+        set_value!(self extensions extensions)
     }
 }
 
@@ -252,7 +282,7 @@ pub enum Schema {
     Object(Object),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
-    /// [`Schema::OneOf`] is created form complex enum where enum holds other than unit types.
+    /// [`Schema::OneOf`] is created form mixed enum where enum contains various variants.
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     OneOf(OneOf),
@@ -291,6 +321,10 @@ pub struct Discriminator {
     /// validation.
     #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
     pub mapping: BTreeMap<String, String>,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
 }
 
 impl Discriminator {
@@ -307,6 +341,43 @@ impl Discriminator {
         Self {
             property_name: property_name.into(),
             mapping: BTreeMap::new(),
+            ..Default::default()
+        }
+    }
+
+    /// Construct a new [`Discriminator`] object with property name and mappings.
+    ///
+    ///
+    /// Method accepts two arguments. First _`property_name`_ to use as `discriminator` and
+    /// _`mapping`_ for custom property name mappings.
+    ///
+    /// # Examples
+    ///
+    ///_**Construct an ew [`Discriminator`] with custom mapping.**_
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::schema::Discriminator;
+    /// let discriminator = Discriminator::with_mapping("pet_type", [
+    ///     ("cat","#/components/schemas/Cat")
+    /// ]);
+    /// ```
+    pub fn with_mapping<
+        P: Into<String>,
+        M: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    >(
+        property_name: P,
+        mapping: M,
+    ) -> Self {
+        Self {
+            property_name: property_name.into(),
+            mapping: BTreeMap::from_iter(
+                mapping
+                    .into_iter()
+                    .map(|(key, val)| (key.into(), val.into())),
+            ),
+            ..Default::default()
         }
     }
 }
@@ -363,7 +434,7 @@ builder! {
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -461,7 +532,7 @@ impl OneOfBuilder {
     }
 
     /// Add openapi extensions (`x-something`) for [`OneOf`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 
@@ -477,6 +548,12 @@ impl From<OneOf> for Schema {
 impl From<OneOfBuilder> for RefOr<Schema> {
     fn from(one_of: OneOfBuilder) -> Self {
         Self::T(Schema::OneOf(one_of.build()))
+    }
+}
+
+impl From<OneOfBuilder> for ArrayItems {
+    fn from(value: OneOfBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -534,7 +611,7 @@ builder! {
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -632,7 +709,7 @@ impl AllOfBuilder {
     }
 
     /// Add openapi extensions (`x-something`) for [`AllOf`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 
@@ -648,6 +725,12 @@ impl From<AllOf> for Schema {
 impl From<AllOfBuilder> for RefOr<Schema> {
     fn from(one_of: AllOfBuilder) -> Self {
         Self::T(Schema::AllOf(one_of.build()))
+    }
+}
+
+impl From<AllOfBuilder> for ArrayItems {
+    fn from(value: AllOfBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -701,7 +784,7 @@ builder! {
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -793,7 +876,7 @@ impl AnyOfBuilder {
     }
 
     /// Add openapi extensions (`x-something`) for [`AnyOf`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 
@@ -809,6 +892,12 @@ impl From<AnyOf> for Schema {
 impl From<AnyOfBuilder> for RefOr<Schema> {
     fn from(any_of: AnyOfBuilder) -> Self {
         Self::T(Schema::AnyOf(any_of.build()))
+    }
+}
+
+impl From<AnyOfBuilder> for ArrayItems {
+    fn from(value: AnyOfBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -875,6 +964,11 @@ builder! {
         /// Additional [`Schema`] for non specified fields (Useful for typed maps).
         #[serde(skip_serializing_if = "Option::is_none")]
         pub additional_properties: Option<Box<AdditionalProperties<Schema>>>,
+
+        /// Additional [`Schema`] to describe property names of an object such as a map. See more
+        /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub property_names: Option<Box<Schema>>,
 
         /// Changes the [`Object`] deprecated status.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -954,7 +1048,7 @@ builder! {
 
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
 
         /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
         /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
@@ -1010,6 +1104,12 @@ impl From<Object> for Schema {
     }
 }
 
+impl From<Object> for ArrayItems {
+    fn from(value: Object) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 impl ToArray for Object {}
 
 impl ObjectBuilder {
@@ -1038,11 +1138,18 @@ impl ObjectBuilder {
         self
     }
 
+    /// Add additional [`Schema`] for non specified fields (Useful for typed maps).
     pub fn additional_properties<I: Into<AdditionalProperties<Schema>>>(
         mut self,
         additional_properties: Option<I>,
     ) -> Self {
         set_value!(self additional_properties additional_properties.map(|additional_properties| Box::new(additional_properties.into())))
+    }
+
+    /// Add additional [`Schema`] to describe property names of an object such as a map. See more
+    /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
+    pub fn property_names<S: Into<Schema>>(mut self, property_name: Option<S>) -> Self {
+        set_value!(self property_names property_name.map(|property_name| Box::new(property_name.into())))
     }
 
     /// Add field to the required fields of [`Object`].
@@ -1166,7 +1273,7 @@ impl ObjectBuilder {
     }
 
     /// Add openapi extensions (`x-something`) for [`Object`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 
@@ -1190,6 +1297,23 @@ component_from_builder!(ObjectBuilder);
 impl From<ObjectBuilder> for RefOr<Schema> {
     fn from(builder: ObjectBuilder) -> Self {
         Self::T(Schema::Object(builder.build()))
+    }
+}
+
+impl From<RefOr<Schema>> for Schema {
+    fn from(value: RefOr<Schema>) -> Self {
+        match value {
+            RefOr::Ref(_) => {
+                panic!("Invalid type `RefOr::Ref` provided, cannot convert to RefOr::T<Schema>")
+            }
+            RefOr::T(value) => value,
+        }
+    }
+}
+
+impl From<ObjectBuilder> for ArrayItems {
+    fn from(value: ObjectBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -1335,9 +1459,21 @@ impl From<RefBuilder> for RefOr<Schema> {
     }
 }
 
+impl From<RefBuilder> for ArrayItems {
+    fn from(value: RefBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 impl From<Ref> for RefOr<Schema> {
     fn from(r: Ref) -> Self {
         Self::Ref(r)
+    }
+}
+
+impl From<Ref> for ArrayItems {
+    fn from(value: Ref) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
     }
 }
 
@@ -1388,6 +1524,70 @@ where
     }
 }
 
+/// Represents [`Array`] items in [JSON Schema Array][json_schema_array].
+///
+/// [json_schema_array]: <https://json-schema.org/understanding-json-schema/reference/array#items>
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+#[serde(untagged)]
+pub enum ArrayItems {
+    /// Defines [`Array::items`] as [`RefOr::T(Schema)`]. This is the default for [`Array`].
+    RefOrSchema(Box<RefOr<Schema>>),
+    /// Defines [`Array::items`] as `false` indicating that no extra items are allowed to the
+    /// [`Array`]. This can be used together with [`Array::prefix_items`] to disallow [additional
+    /// items][additional_items] in [`Array`].
+    ///
+    /// [additional_items]: <https://json-schema.org/understanding-json-schema/reference/array#additionalitems>
+    #[serde(with = "array_items_false")]
+    False,
+}
+
+mod array_items_false {
+    use serde::de::Visitor;
+
+    pub fn serialize<S: serde::Serializer>(serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bool(false)
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
+        struct ItemsFalseVisitor;
+
+        impl<'de> Visitor<'de> for ItemsFalseVisitor {
+            type Value = ();
+            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                if !v {
+                    Ok(())
+                } else {
+                    Err(serde::de::Error::custom(format!(
+                        "invalid boolean value: {v}, expected false"
+                    )))
+                }
+            }
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("expected boolean false")
+            }
+        }
+
+        deserializer.deserialize_bool(ItemsFalseVisitor)
+    }
+}
+
+impl Default for ArrayItems {
+    fn default() -> Self {
+        Self::RefOrSchema(Box::new(Object::with_type(SchemaType::AnyValue).into()))
+    }
+}
+
+impl From<RefOr<Schema>> for ArrayItems {
+    fn from(value: RefOr<Schema>) -> Self {
+        Self::RefOrSchema(Box::new(value))
+    }
+}
+
 builder! {
     ArrayBuilder;
 
@@ -1407,8 +1607,15 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub title: Option<String>,
 
-        /// Schema representing the array items type.
-        pub items: Box<RefOr<Schema>>,
+        /// Items of the [`Array`].
+        pub items: ArrayItems,
+
+        /// Prefix items of [`Array`] is used to define item validation of tuples according [JSON schema
+        /// item validation][item_validation].
+        ///
+        /// [item_validation]: <https://json-schema.org/understanding-json-schema/reference/array#tupleValidation>
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub prefix_items: Vec<Schema>,
 
         /// Description of the [`Array`]. Markdown syntax is supported.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1449,9 +1656,27 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub xml: Option<Xml>,
 
+        /// The `content_encoding` keyword specifies the encoding used to store the contents, as specified in
+        /// [RFC 2054, part 6.1](https://tools.ietf.org/html/rfc2045) and [RFC 4648](RFC 2054, part 6.1).
+        ///
+        /// Typically this is either unset for _`string`_ content types which then uses the content
+        /// encoding of the underlying JSON document. If the content is in _`binary`_ format such as an image or an audio
+        /// set it to `base64` to encode it as _`Base64`_.
+        ///
+        /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentencoding>
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub content_encoding: String,
+
+        /// The _`content_media_type`_ keyword specifies the MIME type of the contents of a string,
+        /// as described in [RFC 2046](https://tools.ietf.org/html/rfc2046).
+        ///
+        /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
+        #[serde(skip_serializing_if = "String::is_empty", default)]
+        pub content_media_type: String,
+
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
-        pub extensions: Option<HashMap<String, serde_json::Value>>,
+        pub extensions: Option<Extensions>,
     }
 }
 
@@ -1462,6 +1687,7 @@ impl Default for Array {
             schema_type: Type::Array.into(),
             unique_items: bool::default(),
             items: Default::default(),
+            prefix_items: Vec::default(),
             description: Default::default(),
             deprecated: Default::default(),
             example: Default::default(),
@@ -1471,6 +1697,8 @@ impl Default for Array {
             min_items: Default::default(),
             xml: Default::default(),
             extensions: Default::default(),
+            content_encoding: Default::default(),
+            content_media_type: Default::default(),
         }
     }
 }
@@ -1487,7 +1715,7 @@ impl Array {
     /// ```
     pub fn new<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
-            items: Box::new(component.into()),
+            items: ArrayItems::RefOrSchema(Box::new(component.into())),
             ..Default::default()
         }
     }
@@ -1503,7 +1731,7 @@ impl Array {
     /// ```
     pub fn new_nullable<I: Into<RefOr<Schema>>>(component: I) -> Self {
         Self {
-            items: Box::new(component.into()),
+            items: ArrayItems::RefOrSchema(Box::new(component.into())),
             schema_type: SchemaType::from_iter([Type::Array, Type::Null]),
             ..Default::default()
         }
@@ -1512,8 +1740,21 @@ impl Array {
 
 impl ArrayBuilder {
     /// Set [`Schema`] type for the [`Array`].
-    pub fn items<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self items Box::new(component.into()))
+    pub fn items<I: Into<ArrayItems>>(mut self, items: I) -> Self {
+        set_value!(self items items.into())
+    }
+
+    /// Add prefix items of [`Array`] to define item validation of tuples according [JSON schema
+    /// item validation][item_validation].
+    ///
+    /// [item_validation]: <https://json-schema.org/understanding-json-schema/reference/array#tupleValidation>
+    pub fn prefix_items<I: IntoIterator<Item = S>, S: Into<Schema>>(mut self, items: I) -> Self {
+        self.prefix_items = items
+            .into_iter()
+            .map(|item| item.into())
+            .collect::<Vec<_>>();
+
+        self
     }
 
     /// Change type of the array e.g. to change type to _`string`_
@@ -1586,8 +1827,20 @@ impl ArrayBuilder {
         set_value!(self xml xml)
     }
 
+    /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
+    /// example.
+    pub fn content_encoding<S: Into<String>>(mut self, content_encoding: S) -> Self {
+        set_value!(self content_encoding content_encoding.into())
+    }
+
+    /// Set of change [`Object::content_media_type`]. Value must be valid MIME type e.g.
+    /// `application/json`.
+    pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
+        set_value!(self content_media_type content_media_type.into())
+    }
+
     /// Add openapi extensions (`x-something`) for [`Array`].
-    pub fn extensions(mut self, extensions: Option<HashMap<String, serde_json::Value>>) -> Self {
+    pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
 
@@ -1602,6 +1855,12 @@ impl From<Array> for Schema {
     }
 }
 
+impl From<ArrayBuilder> for ArrayItems {
+    fn from(value: ArrayBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
 impl From<ArrayBuilder> for RefOr<Schema> {
     fn from(array: ArrayBuilder) -> Self {
         Self::T(Schema::Array(array.build()))
@@ -1610,11 +1869,13 @@ impl From<ArrayBuilder> for RefOr<Schema> {
 
 impl ToArray for Array {}
 
+/// This convenience trait allows quick way to wrap any `RefOr<Schema>` with [`Array`] schema.
 pub trait ToArray
 where
     RefOr<Schema>: From<Self>,
     Self: Sized,
 {
+    /// Wrap this `RefOr<Schema>` with [`Array`].
     fn to_array(self) -> Array {
         Array::new(self)
     }
@@ -1864,7 +2125,7 @@ pub enum KnownFormat {
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
+    use insta::assert_json_snapshot;
     use serde_json::{json, Value};
 
     use super::*;
@@ -2036,72 +2297,72 @@ mod tests {
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(ObjectBuilder::new().schema_type(Type::String)))
             .build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "additionalProperties": {
-                    "type": "string"
-                }
-            })
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+        "#);
 
         let json_value = ObjectBuilder::new()
-            .additional_properties(Some(
-                ArrayBuilder::new().items(ObjectBuilder::new().schema_type(Type::Number)),
-            ))
+            .additional_properties(Some(ArrayBuilder::new().items(ArrayItems::RefOrSchema(
+                Box::new(ObjectBuilder::new().schema_type(Type::Number).into()),
+            ))))
             .build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "additionalProperties": {
-                    "items": {
-                        "type": "number",
-                    },
-                    "type": "array",
-                }
-            })
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+        "#);
 
         let json_value = ObjectBuilder::new()
             .additional_properties(Some(Ref::from_schema_name("ComplexModel")))
             .build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/ComplexModel"
-                }
-            })
-        )
+        assert_json_snapshot!(json_value, @r##"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/components/schemas/ComplexModel"
+          }
+        }
+        "##);
     }
 
     #[test]
     fn test_object_with_title() {
         let json_value = ObjectBuilder::new().title(Some("SomeName")).build();
-        assert_json_eq!(
-            json_value,
-            json!({
-                "type": "object",
-                "title": "SomeName"
-            })
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "title": "SomeName"
+        }
+        "#);
     }
 
     #[test]
     fn derive_object_with_examples() {
-        let expected = r#"{"type":"object","examples":[{"age":20,"name":"bob the cat"}]}"#;
         let json_value = ObjectBuilder::new()
             .examples([Some(json!({"age": 20, "name": "bob the cat"}))])
             .build();
-
-        let value_string = serde_json::to_string(&json_value).unwrap();
-        assert_eq!(
-            value_string, expected,
-            "value string != expected string, {value_string} != {expected}"
-        );
+        assert_json_snapshot!(json_value, @r#"
+        {
+          "type": "object",
+          "examples": [
+            {
+              "age": 20,
+              "name": "bob the cat"
+            }
+          ]
+        }
+        "#);
     }
 
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
@@ -2159,7 +2420,13 @@ mod tests {
                 "200",
                 ResponseBuilder::new().description("Okay").build(),
             )])
-            .security_scheme("TLS", SecurityScheme::MutualTls { description: None })
+            .security_scheme(
+                "TLS",
+                SecurityScheme::MutualTls {
+                    description: None,
+                    extensions: None,
+                },
+            )
             .build();
 
         let serialized_components = serde_json::to_string(&components).unwrap();
@@ -2504,24 +2771,21 @@ mod tests {
             .item(Ref::from_schema_name("MyInt"))
             .discriminator(Some(discriminator))
             .build();
-        let json_value = serde_json::to_value(one_of).unwrap();
-
-        assert_json_eq!(
-            json_value,
-            json!({
-                "oneOf": [
-                    {
-                        "$ref": "#/components/schemas/MyInt"
-                    }
-                ],
-                "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                        "int": "#/components/schemas/MyInt"
-                    }
-                }
-            })
-        );
+        assert_json_snapshot!(one_of, @r##"
+        {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/MyInt"
+            }
+          ],
+          "discriminator": {
+            "propertyName": "type",
+            "mapping": {
+              "int": "#/components/schemas/MyInt"
+            }
+          }
+        }
+        "##);
     }
 
     #[test]
@@ -2546,11 +2810,10 @@ mod tests {
     #[test]
     fn object_with_extensions() {
         let expected = json!("value");
-        let json_value = ObjectBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+        let extensions = extensions::ExtensionsBuilder::new()
+            .add("x-some-extension", expected.clone())
             .build();
+        let json_value = ObjectBuilder::new().extensions(Some(extensions)).build();
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
@@ -2559,11 +2822,10 @@ mod tests {
     #[test]
     fn array_with_extensions() {
         let expected = json!("value");
-        let json_value = ArrayBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+        let extensions = extensions::ExtensionsBuilder::new()
+            .add("x-some-extension", expected.clone())
             .build();
+        let json_value = ArrayBuilder::new().extensions(Some(extensions)).build();
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
@@ -2572,11 +2834,10 @@ mod tests {
     #[test]
     fn oneof_with_extensions() {
         let expected = json!("value");
-        let json_value = OneOfBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+        let extensions = extensions::ExtensionsBuilder::new()
+            .add("x-some-extension", expected.clone())
             .build();
+        let json_value = OneOfBuilder::new().extensions(Some(extensions)).build();
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
@@ -2585,11 +2846,10 @@ mod tests {
     #[test]
     fn allof_with_extensions() {
         let expected = json!("value");
-        let json_value = AllOfBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+        let extensions = extensions::ExtensionsBuilder::new()
+            .add("x-some-extension", expected.clone())
             .build();
+        let json_value = AllOfBuilder::new().extensions(Some(extensions)).build();
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
@@ -2598,11 +2858,10 @@ mod tests {
     #[test]
     fn anyof_with_extensions() {
         let expected = json!("value");
-        let json_value = AnyOfBuilder::new()
-            .extensions(Some(
-                [("x-some-extension".to_string(), expected.clone())].into(),
-            ))
+        let extensions = extensions::ExtensionsBuilder::new()
+            .add("x-some-extension", expected.clone())
             .build();
+        let json_value = AnyOfBuilder::new().extensions(Some(extensions)).build();
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));

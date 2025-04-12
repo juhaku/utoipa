@@ -1,0 +1,13 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: enum_value
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "$ref": "#/components/schemas/UnnamedEnum"
+    }
+  ],
+  "title": "This is enum ref title"
+}

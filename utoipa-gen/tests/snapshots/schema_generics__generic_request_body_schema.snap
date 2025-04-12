@@ -1,0 +1,80 @@
+---
+source: utoipa-gen/tests/schema_generics.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {
+    "/handler": {
+      "get": {
+        "tags": [],
+        "operationId": "handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "field",
+                  "t"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string"
+                  },
+                  "t": {
+                    "type": "object",
+                    "required": [
+                      "t"
+                    ],
+                    "properties": {
+                      "t": {
+                        "type": "integer",
+                        "format": "int32"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {}
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Person_String_path.MyType_i32": {
+        "type": "object",
+        "required": [
+          "field",
+          "t"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "t": {
+            "type": "object",
+            "required": [
+              "t"
+            ],
+            "properties": {
+              "t": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

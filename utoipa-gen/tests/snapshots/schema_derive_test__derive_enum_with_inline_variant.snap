@@ -1,0 +1,48 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: card
+snapshot_kind: text
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "Number": {
+          "enum": [
+            "One",
+            "Two",
+            "Three",
+            "Four",
+            "Five",
+            "Six",
+            "Seven",
+            "Height",
+            "Nine"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "Number"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "Color": {
+          "enum": [
+            "Spade",
+            "Heart",
+            "Club",
+            "Diamond"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "Color"
+      ],
+      "type": "object"
+    }
+  ]
+}

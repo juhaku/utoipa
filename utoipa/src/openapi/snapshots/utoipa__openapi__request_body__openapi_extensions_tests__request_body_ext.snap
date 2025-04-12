@@ -1,0 +1,14 @@
+---
+source: utoipa/src/openapi/request_body.rs
+expression: request_body
+snapshot_kind: text
+---
+{
+  "content": {
+    "application/json": {
+      "schema": {
+        "$ref": "#/components/schemas/EmailPayload"
+      }
+    }
+  }
+}

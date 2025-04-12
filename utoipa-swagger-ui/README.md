@@ -34,6 +34,8 @@ more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_
   variable. This is only enabled by default on _Windows_.
 * **`url`** Enabled by default for parsing and encoding the download URL.
 * **`vendored`** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
+* **`cache`** Enables caching of the Swagger UI download in `utoipa-swagger-ui` during the build process.
+* **`debug`**: Implement debug trait for SwaggerUi and other types.
 
 ## Install
 
@@ -41,14 +43,14 @@ Use only the raw types without any boilerplate implementation.
 
 ```toml
 [dependencies]
-utoipa-swagger-ui = "7"
+utoipa-swagger-ui = "9"
 ```
 
 Enable actix-web framework with Swagger UI you could define the dependency as follows.
 
 ```toml
 [dependencies]
-utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
+utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 ```
 
 **Note!** Also remember that you already have defined `utoipa` dependency in your `Cargo.toml`
@@ -57,10 +59,9 @@ utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
 
 > [!IMPORTANT]
 > _`utoipa-swagger-ui` crate will by default try to use system `curl` package for downloading the Swagger UI. It
-> can optionally be downloaded with `reqwest` by enabling `reqwest` feature. On Windows the `reqwest` feature
-> is enabled by default. Reqwest can be useful for platform independent builds however bringing quite a few 
-> unnecessary dependencies just to download a file. If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no 
-> downloading will happen._
+> can optionally be downloaded with `reqwest` by enabling `reqwest` feature. Reqwest can be useful for platform
+> independent builds however bringing quite a few unnecessary dependencies just to download a file.
+> If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no downloading will happen._
 
 > [!TIP]
 > Use **`vendored`** feature flag to use vendored Swagger UI. This is especially useful for no network 
@@ -70,7 +71,7 @@ utoipa-swagger-ui = { version = "7", features = ["actix-web"] }
 
  * `SWAGGER_UI_DOWNLOAD_URL`: Defines the url from where to download the swagger-ui zip file.
 
-   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.12.zip>
+   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip>
    * [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 
  * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files 

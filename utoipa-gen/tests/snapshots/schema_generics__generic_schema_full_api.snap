@@ -1,0 +1,271 @@
+---
+source: utoipa-gen/tests/schema_generics.rs
+expression: doc
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {
+    "/handler": {
+      "get": {
+        "tags": [],
+        "operationId": "handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "field",
+                  "t"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "t": {
+                    "type": "object",
+                    "required": [
+                      "t"
+                    ],
+                    "properties": {
+                      "t": {
+                        "type": "integer",
+                        "format": "int32"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "total",
+                    "page",
+                    "pages",
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "field",
+                          "t"
+                        ],
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "t": {
+                            "type": "object",
+                            "required": [
+                              "t"
+                            ],
+                            "properties": {
+                              "t": {
+                                "type": "integer",
+                                "format": "int32"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/path.to.PageList_Person_String_path.MyType_i32"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Person_String_path.MyType_i32": {
+        "type": "object",
+        "required": [
+          "id",
+          "field",
+          "t"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "t": {
+            "type": "object",
+            "required": [
+              "t"
+            ],
+            "properties": {
+              "t": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          }
+        }
+      },
+      "path.to.Element_String": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "One"
+            ],
+            "properties": {
+              "One": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Many"
+            ],
+            "properties": {
+              "Many": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "path.to.PageList_Person_String_path.MyType_i32": {
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "pages",
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "field",
+                "t"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "t": {
+                  "type": "object",
+                  "required": [
+                    "t"
+                  ],
+                  "properties": {
+                    "t": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pages": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}

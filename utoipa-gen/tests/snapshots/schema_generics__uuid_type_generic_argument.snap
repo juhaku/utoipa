@@ -1,0 +1,38 @@
+---
+source: utoipa-gen/tests/schema_generics.rs
+expression: api
+snapshot_kind: text
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "HighUuid": {
+        "$ref": "#/components/schemas/High_Option_String"
+      },
+      "High_Option_String": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

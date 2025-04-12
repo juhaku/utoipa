@@ -1,8 +1,8 @@
 use std::{borrow::Cow, marker::PhantomData};
 
-use assert_json_diff::{assert_json_eq, assert_json_include};
+use insta::assert_json_snapshot;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use utoipa::{
     openapi::{RefOr, Response, ResponseBuilder},
     OpenApi, ToResponse,
@@ -48,13 +48,7 @@ fn derive_logical_or_security_requirement() {
         .pointer("/security")
         .expect("should have security requirements");
 
-    assert_json_eq!(
-        security,
-        json!([
-            {"oauth": ["a"]},
-            {"oauth": ["b"]},
-        ])
-    );
+    assert_json_snapshot!(security);
 }
 
 #[test]
@@ -192,14 +186,7 @@ fn derive_openapi_with_responses() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let responses = doc.pointer("/components/responses").unwrap();
 
-    assert_json_eq!(
-        responses,
-        json!({
-            "MyResponse": {
-                "description": "Ok"
-            },
-        })
-    )
+    assert_json_snapshot!(responses);
 }
 
 #[test]
@@ -221,40 +208,26 @@ fn derive_openapi_with_servers() {
     let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let servers = value.pointer("/servers");
 
-    assert_json_eq!(
-        servers,
-        json!([
-            {
-                "description": "this is description",
-                "url": "http://localhost:8989"
-            },
-            {
-                "description": "remote api",
-                "url": "http://api.{username}:{port}",
-                "variables": {
-                    "port": {
-                        "default": "8080",
-                        "enum": [
-                            "8080",
-                            "5000",
-                            "3030"
-                        ],
-                        "description": "Supported ports for the API"
-                    },
-                    "username": {
-                        "default": "demo",
-                        "description": "Default username for API"
-                    }
-                }
-            }
-        ])
-    )
+    assert_json_snapshot!(servers);
+}
+
+#[test]
+fn derive_openapi_with_licence() {
+    #[derive(OpenApi)]
+    #[openapi(info(license(name = "licence_name", identifier = "MIT"), version = "1.0.0",))]
+    struct ApiDoc;
+
+    let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let info = value.pointer("/info/license");
+
+    assert_json_snapshot!(info);
 }
 
 #[test]
 fn derive_openapi_with_custom_info() {
     #[derive(OpenApi)]
     #[openapi(info(
+        terms_of_service = "http://localhost/terms",
         title = "title override",
         description = "description override",
         version = "1.0.0",
@@ -265,23 +238,7 @@ fn derive_openapi_with_custom_info() {
     let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let info = value.pointer("/info");
 
-    assert_json_include!(
-        actual: info,
-        expected:
-            json!(
-                {
-                    "title": "title override",
-                    "description": "description override",
-                    "license": {
-                        "name": "MIT OR Apache-2.0",
-                    },
-                    "contact": {
-                        "name": "Test"
-                    },
-                    "version": "1.0.0",
-                }
-            )
-    )
+    assert_json_snapshot!(info);
 }
 
 #[test]
@@ -294,25 +251,13 @@ fn derive_openapi_with_include_str_description() {
     ))]
     struct ApiDoc;
 
-    let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let mut doc = ApiDoc::openapi();
+    doc.info.version = "static".to_string();
+
+    let value = serde_json::to_value(doc).unwrap();
     let info = value.pointer("/info");
 
-    assert_json_include!(
-        actual: info,
-        expected:
-            json!(
-            {
-                "title": "title override",
-                "description": "this is include description\n",
-                "license": {
-                    "name": "MIT OR Apache-2.0",
-                },
-                "contact": {
-                    "name": "Test"
-                }
-            }
-            )
-    )
+    assert_json_snapshot!(info);
 }
 
 #[test]
@@ -333,29 +278,12 @@ fn derive_openapi_with_generic_response() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
     let response = doc.pointer("/components/responses/Response");
 
-    assert_json_eq!(
-        response,
-        json!({
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "properties": {
-                            "value": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["value"],
-                        "type": "object"
-                    }
-                }
-            },
-            "description": ""
-        })
-    )
+    assert_json_snapshot!(response);
 }
 
 #[test]
 fn derive_openapi_with_generic_schema() {
+    #[derive(ToSchema)]
     struct Value;
 
     #[derive(Serialize, ToSchema)]
@@ -370,24 +298,14 @@ fn derive_openapi_with_generic_schema() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let schema = doc.pointer("/components/schemas/Pet");
+    let schema = doc.pointer("/components/schemas/Pet_Value");
 
-    assert_json_eq!(
-        schema,
-        json!({
-            "properties": {
-                "value": {
-                    "type": "string"
-                }
-            },
-            "required": ["value"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(schema);
 }
 
 #[test]
 fn derive_openapi_with_generic_schema_with_as() {
+    #[derive(ToSchema)]
     struct Value;
 
     #[derive(Serialize, ToSchema)]
@@ -403,20 +321,9 @@ fn derive_openapi_with_generic_schema_with_as() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let schema = doc.pointer("/components/schemas/api.models.Pet");
+    let schema = doc.pointer("/components/schemas/api.models.Pet_Value");
 
-    assert_json_eq!(
-        schema,
-        json!({
-            "properties": {
-                "value": {
-                    "type": "string"
-                }
-            },
-            "required": ["value"],
-            "type": "object"
-        })
-    )
+    assert_json_snapshot!(schema);
 }
 
 #[test]
@@ -481,51 +388,191 @@ fn derive_nest_openapi_with_tags() {
     let api = serde_json::to_value(ApiDoc::openapi()).expect("should serialize to value");
     let paths = api.pointer("/paths");
 
-    assert_json_eq!(
-        paths,
-        json!({
-            "/api/v1/foobar/": {
-                "get": {
-                    "operationId": "foobar",
-                    "responses": {},
-                    "tags": [ "mytag", "yeah", "wowow", "foobarapi" ]
-                }
-            },
-            "/api/v1/foobar/another": {
-                "get": {
-                    "operationId": "foobaranother",
-                    "responses": {},
-                    "tags": [ "mytaganother", "foobarapi" ]
-                }
-            },
-            "/api/v1/foobar/nest2/": {
-                "get": {
-                    "operationId": "foobar2",
-                    "responses": {},
-                    "tags": [ "yeah", "wowow", "foobarapi" ]
-                }
-            },
-            "/api/v1/status": {
-                "get": {
-                    "operationId": "test_path_status",
-                    "responses": {},
-                    "tags": []
-                }
-            },
-            "/api/v1/user/test": {
-                "get": {
-                    "operationId": "user_test_path",
-                    "responses": {},
-                    "tags": [ "user", TAG  ]
-                }
-            },
-            "/random": {
-                "get": {
-                    "operationId": "random",
-                    "responses": {},
-                    "tags": [ "random" ]
-                }
-            }
-        })
-    )
+    assert_json_snapshot!(paths);
+}
+
+#[test]
+fn openapi_schemas_resolve_generic_enum_schema() {
+    #![allow(dead_code)]
+    use utoipa::ToSchema;
+
+    #[derive(ToSchema)]
+    enum Element<T> {
+        One(T),
+        Many(Vec<T>),
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Element<String>)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+
+    let value = serde_json::to_value(&doc).expect("OpenAPI is JSON serializable");
+    let schemas = value.pointer("/components/schemas").unwrap();
+    let json = serde_json::to_string_pretty(&schemas).expect("OpenAPI is json serializable");
+    println!("{json}");
+
+    assert_json_snapshot!(schemas);
+}
+
+#[test]
+fn openapi_schemas_resolve_schema_references() {
+    #![allow(dead_code)]
+    use utoipa::ToSchema;
+
+    #[derive(ToSchema)]
+    enum Element<T> {
+        One(T),
+        Many(Vec<T>),
+    }
+
+    #[derive(ToSchema)]
+    struct Foobar;
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        foo_bar: Foobar,
+        accounts: Vec<Option<Account>>,
+    }
+
+    #[derive(ToSchema)]
+    struct Yeah {
+        name: String,
+        foo_bar: Foobar,
+        accounts: Vec<Option<Account>>,
+    }
+
+    #[derive(ToSchema)]
+    struct Boo {
+        boo: bool,
+    }
+
+    #[derive(ToSchema)]
+    struct OneOfOne(Person);
+
+    #[derive(ToSchema)]
+    struct OneOfYeah(Yeah);
+
+    #[derive(ToSchema)]
+    struct ThisIsNone;
+
+    #[derive(ToSchema)]
+    enum EnumMixedContent {
+        ContentZero,
+        One(Foobar),
+        NamedSchema {
+            value: Account,
+            value2: Boo,
+            foo: ThisIsNone,
+            int: i32,
+            f: bool,
+        },
+        Many(Vec<Person>),
+    }
+
+    #[derive(ToSchema)]
+    struct Foob {
+        item: Element<String>,
+        item2: Element<Yeah>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Person, Foob, OneOfYeah, OneOfOne, EnumMixedContent, Element<String>)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+
+    let value = serde_json::to_value(&doc).expect("OpenAPI is JSON serializable");
+    let schemas = value.pointer("/components").unwrap();
+
+    assert_json_snapshot!(schemas);
+}
+
+#[test]
+fn openapi_resolvle_recursive_references() {
+    #![allow(dead_code)]
+    use utoipa::ToSchema;
+
+    #[derive(ToSchema)]
+    struct Foobar;
+
+    #[derive(ToSchema)]
+    struct Account {
+        id: i32,
+        foobar: Foobar,
+    }
+
+    #[derive(ToSchema)]
+    struct Person {
+        name: String,
+        accounts: Vec<Option<Account>>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Person)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+
+    let value = serde_json::to_value(doc).expect("OpenAPI is serde serializable");
+    let schemas = value
+        .pointer("/components/schemas")
+        .expect("OpenAPI must have schemas");
+
+    assert_json_snapshot!(schemas);
+}
+
+#[test]
+fn derive_generic_openapi_component_schemas() {
+    #[derive(Serialize, ToSchema)]
+    #[schema(as = dto::page::Response)]
+    #[serde(rename_all = "camelCase")]
+    pub struct Response<T: Serialize> {
+        pub list: Vec<T>,
+        pub num: u64,
+        pub size: u64,
+        pub total: u64,
+    }
+
+    pub mod unit {
+        use serde::Serialize;
+        use utoipa::ToSchema;
+
+        #[derive(Serialize, ToSchema)]
+        #[schema(as = dto::get::unit::Response)]
+        #[serde(rename_all = "camelCase")]
+        pub struct Response {
+            pub id: i64,
+            pub latitude: f64,
+            pub longitude: f64,
+            pub title: String,
+            pub description: Option<String>,
+            pub country: String,
+            pub region: Option<String>,
+            pub city: String,
+            pub address: String,
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        components(
+            schemas(
+                Response<unit::Response>,
+            )
+        )
+    )]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).expect("OpenApi is JSON serializable");
+    let schemas = doc.pointer("/components");
+
+    assert_json_snapshot!(schemas)
 }

@@ -1,6 +1,6 @@
 #![cfg(feature = "auto_into_responses")]
 
-use assert_json_diff::assert_json_eq;
+use insta::assert_json_snapshot;
 use utoipa::OpenApi;
 
 #[test]
@@ -36,24 +36,7 @@ fn path_operation_auto_types_responses() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/get").unwrap();
 
-    assert_json_eq!(
-        &path.pointer("/responses").unwrap(),
-        serde_json::json!({
-            "200": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/Item"
-                        }
-                    }
-                },
-                "description": "Item found",
-            },
-            "404": {
-                "description": "No item found"
-            }
-        })
-    )
+    assert_json_snapshot!(&path.pointer("/responses").unwrap())
 }
 
 #[test]
@@ -70,5 +53,5 @@ fn path_operation_auto_types_default_response_type() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/get").unwrap();
 
-    assert_json_eq!(&path.pointer("/responses").unwrap(), serde_json::json!({}))
+    assert_json_snapshot!(&path.pointer("/responses").unwrap())
 }
