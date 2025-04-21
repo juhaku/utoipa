@@ -1640,6 +1640,8 @@ fn derive_component_with_chrono_feature() {
         "properties.naive_date.format" = r#""date""#, "Post date format"
         "properties.naive_time.type" = r#""string""#, "Post time type"
         "properties.naive_time.format" = r#"null"#, "Post time format"
+        "properties.datetime_utc.type" = r#""string""#, "Post datetime_utc type"
+        "properties.datetime_utc.format" = r#""date-time""#, "Post datetime_utc format"
         "properties.duration.type" = r#""string""#, "Post duration type"
         "properties.duration.format" = r#"null"#, "Post duration format"
         "properties.id.type" = r#""integer""#, "Post id type"

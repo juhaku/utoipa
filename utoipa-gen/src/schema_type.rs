@@ -690,7 +690,7 @@ impl PrimitiveType {
             "f32" | "f64" => syn::parse_quote!(#path),
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" | "DateTimeUtc" => {
                 syn::parse_quote!(String)
             }
 
