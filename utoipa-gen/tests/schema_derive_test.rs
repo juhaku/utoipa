@@ -1613,7 +1613,7 @@ fn derive_struct_xml_with_optional_vec() {
 #[test]
 fn derive_component_with_chrono_feature() {
     #![allow(deprecated)] // allow deprecated Date in tests as long as it is available from chrono
-    use chrono::{Date, DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+    use chrono::{Date, DateTime, DateTimeUtc, Duration, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
     let post = api_doc! {
         struct Post {
@@ -1625,6 +1625,7 @@ fn derive_component_with_chrono_feature() {
             naive_date: NaiveDate,
             naive_time: NaiveTime,
             duration: Duration,
+            datetime_utc: DateTimeUtc,
         }
     };
 
