@@ -5,6 +5,10 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ## Unreleased
 
+### Added
+
+* Add support for jiff v0.2 (https://github.com/juahku/utoipa/pull/1332)
+
 ### Changed
 
 * Replaced `serde_yaml` with `serde_norway` (https://github.com/juhaku/utoipa/pull/1311)

@@ -81,6 +81,10 @@
 //!   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
 //!   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
 //!   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
+//! * **`jiff_0_2`** Add support for [jiff 0.2](https://crates.io/crates/jiff) `Zoned`, and `civil::Date` types.
+//!   By default these types are parsed as `string`. `Zoned` will use `date-time` format. `civil::Date` will use
+//!   `date` format. To override default `string` representation users have to use `value_type` attribute
+//!   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 //! * **`decimal`** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `String`. If you wish to change the format you need to override the type.
 //!   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
