@@ -3273,3 +3273,25 @@ fn test_new_type_struct_pattern() {
 
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn derive_option_ref_with_nullable_false() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct RefType {
+        value: String,
+    }
+
+    let schema = api_doc! {
+        struct TestStruct {
+            // Should generate a direct $ref without oneOf
+            #[schema(nullable = false)]
+            optional_ref: Option<RefType>,
+
+            // For comparison - default Option behavior with implicit nullable = true
+            default_optional_ref: Option<RefType>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
