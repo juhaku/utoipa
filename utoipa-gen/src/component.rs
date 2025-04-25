@@ -1374,6 +1374,8 @@ impl ComponentSchema {
                                 utoipa::openapi::schema::RefBuilder::new()
                                     #description_stream
                                     .ref_location_from_schema_name(#name_tokens)
+                                    #title_tokens
+                                    #default_tokens
                             })
                         };
 

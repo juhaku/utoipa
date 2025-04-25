@@ -1401,6 +1401,10 @@ builder! {
         /// A default value which by default should override that of the referenced component.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub default: Option<Value>,
+
+        /// A title which by default should override that of the referenced component..
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
     }
 }
 
@@ -1459,6 +1463,11 @@ impl RefBuilder {
     /// Add or change default value for the object which by default should override that of the referenced component.
     pub fn default(mut self, default: Option<Value>) -> Self {
         set_value!(self default default)
+    }
+
+    /// Add or change the title for the object which by default should override that of the referenced component.
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 }
 
