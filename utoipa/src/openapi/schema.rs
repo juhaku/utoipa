@@ -1397,6 +1397,10 @@ builder! {
         /// referenced component does not support summary field this does not have effect.
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub summary: String,
+
+        /// A default value which by default should override that of the referenced component.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
     }
 }
 
@@ -1450,6 +1454,11 @@ impl RefBuilder {
     /// referenced component does not support summary field this does not have effect.
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         set_value!(self summary summary.into())
+    }
+
+    /// Add or change default value for the object which by default should override that of the referenced component.
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
     }
 }
 
