@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/path_parameter_derive_test.rs
+assertion_line: 386
+expression: value
+---
+[
+  {
+    "in": "query",
+    "name": "a_param",
+    "required": true,
+    "schema": {
+      "type": "string"
+    },
+    "x-param-extension": {
+      "type": "param"
+    }
+  }
+]
