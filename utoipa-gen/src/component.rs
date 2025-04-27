@@ -1149,13 +1149,17 @@ impl ComponentSchema {
                     nullable,
                 };
                 if schema_type.is_unsigned_integer() {
+                    let default = match schema_type.is_nonzero_integer() {
+                        true => 1f64,
+                        false => 0f64
+                    };
                     // add default minimum feature only when there is no explicit minimum
                     // provided
                     if !features
                         .iter()
                         .any(|feature| matches!(&feature, Feature::Minimum(_)))
                     {
-                        features.push(Minimum::new(0f64, type_path.span()).into());
+                        features.push(Minimum::new(default, type_path.span()).into());
                     }
                 }
 
