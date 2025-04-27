@@ -3318,3 +3318,27 @@ fn derive_option_ref_with_nullable_false_and_default() {
 
     assert_json_snapshot!(schema);
 }
+
+#[test]
+fn derive_inline_option_ref_with_nullable_false_and_default() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct RefType {
+        value: String,
+    }
+
+    let schema = api_doc! {
+        struct TestStruct {
+            // Should generate a direct object without oneOf
+            #[schema(nullable = false)]
+            #[schema(default = json!({"value": "foo"}))]
+            #[schema(inline = true)]
+            optional_ref: Option<RefType>,
+
+            // For comparison - default Option behavior with implicit nullable = true
+            default_optional_ref: Option<RefType>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
