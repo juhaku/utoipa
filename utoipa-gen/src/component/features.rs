@@ -473,17 +473,19 @@ macro_rules! parse_features {
 pub(crate) use parse_features;
 
 pub trait IsInline {
+    fn is_set_inline(&self) -> Option<bool>;
     fn is_inline(&self) -> bool;
 }
 
 impl IsInline for Vec<Feature> {
+    fn is_set_inline(&self) -> Option<bool> {
+        self.iter().find_map(|feature| match feature {
+            Feature::Inline(inline) => Some(inline.0),
+            _ => None,
+        })
+    }
     fn is_inline(&self) -> bool {
-        self.iter()
-            .find_map(|feature| match feature {
-                Feature::Inline(inline) if inline.0 => Some(inline),
-                _ => None,
-            })
-            .is_some()
+        matches!(self.is_set_inline(), Some(true))
     }
 }
 
