@@ -968,7 +968,7 @@ builder! {
         /// Additional [`Schema`] to describe property names of an object such as a map. See more
         /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub property_names: Option<Box<Schema>>,
+        pub property_names: Option<Box<RefOr<Schema>>>,
 
         /// Changes the [`Object`] deprecated status.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1148,7 +1148,7 @@ impl ObjectBuilder {
 
     /// Add additional [`Schema`] to describe property names of an object such as a map. See more
     /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
-    pub fn property_names<S: Into<Schema>>(mut self, property_name: Option<S>) -> Self {
+    pub fn property_names<S: Into<RefOr<Schema>>>(mut self, property_name: Option<S>) -> Self {
         set_value!(self property_names property_name.map(|property_name| Box::new(property_name.into())))
     }
 
