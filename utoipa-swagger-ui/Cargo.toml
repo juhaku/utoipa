@@ -49,7 +49,7 @@ no-default-features = true
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
-zip = { version = "2.6", default-features = false, features = ["deflate"] }
+zip = { version = "3.0.0", default-features = false, features = ["deflate"] }
 regex = "1.7"
 
 # used by cache feature
