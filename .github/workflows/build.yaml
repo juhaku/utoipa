@@ -76,7 +76,7 @@ jobs:
             elif [[ "$change" == "utoipa-actix-web" && "${{ matrix.crate }}" == "utoipa-actix-web" && $changes == false ]]; then
               changes=true
             fi
-          done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
+          done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep -E '(Cargo.toml|.rs$)' | awk -F \/ '{print $1}')
           echo "${{ matrix.crate }} changes: $changes"
           echo "changes=$changes" >> $GITHUB_OUTPUT
 
