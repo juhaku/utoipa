@@ -22,7 +22,7 @@ vendored = ["dep:utoipa-swagger-ui-vendored"]
 cache = ["dep:dirs", "dep:sha2"]
 
 [dependencies]
-rust-embed = { version = "8" }
+rust-embed = { version = "8.7", features = ["deterministic-timestamps"] }
 mime_guess = { version = "2.0" }
 actix-web = { version = "4", optional = true, default-features = false, features = ["macros"] }
 rocket = { version = "0.5", features = ["json"], optional = true }
