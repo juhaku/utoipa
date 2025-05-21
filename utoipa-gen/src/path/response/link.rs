@@ -5,7 +5,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{Ident, Token};
 
-use crate::openapi::Server;
+use crate::server::Server;
 use crate::{parse_utils, AnyValue};
 
 /// ("name" = (link))

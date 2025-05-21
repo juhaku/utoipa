@@ -53,6 +53,7 @@ mod openapi;
 mod path;
 mod schema_type;
 mod security_requirement;
+mod server;
 
 use crate::path::{Path, PathAttr};
 
