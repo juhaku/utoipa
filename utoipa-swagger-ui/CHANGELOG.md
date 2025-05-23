@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* avoid cloning ApiDoc on every request for axum (https://github.com/juhaku/utoipa/pull/1393)
+
 ### Changed
 
 * Update build dependency `zip` to v3.0 (https://github.com/juhaku/utoipa/pull/1391)
