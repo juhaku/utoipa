@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-* avoid cloning ApiDoc on every request for axum (https://github.com/juhaku/utoipa/pull/1393)
+### Fixed
+
+* Avoid cloning ApiDoc on every request for axum (https://github.com/juhaku/utoipa/pull/1393)
 
 ### Changed
 
