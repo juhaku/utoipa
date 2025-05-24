@@ -28,13 +28,13 @@ where
                 Vec::<Url>::with_capacity(urls_capacity + external_urls_capacity),
             ),
             |router_and_urls, (url, openapi)| {
-                add_api_doc_to_urls(router_and_urls, (url, ApiDoc::Utoipa(openapi)))
+                add_api_doc_to_urls(router_and_urls, (url, Arc::new(ApiDoc::Utoipa(openapi))))
             },
         );
         let (router, urls) = swagger_ui.external_urls.into_iter().fold(
             (router, urls),
             |router_and_urls, (url, openapi)| {
-                add_api_doc_to_urls(router_and_urls, (url, ApiDoc::Value(openapi)))
+                add_api_doc_to_urls(router_and_urls, (url, Arc::new(ApiDoc::Value(openapi))))
             },
         );
 
@@ -108,7 +108,7 @@ where
 
 fn add_api_doc_to_urls<S>(
     router_and_urls: (Router<S>, Vec<Url<'static>>),
-    url: (Url<'static>, ApiDoc),
+    url: (Url<'static>, Arc<ApiDoc>),
 ) -> (Router<S>, Vec<Url<'static>>)
 where
     S: Clone + Send + Sync + 'static,
