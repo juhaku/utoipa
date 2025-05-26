@@ -11,8 +11,8 @@ use syn::{
 };
 
 use crate::{
-    component::ComponentSchema, parse_utils, path::media_type::Schema, AnyValue, Diagnostics,
-    ToTokensDiagnostics,
+    component::ComponentSchema, features::attributes::Extensions, parse_utils,
+    path::media_type::Schema, AnyValue, Diagnostics, ToTokensDiagnostics,
 };
 
 use self::{header::Header, link::LinkTuple};
@@ -233,6 +233,7 @@ pub struct ResponseValue<'r> {
     links: Punctuated<LinkTuple, Comma>,
     content: Vec<MediaTypeAttr<'r>>,
     is_content_group: bool,
+    extensions: Option<Extensions>,
 }
 
 impl Parse for ResponseValue<'_> {
@@ -321,6 +322,9 @@ impl<'r> ResponseValue<'r> {
             }
             "links" => {
                 self.links = parse_utils::parse_comma_separated_within_parenthesis(input)?;
+            }
+            "extensions" => {
+                self.extensions = Some(input.parse::<Extensions>()?);
             }
             _ => {
                 self.content
@@ -459,6 +463,11 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
                     tokens.extend(quote! {
                         .link(#name, #link)
                     })
+                }
+                if let Some(ref extensions) = value.extensions {
+                    tokens.extend(quote! {
+                        .extensions(Some(#extensions))
+                    });
                 }
 
                 tokens.extend(quote! { .build() });

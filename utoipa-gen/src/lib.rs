@@ -1038,6 +1038,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `description = ...` Allows overriding description of the path. Value can be literal string or valid
 ///   rust expression e.g. `include_str!(...)` or `const` reference.
 ///
+/// * `extensions(...)` List of extensions local to the path operation.
+///
 /// # Request Body Attributes
 ///
 /// ## Simple format definition by `request_body = ...`
@@ -1350,6 +1352,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
+/// * `extensions(...)` List of extensions local to the parameter
+///
 /// ##### Parameter type attributes
 ///
 /// These attributes supported when _`parameter_type`_ is present. Either by manually providing one
@@ -1469,6 +1473,19 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// (),
 /// ("api_key" = []),
 /// ("key" = [], "key2" = []),
+/// ```
+///
+/// # Extensions Requirements Attributes
+///
+/// * `x-property` defines the name of the extension.
+/// * `json!(...)` defines the value associated with the named extension as a `serde_json::Value`.
+///
+/// **Extensions Requitement supported formats:**
+///
+/// ```text
+/// ("x-property" = json!({ "type": "mock" }) ),
+/// ("x-an-extension" = json!({ "type": "mock" }) ),
+/// ("x-another-extension" = json!( "body" ) ),
 /// ```
 ///
 /// # actix_extras feature support for actix-web
