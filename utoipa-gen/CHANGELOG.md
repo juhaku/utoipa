@@ -4,7 +4,8 @@
 
 ### Added
 
-* Add support for jiff v0.2 (https://github.com/juahku/utoipa/pull/1332)
+* Add feature support extensions in `utoipa::path` macro (https://github.com/juhaku/utoipa/pull/1292)
+* Add support for jiff v0.2 (https://github.com/juhaku/utoipa/pull/1332)
 
 ## 5.3.1 - Jan 6 2025
 

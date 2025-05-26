@@ -1,4 +1,10 @@
-use super::*;
+use syn::punctuated::Punctuated;
+use syn::Token;
+
+use crate::component::features::{Feature, Parse};
+use crate::features::impl_feature;
+use crate::{parse_utils, AnyValue};
+use quote::ToTokens;
 
 impl_feature! {
     /// Parse the following into a set of extensions:
@@ -34,7 +40,7 @@ impl syn::parse::Parse for Extensions {
 impl ToTokens for Extensions {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let extensions = &self.extensions;
-        tokens.extend(quote! {
+        tokens.extend(quote::quote! {
           utoipa::openapi::extensions::ExtensionsBuilder::new() #(#extensions)* .build()
         });
     }
@@ -74,7 +80,7 @@ impl ToTokens for Extension {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let name = &self.name;
         let value = &self.value;
-        tokens.extend(quote! {
+        tokens.extend(quote::quote! {
             .add(#name, #value)
         });
     }
