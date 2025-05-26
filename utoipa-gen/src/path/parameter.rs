@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Display};
+use std::{borrow::Cow, fmt::Display, iter};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
@@ -29,7 +29,7 @@ use crate::{
     parse_utils, Diagnostics, Required, ToTokensDiagnostics,
 };
 
-use super::media_type::ParsedType;
+use super::{media_type::ParsedType, response::ResponseComponentSchemaIter};
 
 /// Parameter of request such as in path, header, query or cookie
 ///
@@ -48,6 +48,68 @@ pub enum Parameter<'a> {
     Value(ValueParameter<'a>),
     /// Identifier for a struct that implements `IntoParams` trait.
     IntoParamsIdent(IntoParamsIdentParameter<'a>),
+}
+
+impl<'p> Parameter<'p> {
+    pub fn get_component_schemas(
+        &self,
+    ) -> Result<impl Iterator<Item = (bool, ComponentSchema)>, Diagnostics> {
+        match self {
+            Self::Value(value) => {
+                if let Some(parameter_schema) = &value.parameter_schema {
+                    match &parameter_schema.parameter_type {
+                        #[cfg(any(
+                            feature = "actix_extras",
+                            feature = "rocket_extras",
+                            feature = "axum_extras"
+                        ))]
+                        ParameterType::External(type_tree) => {
+                            let required = !type_tree.is_option();
+                            let schema = ComponentSchema::for_params(
+                                component::ComponentSchemaProps {
+                                    type_tree,
+                                    features: parameter_schema.features.clone(),
+                                    description: None,
+                                    container: &Container {
+                                        generics: &Generics::default(),
+                                    },
+                                },
+                                parameter_schema.option_is_nullable,
+                            )?;
+                            Ok(ResponseComponentSchemaIter::Iter(Box::new(iter::once((
+                                required, schema,
+                            )))))
+                        }
+                        ParameterType::Parsed(inline_type) => {
+                            let type_tree = TypeTree::from_type(inline_type.ty.as_ref())?;
+                            let required = !type_tree.is_option();
+                            let mut schema_features = Vec::<Feature>::new();
+                            schema_features.clone_from(&parameter_schema.features);
+                            schema_features.push(Feature::Inline(inline_type.is_inline.into()));
+
+                            let schema = ComponentSchema::for_params(
+                                component::ComponentSchemaProps {
+                                    type_tree: &type_tree,
+                                    features: schema_features,
+                                    description: None,
+                                    container: &Container {
+                                        generics: &Generics::default(),
+                                    },
+                                },
+                                parameter_schema.option_is_nullable,
+                            )?;
+                            Ok(ResponseComponentSchemaIter::Iter(Box::new(iter::once((
+                                required, schema,
+                            )))))
+                        }
+                    }
+                } else {
+                    Ok(ResponseComponentSchemaIter::Empty)
+                }
+            }
+            Self::IntoParamsIdent(_into_params) => Ok(ResponseComponentSchemaIter::Empty),
+        }
+    }
 }
 
 #[cfg(any(
