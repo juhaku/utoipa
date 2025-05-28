@@ -8,6 +8,7 @@ to look into changes introduced to **`utoipa-gen`**.
 ### Added
 
 * Add support for jiff v0.2 (https://github.com/juhaku/utoipa/pull/1332)
+* Add support for content in parameter (https://github.com/juhaku/utoipa/pull/1399)
 
 ### Changed
 
