@@ -1,0 +1,17 @@
+---
+source: utoipa/src/openapi/path.rs
+expression: parameter
+---
+{
+  "name": "filter",
+  "in": "query",
+  "required": true,
+  "content": {
+    "application/json": {
+      "$ref": "#/components/content/Filter"
+    },
+    "application/xml": {
+      "description": "Filter encoded as XML"
+    }
+  }
+}

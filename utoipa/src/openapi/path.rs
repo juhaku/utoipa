@@ -1037,8 +1037,11 @@ pub enum ParameterStyle {
 
 #[cfg(test)]
 mod tests {
-    use super::{HttpMethod, Operation, OperationBuilder};
-    use crate::openapi::{security::SecurityRequirement, server::Server, PathItem, PathsBuilder};
+    use super::{HttpMethod, Operation, OperationBuilder, ParameterBuilder};
+    use crate::openapi::{
+        security::SecurityRequirement, server::Server, ContentBuilder, PathItem, PathsBuilder, Ref,
+    };
+    use insta::assert_json_snapshot;
 
     #[test]
     fn test_path_order() {
@@ -1177,5 +1180,23 @@ mod tests {
             .build();
 
         assert!(operation.servers.is_some());
+    }
+
+    #[test]
+    fn parameter_builder_content_supports_refs() {
+        let parameter = ParameterBuilder::new()
+            .name("filter")
+            .parameter_in(super::ParameterIn::Query)
+            .required(super::Required::True)
+            .content("application/json", Ref::new("#/components/content/Filter"))
+            .content(
+                "application/xml",
+                ContentBuilder::new()
+                    .description(Some("Filter encoded as XML"))
+                    .build(),
+            )
+            .build();
+
+        assert_json_snapshot!(parameter);
     }
 }
