@@ -156,6 +156,7 @@ mod axum;
 mod rocket;
 
 const DEFAULT_HTML: &str = include_str!("../res/scalar.html");
+const DEFAULT_TITLE: &str = "Scalar";
 
 /// Trait makes [`Scalar`] to accept an _`URL`_ the [Scalar][scalar] will be served via predefined
 /// web server.
@@ -185,6 +186,7 @@ impl<S: Spec> Servable<S> for Scalar<S> {
     fn with_url<U: Into<Cow<'static, str>>>(url: U, openapi: S) -> Self {
         Self {
             html: Cow::Borrowed(DEFAULT_HTML),
+            title: Cow::Borrowed(DEFAULT_TITLE),
             url: url.into(),
             openapi,
         }
@@ -204,6 +206,7 @@ pub struct Scalar<S: Spec> {
     #[allow(unused)]
     url: Cow<'static, str>,
     html: Cow<'static, str>,
+    title: Cow<'static, str>,
     openapi: S,
 }
 
@@ -221,6 +224,7 @@ impl<S: Spec> Scalar<S> {
     pub fn new(openapi: S) -> Self {
         Self {
             html: Cow::Borrowed(DEFAULT_HTML),
+            title: Cow::Borrowed(DEFAULT_TITLE),
             url: Cow::Borrowed("/"),
             openapi,
         }
@@ -235,21 +239,32 @@ impl<S: Spec> Scalar<S> {
     /// At this point in time, it is not possible to customize the HTML template used by the
     /// [`Scalar`] instance.
     pub fn to_html(&self) -> String {
-        self.html.replace(
-            "$spec",
-            &serde_json::to_string(&self.openapi).expect(
-                "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
-            ),
-        )
+        self.html
+            .replace(
+                "$spec",
+                &serde_json::to_string(&self.openapi).expect(
+                    "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
+                ),
+            )
+            .replace("$title", self.title.as_ref())
     }
 
-    /// Override the [default HTML template][scalar_html_quickstart] with new one. Refer to
+    /// Override the [default HTML template][scalar_html_quickstart] with a new one. Refer to
     /// [customization] for more comprehensive guide for customization options.
     ///
     /// [customization]: <index.html#customization>
     /// [scalar_html_quickstart]: <https://github.com/scalar/scalar?tab=readme-ov-file#quickstart>
     pub fn custom_html<H: Into<Cow<'static, str>>>(mut self, html: H) -> Self {
         self.html = html.into();
+
+        self
+    }
+
+    /// Set a custom title for the HTML template.
+    ///
+    /// If you require further customisation, use [`Self::custom_html`].
+    pub fn with_title<T: Into<Cow<'static, str>>>(mut self, title: T) -> Self {
+        self.title = title.into();
 
         self
     }
