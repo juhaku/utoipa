@@ -4,6 +4,7 @@
 use crate::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 use super::{
     builder,
@@ -11,7 +12,7 @@ use super::{
     request_body::RequestBody,
     response::{Response, Responses},
     security::SecurityRequirement,
-    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, Server,
+    set_value, Content, Deprecated, ExternalDocs, RefOr, Required, Schema, Server,
 };
 
 #[cfg(not(feature = "preserve_path_order"))]
@@ -705,6 +706,10 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub schema: Option<RefOr<Schema>>,
 
+        /// For more complex scenarios, the content property can define the media type and schema of the parameter.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        pub content: BTreeMap<String, Content>,
+
         /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of a content).
         /// Default value is based on [`ParameterIn`].
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -791,6 +796,12 @@ impl ParameterBuilder {
         set_value!(self schema component.map(|component| component.into()))
     }
 
+    /// Add a content for a specific media type
+    pub fn content<K: Into<String>, V: Into<Content>>(mut self, media_type: K, content: V) -> Self {
+        self.content.insert(media_type.into(), content.into());
+        self
+    }
+
     /// Add or change serialization style of [`Parameter`].
     pub fn style(mut self, style: Option<ParameterStyle>) -> Self {
         set_value!(self style style)
@@ -871,8 +882,11 @@ pub enum ParameterStyle {
 
 #[cfg(test)]
 mod tests {
-    use super::{HttpMethod, Operation, OperationBuilder};
-    use crate::openapi::{security::SecurityRequirement, server::Server, PathItem, PathsBuilder};
+    use super::{HttpMethod, Operation, OperationBuilder, ParameterBuilder};
+    use crate::openapi::{
+        schema::RefBuilder, security::SecurityRequirement, server::Server, ContentBuilder,
+        PathItem, PathsBuilder,
+    };
 
     #[test]
     fn test_path_order() {
@@ -1011,5 +1025,31 @@ mod tests {
             .build();
 
         assert!(operation.servers.is_some());
+    }
+
+    #[test]
+    fn parameter_with_content() {
+        let param = ParameterBuilder::new()
+            .name("filter")
+            .parameter_in(super::ParameterIn::Query)
+            .required(crate::openapi::Required::True)
+            .content(
+                "application/json",
+                ContentBuilder::new()
+                    .schema(Some(
+                        RefBuilder::new()
+                            .ref_location_from_schema_name("Filter")
+                            .build(),
+                    ))
+                    .build(),
+            )
+            .build();
+
+        let param = serde_json::to_string(&param).unwrap();
+
+        assert_eq!(
+            param,
+            r###"{"name":"filter","in":"query","required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Filter"}}}}"###
+        )
     }
 }
