@@ -160,6 +160,7 @@ impl ToTokensDiagnostics for Schema<'_> {
         }
 
         tokens.extend(quote! {
+            #[automatically_derived]
             impl #impl_generics utoipa::__dev::ComposeSchema for #ident #ty_generics #where_clause {
                 fn compose(
                     mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>
@@ -168,6 +169,7 @@ impl ToTokensDiagnostics for Schema<'_> {
                 }
             }
 
+            #[automatically_derived]
             impl #impl_generics utoipa::ToSchema for #ident #ty_generics #where_clause {
                 fn name() -> std::borrow::Cow<'static, str> {
                     std::borrow::Cow::Borrowed(#name)

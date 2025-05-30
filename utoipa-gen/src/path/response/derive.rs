@@ -96,6 +96,7 @@ impl ToTokensDiagnostics for ToResponse<'_> {
         let (to_response_impl_generics, _, _) = to_response_generics.split_for_impl();
 
         tokens.extend(quote! {
+            #[automatically_derived]
             impl #to_response_impl_generics utoipa::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
                 fn response() -> (& #lifetime str, utoipa::openapi::RefOr<utoipa::openapi::response::Response>) {
                     (#name, #response.into())
@@ -196,6 +197,7 @@ impl ToTokensDiagnostics for IntoResponses {
             None
         };
         tokens.extend(quote!{
+            #[automatically_derived]
                 impl #impl_generics utoipa::IntoResponses for #ident #ty_generics #where_clause {
                     fn responses() -> std::collections::BTreeMap<String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>> {
                         utoipa::openapi::response::ResponsesBuilder::new()
