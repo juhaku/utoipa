@@ -157,6 +157,7 @@ impl ToTokensDiagnostics for IntoParams {
             .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
         tokens.extend(quote! {
+            #[automatically_derived]
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
                     #params.into_iter().filter(Option::is_some).flatten().collect()

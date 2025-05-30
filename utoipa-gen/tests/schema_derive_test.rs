@@ -3273,3 +3273,13 @@ fn test_new_type_struct_pattern() {
 
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn no_single_use_lifetimes() {
+    #![allow(unused)]
+    #![deny(single_use_lifetimes)]
+    #[derive(ToSchema)]
+    struct Demo<'a> {
+        a: &'a str,
+    }
+}
