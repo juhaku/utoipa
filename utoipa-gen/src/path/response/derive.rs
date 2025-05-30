@@ -198,15 +198,15 @@ impl ToTokensDiagnostics for IntoResponses {
         };
         tokens.extend(quote!{
             #[automatically_derived]
-                impl #impl_generics utoipa::IntoResponses for #ident #ty_generics #where_clause {
-                    fn responses() -> std::collections::BTreeMap<String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>> {
-                        utoipa::openapi::response::ResponsesBuilder::new()
-                            #responses
-                            .build()
-                            .into()
-                    }
+            impl #impl_generics utoipa::IntoResponses for #ident #ty_generics #where_clause {
+                fn responses() -> std::collections::BTreeMap<String, utoipa::openapi::RefOr<utoipa::openapi::response::Response>> {
+                    utoipa::openapi::response::ResponsesBuilder::new()
+                        #responses
+                        .build()
+                        .into()
                 }
-            });
+            }
+        });
 
         Ok(())
     }
