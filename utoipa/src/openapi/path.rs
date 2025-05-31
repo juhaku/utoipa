@@ -357,6 +357,38 @@ impl PathItem {
             self.trace = path_item.trace;
         }
     }
+
+    /// Iterates all configured operations (in no particular order.)
+    pub fn operations(&self) -> impl Iterator<Item = &Operation> {
+        [
+            self.get.as_ref(),
+            self.put.as_ref(),
+            self.post.as_ref(),
+            self.delete.as_ref(),
+            self.options.as_ref(),
+            self.head.as_ref(),
+            self.patch.as_ref(),
+            self.trace.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+    }
+
+    /// Iterates all configured operations for mutation (in no particular order.)
+    pub fn operations_mut(&mut self) -> impl Iterator<Item = &mut Operation> {
+        [
+            self.get.as_mut(),
+            self.put.as_mut(),
+            self.post.as_mut(),
+            self.delete.as_mut(),
+            self.options.as_mut(),
+            self.head.as_mut(),
+            self.patch.as_mut(),
+            self.trace.as_mut(),
+        ]
+        .into_iter()
+        .flatten()
+    }
 }
 
 impl PathItemBuilder {
