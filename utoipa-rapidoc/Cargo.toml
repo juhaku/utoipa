@@ -12,7 +12,7 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 
 [package.metadata.docs.rs]
-features = ["actix-web", "axum", "rocket"]
+features = ["actix-web", "axum", "rocket", "hyperlane"]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [dependencies]

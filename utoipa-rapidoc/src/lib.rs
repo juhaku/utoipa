@@ -156,7 +156,12 @@ pub struct RapiDoc {
     path: Cow<'static, str>,
     spec_url: Cow<'static, str>,
     html: Cow<'static, str>,
-    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    ))]
     openapi: Option<utoipa::openapi::OpenApi>,
 }
 
@@ -177,7 +182,12 @@ impl RapiDoc {
             path: Cow::Borrowed(""),
             spec_url: spec_url.into(),
             html: Cow::Borrowed(DEFAULT_HTML),
-            #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+            #[cfg(any(
+                feature = "actix-web",
+                feature = "rocket",
+                feature = "axum",
+                feature = "hyperlane"
+            ))]
             openapi: None,
         }
     }
@@ -203,10 +213,20 @@ impl RapiDoc {
     ///     ApiDoc::openapi()
     /// );
     /// ```
-    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    ))]
     #[cfg_attr(
         doc_cfg,
-        doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+        doc(cfg(any(
+            feature = "actix-web",
+            feature = "rocket",
+            feature = "axum",
+            feature = "hyperlane"
+        )))
     )]
     pub fn with_openapi<U: Into<Cow<'static, str>>>(
         spec_url: U,
@@ -243,10 +263,20 @@ impl RapiDoc {
     ///     ApiDoc::openapi()
     /// );
     /// ```
-    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    ))]
     #[cfg_attr(
         doc_cfg,
-        doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+        doc(cfg(any(
+            feature = "actix-web",
+            feature = "rocket",
+            feature = "axum",
+            feature = "hyperlane"
+        )))
     )]
     pub fn with_url<U: Into<Cow<'static, str>>, S: Into<Cow<'static, str>>>(
         url: U,
@@ -283,7 +313,12 @@ impl RapiDoc {
     /// RapiDoc::new("https://petstore3.swagger.io/api/v3/openapi.json")
     ///     .path("/rapidoc");
     /// ```
-    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    ))]
     pub fn path<U: Into<Cow<'static, str>>>(mut self, path: U) -> Self {
         self.path = path.into();
 
