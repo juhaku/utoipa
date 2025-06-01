@@ -20,6 +20,7 @@ url = ["dep:url"]
 vendored = ["dep:utoipa-swagger-ui-vendored"]
 # cache swagger ui zip
 cache = ["dep:dirs", "dep:sha2"]
+hyperlane = []
 
 [dependencies]
 rust-embed = { version = "8" }
