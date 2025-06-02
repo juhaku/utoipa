@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-hyperlane = "=5.12.1"
+hyperlane = "=5.12.2"
 serde = "=1.0.219"
 utoipa = { path = "../../utoipa", features = ["openapi_extensions"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["debug-embed", "vendored", "hyperlane"] }
