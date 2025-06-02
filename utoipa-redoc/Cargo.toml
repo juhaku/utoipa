@@ -30,3 +30,6 @@ utoipa-redoc = { path = ".", features = ["actix-web", "axum", "rocket", "hyperla
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
+[features]
+hyperlane = []
