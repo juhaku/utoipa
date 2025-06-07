@@ -12,7 +12,7 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 
 [package.metadata.docs.rs]
-features = ["actix-web", "axum", "rocket"]
+features = ["actix-web", "axum", "rocket", "hyperlane"]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [dependencies]
@@ -28,7 +28,10 @@ axum = { version = "0.8.0", default-features = false, features = [
 ], optional = true }
 
 [dev-dependencies]
-utoipa-rapidoc = { path = ".", features = ["actix-web", "axum", "rocket"] }
+utoipa-rapidoc = { path = ".", features = ["actix-web", "axum", "rocket", "hyperlane"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
+[features]
+hyperlane = []
