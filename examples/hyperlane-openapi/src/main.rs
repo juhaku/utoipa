@@ -19,6 +19,10 @@ struct User {
 )]
 struct ApiDoc;
 
+async fn request_middleware(ctx: Context) {
+    ctx.set_response_status_code(200).await;
+}
+
 #[utoipa::path(
     get,
     path = "/openapi.json",   
@@ -27,7 +31,9 @@ struct ApiDoc;
     )
 )]
 async fn openapi_json(ctx: Context) {
-    ctx.send_response(200, ApiDoc::openapi().to_json().unwrap())
+    ctx.set_response_body(ApiDoc::openapi().to_json().unwrap())
+        .await
+        .send()
         .await
         .unwrap();
 }
@@ -44,7 +50,9 @@ async fn swagger(ctx: Context) {
     let res: String = RapiDoc::with_openapi("/openapi.json", ApiDoc::openapi()).to_html();
     ctx.set_response_header(CONTENT_TYPE, TEXT_HTML)
         .await
-        .send_response(200, res)
+        .set_response_body(res)
+        .await
+        .send()
         .await
         .unwrap();
 }
@@ -59,7 +67,9 @@ async fn swagger(ctx: Context) {
 async fn index(ctx: Context) {
     ctx.set_response_header(LOCATION, "/index.html")
         .await
-        .send_response(302, vec![])
+        .set_response_body(vec![])
+        .await
+        .send()
         .await
         .unwrap();
 }
@@ -74,7 +84,9 @@ async fn index(ctx: Context) {
 async fn user(ctx: Context) {
     let name: String = ctx.get_route_param("name").await.unwrap();
     let user: User = User { name, age: 0 };
-    ctx.send_response(200, serde_json::to_vec(&user).unwrap())
+    ctx.set_response_body(serde_json::to_vec(&user).unwrap())
+        .await
+        .send()
         .await
         .unwrap();
 }
@@ -82,6 +94,7 @@ async fn user(ctx: Context) {
 #[tokio::main]
 async fn main() {
     let server: Server = Server::new();
+    server.request_middleware(request_middleware).await;
     server.route("/", index).await;
     server.route("/user/{name}", user).await;
     server.route("/openapi.json", openapi_json).await;
