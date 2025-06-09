@@ -709,7 +709,6 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
                 .map(|part| part.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::");
-
             let usage = syn::parse_str::<ExprPath>(
                 &vec![
                     if tag.is_empty() { None } else { Some(&*tag) },
@@ -728,6 +727,13 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
     let handlers_impls = handlers
         .iter()
         .map(|(usage, tag, handler_ident_nested)| {
+            #[cfg(feature = "config")]
+            let tag = if crate::CONFIG.auto_tag_modules {
+                tag
+            } else {
+               ""
+            };
+
             quote! {
                 #[allow(non_camel_case_types)]
                 struct #handler_ident_nested;
