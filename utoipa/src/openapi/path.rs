@@ -359,32 +359,32 @@ impl PathItem {
     }
 
     /// Iterates all configured operations (in no particular order.)
-    pub fn operations(&self) -> impl Iterator<Item = &Operation> {
+    pub fn operations(&self) -> impl Iterator<Item = (HttpMethod, &Operation)> {
         [
-            self.get.as_ref(),
-            self.put.as_ref(),
-            self.post.as_ref(),
-            self.delete.as_ref(),
-            self.options.as_ref(),
-            self.head.as_ref(),
-            self.patch.as_ref(),
-            self.trace.as_ref(),
+            self.get.as_ref().map(|op| (HttpMethod::Get, op)),
+            self.put.as_ref().map(|op| (HttpMethod::Put, op)),
+            self.post.as_ref().map(|op| (HttpMethod::Post, op)),
+            self.delete.as_ref().map(|op| (HttpMethod::Delete, op)),
+            self.options.as_ref().map(|op| (HttpMethod::Options, op)),
+            self.head.as_ref().map(|op| (HttpMethod::Head, op)),
+            self.patch.as_ref().map(|op| (HttpMethod::Patch, op)),
+            self.trace.as_ref().map(|op| (HttpMethod::Trace, op)),
         ]
         .into_iter()
         .flatten()
     }
 
     /// Iterates all configured operations for mutation (in no particular order.)
-    pub fn operations_mut(&mut self) -> impl Iterator<Item = &mut Operation> {
+    pub fn operations_mut(&mut self) -> impl Iterator<Item = (HttpMethod, &mut Operation)> {
         [
-            self.get.as_mut(),
-            self.put.as_mut(),
-            self.post.as_mut(),
-            self.delete.as_mut(),
-            self.options.as_mut(),
-            self.head.as_mut(),
-            self.patch.as_mut(),
-            self.trace.as_mut(),
+            self.get.as_mut().map(|op| (HttpMethod::Get, op)),
+            self.put.as_mut().map(|op| (HttpMethod::Put, op)),
+            self.post.as_mut().map(|op| (HttpMethod::Post, op)),
+            self.delete.as_mut().map(|op| (HttpMethod::Delete, op)),
+            self.options.as_mut().map(|op| (HttpMethod::Options, op)),
+            self.head.as_mut().map(|op| (HttpMethod::Head, op)),
+            self.patch.as_mut().map(|op| (HttpMethod::Patch, op)),
+            self.trace.as_mut().map(|op| (HttpMethod::Trace, op)),
         ]
         .into_iter()
         .flatten()
@@ -905,6 +905,172 @@ pub enum ParameterStyle {
 mod tests {
     use super::{HttpMethod, Operation, OperationBuilder};
     use crate::openapi::{security::SecurityRequirement, server::Server, PathItem, PathsBuilder};
+
+    /// Verify [PathItem::operations] covers all http methods
+    #[test]
+    fn test_operations_covers_all() {
+        let paths_list = PathsBuilder::new()
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Get,
+                    OperationBuilder::new().description(Some("1. getting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Post,
+                    OperationBuilder::new().description(Some("2. posting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Put,
+                    OperationBuilder::new().description(Some("3. putting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Delete,
+                    OperationBuilder::new().description(Some("4. deleting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Options,
+                    OperationBuilder::new().description(Some("5. your options")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Head,
+                    OperationBuilder::new().description(Some("6. heading")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Patch,
+                    OperationBuilder::new().description(Some("7. patching")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Trace,
+                    OperationBuilder::new().description(Some("8. tracing")),
+                ),
+            )
+            .build();
+        let path_item = paths_list.get_path_item("/abc").expect("/abc missing");
+        let mut descriptions = path_item
+            .operations()
+            .map(|(method, op)| (method, op.description.as_deref().unwrap_or_default()))
+            .collect::<Vec<_>>();
+        // ~ sort: the order of the operations is not guaranteed
+        descriptions.sort_by_key(|(_, desc)| *desc);
+        assert_eq!(
+            vec![
+                (HttpMethod::Get, "1. getting"),
+                (HttpMethod::Post, "2. posting"),
+                (HttpMethod::Put, "3. putting"),
+                (HttpMethod::Delete, "4. deleting"),
+                (HttpMethod::Options, "5. your options"),
+                (HttpMethod::Head, "6. heading"),
+                (HttpMethod::Patch, "7. patching"),
+                (HttpMethod::Trace, "8. tracing")
+            ],
+            descriptions
+        );
+    }
+
+    /// Verify [PathItem::operations_mut] covers all http methods
+    #[test]
+    fn test_operations_mut_covers_all() {
+        let mut paths_list = PathsBuilder::new()
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Get,
+                    OperationBuilder::new().description(Some("1. getting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Post,
+                    OperationBuilder::new().description(Some("2. posting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Put,
+                    OperationBuilder::new().description(Some("3. putting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Delete,
+                    OperationBuilder::new().description(Some("4. deleting")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Options,
+                    OperationBuilder::new().description(Some("5. your options")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Head,
+                    OperationBuilder::new().description(Some("6. heading")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Patch,
+                    OperationBuilder::new().description(Some("7. patching")),
+                ),
+            )
+            .path(
+                "/abc",
+                PathItem::new(
+                    HttpMethod::Trace,
+                    OperationBuilder::new().description(Some("8. tracing")),
+                ),
+            )
+            .build();
+        let path_item = paths_list.paths.get_mut("/abc").expect("/abc missing");
+        let mut descriptions = path_item
+            .operations_mut()
+            .map(|(method, op)| (method, op.description.as_deref().unwrap_or_default()))
+            .collect::<Vec<_>>();
+        // ~ sort: the order of the operations is not guaranteed
+        descriptions.sort_by_key(|(_, desc)| *desc);
+        assert_eq!(
+            vec![
+                (HttpMethod::Get, "1. getting"),
+                (HttpMethod::Post, "2. posting"),
+                (HttpMethod::Put, "3. putting"),
+                (HttpMethod::Delete, "4. deleting"),
+                (HttpMethod::Options, "5. your options"),
+                (HttpMethod::Head, "6. heading"),
+                (HttpMethod::Patch, "7. patching"),
+                (HttpMethod::Trace, "8. tracing")
+            ],
+            descriptions
+        );
+    }
 
     #[test]
     fn test_path_order() {
