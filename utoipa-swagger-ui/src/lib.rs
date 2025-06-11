@@ -150,7 +150,12 @@ mod rocket;
 
 use rust_embed::RustEmbed;
 use serde::Serialize;
-#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg(any(
+    feature = "actix-web",
+    feature = "rocket",
+    feature = "axum",
+    feature = "hyperlane"
+))]
 use utoipa::openapi::OpenApi;
 
 include!(concat!(env!("OUT_DIR"), "/embed.rs"));
@@ -187,10 +192,20 @@ include!(concat!(env!("OUT_DIR"), "/embed.rs"));
 #[non_exhaustive]
 #[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg(any(
+    feature = "actix-web",
+    feature = "rocket",
+    feature = "axum",
+    feature = "hyperlane"
+))]
 #[cfg_attr(
     doc_cfg,
-    doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+    doc(cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    )))
 )]
 pub struct SwaggerUi {
     path: Cow<'static, str>,
@@ -199,10 +214,20 @@ pub struct SwaggerUi {
     external_urls: Vec<(Url<'static>, serde_json::Value)>,
 }
 
-#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg(any(
+    feature = "actix-web",
+    feature = "rocket",
+    feature = "axum",
+    feature = "hyperlane"
+))]
 #[cfg_attr(
     doc_cfg,
-    doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+    doc(cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    )))
 )]
 impl SwaggerUi {
     /// Create a new [`SwaggerUi`] for given path.
@@ -782,10 +807,20 @@ impl<'a> Config<'a> {
     /// is called on.
     ///
     /// Current config will be returned with configured default values.
-    #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+    #[cfg(any(
+        feature = "actix-web",
+        feature = "rocket",
+        feature = "axum",
+        feature = "hyperlane"
+    ))]
     #[cfg_attr(
         doc_cfg,
-        doc(cfg(any(feature = "actix-web", feature = "rocket", feature = "axum")))
+        doc(cfg(any(
+            feature = "actix-web",
+            feature = "rocket",
+            feature = "axum",
+            feature = "hyperlane"
+        )))
     )]
     fn configure_defaults<I: IntoIterator<Item = U>, U: Into<Url<'a>>>(mut self, urls: I) -> Self {
         let Config {
@@ -1509,7 +1544,12 @@ fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error>
 }
 
 /// Is used to provide general way to deliver multiple types of OpenAPI docs via `utoipa-swagger-ui`.
-#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg(any(
+    feature = "actix-web",
+    feature = "rocket",
+    feature = "axum",
+    feature = "hyperlane"
+))]
 #[derive(Clone)]
 enum ApiDoc {
     Utoipa(utoipa::openapi::OpenApi),
@@ -1517,7 +1557,12 @@ enum ApiDoc {
 }
 
 // Delegate serde's `Serialize` to the variant itself.
-#[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
+#[cfg(any(
+    feature = "actix-web",
+    feature = "rocket",
+    feature = "axum",
+    feature = "hyperlane"
+))]
 impl Serialize for ApiDoc {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
