@@ -1,5 +1,11 @@
 # Changelog - utoipa-scalar
 
+## 0.4.0 - TBD
+
+### Added
+
+* Add support for all major Scalar configuration options: themes, layout, dark mode, sidebar, custom CSS, proxy URL, and more
+
 ## 0.3.0 - Thu 16 2025
 
 ### Changed
@@ -45,4 +51,3 @@
 
 * Update docs and next versions
 * Use same licences for scalar as well
-
