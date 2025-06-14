@@ -9,7 +9,7 @@ use utoipa::{
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
-use utoipa_scalar::{Scalar, Servable as ScalarServable};
+use utoipa_scalar::{Scalar, ScalarConfig, ScalarLayout, ScalarTheme, Servable as ScalarServable};
 use utoipa_swagger_ui::SwaggerUi;
 
 const TODO_TAG: &str = "todo";
@@ -50,10 +50,25 @@ async fn main() -> Result<(), Error> {
         .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         // Alternative to above
         // .merge(RapiDoc::with_openapi("/api-docs/openapi2.json", api).path("/rapidoc"))
-        .merge(Scalar::with_url("/scalar", api));
+        .merge(Scalar::with_url("/scalar", api.clone()))
+        // Example with configuration - demonstrates theming and customization
+        .merge({
+            let config = ScalarConfig::builder()
+                .theme(ScalarTheme::BluePlanet)
+                .dark_mode(true)
+                .show_sidebar(true)
+                .layout(ScalarLayout::Modern)
+                .custom_css("body { font-family: 'Inter', sans-serif; }")
+                .search_hot_key('k')
+                .default_open_all_tags(false)
+                .build();
+
+            Scalar::with_url_and_config("/scalar-configured", api.clone(), config)
+        });
 
     let address = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080));
     let listener = TcpListener::bind(&address).await?;
+    println!("Server running at http://{}", address);
     axum::serve(listener, router.into_make_service()).await
 }
 

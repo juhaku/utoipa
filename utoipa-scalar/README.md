@@ -53,72 +53,111 @@ let scalar = move || async {
 
 # Customization
 
-Scalar supports customization via [`Scalar::custom_html`] method which allows overriding the
-default HTML template with customized one. 
+Scalar supports extensive configuration via the `ScalarConfig` struct using the builder pattern. This allows you to customize themes, layout, behavior, and much more.
+It also supports custom HTML via [`Scalar::custom_html`] method which allows overriding the
+default HTML template with customized one.
 
-**See more about configuration options.**
+**See more about configuration options:**
 
 * [Quick HTML configuration instructions](https://github.com/scalar/scalar/blob/main/documentation/integrations/html.md)
 * [Configuration options](https://github.com/scalar/scalar/blob/main/documentation/configuration.md)
 * [Themes](https://github.com/scalar/scalar/blob/main/documentation/themes.md)
 
-The HTML template must contain **`$spec`** variable which will be overridden during
-`Scalar::to_html` execution.
+## Using ScalarConfig Builder
 
-* **`$spec`** Will be the `Spec` that will be rendered via `Scalar`.
-
-_**Overriding the HTML template with a custom one.**_
 ```rust
-# use utoipa_redoc::Redoc;
-# use utoipa::OpenApi;
-# use serde_json::json;
-# #[derive(OpenApi)]
-# #[openapi()]
-# struct ApiDoc;
-#
-let html = "...";
-Redoc::new(ApiDoc::openapi()).custom_html(html);
+use utoipa_scalar::{Scalar, ScalarConfig, ScalarTheme};
+
+// Create configuration using the builder pattern
+let config = ScalarConfig::builder()
+    .theme(ScalarTheme::Moon)
+    .dark_mode(true)
+    .show_sidebar(false)
+    .layout("classic")
+    .custom_css("body { background-color: #1a1a1a; }")
+    .proxy_url("https://proxy.example.com")
+    .search_hot_key('k')
+    .default_open_all_tags(true)
+    .build();
+
+let scalar = Scalar::with_config(ApiDoc::openapi(), config);
 ```
+
 
 # Examples
 
 _**Serve `Scalar` via `actix-web` framework.**_
 ```rust
 use actix_web::App;
-use utoipa_scalar::{Scalar, Servable};
+use utoipa_scalar::{Scalar, ScalarConfig, ScalarTheme, Servable};
 
+// Basic usage
 App::new().service(Scalar::with_url("/scalar", ApiDoc::openapi()));
+
+// With configuration
+let config = ScalarConfig::builder()
+    .theme(ScalarTheme::Moon)
+    .dark_mode(true)
+    .build();
+
+App::new().service(Scalar::with_url_and_config("/scalar", ApiDoc::openapi(), config));
 ```
 
 _**Serve `Scalar` via `rocket` framework.**_
 ```rust
-use utoipa_scalar::{Scalar, Servable};
+use utoipa_scalar::{Scalar, Servable, ScalarConfig, ScalarTheme};
 
+// Basic usage
 rocket::build()
     .mount(
         "/",
         Scalar::with_url("/scalar", ApiDoc::openapi()),
     );
+
+// With configuration
+let scalar = Scalar::with_url("/scalar", ApiDoc::openapi())
+    .theme(ScalarTheme::Purple)
+    .show_sidebar(false);
+
+rocket::build().mount("/", scalar);
 ```
 
 _**Serve `Scalar` via `axum` framework.**_
  ```rust
  use axum::Router;
- use utoipa_scalar::{Scalar, Servable};
+ use utoipa_scalar::{Scalar, Servable, ScalarConfig, ScalarTheme};
 
+ // Basic usage
  let app = Router::<S>::new()
      .merge(Scalar::with_url("/scalar", ApiDoc::openapi()));
-```
 
-_**Use `Scalar` to serve OpenAPI spec from url.**_
-```rust
-Scalar::new(
-  "https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml")
+ // With configuration
+ let config = ScalarConfig::builder()
+     .theme(ScalarTheme::DeepSpace)
+     .layout(ScalarLayout::Classic)
+     .custom_css("body { background: linear-gradient(45deg, #1a1a1a, #2d2d2d); }")
+     .build();
+
+ let app = Router::<S>::new()
+     .merge(Scalar::with_url_and_config("/scalar", ApiDoc::openapi(), config));
 ```
 
 _**Use `Scalar` to serve custom OpenAPI spec using serde's `json!()` macro.**_
 ```rust
+use utoipa_scalar::{Scalar, ScalarConfig, ScalarTheme};
+use serde_json::json;
+
+// Basic usage
 Scalar::new(json!({"openapi": "3.1.0"}));
+
+// With theming and configuration
+let config = ScalarConfig::builder()
+    .theme(ScalarTheme::Solarized)
+    .dark_mode(false)
+    .hide_search(true)
+    .build();
+
+Scalar::with_config(json!({"openapi": "3.1.0"}), config);
 ```
 
 # License
