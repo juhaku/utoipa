@@ -924,7 +924,7 @@ builder! {
     pub struct Object {
         /// Type of [`Object`] e.g. [`Type::Object`] for `object` and [`Type::String`] for
         /// `string` types.
-        #[serde(rename = "type", skip_serializing_if="SchemaType::is_any_value")]
+        #[serde(rename = "type", skip_serializing_if="SchemaType::is_any_value", default = "SchemaType::any")]
         pub schema_type: SchemaType,
 
         /// Changes the [`Object`] title.
