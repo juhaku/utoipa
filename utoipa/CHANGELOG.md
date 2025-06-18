@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Added
+
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
