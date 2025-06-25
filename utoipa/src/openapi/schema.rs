@@ -2365,6 +2365,54 @@ mod tests {
         "#);
     }
 
+    #[test]
+    fn derive_object_with_additional_properties_inline() {
+        let json_value = ObjectBuilder::new()
+            .property_names(Some(
+                ObjectBuilder::new().enum_values(Some(["A", "B"])).build(),
+            ))
+            .additional_properties(Some(
+                ObjectBuilder::new().schema_type(SchemaType::new(Type::Integer)),
+            ))
+            .build();
+        assert_json_snapshot!(json_value, @r##"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "type": "object",
+            "enum": [
+              "A",
+              "B"
+            ]
+          }
+        }
+        "##);
+    }
+
+    #[test]
+    fn derive_object_with_additional_properties_ref() {
+        let json_value = ObjectBuilder::new()
+            .property_names(Some(RefOr::Ref(Ref::new("#/testEnum"))))
+            .additional_properties(Some(
+                ObjectBuilder::new().schema_type(SchemaType::new(Type::Integer)),
+            ))
+            .build();
+        assert_json_snapshot!(json_value, @r##"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/testEnum"
+          }
+        }
+        "##);
+    }
+
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
         path.split('.').fold(value, |acc, fragment| {
             acc.get(fragment).unwrap_or(&serde_json::value::Value::Null)
