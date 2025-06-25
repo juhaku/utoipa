@@ -3,10 +3,15 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
-## Unreleased
+## 5.4.0 - Jun 16 2025
+
+### Added
+
+* Add support for jiff v0.2 (https://github.com/juhaku/utoipa/pull/1332)
 
 ### Changed
 
+* Enhance ToSchema and ComposeSchema implementations for HashMap and HashSet to support custom hashers (https://github.com/juhaku/utoipa/pull/1319) 
 * Replaced `serde_yaml` with `serde_norway` (https://github.com/juhaku/utoipa/pull/1311)
 
 ## 5.3.1 - Jan 6 2025

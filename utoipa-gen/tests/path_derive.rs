@@ -286,6 +286,32 @@ fn derive_path_with_security_requirements() {
 }
 
 #[test]
+fn derive_path_with_extensions() {
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        extensions(
+            ("x-extension-1" = json!({ "type": "extension1" })),
+            ("x-extension-2" = json!({ "type": "extension2", "value": 2 })),
+        )
+    )]
+    #[allow(unused)]
+    fn get_items() {}
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    /* Testing limited to extensions values */
+    assert_json_snapshot!(operation.pointer("/x-extension-1").unwrap());
+    assert_json_snapshot!(operation.pointer("/x-extension-2").unwrap());
+}
+
+#[test]
 fn derive_path_with_datetime_format_query_parameter() {
     #[derive(serde::Deserialize, utoipa::ToSchema)]
     struct Since {

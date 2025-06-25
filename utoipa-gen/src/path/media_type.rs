@@ -8,7 +8,7 @@ use syn::punctuated::Punctuated;
 use syn::token::{Comma, Paren};
 use syn::{Error, Generics, Ident, Token, Type};
 
-use crate::component::features::attributes::Inline;
+use crate::component::features::attributes::{Extensions, Inline};
 use crate::component::features::Feature;
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree, ValueType};
 use crate::ext::ExtSchema;
@@ -25,7 +25,7 @@ use encoding::Encoding;
 /// ( Schema )
 /// ( Schema = "content/type" )
 /// ( "content/type", ),
-/// ( "content/type", example = ..., examples(..., ...), encoding(("exampleField" = (...)), ...) )
+/// ( "content/type", example = ..., examples(..., ...), encoding(("exampleField" = (...)), ...), extensions(("x-ext" = json!(...))) )
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct MediaTypeAttr<'m> {
@@ -34,6 +34,7 @@ pub struct MediaTypeAttr<'m> {
     pub example: Option<AnyValue>,
     pub examples: Punctuated<Example, Comma>,
     pub encoding: BTreeMap<String, Encoding>,
+    pub extensions: Option<Extensions>,
 }
 
 impl Parse for MediaTypeAttr<'_> {
@@ -140,11 +141,14 @@ impl<'m> MediaTypeAttr<'m> {
 
                 self.encoding = fields.into_iter().map(|x| (x.k, x.v)).collect();
             }
+            "extensions" => {
+                self.extensions = Some(input.parse::<Extensions>()?);
+            }
             unexpected => {
                 return Err(syn::Error::new(
                     attribute.span(),
                     format!(
-                        "unexpected attribute: {unexpected}, expected any of: example, examples, encoding(...)"
+                        "unexpected attribute: {unexpected}, expected any of: example, examples, encoding(...), extensions(...)"
                     ),
                 ))
             }
@@ -188,6 +192,10 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
             .encoding
             .iter()
             .map(|(field_name, encoding)| quote!(.encoding(#field_name, #encoding)));
+        let extensions = self
+            .extensions
+            .as_ref()
+            .map(|e| quote! { .extensions(Some(#e)) });
 
         tokens.extend(quote! {
             utoipa::openapi::content::ContentBuilder::new()
@@ -195,6 +203,7 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
                 #example
                 #examples
                 #(#encoding)*
+                #extensions
                 .into()
         });
 

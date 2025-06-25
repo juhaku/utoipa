@@ -1,0 +1,21 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: "&doc"
+---
+{
+  "properties": {
+    "civil_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "zoned": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "civil_date",
+    "zoned"
+  ],
+  "type": "object"
+}

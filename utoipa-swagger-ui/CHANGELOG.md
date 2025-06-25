@@ -1,5 +1,15 @@
 # Changelog - utoipa-swagger-ui
 
+## 9.0.2 - Sun 25 May 2025
+
+### Fixed
+
+* Avoid cloning ApiDoc on every request for axum (https://github.com/juhaku/utoipa/pull/1393)
+
+### Changed
+
+* Update build dependency `zip` to v3.0 (https://github.com/juhaku/utoipa/pull/1391)
+
 ## 9.0.1 - Fri 4 Apr 2025
 
 ### Fixed
