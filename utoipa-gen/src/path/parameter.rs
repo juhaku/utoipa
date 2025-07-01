@@ -77,6 +77,83 @@ impl<'p> Parameter<'p> {
     }
 }
 
+impl<'p> Parameter<'p> {
+    /// Get component schemas from this parameter, similar to how request bodies and responses work
+    pub fn get_component_schemas(
+        &self,
+    ) -> Result<impl Iterator<Item = (bool, ComponentSchema)>, Diagnostics> {
+        match self {
+            Parameter::Value(value_param) => {
+                if let Some(parameter_schema) = &value_param.parameter_schema {
+                    match &parameter_schema.parameter_type {
+                        #[cfg(any(
+                            feature = "actix_extras",
+                            feature = "rocket_extras",
+                            feature = "axum_extras"
+                        ))]
+                        ParameterType::External(type_tree) => {
+                            let component_schema = ComponentSchema::for_params(
+                                component::ComponentSchemaProps {
+                                    type_tree,
+                                    features: parameter_schema.features.clone(),
+                                    description: None,
+                                    container: &Container {
+                                        generics: &Generics::default(),
+                                    },
+                                },
+                                parameter_schema.option_is_nullable,
+                            )?;
+                            Ok(ParameterComponentSchemaIter::Single(std::iter::once((false, component_schema))))
+                        }
+                        ParameterType::Parsed(inline_type) => {
+                            let type_tree = TypeTree::from_type(inline_type.ty.as_ref())?;
+                            let mut schema_features = Vec::<Feature>::new();
+                            schema_features.clone_from(&parameter_schema.features);
+                            schema_features.push(Feature::Inline(inline_type.is_inline.into()));
+
+                            let component_schema = ComponentSchema::for_params(
+                                component::ComponentSchemaProps {
+                                    type_tree: &type_tree,
+                                    features: schema_features,
+                                    description: None,
+                                    container: &Container {
+                                        generics: &Generics::default(),
+                                    },
+                                },
+                                parameter_schema.option_is_nullable,
+                            )?;
+                            Ok(ParameterComponentSchemaIter::Single(std::iter::once((inline_type.is_inline, component_schema))))
+                        }
+                    }
+                } else {
+                    Ok(ParameterComponentSchemaIter::Empty)
+                }
+            }
+            Parameter::IntoParamsIdent(_) => {
+                // IntoParams types handle their own schema registration,
+                // so we don't need to collect them here
+                Ok(ParameterComponentSchemaIter::Empty)
+            }
+        }
+    }
+}
+
+enum ParameterComponentSchemaIter {
+    Single(std::iter::Once<(bool, ComponentSchema)>),
+    Empty,
+}
+
+impl Iterator for ParameterComponentSchemaIter {
+    type Item = (bool, ComponentSchema);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Single(iter) => iter.next(),
+            Self::Empty => None,
+        }
+    }
+}
+
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<TypePath>().is_ok() {
