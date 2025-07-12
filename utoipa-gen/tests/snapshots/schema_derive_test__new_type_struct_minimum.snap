@@ -1,0 +1,9 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "format": "int32",
+  "minimum": -100,
+  "type": "integer"
+}

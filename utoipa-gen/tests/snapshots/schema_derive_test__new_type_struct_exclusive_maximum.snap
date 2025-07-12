@@ -1,0 +1,9 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "exclusiveMaximum": 100,
+  "format": "int64",
+  "type": "integer"
+}
