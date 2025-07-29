@@ -19,7 +19,7 @@ use zip::{result::ZipError, ZipArchive};
 /// + absolute path to a folder containing files to overwrite the default swagger-ui files
 
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
-    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip";
+    "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.27.0.zip";
 
 const SWAGGER_UI_DOWNLOAD_URL: &str = "SWAGGER_UI_DOWNLOAD_URL";
 const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";

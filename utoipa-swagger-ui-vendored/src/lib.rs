@@ -16,4 +16,4 @@
 
 /// Swagger UI zip bytes
 #[doc(hidden)]
-pub const SWAGGER_UI_VENDORED: &[u8] = std::include_bytes!("../res/v5.17.14.zip");
+pub const SWAGGER_UI_VENDORED: &[u8] = std::include_bytes!("../res/v5.27.0.zip");
