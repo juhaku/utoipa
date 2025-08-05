@@ -987,7 +987,7 @@ fn derive_path_with_uuid() {
 #[cfg(feature = "ulid")]
 #[test]
 fn derive_path_with_ulid() {
-    use ulid::Ulid;
+    use ferroid::ULID as Ulid;
 
     #[utoipa::path(
         get,
