@@ -93,11 +93,20 @@ async fn user(ctx: Context) {
 
 #[tokio::main]
 async fn main() {
-    let server: Server = Server::new();
-    server.request_middleware(request_middleware).await;
-    server.route("/", index).await;
-    server.route("/user/{name}", user).await;
-    server.route("/openapi.json", openapi_json).await;
-    server.route("/{file}", swagger).await;
-    server.run().await.unwrap();
+    Server::new()
+        .request_middleware(request_middleware)
+        .await
+        .route("/", index)
+        .await
+        .route("/user/{name}", user)
+        .await
+        .route("/openapi.json", openapi_json)
+        .await
+        .route("/{file}", swagger)
+        .await
+        .run()
+        .await
+        .unwrap()
+        .wait()
+        .await;
 }
