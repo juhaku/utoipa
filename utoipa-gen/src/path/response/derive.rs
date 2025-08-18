@@ -190,7 +190,7 @@ impl ToTokensDiagnostics for IntoResponses {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let responses = if responses.len() > 0 {
+        let responses = if !responses.is_empty() {
             Some(quote!( .responses_from_iter(#responses)))
         } else {
             None
@@ -678,7 +678,7 @@ impl<'r> EnumResponse<'r> {
         Ok(Self(response_value.into()))
     }
 
-    fn parse_variant_attributes(variant: &Variant) -> Result<VariantAttributes, Diagnostics> {
+    fn parse_variant_attributes(variant: &Variant) -> Result<VariantAttributes<'_>, Diagnostics> {
         let variant_derive_response_value =
             DeriveToResponseValue::from_attributes(variant.attrs.as_slice())?;
         // named enum variant should not have field attributes

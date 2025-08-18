@@ -9,14 +9,14 @@ use std::{
 use regex::Regex;
 use zip::{result::ZipError, ZipArchive};
 
-/// the following env variables control the build process:
-/// 1. SWAGGER_UI_DOWNLOAD_URL:
-/// + the url from where to download the swagger-ui zip file if starts with http:// or https://
-/// + the file path from where to copy the swagger-ui zip file if starts with file://
-/// + default value is SWAGGER_UI_DOWNLOAD_URL_DEFAULT
-/// + for other versions, check https://github.com/swagger-api/swagger-ui/tags
-/// 2. SWAGGER_UI_OVERWRITE_FOLDER
-/// + absolute path to a folder containing files to overwrite the default swagger-ui files
+// the following env variables control the build process:
+// 1. SWAGGER_UI_DOWNLOAD_URL:
+// + the url from where to download the swagger-ui zip file if starts with http:// or https://
+// + the file path from where to copy the swagger-ui zip file if starts with file://
+// + default value is SWAGGER_UI_DOWNLOAD_URL_DEFAULT
+// + for other versions, check https://github.com/swagger-api/swagger-ui/tags
+// 2. SWAGGER_UI_OVERWRITE_FOLDER
+// + absolute path to a folder containing files to overwrite the default swagger-ui files
 
 const SWAGGER_UI_DOWNLOAD_URL_DEFAULT: &str =
     "https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip";
@@ -147,7 +147,7 @@ impl SwaggerZip {
 }
 
 fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
-    let zip_filename = url.split('/').last().unwrap().to_string();
+    let zip_filename = url.split('/').next_back().unwrap().to_string();
     #[allow(unused_mut)]
     let mut zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
@@ -345,10 +345,9 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
             if status.success() {
                 Ok(())
             } else {
-                Err(std::io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("curl download file exited with error status: {status}"),
-                ))
+                Err(std::io::Error::other(format!(
+                    "curl download file exited with error status: {status}"
+                )))
             }
         })
         .map_err(|error| {
