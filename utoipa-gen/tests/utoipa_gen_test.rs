@@ -161,3 +161,53 @@ fn derive_openapi() {
 
     build_foo!(GetFooBody, Foo, FooResources);
 }
+
+#[test]
+fn derive_openapi_with_security_display_types() {
+    use std::fmt::Display;
+
+    #[derive(Debug)]
+    enum AuthScope {
+        Read,
+        Write,
+        Admin,
+    }
+
+    impl Display for AuthScope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                AuthScope::Read => write!(f, "read:all"),
+                AuthScope::Write => write!(f, "write:all"),
+                AuthScope::Admin => write!(f, "admin:all"),
+            }
+        }
+    }
+
+    const CUSTOM_SCOPE: &str = "custom:scope";
+
+    #[derive(Default, OpenApi)]
+    #[openapi(
+        security(
+            (),
+            ("oauth2" = [AuthScope::Read.to_string(), AuthScope::Write.to_string()]),
+            ("api_key" = []),
+            ("mixed" = [CUSTOM_SCOPE, AuthScope::Admin.to_string()])
+        )
+    )]
+    struct ApiDocWithDisplay;
+
+    let api = ApiDocWithDisplay::openapi();
+    let json = api.to_json().unwrap();
+    let security = serde_json::from_str::<serde_json::Value>(&json).unwrap()["security"].clone();
+
+    assert_eq!(security[0], serde_json::json!({}));
+    assert_eq!(
+        security[1]["oauth2"],
+        serde_json::json!(["read:all", "write:all"])
+    );
+    assert_eq!(security[2]["api_key"], serde_json::json!([]));
+    assert_eq!(
+        security[3]["mixed"],
+        serde_json::json!(["custom:scope", "admin:all"])
+    );
+}
