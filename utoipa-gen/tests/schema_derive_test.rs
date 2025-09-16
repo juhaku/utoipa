@@ -3273,3 +3273,21 @@ fn test_new_type_struct_pattern() {
 
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn test_min_max_properties_schema_options() {
+    let schema = api_doc! {
+        #[allow(unused)]
+        #[schema(min_properties = 1, max_properties = 2)]
+        struct RequestWithPropertyLimits {
+            property_1: Option<String>,
+            property_2: Option<String>,
+            property_3: Option<String>,
+        }
+    };
+
+    assert_value! {schema=>
+        "minProperties" = "1", "min_properties schema option"
+        "maxProperties" = "2", "max_properties schema option"
+    }
+}
