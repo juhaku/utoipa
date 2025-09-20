@@ -1263,13 +1263,29 @@ impl ComponentSchema {
                                     .collect::<Array<_>>();
 
                             if index.is_some() {
-                                quote_spanned! {type_path.span()=>
-                                    let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
-
+                                let composed_tokens = quote! {
                                     if let Some(composed) = generics.get_mut(#index) {
                                         composed.clone()
                                     } else {
                                         <#rewritten_path as utoipa::PartialSchema>::schema()
+                                    }
+                                };
+
+                                if default.is_some() || nullable {
+                                    quote_spanned! {type_path.span()=>
+                                        let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+
+                                        utoipa::openapi::schema::OneOfBuilder::new()
+                                            #nullable_item
+                                            .item(
+                                                #composed_tokens
+                                            )
+                                    }
+                                } else {
+                                    quote_spanned! {type_path.span()=>
+                                        let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+
+                                        #composed_tokens
                                     }
                                 }
                             } else {
@@ -1337,14 +1353,32 @@ impl ComponentSchema {
                             quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
                             if let Some(index) = &index {
-                                quote_spanned! {type_path.span()=>
-                                    {
-                                        let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+                                let composed_tokens = quote! {
+                                    if let Some(composed) = generics.get_mut(#index) {
+                                        composed.clone()
+                                    } else {
+                                        #item_tokens.into()
+                                    }
+                                };
 
-                                        if let Some(composed) = generics.get_mut(#index) {
-                                            composed.clone()
-                                        } else {
-                                            #item_tokens.into()
+                                if default.is_some() || nullable {
+                                    quote_spanned! {type_path.span()=>
+                                        {
+                                            let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+
+                                            utoipa::openapi::schema::OneOfBuilder::new()
+                                                #nullable_item
+                                                .item(
+                                                    #composed_tokens
+                                                )
+                                        }
+                                    }
+                                } else {
+                                    quote_spanned! {type_path.span()=>
+                                        {
+                                            let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+
+                                            #composed_tokens
                                         }
                                     }
                                 }
