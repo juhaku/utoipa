@@ -13,8 +13,8 @@ use crate::{
         features::{
             self,
             attributes::{
-                AdditionalProperties, AllowReserved, Example, Explode, Format, Ignore, Inline,
-                IntoParamsNames, Nullable, ReadOnly, Rename, RenameAll, SchemaWith, Style,
+                AdditionalProperties, AllowReserved, Example, Explode, Extensions, Format, Ignore,
+                Inline, IntoParamsNames, Nullable, ReadOnly, Rename, RenameAll, SchemaWith, Style,
                 WriteOnly, XmlAttr,
             },
             validation::{
@@ -49,7 +49,8 @@ impl Parse for IntoParamsFeatures {
             input as Style,
             features::attributes::ParameterIn,
             IntoParamsNames,
-            RenameAll
+            RenameAll,
+            Extensions
         )))
     }
 }
@@ -106,6 +107,7 @@ impl ToTokensDiagnostics for IntoParams {
         let style = pop_feature!(into_params_features => Feature::Style(_));
         let parameter_in = pop_feature!(into_params_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(into_params_features => Feature::RenameAll(_));
+        let extensions = pop_feature!(into_params_features => Feature::Extensions(_));
 
         let params = self
             .get_struct_fields(&names.as_ref())?
@@ -148,6 +150,7 @@ impl ToTokensDiagnostics for IntoParams {
                         }),
                         style: &style,
                         parameter_in: &parameter_in,
+                        extensions: &extensions,
                         name,
                     }, &serde_container, &self.generics)?;
 
@@ -264,6 +267,8 @@ pub struct FieldParamContainerAttributes<'a> {
     parameter_in: &'a Option<Feature>,
     /// Custom rename all if serde attribute is not present.
     rename_all: Option<&'a RenameAll>,
+    /// See [`IntoParamsAttr::extensions`].
+    extensions: &'a Option<Feature>,
 }
 
 struct FieldFeatures(Vec<Feature>);
@@ -282,6 +287,7 @@ impl Parse for FieldFeatures {
             Explode,
             SchemaWith,
             component::features::attributes::Required,
+            Extensions,
             // param schema features
             Inline,
             Format,
@@ -353,6 +359,8 @@ impl Param {
             .map(|rename_all| rename_all.as_rename_rule()));
         let name = super::rename::<FieldRename>(name, rename_to, rename_all)
             .unwrap_or(Cow::Borrowed(name));
+        let extensions =
+            pop_feature!(param_features => Feature::Extensions(_) as Option<Extensions>);
         let type_tree = TypeTree::from_type(&field.ty)?;
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
@@ -370,6 +378,10 @@ impl Param {
 
         if let Some(deprecated) = super::get_deprecated(&field.attrs) {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
+        }
+
+        if let Some(extensions) = extensions {
+            tokens.extend(quote! { .extensions(Some(#extensions)) });
         }
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
@@ -464,6 +476,18 @@ impl Param {
             {
                 field_features.push(style.clone()); // could try to use cow to avoid cloning
             };
+        }
+
+        if let Some(Feature::Extensions(ref extensions)) = container_attributes.extensions {
+            // Merge container-level exensions with field-level extensions if present.
+            if let Some(Feature::Extensions(ref mut field_extensions)) = field_features
+                .iter_mut()
+                .find(|feature| matches!(&feature, Feature::Extensions(_)))
+            {
+                field_extensions.merge(extensions.clone());
+            } else {
+                field_features.push(Feature::Extensions(extensions.clone()));
+            }
         }
 
         Ok(field_features.into_iter().fold(
