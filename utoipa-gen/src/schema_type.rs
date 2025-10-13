@@ -74,6 +74,8 @@ impl SchemaType<'_> {
             feature = "chrono",
             feature = "decimal",
             feature = "decimal_float",
+            feature = "bigdecimal",
+            feature = "bigdecimal_float",
             feature = "rocket_extras",
             feature = "uuid",
             feature = "ulid",
@@ -88,6 +90,8 @@ impl SchemaType<'_> {
             feature = "chrono",
             feature = "decimal",
             feature = "decimal_float",
+            feature = "bigdecimal",
+            feature = "bigdecimal_float",
             feature = "rocket_extras",
             feature = "uuid",
             feature = "ulid",
@@ -115,6 +119,11 @@ impl SchemaType<'_> {
             #[cfg(feature = "uuid")]
             if !primitive {
                 primitive = matches!(name, "Uuid");
+            }
+
+            #[cfg(any(feature = "bigdecimal", feature = "bigdecimal_float"))]
+            if !primitive {
+                primitive = matches!(name, "BigDecimal");
             }
 
             #[cfg(feature = "ulid")]
@@ -284,6 +293,12 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             #[cfg(feature = "decimal_float")]
             "Decimal" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
 
+            #[cfg(feature = "bigdecimal")]
+            "BigDecimal" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
+
+            #[cfg(feature = "bigdecimal_float")]
+            "BigDecimal" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
+
             #[cfg(feature = "rocket_extras")]
             "PathBuf" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
@@ -411,6 +426,9 @@ impl KnownFormat {
 
             #[cfg(feature = "decimal_float")]
             "Decimal" => Self::Double,
+
+            #[cfg(feature = "bigdecimal_float")]
+            "BigDecimal" => Self::Double,
 
             #[cfg(feature = "uuid")]
             "Uuid" => Self::Uuid,
@@ -721,6 +739,16 @@ impl PrimitiveType {
 
             #[cfg(feature = "decimal_float")]
             "Decimal" => {
+                syn::parse_quote!(f64)
+            }
+
+            #[cfg(feature = "bigdecimal")]
+            "BigDecimal" => {
+                syn::parse_quote!(String)
+            }
+
+            #[cfg(feature = "bigdecimal_float")]
+            "BigDecimal" => {
                 syn::parse_quote!(f64)
             }
 

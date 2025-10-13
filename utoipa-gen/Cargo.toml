@@ -49,6 +49,7 @@ paste = "1"
 rocket = { version = "0.5", features = ["json"] }
 smallvec = { version = "1.10", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false }
+bigdecimal = { version = "0.4", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 time = { version = "0.3", features = ["serde-human-readable"] }
 jiff = { version = "0.2", features = ["serde"] }
@@ -63,6 +64,8 @@ chrono = []
 yaml = []
 decimal = []
 decimal_float = []
+bigdecimal = []
+bigdecimal_float = []
 rocket_extras = ["regex", "syn/extra-traits"]
 non_strict_integers = []
 uuid = ["dep:uuid"]
