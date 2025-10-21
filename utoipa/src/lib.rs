@@ -800,11 +800,14 @@ impl PartialSchema for serde_json::Value {
 impl ToSchema for serde_json::Value {}
 
 #[cfg(feature = "bytes")]
-impl PartialSchema for bytes::Bytes {
-    fn schema() -> openapi::RefOr<openapi::schema::Schema> {
-        <Vec<u8> as PartialSchema>::schema()
+const _: () = {
+    impl PartialSchema for bytes::Bytes {
+        fn schema() -> openapi::RefOr<openapi::schema::Schema> {
+            <Vec<u8> as PartialSchema>::schema()
+        }
     }
-}
+    impl ToSchema for bytes::Bytes {}
+};
 
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
