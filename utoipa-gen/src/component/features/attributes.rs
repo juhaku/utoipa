@@ -121,6 +121,27 @@ impl From<Examples> for Feature {
     }
 }
 
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct TitleVariants;
+}
+
+impl Parse for TitleVariants {
+    fn parse(_: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<TitleVariants> for Feature {
+    fn from(value: TitleVariants) -> Self {
+        Feature::TitleVariants(value)
+    }
+}
+
 impl_feature! {"xml" =>
     #[derive(Default, Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
@@ -258,7 +279,7 @@ impl From<ReadOnly> for Feature {
 impl_feature! {
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Title(String);
+    pub struct Title(pub String);
 }
 
 impl Parse for Title {

@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Added
+
+* Add support for `#[schema(title_variants)]` on mixed enums (https://github.com/juhaku/utoipa/pull/1511)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
