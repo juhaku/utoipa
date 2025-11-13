@@ -969,6 +969,44 @@ fn derive_mixed_enum_title() {
 }
 
 #[test]
+fn derive_mixed_enum_title_variants() {
+    #[derive(ToSchema)]
+    struct Foo;
+
+    let value: Value = api_doc! {
+        #[schema(title_variants)]
+        enum EnumTitleVariants {
+            UnitValue,
+            NamedFields {
+                id: &'static str,
+            },
+            UnnamedFields(Foo),
+            #[schema(title = "Overridden")]
+            OverriddenTitle,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_title_variants_enum_title() {
+    let value: Value = api_doc! {
+        #[schema(title = "CustomTitle", title_variants)]
+        enum EnumTitleVariants {
+            UnitValue,
+            NamedFields {
+                id: &'static str,
+            },
+            #[schema(title = "Overridden")]
+            OverriddenTitle,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_mixed_enum_example() {
     #[derive(Serialize, ToSchema)]
     struct Foo(String);

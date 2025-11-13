@@ -318,6 +318,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   enum.
+/// * `title_variants` Can be used to generate titles for enum variants by concatenating the enum
+///   title with the variant name. Variant titles can be overridden individually by annotating
+///   them with the `#[schema(title = "...")]` attribute.
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
 ///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
 ///   are defined __serde__ will take precedence.
