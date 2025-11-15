@@ -314,7 +314,7 @@ impl<'r> ResponseValue<'r> {
                 }
 
                 let content =
-                    parse_utils::parse_comma_separated_within_parethesis_with(input, group_parser)?
+                    parse_utils::parse_comma_separated_within_parenthesis_with(input, group_parser)?
                         .into_iter()
                         .collect::<Vec<_>>();
 

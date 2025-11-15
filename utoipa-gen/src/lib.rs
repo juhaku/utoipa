@@ -135,7 +135,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `min_properties = ...` Can be used to define minimum number of properties this struct can
 ///   contain. Value must be a number.
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
 ///  struct level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
@@ -202,7 +202,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///* `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
 ///   or a path to a function that returns `bool` (`Fn() -> bool`).
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Field nullability and required rules
@@ -267,7 +267,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
@@ -335,7 +335,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   field for enums with single unnamed _`ToSchema`_ reference field. See the [discriminator
 ///   syntax][derive@ToSchema#schemadiscriminator-syntax].
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
 ///  enum level the _`no_recursion`_ rule will be applied to all of its variants.
 ///
@@ -391,7 +391,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `min_properties = ...` Can be used to define minimum number of properties this struct can
 ///   contain. Value must be a number.
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
 ///  named field variant level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
@@ -422,7 +422,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Mixed Enum Unnamed Field Variant's Field Configuration Options
@@ -3771,7 +3771,7 @@ mod parse_utils {
         Punctuated::parse_terminated(&group)
     }
 
-    pub fn parse_comma_separated_within_parethesis_with<T>(
+    pub fn parse_comma_separated_within_parenthesis_with<T>(
         input: ParseStream,
         with: fn(ParseStream) -> syn::Result<T>,
     ) -> syn::Result<Punctuated<T, Comma>>
