@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use desynt::StripRaw;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
@@ -439,7 +440,7 @@ impl TypeTree<'_> {
             return None;
         }
 
-        match &*segment.ident.to_string() {
+        match &*segment.ident.strip_raw().to_string() {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
@@ -568,7 +569,9 @@ impl TypeTree<'_> {
                 .as_ref()
                 .and_then(|path| path.segments.iter().last())
                 .and_then(|last_segment| {
-                    crate::CONFIG.aliases.get(&*last_segment.ident.to_string())
+                    crate::CONFIG
+                        .aliases
+                        .get(&*last_segment.ident.strip_raw().to_string())
                 })
                 .map_try(|alias| syn::parse_str::<syn::Type>(alias.as_ref()))
                 .map_err(|error| Diagnostics::new(error.to_string()))

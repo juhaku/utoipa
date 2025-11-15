@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use desynt::StripRaw;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
@@ -323,18 +324,14 @@ impl Param {
         let mut tokens = TokenStream::new();
         let field_serde_params = &field_serde_params;
         let ident = &field.ident;
-        let mut name = &*ident
+        let name = &*ident
             .as_ref()
-            .map(|ident| ident.to_string())
+            .map(|ident| ident.strip_raw().to_string())
             .or_else(|| container_attributes.name.cloned())
             .ok_or_else(||
                 Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
                     .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
             )?;
-
-        if name.starts_with("r#") {
-            name = &name[2..];
-        }
 
         let (schema_features, mut param_features) =
             Param::resolve_field_features(field_features, &container_attributes)

@@ -1,5 +1,6 @@
 use std::{borrow::Cow, ops::Deref};
 
+use desynt::StripRaw;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, Fields, TypePath, Variant};
@@ -103,7 +104,7 @@ impl<'e> PlainEnum<'e> {
                     .collect::<Result<Vec<_>, Diagnostics>>()?
                     .into_iter()
                     .map(|(variant, variant_rules, mut variant_features)| {
-                        let name = &*variant.ident.to_string();
+                        let name = &*variant.ident.strip_raw().to_string();
                         let renamed = super::rename_enum_variant(
                             name,
                             &mut variant_features,
@@ -398,7 +399,7 @@ impl MixedEnumContent {
         mut variant_features: Vec<Feature>,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
-        let name = variant.ident.to_string();
+        let name = variant.ident.strip_raw().to_string();
         // TODO support `description = ...` attribute via Feature::Description
         // let description =
         //     pop_feature!(variant_features => Feature::Description(_) as Option<Description>);

@@ -1,5 +1,6 @@
 use std::mem;
 
+use desynt::StripRaw;
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use syn::parse::ParseStream;
@@ -682,7 +683,7 @@ impl As {
             .path
             .segments
             .iter()
-            .map(|segment| segment.ident.to_string())
+            .map(|segment| segment.ident.strip_raw().to_string())
             .collect::<Vec<_>>()
             .join(".")
     }
