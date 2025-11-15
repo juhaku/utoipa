@@ -313,10 +313,12 @@ impl<'r> ResponseValue<'r> {
                     buf.call(MediaTypeAttr::parse)
                 }
 
-                let content =
-                    parse_utils::parse_comma_separated_within_parenthesis_with(input, group_parser)?
-                        .into_iter()
-                        .collect::<Vec<_>>();
+                let content = parse_utils::parse_comma_separated_within_parenthesis_with(
+                    input,
+                    group_parser,
+                )?
+                .into_iter()
+                .collect::<Vec<_>>();
 
                 self.content = content;
             }
