@@ -31,6 +31,7 @@ impl Validator for IsString<'_> {
     }
 }
 
+#[allow(dead_code)]
 pub struct IsInteger<'a>(&'a SchemaType<'a>);
 
 impl Validator for IsInteger<'_> {

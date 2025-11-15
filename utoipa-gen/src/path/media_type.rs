@@ -229,7 +229,7 @@ impl Default for Schema<'_> {
 }
 
 impl Schema<'_> {
-    pub fn get_type_tree(&self) -> Result<Option<Cow<TypeTree<'_>>>, Diagnostics> {
+    pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
         match self {
             Self::Default(def) => def.get_type_tree(),
             Self::Ext(ext) => ext.get_type_tree(),
@@ -417,7 +417,7 @@ pub struct ParsedType<'i> {
 
 impl ParsedType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    fn to_type_tree(&self) -> Result<TypeTree, Diagnostics> {
+    fn to_type_tree(&self) -> Result<TypeTree<'_>, Diagnostics> {
         TypeTree::from_type(&self.ty)
     }
 }

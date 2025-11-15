@@ -289,7 +289,7 @@ pub trait ArgumentResolver {
         _: &'_ Punctuated<syn::FnArg, Comma>,
         _: Option<Vec<MacroArg>>,
         _: String,
-    ) -> Result<Arguments, Diagnostics> {
+    ) -> Result<Arguments<'_>, Diagnostics> {
         Ok((None, None, None))
     }
 }

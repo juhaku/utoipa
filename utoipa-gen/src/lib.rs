@@ -69,6 +69,20 @@ use self::{
 static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
     once_cell::sync::Lazy::new(utoipa_config::Config::read_from_file);
 
+// Global PathResolver using desynt's type groups for normalizing type paths
+static PATH_RESOLVER: std::sync::OnceLock<
+    desynt::PathResolver<std::collections::HashMap<String, String>>,
+> = std::sync::OnceLock::new();
+
+fn get_path_resolver() -> &'static desynt::PathResolver<std::collections::HashMap<String, String>> {
+    PATH_RESOLVER.get_or_init(|| desynt::PathResolver::with_all_groups())
+}
+
+/// Resolve a type path to its canonical name using desynt::PathResolver
+pub(crate) fn resolve_path_to_canonical(path: &syn::Path) -> Option<&'static str> {
+    get_path_resolver().resolve(path)
+}
+
 #[proc_macro_derive(ToSchema, attributes(schema))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].
