@@ -3057,6 +3057,40 @@ fn derive_schema_with_ignore_eq_call_field() {
 }
 
 #[test]
+fn derive_schema_with_ignore_struct() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_enum() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_schema_unnamed_title() {
     #![allow(unused)]
 

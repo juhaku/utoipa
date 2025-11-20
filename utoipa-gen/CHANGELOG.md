@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## 5.5.0 - XXX YY 2025
+
+### Added
+
+* No need to implement `ToSchema` and `PartialSchema` for ignored fields (https://github.com/juhaku/utoipa/pull/ZZZZ)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
