@@ -4,7 +4,7 @@
 
 ### Added
 
-* No need to implement `ToSchema` and `PartialSchema` for ignored fields (https://github.com/juhaku/utoipa/pull/ZZZZ)
+* No need to implement `ToSchema` and `PartialSchema` for ignored fields (https://github.com/juhaku/utoipa/pull/1500)
 
 ## 5.4.0 - Jun 16 2025
 
