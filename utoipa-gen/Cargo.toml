@@ -75,6 +75,7 @@ smallvec = []
 repr = []
 indexmap = []
 rc_schema = []
+tagged_discriminator = []
 config = ["dep:utoipa-config", "dep:once_cell"]
 
 # EXPERIEMENTAL! use with cauntion
