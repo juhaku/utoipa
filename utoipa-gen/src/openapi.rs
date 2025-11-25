@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use desynt::StripRaw;
 use proc_macro2::Ident;
 use syn::{
     bracketed, parenthesized,
@@ -70,7 +71,7 @@ impl<'o> OpenApiAttr<'o> {
     }
 }
 
-pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr>, Error> {
+pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr<'_>>, Error> {
     attrs
         .iter()
         .filter(|attribute| attribute.path().is_ident("openapi"))
@@ -440,7 +441,7 @@ impl OpenApi<'_> {
                         .segments
                         .iter()
                         .take(nest_api.path.segments.len() - 1)
-                        .map(|segment| segment.ident.to_string())
+                        .map(|segment| segment.ident.strip_raw().to_string())
                         .collect::<Vec<_>>()
                         .join("::");
                     let tags = &item.tags.iter().collect::<Array<_>>();
@@ -696,7 +697,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_config_name = segments
                 .iter()
-                .map(|segment| segment.ident.to_string())
+                .map(|segment| segment.ident.strip_raw().to_string())
                 .collect::<Vec<_>>()
                 .join("_");
             let handler_fn = &segments.last().unwrap().ident;
@@ -706,7 +707,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
             let tag = segments
                 .iter()
                 .take(segments.len() - 1)
-                .map(|part| part.ident.to_string())
+                .map(|part| part.ident.strip_raw().to_string())
                 .collect::<Vec<_>>()
                 .join("::");
 
@@ -759,7 +760,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
             let segments = handler.path.segments.iter().collect::<Vec<_>>();
             let handler_config_name = segments
                 .iter()
-                .map(|segment| segment.ident.to_string())
+                .map(|segment| segment.ident.strip_raw().to_string())
                 .collect::<Vec<_>>()
                 .join("_");
             let handler_ident_config = format_ident!("{}_config", handler_config_name);

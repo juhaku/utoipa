@@ -1,5 +1,6 @@
 use std::borrow::{Borrow, Cow};
 
+use desynt::StripRaw;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
@@ -347,11 +348,8 @@ impl NamedStructSchema {
         let mut fields_vec = fields
             .iter()
             .filter_map(|field| {
-                let mut field_name = Cow::Owned(field.ident.as_ref().unwrap().to_string());
-
-                if Borrow::<str>::borrow(&field_name).starts_with("r#") {
-                    field_name = Cow::Owned(field_name[2..].to_string());
-                }
+                let field_ident = field.ident.as_ref().unwrap();
+                let field_name: Cow<'_, str> = Cow::Owned(field_ident.strip_raw().to_string());
 
                 let field_rules = serde::parse_value(&field.attrs);
                 let field_rules = match field_rules {
@@ -500,11 +498,11 @@ impl NamedStructSchema {
                             Some(flattened_map_field) => {
                                 return Err(Diagnostics::with_span(
                                     fields.span(),
-                                    format!("The structure `{}` contains multiple flattened map fields.", root.ident))
+                                    format!("The structure `{}` contains multiple flattened map fields.", root.ident.strip_raw()))
                                     .note(
                                         format!("first flattened map field was declared here as `{}`",
-                                        flattened_map_field.ident.as_ref().unwrap()))
-                                    .note(format!("second flattened map field was declared here as `{}`", field.ident.as_ref().unwrap()))
+                                        flattened_map_field.ident.as_ref().unwrap().strip_raw()))
+                                    .note(format!("second flattened map field was declared here as `{}`", field.ident.as_ref().unwrap().strip_raw()))
                                 );
                             }
                         }

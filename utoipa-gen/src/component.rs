@@ -145,48 +145,55 @@ impl<'p> SynPathExt for &'p Path {
             .expect("syn::Path must have at least one segment");
 
         let mut segment = last_segment.clone();
-        if let PathArguments::AngleBracketed(anglebracketed_args) = &last_segment.arguments {
-            let args = anglebracketed_args.args.iter().try_fold(
-                Punctuated::<GenericArgument, Comma>::new(),
-                |mut args, generic_arg| {
-                    match generic_arg {
-                        GenericArgument::Type(ty) => {
-                            let type_tree = TypeTree::from_type(ty)?;
-                            let alias_type = type_tree.get_alias_type()?;
-                            let alias_type_tree =
-                                alias_type.as_ref().map(TypeTree::from_type).transpose()?;
-                            let type_tree = alias_type_tree.unwrap_or(type_tree);
+        let args =
+            if let PathArguments::AngleBracketed(anglebracketed_args) = &last_segment.arguments {
+                anglebracketed_args.args.iter().try_fold(
+                    Punctuated::<GenericArgument, Comma>::new(),
+                    |mut args, generic_arg| {
+                        match generic_arg {
+                            GenericArgument::Type(ty) => {
+                                let type_tree = TypeTree::from_type(ty)?;
+                                let alias_type = type_tree.get_alias_type()?;
+                                let alias_type_tree =
+                                    alias_type.as_ref().map(TypeTree::from_type).transpose()?;
+                                let type_tree = alias_type_tree.unwrap_or(type_tree);
 
-                            let path = type_tree
-                                .path
-                                .as_ref()
-                                .expect("TypeTree must have a path")
-                                .as_ref();
+                                let path = type_tree
+                                    .path
+                                    .as_ref()
+                                    .expect("TypeTree must have a path")
+                                    .as_ref();
 
-                            if let Some(default_type) = PrimitiveType::new(path) {
-                                args.push(GenericArgument::Type(default_type.ty.clone()));
-                            } else {
-                                let inner = path.rewrite_path()?;
-                                args.push(GenericArgument::Type(syn::Type::Path(
-                                    syn::parse_quote!(#inner),
-                                )))
+                                if let Some(default_type) = PrimitiveType::new(path) {
+                                    args.push(GenericArgument::Type(default_type.ty.clone()));
+                                } else {
+                                    let inner = path.rewrite_path()?;
+                                    args.push(GenericArgument::Type(syn::Type::Path(
+                                        syn::parse_quote!(#inner),
+                                    )))
+                                }
                             }
+                            other => args.push(other.clone()),
                         }
-                        other => args.push(other.clone()),
-                    }
 
-                    Result::<_, Diagnostics>::Ok(args)
-                },
-            )?;
-
-            let angle_bracket_args = AngleBracketedGenericArguments {
-                args,
-                lt_token: anglebracketed_args.lt_token,
-                gt_token: anglebracketed_args.gt_token,
-                colon2_token: anglebracketed_args.colon2_token,
+                        Result::<_, Diagnostics>::Ok(args)
+                    },
+                )?
+            } else {
+                Punctuated::new()
             };
 
-            segment.arguments = PathArguments::AngleBracketed(angle_bracket_args);
+        if !args.is_empty() {
+            if let PathArguments::AngleBracketed(anglebracketed_args) = &last_segment.arguments {
+                let angle_bracket_args = AngleBracketedGenericArguments {
+                    args,
+                    lt_token: anglebracketed_args.lt_token,
+                    gt_token: anglebracketed_args.gt_token,
+                    colon2_token: anglebracketed_args.colon2_token,
+                };
+
+                segment.arguments = PathArguments::AngleBracketed(angle_bracket_args);
+            }
         }
 
         let segment_ident = &segment.ident;
@@ -412,7 +419,7 @@ impl TypeTree<'_> {
     }
 
     fn convert<'t>(path: &'t Path, last_segment: &'t PathSegment) -> TypeTree<'t> {
-        let generic_type = Self::get_generic_type(last_segment);
+        let generic_type = Self::get_generic_type(path, last_segment);
         let schema_type = SchemaType {
             path: Cow::Borrowed(path),
             nullable: matches!(generic_type, Some(GenericType::Option)),
@@ -434,12 +441,16 @@ impl TypeTree<'_> {
     }
 
     // TODO should we recognize unknown generic types with `GenericType::Unknown` instead of `None`?
-    fn get_generic_type(segment: &PathSegment) -> Option<GenericType> {
+    fn get_generic_type(path: &Path, segment: &PathSegment) -> Option<GenericType> {
         if segment.arguments.is_empty() {
             return None;
         }
 
-        match &*segment.ident.to_string() {
+        // Try to resolve the full path to a canonical type name using desynt::PathResolver
+        // Only recognize standard library types - if resolution fails, it's not a stdlib type
+        let canonical_name = crate::resolve_path_to_canonical(path)?;
+
+        match canonical_name {
             "HashMap" | "Map" | "BTreeMap" => Some(GenericType::Map),
             #[cfg(feature = "indexmap")]
             "IndexMap" => Some(GenericType::Map),
@@ -568,7 +579,9 @@ impl TypeTree<'_> {
                 .as_ref()
                 .and_then(|path| path.segments.iter().last())
                 .and_then(|last_segment| {
-                    crate::CONFIG.aliases.get(&*last_segment.ident.to_string())
+                    crate::CONFIG
+                        .aliases
+                        .get(&*last_segment.ident.strip_raw().to_string())
                 })
                 .map_try(|alias| syn::parse_str::<syn::Type>(alias.as_ref()))
                 .map_err(|error| Diagnostics::new(error.to_string()))

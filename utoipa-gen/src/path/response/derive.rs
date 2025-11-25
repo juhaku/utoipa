@@ -678,7 +678,7 @@ impl<'r> EnumResponse<'r> {
         Ok(Self(response_value.into()))
     }
 
-    fn parse_variant_attributes(variant: &Variant) -> Result<VariantAttributes, Diagnostics> {
+    fn parse_variant_attributes(variant: &Variant) -> Result<VariantAttributes<'_>, Diagnostics> {
         let variant_derive_response_value =
             DeriveToResponseValue::from_attributes(variant.attrs.as_slice())?;
         // named enum variant should not have field attributes
