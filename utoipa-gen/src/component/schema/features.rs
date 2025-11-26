@@ -146,7 +146,8 @@ impl Parse for NamedFieldFeatures {
             ContentEncoding,
             ContentMediaType,
             Ignore,
-            NoRecursion
+            NoRecursion,
+            Description
         )))
     }
 }

@@ -627,7 +627,14 @@ impl NamedStructSchema {
             .as_ref()
             .map_try(|value_type| value_type.as_type_tree())?;
         let comments = CommentAttributes::from_attributes(&field.attrs);
-        let description = &ComponentDescription::CommentAttributes(&comments);
+
+        let description: Option<Description> =
+            pop_feature!(field_features => Feature::Description(_)).into_inner();
+
+        let description = description
+            .as_ref()
+            .map(ComponentDescription::Description)
+            .unwrap_or(ComponentDescription::CommentAttributes(&comments));
 
         let schema_with = pop_feature!(field_features => Feature::SchemaWith(_));
         let required = pop_feature!(field_features => Feature::Required(_) as Option<crate::component::features::attributes::Required>);
@@ -651,7 +658,7 @@ impl NamedStructSchema {
                 let props = super::ComponentSchemaProps {
                     type_tree,
                     features: field_features,
-                    description: Some(description),
+                    description: Some(&description),
                     container: &super::Container {
                         generics: root.generics,
                     },
