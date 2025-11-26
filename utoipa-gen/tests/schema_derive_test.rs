@@ -3261,6 +3261,104 @@ fn test_named_and_enum_container_recursion_compiles() {
 }
 
 #[test]
+fn test_new_type_struct_multiple_of() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(multiple_of = 5)]
+    struct Step(i32);
+
+    use utoipa::PartialSchema;
+    let schema = <Step as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_maximum() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(maximum = 100)]
+    struct Score(u32);
+
+    use utoipa::PartialSchema;
+    let schema = <Score as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_minimum() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(minimum = -100)]
+    struct Score(i32);
+
+    use utoipa::PartialSchema;
+    let schema = <Score as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_exclusive_maximum() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(exclusive_maximum = 100)]
+    struct Score(i64);
+
+    use utoipa::PartialSchema;
+    let schema = <Score as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_exclusive_minimum() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(exclusive_minimum = -100)]
+    struct Score(i16);
+
+    use utoipa::PartialSchema;
+    let schema = <Score as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_min_length() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(min_length = 3)]
+    struct Username(String);
+
+    use utoipa::PartialSchema;
+    let schema = <Username as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_max_length() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(max_length = 32)]
+    struct Username(String);
+
+    use utoipa::PartialSchema;
+    let schema = <Username as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn test_new_type_struct_pattern() {
     #![allow(unused)]
     #[derive(ToSchema)]
@@ -3269,6 +3367,34 @@ fn test_new_type_struct_pattern() {
 
     use utoipa::PartialSchema;
     let schema = <Username as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_max_items() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(max_items = 5)]
+    struct Tags(Vec<String>);
+
+    use utoipa::PartialSchema;
+    let schema = <Tags as PartialSchema>::schema();
+    let value = serde_json::to_value(schema).expect("schema is JSON serializable");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn test_new_type_struct_min_items() {
+    #![allow(unused)]
+    #[derive(ToSchema)]
+    #[schema(min_items = 1)]
+    struct Tags(Vec<String>);
+
+    use utoipa::PartialSchema;
+    let schema = <Tags as PartialSchema>::schema();
     let value = serde_json::to_value(schema).expect("schema is JSON serializable");
 
     assert_json_snapshot!(value);

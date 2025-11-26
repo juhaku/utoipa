@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Added
+
+* Expand support for validation features in `#[schema(...)]` on new type structs (https://github.com/juhaku/utoipa/pull/1427)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
