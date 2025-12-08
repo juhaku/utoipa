@@ -412,19 +412,19 @@ mod tests {
     #[test]
     fn contact_from_only_name() {
         let author = "Suzy Lin";
-        let contanct = Contact::try_from(author.to_string()).unwrap();
+        let contact = Contact::try_from(author.to_string()).unwrap();
 
-        assert!(contanct.name.is_some(), "Suzy should have name");
-        assert!(contanct.email.is_none(), "Suzy should not have email");
+        assert!(contact.name.is_some(), "Suzy should have name");
+        assert!(contact.email.is_none(), "Suzy should not have email");
     }
 
     #[test]
     fn contact_from_name_and_email() {
         let author = "Suzy Lin <suzy@lin.com>";
-        let contanct = Contact::try_from(author.to_string()).unwrap();
+        let contact = Contact::try_from(author.to_string()).unwrap();
 
-        assert!(contanct.name.is_some(), "Suzy should have name");
-        assert!(contanct.email.is_some(), "Suzy should have email");
+        assert!(contact.name.is_some(), "Suzy should have name");
+        assert!(contact.email.is_some(), "Suzy should have email");
     }
 
     #[test]

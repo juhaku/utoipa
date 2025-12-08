@@ -493,7 +493,7 @@ Migration guide: https://github.com/juhaku/utoipa/discussions/456
 * Add derive info support for derive OpenApi (https://github.com/juhaku/utoipa/pull/400)
 * Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397)
 * Add derive servers attribute for OpenApi (https://github.com/juhaku/utoipa/pull/395)
-* Add support for unit sructs (https://github.com/juhaku/utoipa/pull/392)
+* Add support for unit structs (https://github.com/juhaku/utoipa/pull/392)
 * Add support for `schema_with` custom fn reference (https://github.com/juhaku/utoipa/pull/390)
 * Add support for multiple serde definitions (https://github.com/juhaku/utoipa/pull/389)
 * Add support for tuple Path parameters for axum (https://github.com/juhaku/utoipa/pull/388)
@@ -542,7 +542,7 @@ Migration guide: https://github.com/juhaku/utoipa/discussions/456
 * Use BTreeMap for responses of components to make it fixed order (https://github.com/juhaku/utoipa/pull/380)
 * Chore make `serde_json` mandatory dependency (https://github.com/juhaku/utoipa/pull/378)
 * Feature http status codes (https://github.com/juhaku/utoipa/pull/376)
-* Refactor some path derive with `IntoParmas` tests
+* Refactor some path derive with `IntoParams` tests
 * Update utoipa-swagger-ui install example
 * Chore refine description attribute (https://github.com/juhaku/utoipa/pull/373)
 * Update swagger-ui dependencies versions
