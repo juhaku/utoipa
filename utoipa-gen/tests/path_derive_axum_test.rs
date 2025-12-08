@@ -211,13 +211,13 @@ fn derive_path_params_with_unnamed_struct_destructed() {
 fn derive_path_query_params_with_named_struct_destructed() {
     #[derive(IntoParams)]
     #[allow(unused)]
-    struct QueryParmas<'q> {
+    struct QueryParams<'q> {
         name: &'q str,
     }
 
-    #[utoipa::path(get, path = "/item", params(QueryParmas))]
+    #[utoipa::path(get, path = "/item", params(QueryParams))]
     #[allow(unused)]
-    async fn get_item(Query(QueryParmas { name }): Query<QueryParmas<'static>>) {}
+    async fn get_item(Query(QueryParams { name }): Query<QueryParams<'static>>) {}
 
     #[derive(OpenApi)]
     #[openapi(paths(get_item))]
