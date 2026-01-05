@@ -818,24 +818,19 @@ impl ParameterBuilder {
 }
 
 /// In definition of [`Parameter`].
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum ParameterIn {
     /// Declares that parameter is used as query parameter.
     Query,
     /// Declares that parameter is used as path parameter.
+    #[default]
     Path,
     /// Declares that parameter is used as header value.
     Header,
     /// Declares that parameter is used as cookie value.
     Cookie,
-}
-
-impl Default for ParameterIn {
-    fn default() -> Self {
-        Self::Path
-    }
 }
 
 /// Defines how [`Parameter`] should be serialized.

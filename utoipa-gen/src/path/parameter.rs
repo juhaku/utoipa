@@ -442,9 +442,10 @@ impl PartialEq for IntoParamsIdentParameter<'_> {
 impl Eq for IntoParamsIdentParameter<'_> {}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub enum ParameterIn {
     Query,
+    #[default]
     Path,
     Header,
     Cookie,
@@ -462,12 +463,6 @@ impl Display for ParameterIn {
             ParameterIn::Header => write!(f, "Header"),
             ParameterIn::Cookie => write!(f, "Cookie"),
         }
-    }
-}
-
-impl Default for ParameterIn {
-    fn default() -> Self {
-        Self::Path
     }
 }
 
