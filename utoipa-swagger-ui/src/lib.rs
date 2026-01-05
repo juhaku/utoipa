@@ -74,8 +74,8 @@
 //!   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip>
 //!   * [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 //!
-//! * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files
-//!    to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
+//!   * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files
+//!     to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
 //!
 //! # Examples
 //!
