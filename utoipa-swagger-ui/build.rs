@@ -147,7 +147,7 @@ impl SwaggerZip {
 }
 
 fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
-    let zip_filename = url.split('/').last().unwrap().to_string();
+    let zip_filename = url.split('/').next_back().unwrap().to_string();
     #[allow(unused_mut)]
     let mut zip_path = [target_dir, &zip_filename].iter().collect::<PathBuf>();
 
@@ -345,10 +345,9 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
             if status.success() {
                 Ok(())
             } else {
-                Err(std::io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("curl download file exited with error status: {status}"),
-                ))
+                Err(std::io::Error::other(format!(
+                    "curl download file exited with error status: {status}"
+                )))
             }
         })
         .map_err(|error| {
