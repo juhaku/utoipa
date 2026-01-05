@@ -288,7 +288,7 @@ pub trait ArgumentResolver {
         _: &'_ Punctuated<syn::FnArg, Comma>,
         _: Option<Vec<MacroArg>>,
         _: String,
-    ) -> Result<Arguments, Diagnostics> {
+    ) -> Result<Arguments<'_>, Diagnostics> {
         Ok((None, None, None))
     }
 }
@@ -400,7 +400,7 @@ pub mod fn_arg {
 
     pub fn get_fn_args(
         fn_args: &Punctuated<syn::FnArg, Comma>,
-    ) -> Result<impl Iterator<Item = FnArg>, Diagnostics> {
+    ) -> Result<impl Iterator<Item = FnArg<'_>>, Diagnostics> {
         fn_args
             .iter()
             .filter_map(|arg| {

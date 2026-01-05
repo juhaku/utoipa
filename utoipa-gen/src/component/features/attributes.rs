@@ -497,7 +497,7 @@ impl_feature! {
 
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
-    pub fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
+    pub fn as_type_tree(&self) -> Result<TypeTree<'_>, Diagnostics> {
         TypeTree::from_type(&self.0)
     }
 }
