@@ -188,7 +188,7 @@ impl ToTokensDiagnostics for Schema<'_> {
 enum SchemaVariant<'a> {
     Named(NamedStructSchema),
     Unnamed(UnnamedStructSchema),
-    Enum(EnumSchema<'a>),
+    Enum(Box<EnumSchema<'a>>),
     Unit(UnitStructVariant),
 }
 
@@ -226,7 +226,10 @@ impl<'a> SchemaVariant<'a> {
                 }
                 Fields::Unit => Ok(Self::Unit(UnitStructVariant::new(root)?)),
             },
-            Data::Enum(content) => Ok(Self::Enum(EnumSchema::new(root, &content.variants)?)),
+            Data::Enum(content) => Ok(Self::Enum(Box::new(EnumSchema::new(
+                root,
+                &content.variants,
+            )?))),
             _ => Err(Diagnostics::with_span(
                 root.ident.span(),
                 "unexpected data type, expected syn::Data::Struct or syn::Data::Enum",

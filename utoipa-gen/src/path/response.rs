@@ -33,7 +33,7 @@ pub enum Response<'r> {
     /// A type that implements `utoipa::IntoResponses`.
     IntoResponses(Cow<'r, TypePath>),
     /// The tuple definition of a response.
-    Tuple(ResponseTuple<'r>),
+    Tuple(Box<ResponseTuple<'r>>),
 }
 
 impl Parse for Response<'_> {
@@ -762,7 +762,7 @@ impl ToTokensDiagnostics for Responses<'_> {
                     }
                     Response::Tuple(response) => {
                         let code = &response.status_code;
-                        let response = crate::as_tokens_or_diagnostics!(response);
+                        let response = crate::as_tokens_or_diagnostics!(&**response);
                         Ok(quote! { .response(#code, #response) })
                     }
                 })
