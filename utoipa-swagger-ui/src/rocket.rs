@@ -24,7 +24,7 @@ impl From<SwaggerUi> for Vec<Route> {
         let urls = swagger_ui
             .urls
             .into_iter()
-            .map(|(url, openapi)| (url, ApiDoc::Utoipa(openapi)))
+            .map(|(url, openapi)| (url, ApiDoc::Utoipa(Box::new(openapi))))
             .chain(
                 swagger_ui
                     .external_urls

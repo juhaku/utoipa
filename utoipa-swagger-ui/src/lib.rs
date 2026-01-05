@@ -1512,7 +1512,7 @@ fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error>
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 #[derive(Clone)]
 enum ApiDoc {
-    Utoipa(utoipa::openapi::OpenApi),
+    Utoipa(Box<utoipa::openapi::OpenApi>),
     Value(serde_json::Value),
 }
 

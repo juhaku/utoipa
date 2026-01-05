@@ -19,7 +19,11 @@ impl HttpServiceFactory for SwaggerUi {
             .urls
             .into_iter()
             .map(|(url, openapi)| {
-                register_api_doc_url_resource(url.url.as_ref(), ApiDoc::Utoipa(openapi), config);
+                register_api_doc_url_resource(
+                    url.url.as_ref(),
+                    ApiDoc::Utoipa(Box::new(openapi)),
+                    config,
+                );
                 url
             })
             .collect::<Vec<_>>();

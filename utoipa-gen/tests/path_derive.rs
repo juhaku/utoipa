@@ -313,16 +313,6 @@ fn derive_path_with_extensions() {
 
 #[test]
 fn derive_path_with_datetime_format_query_parameter() {
-    #[derive(serde::Deserialize, utoipa::ToSchema)]
-    struct Since {
-        /// Some date
-        #[allow(dead_code)]
-        date: String,
-        /// Some time
-        #[allow(dead_code)]
-        time: String,
-    }
-
     /// This is test operation
     ///
     /// This is long description for test operation
@@ -354,16 +344,6 @@ fn derive_path_with_datetime_format_query_parameter() {
 
 #[test]
 fn derive_path_with_datetime_format_path_parameter() {
-    #[derive(serde::Deserialize, utoipa::ToSchema)]
-    struct Since {
-        /// Some date
-        #[allow(dead_code)]
-        date: String,
-        /// Some time
-        #[allow(dead_code)]
-        time: String,
-    }
-
     /// This is test operation
     ///
     /// This is long description for test operation
