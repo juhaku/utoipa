@@ -190,7 +190,7 @@ impl ToTokensDiagnostics for IntoResponses {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let responses = if responses.len() > 0 {
+        let responses = if !responses.is_empty() {
             Some(quote!( .responses_from_iter(#responses)))
         } else {
             None
