@@ -47,6 +47,7 @@ pub struct PathAttr<'p> {
     operation_id: Option<Expr>,
     tag: Option<parse_utils::LitStrOrExpr>,
     tags: Vec<parse_utils::LitStrOrExpr>,
+    auto_params: Option<bool>,
     params: Vec<Parameter<'p>>,
     security: Option<Array<'p, SecurityRequirementsAttr>>,
     context_path: Option<parse_utils::LitStrOrExpr>,
@@ -98,11 +99,21 @@ impl<'p> PathAttr<'p> {
             }
         }
 
-        self.params.extend(
-            new_params
-                .into_iter()
-                .filter(|param| !matches!(param, Parameter::IntoParamsIdent(_))),
-        );
+        let mut default_auto_params = false;
+        #[cfg(feature = "config")]
+        {
+            default_auto_params = crate::CONFIG.auto_into_params;
+        }
+
+        if self.auto_params.unwrap_or(default_auto_params) {
+            self.params.extend(new_params);
+        } else {
+            self.params.extend(
+                new_params
+                    .into_iter()
+                    .filter(|param| !matches!(param, Parameter::IntoParamsIdent(_))),
+            );
+        }
     }
 }
 
@@ -143,6 +154,9 @@ impl Parse for PathAttr<'_> {
                     path_attr.responses =
                         Punctuated::<Response, Token![,]>::parse_terminated(&responses)
                             .map(|punctuated| punctuated.into_iter().collect::<Vec<Response>>())?;
+                }
+                "auto_params" => {
+                    path_attr.auto_params = Some(parse_utils::parse_bool_or_true(input)?);
                 }
                 "params" => {
                     let params;
@@ -514,6 +528,18 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .flatten()
             .fold(TokenStream2::new(), to_schema_references);
 
+        let into_response_schemas = self
+            .path_attr
+            .responses
+            .iter()
+            .filter_map(|response| match response {
+                Response::IntoResponses(path) => Some(quote_spanned! {path.span()=>
+                    <#path as utoipa::IntoResponses>::schemas(schemas);
+                }),
+                _ => None,
+            })
+            .collect::<TokenStream2>();
+
         let schemas = self
             .path_attr
             .request_body
@@ -611,6 +637,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                     #schemas
                     #response_schemas
+                    #into_response_schemas
                 }
             }
 

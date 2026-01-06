@@ -36,6 +36,11 @@ fn path_operation_auto_types_responses() {
     let value = serde_json::to_value(&doc).unwrap();
     let path = value.pointer("/paths/~1item/get").unwrap();
 
+    let schema = value
+        .pointer("/components/schemas/Item")
+        .expect("Item schema should be collected from IntoResponses");
+    assert!(schema.is_object());
+
     assert_json_snapshot!(&path.pointer("/responses").unwrap())
 }
 
