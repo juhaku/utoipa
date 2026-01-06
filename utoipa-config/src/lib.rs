@@ -193,6 +193,16 @@ impl<'c> Config<'c> {
         self
     }
 
+    /// Define default behavior for automatically including `IntoParams` implementations.
+    ///
+    /// When enabled, `utoipa::path` will include parameters from extractors that implement
+    /// `IntoParams` unless the path explicitly disables it with `auto_params = false`.
+    pub fn auto_into_params(mut self, enabled: bool) -> Self {
+        self.auto_into_params = enabled;
+
+        self
+    }
+
     fn get_out_dir() -> Option<String> {
         match std::env::var("OUT_DIR") {
             Ok(out_dir) => Some(out_dir),
