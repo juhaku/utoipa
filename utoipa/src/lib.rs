@@ -1157,6 +1157,11 @@ impl<T: IntoResponses, E: IntoResponses> IntoResponses for Result<T, E> {
 
         responses
     }
+
+    fn schemas(schemas: &mut Vec<(String, openapi::RefOr<openapi::schema::Schema>)>) {
+        T::schemas(schemas);
+        E::schemas(schemas);
+    }
 }
 
 #[cfg(feature = "auto_into_responses")]
