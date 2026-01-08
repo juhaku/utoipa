@@ -9,7 +9,7 @@ use crate::{
         features::{
             attributes::{
                 Deprecated, Description, Discriminator, Example, Examples, NoRecursion, Rename,
-                RenameAll, Title,
+                RenameAll, Title, TitleVariants,
             },
             parse_features, pop_feature, Feature, IntoInner, IsInline, ToTokensExt,
         },
@@ -255,6 +255,15 @@ impl<'p> MixedEnum<'p> {
         let rename_all = pop_feature!(features => Feature::RenameAll(_) as Option<RenameAll>);
         let description = pop_feature!(features => Feature::Description(_) as Option<Description>);
         let discriminator = pop_feature!(features => Feature::Discriminator(_));
+        let title_variants =
+            pop_feature!(features => Feature::TitleVariants(_) as Option<TitleVariants>);
+        let variants_title_prefix = features
+            .iter()
+            .find_map(|feature| match feature {
+                Feature::Title(Title(title)) => Some(title.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| root.ident.to_string());
 
         let variants = variants
             .iter()
@@ -268,7 +277,7 @@ impl<'p> MixedEnum<'p> {
                 if variant_rules.skip {
                     None
                 } else {
-                    let variant_features = match &variant.fields {
+                    let mut variant_features = match &variant.fields {
                         Fields::Named(_) => {
                             match variant
                                 .attrs
@@ -305,6 +314,16 @@ impl<'p> MixedEnum<'p> {
                             }
                         }
                     };
+
+                    if title_variants.is_some()
+                        && !variant_features
+                            .iter()
+                            .any(|f| matches!(f, Feature::Title(_)))
+                    {
+                        let variant_name = variant.ident.to_string();
+                        let title = format!("{variants_title_prefix}{variant_name}");
+                        variant_features.push(Feature::Title(Title(title)));
+                    }
 
                     Some(Ok((variant, variant_rules, variant_features)))
                 }
