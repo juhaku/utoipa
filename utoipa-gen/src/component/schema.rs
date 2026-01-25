@@ -840,6 +840,23 @@ impl<'e> EnumSchema<'e> {
         parent: &'e Root<'e>,
         variants: &'e Punctuated<Variant, Comma>,
     ) -> Result<Self, Diagnostics> {
+        // Filter the variants now, so we know the mixture of the final set we need to generate
+        let variants: Punctuated<Variant, Comma> = variants
+            .clone()
+            .into_iter()
+            .filter(|variant| {
+                let skip = variant
+                    .attrs
+                    .parse_features::<features::EnumFieldVariantFilterFeatures>()
+                    .ok()
+                    .and_then(|f| f.into_inner())
+                    .map(|features| features.iter().any(|f| matches!(f, Feature::Skip(_))))
+                    .unwrap_or(false);
+
+                !skip
+            })
+            .collect();
+
         if variants
             .iter()
             .all(|variant| matches!(variant.fields, Fields::Unit))
@@ -887,7 +904,7 @@ impl<'e> EnumSchema<'e> {
             }
 
             Ok(Self {
-                schema_type: EnumSchemaType::Plain(PlainEnum::new(parent, variants, features)?),
+                schema_type: EnumSchemaType::Plain(PlainEnum::new(parent, &variants, features)?),
                 schema_as,
                 schema_references: Vec::new(),
                 bound,
@@ -904,7 +921,7 @@ impl<'e> EnumSchema<'e> {
             if parent.attributes.has_deprecated() {
                 enum_features.push(Feature::Deprecated(true.into()))
             }
-            let mut mixed_enum = MixedEnum::new(parent, variants, enum_features)?;
+            let mut mixed_enum = MixedEnum::new(parent, &variants, enum_features)?;
             let schema_references = std::mem::take(&mut mixed_enum.schema_references);
             Ok(Self {
                 schema_type: EnumSchemaType::Mixed(mixed_enum),

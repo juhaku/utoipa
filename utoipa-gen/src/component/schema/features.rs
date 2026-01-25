@@ -3,6 +3,7 @@ use syn::{
     Attribute,
 };
 
+use crate::component::features::attributes::Skip;
 use crate::{
     component::features::{
         attributes::{
@@ -195,6 +196,18 @@ impl Parse for EnumUnnamedFieldVariantFeatures {
 
 impl_into_inner!(EnumUnnamedFieldVariantFeatures);
 
+pub struct EnumFieldVariantFilterFeatures(Vec<Feature>);
+
+impl Parse for EnumFieldVariantFilterFeatures {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(EnumFieldVariantFilterFeatures(parse_features!(
+            input as Skip
+        )))
+    }
+}
+
+impl_into_inner!(EnumFieldVariantFilterFeatures);
+
 pub trait FromAttributes {
     fn parse_features<T>(&self) -> Result<Option<T>, Diagnostics>
     where
@@ -226,7 +239,8 @@ impl_merge!(
     MixedEnumFeatures,
     NamedFieldFeatures,
     EnumNamedFieldVariantFeatures,
-    EnumUnnamedFieldVariantFeatures
+    EnumUnnamedFieldVariantFeatures,
+    EnumFieldVariantFilterFeatures
 );
 
 pub fn parse_schema_features<T: Sized + Parse + Merge<T>>(
