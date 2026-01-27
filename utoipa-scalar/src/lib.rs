@@ -252,8 +252,8 @@ impl<S: Spec> Scalar<S> {
                     "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
                 ),
             )
-            .replace("api-refrence-src", SRC)
-            .replace("api-refrence-content", CONTENT)
+            .replace("$api-refrence-src", SRC)
+            .replace("$api-refrence-content", CONTENT)
     }
 
     /// Override the [default HTML template][scalar_html_quickstart] with new one. Refer to
