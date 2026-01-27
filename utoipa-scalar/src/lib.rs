@@ -65,10 +65,11 @@
 //! * [Configuration options][configuration]
 //! * [Themes][themes]
 //!
-//! The HTML template must contain **`$spec`** variable which will be overridden during
-//! [`Scalar::to_html`] execution.
+//! The HTML template supports the following variables which will be replaced during
+//! [`Scalar::to_html`] execution:
 //!
 //! * **`$spec`** Will be the [`Spec`] that will be rendered via [Scalar][scalar].
+//! * **`$title`** Will be the page title configured via [`Scalar::title`].
 //!
 //! _**Overriding the HTML template with a custom one.**_
 //! ```rust
@@ -187,6 +188,7 @@ impl<S: Spec> Servable<S> for Scalar<S> {
             html: Cow::Borrowed(DEFAULT_HTML),
             url: url.into(),
             openapi,
+            title: Cow::Borrowed("Scalar"),
         }
     }
 }
@@ -205,6 +207,7 @@ pub struct Scalar<S: Spec> {
     url: Cow<'static, str>,
     html: Cow<'static, str>,
     openapi: S,
+    title: Cow<'static, str>,
 }
 
 impl<S: Spec> Scalar<S> {
@@ -223,6 +226,7 @@ impl<S: Spec> Scalar<S> {
             html: Cow::Borrowed(DEFAULT_HTML),
             url: Cow::Borrowed("/"),
             openapi,
+            title: Cow::Borrowed("Scalar"),
         }
     }
 
@@ -235,12 +239,14 @@ impl<S: Spec> Scalar<S> {
     /// At this point in time, it is not possible to customize the HTML template used by the
     /// [`Scalar`] instance.
     pub fn to_html(&self) -> String {
-        self.html.replace(
-            "$spec",
-            &serde_json::to_string(&self.openapi).expect(
-                "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
-            ),
-        )
+        self.html
+            .replace("$title", &self.title)
+            .replace(
+                "$spec",
+                &serde_json::to_string(&self.openapi).expect(
+                    "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
+                ),
+            )
     }
 
     /// Override the [default HTML template][scalar_html_quickstart] with new one. Refer to
@@ -250,6 +256,22 @@ impl<S: Spec> Scalar<S> {
     /// [scalar_html_quickstart]: <https://github.com/scalar/scalar?tab=readme-ov-file#quickstart>
     pub fn custom_html<H: Into<Cow<'static, str>>>(mut self, html: H) -> Self {
         self.html = html.into();
+
+        self
+    }
+
+    /// Set a custom title for the HTML page.
+    ///
+    /// # Examples
+    ///
+    /// _**Set custom title for [`Scalar`].**_
+    /// ```
+    /// # use utoipa_scalar::Scalar;
+    /// # use serde_json::json;
+    /// Scalar::new(json!({"openapi": "3.1.0"})).title("My API");
+    /// ```
+    pub fn title<T: Into<Cow<'static, str>>>(mut self, title: T) -> Self {
+        self.title = title.into();
 
         self
     }
