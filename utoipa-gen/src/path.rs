@@ -245,7 +245,7 @@ impl HttpMethod {
             .map_err(|error| {
                 let mut diagnostics = Diagnostics::with_span(ident.span(), error.to_string());
                 if name == "connect" {
-                    diagnostics = diagnostics.note("HTTP method `CONNET` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
+                    diagnostics = diagnostics.note("HTTP method `CONNECT` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
                 }
 
                 diagnostics
