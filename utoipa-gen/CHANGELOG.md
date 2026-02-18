@@ -4,7 +4,7 @@
 
 ### Added
 
-* Add support for expression for `title` and `names` (<https://github.com/juhaku/utoipa/pull/ZZZZ>)
+* Add support for expression for `title` and `names` (<https://github.com/juhaku/utoipa/pull/1524>)
 
 ## 5.4.0 - Jun 16 2025
 
