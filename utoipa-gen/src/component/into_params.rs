@@ -97,11 +97,14 @@ impl ToTokensDiagnostics for IntoParams {
             .help("Did you mean `into_params`?"));
         }
 
-        let names = into_params_features.as_mut().and_then(|features| {
-            let into_params_names = pop_feature!(features => Feature::IntoParamsNames(_));
-            IntoInner::<Option<IntoParamsNames>>::into_inner(into_params_names)
-                .map(|names| names.into_values())
-        });
+        let names = into_params_features
+            .as_mut()
+            .and_then(|features| {
+                let into_params_names = pop_feature!(features => Feature::IntoParamsNames(_));
+                IntoInner::<Option<IntoParamsNames>>::into_inner(into_params_names)
+                    .map(|names| names.into_values())
+            })
+            .map(|names| names.iter().map(|n| n.to_string()).collect::<Vec<_>>());
 
         let style = pop_feature!(into_params_features => Feature::Style(_));
         let parameter_in = pop_feature!(into_params_features => Feature::ParameterIn(_));
@@ -326,7 +329,7 @@ impl Param {
         let mut name = &*ident
             .as_ref()
             .map(|ident| ident.to_string())
-            .or_else(|| container_attributes.name.cloned())
+            .or_else(|| container_attributes.name.map(|v| v.to_string()))
             .ok_or_else(||
                 Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
                     .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
