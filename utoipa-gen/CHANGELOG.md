@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## 5.4.1 - XXX YY 2026
+
+### Added
+
+* Add support for expression for `title` and `names` (<https://github.com/juhaku/utoipa/pull/ZZZZ>)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
