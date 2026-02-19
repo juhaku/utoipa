@@ -112,9 +112,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
-/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
+/// * `title = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   struct.
+///   struct. `rename` and `rename_all` will not work in cases of passing Rust expression.
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
 ///   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
 ///   __serde__ will take precedence.
@@ -2278,7 +2279,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// deriving `IntoParams`:
 ///
 /// * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
-///    __Only__ supported on __unnamed structs__.
+///    __Only__ supported on __unnamed structs__. Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. `rename` and `rename_all` will not work in cases of passing Rust expression.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///    values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
