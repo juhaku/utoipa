@@ -25,7 +25,7 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    parse_utils::LitBoolOrExprPath,
+    parse_utils::{LitBoolOrExprPath, LitStrOrExpr},
     Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
@@ -187,7 +187,7 @@ fn parse_field_features(field: &Field) -> Result<Vec<Feature>, Diagnostics> {
 impl IntoParams {
     fn get_struct_fields(
         &self,
-        field_names: &Option<&Vec<String>>,
+        field_names: &Option<&Vec<LitStrOrExpr>>,
     ) -> Result<impl Iterator<Item = &Field>, Diagnostics> {
         let ident = &self.ident;
         match &self.data {
@@ -222,7 +222,7 @@ impl IntoParams {
     fn validate_unnamed_field_names(
         &self,
         unnamed_fields: &Punctuated<Field, Comma>,
-        field_names: &Option<&Vec<String>>,
+        field_names: &Option<&Vec<LitStrOrExpr>>,
     ) -> Option<Diagnostics> {
         let ident = &self.ident;
         match field_names {
@@ -259,7 +259,7 @@ pub struct FieldParamContainerAttributes<'a> {
     /// See [`IntoParamsAttr::style`].
     style: &'a Option<Feature>,
     /// See [`IntoParamsAttr::names`]. The name that applies to this field.
-    name: Option<&'a String>,
+    name: Option<&'a LitStrOrExpr>,
     /// See [`IntoParamsAttr::parameter_in`].
     parameter_in: &'a Option<Feature>,
     /// Custom rename all if serde attribute is not present.
@@ -323,18 +323,14 @@ impl Param {
         let mut tokens = TokenStream::new();
         let field_serde_params = &field_serde_params;
         let ident = &field.ident;
-        let mut name = &*ident
+        let mut name = ident
             .as_ref()
-            .map(|ident| ident.to_string())
+            .map(|ident| LitStrOrExpr::from(ident.to_string()))
             .or_else(|| container_attributes.name.cloned())
             .ok_or_else(||
                 Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
                     .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
             )?;
-
-        if name.starts_with("r#") {
-            name = &name[2..];
-        }
 
         let (schema_features, mut param_features) =
             Param::resolve_field_features(field_features, &container_attributes)
@@ -351,8 +347,20 @@ impl Param {
         let rename_all = serde_container.rename_all.as_ref().or(container_attributes
             .rename_all
             .map(|rename_all| rename_all.as_rename_rule()));
-        let name = super::rename::<FieldRename>(name, rename_to, rename_all)
-            .unwrap_or(Cow::Borrowed(name));
+
+        if let LitStrOrExpr::LitStr(s) = name {
+            let mut value = s.value();
+            if value.starts_with("r#") {
+                value = value[2..].to_string();
+            }
+
+            name = LitStrOrExpr::from(
+                super::rename::<FieldRename>(&value, rename_to, rename_all)
+                    .map(|v| v.into_owned())
+                    .unwrap_or(value),
+            );
+        }
+
         let type_tree = TypeTree::from_type(&field.ty)?;
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
