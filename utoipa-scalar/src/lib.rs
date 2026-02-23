@@ -239,14 +239,12 @@ impl<S: Spec> Scalar<S> {
     /// At this point in time, it is not possible to customize the HTML template used by the
     /// [`Scalar`] instance.
     pub fn to_html(&self) -> String {
-        self.html
-            .replace("$title", &self.title)
-            .replace(
-                "$spec",
-                &serde_json::to_string(&self.openapi).expect(
-                    "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
-                ),
-            )
+        self.html.replace("$title", &self.title).replace(
+            "$spec",
+            &serde_json::to_string(&self.openapi).expect(
+                "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
+            ),
+        )
     }
 
     /// Override the [default HTML template][scalar_html_quickstart] with new one. Refer to
