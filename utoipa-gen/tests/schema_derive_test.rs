@@ -1947,6 +1947,25 @@ fn derive_struct_with_rust_decimal_float_with_type_override() {
     }
 }
 
+#[cfg(feature = "bigdecimal")]
+#[test]
+fn derive_struct_with_rust_bigdecimal_with_type_override() {
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(value_type = String)]
+            rating: bigdecimal::BigDecimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""string""#, "Post rating type"
+        "properties.rating.format" = r#"null"#, "Post rating format"
+    }
+}
+
 #[cfg(feature = "uuid")]
 #[test]
 fn derive_struct_with_uuid_type() {

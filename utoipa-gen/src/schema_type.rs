@@ -714,6 +714,11 @@ impl PrimitiveType {
                 syn::parse_quote!(String)
             }
 
+            #[cfg(feature = "bigdecimal")]
+            "BigDecimal" => {
+                syn::parse_quote!(String)
+            }
+
             #[cfg(feature = "decimal")]
             "Decimal" => {
                 syn::parse_quote!(String)
