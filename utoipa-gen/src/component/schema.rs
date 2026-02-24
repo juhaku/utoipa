@@ -368,7 +368,15 @@ impl NamedStructSchema {
 
                 match field_options {
                     Ok(Some(field_options)) => {
-                        Some(Ok((field_options, field_rules, field_name, field)))
+                        let should_always_ignore = match &field_options.ignore {
+                            Some(LitBoolOrExprPath::LitBool(bool)) => bool.value(),
+                            _ => false,
+                        };
+                        if should_always_ignore {
+                            None
+                        } else {
+                            Some(Ok((field_options, field_rules, field_name, field)))
+                        }
                     }
                     Ok(_) => None,
                     Err(options_diagnostics) => Some(Err(options_diagnostics)),
