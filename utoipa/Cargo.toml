@@ -35,6 +35,7 @@ actix_extras = ["utoipa-gen?/actix_extras"]
 rocket_extras = ["utoipa-gen?/rocket_extras"]
 axum_extras = ["utoipa-gen?/axum_extras"]
 chrono = ["utoipa-gen?/chrono"]
+bytes = ["dep:bytes"]
 decimal = ["utoipa-gen?/decimal"]
 decimal_float = ["utoipa-gen?/decimal_float"]
 non_strict_integers = ["utoipa-gen?/non_strict_integers"]
@@ -63,6 +64,7 @@ serde_json = { version = "1.0" }
 serde_norway = {version = "0.9.42", optional = true}
 utoipa-gen = { version = "5.4.0", path = "../utoipa-gen", optional = true }
 indexmap = { version = "2", features = ["serde"] }
+bytes = {version = "1", optional = true}
 
 [dev-dependencies]
 insta = { version = "1.41", features = ["json", "redactions"] }
