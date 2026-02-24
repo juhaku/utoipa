@@ -392,6 +392,60 @@ fn derive_nest_openapi_with_tags() {
 }
 
 #[test]
+fn derive_merge_openapi_with_tags() {
+    mod one {
+        use utoipa::OpenApi;
+
+        #[derive(OpenApi)]
+        #[openapi(paths(api_one_handler))]
+        pub struct OneApi;
+
+        #[utoipa::path(get, path = "/api/v1/one")]
+        #[allow(dead_code)]
+        fn api_one_handler() {}
+    }
+
+    mod two {
+        use utoipa::OpenApi;
+
+        #[derive(OpenApi)]
+        #[openapi(paths(api_two_handler))]
+        pub struct TwoApi;
+
+        #[utoipa::path(get, path = "/api/v1/two")]
+        #[allow(dead_code)]
+        fn api_two_handler() {}
+    }
+
+    mod three {
+        use utoipa::OpenApi;
+
+        #[derive(OpenApi)]
+        #[openapi(paths(api_three_handler))]
+        pub struct ThreeApi;
+
+        #[utoipa::path(get, path = "/api/v1/three")]
+        #[allow(dead_code)]
+        fn api_three_handler() {}
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        merge(
+            (api = one::OneApi, tags = ["one"]),
+            (api = two::TwoApi, tags = ["two"]),
+            (api = three::ThreeApi)
+        )
+    )]
+    struct ApiDoc;
+
+    let api = serde_json::to_value(ApiDoc::openapi()).expect("should serialize to value");
+    let paths = api.pointer("/paths");
+
+    assert_json_snapshot!(paths);
+}
+
+#[test]
 fn openapi_schemas_resolve_generic_enum_schema() {
     #![allow(dead_code)]
     use utoipa::ToSchema;
