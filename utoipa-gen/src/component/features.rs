@@ -207,7 +207,7 @@ impl ToTokensDiagnostics for Feature {
             Feature::MinProperties(min_properties) => {
                 quote! { .max_properties(Some(#min_properties)) }
             }
-            Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
+            Feature::SchemaWith(schema_with) => quote! { #schema_with()},
             Feature::Description(description) => quote! { .description(Some(#description)) },
             Feature::Deprecated(deprecated) => quote! { .deprecated(Some(#deprecated)) },
             Feature::AdditionalProperties(additional_properties) => {
