@@ -1532,7 +1532,7 @@ impl ComponentSchema {
                 let rewritten_path = type_path.rewrite_path()?;
 
                 Ok(ChildRefIter::Once(std::iter::once(SchemaReference {
-                    name: quote! { String::from(< #rewritten_path as utoipa::ToSchema >::name().as_ref()) },
+                    name: quote! { String::from(&*< #rewritten_path as utoipa::ToSchema >::name()) },
                     tokens: quote! { <#rewritten_path as utoipa::PartialSchema>::schema() },
                     references: quote !{ <#rewritten_path as utoipa::ToSchema>::schemas(schemas) },
                     is_inline: false,
