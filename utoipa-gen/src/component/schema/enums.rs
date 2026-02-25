@@ -1,30 +1,31 @@
 use std::{borrow::Cow, ops::Deref};
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, Fields, TypePath, Variant};
+use quote::{ToTokens, quote};
+use syn::{Fields, TypePath, Variant, punctuated::Punctuated, spanned::Spanned, token::Comma};
 
 use crate::{
+    Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
     component::{
+        FeaturesExt, SchemaReference, TypeTree, ValueType,
         features::{
+            Feature, IntoInner, IsInline, ToTokensExt,
             attributes::{
                 Deprecated, Description, Discriminator, Example, Examples, NoRecursion, Rename,
                 RenameAll, Title,
             },
-            parse_features, pop_feature, Feature, IntoInner, IsInline, ToTokensExt,
+            parse_features, pop_feature,
         },
         schema::features::{
             EnumNamedFieldVariantFeatures, EnumUnnamedFieldVariantFeatures, FromAttributes,
         },
         serde::{SerdeContainer, SerdeEnumRepr, SerdeValue},
-        FeaturesExt, SchemaReference, TypeTree, ValueType,
     },
     doc_comment::CommentAttributes,
     schema_type::SchemaType,
-    Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
 };
 
-use super::{features, serde, NamedStructSchema, Root, UnnamedStructSchema};
+use super::{NamedStructSchema, Root, UnnamedStructSchema, features, serde};
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 enum PlainEnumRepr<'p> {
@@ -227,7 +228,9 @@ impl ToTokens for PlainEnum<'_> {
             }
             // This should not be possible as serde should not let that happen
             SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => {
-                unreachable!("Invalid serde enum repr, serde should have panicked and not reach here, plain enum")
+                unreachable!(
+                    "Invalid serde enum repr, serde should have panicked and not reach here, plain enum"
+                )
             }
         };
 
@@ -498,7 +501,13 @@ impl MixedEnumContent {
             generics: root.generics,
         };
 
-        let tokens_with_schema_references = match &serde_container.enum_repr {
+        let enum_repr = if variant_serde_rules.untagged {
+            &SerdeEnumRepr::Untagged
+        } else {
+            &serde_container.enum_repr
+        };
+
+        let tokens_with_schema_references = match enum_repr {
             SerdeEnumRepr::ExternallyTagged => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
@@ -595,7 +604,13 @@ impl MixedEnumContent {
             generics: root.generics,
         };
 
-        let tokens_with_schema_reference = match &serde_container.enum_repr {
+        let enum_repr = if variant_serde_rules.untagged {
+            &SerdeEnumRepr::Untagged
+        } else {
+            &serde_container.enum_repr
+        };
+
+        let tokens_with_schema_reference = match enum_repr {
             SerdeEnumRepr::ExternallyTagged => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
@@ -681,7 +696,13 @@ impl MixedEnumContent {
         );
         let name = renamed.unwrap_or(Cow::Owned(name));
 
-        match &serde_container.enum_repr {
+        let enum_repr = if variant_serde_rules.untagged {
+            &SerdeEnumRepr::Untagged
+        } else {
+            &serde_container.enum_repr
+        };
+
+        match enum_repr {
             SerdeEnumRepr::ExternallyTagged => EnumSchema::<PlainSchema>::new(name.as_ref())
                 .features(variant_features)
                 .to_token_stream(),
