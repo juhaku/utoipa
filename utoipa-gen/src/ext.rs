@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use desynt::StripRaw;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::spanned::Spanned;
@@ -182,7 +183,7 @@ fn get_actual_body_type<'t>(ty: &'t TypeTree<'t>) -> Option<&'t TypeTree<'t>> {
         .expect("RequestBody TypeTree must have syn::Path")
         .segments
         .iter()
-        .find_map(|segment| match &*segment.ident.to_string() {
+        .find_map(|segment| match &*segment.ident.strip_raw().to_string() {
             "Json" => Some(
                 ty.children
                     .as_deref()

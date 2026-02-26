@@ -1,3 +1,4 @@
+use desynt::StripRaw;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
@@ -68,7 +69,7 @@ impl SchemaType<'_> {
             Some(segment) => segment,
             None => return false,
         };
-        let name = &*last_segment.ident.to_string();
+        let name = &*last_segment.ident.strip_raw().to_string();
 
         #[cfg(not(any(
             feature = "chrono",
@@ -233,7 +234,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
                 "schema type should have at least one segment in the path",
             )
         })?;
-        let name = &*last_segment.ident.to_string();
+        let name = &*last_segment.ident.strip_raw().to_string();
 
         fn schema_type_tokens(
             tokens: &mut TokenStream,
@@ -375,7 +376,7 @@ impl KnownFormat {
                 "type should have at least one segment in the path",
             )
         })?;
-        let name = &*last_segment.ident.to_string();
+        let name = &*last_segment.ident.strip_raw().to_string();
 
         let variant = match name {
             #[cfg(feature = "non_strict_integers")]
@@ -690,7 +691,7 @@ impl PrimitiveType {
             )
         });
 
-        let name = &*last_segment.ident.to_string();
+        let name = &*last_segment.ident.strip_raw().to_string();
 
         let ty: syn::Type = match name {
             "String" | "str" | "char" => syn::parse_quote!(#path),
