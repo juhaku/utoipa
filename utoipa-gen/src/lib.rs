@@ -1560,7 +1560,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
 ///     _`Path<...>`_ or _`Query<...>`_ handler function arguments.
 ///
-/// _**Resole path argument types from tuple style handler arguments.**_
+/// _**Resolve path argument types from tuple style handler arguments.**_
 /// ```rust
 /// # use axum::extract::Path;
 /// /// Get todo by id and name.
