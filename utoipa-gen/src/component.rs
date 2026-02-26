@@ -160,7 +160,7 @@ impl<'p> SynPathExt for &'p Path {
                             let path = type_tree
                                 .path
                                 .as_ref()
-                                .expect("TypeTree must have a path")
+                                .expect(&format!("utoipa does not understand this type, for which type_tree must have a path: {ty:?}"))
                                 .as_ref();
 
                             if let Some(default_type) = PrimitiveType::new(path) {
