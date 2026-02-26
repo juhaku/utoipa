@@ -291,19 +291,9 @@ builder! {
 impl PathItem {
     /// Construct a new [`PathItem`] with provided [`Operation`] mapped to given [`HttpMethod`].
     pub fn new<O: Into<Operation>>(http_method: HttpMethod, operation: O) -> Self {
-        let mut path_item = Self::default();
-        match http_method {
-            HttpMethod::Get => path_item.get = Some(operation.into()),
-            HttpMethod::Put => path_item.put = Some(operation.into()),
-            HttpMethod::Post => path_item.post = Some(operation.into()),
-            HttpMethod::Delete => path_item.delete = Some(operation.into()),
-            HttpMethod::Options => path_item.options = Some(operation.into()),
-            HttpMethod::Head => path_item.head = Some(operation.into()),
-            HttpMethod::Patch => path_item.patch = Some(operation.into()),
-            HttpMethod::Trace => path_item.trace = Some(operation.into()),
-        };
+        let path_item = Self::default();
 
-        path_item
+        Self::parse_http_method(path_item, http_method, &operation.into())
     }
 
     /// Constructs a new [`PathItem`] with given [`Operation`] set for provided [`HttpMethod`]s.
@@ -314,18 +304,70 @@ impl PathItem {
         let mut path_item = Self::default();
         let operation = operation.into();
         for method in http_methods {
-            match method {
-                HttpMethod::Get => path_item.get = Some(operation.clone()),
-                HttpMethod::Put => path_item.put = Some(operation.clone()),
-                HttpMethod::Post => path_item.post = Some(operation.clone()),
-                HttpMethod::Delete => path_item.delete = Some(operation.clone()),
-                HttpMethod::Options => path_item.options = Some(operation.clone()),
-                HttpMethod::Head => path_item.head = Some(operation.clone()),
-                HttpMethod::Patch => path_item.patch = Some(operation.clone()),
-                HttpMethod::Trace => path_item.trace = Some(operation.clone()),
-            };
+            path_item = Self::parse_http_method(path_item, method, &operation);
         }
 
+        path_item
+    }
+
+    /// parse http method and operation, handler operation_id with path and method name
+    fn parse_http_method(
+        mut path_item: PathItem,
+        http_method: HttpMethod,
+        operation: &Operation,
+    ) -> PathItem {
+        match http_method {
+            HttpMethod::Get => {
+                path_item.get = Some(operation.clone());
+                if let Some(ref mut op) = path_item.get {
+                    op.operation_id = Some(format!("{}_get", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Put => {
+                path_item.put = Some(operation.clone());
+                if let Some(ref mut op) = path_item.put {
+                    op.operation_id = Some(format!("{}_put", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Post => {
+                path_item.post = Some(operation.clone());
+                if let Some(ref mut op) = path_item.post {
+                    op.operation_id = Some(format!("{}_post", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Delete => {
+                path_item.delete = Some(operation.clone());
+                if let Some(ref mut op) = path_item.delete {
+                    op.operation_id =
+                        Some(format!("{}_delete", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Options => {
+                path_item.options = Some(operation.clone());
+                if let Some(ref mut op) = path_item.options {
+                    op.operation_id =
+                        Some(format!("{}_options", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Head => {
+                path_item.head = Some(operation.clone());
+                if let Some(ref mut op) = path_item.head {
+                    op.operation_id = Some(format!("{}_head", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Patch => {
+                path_item.patch = Some(operation.clone());
+                if let Some(ref mut op) = path_item.patch {
+                    op.operation_id = Some(format!("{}_patch", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+            HttpMethod::Trace => {
+                path_item.trace = Some(operation.clone());
+                if let Some(ref mut op) = path_item.trace {
+                    op.operation_id = Some(format!("{}_trace", &op.operation_id.as_ref().unwrap()));
+                }
+            }
+        };
         path_item
     }
 
@@ -362,17 +404,12 @@ impl PathItem {
 impl PathItemBuilder {
     /// Append a new [`Operation`] by [`HttpMethod`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`HttpMethod`].
-    pub fn operation<O: Into<Operation>>(mut self, http_method: HttpMethod, operation: O) -> Self {
-        match http_method {
-            HttpMethod::Get => self.get = Some(operation.into()),
-            HttpMethod::Put => self.put = Some(operation.into()),
-            HttpMethod::Post => self.post = Some(operation.into()),
-            HttpMethod::Delete => self.delete = Some(operation.into()),
-            HttpMethod::Options => self.options = Some(operation.into()),
-            HttpMethod::Head => self.head = Some(operation.into()),
-            HttpMethod::Patch => self.patch = Some(operation.into()),
-            HttpMethod::Trace => self.trace = Some(operation.into()),
-        };
+    pub fn operation<O: Into<Operation> + Clone>(
+        mut self,
+        http_method: HttpMethod,
+        operation: O,
+    ) -> Self {
+        self = PathItem::parse_http_method(self.into(), http_method, &operation.into()).into();
 
         self
     }
