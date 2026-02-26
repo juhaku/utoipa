@@ -137,7 +137,7 @@ pub trait SynPathExt {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics>;
 }
 
-impl<'p> SynPathExt for &'p Path {
+impl SynPathExt for &Path {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics> {
         let last_segment = self
             .segments

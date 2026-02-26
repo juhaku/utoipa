@@ -75,7 +75,7 @@
 //!   * [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 //!
 //! * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files
-//!    to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
+//!   to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
 //!
 //! # Examples
 //!
@@ -704,7 +704,7 @@ impl<'a> Config<'a> {
             urls: urls
                 .into_iter()
                 .map(|mut url| {
-                    if url.name == "" {
+                    if url.name.is_empty() {
                         url.name = Cow::Owned(String::from(&url.url[..]));
 
                         url
@@ -727,12 +727,12 @@ impl<'a> Config<'a> {
 
         Self {
             urls_primary_name: primary_name,
-            url: if url.name == "" {
+            url: if url.name.is_empty() {
                 Some(url.url.to_string())
             } else {
                 None
             },
-            urls: if url.name != "" {
+            urls: if url.name.is_empty() {
                 vec![url]
             } else {
                 Vec::new()

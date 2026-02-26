@@ -347,10 +347,7 @@ impl TryFrom<String> for Contact<'_> {
                 ..Default::default()
             })
         } else {
-            Err(io::Error::new(
-                io::ErrorKind::Other,
-                format!("invalid contact: {value}"),
-            ))
+            Err(io::Error::other(format!("invalid contact: {value}")))
         }
     }
 }
