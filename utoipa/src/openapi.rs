@@ -294,14 +294,13 @@ impl OpenApi {
         O: Into<OpenApi>,
         F: Fn(&str, &str) -> String,
     >(
-        mut self,
+        self,
         path: P,
         other: O,
         composer: F,
     ) -> Self {
         let path: String = path.into();
         let mut other_api: OpenApi = other.into();
-
         let nested_paths = other_api
             .paths
             .paths
@@ -311,11 +310,7 @@ impl OpenApi {
                 (path, item)
             })
             .collect::<PathsMap<_, _>>();
-
-        self.paths.paths.extend(nested_paths);
-
-        // paths are already merged, thus we can ignore them
-        other_api.paths.paths = PathsMap::new();
+        other_api.paths.paths = nested_paths;
         self.merge_from(other_api)
     }
 }
@@ -898,6 +893,51 @@ mod tests {
             .build();
 
         let nest_merged = api.nest("/api/v1/user", user_api);
+        let value = serde_json::to_value(nest_merged).expect("should serialize as json");
+        let paths = value
+            .pointer("/paths")
+            .expect("paths should exits in openapi");
+
+        assert_json_snapshot!(paths);
+    }
+
+    /// Assert that nesting "merged" properly with existing routes
+    #[test]
+    fn test_nest_open_apis_same_path_diff_methods() {
+        let user_api_1 = OpenApiBuilder::new()
+            .paths(
+                PathsBuilder::new().path(
+                    "/api/v1/status",
+                    PathItem::new(
+                        HttpMethod::Get,
+                        OperationBuilder::new()
+                            .description(Some("Get status"))
+                            .build(),
+                    ),
+                ),
+            )
+            .build();
+
+        let user_api_2 = OpenApiBuilder::new()
+            .paths(
+                PathsBuilder::new()
+                    .path(
+                        "/status",
+                        PathItem::new(
+                            HttpMethod::Post,
+                            OperationBuilder::new()
+                                .description(Some("Post status"))
+                                .build(),
+                        ),
+                    )
+                    .path(
+                        "/foo",
+                        PathItem::new(HttpMethod::Post, OperationBuilder::new().build()),
+                    ),
+            )
+            .build();
+
+        let nest_merged = user_api_1.nest("/api/v1", user_api_2);
         let value = serde_json::to_value(nest_merged).expect("should serialize as json");
         let paths = value
             .pointer("/paths")
