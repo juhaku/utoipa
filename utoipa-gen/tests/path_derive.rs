@@ -881,6 +881,43 @@ fn arbitrary_expr_in_operation_id() {
 }
 
 #[test]
+fn unique_operation_id() {
+
+    mod foo {
+        #[utoipa::path(
+            get,
+            path = "foo",
+            responses(
+            (status = 200, description = "success response")
+            ),
+        )]
+        #[allow(unused)]
+        fn get() {}
+    }
+
+    mod bar {
+        #[utoipa::path(
+            get,
+            path = "bar",
+            responses(
+            (status = 200, description = "success response")
+            ),
+        )]
+        #[allow(unused)]
+        fn get() {}
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(foo::get, bar::get))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let operation_id_foo = doc.pointer("/paths/foo/get/operationId").unwrap();
+    let operation_id_bar = doc.pointer("/paths/bar/get/operationId").unwrap();
+    assert_ne!(operation_id_foo, operation_id_bar);
+}
+
+#[test]
 fn derive_path_with_validation_attributes() {
     #[derive(IntoParams)]
     #[allow(dead_code)]

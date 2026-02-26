@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::{io::Error, str::FromStr};
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned, ToTokens};
@@ -29,12 +31,48 @@ mod status;
 
 const PATH_STRUCT_PREFIX: &str = "__path_";
 
+thread_local! {
+    static OPERATION_ID_REGISTRY: RefCell<HashMap<String, usize>> =
+        RefCell::new(HashMap::new());
+}
+
 #[inline]
 pub fn format_path_ident(fn_name: Cow<'_, Ident>) -> Cow<'_, Ident> {
     Cow::Owned(quote::format_ident!(
         "{PATH_STRUCT_PREFIX}{}",
         fn_name.as_ref()
     ))
+}
+
+fn generate_unique_operation_id(fn_name: &str, existing_operation_id: Option<&Expr>) -> Option<Expr> {
+    if let Some(existing) = existing_operation_id {
+        return Some(existing.clone());
+    }
+
+    if fn_name.is_empty() {
+        return None;
+    }
+
+    let count = OPERATION_ID_REGISTRY.with(|registry| {
+        let mut registry = registry.borrow_mut();
+        let counter = registry.entry(fn_name.to_string()).or_insert(0);
+        *counter += 1;
+        *counter
+    });
+
+    let unique_id = if count == 1 {
+        fn_name.to_string()
+    } else {
+        format!("{}_{}", fn_name, count - 1)
+    };
+
+    Some(
+        ExprLit {
+            attrs: vec![],
+            lit: Lit::Str(LitStr::new(&unique_id, Span::call_site())),
+        }
+        .into(),
+    )
 }
 
 #[derive(Default)]
@@ -339,22 +377,12 @@ impl<'p> Path<'p> {
 impl<'p> ToTokensDiagnostics for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let fn_name = &*self.fn_ident.to_string();
-        let operation_id = self
-            .path_attr
-            .operation_id
-            .clone()
-            .or(Some(
-                ExprLit {
-                    attrs: vec![],
-                    lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
-                }
-                .into(),
-            ))
+        let operation_id = generate_unique_operation_id(fn_name, self.path_attr.operation_id.as_ref())
             .ok_or_else(|| {
                 Diagnostics::new("operation id is not defined for path")
                     .help(format!(
                         "Try to define it in #[utoipa::path(operation_id = {})]",
-                        &fn_name
+                        fn_name
                     ))
                     .help("Did you define the #[utoipa::path(...)] over function?")
             })?;
