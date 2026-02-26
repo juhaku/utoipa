@@ -371,6 +371,7 @@ pub trait OpenApi {
 ///     }
 /// }
 /// ```
+#[diagnostic::on_unimplemented(note = "Consider deriving `ToSchema` on `{Self}`")]
 pub trait ToSchema: PartialSchema {
     /// Return name of the schema.
     ///
@@ -479,12 +480,14 @@ impl<T: ToSchema> From<T> for openapi::RefOr<openapi::schema::Schema> {
 /// [`openapi::schema::Schema`] for the type.
 pub type TupleUnit = ();
 
+#[diagnostic::do_not_recommend]
 impl PartialSchema for TupleUnit {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         openapi::schema::empty().into()
     }
 }
 
+#[diagnostic::do_not_recommend]
 impl ToSchema for TupleUnit {
     fn name() -> Cow<'static, str> {
         Cow::Borrowed("TupleUnit")
@@ -494,6 +497,7 @@ impl ToSchema for TupleUnit {
 macro_rules! impl_to_schema {
     ( $( $ty:ident ),* ) => {
         $(
+        #[diagnostic::do_not_recommend]
         impl ToSchema for $ty {
             fn name() -> std::borrow::Cow<'static, str> {
                 std::borrow::Cow::Borrowed(stringify!( $ty ))
@@ -508,6 +512,7 @@ impl_to_schema!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
 
+#[diagnostic::do_not_recommend]
 impl ToSchema for &str {
     fn name() -> Cow<'static, str> {
         str::name()
@@ -516,6 +521,7 @@ impl ToSchema for &str {
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for Option<T>
 where
     Option<T>: PartialSchema,
@@ -532,6 +538,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for Vec<T>
 where
     Vec<T>: PartialSchema,
@@ -548,6 +555,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for std::collections::LinkedList<T>
 where
     std::collections::LinkedList<T>: PartialSchema,
@@ -564,6 +572,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for [T]
 where
     [T]: PartialSchema,
@@ -580,6 +589,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<'t, T: ToSchema> ToSchema for &'t [T]
 where
     &'t [T]: PartialSchema,
@@ -596,6 +606,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<'t, T: ToSchema> ToSchema for &'t mut [T]
 where
     &'t mut [T]: PartialSchema,
@@ -612,6 +623,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<K: ToSchema, T: ToSchema, S> ToSchema for std::collections::HashMap<K, T, S>
 where
     std::collections::HashMap<K, T, S>: PartialSchema,
@@ -629,6 +641,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<K: ToSchema, T: ToSchema> ToSchema for std::collections::BTreeMap<K, T>
 where
     std::collections::BTreeMap<K, T>: PartialSchema,
@@ -646,6 +659,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<K: ToSchema, S> ToSchema for std::collections::HashSet<K, S>
 where
     std::collections::HashSet<K, S>: PartialSchema,
@@ -662,6 +676,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<K: ToSchema> ToSchema for std::collections::BTreeSet<K>
 where
     std::collections::BTreeSet<K>: PartialSchema,
@@ -678,6 +693,7 @@ where
 
 #[cfg(all(feature = "macros", feature = "indexmap"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+#[diagnostic::do_not_recommend]
 impl<K: ToSchema, T: ToSchema> ToSchema for indexmap::IndexMap<K, T>
 where
     indexmap::IndexMap<K, T>: PartialSchema,
@@ -695,6 +711,7 @@ where
 
 #[cfg(all(feature = "macros", feature = "indexmap"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+#[diagnostic::do_not_recommend]
 impl<K: ToSchema> ToSchema for indexmap::IndexSet<K>
 where
     indexmap::IndexSet<K>: PartialSchema,
@@ -711,6 +728,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for std::boxed::Box<T>
 where
     std::boxed::Box<T>: PartialSchema,
@@ -727,6 +745,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<'a, T: ToSchema + Clone> ToSchema for std::borrow::Cow<'a, T>
 where
     std::borrow::Cow<'a, T>: PartialSchema,
@@ -743,6 +762,7 @@ where
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for std::cell::RefCell<T>
 where
     std::cell::RefCell<T>: PartialSchema,
@@ -759,6 +779,7 @@ where
 
 #[cfg(all(feature = "macros", feature = "rc_schema"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for std::rc::Rc<T>
 where
     std::rc::Rc<T>: PartialSchema,
@@ -775,6 +796,7 @@ where
 
 #[cfg(all(feature = "macros", feature = "rc_schema"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+#[diagnostic::do_not_recommend]
 impl<T: ToSchema> ToSchema for std::sync::Arc<T>
 where
     std::sync::Arc<T>: PartialSchema,
@@ -789,6 +811,7 @@ where
     }
 }
 
+#[diagnostic::do_not_recommend]
 impl PartialSchema for serde_json::Value {
     fn schema() -> openapi::RefOr<openapi::schema::Schema> {
         utoipa::openapi::schema::Object::builder()
@@ -797,6 +820,7 @@ impl PartialSchema for serde_json::Value {
     }
 }
 
+#[diagnostic::do_not_recommend]
 impl ToSchema for serde_json::Value {}
 
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
@@ -1339,6 +1363,7 @@ pub mod __dev {
     macro_rules! impl_compose_schema {
         ( $( $ty:ident ),* ) => {
             $(
+            #[diagnostic::do_not_recommend]
             impl ComposeSchema for $ty {
                 fn compose(_: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
                     schema!( $ty ).into()
@@ -1364,6 +1389,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl ComposeSchema for &str {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1372,11 +1398,14 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema + ?Sized> PartialSchema for T {
         fn schema() -> crate::openapi::RefOr<crate::openapi::schema::Schema> {
             T::compose(Vec::new())
         }
     }
+
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for Option<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1391,6 +1420,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for Vec<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1401,6 +1431,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for std::collections::LinkedList<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1411,6 +1442,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for [T] {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1421,6 +1453,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for &[T] {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1431,6 +1464,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for &mut [T] {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1441,6 +1475,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<K: ComposeSchema, T: ComposeSchema, S> ComposeSchema for std::collections::HashMap<K, T, S> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1452,6 +1487,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<K: ComposeSchema, T: ComposeSchema> ComposeSchema for std::collections::BTreeMap<K, T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1463,6 +1499,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<K: ComposeSchema, S> ComposeSchema for std::collections::HashSet<K, S> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1474,6 +1511,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<K: ComposeSchema> ComposeSchema for std::collections::BTreeSet<K> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1487,6 +1525,7 @@ pub mod __dev {
 
     #[cfg(feature = "indexmap")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+    #[diagnostic::do_not_recommend]
     impl<K: ComposeSchema, T: ComposeSchema> ComposeSchema for indexmap::IndexMap<K, T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1500,6 +1539,7 @@ pub mod __dev {
 
     #[cfg(feature = "indexmap")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "indexmap")))]
+    #[diagnostic::do_not_recommend]
     impl<K: ComposeSchema> ComposeSchema for indexmap::IndexSet<K> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1511,6 +1551,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<'a, T: ComposeSchema + Clone> ComposeSchema for std::borrow::Cow<'a, T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1519,6 +1560,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for std::boxed::Box<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1527,6 +1569,7 @@ pub mod __dev {
         }
     }
 
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for std::cell::RefCell<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1537,6 +1580,7 @@ pub mod __dev {
 
     #[cfg(feature = "rc_schema")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for std::rc::Rc<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1547,6 +1591,7 @@ pub mod __dev {
 
     #[cfg(feature = "rc_schema")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "macros", feature = "rc_schema")))]
+    #[diagnostic::do_not_recommend]
     impl<T: ComposeSchema> ComposeSchema for std::sync::Arc<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
