@@ -641,6 +641,7 @@ impl_feature_into_inner! {
     attributes::Bound,
     attributes::Ignore,
     attributes::NoRecursion,
+    attributes::Extensions,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,
