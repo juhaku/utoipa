@@ -142,7 +142,7 @@ impl<'p> SynPathExt for &'p Path {
         let last_segment = self
             .segments
             .last()
-            .expect("syn::Path must have at least one segment");
+            .ok_or_else(|| Diagnostics::new("syn::Path must have at least one segment"))?;
 
         let mut segment = last_segment.clone();
         if let PathArguments::AngleBracketed(anglebracketed_args) = &last_segment.arguments {
@@ -160,7 +160,7 @@ impl<'p> SynPathExt for &'p Path {
                             let path = type_tree
                                 .path
                                 .as_ref()
-                                .expect("TypeTree must have a path")
+                                .ok_or_else(|| Diagnostics::new("TypeTree must have a path"))?
                                 .as_ref();
 
                             if let Some(default_type) = PrimitiveType::new(path) {
@@ -199,7 +199,9 @@ impl<'p> SynPathExt for &'p Path {
         let path = type_tree
             .path
             .as_ref()
-            .expect("TypeTree for ident must have a path")
+            .ok_or_else(|| {
+                Diagnostics::with_span(self.span(), "TypeTree for ident must have a path")
+            })?
             .as_ref();
 
         if let Some(default_type) = PrimitiveType::new(path) {
@@ -210,7 +212,9 @@ impl<'p> SynPathExt for &'p Path {
         } else {
             let ident = path
                 .get_ident()
-                .expect("Path of Ident must have Ident")
+                .ok_or_else(|| {
+                    Diagnostics::with_span(self.span(), "Path of Ident must have Ident")
+                })?
                 .clone();
             segment.ident = ident;
         }
@@ -231,10 +235,10 @@ impl<'p> SynPathExt for &'p Path {
 impl TypeTree<'_> {
     pub fn from_type(ty: &Type) -> Result<TypeTree<'_>, Diagnostics> {
         Self::convert_types(Self::get_type_tree_values(ty)?).map(|mut type_tree| {
-            type_tree
-                .next()
-                .expect("TypeTree from type should have one TypeTree parent")
-        })
+            type_tree.next().ok_or_else(|| {
+                Diagnostics::new("TypeTree from type should have one TypeTree parent")
+            })
+        })?
     }
 
     fn get_type_tree_values(
@@ -332,10 +336,9 @@ impl TypeTree<'_> {
                 };
 
                 // there will always be one segment at least
-                let last_segment = path
-                    .segments
-                    .last()
-                    .expect("at least one segment within path in TypeTree::convert_types");
+                let last_segment = path.segments.last().ok_or_else(|| {
+                    Diagnostics::new("at least one segment within path in TypeTree::convert_types")
+                })?;
 
                 if last_segment.arguments.is_empty() {
                     Ok(Self::convert(path, last_segment))
@@ -513,7 +516,7 @@ impl TypeTree<'_> {
             .ok_or_else(|| syn::Error::new(self.path.span(), "cannot get TypeTree::path, did you call this on `tuple` or `unit` type type tree?"))?
             .segments
             .last()
-            .expect("Path must have segments");
+            .ok_or_else(|| syn::Error::new(self.path.span(),"Path must have segments"))?;
 
         fn type_to_generic_params(ty: &Type) -> Vec<GenericParam> {
             match &ty {
@@ -828,10 +831,18 @@ impl ComponentSchema {
                 let child = type_tree
                     .children
                     .as_ref()
-                    .expect("ComponentSchema generic container type should have children")
+                    .ok_or_else(|| {
+                        Diagnostics::new(
+                            "ComponentSchema generic container type should have children",
+                        )
+                    })?
                     .iter()
                     .next()
-                    .expect("ComponentSchema generic container type should have 1 child");
+                    .ok_or_else(|| {
+                        Diagnostics::new(
+                            "ComponentSchema generic container type should have 1 child",
+                        )
+                    })?;
                 let alias = child.get_alias_type()?;
                 let alias = alias.as_ref().map_try(TypeTree::from_type)?;
                 let child = alias.as_ref().unwrap_or(child);
@@ -850,10 +861,18 @@ impl ComponentSchema {
                 let child = type_tree
                     .children
                     .as_ref()
-                    .expect("ComponentSchema generic container type should have children")
+                    .ok_or_else(|| {
+                        Diagnostics::new(
+                            "ComponentSchema generic container type should have children",
+                        )
+                    })?
                     .iter()
                     .next()
-                    .expect("ComponentSchema generic container type should have 1 child");
+                    .ok_or_else(|| {
+                        Diagnostics::new(
+                            "ComponentSchema generic container type should have 1 child",
+                        )
+                    })?;
                 let alias = child.get_alias_type()?;
                 let alias = alias.as_ref().map_try(TypeTree::from_type)?;
                 let child = alias.as_ref().unwrap_or(child);
@@ -873,10 +892,18 @@ impl ComponentSchema {
                 let child = type_tree
                     .children
                     .as_ref()
-                    .expect("ComponentSchema rc generic container type should have children")
+                    .ok_or_else(|| {
+                        Diagnostics::new(
+                            "ComponentSchema rc generic container type should have children",
+                        )
+                    })?
                     .iter()
                     .next()
-                    .expect("ComponentSchema rc generic container type should have 1 child");
+                    .ok_or_else(|| {
+                        Diagnostics::new(
+                            "ComponentSchema rc generic container type should have 1 child",
+                        )
+                    })?;
                 let alias = child.get_alias_type()?;
                 let alias = alias.as_ref().map_try(TypeTree::from_type)?;
                 let child = alias.as_ref().unwrap_or(child);
@@ -953,14 +980,13 @@ impl ComponentSchema {
             .as_ref()
             .map_try(|feature| Ok(as_tokens_or_diagnostics!(feature)))?
             .or_else_try(|| {
-                let children = type_tree
-                    .children
-                    .as_ref()
-                    .expect("ComponentSchema Map type should have children");
+                let children = type_tree.children.as_ref().ok_or_else(|| {
+                    Diagnostics::new("ComponentSchema Map type should have children")
+                })?;
                 // Get propertyNames
-                let property_name = children
-                    .first()
-                    .expect("ComponentSchema Map type shouldu have 2 child, getting first");
+                let property_name = children.first().ok_or_else(|| {
+                    Diagnostics::new("ComponentSchema Map type shouldu have 2 child, getting first")
+                })?;
                 let property_name_alias = property_name.get_alias_type()?;
                 let property_name_alias =
                     property_name_alias.as_ref().map_try(TypeTree::from_type)?;
@@ -980,9 +1006,9 @@ impl ComponentSchema {
                 // additionalProperties denoting the type
                 // maps have 2 child schemas and we are interested the second one of them
                 // which is used to determine the additional properties
-                let child = children
-                    .get(1)
-                    .expect("ComponentSchema Map type should have 2 child");
+                let child = children.get(1).ok_or_else(|| {
+                    Diagnostics::new("ComponentSchema Map type should have 2 child")
+                })?;
                 let alias = child.get_alias_type()?;
                 let alias = alias.as_ref().map_try(TypeTree::from_type)?;
                 let child = alias.as_ref().unwrap_or(child);
@@ -1041,20 +1067,20 @@ impl ComponentSchema {
         let child = type_tree
             .children
             .as_ref()
-            .expect("ComponentSchema Vec should have children")
+            .ok_or_else(|| Diagnostics::new("ComponentSchema Vec should have children"))?
             .iter()
             .next()
-            .expect("ComponentSchema Vec should have 1 child");
+            .ok_or_else(|| Diagnostics::new("ComponentSchema Vec should have 1 child"))?;
 
         #[cfg(feature = "smallvec")]
         let child = if type_tree.generic_type == Some(GenericType::SmallVec) {
             child
                 .children
                 .as_ref()
-                .expect("SmallVec should have children")
+                .ok_or_else(|| Diagnostics::new("SmallVec should have children"))?
                 .iter()
                 .next()
-                .expect("SmallVec should have 1 child")
+                .ok_or_else(|| Diagnostics::new("SmallVec should have 1 child"))?
         } else {
             child
         };
@@ -1450,7 +1476,7 @@ impl ComponentSchema {
                 let name = type_tree
                     .path
                     .as_deref()
-                    .expect("Generic ValueType::Object must have path");
+                    .ok_or_else(|| Diagnostics::new("Generic ValueType::Object must have path"))?;
                 let rewritten_name = name.rewrite_path()?;
 
                 if let Some(children) = &type_tree.children {
@@ -1477,7 +1503,7 @@ impl ComponentSchema {
             let path = child
                 .path
                 .as_deref()
-                .expect("inline TypeTree ValueType::Object must have child path if generic");
+                .ok_or_else(|| Diagnostics::new("inline TypeTree ValueType::Object must have child path if generic"))?;
             let rewritten_path = path.rewrite_path()?;
             if let Some(children) = &child.children {
                 let items = Self::compose_generics(Self::filter_const_generics(children, generics), generics)?.collect::<Array<_>>();
@@ -1527,7 +1553,7 @@ impl ComponentSchema {
                 let type_path = type_tree
                     .path
                     .as_deref()
-                    .expect("Object TypePath must have type path, compose child references");
+                    .ok_or_else(|| Diagnostics::new("Object TypePath must have type path, compose child references"))?;
 
                 let rewritten_path = type_path.rewrite_path()?;
 
@@ -1613,9 +1639,9 @@ impl FlattenedMapSchema {
             type_tree: type_tree
                 .children
                 .as_ref()
-                .expect("ComponentSchema Map type should have children")
+                .ok_or_else(|| Diagnostics::new("ComponentSchema Map type should have children"))?
                 .get(1)
-                .expect("ComponentSchema Map type should have 2 child"),
+                .ok_or_else(|| Diagnostics::new("ComponentSchema Map type should have 2 child"))?,
             features,
             description: None,
         })?;
