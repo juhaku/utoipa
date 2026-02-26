@@ -13,6 +13,7 @@ use syn::{
 };
 
 use crate::component::schema::{EnumSchema, NamedStructSchema, Root};
+use crate::component::ComponentSchema;
 use crate::doc_comment::CommentAttributes;
 use crate::path::media_type::{DefaultSchema, MediaTypeAttr, ParsedType, Schema};
 use crate::{
@@ -116,6 +117,40 @@ pub struct IntoResponses {
 
 impl ToTokensDiagnostics for IntoResponses {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+        let enum_response_tuples = match &self.data {
+            Data::Enum(enum_value) => Some(
+                enum_value
+                    .variants
+                    .iter()
+                    .map(|variant| match &variant.fields {
+                        Fields::Named(fields) => Ok(NamedStructResponse::new(
+                            &variant.attrs,
+                            &variant.ident,
+                            &fields.named,
+                        )?
+                        .0),
+                        Fields::Unnamed(fields) => {
+                            let field = fields
+                                .unnamed
+                                .iter()
+                                .next()
+                                .expect("Unnamed enum variant must have 1 field");
+                            match UnnamedStructResponse::new(
+                                &variant.attrs,
+                                &field.ty,
+                                &field.attrs,
+                            ) {
+                                Ok(response) => Ok(response.0),
+                                Err(diagnostics) => Err(diagnostics),
+                            }
+                        }
+                        Fields::Unit => Ok(UnitStructResponse::new(&variant.attrs)?.0),
+                    })
+                    .collect::<Result<Vec<ResponseTuple>, Diagnostics>>()?,
+            ),
+            _ => None,
+        };
+
         let responses = match &self.data {
             Data::Struct(struct_value) => match &struct_value.fields {
                 Fields::Named(fields) => {
@@ -148,30 +183,9 @@ impl ToTokensDiagnostics for IntoResponses {
                     Array::from_iter(iter::once(quote!((#status, #response_tokens))))
                 }
             },
-            Data::Enum(enum_value) => enum_value
-                .variants
-                .iter()
-                .map(|variant| match &variant.fields {
-                    Fields::Named(fields) => Ok(NamedStructResponse::new(
-                        &variant.attrs,
-                        &variant.ident,
-                        &fields.named,
-                    )?
-                    .0),
-                    Fields::Unnamed(fields) => {
-                        let field = fields
-                            .unnamed
-                            .iter()
-                            .next()
-                            .expect("Unnamed enum variant must have 1 field");
-                        match UnnamedStructResponse::new(&variant.attrs, &field.ty, &field.attrs) {
-                            Ok(response) => Ok(response.0),
-                            Err(diagnostics) => Err(diagnostics),
-                        }
-                    }
-                    Fields::Unit => Ok(UnitStructResponse::new(&variant.attrs)?.0),
-                })
-                .collect::<Result<Vec<ResponseTuple>, Diagnostics>>()?
+            Data::Enum(_) => enum_response_tuples
+                .as_ref()
+                .expect("enum response tuples must be set for enum data")
                 .iter()
                 .map(|response| {
                     let status = &response.status_code;
@@ -186,6 +200,50 @@ impl ToTokensDiagnostics for IntoResponses {
                 ))
             }
         };
+
+        fn to_schema_references(
+            mut schemas: TokenStream,
+            (is_inline, component_schema): (bool, ComponentSchema),
+        ) -> TokenStream {
+            for reference in component_schema.schema_references {
+                let name = &reference.name;
+                let tokens = &reference.tokens;
+                let references = &reference.references;
+
+                #[cfg(feature = "config")]
+                let should_collect_schema = (matches!(
+                    crate::CONFIG.schema_collect,
+                    utoipa_config::SchemaCollect::NonInlined
+                ) && !is_inline)
+                    || matches!(
+                        crate::CONFIG.schema_collect,
+                        utoipa_config::SchemaCollect::All
+                    );
+                #[cfg(not(feature = "config"))]
+                let should_collect_schema = !is_inline;
+                if should_collect_schema {
+                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+                }
+                schemas.extend(quote!( #references; ));
+            }
+
+            schemas
+        }
+
+        let response_schemas = enum_response_tuples
+            .as_ref()
+            .map(|responses| {
+                let schemas = responses
+                    .iter()
+                    .map(|response| response.get_component_schemas())
+                    .collect::<Result<Vec<_>, Diagnostics>>()?
+                    .into_iter()
+                    .flatten()
+                    .fold(TokenStream::new(), to_schema_references);
+                Ok::<_, Diagnostics>(schemas)
+            })
+            .transpose()?
+            .unwrap_or_else(TokenStream::new);
 
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
@@ -202,6 +260,10 @@ impl ToTokensDiagnostics for IntoResponses {
                             #responses
                             .build()
                             .into()
+                    }
+
+                    fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                        #response_schemas
                     }
                 }
             });
