@@ -549,16 +549,19 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 if self.path_attr.impl_for.is_none() && !self.ext_methods.is_empty() {
                     let fn_ident = self.fn_ident;
                     tokens.extend(quote! {
+                        #[automatically_derived]
                         impl ::actix_web::dev::HttpServiceFactory for #path_struct {
                             fn register(self, __config: &mut actix_web::dev::AppService) {
                                 ::actix_web::dev::HttpServiceFactory::register(#fn_ident, __config);
                             }
                         }
+                        #[automatically_derived]
                         impl<'t> utoipa::__dev::Tags<'t> for #fn_ident {
                             fn tags() -> Vec<&'t str> {
                                 #path_struct::tags()
                             }
                         }
+                        #[automatically_derived]
                         impl utoipa::Path for #fn_ident {
                             fn path() -> String {
                                 #path_struct::path()
@@ -573,6 +576,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                             }
                         }
 
+                        #[automatically_derived]
                         impl utoipa::__dev::SchemaReferences for #fn_ident {
                             fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                                 <#path_struct as utoipa::__dev::SchemaReferences>::schemas(schemas);
@@ -586,11 +590,13 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
 
         tokens.extend(quote! {
+            #[automatically_derived]
             impl<'t> utoipa::__dev::Tags<'t> for #impl_for {
                 fn tags() -> Vec<&'t str> {
                     #tags_list.into()
                 }
             }
+            #[automatically_derived]
             impl utoipa::Path for #impl_for {
                 fn path() -> String {
                     #path_with_context_path
@@ -607,6 +613,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 }
             }
 
+            #[automatically_derived]
             impl utoipa::__dev::SchemaReferences for #impl_for {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                     #schemas
