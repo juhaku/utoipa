@@ -514,6 +514,16 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .flatten()
             .fold(TokenStream2::new(), to_schema_references);
 
+        let parameter_schemas = self
+            .path_attr
+            .params
+            .iter()
+            .map(|param| param.get_component_schemas())
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .flatten()
+            .fold(TokenStream2::new(), to_schema_references);
+
         let schemas = self
             .path_attr
             .request_body
@@ -609,6 +619,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
 
             impl utoipa::__dev::SchemaReferences for #impl_for {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    #parameter_schemas
                     #schemas
                     #response_schemas
                 }
