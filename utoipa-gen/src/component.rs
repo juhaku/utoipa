@@ -1192,6 +1192,7 @@ impl ComponentSchema {
             }
             ValueType::Object => {
                 let is_inline = features.is_inline();
+                let is_not_inline = features.is_set_inline().is_some_and(|v| !v);
 
                 if type_tree.is_object() {
                     let nullable_schema_type = ComponentSchema::get_schema_type_override(
@@ -1306,16 +1307,18 @@ impl ComponentSchema {
 
                         schema.to_tokens(tokens);
                     } else {
+                        // not inline or unset
                         let schema_type = SchemaType {
                             path: Cow::Borrowed(&rewritten_path),
                             nullable,
                         };
-                        let index =
-                            if !schema_type.is_primitive() || type_tree.generic_type.is_none() {
-                                container.generics.get_generic_type_param_index(type_tree)
-                            } else {
-                                None
-                            };
+                        let index = if !is_not_inline
+                            && (!schema_type.is_primitive() || type_tree.generic_type.is_none())
+                        {
+                            container.generics.get_generic_type_param_index(type_tree)
+                        } else {
+                            None
+                        };
 
                         // forcibly inline primitive type parameters, otherwise use references
                         if index.is_none() {
