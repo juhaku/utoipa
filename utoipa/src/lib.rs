@@ -828,7 +828,7 @@ mod utoipa {
 /// impl PartialSchema for MyType {
 ///     fn schema() -> RefOr<Schema> {
 ///         // ... impl schema generation here
-///         RefOr::T(Schema::Object(ObjectBuilder::new().build()))
+///         RefOr::T(Schema::Object(Box::new(ObjectBuilder::new().build())))
 ///     }
 /// }
 /// ```
@@ -845,13 +845,13 @@ mod utoipa {
 ///
 // // would be equal to manual implementation
 /// let number2 = RefOr::T(
-///     Schema::Object(
+///     Schema::Object(Box::new(
 ///         ObjectBuilder::new()
 ///             .schema_type(Type::Integer)
 ///             .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int64)))
 ///             .build()
 ///         )
-///     );
+///     ));
 /// # assert_eq!(serde_json::to_value(&number).unwrap(), serde_json::to_value(&number2).unwrap());
 /// ```
 ///

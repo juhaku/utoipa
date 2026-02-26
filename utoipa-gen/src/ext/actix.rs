@@ -22,7 +22,7 @@ impl ArgumentResolver for PathOperations {
         fn_args: &Punctuated<syn::FnArg, Comma>,
         macro_args: Option<Vec<MacroArg>>,
         _: String,
-    ) -> Result<Arguments, Diagnostics> {
+    ) -> Result<Arguments<'_>, Diagnostics> {
         let (into_params_args, value_args): (Vec<FnArg>, Vec<FnArg>) =
             fn_arg::get_fn_args(fn_args)?.partition(fn_arg::is_into_params);
 

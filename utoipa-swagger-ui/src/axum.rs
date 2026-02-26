@@ -28,7 +28,10 @@ where
                 Vec::<Url>::with_capacity(urls_capacity + external_urls_capacity),
             ),
             |router_and_urls, (url, openapi)| {
-                add_api_doc_to_urls(router_and_urls, (url, Arc::new(ApiDoc::Utoipa(openapi))))
+                add_api_doc_to_urls(
+                    router_and_urls,
+                    (url, Arc::new(ApiDoc::Utoipa(Box::new(openapi)))),
+                )
             },
         );
         let (router, urls) = swagger_ui.external_urls.into_iter().fold(

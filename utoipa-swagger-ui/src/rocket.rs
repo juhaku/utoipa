@@ -24,7 +24,7 @@ impl From<SwaggerUi> for Vec<Route> {
         let urls = swagger_ui
             .urls
             .into_iter()
-            .map(|(url, openapi)| (url, ApiDoc::Utoipa(openapi)))
+            .map(|(url, openapi)| (url, ApiDoc::Utoipa(Box::new(openapi))))
             .chain(
                 swagger_ui
                     .external_urls
@@ -82,10 +82,7 @@ impl Handler for ServeSwagger {
             let request_guard = request.guard::<BasicAuth>().await;
             match request_guard {
                 request::Outcome::Success(BasicAuth { username, password })
-                    if username == basic_auth.username && password == basic_auth.password =>
-                {
-                    ()
-                }
+                    if username == basic_auth.username && password == basic_auth.password => {}
                 _ => return Outcome::from(request, BasicAuthErrorResponse),
             }
         }

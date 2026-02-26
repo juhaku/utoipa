@@ -152,7 +152,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+///   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -200,7 +200,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
 ///* `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`).
+///  or a path to a function that returns `bool` (`Fn() -> bool`).
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
 ///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
@@ -487,7 +487,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
 /// * `untagged` Supported at the container level. Allows [untagged
-///    enum representation](https://serde.rs/enum-representations.html#untagged).
+///   enum representation](https://serde.rs/enum-representations.html#untagged).
 /// * `default` Supported at the container level and field level according to [serde attributes].
 /// * `deny_unknown_fields` Supported at the container level.
 /// * `flatten` Supported at the field level.
@@ -1160,7 +1160,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 ///
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
-///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
+//  define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 ///
 /// * `content((...), (...))` Can be used to define multiple return types for single response status. Supports same syntax as
 ///   [multiple request body content][`macro@path#multiple-request-body-content`].
@@ -1339,7 +1339,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   E.g. _`Path, Query, Header, Cookie`_
 ///
 /// * `deprecated` Define whether the parameter is deprecated or not. Can optionally be defined
-///    with explicit `bool` value as _`deprecated = bool`_.
+//  with explicit `bool` value as _`deprecated = bool`_.
 ///
 /// * `description = "..."` Define possible description for the parameter as str.
 ///
@@ -1369,7 +1369,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 ///
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties for the parameter type.
-///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+//  See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 ///
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 ///
@@ -1558,7 +1558,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///     _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+//   _`Path<...>`_ or _`Query<...>`_ handler function arguments.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
@@ -1984,7 +1984,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// * `paths(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
 /// * `components(schemas(...), responses(...))` Takes available _`component`_ configurations. Currently only
-///    _`schema`_ and _`response`_ components are supported.
+//  _`schema`_ and _`response`_ components are supported.
 ///    * `schemas(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
 ///    * `responses(...)` List of types that implement [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
@@ -2072,8 +2072,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// * `path = ...` Define mandatory path for nesting the [`OpenApi`][openapi_struct].
 /// * `api = ...` Define mandatory path to struct that implements [`OpenApi`][openapi] trait.
-///    The fully qualified path (_`path::to`_) will become the default _`tag`_ for the nested
-///    `OpenApi` endpoints if provided.
+//  The fully qualified path (_`path::to`_) will become the default _`tag`_ for the nested
+//  `OpenApi` endpoints if provided.
 /// * `tags = [...]` Define optional tags what are appended to the existing list of tags.
 ///
 ///  _**Example of nest definition**_
@@ -2278,13 +2278,12 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// deriving `IntoParams`:
 ///
 /// * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
-///    __Only__ supported on __unnamed structs__.
+//  __Only__ supported on __unnamed structs__.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
-///    values are based on _`parameter_in`_ attribute.
+//  values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
-///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
-///    supplied, then the value is determined by the `parameter_in_provider` in
-///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+//  [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
+//  supplied, then the value is determined by the `parameter_in_provider` in [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
 /// * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 ///
 /// Use `names` to define name for single unnamed argument.
@@ -2339,13 +2338,11 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*.
 ///
-/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+/// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields. See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 ///
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 ///
-/// * `required = ...` Can be used to enforce required status for the parameter. [See
-///    rules][derive@IntoParams#field-nullability-and-required-rules]
+/// * `required = ...` Can be used to enforce required status for the parameter. [See rules][derive@IntoParams#field-nullability-and-required-rules]
 ///
 /// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 ///
@@ -3432,7 +3429,7 @@ trait GenericsExt {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
-impl<'g> GenericsExt for &'g syn::Generics {
+impl GenericsExt for &syn::Generics {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
         let ident = &type_tree
             .path
@@ -3632,7 +3629,7 @@ impl AttributesExt for Vec<syn::Attribute> {
     }
 }
 
-impl<'a> AttributesExt for &'a [syn::Attribute] {
+impl AttributesExt for &[syn::Attribute] {
     fn has_deprecated(&self) -> bool {
         self.iter().any(|attr| {
             matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")

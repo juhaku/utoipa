@@ -36,12 +36,12 @@ macro_rules! to_array_builder {
 /// Can be used in places where an item can be serialized as `null`. This is used with unit type
 /// enum variants and tuple unit types.
 pub fn empty() -> Schema {
-    Schema::Object(
+    Schema::Object(Box::new(
         ObjectBuilder::new()
             .schema_type(SchemaType::AnyValue)
             .default(Some(serde_json::Value::Null))
             .into(),
-    )
+    ))
 }
 
 builder! {
@@ -279,7 +279,7 @@ pub enum Schema {
     Array(Array),
     /// Defines object schema. Object is either `object` holding **properties** which are other [`Schema`]s
     /// or can be a field within the [`Object`].
-    Object(Object),
+    Object(Box<Object>),
     /// Creates a _OneOf_ type [composite Object][composite] schema. This schema
     /// is used to map multiple schemas together where API endpoint could return any of them.
     /// [`Schema::OneOf`] is created form mixed enum where enum contains various variants.
@@ -300,7 +300,7 @@ pub enum Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::Object(Object::default())
+        Schema::Object(Box::default())
     }
 }
 
@@ -1100,7 +1100,7 @@ impl Object {
 
 impl From<Object> for Schema {
     fn from(s: Object) -> Self {
-        Self::Object(s)
+        Self::Object(Box::new(s))
     }
 }
 
@@ -1296,7 +1296,7 @@ component_from_builder!(ObjectBuilder);
 
 impl From<ObjectBuilder> for RefOr<Schema> {
     fn from(builder: ObjectBuilder) -> Self {
-        Self::T(Schema::Object(builder.build()))
+        Self::T(Schema::Object(Box::new(builder.build())))
     }
 }
 
@@ -1338,7 +1338,7 @@ impl<T> From<RefOr<T>> for AdditionalProperties<T> {
 
 impl From<ObjectBuilder> for AdditionalProperties<Schema> {
     fn from(value: ObjectBuilder) -> Self {
-        Self::RefOr(RefOr::T(Schema::Object(value.build())))
+        Self::RefOr(RefOr::T(Schema::Object(Box::new(value.build()))))
     }
 }
 
@@ -1485,7 +1485,7 @@ impl<T> From<T> for RefOr<T> {
 
 impl Default for RefOr<Schema> {
     fn default() -> Self {
-        Self::T(Schema::Object(Object::new()))
+        Self::T(Schema::Object(Box::new(Object::new())))
     }
 }
 
@@ -1493,7 +1493,7 @@ impl ToArray for RefOr<Schema> {}
 
 impl From<Object> for RefOr<Schema> {
     fn from(object: Object) -> Self {
-        Self::T(Schema::Object(object))
+        Self::T(Schema::Object(Box::new(object)))
     }
 }
 
@@ -2473,22 +2473,22 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_array_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::T(Schema::Object(Box::new(
             ObjectBuilder::new()
                 .property(
                     "test",
                     RefOr::T(Schema::Array(
                         ArrayBuilder::new()
-                            .items(RefOr::T(Schema::Object(
+                            .items(RefOr::T(Schema::Object(Box::new(
                                 ObjectBuilder::new()
                                     .property("element", RefOr::Ref(Ref::new("#/test")))
                                     .build(),
-                            )))
+                            ))))
                             .build(),
                     )),
                 )
                 .build(),
-        ));
+        )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
         println!("----------------------------");
@@ -2505,7 +2505,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_one_of_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::T(Schema::Object(Box::new(
             ObjectBuilder::new()
                 .property(
                     "test",
@@ -2513,27 +2513,27 @@ mod tests {
                         OneOfBuilder::new()
                             .item(Schema::Array(
                                 ArrayBuilder::new()
-                                    .items(RefOr::T(Schema::Object(
+                                    .items(RefOr::T(Schema::Object(Box::new(
                                         ObjectBuilder::new()
                                             .property("element", RefOr::Ref(Ref::new("#/test")))
                                             .build(),
-                                    )))
+                                    ))))
                                     .build(),
                             ))
                             .item(Schema::Array(
                                 ArrayBuilder::new()
-                                    .items(RefOr::T(Schema::Object(
+                                    .items(RefOr::T(Schema::Object(Box::new(
                                         ObjectBuilder::new()
                                             .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
                                             .build(),
-                                    )))
+                                    ))))
                                     .build(),
                             ))
                             .build(),
                     )),
                 )
                 .build(),
-        ));
+        )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
         println!("----------------------------");
@@ -2550,7 +2550,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_all_of_of_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::T(Schema::Object(Box::new(
             ObjectBuilder::new()
                 .property(
                     "test",
@@ -2558,23 +2558,23 @@ mod tests {
                         AllOfBuilder::new()
                             .item(Schema::Array(
                                 ArrayBuilder::new()
-                                    .items(RefOr::T(Schema::Object(
+                                    .items(RefOr::T(Schema::Object(Box::new(
                                         ObjectBuilder::new()
                                             .property("element", RefOr::Ref(Ref::new("#/test")))
                                             .build(),
-                                    )))
+                                    ))))
                                     .build(),
                             ))
-                            .item(RefOr::T(Schema::Object(
+                            .item(RefOr::T(Schema::Object(Box::new(
                                 ObjectBuilder::new()
                                     .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
                                     .build(),
-                            )))
+                            ))))
                             .build(),
                     )),
                 )
                 .build(),
-        ));
+        )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
         println!("----------------------------");
@@ -2594,20 +2594,20 @@ mod tests {
         let a = OneOfBuilder::new()
             .item(Schema::Array(
                 ArrayBuilder::new()
-                    .items(RefOr::T(Schema::Object(
+                    .items(RefOr::T(Schema::Object(Box::new(
                         ObjectBuilder::new()
                             .property("element", RefOr::Ref(Ref::new("#/test")))
                             .build(),
-                    )))
+                    ))))
                     .build(),
             ))
             .item(Schema::Array(
                 ArrayBuilder::new()
-                    .items(RefOr::T(Schema::Object(
+                    .items(RefOr::T(Schema::Object(Box::new(
                         ObjectBuilder::new()
                             .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
                             .build(),
-                    )))
+                    ))))
                     .build(),
             ))
             .build();
@@ -2623,7 +2623,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_any_of_of_within_ref_or_t_object_builder() {
-        let ref_or_schema = RefOr::T(Schema::Object(
+        let ref_or_schema = RefOr::T(Schema::Object(Box::new(
             ObjectBuilder::new()
                 .property(
                     "test",
@@ -2631,23 +2631,23 @@ mod tests {
                         AnyOfBuilder::new()
                             .item(Schema::Array(
                                 ArrayBuilder::new()
-                                    .items(RefOr::T(Schema::Object(
+                                    .items(RefOr::T(Schema::Object(Box::new(
                                         ObjectBuilder::new()
                                             .property("element", RefOr::Ref(Ref::new("#/test")))
                                             .build(),
-                                    )))
+                                    ))))
                                     .build(),
                             ))
-                            .item(RefOr::T(Schema::Object(
+                            .item(RefOr::T(Schema::Object(Box::new(
                                 ObjectBuilder::new()
                                     .property("foobar", RefOr::Ref(Ref::new("#/foobar")))
                                     .build(),
-                            )))
+                            ))))
                             .build(),
                     )),
                 )
                 .build(),
-        ));
+        )));
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
         println!("----------------------------");
@@ -2666,11 +2666,11 @@ mod tests {
     fn serialize_deserialize_schema_array_ref_or_t() {
         let ref_or_schema = RefOr::T(Schema::Array(
             ArrayBuilder::new()
-                .items(RefOr::T(Schema::Object(
+                .items(RefOr::T(Schema::Object(Box::new(
                     ObjectBuilder::new()
                         .property("element", RefOr::Ref(Ref::new("#/test")))
                         .build(),
-                )))
+                ))))
                 .build(),
         ));
 
@@ -2690,11 +2690,11 @@ mod tests {
     #[test]
     fn serialize_deserialize_schema_array_builder() {
         let ref_or_schema = ArrayBuilder::new()
-            .items(RefOr::T(Schema::Object(
+            .items(RefOr::T(Schema::Object(Box::new(
                 ObjectBuilder::new()
                     .property("element", RefOr::Ref(Ref::new("#/test")))
                     .build(),
-            )))
+            ))))
             .build();
 
         let json_str = serde_json::to_string(&ref_or_schema).expect("");
@@ -2712,7 +2712,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_with_additional_properties() {
-        let schema = Schema::Object(
+        let schema = Schema::Object(Box::new(
             ObjectBuilder::new()
                 .property(
                     "map",
@@ -2720,7 +2720,7 @@ mod tests {
                         .additional_properties(Some(AdditionalProperties::FreeForm(true))),
                 )
                 .build(),
-        );
+        ));
 
         let json_str = serde_json::to_string(&schema).unwrap();
         println!("----------------------------");
@@ -2737,7 +2737,7 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_schema_with_additional_properties_object() {
-        let schema = Schema::Object(
+        let schema = Schema::Object(Box::new(
             ObjectBuilder::new()
                 .property(
                     "map",
@@ -2746,7 +2746,7 @@ mod tests {
                     )),
                 )
                 .build(),
-        );
+        ));
 
         let json_str = serde_json::to_string(&schema).unwrap();
         println!("----------------------------");

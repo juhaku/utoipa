@@ -45,7 +45,7 @@ use super::media_type::ParsedType;
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[derive(PartialEq, Eq)]
 pub enum Parameter<'a> {
-    Value(ValueParameter<'a>),
+    Value(Box<ValueParameter<'a>>),
     /// Identifier for a struct that implements `IntoParams` trait.
     IntoParamsIdent(IntoParamsIdentParameter<'a>),
 }
@@ -94,7 +94,7 @@ impl ToTokensDiagnostics for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
             Parameter::Value(parameter) => {
-                let parameter = as_tokens_or_diagnostics!(parameter);
+                let parameter = as_tokens_or_diagnostics!(&**parameter);
                 tokens.extend(quote! { .parameter(#parameter) });
             }
             Parameter::IntoParamsIdent(IntoParamsIdentParameter {
@@ -134,7 +134,7 @@ impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
 
         let option_is_nullable = parameter_in != ParameterIn::Query;
 
-        Self::Value(ValueParameter {
+        Self::Value(Box::new(ValueParameter {
             name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
             parameter_in,
             parameter_schema: argument.type_tree.map(|type_tree| ParameterSchema {
@@ -143,7 +143,7 @@ impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
                 option_is_nullable,
             }),
             ..Default::default()
-        })
+        }))
     }
 }
 
@@ -442,9 +442,10 @@ impl PartialEq for IntoParamsIdentParameter<'_> {
 impl Eq for IntoParamsIdentParameter<'_> {}
 
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Default)]
 pub enum ParameterIn {
     Query,
+    #[default]
     Path,
     Header,
     Cookie,
@@ -462,12 +463,6 @@ impl Display for ParameterIn {
             ParameterIn::Header => write!(f, "Header"),
             ParameterIn::Cookie => write!(f, "Cookie"),
         }
-    }
-}
-
-impl Default for ParameterIn {
-    fn default() -> Self {
-        Self::Path
     }
 }
 
