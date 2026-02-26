@@ -29,7 +29,7 @@ syn = { version = "2.0", features = ["full", "extra-traits"] }
 quote = "1.0"
 regex = { version = "1.7", optional = true }
 uuid = { version = "1", features = ["serde"], optional = true }
-ulid = { version = "1", optional = true, default-features = false }
+ferroid = { version = "1.0", optional = true, features = ["ulid", "base32"] }
 url = { version = "2", optional = true }
 
 [dev-dependencies]
@@ -66,7 +66,7 @@ decimal_float = []
 rocket_extras = ["regex", "syn/extra-traits"]
 non_strict_integers = []
 uuid = ["dep:uuid"]
-ulid = ["dep:ulid"]
+ulid = ["dep:ferroid"]
 url = ["dep:url"]
 axum_extras = ["regex", "syn/extra-traits"]
 time = []

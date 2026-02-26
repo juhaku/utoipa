@@ -96,7 +96,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
   documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
 - **`uuid`**: Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
-- **`ulid`**: Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
+- **`ulid`**: Add support for [ulid](https://github.com/s0l0ist/ferroid). `Ulid` type will be presented as `String` with
   format `ulid` in OpenAPI spec.
 - **`url`**: Add support for [url](https://github.com/servo/rust-url). `Url` type will be presented as `String` with
   format `uri` in OpenAPI spec.
