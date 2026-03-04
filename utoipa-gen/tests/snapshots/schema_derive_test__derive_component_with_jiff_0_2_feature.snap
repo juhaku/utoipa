@@ -8,12 +8,17 @@ expression: "&doc"
       "format": "date",
       "type": "string"
     },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
     "zoned": {
       "format": "date-time",
       "type": "string"
     }
   },
   "required": [
+    "timestamp",
     "civil_date",
     "zoned"
   ],

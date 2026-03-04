@@ -1,9 +1,10 @@
 # Changelog - utoipa-gen
 
-## 5.5.0 - XXX YY 2025
+## Unreleased
 
 ### Added
 
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
 * No need to implement `ToSchema` and `PartialSchema` for ignored fields (https://github.com/juhaku/utoipa/pull/1500)
 
 ## 5.4.0 - Jun 16 2025
