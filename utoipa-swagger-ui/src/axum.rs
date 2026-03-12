@@ -63,7 +63,8 @@ where
             };
             debug_assert!(!path.is_empty());
 
-            let slash_path = format!("{}/", path);
+            let last_segment = path.rsplit('/').next().unwrap_or(path);
+            let slash_path = format!("{}/", last_segment);
             router
                 .route(
                     path,
@@ -172,6 +173,11 @@ mod tests {
         let app = Router::<()>::from(SwaggerUi::new("/swagger-ui/"));
         let response = app.clone().oneshot(get("/swagger-ui")).await.unwrap();
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response.headers()[axum::http::header::LOCATION],
+            "swagger-ui/",
+            "redirect Location should be a relative URL"
+        );
         let response = app.clone().oneshot(get("/swagger-ui/")).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let request = get("/swagger-ui/swagger-ui.css");
@@ -184,6 +190,11 @@ mod tests {
         let app = Router::<()>::from(SwaggerUi::new("/swagger-ui"));
         let response = app.clone().oneshot(get("/swagger-ui")).await.unwrap();
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response.headers()[axum::http::header::LOCATION],
+            "swagger-ui/",
+            "redirect Location should be a relative URL"
+        );
         let response = app.clone().oneshot(get("/swagger-ui/")).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
         let request = get("/swagger-ui/swagger-ui.css");
