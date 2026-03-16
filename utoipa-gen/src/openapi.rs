@@ -550,7 +550,9 @@ impl ToTokensDiagnostics for OpenApi<'_> {
 
                 quote! {
                     let _mods: [&dyn utoipa::Modify; #modifiers_len] = [#modifiers];
-                    _mods.iter().for_each(|modifier| modifier.modify(&mut openapi));
+                    for modifier in &_mods {
+                        modifier.modify(&mut openapi);
+                    }
                 }
             });
 
