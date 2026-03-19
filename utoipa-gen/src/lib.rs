@@ -298,6 +298,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `deprecated` Can be used to mark the enum as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the enum as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+/// * `repr` Can be used to indicate that the enum should be represented by its numeric value.
+///   The form `repr = false` can also be used to suppress the automatic behavior if the `enum`
+///   feature is enabled. See  [`#[repr(...)]` attribute support][macro@ToSchema#repr-attribute-support]
+///   for more information.
 ///
 /// ### Plain Enum Variant Optional Configuration Options for `#[schema(...)]`
 ///
@@ -602,6 +606,24 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///     #[serde(skip)]
 ///     Unknown = 0,
 ///     Ok = 1,
+///  }
+/// ```
+///
+/// **Note!**: The deprecated `repr` feature enables this functionality
+/// automatically for any unit enum annotated with `#[repr(_)]`. Since features
+/// are unified across all dependencies, it is recommended to specify
+/// `#[schema(repr = false)` for any enum that has `#[repr(_)]` but doesn't use
+/// it for serialization. Otherwise, another crate enabling the `repr` feature
+/// could change the schema output.
+///
+/// ```rust
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, serde::Serialize)]
+/// #[repr(u8)]
+/// #[schema(repr = false)]
+/// enum Mode {
+///     One = 1,
+///     Two = 2,
 ///  }
 /// ```
 ///
@@ -3882,6 +3904,14 @@ mod parse_utils {
             parse_next(input, || LitBoolOrExprPath::parse(input))
         } else {
             Ok(LitBoolOrExprPath::from(true))
+        }
+    }
+
+    pub fn parse_next_literal_bool(input: ParseStream) -> syn::Result<LitBool> {
+        if input.peek(Token![=]) {
+            parse_next(input, || LitBool::parse(input))
+        } else {
+            Ok(LitBool::new(true, proc_macro2::Span::call_site()))
         }
     }
 }

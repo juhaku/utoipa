@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 2255
+expression: value
+---
+{
+  "default": 0,
+  "enum": [
+    -1,
+    0,
+    1
+  ],
+  "example": 1,
+  "type": "integer"
+}

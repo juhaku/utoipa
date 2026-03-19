@@ -2240,12 +2240,11 @@ fn derive_struct_with_no_additional_properties() {
 }
 
 #[test]
-#[cfg(feature = "repr")]
 fn derive_schema_for_repr_enum() {
     let value = api_doc! {
         #[derive(serde::Deserialize)]
         #[repr(i32)]
-        #[schema(example = 1, default = 0)]
+        #[schema(repr, example = 1, default = 0)]
         enum ExitCode {
             Error  = -1,
             Ok     = 0,
@@ -2257,11 +2256,11 @@ fn derive_schema_for_repr_enum() {
 }
 
 #[test]
-#[cfg(feature = "repr")]
 fn derive_schema_for_tagged_repr_enum() {
     let value: Value = api_doc! {
         #[derive(serde::Deserialize, serde::Serialize)]
         #[serde(tag = "tag")]
+        #[schema(repr)]
         #[repr(u8)]
         enum TaggedEnum {
             One = 0,
@@ -2274,10 +2273,10 @@ fn derive_schema_for_tagged_repr_enum() {
 }
 
 #[test]
-#[cfg(feature = "repr")]
 fn derive_schema_for_skipped_repr_enum() {
     let value: Value = api_doc! {
         #[derive(serde::Deserialize, serde::Serialize)]
+        #[schema(repr)]
         #[repr(i32)]
         enum SkippedEnum {
             Error  = -1,
@@ -2294,10 +2293,9 @@ fn derive_schema_for_skipped_repr_enum() {
 }
 
 #[test]
-#[cfg(feature = "repr")]
 fn derive_repr_enum_with_with_custom_default_fn_success() {
     let mode = api_doc! {
-        #[schema(default = repr_mode_default_fn)]
+        #[schema(repr, default = repr_mode_default_fn)]
         #[repr(u16)]
         enum ReprDefaultMode {
             Mode1 = 0,
@@ -2315,16 +2313,14 @@ fn derive_repr_enum_with_with_custom_default_fn_success() {
     }
 }
 
-#[cfg(feature = "repr")]
 fn repr_mode_default_fn() -> u16 {
     1
 }
 
 #[test]
-#[cfg(feature = "repr")]
 fn derive_repr_enum_with_with_custom_default_fn_and_example() {
     let mode = api_doc! {
-        #[schema(default = repr_mode_default_fn, example = 1)]
+        #[schema(repr, default = repr_mode_default_fn, example = 1)]
         #[repr(u16)]
         enum ReprDefaultMode {
             Mode1 = 0,
@@ -2338,6 +2334,42 @@ fn derive_repr_enum_with_with_custom_default_fn_and_example() {
         "type" = r#""integer""#, "ReprDefaultMode type"
         "example" = r#"1"#, "ReprDefaultMode example"
     };
+}
+
+#[test]
+#[cfg(feature = "repr")]
+fn derive_repr_enum_unspecified() {
+    // If schema(repr) isn't specified, how the enum is serialized depends on
+    // the presence of the "repr" feature
+
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[repr(i32)]
+        enum ExitCode {
+            Error  = -1,
+            Ok     = 0,
+        }
+    };
+
+    #[cfg(feature = "repr")]
+    assert_value! {value =>
+        "enum" = r#"[-1,0]"#, "ExitCode enum variants"
+    };
+}
+
+#[test]
+fn derive_repr_enum_no_repr() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[schema(repr = false)]
+        #[repr(i32)]
+        enum ExitCode {
+            Error  = -1,
+            Ok     = 0,
+        }
+    };
+
+    assert_json_snapshot!(value)
 }
 
 #[test]
