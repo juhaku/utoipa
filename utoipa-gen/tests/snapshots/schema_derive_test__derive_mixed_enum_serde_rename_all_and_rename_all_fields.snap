@@ -1,0 +1,39 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 1349
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "enum": [
+        "unit_value"
+      ],
+      "type": "string"
+    },
+    {
+      "properties": {
+        "named_fields": {
+          "properties": {
+            "anotherField": {
+              "type": "string"
+            },
+            "someNumber": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "someNumber",
+            "anotherField"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "named_fields"
+      ],
+      "type": "object"
+    }
+  ]
+}

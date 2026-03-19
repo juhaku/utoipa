@@ -492,6 +492,16 @@ impl MixedEnumContent {
         );
         let name = renamed.unwrap_or(Cow::Owned(name));
 
+        if let Some(rename_all_fields) = &serde_container.rename_all_fields {
+            if !variant_features
+                .iter()
+                .any(|f| matches!(f, Feature::RenameAll(_)))
+            {
+                variant_features
+                    .push(Feature::RenameAll(rename_all_fields.clone().into()));
+            }
+        }
+
         let root = &Root {
             ident: &variant.ident,
             attributes: &variant.attrs,
