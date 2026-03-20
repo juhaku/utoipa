@@ -263,6 +263,22 @@ impl ComponentsBuilder {
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
     }
+
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
+    }
 }
 
 /// Is super type for [OpenAPI Schema Object][schemas]. Schema is reusable resource what can be
@@ -536,6 +552,22 @@ impl OneOfBuilder {
         set_value!(self extensions extensions)
     }
 
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
+    }
+
     to_array_builder!();
 }
 
@@ -713,6 +745,22 @@ impl AllOfBuilder {
         set_value!(self extensions extensions)
     }
 
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
+    }
+
     to_array_builder!();
 }
 
@@ -878,6 +926,22 @@ impl AnyOfBuilder {
     /// Add openapi extensions (`x-something`) for [`AnyOf`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
     }
 
     to_array_builder!();
@@ -1275,6 +1339,22 @@ impl ObjectBuilder {
     /// Add openapi extensions (`x-something`) for [`Object`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
     }
 
     /// Set of change [`Object::content_encoding`]. Typically left empty but could be `base64` for
@@ -1842,6 +1922,22 @@ impl ArrayBuilder {
     /// Add openapi extensions (`x-something`) for [`Array`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
     }
 
     to_array_builder!();
