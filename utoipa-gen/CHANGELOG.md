@@ -5,6 +5,7 @@
 ### Added
 
 * Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Add support for `#[schema(title_variants)]` on mixed enums (https://github.com/juhaku/utoipa/pull/1511)
 
 ## 5.4.0 - Jun 16 2025
 

@@ -8,8 +8,8 @@ use crate::{
         attributes::{
             AdditionalProperties, As, Bound, ContentEncoding, ContentMediaType, Deprecated,
             Description, Discriminator, Example, Examples, Format, Ignore, Inline, NoRecursion,
-            Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType,
-            WriteOnly, XmlAttr,
+            Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, TitleVariants,
+            ValueType, WriteOnly, XmlAttr,
         },
         impl_into_inner, impl_merge, parse_features,
         validation::{
@@ -101,6 +101,7 @@ impl Parse for MixedEnumFeatures {
             Examples,
             crate::component::features::attributes::Default,
             Title,
+            TitleVariants,
             RenameAll,
             As,
             Deprecated,
