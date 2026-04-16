@@ -210,7 +210,13 @@ fn is_primitive(name: &str) -> bool {
 fn is_primitive_chrono(name: &str) -> bool {
     matches!(
         name,
-        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime" | "DateTimeUtc"
+        "DateTime"
+            | "Date"
+            | "NaiveDate"
+            | "NaiveTime"
+            | "Duration"
+            | "NaiveDateTime"
+            | "DateTimeUtc"
     )
 }
 
@@ -397,7 +403,7 @@ impl KnownFormat {
             "NaiveDate" => Self::Date,
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" => Self::DateTime,
+            "DateTime" | "NaiveDateTime" | "DateTimeUtc" => Self::DateTime,
 
             #[cfg(any(feature = "chrono", feature = "time"))]
             "Date" => Self::Date,
