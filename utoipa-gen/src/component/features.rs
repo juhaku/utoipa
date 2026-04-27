@@ -116,6 +116,8 @@ pub enum Feature {
     MinItems(validation::MinItems),
     MaxProperties(validation::MaxProperties),
     MinProperties(validation::MinProperties),
+    EnumVarnames(attributes::EnumVarnames),
+    EnumDescriptions(attributes::EnumDescriptions),
     Extensions(attributes::Extensions),
 }
 
@@ -244,6 +246,8 @@ impl ToTokensDiagnostics for Feature {
                 quote! { .#name(#required) }
             }
             Feature::Ignore(_) => return Err(Diagnostics::new("Ignore does not support `ToTokens`")),
+            Feature::EnumVarnames(_) => quote! { .enum_varnames() },
+            Feature::EnumDescriptions(_) => quote! { .enum_descriptions() },
             Feature::Extensions(extensions) => quote! { .extensions(Some(#extensions)) },
         };
 
@@ -308,6 +312,8 @@ impl Display for Feature {
             Feature::Bound(bound) => bound.fmt(f),
             Feature::Ignore(ignore) => ignore.fmt(f),
             Feature::NoRecursion(no_recursion) => no_recursion.fmt(f),
+            Feature::EnumVarnames(ev) => ev.fmt(f),
+            Feature::EnumDescriptions(ed) => ed.fmt(f),
             Feature::Extensions(extensions) => extensions.fmt(f),
         }
     }
@@ -360,6 +366,8 @@ impl Validatable for Feature {
             Feature::Bound(bound) => bound.is_validatable(),
             Feature::Ignore(ignore) => ignore.is_validatable(),
             Feature::NoRecursion(no_recursion) => no_recursion.is_validatable(),
+            Feature::EnumVarnames(ev) => ev.is_validatable(),
+            Feature::EnumDescriptions(ed) => ed.is_validatable(),
             Feature::Extensions(extensions) => extensions.is_validatable(),
         }
     }
@@ -410,6 +418,8 @@ is_validatable! {
     attributes::Bound,
     attributes::Ignore,
     attributes::NoRecursion,
+    attributes::EnumVarnames,
+    attributes::EnumDescriptions,
     validation::MultipleOf = true,
     validation::Maximum = true,
     validation::Minimum = true,
@@ -641,6 +651,8 @@ impl_feature_into_inner! {
     attributes::Bound,
     attributes::Ignore,
     attributes::NoRecursion,
+    attributes::EnumVarnames,
+    attributes::EnumDescriptions,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,

@@ -1026,6 +1026,56 @@ impl From<bool> for Ignore {
     }
 }
 
+impl_feature! {
+    /// Include enum variable names in a schema extension
+    ///
+    /// Can be specified as `varnames = "x-something"` to specify the key for
+    /// the extension, or just `varnames`, to use `x-enum-varnames`.
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct EnumVarnames;
+}
+
+impl Parse for EnumVarnames {
+    fn parse(_: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<EnumVarnames> for Feature {
+    fn from(value: EnumVarnames) -> Self {
+        Self::EnumVarnames(value)
+    }
+}
+
+impl_feature! {
+    /// Include enum variable names in a schema extension
+    ///
+    /// Can be specified as `varnames = "x-something"` to specify the key for
+    /// the extension, or just `varnames`, to use `x-enum-varnames`.
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct EnumDescriptions;
+}
+
+impl Parse for EnumDescriptions {
+    fn parse(_: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<EnumDescriptions> for Feature {
+    fn from(value: EnumDescriptions) -> Self {
+        Self::EnumDescriptions(value)
+    }
+}
+
 // Nothing to parse, it is considered to be set when attribute itself is parsed via
 // `parse_features!`.
 impl_feature! {

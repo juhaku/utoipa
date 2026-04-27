@@ -857,6 +857,8 @@ impl<'e> EnumSchema<'e> {
                             super::features::attributes::Examples,
                             super::features::attributes::Default,
                             super::features::attributes::Title,
+                            crate::component::features::attributes::EnumVarnames,
+                            crate::component::features::attributes::EnumDescriptions,
                             crate::component::features::attributes::Deprecated,
                             As
                         ))

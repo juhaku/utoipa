@@ -84,6 +84,8 @@ impl Parse for EnumFeatures {
             RenameAll,
             As,
             Deprecated,
+            crate::component::features::attributes::EnumVarnames,
+            crate::component::features::attributes::EnumDescriptions,
             Description,
             Bound
         )))

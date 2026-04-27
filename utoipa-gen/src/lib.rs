@@ -162,7 +162,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
-///   
+///
 ///   **Note!**<br>Using `inline` with generic arguments might lead to incorrect spec generation.
 ///   This is due to the fact that during compilation we cannot know how to treat the generic
 ///   argument and there is difference whether it is a primitive type or another generic type.
@@ -288,6 +288,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all
 ///   variants of the enum accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_
 ///   are defined __serde__ will take precedence.
+/// * `enum_varnames` Can be used to add the common `"x-enum-varnames"` extension with the names used by
+///   the enum values in the code.
+/// * `enum_descriptions` Can be used to add the common `"x-enum-descriptions"` extension with each
+///    enum value's description (taken from its doc comment).
 /// * `as = ...` Can be used to define alternative path and name for the schema what will be used in
 ///   the OpenAPI. E.g _`as = path::to::Pet`_. This would make the schema appear in the generated
 ///   OpenAPI spec as _`path.to.Pet`_. This same name will be used throughout the OpenAPI generated

@@ -3105,6 +3105,41 @@ fn derive_struct_inline_with_description() {
 }
 
 #[test]
+fn derive_enum_varnames() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "lowercase")]
+        #[schema(enum_varnames)]
+        enum ExitCode {
+            Error,
+            Ok,
+            Unknown,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_enum_descriptions() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[schema(enum_descriptions)]
+        enum ExitCode {
+            /// There was an error
+            ///
+            /// Try turning it off and on again.
+            Error,
+            /// Success
+            Ok,
+            Unknown,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn schema_manual_impl() {
     #![allow(unused)]
 
