@@ -5,6 +5,7 @@
 ### Added
 
 * Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Support servers in path macro (https://github.com/juahku/utoipa/pull/1293)
 
 ## 5.4.0 - Jun 16 2025
 
