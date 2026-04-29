@@ -11,7 +11,7 @@ use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr};
 
 use crate::component::{features::attributes::Extensions, ComponentSchema, GenericType, TypeTree};
-use crate::openapi::Server;
+use crate::server::Server;
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
