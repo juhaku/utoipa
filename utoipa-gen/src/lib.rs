@@ -200,9 +200,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
-///* `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`).
-///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
+/// * `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
 ///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
@@ -2382,8 +2382,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`).
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
 ///
 /// #### Field nullability and required rules
 ///

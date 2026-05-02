@@ -1564,6 +1564,13 @@ pub mod __dev {
             )>,
         );
     }
+
+    #[deprecated(
+        note = "Using a function path for `ignore` is deprecated and will be removed in a future version. Use `ignore = true` or `ignore = false` instead."
+    )]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    pub fn warn_deprecated_ignore_fn_pattern() {}
 }
 
 #[cfg(test)]

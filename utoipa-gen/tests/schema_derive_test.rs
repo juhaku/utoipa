@@ -3058,6 +3058,64 @@ fn derive_schema_with_ignore_eq_call_field() {
 }
 
 #[test]
+fn derive_schema_with_ignore_struct() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_enum() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_fn_struct() {
+    #![allow(unused)]
+
+    fn always_true() -> bool {
+        true
+    };
+
+    #[derive(ToSchema)]
+    struct PrivateOrPublic {
+        name: &'static str,
+    }
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore = always_true)]
+            private_or_public: PrivateOrPublic,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_schema_unnamed_title() {
     #![allow(unused)]
 
