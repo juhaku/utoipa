@@ -1,9 +1,12 @@
 # Changelog - utoipa-gen
 
-## 5.4.1 - XXX YY 2026
+## Unreleased
 
 ### Added
 
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Support servers in path macro (https://github.com/juahku/utoipa/pull/1293)
+* No need to implement `IntoParams`, `ToSchema`, and `PartialSchema` for boolean ignored (e.g.: `ignore = true`) fields (https://github.com/juhaku/utoipa/pull/1500)
 * Add support for expression for `title` and `names` (<https://github.com/juhaku/utoipa/pull/1524>)
 
 ## 5.4.0 - Jun 16 2025
@@ -501,7 +504,7 @@
 * Add derive info support for derive OpenApi (https://github.com/juhaku/utoipa/pull/400)
 * Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397)
 * Add derive servers attribute for OpenApi (https://github.com/juhaku/utoipa/pull/395)
-* Add support for unit sructs (https://github.com/juhaku/utoipa/pull/392)
+* Add support for unit structs (https://github.com/juhaku/utoipa/pull/392)
 * Add support for `schema_with` custom fn reference (https://github.com/juhaku/utoipa/pull/390)
 * Add support for multiple serde definitions (https://github.com/juhaku/utoipa/pull/389)
 * Add support for tuple Path parameters for axum (https://github.com/juhaku/utoipa/pull/388)
@@ -540,7 +543,7 @@
 * Update `ToSchema` documentation
 * Chore make `serde_json` mandatory dependency (https://github.com/juhaku/utoipa/pull/378)
 * Feature http status codes (https://github.com/juhaku/utoipa/pull/376)
-* Refactor some path derive with `IntoParmas` tests
+* Refactor some path derive with `IntoParams` tests
 * Chore refine description attribute (https://github.com/juhaku/utoipa/pull/373)
 * cargo format
 * Update to axum 0.6.0 (https://github.com/juhaku/utoipa/pull/369)

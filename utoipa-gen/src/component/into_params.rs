@@ -337,6 +337,12 @@ impl Param {
                 .map_err(Diagnostics::from)?;
 
         let ignore = pop_feature!(param_features => Feature::Ignore(_));
+        let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(b)))) if b.value());
+        if should_always_ignore {
+            return Ok(Self {
+                tokens: quote! { None },
+            });
+        }
         let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
             .map(|rename| rename.into_value());
         let rename_to = field_serde_params
@@ -444,10 +450,14 @@ impl Param {
             }
             Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
                 quote_spanned! {
-                    path.span() => if #path() {
-                        None
-                    } else {
-                        Some(#tokens)
+                    path.span() => {
+                        utoipa::__dev::warn_deprecated_ignore_fn_pattern();
+
+                        if #path() {
+                            None
+                        } else {
+                            Some(#tokens)
+                        }
                     }
                 }
             }
