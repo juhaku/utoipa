@@ -465,8 +465,11 @@ impl NamedStructSchema {
                             }
                         },
                         Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
-                            path.span() => if !#path() {
-                                #property_tokens;
+                            path.span() => {
+                                utoipa::__dev::deprecated_ignore_expr_path();
+                                if !#path() {
+                                    #property_tokens;
+                                }
                             }
                         },
                         None => quote! { #property_tokens; },

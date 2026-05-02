@@ -3092,6 +3092,30 @@ fn derive_schema_with_ignore_enum() {
 }
 
 #[test]
+fn derive_schema_with_ignore_fn_struct() {
+    #![allow(unused)]
+
+    fn always_true() -> bool {
+        true
+    };
+
+    #[derive(ToSchema)]
+    struct PrivateOrPublic {
+        name: &'static str,
+    }
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore = always_true)]
+            private_or_public: PrivateOrPublic,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_schema_unnamed_title() {
     #![allow(unused)]
 
