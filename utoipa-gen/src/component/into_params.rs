@@ -443,7 +443,8 @@ impl Param {
             Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
                 quote_spanned! {
                     path.span() => {
-                        utoipa::__dev::deprecated_ignore_expr_path();
+                        utoipa::__dev::warn_deprecated_ignore_fn_pattern();
+
                         if #path() {
                             None
                         } else {

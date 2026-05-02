@@ -1641,8 +1641,3 @@ impl ToTokensDiagnostics for FlattenedMapSchema {
         Ok(())
     }
 }
-
-#[deprecated(
-    note = "Using a function path for `ignore` is deprecated and will be removed in a future version. Use `ignore = true` or `ignore = false` instead."
-)]
-fn _utoipa_deprecated_ignore_expr_path() {}
