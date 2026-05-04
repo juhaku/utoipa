@@ -368,7 +368,15 @@ impl NamedStructSchema {
 
                 match field_options {
                     Ok(Some(field_options)) => {
-                        Some(Ok((field_options, field_rules, field_name, field)))
+                        let should_always_ignore = match &field_options.ignore {
+                            Some(LitBoolOrExprPath::LitBool(bool)) => bool.value(),
+                            _ => false,
+                        };
+                        if should_always_ignore {
+                            None
+                        } else {
+                            Some(Ok((field_options, field_rules, field_name, field)))
+                        }
                     }
                     Ok(_) => None,
                     Err(options_diagnostics) => Some(Err(options_diagnostics)),
@@ -457,8 +465,12 @@ impl NamedStructSchema {
                             }
                         },
                         Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
-                            path.span() => if !#path() {
-                                #property_tokens;
+                            path.span() => {
+                                utoipa::__dev::warn_deprecated_ignore_fn_pattern();
+
+                                if !#path() {
+                                    #property_tokens;
+                                }
                             }
                         },
                         None => quote! { #property_tokens; },

@@ -14,8 +14,8 @@ use crate::{
         self,
         features::{
             attributes::{
-                AllowReserved, Description, Example, Explode, Format, Nullable, ReadOnly, Style,
-                WriteOnly, XmlAttr,
+                AllowReserved, Description, Example, Explode, Extensions, Format, Nullable,
+                ReadOnly, Style, WriteOnly, XmlAttr,
             },
             impl_into_inner, parse_features,
             validation::{
@@ -341,7 +341,8 @@ impl Parse for ParameterFeatures {
             MinLength,
             Pattern,
             MaxItems,
-            MinItems
+            MinItems,
+            Extensions
         )))
     }
 }

@@ -286,6 +286,32 @@ fn derive_path_with_security_requirements() {
 }
 
 #[test]
+fn derive_path_with_extensions() {
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        extensions(
+            ("x-extension-1" = json!({ "type": "extension1" })),
+            ("x-extension-2" = json!({ "type": "extension2", "value": 2 })),
+        )
+    )]
+    #[allow(unused)]
+    fn get_items() {}
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    /* Testing limited to extensions values */
+    assert_json_snapshot!(operation.pointer("/x-extension-1").unwrap());
+    assert_json_snapshot!(operation.pointer("/x-extension-2").unwrap());
+}
+
+#[test]
 fn derive_path_with_datetime_format_query_parameter() {
     #[derive(serde::Deserialize, utoipa::ToSchema)]
     struct Since {
@@ -1800,6 +1826,97 @@ fn derive_into_params_with_ignored_eq_false_field() {
     let value = operation.pointer("/parameters");
 
     assert_json_snapshot!(value)
+}
+
+#[test]
+fn derive_into_params_with_ignored_struct_field() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore)]
+        __this_is_private: Private,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_into_params_with_ignored_enum_field() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore)]
+        __this_is_private: Private,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_into_params_with_ignored_struct_fn_field() {
+    #![allow(unused)]
+
+    fn always_true() -> bool {
+        true
+    };
+
+    #[derive(ToSchema)]
+    struct PrivateOrPublic {
+        name: &'static str,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore = always_true)]
+        private_or_public: PrivateOrPublic,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
 }
 
 #[test]

@@ -1,0 +1,23 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+assertion_line: 500
+expression: value
+---
+{
+  "200": {
+    "content": {
+      "text/plain": {
+        "schema": {
+          "type": "string"
+        },
+        "x-content-extension2": {
+          "type": "content"
+        }
+      }
+    },
+    "description": "Operation success",
+    "x-response-extension1": {
+      "type": "response"
+    }
+  }
+}

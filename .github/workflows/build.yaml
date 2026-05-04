@@ -76,7 +76,7 @@ jobs:
             elif [[ "$change" == "utoipa-actix-web" && "${{ matrix.crate }}" == "utoipa-actix-web" && $changes == false ]]; then
               changes=true
             fi
-          done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep .rs | awk -F \/ '{print $1}')
+          done < <(git diff --name-only ${{ github.sha }}~ ${{ github.sha }} | grep -E '(Cargo.toml|.rs$)' | awk -F \/ '{print $1}')
           echo "${{ matrix.crate }} changes: $changes"
           echo "changes=$changes" >> $GITHUB_OUTPUT
 
@@ -92,10 +92,14 @@ jobs:
             cargo clippy --quiet --package ${{ matrix.crate }}
           fi
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Run tests
         run: |
           if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
-            ./scripts/test.sh ${{ matrix.crate }}
+            just test ${{ matrix.crate }}
           fi
 
   check-typos:
@@ -138,6 +142,10 @@ jobs:
             examples/**/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}_examples
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Test that examples compile
         run: |
-          ./scripts/validate-examples.sh
+          just validate-examples

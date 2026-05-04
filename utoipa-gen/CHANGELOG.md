@@ -4,6 +4,21 @@
 
 * Add support for `std::ops::{Range, RangeFrom, RangeTo}` (https://github.com/juhaku/utoipa/pull/1354)
 
+## 5.5.0 - May 5 2026
+
+### Added
+
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Support servers in path macro (https://github.com/juahku/utoipa/pull/1293)
+* No need to implement `IntoParams`, `ToSchema`, and `PartialSchema` for boolean ignored (e.g.: `ignore = true`) fields (https://github.com/juhaku/utoipa/pull/1500)
+
+## 5.4.0 - Jun 16 2025
+
+### Added
+
+* Add feature support extensions in `utoipa::path` macro (https://github.com/juhaku/utoipa/pull/1292)
+* Add support for jiff v0.2 (https://github.com/juhaku/utoipa/pull/1332)
+
 ## 5.3.1 - Jan 6 2025
 
 ### Fixed
@@ -492,7 +507,7 @@
 * Add derive info support for derive OpenApi (https://github.com/juhaku/utoipa/pull/400)
 * Add `merge` functionality for `OpenApi` (https://github.com/juhaku/utoipa/pull/397)
 * Add derive servers attribute for OpenApi (https://github.com/juhaku/utoipa/pull/395)
-* Add support for unit sructs (https://github.com/juhaku/utoipa/pull/392)
+* Add support for unit structs (https://github.com/juhaku/utoipa/pull/392)
 * Add support for `schema_with` custom fn reference (https://github.com/juhaku/utoipa/pull/390)
 * Add support for multiple serde definitions (https://github.com/juhaku/utoipa/pull/389)
 * Add support for tuple Path parameters for axum (https://github.com/juhaku/utoipa/pull/388)
@@ -531,7 +546,7 @@
 * Update `ToSchema` documentation
 * Chore make `serde_json` mandatory dependency (https://github.com/juhaku/utoipa/pull/378)
 * Feature http status codes (https://github.com/juhaku/utoipa/pull/376)
-* Refactor some path derive with `IntoParmas` tests
+* Refactor some path derive with `IntoParams` tests
 * Chore refine description attribute (https://github.com/juhaku/utoipa/pull/373)
 * cargo format
 * Update to axum 0.6.0 (https://github.com/juhaku/utoipa/pull/369)

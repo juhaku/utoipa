@@ -1665,6 +1665,20 @@ fn derive_component_with_time_feature() {
     assert_json_snapshot!(&times);
 }
 
+#[cfg(feature = "jiff_0_2")]
+#[test]
+fn derive_component_with_jiff_0_2_feature() {
+    let doc = api_doc! {
+        struct Timetest {
+            timestamp: jiff::Timestamp,
+            civil_date: jiff::civil::Date,
+            zoned: jiff::Zoned,
+        }
+    };
+
+    assert_json_snapshot!(&doc);
+}
+
 #[test]
 fn derive_struct_component_field_type_override() {
     let post = api_doc! {
@@ -2277,7 +2291,7 @@ fn derive_schema_for_repr_enum() {
         enum ExitCode {
             Error  = -1,
             Ok     = 0,
-            Unknow = 1,
+            Unknown = 1,
         }
     };
 
@@ -3079,6 +3093,64 @@ fn derive_schema_with_ignore_eq_call_field() {
             fn ignore() -> bool {
                 false
             }
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_struct() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_enum() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_fn_struct() {
+    #![allow(unused)]
+
+    fn always_true() -> bool {
+        true
+    };
+
+    #[derive(ToSchema)]
+    struct PrivateOrPublic {
+        name: &'static str,
+    }
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore = always_true)]
+            private_or_public: PrivateOrPublic,
         }
     };
 

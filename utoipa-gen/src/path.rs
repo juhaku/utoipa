@@ -10,7 +10,8 @@ use syn::token::Comma;
 use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr};
 
-use crate::component::{ComponentSchema, GenericType, TypeTree};
+use crate::component::{features::attributes::Extensions, ComponentSchema, GenericType, TypeTree};
+use crate::server::Server;
 use crate::{
     as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
 };
@@ -53,6 +54,8 @@ pub struct PathAttr<'p> {
     impl_for: Option<Ident>,
     description: Option<parse_utils::LitStrOrExpr>,
     summary: Option<parse_utils::LitStrOrExpr>,
+    extensions: Option<Extensions>,
+    servers: Vec<Server>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -182,6 +185,17 @@ impl Parse for PathAttr<'_> {
                 "summary" => {
                     path_attr.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
+                "extensions" => {
+                    path_attr.extensions = Some(input.parse::<Extensions>()?);
+                }
+                "servers" => {
+                    let servers;
+                    syn::parenthesized!(servers in input);
+                    path_attr.servers =
+                        Punctuated::<Server, Token![,]>::parse_terminated(&servers)?
+                            .into_iter()
+                            .collect();
+                }
                 _ => {
                     if let Some(path_operation) =
                         attribute_name.parse::<HttpMethod>().into_iter().next()
@@ -241,7 +255,7 @@ impl HttpMethod {
             .map_err(|error| {
                 let mut diagnostics = Diagnostics::with_span(ident.span(), error.to_string());
                 if name == "connect" {
-                    diagnostics = diagnostics.note("HTTP method `CONNET` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
+                    diagnostics = diagnostics.note("HTTP method `CONNECT` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
                 }
 
                 diagnostics
@@ -467,6 +481,8 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             request_body: self.path_attr.request_body.as_ref(),
             responses: self.path_attr.responses.as_ref(),
             security: self.path_attr.security.as_ref(),
+            extensions: self.path_attr.extensions.as_ref(),
+            servers: self.path_attr.servers.as_ref(),
         };
         let operation = as_tokens_or_diagnostics!(&operation);
 
@@ -625,6 +641,8 @@ struct Operation<'a> {
     request_body: Option<&'a RequestBodyAttr<'a>>,
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
+    extensions: Option<&'a Extensions>,
+    servers: &'a Vec<Server>,
 }
 
 impl ToTokensDiagnostics for Operation<'_> {
@@ -653,6 +671,13 @@ impl ToTokensDiagnostics for Operation<'_> {
             .operation_id(Some(#operation_id))
         });
 
+        if !self.servers.is_empty() {
+            let servers = self.servers.iter().collect::<Array<_>>();
+            tokens.extend(quote! {
+                .servers(Some(#servers))
+            })
+        }
+
         if self.deprecated {
             let deprecated: Deprecated = self.deprecated.into();
             tokens.extend(quote!( .deprecated(Some(#deprecated))))
@@ -668,6 +693,10 @@ impl ToTokensDiagnostics for Operation<'_> {
 
         for parameter in self.parameters {
             parameter.to_tokens(tokens)?;
+        }
+
+        if let Some(extensions) = self.extensions {
+            tokens.extend(quote! { .extensions(Some(#extensions)) })
         }
 
         Ok(())

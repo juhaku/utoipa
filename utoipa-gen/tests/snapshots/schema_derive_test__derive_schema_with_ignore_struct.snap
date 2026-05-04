@@ -1,19 +1,16 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 3073
 expression: value
 ---
 {
   "properties": {
-    "this_is_not_private": {
-      "type": "string"
-    },
     "value": {
       "type": "string"
     }
   },
   "required": [
-    "value",
-    "this_is_not_private"
+    "value"
   ],
   "type": "object"
 }
