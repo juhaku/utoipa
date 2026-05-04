@@ -799,6 +799,46 @@ impl PartialSchema for serde_json::Value {
 
 impl ToSchema for serde_json::Value {}
 
+impl<T: ToSchema> ToSchema for std::ops::Range<T>
+where
+    std::ops::Range<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+impl<T: ToSchema> ToSchema for std::ops::RangeTo<T>
+where
+    std::ops::RangeTo<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+impl<T: ToSchema> ToSchema for std::ops::RangeFrom<T>
+where
+    std::ops::RangeFrom<T>: PartialSchema,
+{
+    fn schemas(
+        schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        T::schemas(schemas);
+    }
+}
+
 // Create `utoipa` module so we can use `utoipa-gen` directly from `utoipa` crate.
 // ONLY for internal use!
 #[doc(hidden)]
@@ -1401,6 +1441,42 @@ pub mod __dev {
         }
     }
 
+    impl<T: ComposeSchema> ComposeSchema for std::ops::Range<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            let schema = schema_or_compose::<T>(schemas.clone(), 0);
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .property("start", schema.clone())
+                .required("start")
+                .property("end", schema)
+                .required("end")
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for std::ops::RangeTo<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .property("end", schema_or_compose::<T>(schemas.clone(), 0))
+                .required("end")
+                .into()
+        }
+    }
+
+    impl<T: ComposeSchema> ComposeSchema for std::ops::RangeFrom<T> {
+        fn compose(
+            schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
+        ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+            utoipa::openapi::schema::ObjectBuilder::new()
+                .property("start", schema_or_compose::<T>(schemas.clone(), 0))
+                .required("start")
+                .into()
+        }
+    }
+
     impl<T: ComposeSchema> ComposeSchema for std::collections::LinkedList<T> {
         fn compose(
             schemas: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>,
@@ -1641,6 +1717,7 @@ mod tests {
     #[test]
     fn test_partial_schema() {
         for (name, schema, value) in [
+            ("TupleUnit", TupleUnit::schema(), json!({"default": null})),
             ("bool", bool::schema(), json!({"type": "boolean"})),
             ("str", str::schema(), json!({"type": "string"})),
             ("String", String::schema(), json!({"type": "string"})),
@@ -1654,6 +1731,21 @@ mod tests {
                 "f64",
                 f64::schema(),
                 json!({"type": "number", "format": "double"}),
+            ),
+            (
+                "Range",
+                std::ops::Range::<usize>::schema(),
+                json!({"type":"object","required":["start","end"],"properties":{"end":{"type":"integer","minimum":0},"start":{"type":"integer","minimum":0}}}),
+            ),
+            (
+                "RangeTo",
+                std::ops::RangeTo::<usize>::schema(),
+                json!({"type":"object","required":["end"],"properties":{"end":{"type":"integer","minimum":0}}}),
+            ),
+            (
+                "RangeFrom",
+                std::ops::RangeFrom::<usize>::schema(),
+                json!({"type":"object","required":["start"],"properties":{"start":{"type":"integer","minimum":0}}}),
             ),
         ] {
             println!(

@@ -1,5 +1,9 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+* Add support for `std::ops::{Range, RangeFrom, RangeTo}` (https://github.com/juhaku/utoipa/pull/1354)
+
 ## 5.5.0 - May 5 2026
 
 ### Added

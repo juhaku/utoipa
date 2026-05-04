@@ -15,6 +15,8 @@ to look into changes introduced to **`utoipa-gen`**.
 
 * Add support for jiff v0.2 (https://github.com/juhaku/utoipa/pull/1332)
 
+* Add support for `std::ops::{Range, RangeFrom, RangeTo}` (https://github.com/juhaku/utoipa/pull/1354)
+
 ### Changed
 
 * Enhance ToSchema and ComposeSchema implementations for HashMap and HashSet to support custom hashers (https://github.com/juhaku/utoipa/pull/1319) 
