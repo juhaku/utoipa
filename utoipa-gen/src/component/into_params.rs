@@ -26,7 +26,7 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     parse_utils::LitBoolOrExprPath,
-    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
+    Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
 use super::{
@@ -154,12 +154,12 @@ impl ToTokensDiagnostics for IntoParams {
 
                 Ok(param.to_token_stream())
             })
-            .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
+            .collect::<Result<Vec<TokenStream>, Diagnostics>>()?;
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
-                    #params.into_iter().filter(Option::is_some).flatten().collect()
+                    vec![#(#params),*].into_iter().filter(Option::is_some).flatten().collect()
                 }
             }
         });
