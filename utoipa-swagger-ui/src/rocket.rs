@@ -98,7 +98,15 @@ impl Handler for ServeSwagger {
         let request_path = request.uri().path().as_str();
         let request_path = match request_path.strip_prefix(base_path) {
             Some(stripped) => stripped,
-            None => return Outcome::from(request, RedirectResponder(base_path.into())),
+            None => {
+                let last_segment = base_path
+                    .trim_end_matches('/')
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or(base_path);
+                let relative = format!("{}/", last_segment);
+                return Outcome::from(request, RedirectResponder(relative));
+            }
         };
         match super::serve(request_path, self.1.clone()) {
             Ok(swagger_file) => swagger_file
@@ -189,6 +197,24 @@ mod tests {
         let rocket = rocket::build().mount("/", routes);
         let client = Client::tracked(rocket).unwrap();
         let response = client.get("/swagger-ui").dispatch();
+        assert_eq!(response.status(), Status::Ok);
+    }
+
+    #[test]
+    fn redirect_to_trailing_slash_is_relative() {
+        let routes: Vec<Route> = SwaggerUi::new("/swagger-ui/<path..>").into();
+        let rocket = rocket::build().mount("/", routes);
+        let client = Client::untracked(rocket).unwrap();
+
+        let response = client.get("/swagger-ui").dispatch();
+        assert_eq!(response.status(), Status::Found);
+        assert_eq!(
+            response.headers().get_one("Location"),
+            Some("swagger-ui/"),
+            "redirect Location should be a relative URL"
+        );
+
+        let response = client.get("/swagger-ui/").dispatch();
         assert_eq!(response.status(), Status::Ok);
     }
 
