@@ -754,6 +754,64 @@ impl SchemaReference {
     }
 }
 
+pub(crate) fn schema_references_to_tokens(
+    mut schemas: TokenStream,
+    schema_references: impl IntoIterator<Item = SchemaReference>,
+) -> TokenStream {
+    for schema_reference in schema_references {
+        let name = schema_reference.name;
+        let schema_tokens = schema_reference.tokens;
+        let references = schema_reference.references;
+        let is_inline = schema_reference.is_inline;
+
+        extend_schema_reference_tokens(&mut schemas, is_inline, name, schema_tokens, references);
+    }
+
+    schemas
+}
+
+pub(crate) fn component_schema_to_tokens(
+    mut schemas: TokenStream,
+    is_inline: bool,
+    component_schema: ComponentSchema,
+) -> TokenStream {
+    for schema_reference in component_schema.schema_references {
+        let name = schema_reference.name;
+        let schema_tokens = schema_reference.tokens;
+        let references = schema_reference.references;
+
+        extend_schema_reference_tokens(&mut schemas, is_inline, name, schema_tokens, references);
+    }
+
+    schemas
+}
+
+fn extend_schema_reference_tokens(
+    schemas: &mut TokenStream,
+    is_inline: bool,
+    name: TokenStream,
+    schema_tokens: TokenStream,
+    references: TokenStream,
+) {
+    #[cfg(feature = "config")]
+    let should_collect_schema = (matches!(
+        crate::CONFIG.schema_collect,
+        utoipa_config::SchemaCollect::NonInlined
+    ) && !is_inline)
+        || matches!(
+            crate::CONFIG.schema_collect,
+            utoipa_config::SchemaCollect::All
+        );
+    #[cfg(not(feature = "config"))]
+    let should_collect_schema = !is_inline;
+
+    if should_collect_schema {
+        schemas.extend(quote!( schemas.push((#name, #schema_tokens)); ));
+    }
+
+    schemas.extend(quote!( #references; ));
+}
+
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct ComponentSchema {
     tokens: TokenStream,
