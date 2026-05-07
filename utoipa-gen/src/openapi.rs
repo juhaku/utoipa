@@ -308,6 +308,7 @@ impl OpenApi<'_> {
                         .nest(#path, {
                             #[allow(non_camel_case_types)]
                             struct #nest_api_config;
+                            #[automatically_derived]
                             impl utoipa::__dev::NestedApiConfig for #nest_api_config {
                                 fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>, &'static str) {
                                     let api = <#nest_api as utoipa::OpenApi>::openapi();
@@ -418,6 +419,7 @@ impl ToTokensDiagnostics for OpenApi<'_> {
             .nested_tokens()
             .map(|tokens| quote! {openapi = openapi #tokens;});
         tokens.extend(quote! {
+            #[automatically_derived]
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     use utoipa::{ToSchema, Path};
@@ -592,6 +594,7 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
                 #[allow(non_camel_case_types)]
                 struct #handler_ident_nested;
                 #[allow(non_camel_case_types)]
+                #[automatically_derived]
                 impl utoipa::__dev::PathConfig for #handler_ident_nested {
                     fn path() -> String {
                         #usage::path()
