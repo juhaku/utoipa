@@ -205,7 +205,7 @@ impl ToTokensDiagnostics for Feature {
                 quote! { .max_properties(Some(#max_properties)) }
             }
             Feature::MinProperties(min_properties) => {
-                quote! { .max_properties(Some(#min_properties)) }
+                quote! { .min_properties(Some(#min_properties)) }
             }
             Feature::SchemaWith(schema_with) => schema_with.to_token_stream(),
             Feature::Description(description) => quote! { .description(Some(#description)) },
