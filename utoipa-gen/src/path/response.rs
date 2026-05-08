@@ -155,6 +155,32 @@ impl<'r> ResponseTuple<'r> {
         }
         Ok(())
     }
+
+    pub(crate) fn get_component_schemas(
+        &self,
+    ) -> Result<impl Iterator<Item = (bool, ComponentSchema)>, Diagnostics> {
+        match &self.inner {
+            Some(ResponseTupleInner::Value(value)) => {
+                Ok(ResponseComponentSchemaIter::Iter(Box::new(
+                    value
+                        .content
+                        .iter()
+                        .map(
+                            |media_type| match media_type.schema.get_component_schema() {
+                                Ok(component_schema) => {
+                                    Ok(Some(media_type.schema.is_inline()).zip(component_schema))
+                                }
+                                Err(error) => Err(error),
+                            },
+                        )
+                        .collect::<Result<Vec<_>, Diagnostics>>()?
+                        .into_iter()
+                        .flatten(),
+                )))
+            }
+            _ => Ok(ResponseComponentSchemaIter::Empty),
+        }
+    }
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]
