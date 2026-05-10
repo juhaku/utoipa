@@ -435,6 +435,14 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// Declares the schema as "read only".
+        #[serde(rename = "readOnly", skip_serializing_if = "Option::is_none")]
+        pub read_only: Option<bool>,
+
+        /// Declares the schema as "write only".
+        #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
+        pub write_only: Option<bool>,
     }
 }
 
@@ -478,6 +486,8 @@ impl Default for OneOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
+            read_only: Default::default(),
+            write_only: Default::default(),
         }
     }
 }
@@ -534,6 +544,16 @@ impl OneOfBuilder {
     /// Add openapi extensions (`x-something`) for [`OneOf`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Add or change read only flag for [`OneOf`].
+    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
+        set_value!(self read_only read_only)
+    }
+
+    /// Add or change write only flag for [`OneOf`].
+    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
+        set_value!(self write_only write_only)
     }
 
     to_array_builder!();
@@ -1397,6 +1417,16 @@ builder! {
         /// referenced component does not support summary field this does not have effect.
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub summary: String,
+
+        /// Declares the property as "read only" alongside the `$ref`.
+        /// In OAS 3.1 sibling keywords next to `$ref` are allowed.
+        #[serde(rename = "readOnly", skip_serializing_if = "Option::is_none")]
+        pub read_only: Option<bool>,
+
+        /// Declares the property as "write only" alongside the `$ref`.
+        /// In OAS 3.1 sibling keywords next to `$ref` are allowed.
+        #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
+        pub write_only: Option<bool>,
     }
 }
 
@@ -1450,6 +1480,16 @@ impl RefBuilder {
     /// referenced component does not support summary field this does not have effect.
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         set_value!(self summary summary.into())
+    }
+
+    /// Add or change read only flag for the reference.
+    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
+        set_value!(self read_only read_only)
+    }
+
+    /// Add or change write only flag for the reference.
+    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
+        set_value!(self write_only write_only)
     }
 }
 

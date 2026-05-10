@@ -1241,6 +1241,10 @@ impl ComponentSchema {
                     let default_tokens = as_tokens_or_diagnostics!(&default);
                     let title = pop_feature!(features => Feature::Title(_));
                     let title_tokens = as_tokens_or_diagnostics!(&title);
+                    let read_only = pop_feature!(features => Feature::ReadOnly(_));
+                    let read_only_tokens = as_tokens_or_diagnostics!(&read_only);
+                    let write_only = pop_feature!(features => Feature::WriteOnly(_));
+                    let write_only_tokens = as_tokens_or_diagnostics!(&write_only);
 
                     if is_inline {
                         let schema_type = SchemaType {
@@ -1290,6 +1294,8 @@ impl ComponentSchema {
                         let schema = if default.is_some()
                             || nullable
                             || title.is_some()
+                            || read_only.is_some()
+                            || write_only.is_some()
                             || !description_tokens.is_empty()
                         {
                             quote_spanned! {type_path.span()=>
@@ -1298,6 +1304,8 @@ impl ComponentSchema {
                                     .item(#items_tokens)
                                 #title_tokens
                                 #default_tokens
+                                #read_only_tokens
+                                #write_only_tokens
                                 #description_stream
                             }
                         } else {
@@ -1368,12 +1376,16 @@ impl ComponentSchema {
                                     )
                                     #title_tokens
                                     #default_tokens
+                                    #read_only_tokens
+                                    #write_only_tokens
                             })
                         } else {
                             composed_or_ref(quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::RefBuilder::new()
                                     #description_stream
                                     .ref_location_from_schema_name(#name_tokens)
+                                    #read_only_tokens
+                                    #write_only_tokens
                             })
                         };
 

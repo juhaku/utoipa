@@ -1483,6 +1483,55 @@ fn derive_struct_with_read_only_and_write_only() {
 }
 
 #[test]
+fn derive_struct_with_read_only_and_write_only_ref() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Inner {
+        field: String,
+    }
+
+    let user = api_doc! {
+        struct User {
+            #[schema(read_only)]
+            address: Inner,
+            #[schema(write_only)]
+            secret: Inner,
+        }
+    };
+
+    assert_value! {user=>
+        "properties.address.$ref" = r###""#/components/schemas/Inner""###, "User address $ref"
+        "properties.address.readOnly" = r###"true"###, "User address read only"
+        "properties.address.writeOnly" = r###"null"###, "User address write only"
+        "properties.secret.$ref" = r###""#/components/schemas/Inner""###, "User secret $ref"
+        "properties.secret.writeOnly" = r###"true"###, "User secret write only"
+        "properties.secret.readOnly" = r###"null"###, "User secret read only"
+    }
+}
+
+#[test]
+fn derive_struct_with_read_only_nullable_ref() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Inner {
+        field: String,
+    }
+
+    let user = api_doc! {
+        struct User {
+            #[schema(read_only, nullable)]
+            address: Option<Inner>,
+        }
+    };
+
+    assert_value! {user=>
+        "properties.address.oneOf.[0].type" = r###""null""###, "User address nullable"
+        "properties.address.oneOf.[1].$ref" = r###""#/components/schemas/Inner""###, "User address $ref"
+        "properties.address.readOnly" = r###"true"###, "User address read only"
+    }
+}
+
+#[test]
 fn derive_struct_with_nullable_and_required() {
     let user = api_doc! {
         #[derive(Serialize)]
