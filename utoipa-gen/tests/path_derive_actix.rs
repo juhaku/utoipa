@@ -797,6 +797,63 @@ fn derive_into_params_in_another_module() {
 }
 
 #[test]
+fn derive_into_params_with_extensions() {
+    use actix_web::{get, HttpResponse, Responder};
+
+    #[derive(IntoParams, Deserialize)]
+    #[into_params(extensions(("x-some-ext" = json!(true))))]
+    #[allow(unused)]
+    struct Person {
+        /// Name of person
+        name: String,
+        /// City of residence
+        #[param(extensions(("x-other-ext" = json!(1))))]
+        city: Option<String>,
+    }
+
+    /// Get person by id
+    #[utoipa::path(
+        params(
+            Person
+        ),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/person")]
+    async fn get_person(person: Query<Person>) -> impl Responder {
+        HttpResponse::Ok()
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_person))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/~1person/get/parameters").unwrap();
+
+    common::assert_json_array_len(parameters, 2);
+    assert_value! {parameters=>
+        "[0].in" = r#""query""#, "Parameter in"
+        "[0].name" = r#""name""#, "Parameter name"
+        "[0].description" = r#""Name of person""#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].schema.type" = r#""string""#, "Parameter schema type"
+        "[0].schema.format" = r#"null"#, "Parameter schema format"
+        "[0].x-some-ext" = r#"true"#, "Parameter x-some-ext"
+
+        "[1].in" = r#""query""#, "Parameter in"
+        "[1].name" = r#""city""#, "Parameter name"
+        "[1].description" = r#""City of residence""#, "Parameter description"
+        "[1].required" = r#"false"#, "Parameter required"
+        "[1].schema.type" = r#"["string","null"]"#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+        "[1].x-some-ext" = r#"true"#, "Parameter x-some-ext"
+        "[1].x-other-ext" = r#"1"#, "Parameter x-other-ext"
+    };
+}
+
+#[test]
 fn path_with_all_args() {
     #![allow(unused)]
     #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
