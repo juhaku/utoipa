@@ -157,6 +157,16 @@ mod rocket;
 
 const DEFAULT_HTML: &str = include_str!("../res/scalar.html");
 
+#[cfg(feature = "vendored")]
+const CONTENT: &str = include_str!("../res/api-reference.js");
+#[cfg(feature = "vendored")]
+const SRC: &str = "";
+
+#[cfg(not(feature = "vendored"))]
+const SRC: &str = "src=\"https://cdn.jsdelivr.net/npm/@scalar/api-reference\"";
+#[cfg(not(feature = "vendored"))]
+const CONTENT: &str = "";
+
 /// Trait makes [`Scalar`] to accept an _`URL`_ the [Scalar][scalar] will be served via predefined
 /// web server.
 ///
@@ -235,12 +245,15 @@ impl<S: Spec> Scalar<S> {
     /// At this point in time, it is not possible to customize the HTML template used by the
     /// [`Scalar`] instance.
     pub fn to_html(&self) -> String {
-        self.html.replace(
-            "$spec",
-            &serde_json::to_string(&self.openapi).expect(
-                "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
-            ),
-        )
+        self.html
+            .replace(
+                "$spec",
+                &serde_json::to_string(&self.openapi).expect(
+                    "Invalid OpenAPI spec, expected OpenApi, String, &str or serde_json::Value",
+                ),
+            )
+            .replace("$api-refrence-src", SRC)
+            .replace("$api-refrence-content", CONTENT)
     }
 
     /// Override the [default HTML template][scalar_html_quickstart] with new one. Refer to

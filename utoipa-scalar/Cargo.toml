@@ -12,8 +12,11 @@ authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
 
 [package.metadata.docs.rs]
-features = ["actix-web", "axum", "rocket"]
+features = ["actix-web", "axum", "rocket", "vendored"]
 rustdoc-args = ["--cfg", "doc_cfg"]
+
+[features]
+vendored = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
