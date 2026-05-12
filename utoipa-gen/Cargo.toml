@@ -48,6 +48,7 @@ axum = { version = "0.8.0", default-features = false, features = [
 paste = "1"
 rocket = { version = "0.5", features = ["json"] }
 smallvec = { version = "1.10", features = ["serde"] }
+bigdecimal = ">= 0.0.13, < 0.5.0"
 rust_decimal = { version = "1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 time = { version = "0.3", features = ["serde-human-readable"] }
@@ -61,6 +62,7 @@ debug = ["syn/extra-traits"]
 actix_extras = ["regex", "syn/extra-traits"]
 chrono = []
 yaml = []
+bigdecimal = []
 decimal = []
 decimal_float = []
 rocket_extras = ["regex", "syn/extra-traits"]
