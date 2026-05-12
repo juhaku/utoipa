@@ -107,7 +107,7 @@ impl ToTokensDiagnostics for IntoParams {
         let parameter_in = pop_feature!(into_params_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(into_params_features => Feature::RenameAll(_));
 
-        let params = self
+        let (flatten_params, no_flatten_params): (Vec<_>, Vec<_>) = self
             .get_struct_fields(&names.as_ref())?
             .enumerate()
             .map(|(index, field)| {
@@ -117,7 +117,7 @@ impl ToTokensDiagnostics for IntoParams {
                 };
                 match serde::parse_value(&field.attrs) {
                     Ok(serde_value) => Ok((index, field, serde_value, field_features)),
-                    Err(diagnostics) => Err(diagnostics)
+                    Err(diagnostics) => Err(diagnostics),
                 }
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?
@@ -129,7 +129,9 @@ impl ToTokensDiagnostics for IntoParams {
                     Some((index, field, field_serde_params, field_features))
                 }
             })
-            .map(|(index, field, field_serde_params, field_features)| {
+            .partition(|(_, _, field_serde_params, _)| field_serde_params.flatten);
+
+        let no_flatten_params = no_flatten_params.into_iter().map(|(index, field, field_serde_params, field_features)| {
                 let name = names.as_ref()
                     .map_try(|names| names.get(index).ok_or_else(|| Diagnostics::with_span(
                         ident.span(),
@@ -140,26 +142,56 @@ impl ToTokensDiagnostics for IntoParams {
                     Err(diagnostics) => return Err(diagnostics)
                 };
                 let param = Param::new(field, field_serde_params, field_features, FieldParamContainerAttributes {
-                        rename_all: rename_all.as_ref().and_then(|feature| {
-                            match feature {
-                                Feature::RenameAll(rename_all) => Some(rename_all),
-                                _ => None
-                            }
-                        }),
-                        style: &style,
-                        parameter_in: &parameter_in,
-                        name,
-                    }, &serde_container, &self.generics)?;
-
+                    rename_all: rename_all.as_ref().and_then(|feature| {
+                        match feature {
+                            Feature::RenameAll(rename_all) => Some(rename_all),
+                            _ => None
+                        }
+                    }),
+                    style: &style,
+                    parameter_in: &parameter_in,
+                    name,
+                }, &serde_container, &self.generics)?;
 
                 Ok(param.to_token_stream())
             })
             .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
+        let flatten_params = flatten_params
+            .into_iter()
+            .map(|(_, field, _, mut field_features)| {
+                let ty = &field.ty;
+
+                let schema_with =
+                    pop_feature!(field_features => Feature::SchemaWith(_)  as Option<SchemaWith>);
+                let parameter_in = parameter_in.as_ref().and_then(|feature| match feature {
+                        Feature::ParameterIn(value) => Some(value),
+                        _ => None,
+                    });
+                let parameter = if let Some( parameter_in) = parameter_in {
+                    quote! { || Some(#parameter_in) }
+                } else {
+                    quote! { || parameter_in_provider() }
+                };
+
+                if let Some(schema_with) = schema_with {
+                    Ok(quote! {
+                        params.extend(#schema_with(#parameter));
+                    })
+                } else {
+                    Ok(quote! {
+                        params.extend(<#ty as utoipa::IntoParams>::into_params(#parameter));
+                    })
+                }
+            })
+            .collect::<Result<Vec<_>, Diagnostics>>()?;
+
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
-                    #params.into_iter().filter(Option::is_some).flatten().collect()
+                    let mut params:Vec<utoipa::openapi::path::Parameter> = #no_flatten_params.into_iter().filter(Option::is_some).flatten().collect();
+                    #(#flatten_params)*
+                    params
                 }
             }
         });
