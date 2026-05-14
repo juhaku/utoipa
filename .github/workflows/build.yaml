@@ -126,12 +126,6 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
 
-      - name: Install nightly Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: clippy, rustfmt
-
       - uses: actions/cache@v3
         with:
           path: |
