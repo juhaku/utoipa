@@ -1,11 +1,17 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Changed
+
+* Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)
+
 ## 5.5.0 - May 5 2026
 
 ### Added
 
-* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
-* Support servers in path macro (https://github.com/juahku/utoipa/pull/1293)
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juhaku/utoipa/pull/1416)
+* Support servers in path macro (https://github.com/juhaku/utoipa/pull/1293)
 * No need to implement `IntoParams`, `ToSchema`, and `PartialSchema` for boolean ignored (e.g.: `ignore = true`) fields (https://github.com/juhaku/utoipa/pull/1500)
 
 ## 5.4.0 - Jun 16 2025
