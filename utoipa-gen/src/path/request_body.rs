@@ -145,7 +145,7 @@ impl Parse for RequestBodyAttr<'_> {
                             }
 
                             let media_type =
-                                parse_utils::parse_comma_separated_within_parethesis_with(
+                                parse_utils::parse_comma_separated_within_parenthesis_with(
                                     &group,
                                     group_parser,
                                 )?
