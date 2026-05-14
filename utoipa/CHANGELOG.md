@@ -7,7 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Added
 
-* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juhaku/utoipa/pull/1416)
 
 ## 5.4.0 - Jun 16 2025
 
