@@ -12,7 +12,11 @@ use crate::component::features::attributes::{Extensions, Inline};
 use crate::component::features::Feature;
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree, ValueType};
 use crate::ext::ExtSchema;
-use crate::{parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics};
+use crate::{
+    parse_utils,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    AnyValue, Array,
+};
 
 use super::example::Example;
 use super::PathTypeTree;

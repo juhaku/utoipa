@@ -12,11 +12,12 @@ use syn::{
 
 use crate::doc_comment::CommentAttributes;
 use crate::schema_type::{KnownFormat, PrimitiveType, SchemaTypeInner};
-use crate::{
-    as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
-    ToTokensDiagnostics,
-};
+use crate::token_stream::quote_diagnostics_spanned;
 use crate::{schema_type::SchemaType, Deprecated};
+use crate::{
+    token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
+};
 
 use self::features::attributes::{Description, Nullable};
 use self::features::validation::Minimum;
@@ -946,7 +947,6 @@ impl ComponentSchema {
         let nullable: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_));
-        let default_tokens = as_tokens_or_diagnostics!(&default);
         let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         let additional_properties = additional_properties
@@ -1006,14 +1006,14 @@ impl ComponentSchema {
         let schema_type =
             ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Object);
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             utoipa::openapi::ObjectBuilder::new()
                 #schema_type
                 #additional_properties
                 #description_stream
                 #deprecated
-                #default_tokens
-        });
+                @default
+        }?);
 
         example.to_tokens(tokens)
     }
@@ -1159,10 +1159,9 @@ impl ComponentSchema {
                     }
                 }
 
-                let schema_type_tokens = as_tokens_or_diagnostics!(&schema_type);
-                tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type_tokens)
-                });
+                tokens.extend(quote_diagnostics! {
+                    utoipa::openapi::ObjectBuilder::new().schema_type(@schema_type)
+                }?);
 
                 let format = KnownFormat::from_path(type_path)?;
                 if format.is_known_format() {
@@ -1238,9 +1237,7 @@ impl ComponentSchema {
                     object_schema_reference.name = quote! { String::from(#name_tokens) };
 
                     let default = pop_feature!(features => Feature::Default(_));
-                    let default_tokens = as_tokens_or_diagnostics!(&default);
                     let title = pop_feature!(features => Feature::Title(_));
-                    let title_tokens = as_tokens_or_diagnostics!(&title);
 
                     if is_inline {
                         let schema_type = SchemaType {
@@ -1292,14 +1289,14 @@ impl ComponentSchema {
                             || title.is_some()
                             || !description_tokens.is_empty()
                         {
-                            quote_spanned! {type_path.span()=>
+                            quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
                                     .item(#items_tokens)
                                     #nullable_item
-                                #title_tokens
-                                #default_tokens
+                                @title
+                                @default
                                 #description_stream
-                            }
+                            }?
                         } else {
                             items_tokens
                         };
@@ -1359,16 +1356,16 @@ impl ComponentSchema {
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
                         let schema = if default.is_some() || nullable || title.is_some() {
-                            composed_or_ref(quote_spanned! {type_path.span()=>
+                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
                                     .item(utoipa::openapi::schema::RefBuilder::new()
                                         #description_stream
                                         .ref_location_from_schema_name(#name_tokens)
                                     )
                                     #nullable_item
-                                    #title_tokens
-                                    #default_tokens
-                            })
+                                    @title
+                                    @default
+                            }?)
                         } else {
                             composed_or_ref(quote_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::RefBuilder::new()
@@ -1602,7 +1599,6 @@ impl FlattenedMapSchema {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
-        let default_tokens = as_tokens_or_diagnostics!(&default);
 
         // Maps are treated as generic objects with no named properties and
         // additionalProperties denoting the type
@@ -1621,12 +1617,12 @@ impl FlattenedMapSchema {
         })?;
         let schema_tokens = schema_property.to_token_stream();
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             #schema_tokens
                 #description
                 #deprecated
-                #default_tokens
-        });
+                @default
+        }?);
 
         example.to_tokens(&mut tokens)?;
         nullable.to_tokens(&mut tokens)?;
