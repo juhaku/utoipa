@@ -547,13 +547,13 @@ impl OneOfBuilder {
     }
 
     /// Add or change read only flag for [`OneOf`].
-    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        set_value!(self read_only read_only)
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        set_value!(self read_only Some(read_only))
     }
 
     /// Add or change write only flag for [`OneOf`].
-    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        set_value!(self write_only write_only)
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
     }
 
     to_array_builder!();
@@ -1222,13 +1222,13 @@ impl ObjectBuilder {
     }
 
     /// Add or change write only flag for [`Object`].
-    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        set_value!(self write_only write_only)
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
     }
 
     /// Add or change read only flag for [`Object`].
-    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        set_value!(self read_only read_only)
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        set_value!(self read_only Some(read_only))
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Object`].
