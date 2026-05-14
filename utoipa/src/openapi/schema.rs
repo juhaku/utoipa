@@ -1483,13 +1483,13 @@ impl RefBuilder {
     }
 
     /// Add or change read only flag for the reference.
-    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        set_value!(self read_only read_only)
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        set_value!(self read_only Some(read_only))
     }
 
     /// Add or change write only flag for the reference.
-    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        set_value!(self write_only write_only)
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
     }
 }
 
