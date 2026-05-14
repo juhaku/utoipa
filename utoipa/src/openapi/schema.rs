@@ -968,7 +968,7 @@ builder! {
         /// Additional [`Schema`] to describe property names of an object such as a map. See more
         /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub property_names: Option<Box<Schema>>,
+        pub property_names: Option<Box<RefOr<Schema>>>,
 
         /// Changes the [`Object`] deprecated status.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1148,7 +1148,7 @@ impl ObjectBuilder {
 
     /// Add additional [`Schema`] to describe property names of an object such as a map. See more
     /// details <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-01#name-propertynames>
-    pub fn property_names<S: Into<Schema>>(mut self, property_name: Option<S>) -> Self {
+    pub fn property_names<S: Into<RefOr<Schema>>>(mut self, property_name: Option<S>) -> Self {
         set_value!(self property_names property_name.map(|property_name| Box::new(property_name.into())))
     }
 
@@ -2363,6 +2363,54 @@ mod tests {
           ]
         }
         "#);
+    }
+
+    #[test]
+    fn derive_object_with_additional_properties_inline() {
+        let json_value = ObjectBuilder::new()
+            .property_names(Some(
+                ObjectBuilder::new().enum_values(Some(["A", "B"])).build(),
+            ))
+            .additional_properties(Some(
+                ObjectBuilder::new().schema_type(SchemaType::new(Type::Integer)),
+            ))
+            .build();
+        assert_json_snapshot!(json_value, @r##"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "type": "object",
+            "enum": [
+              "A",
+              "B"
+            ]
+          }
+        }
+        "##);
+    }
+
+    #[test]
+    fn derive_object_with_additional_properties_ref() {
+        let json_value = ObjectBuilder::new()
+            .property_names(Some(RefOr::Ref(Ref::new("#/testEnum"))))
+            .additional_properties(Some(
+                ObjectBuilder::new().schema_type(SchemaType::new(Type::Integer)),
+            ))
+            .build();
+        assert_json_snapshot!(json_value, @r##"
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/testEnum"
+          }
+        }
+        "##);
     }
 
     fn get_json_path<'a>(value: &'a Value, path: &str) -> &'a Value {
