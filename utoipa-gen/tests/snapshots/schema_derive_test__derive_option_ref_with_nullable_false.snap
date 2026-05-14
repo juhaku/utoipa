@@ -7,10 +7,10 @@ expression: schema
     "default_optional_ref": {
       "oneOf": [
         {
-          "type": "null"
+          "$ref": "#/components/schemas/RefType"
         },
         {
-          "$ref": "#/components/schemas/RefType"
+          "type": "null"
         }
       ]
     },
