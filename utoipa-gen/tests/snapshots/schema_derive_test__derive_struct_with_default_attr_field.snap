@@ -11,10 +11,10 @@ snapshot_kind: text
       },
       "oneOf": [
         {
-          "type": "null"
+          "$ref": "#/components/schemas/Book"
         },
         {
-          "$ref": "#/components/schemas/Book"
+          "type": "null"
         }
       ]
     },
