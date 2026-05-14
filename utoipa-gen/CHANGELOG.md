@@ -13,6 +13,7 @@
 * Add support for jiff v0.2 `Timestamp` (https://github.com/juhaku/utoipa/pull/1416)
 * Support servers in path macro (https://github.com/juhaku/utoipa/pull/1293)
 * No need to implement `IntoParams`, `ToSchema`, and `PartialSchema` for boolean ignored (e.g.: `ignore = true`) fields (https://github.com/juhaku/utoipa/pull/1500)
+* Add support for expression for `title` and `names` (<https://github.com/juhaku/utoipa/pull/1524>)
 
 ## 5.4.0 - Jun 16 2025
 
