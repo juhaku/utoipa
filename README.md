@@ -117,6 +117,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **`rc_schema`**: Add `ToSchema` support for `Arc<T>` and `Rc<T>` types. **Note!** serde `rc` feature flag must be enabled separately to allow
   serialization and deserialization of `Arc<T>` and `Rc<T>` types. See more about [serde feature flags](https://serde.rs/feature-flags.html).
 - **`config`** Enables [`utoipa-config`](./utoipa-config/README.md) for the project which allows defining global configuration options for `utoipa`.
+- **`tagged_discriminator`**: Changes the schema generation for internally tagged enums. Instead of wrapping variants in an anonymous `allOf` object to inject the discriminator tag, it generates a cleaner schema with `oneOf` and a top-level `discriminator` field. This provides better compatibility with some client generators (e.g. openapi-generator for TypeScript/Java) which struggle with the default nested structure.
 
 ### Default Library Support
 

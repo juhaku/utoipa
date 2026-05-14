@@ -51,6 +51,7 @@ repr = ["utoipa-gen?/repr"]
 preserve_order = []
 preserve_path_order = []
 rc_schema = ["utoipa-gen?/rc_schema"]
+tagged_discriminator = ["utoipa-gen?/tagged_discriminator"]
 macros = ["dep:utoipa-gen"]
 config = ["utoipa-gen?/config"]
 

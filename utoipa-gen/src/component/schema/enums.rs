@@ -21,7 +21,7 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     schema_type::SchemaType,
-    Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
+    as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
 };
 
 use super::{features, serde, NamedStructSchema, Root, UnnamedStructSchema};
@@ -358,9 +358,38 @@ impl<'p> MixedEnum<'p> {
             .flat_map(|item| std::mem::take(&mut item.schema_references))
             .collect::<Vec<_>>();
 
+        // If feature enabled, we might use discriminator from internally tagged variants
+        #[allow(unused_mut)]
+        let mut discriminator_tokens = if discriminator.is_some() {
+             Some(as_tokens_or_diagnostics!(&discriminator))
+        } else {
+             None
+        };
+
+        #[cfg(feature = "tagged_discriminator")]
+        if discriminator_tokens.is_none() {
+            if let SerdeEnumRepr::InternallyTagged { tag } = &container_rules.enum_repr {
+                let mappings = items.iter().filter_map(|item| {
+                    item.discriminator_variant.as_ref().map(|(variant_tag, schema_name)| {
+                        let variant_tag_token = variant_tag.to_token_stream();
+                        quote! {
+                            (#variant_tag_token, format!("#/components/schemas/{}", #schema_name))
+                        }
+                    })
+                }).collect::<Vec<_>>();
+
+                if !mappings.is_empty() {
+                    let mappings = Array::Owned(mappings);
+                    discriminator_tokens = Some(quote! {
+                         .discriminator(Some(utoipa::openapi::schema::Discriminator::with_mapping(#tag, #mappings)))
+                    });
+                }
+            }
+        }
+
         let one_of_enum = OneOf {
             items: &Array::Owned(items),
-            discriminator,
+            discriminator: discriminator_tokens,
         };
 
         let _ = pop_feature!(features => Feature::NoRecursion(_));
@@ -386,6 +415,8 @@ impl ToTokens for MixedEnum<'_> {
 struct MixedEnumContent {
     tokens: TokenStream,
     schema_references: Vec<SchemaReference>,
+    #[allow(dead_code)]
+    discriminator_variant: Option<(String, TokenStream)>,
 }
 
 impl MixedEnumContent {
@@ -415,9 +446,11 @@ impl MixedEnumContent {
         }
 
         let mut schema_references: Vec<SchemaReference> = Vec::new();
+        let mut discriminator_variant = None;
+
         match &variant.fields {
             Fields::Named(named) => {
-                let (variant_tokens, references) =
+                let (variant_tokens, references, _) =
                     MixedEnumContent::get_named_tokens_with_schema_references(
                         root,
                         MixedEnumVariant {
@@ -434,7 +467,7 @@ impl MixedEnumContent {
                 variant_tokens.to_tokens(&mut tokens);
             }
             Fields::Unnamed(unnamed) => {
-                let (variant_tokens, references) =
+                let (variant_tokens, references, disc_variant) =
                     MixedEnumContent::get_unnamed_tokens_with_schema_reference(
                         root,
                         MixedEnumVariant {
@@ -449,6 +482,7 @@ impl MixedEnumContent {
                     )?;
 
                 schema_references.extend(references);
+                discriminator_variant = disc_variant;
                 variant_tokens.to_tokens(&mut tokens);
             }
             Fields::Unit => {
@@ -466,6 +500,7 @@ impl MixedEnumContent {
         Ok(Self {
             tokens,
             schema_references,
+            discriminator_variant,
         })
     }
 
@@ -476,7 +511,7 @@ impl MixedEnumContent {
         serde_container: &SerdeContainer,
         variant_serde_rules: SerdeValue,
         rename_all: Option<&RenameAll>,
-    ) -> Result<(TokenStream, Vec<SchemaReference>), Diagnostics> {
+    ) -> Result<(TokenStream, Vec<SchemaReference>, Option<(String, TokenStream)>), Diagnostics> {
         let MixedEnumVariant {
             variant,
             fields,
@@ -510,6 +545,7 @@ impl MixedEnumContent {
                         .features(enum_features)
                         .to_token_stream(),
                     schema.fields_references,
+                    None,
                 )
             }
             SerdeEnumRepr::InternallyTagged { tag } => {
@@ -538,11 +574,12 @@ impl MixedEnumContent {
                             .to_token_stream()
                     },
                     schema.fields_references,
+                    None,
                 )
             }
             SerdeEnumRepr::Untagged => {
                 let schema = NamedStructSchema::new(root, fields, variant_features)?;
-                (schema.to_token_stream(), schema.fields_references)
+                (schema.to_token_stream(), schema.fields_references, None)
             }
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 let (enum_features, variant_features) =
@@ -556,6 +593,7 @@ impl MixedEnumContent {
                         .features(enum_features)
                         .to_token_stream(),
                     schema.fields_references,
+                    None,
                 )
             }
             SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => unreachable!(
@@ -573,7 +611,7 @@ impl MixedEnumContent {
         serde_container: &SerdeContainer,
         variant_serde_rules: SerdeValue,
         rename_all: Option<&RenameAll>,
-    ) -> Result<(TokenStream, Vec<SchemaReference>), Diagnostics> {
+    ) -> Result<(TokenStream, Vec<SchemaReference>, Option<(String, TokenStream)>), Diagnostics> {
         let MixedEnumVariant {
             variant,
             fields,
@@ -607,6 +645,7 @@ impl MixedEnumContent {
                         .features(enum_features)
                         .to_token_stream(),
                     schema.schema_references,
+                    None,
                 )
             }
             SerdeEnumRepr::InternallyTagged { tag } => {
@@ -623,17 +662,49 @@ impl MixedEnumContent {
                     .iter()
                     .any(|type_tree| type_tree.value_type == ValueType::Object);
 
-                (
-                    EnumSchema::<InternallyTaggedUnnamedSchema>::new(schema_tokens, is_reference)
-                        .tag(tag, PlainSchema::for_name(name.as_ref()))
-                        .features(enum_features)
-                        .to_token_stream(),
-                    schema.schema_references,
-                )
+                #[cfg(feature = "tagged_discriminator")]
+                {
+                    if is_reference {
+                        let field = fields.first().unwrap();
+                        let type_path = &field.ty;
+                        let schema_name = quote! {
+                            <#type_path as utoipa::ToSchema>::name()
+                        };
+
+                        // Clean schema reference generation
+                        (
+                             EnumSchema::<InternallyTaggedUnnamedSchema>::new_clean_reference(schema_tokens)
+                                .features(enum_features)
+                                .to_token_stream(),
+                            schema.schema_references,
+                            Some((name.as_ref().to_string(), schema_name)),
+                        )
+                    } else {
+                        (
+                            EnumSchema::<InternallyTaggedUnnamedSchema>::new(schema_tokens, is_reference)
+                                .tag(tag, PlainSchema::for_name(name.as_ref()))
+                                .features(enum_features)
+                                .to_token_stream(),
+                            schema.schema_references,
+                            None,
+                        )
+                    }
+                }
+                #[cfg(not(feature = "tagged_discriminator"))]
+                {
+                     (
+                        EnumSchema::<InternallyTaggedUnnamedSchema>::new(schema_tokens, is_reference)
+                            .tag(tag, PlainSchema::for_name(name.as_ref()))
+                            .features(enum_features)
+                            .to_token_stream(),
+                        schema.schema_references,
+                        None,
+                    )
+                }
             }
             SerdeEnumRepr::Untagged => {
                 let schema = UnnamedStructSchema::new(root, fields, variant_features)?;
-                (schema.to_token_stream(), schema.schema_references)
+                (schema.to_token_stream(), schema.schema_references, None)
             }
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 if fields.len() > 1 {
@@ -655,6 +726,7 @@ impl MixedEnumContent {
                         .features(enum_features)
                         .to_token_stream(),
                     schema.schema_references,
+                    None,
                 )
             }
             SerdeEnumRepr::UnfinishedAdjacentlyTagged { .. } => unreachable!(
@@ -856,6 +928,16 @@ impl EnumSchema<InternallyTaggedUnnamedSchema> {
         }
     }
 
+    #[cfg(feature = "tagged_discriminator")]
+    fn new_clean_reference<T: ToTokens>(item: T) -> Self {
+        let schema = item.to_token_stream();
+        Self {
+            content: Some(InternallyTaggedUnnamedSchema(schema, true)),
+            untagged: false,
+            features: Vec::new(),
+        }
+    }
+
     fn tag(mut self, tag: &str, tag_schema: PlainSchema) -> Self {
         let content = self
             .content
@@ -994,7 +1076,7 @@ impl ToTokens for PlainSchema {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OneOf<'a, T: ToTokens> {
     items: &'a Array<'a, T>,
-    discriminator: Option<Feature>,
+    discriminator: Option<TokenStream>,
 }
 
 impl<'a, T> ToTokens for OneOf<'a, T>
@@ -1015,7 +1097,10 @@ where
         });
 
         // discriminator tokens will not fail
-        let discriminator = self.discriminator.to_token_stream();
+        let discriminator = match &self.discriminator {
+            Some(discriminator) => discriminator.clone(),
+            None => TokenStream::new(),
+        };
 
         tokens.extend(quote! {
             Into::<utoipa::openapi::schema::OneOfBuilder>::into(utoipa::openapi::OneOf::with_capacity(#len))
