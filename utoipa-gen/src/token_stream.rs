@@ -185,7 +185,7 @@ macro_rules! quote_diagnostics_spanned {
         $out.extend(quote::quote_spanned!($span => $($prev)*));
 
         let mut group = proc_macro2::TokenStream::new();
-        $crate::quote_diagnostics_spanned!( %qd group $span; [ ] [ $($inner)* ]);
+        $crate::token_stream::quote_diagnostics_spanned!( %qd group $span; [ ] [ $($inner)* ]);
         $out.extend(quote::quote_spanned!{$span =>  { #group } });
 
         $crate::quote_diagnostics_spanned!( %qd $out $span; [ ] [ $($rest)* ]);
