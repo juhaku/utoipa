@@ -329,3 +329,74 @@ impl FromIterator<Diagnostics> for Option<Diagnostics> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Entity;
+
+    impl ToTokensDiagnostics for Entity {
+        fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
+            tokens.extend(quote::quote! { entity });
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn quote_diagnostics_with_curly_braces() {
+        let entity = Entity;
+        let result: Result<proc_macro2::TokenStream, crate::Diagnostics> = quote_diagnostics! {
+            ( @entity )
+        };
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn quote_diagnostics_with_curly_brackets() {
+        let entity = Entity;
+        let result: Result<proc_macro2::TokenStream, crate::Diagnostics> = quote_diagnostics! {
+            { @entity }
+        };
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn quote_diagnostics_with_brackets() {
+        let entity = Entity;
+        let result: Result<proc_macro2::TokenStream, crate::Diagnostics> = quote_diagnostics! {
+            [ @entity ]
+        };
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn quote_diagnostics_spanned_with_curly_braces() {
+        let span = Span::call_site();
+        let entity = Entity;
+        let result: Result<proc_macro2::TokenStream, crate::Diagnostics> = quote_diagnostics_spanned! {
+            span => ( @entity )
+        };
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn quote_diagnostics_spanned_with_curly_brackets() {
+        let span = Span::call_site();
+        let entity = Entity;
+        let result: Result<proc_macro2::TokenStream, crate::Diagnostics> = quote_diagnostics_spanned! {
+            span => { @entity }
+        };
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn quote_diagnostics_spanned_with_brackets() {
+        let span = Span::call_site();
+        let entity = Entity;
+        let result: Result<proc_macro2::TokenStream, crate::Diagnostics> = quote_diagnostics_spanned! {
+            span => [ @entity ]
+        };
+        assert!(result.is_ok());
+    }
+}
