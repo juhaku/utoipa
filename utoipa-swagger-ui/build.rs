@@ -314,8 +314,26 @@ fn download_file_curl<T: AsRef<Path>>(url: &str, target_dir: T) -> Result<(), Bo
     #[cfg(feature = "url")]
     let url = url::Url::parse(url)?;
 
-    let mut args = Vec::with_capacity(6);
+    let mut args = Vec::with_capacity(16);
+    // --fail makes curl exit non-zero on HTTP 4xx/5xx instead of writing the
+    //   error body to the output and reporting success — without it, a
+    //   transient CDN 5xx silently produces a "zip" containing HTML, which
+    //   then panics later inside ZipArchive::new with "Could not find EOCD".
+    // --retry / --retry-delay smooths over transient 5xx and connection
+    //   errors from release CDNs.
+    // --connect-timeout / --max-time bound a stuck download so it can't hang
+    //   the build indefinitely.
     args.extend([
+        "--fail",
+        "--show-error",
+        "--retry",
+        "5",
+        "--retry-delay",
+        "2",
+        "--connect-timeout",
+        "10",
+        "--max-time",
+        "120",
         "-sSL",
         "-o",
         target_dir
