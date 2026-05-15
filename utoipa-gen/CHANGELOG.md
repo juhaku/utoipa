@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+* Add quote_diagnostics! and quote_diagnostics_spanned! macros (https://github.com/juhaku/utoipa/pull/1553)
+
 ### Changed
 
 * Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)

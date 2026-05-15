@@ -20,13 +20,7 @@ compile_error!(
     "`actix_extras`, `axum_extras` and `rocket_extras` are mutually exclusive feature flags"
 );
 
-use std::{
-    borrow::{Borrow, Cow},
-    error::Error,
-    fmt::Display,
-    mem,
-    ops::Deref,
-};
+use std::{mem, ops::Deref};
 
 use component::schema::Schema;
 use doc_comment::CommentAttributes;
@@ -35,9 +29,9 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{quote, ToTokens, TokenStreamExt};
 
-use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -54,6 +48,7 @@ mod path;
 mod schema_type;
 mod security_requirement;
 mod server;
+pub(crate) mod token_stream;
 
 use crate::path::{Path, PathAttr};
 
@@ -64,6 +59,7 @@ use self::{
     },
     openapi::parse_openapi_attrs,
     path::response::derive::{IntoResponses, ToResponse},
+    token_stream::{Diagnostics, ToTokensDiagnostics},
 };
 
 #[cfg(feature = "config")]
@@ -3455,170 +3451,6 @@ impl<'g> GenericsExt for &'g syn::Generics {
                     None
                 }
             })
-    }
-}
-
-trait ToTokensDiagnostics {
-    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics>;
-
-    #[allow(unused)]
-    fn into_token_stream(self) -> TokenStream2
-    where
-        Self: std::marker::Sized,
-    {
-        ToTokensDiagnostics::to_token_stream(&self)
-    }
-
-    fn to_token_stream(&self) -> TokenStream2 {
-        let mut tokens = TokenStream2::new();
-        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
-            Ok(_) => tokens,
-            Err(error_stream) => Into::<Diagnostics>::into(error_stream).into_token_stream(),
-        }
-    }
-
-    fn try_to_token_stream(&self) -> Result<TokenStream2, Diagnostics> {
-        let mut tokens = TokenStream2::new();
-        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
-            Ok(_) => Ok(tokens),
-            Err(diagnostics) => Err(diagnostics),
-        }
-    }
-}
-
-macro_rules! as_tokens_or_diagnostics {
-    ( $type:expr ) => {{
-        let mut _tokens = proc_macro2::TokenStream::new();
-        match crate::ToTokensDiagnostics::to_tokens($type, &mut _tokens) {
-            Ok(_) => _tokens,
-            Err(diagnostics) => return Err(diagnostics),
-        }
-    }};
-}
-
-use as_tokens_or_diagnostics;
-
-#[derive(Debug)]
-struct Diagnostics {
-    diagnostics: Vec<DiangosticsInner>,
-}
-
-#[derive(Debug)]
-struct DiangosticsInner {
-    span: Span,
-    message: Cow<'static, str>,
-    suggestions: Vec<Suggestion>,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum Suggestion {
-    Help(Cow<'static, str>),
-    Note(Cow<'static, str>),
-}
-
-impl Display for Diagnostics {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message())
-    }
-}
-
-impl Display for Suggestion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Help(help) => {
-                let s: &str = help.borrow();
-                write!(f, "help = {}", s)
-            }
-            Self::Note(note) => {
-                let s: &str = note.borrow();
-                write!(f, "note = {}", s)
-            }
-        }
-    }
-}
-
-impl Diagnostics {
-    fn message(&self) -> Cow<'static, str> {
-        self.diagnostics
-            .first()
-            .as_ref()
-            .map(|diagnostics| diagnostics.message.clone())
-            .unwrap_or_else(|| Cow::Borrowed(""))
-    }
-
-    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
-        Self::with_span(Span::call_site(), message)
-    }
-
-    pub fn with_span<S: Into<Cow<'static, str>>>(span: Span, message: S) -> Self {
-        Self {
-            diagnostics: vec![DiangosticsInner {
-                span,
-                message: message.into(),
-                suggestions: Vec::new(),
-            }],
-        }
-    }
-
-    pub fn help<S: Into<Cow<'static, str>>>(mut self, help: S) -> Self {
-        if let Some(diagnostics) = self.diagnostics.first_mut() {
-            diagnostics.suggestions.push(Suggestion::Help(help.into()));
-            diagnostics.suggestions.sort();
-        }
-
-        self
-    }
-
-    pub fn note<S: Into<Cow<'static, str>>>(mut self, note: S) -> Self {
-        if let Some(diagnostics) = self.diagnostics.first_mut() {
-            diagnostics.suggestions.push(Suggestion::Note(note.into()));
-            diagnostics.suggestions.sort();
-        }
-
-        self
-    }
-}
-
-impl From<syn::Error> for Diagnostics {
-    fn from(value: syn::Error) -> Self {
-        Self::with_span(value.span(), value.to_string())
-    }
-}
-
-impl ToTokens for Diagnostics {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        for diagnostics in &self.diagnostics {
-            let span = diagnostics.span;
-            let message: &str = diagnostics.message.borrow();
-
-            let suggestions = diagnostics
-                .suggestions
-                .iter()
-                .map(Suggestion::to_string)
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            let diagnostics = if !suggestions.is_empty() {
-                Cow::Owned(format!("{message}\n\n{suggestions}"))
-            } else {
-                Cow::Borrowed(message)
-            };
-
-            tokens.extend(quote_spanned! {span=>
-                ::core::compile_error!(#diagnostics);
-            })
-        }
-    }
-}
-
-impl Error for Diagnostics {}
-
-impl FromIterator<Diagnostics> for Option<Diagnostics> {
-    fn from_iter<T: IntoIterator<Item = Diagnostics>>(iter: T) -> Self {
-        iter.into_iter().reduce(|mut acc, diagnostics| {
-            acc.diagnostics.extend(diagnostics.diagnostics);
-            acc
-        })
     }
 }
 
