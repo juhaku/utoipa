@@ -1866,6 +1866,88 @@ fn derive_struct_override_type_with_a_reference() {
     assert_json_snapshot!(value);
 }
 
+#[cfg(feature = "bigdecimal")]
+#[test]
+fn derive_struct_with_bigdecimal() {
+    use bigdecimal::BigDecimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            rating: BigDecimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""string""#, "Post rating type"
+        "properties.rating.format" = r#"null"#, "Post rating format"
+    }
+}
+
+#[cfg(feature = "bigdecimal")]
+#[test]
+fn derive_struct_with_bigdecimal_with_type_override() {
+    use bigdecimal::BigDecimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(value_type = f64)]
+            rating: BigDecimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""number""#, "Post rating type"
+        "properties.rating.format" = r#""double""#, "Post rating format"
+    }
+}
+
+#[cfg(feature = "bigdecimal_float")]
+#[test]
+fn derive_struct_with_rust_decimal_float() {
+    use bigdecimal::BigDecimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            rating: BigDecimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""number""#, "Post rating type"
+        "properties.rating.format" = r#""double""#, "Post rating format"
+    }
+}
+
+#[cfg(feature = "bigdecimal_float")]
+#[test]
+fn derive_struct_with_bigdecimal_float_with_type_override() {
+    use bigdecimal::BigDecimal;
+
+    let post = api_doc! {
+        struct Post {
+            id: i32,
+            #[schema(value_type = String)]
+            rating: BigDecimal,
+        }
+    };
+
+    assert_value! {post=>
+        "properties.id.type" = r#""integer""#, "Post id type"
+        "properties.id.format" = r#""int32""#, "Post id format"
+        "properties.rating.type" = r#""string""#, "Post rating type"
+        "properties.rating.format" = r#"null"#, "Post rating format"
+    }
+}
+
 #[cfg(feature = "decimal")]
 #[test]
 fn derive_struct_with_rust_decimal() {

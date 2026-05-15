@@ -11,6 +11,9 @@
 #[cfg(all(feature = "decimal", feature = "decimal_float"))]
 compile_error!("`decimal` and `decimal_float` are mutually exclusive feature flags");
 
+#[cfg(all(feature = "bigdecimal", feature = "bigdecimal_float"))]
+compile_error!("`bigdecimal` and `bigdecimal_float` are mutually exclusive feature flags");
+
 #[cfg(all(
     feature = "actix_extras",
     feature = "axum_extras",
