@@ -178,7 +178,7 @@ macro_rules! quote_diagnostics_spanned {
         $crate::token_stream::quote_diagnostics_spanned!( %qd group $span; [ ] [ $($inner)* ]);
         $out.extend(quote::quote_spanned!{$span =>  [ #group ] });
 
-        $crate::quote_diagnostics_spanned!( %qd $out $span; [ ] [ $($rest)* ]);
+        $crate::token_stream::quote_diagnostics_spanned!( %qd $out $span; [ ] [ $($rest)* ]);
     };
     // inner {}
     (%qd $out:ident $span:expr; [$($prev:tt)*] [{ $($inner:tt)* } $($rest:tt)*]) => {
