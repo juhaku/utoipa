@@ -5,6 +5,7 @@
 ### Added
 
 * Add quote_diagnostics! and quote_diagnostics_spanned! macros (https://github.com/juhaku/utoipa/pull/1553)
+* feat(gen): support Display types for security scopes (https://github.com/juhaku/utoipa/pull/1463)
 
 ### Changed
 
