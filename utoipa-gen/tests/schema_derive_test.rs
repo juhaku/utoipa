@@ -1968,7 +1968,7 @@ fn derive_struct_with_uuid_type() {
 #[cfg(feature = "ulid")]
 #[test]
 fn derive_struct_with_ulid_type() {
-    use ulid::Ulid;
+    use ferroid::id::ULID as Ulid;
 
     let post = api_doc! {
         struct Post {
