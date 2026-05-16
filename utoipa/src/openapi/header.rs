@@ -2,9 +2,11 @@
 //!
 //! [header]: https://spec.openapis.org/oas/latest.html#header-object
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
-use super::{builder, set_value, Object, RefOr, Schema, Type};
+use super::{builder, set_value, Content, Object, RefOr, Schema, Type};
 
 builder! {
     HeaderBuilder;
@@ -17,7 +19,12 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct Header {
         /// Schema of header type.
-        pub schema: RefOr<Schema>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub schema: Option<RefOr<Schema>>,
+
+        /// Map of media type representations for the header.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub content: BTreeMap<String, RefOr<Content>>,
 
         /// Additional description of the header value.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,7 +52,7 @@ impl Header {
     /// ```
     pub fn new<C: Into<RefOr<Schema>>>(component: C) -> Self {
         Self {
-            schema: component.into(),
+            schema: Some(component.into()),
             ..Default::default()
         }
     }
@@ -55,15 +62,26 @@ impl Default for Header {
     fn default() -> Self {
         Self {
             description: Default::default(),
-            schema: Object::with_type(Type::String).into(),
+            schema: Some(Object::with_type(Type::String).into()),
+            content: Default::default(),
         }
     }
 }
 
 impl HeaderBuilder {
     /// Add schema of header.
-    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self schema component.into())
+    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: Option<I>) -> Self {
+        set_value!(self schema component.map(Into::into))
+    }
+
+    /// Add media type representation for the header.
+    pub fn content<S: Into<String>, C: Into<RefOr<Content>>>(
+        mut self,
+        content_type: S,
+        content: C,
+    ) -> Self {
+        self.content.insert(content_type.into(), content.into());
+        self
     }
 
     /// Add additional description for header.

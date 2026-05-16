@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::extensions::Extensions;
-use super::{builder, path::ParameterStyle, set_value, Header};
+use super::{builder, path::ParameterStyle, set_value, Header, Ref, RefOr};
 
 builder! {
     EncodingBuilder;
@@ -29,7 +29,7 @@ builder! {
         /// Content-Disposition. Content-Type is described separately and SHALL be ignored in this
         /// section. This property SHALL be ignored if the request body media type is not a multipart.
         #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-        pub headers: BTreeMap<String, Header>,
+        pub headers: BTreeMap<String, RefOr<Header>>,
 
         /// Describes how a specific property value will be serialized depending on its type. See
         /// Parameter Object for details on the style property. The behavior follows the same values as
@@ -53,6 +53,18 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub allow_reserved: Option<bool>,
 
+        /// Encoding information for nested object properties.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub encoding: BTreeMap<String, Encoding>,
+
+        /// Encoding information for tuple-like nested array items.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub prefix_encoding: Vec<Encoding>,
+
+        /// Encoding information for each nested array item.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub item_encoding: Option<Box<Encoding>>,
+
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -67,7 +79,15 @@ impl EncodingBuilder {
 
     /// Add a [`Header`]. See [`Encoding::headers`].
     pub fn header<S: Into<String>, H: Into<Header>>(mut self, header_name: S, header: H) -> Self {
-        self.headers.insert(header_name.into(), header.into());
+        self.headers
+            .insert(header_name.into(), header.into().into());
+
+        self
+    }
+
+    /// Add a [`Header`] reference. See [`Encoding::headers`].
+    pub fn header_ref<S: Into<String>>(mut self, header_name: S, header: Ref) -> Self {
+        self.headers.insert(header_name.into(), RefOr::Ref(header));
 
         self
     }
@@ -85,6 +105,29 @@ impl EncodingBuilder {
     /// Set the allow reserved. See [`Encoding::allow_reserved`].
     pub fn allow_reserved(mut self, allow_reserved: Option<bool>) -> Self {
         set_value!(self allow_reserved allow_reserved)
+    }
+
+    /// Add nested encoding information for an object property.
+    pub fn encoding<S: Into<String>, E: Into<Encoding>>(
+        mut self,
+        property_name: S,
+        encoding: E,
+    ) -> Self {
+        self.encoding.insert(property_name.into(), encoding.into());
+        self
+    }
+
+    /// Add nested encoding information for tuple-like array items.
+    pub fn prefix_encoding<I: IntoIterator<Item = E>, E: Into<Encoding>>(
+        mut self,
+        prefix_encoding: I,
+    ) -> Self {
+        set_value!(self prefix_encoding prefix_encoding.into_iter().map(Into::into).collect())
+    }
+
+    /// Add nested encoding information for each array item.
+    pub fn item_encoding<E: Into<Encoding>>(mut self, item_encoding: Option<E>) -> Self {
+        set_value!(self item_encoding item_encoding.map(|encoding| Box::new(encoding.into())))
     }
 
     /// Add openapi extensions (x-something) of the API.
