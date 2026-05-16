@@ -5,7 +5,9 @@ use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 
 use crate::{
-    as_tokens_or_diagnostics, schema_type::SchemaType, Diagnostics, OptionExt, ToTokensDiagnostics,
+    schema_type::SchemaType,
+    token_stream::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics},
+    OptionExt,
 };
 
 use self::validators::{AboveZeroF64, AboveZeroUsize, IsNumber, IsString, IsVec, ValidatorChain};
