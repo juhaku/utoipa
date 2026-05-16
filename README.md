@@ -50,6 +50,7 @@ Refer to the existing [examples](./examples) to find out more.
     Tuples, arrays and slices cannot be used as generic arguments on types. Types implementing `ToSchema` manually should not have generic arguments, as
     they are not composeable and will result compile error.
 * Automatic schema collection from usages recursively. 
+  * Schemas referenced by parameters defined with `params` or `IntoParams`.
   * Request body from either handler function arguments (if supported by framework) or from `request_body` attribute.
   * Response body from response `body` attribute or response `content` attribute.
 * Various OpenAPI visualization tools supported out of the box.

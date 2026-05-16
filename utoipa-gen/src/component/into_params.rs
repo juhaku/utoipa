@@ -153,14 +153,26 @@ impl ToTokensDiagnostics for IntoParams {
                     }, &serde_container, &self.generics)?;
 
 
-                Ok(param.to_token_stream())
+                Ok(param)
             })
-            .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
+            .collect::<Result<Vec<_>, Diagnostics>>()?;
+        let schema_references = params
+            .iter()
+            .map(|param| param.schema_references.clone())
+            .collect::<TokenStream>();
+        let params = params
+            .iter()
+            .map(ToTokens::to_token_stream)
+            .collect::<Array<TokenStream>>();
 
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
                     #params.into_iter().filter(Option::is_some).flatten().collect()
+                }
+
+                fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    #schema_references
                 }
             }
         });
@@ -310,6 +322,7 @@ impl Parse for FieldFeatures {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Param {
     tokens: TokenStream,
+    schema_references: TokenStream,
 }
 
 impl Param {
@@ -322,6 +335,7 @@ impl Param {
         generics: &Generics,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
+        let mut schema_references = TokenStream::new();
         let field_serde_params = &field_serde_params;
         let ident = &field.ident;
         let mut name = &*ident
@@ -346,6 +360,7 @@ impl Param {
         if should_always_ignore {
             return Ok(Self {
                 tokens: quote! { None },
+                schema_references,
             });
         }
         let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
@@ -426,6 +441,10 @@ impl Param {
                 option_is_nullable,
             )?;
             let schema_tokens = schema.to_token_stream();
+            schema_references = component::schema_references_to_tokens(
+                TokenStream::new(),
+                schema.schema_references,
+            );
 
             tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
         }
@@ -441,6 +460,16 @@ impl Param {
                 }
             }
             Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
+                schema_references = quote_spanned! {
+                    path.span() => {
+                        utoipa::__dev::warn_deprecated_ignore_fn_pattern();
+
+                        if !#path() {
+                            #schema_references
+                        }
+                    }
+                };
+
                 quote_spanned! {
                     path.span() => {
                         utoipa::__dev::warn_deprecated_ignore_fn_pattern();
@@ -456,7 +485,10 @@ impl Param {
             _ => quote! { Some(#tokens) },
         };
 
-        Ok(Self { tokens })
+        Ok(Self {
+            tokens,
+            schema_references,
+        })
     }
 
     /// Resolve [`Param`] features and split features into two [`Vec`]s. Features are split by

@@ -485,32 +485,10 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
         };
 
         fn to_schema_references(
-            mut schemas: TokenStream2,
+            schemas: TokenStream2,
             (is_inline, component_schema): (bool, ComponentSchema),
         ) -> TokenStream2 {
-            for reference in component_schema.schema_references {
-                let name = &reference.name;
-                let tokens = &reference.tokens;
-                let references = &reference.references;
-
-                #[cfg(feature = "config")]
-                let should_collect_schema = (matches!(
-                    crate::CONFIG.schema_collect,
-                    utoipa_config::SchemaCollect::NonInlined
-                ) && !is_inline)
-                    || matches!(
-                        crate::CONFIG.schema_collect,
-                        utoipa_config::SchemaCollect::All
-                    );
-                #[cfg(not(feature = "config"))]
-                let should_collect_schema = !is_inline;
-                if should_collect_schema {
-                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
-                }
-                schemas.extend(quote!( #references; ));
-            }
-
-            schemas
+            crate::component::component_schema_to_tokens(schemas, is_inline, component_schema)
         }
 
         let response_schemas = self
@@ -531,6 +509,13 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .into_iter()
             .flatten()
             .fold(TokenStream2::new(), to_schema_references);
+
+        let parameter_schemas = self
+            .path_attr
+            .params
+            .iter()
+            .map(|parameter| parameter.get_schema_references())
+            .collect::<Result<TokenStream2, Diagnostics>>()?;
 
         let mut tags = self.path_attr.tags.clone();
         if let Some(tag) = self.path_attr.tag.as_ref() {
@@ -618,6 +603,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
 
             impl utoipa::__dev::SchemaReferences for #impl_for {
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    #parameter_schemas
                     #schemas
                     #response_schemas
                 }
