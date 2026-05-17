@@ -1634,8 +1634,8 @@ mod tests {
         assert_compact_json_snapshot!(isize::schema(), @r#"{"type": "integer"}"#);
         assert_compact_json_snapshot!(u8::schema(), @r#"{"type": "integer", "format": "uint8", "minimum": 0}"#);
         assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 0}"#);
-        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
-        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "uint32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "uint64", "minimum": 0}"#);
     }
 
     #[test]

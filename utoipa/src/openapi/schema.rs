@@ -2031,18 +2031,22 @@ pub enum KnownFormat {
     /// 8 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint8")]
     UInt8,
     /// 16 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint16")]
     UInt16,
     /// 32 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint32")]
     UInt32,
     /// 64 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint64")]
     UInt64,
     /// floating point number.
     Float,
@@ -2130,6 +2134,27 @@ mod tests {
 
     use super::*;
     use crate::openapi::*;
+
+    #[cfg(feature = "non_strict_integers")]
+    #[test]
+    fn serialize_unsigned_integer_known_formats() {
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt8).unwrap(),
+            json!("uint8")
+        );
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt16).unwrap(),
+            json!("uint16")
+        );
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt32).unwrap(),
+            json!("uint32")
+        );
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt64).unwrap(),
+            json!("uint64")
+        );
+    }
 
     #[test]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
