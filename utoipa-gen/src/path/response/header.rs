@@ -6,7 +6,10 @@ use syn::{Error, Generics, Ident, LitStr, Token};
 use crate::component::features::attributes::Inline;
 use crate::component::{ComponentSchema, Container, TypeTree};
 use crate::path::media_type::ParsedType;
-use crate::{parse_utils, Diagnostics, ToTokensDiagnostics};
+use crate::{
+    parse_utils,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+};
 
 /// Parsed representation of response header defined in `#[utoipa::path(..)]` attribute.
 ///

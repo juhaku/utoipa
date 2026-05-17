@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcode-select:*)",
+      "Bash(SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk LIBRARY_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib cargo test:*)",
+      "Bash(CC=/usr/bin/clang RUSTFLAGS=\"-C linker=/usr/bin/clang\" cargo test:*)"
+    ]
+  }
+}

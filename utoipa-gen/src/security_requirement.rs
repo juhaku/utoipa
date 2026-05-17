@@ -5,16 +5,16 @@ use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
     token::Comma,
-    LitStr, Token,
+    Token,
 };
 
-use crate::Array;
+use crate::parse_utils;
 
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SecurityRequirementsAttrItem {
     pub name: Option<String>,
-    pub scopes: Option<Vec<String>>,
+    pub scopes: Option<Vec<parse_utils::LitStrOrExpr>>,
 }
 
 #[derive(Default)]
@@ -30,17 +30,17 @@ impl Parse for SecurityRequirementsAttr {
 
 impl Parse for SecurityRequirementsAttrItem {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let name = input.parse::<LitStr>()?.value();
+        let name = input.parse::<syn::LitStr>()?.value();
 
         input.parse::<Token![=]>()?;
 
         let scopes_stream;
         bracketed!(scopes_stream in input);
 
-        let scopes = Punctuated::<LitStr, Comma>::parse_terminated(&scopes_stream)?
-            .iter()
-            .map(LitStr::value)
-            .collect::<Vec<_>>();
+        let scopes =
+            Punctuated::<parse_utils::LitStrOrExpr, Comma>::parse_terminated(&scopes_stream)?
+                .into_iter()
+                .collect::<Vec<_>>();
 
         Ok(Self {
             name: Some(name),
@@ -57,11 +57,14 @@ impl ToTokens for SecurityRequirementsAttr {
 
         for requirement in &self.0 {
             if let (Some(name), Some(scopes)) = (&requirement.name, &requirement.scopes) {
-                let scopes = scopes.iter().collect::<Array<&String>>();
+                let scopes_tokens = scopes.iter().map(|scope| match scope {
+                    parse_utils::LitStrOrExpr::LitStr(lit) => quote! { #lit.to_string() },
+                    parse_utils::LitStrOrExpr::Expr(expr) => quote! { #expr.to_string() },
+                });
                 let scopes_len = scopes.len();
 
                 tokens.extend(quote! {
-                    .add::<&str, [&str; #scopes_len], &str>(#name, #scopes)
+                    .add::<&str, [String; #scopes_len], String>(#name, [#(#scopes_tokens),*])
                 });
             }
         }

@@ -3,11 +3,18 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Added
+
+* Add support for `title` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
+* Add support for `default` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
+
 ## 5.5.0 - May 5 2026
 
 ### Added
 
-* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juhaku/utoipa/pull/1416)
 
 ## 5.4.0 - Jun 16 2025
 

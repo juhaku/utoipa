@@ -1,5 +1,11 @@
 # Changelog - utoipa-scalar
 
+## Unreleased
+
+### Added
+
+* Add `Scalar::title` for customizing the HTML page title (https://github.com/juhaku/utoipa/pull/1515)
+
 ## 0.3.0 - Thu 16 2025
 
 ### Changed
@@ -45,4 +51,3 @@
 
 * Update docs and next versions
 * Use same licences for scalar as well
-

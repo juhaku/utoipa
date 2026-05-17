@@ -3,7 +3,7 @@ use quote::{quote, ToTokens};
 use syn::spanned::Spanned;
 use syn::{parse::Parse, Error, Ident, LitStr, Path};
 
-use crate::{Diagnostics, ToTokensDiagnostics};
+use crate::token_stream::{Diagnostics, ToTokensDiagnostics};
 
 /// Represents data type of [`Schema`].
 #[cfg_attr(feature = "debug", derive(Debug))]

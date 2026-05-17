@@ -15,9 +15,8 @@ use syn::{
 use crate::component::schema::{EnumSchema, NamedStructSchema, Root};
 use crate::doc_comment::CommentAttributes;
 use crate::path::media_type::{DefaultSchema, MediaTypeAttr, ParsedType, Schema};
-use crate::{
-    as_tokens_or_diagnostics, parse_utils, Array, Diagnostics, OptionExt, ToTokensDiagnostics,
-};
+use crate::token_stream::quote_diagnostics;
+use crate::{parse_utils, token_stream::ToTokensDiagnostics, Array, Diagnostics, OptionExt};
 
 use super::{
     DeriveIntoResponsesValue, DeriveResponseValue, DeriveToResponseValue, ResponseTuple,
@@ -85,7 +84,7 @@ impl ToTokensDiagnostics for ToResponse<'_> {
         let lifetime = &self.lifetime;
         let ident = &self.ident;
         let name = ident.to_string();
-        let response = as_tokens_or_diagnostics!(&self.response);
+        let response = &self.response;
 
         let mut to_response_generics = self.generics.clone();
         to_response_generics
@@ -95,13 +94,13 @@ impl ToTokensDiagnostics for ToResponse<'_> {
             )));
         let (to_response_impl_generics, _, _) = to_response_generics.split_for_impl();
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             impl #to_response_impl_generics utoipa::ToResponse <#lifetime> for #ident #ty_generics #where_clause {
                 fn response() -> (& #lifetime str, utoipa::openapi::RefOr<utoipa::openapi::response::Response>) {
-                    (#name, #response.into())
+                    (#name, @response.into())
                 }
             }
-        });
+        }?);
 
         Ok(())
     }
@@ -122,9 +121,8 @@ impl ToTokensDiagnostics for IntoResponses {
                     let response =
                         NamedStructResponse::new(&self.attributes, &self.ident, &fields.named)?.0;
                     let status = &response.status_code;
-                    let response_tokens = as_tokens_or_diagnostics!(&response);
 
-                    Array::from_iter(iter::once(quote!((#status, #response_tokens))))
+                    Array::from_iter(iter::once(quote_diagnostics!((#status, @response))?))
                 }
                 Fields::Unnamed(fields) => {
                     let field = fields
@@ -136,16 +134,14 @@ impl ToTokensDiagnostics for IntoResponses {
                     let response =
                         UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)?.0;
                     let status = &response.status_code;
-                    let response_tokens = as_tokens_or_diagnostics!(&response);
 
-                    Array::from_iter(iter::once(quote!((#status, #response_tokens))))
+                    Array::from_iter(iter::once(quote_diagnostics!((#status, @response))?))
                 }
                 Fields::Unit => {
                     let response = UnitStructResponse::new(&self.attributes)?.0;
                     let status = &response.status_code;
-                    let response_tokens = as_tokens_or_diagnostics!(&response);
 
-                    Array::from_iter(iter::once(quote!((#status, #response_tokens))))
+                    Array::from_iter(iter::once(quote_diagnostics!((#status, @response))?))
                 }
             },
             Data::Enum(enum_value) => enum_value
@@ -175,8 +171,7 @@ impl ToTokensDiagnostics for IntoResponses {
                 .iter()
                 .map(|response| {
                     let status = &response.status_code;
-                    let response_tokens = as_tokens_or_diagnostics!(response);
-                    Ok(quote!((#status, utoipa::openapi::RefOr::from(#response_tokens))))
+                    quote_diagnostics!((#status, utoipa::openapi::RefOr::from(@response)))
                 })
                 .collect::<Result<Array<TokenStream>, Diagnostics>>()?,
             Data::Union(_) => {
@@ -190,7 +185,7 @@ impl ToTokensDiagnostics for IntoResponses {
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
-        let responses = if responses.len() > 0 {
+        let responses = if !responses.is_empty() {
             Some(quote!( .responses_from_iter(#responses)))
         } else {
             None
