@@ -20,6 +20,7 @@ use crate::{
         FeaturesExt, SchemaReference, TypeTree, ValueType,
     },
     doc_comment::CommentAttributes,
+    features::attributes::Repr,
     schema_type::SchemaType,
     token_stream::{Diagnostics, ToTokensDiagnostics},
     Array, AttributesExt,
@@ -48,11 +49,20 @@ impl<'e> PlainEnum<'e> {
         variants: &Punctuated<Variant, Comma>,
         mut features: Vec<Feature>,
     ) -> Result<Self, Diagnostics> {
-        #[cfg(feature = "repr")]
-        let repr_type_path = PlainEnum::get_repr_type(root.attributes)?;
+        let repr = pop_feature!(features => Feature::Repr(_) as Option<Repr>).map(|r| r.0.value);
 
-        #[cfg(not(feature = "repr"))]
-        let repr_type_path = None;
+        let repr_type_path = match repr {
+            Some(true) => Some(PlainEnum::get_repr_type(root.attributes)?.ok_or(
+                Diagnostics::new(
+                    "If #[schema(repr)] is specified, then #[repr(_)] must also be specified.",
+                ),
+            )?),
+            Some(false) => None,
+            #[cfg(feature = "repr")]
+            None => PlainEnum::get_repr_type(root.attributes)?,
+            #[cfg(not(feature = "repr"))]
+            None => None,
+        };
 
         let rename_all = pop_feature!(features => Feature::RenameAll(_) as Option<RenameAll>);
         let description = pop_feature!(features => Feature::Description(_) as Option<Description>);
@@ -128,7 +138,6 @@ impl<'e> PlainEnum<'e> {
         })
     }
 
-    #[cfg(feature = "repr")]
     fn get_repr_type(attributes: &[syn::Attribute]) -> Result<Option<syn::TypePath>, syn::Error> {
         attributes
             .iter()

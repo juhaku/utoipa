@@ -5,7 +5,7 @@ use quote::ToTokens;
 use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Paren;
-use syn::{Error, LitStr, Token, TypePath, WherePredicate};
+use syn::{Error, LitBool, LitStr, Token, TypePath, WherePredicate};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
@@ -1046,5 +1046,43 @@ impl Parse for NoRecursion {
 impl From<NoRecursion> for Feature {
     fn from(value: NoRecursion) -> Self {
         Self::NoRecursion(value)
+    }
+}
+
+impl_feature! {
+    /// Specify that an enum should be serialized using its internal
+    /// representation.
+    ///
+    /// Can be specified as `repr` or `repr = false`, where the latter will
+    /// override the presence of the `repr` feature.
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Repr(pub LitBool);
+}
+
+impl Parse for Repr {
+    fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_bool(input).map(Self)
+    }
+}
+
+impl ToTokens for Repr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.0.to_token_stream())
+    }
+}
+
+impl From<Repr> for Feature {
+    fn from(value: Repr) -> Self {
+        Self::Repr(value)
+    }
+}
+
+impl From<bool> for Repr {
+    fn from(value: bool) -> Self {
+        Self(LitBool::new(value, proc_macro2::Span::call_site()))
     }
 }
