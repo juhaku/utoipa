@@ -140,4 +140,20 @@ impl LinkBuilder {
 
         self
     }
+
+    /// Add an extension (`x-something`) to the existing extensions
+    pub fn extension(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
+        if let Some(e) = self.extensions.as_mut() {
+            e
+        } else {
+            self.extensions.insert(Default::default())
+        }
+        .insert(key.into(), value.into());
+
+        self
+    }
 }

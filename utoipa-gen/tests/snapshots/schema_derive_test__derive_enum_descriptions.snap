@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "enum": [
+    "Error",
+    "Ok",
+    "Unknown"
+  ],
+  "type": "string",
+  "x-enum-descriptions": [
+    "There was an error\n\nTry turning it off and on again.",
+    "Success",
+    ""
+  ]
+}

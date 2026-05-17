@@ -2,7 +2,9 @@ use std::{borrow::Cow, ops::Deref};
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, spanned::Spanned, token::Comma, Fields, TypePath, Variant};
+use syn::{
+    punctuated::Punctuated, spanned::Spanned, token::Comma, Fields, LitStr, TypePath, Variant,
+};
 
 use crate::{
     component::{
@@ -37,6 +39,8 @@ enum PlainEnumRepr<'p> {
 pub struct PlainEnum<'e> {
     pub root: &'e Root<'e>,
     enum_variant: PlainEnumRepr<'e>,
+    varnames: Option<EnumExtension<'e>>,
+    descriptions: Option<EnumExtension<'e>>,
     serde_enum_repr: SerdeEnumRepr,
     features: Vec<Feature>,
     pub description: Option<Description>,
@@ -119,12 +123,35 @@ impl<'e> PlainEnum<'e> {
             ),
         };
 
+        let varnames = pop_feature!(features => Feature::EnumVarnames(_)).map(|_| EnumExtension {
+            key: LitStr::new("x-enum-varnames", proc_macro2::Span::call_site()),
+            names: variants
+                .iter()
+                .map(|v| LitStr::new(&v.ident.to_string(), v.ident.span()))
+                .collect(),
+        });
+
+        let descriptions =
+            pop_feature!(features => Feature::EnumDescriptions(_)).map(|_| EnumExtension {
+                key: LitStr::new("x-enum-descriptions", proc_macro2::Span::call_site()),
+                names: variants
+                    .iter()
+                    .map(|v| {
+                        let doc =
+                            CommentAttributes::from_attributes(&v.attrs).as_formatted_string();
+                        LitStr::new(&doc, v.ident.span())
+                    })
+                    .collect(),
+            });
+
         Ok(Self {
             root,
             enum_variant,
             features,
             serde_enum_repr: container_rules.enum_repr,
             description,
+            varnames,
+            descriptions,
         })
     }
 
@@ -166,8 +193,14 @@ impl ToTokens for PlainEnum<'_> {
 
         match &self.serde_enum_repr {
             SerdeEnumRepr::ExternallyTagged => {
-                EnumSchema::<PlainSchema>::with_types(variants, schema_type, enum_type)
-                    .to_tokens(tokens);
+                EnumSchema::<PlainSchema>::with_types(
+                    variants,
+                    Roo::Ref(&self.varnames),
+                    Roo::Ref(&self.descriptions),
+                    schema_type,
+                    enum_type,
+                )
+                .to_tokens(tokens);
             }
             SerdeEnumRepr::InternallyTagged { tag } => {
                 let items = variants
@@ -183,6 +216,8 @@ impl ToTokens for PlainEnum<'_> {
                         .map(|item| {
                             EnumSchema::<PlainSchema>::with_types(
                                 Roo::Ref(item),
+                                Roo::Owned(None),
+                                Roo::Owned(None),
                                 Roo::Ref(schema_type),
                                 Roo::Ref(enum_type),
                             )
@@ -214,6 +249,8 @@ impl ToTokens for PlainEnum<'_> {
                             EnumSchema::<ObjectSchema>::adjacently_tagged(
                                 PlainSchema::new(
                                     item.deref(),
+                                    Roo::Owned(None),
+                                    Roo::Owned(None),
                                     Roo::Ref(schema_type),
                                     Roo::Ref(enum_type),
                                 ),
@@ -233,6 +270,23 @@ impl ToTokens for PlainEnum<'_> {
         };
 
         tokens.extend(self.features.to_token_stream());
+    }
+}
+
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct EnumExtension<'p> {
+    key: LitStr,
+    names: Array<'p, LitStr>,
+}
+
+impl ToTokens for EnumExtension<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let key = &self.key;
+        let names = &self.names;
+
+        tokens.extend(quote! {
+            .extension(#key, #names)
+        })
     }
 }
 
@@ -897,10 +951,12 @@ impl<'a> EnumSchema<PlainSchema> {
 
     fn with_types<T: ToTokens>(
         items: Roo<'a, Array<'a, T>>,
+        varnames: Roo<'a, Option<EnumExtension>>,
+        descriptions: Roo<'a, Option<EnumExtension>>,
         schema_type: Roo<'a, SchemaType<'a>>,
         enum_type: Roo<'a, TokenStream>,
     ) -> Self {
-        let plain_schema = PlainSchema::new(&items, schema_type, enum_type);
+        let plain_schema = PlainSchema::new(&items, varnames, descriptions, schema_type, enum_type);
 
         Self {
             content: Some(PlainSchema(quote! {
@@ -961,8 +1017,10 @@ impl PlainSchema {
         (Roo::Owned(schema_type), Roo::Owned(enum_type))
     }
 
-    fn new<'a, T: ToTokens>(
-        items: &[T],
+    fn new<'a>(
+        items: &[impl ToTokens],
+        varnames: Roo<'a, Option<EnumExtension>>,
+        descriptions: Roo<'a, Option<EnumExtension>>,
         schema_type: Roo<'a, SchemaType<'a>>,
         enum_type: Roo<'a, TokenStream>,
     ) -> Self {
@@ -970,10 +1028,14 @@ impl PlainSchema {
         let enum_type = enum_type.as_ref();
         let items = Array::Borrowed(items);
         let len = items.len();
+        let varnames = varnames.as_ref().as_ref().map(|v| v.to_token_stream());
+        let descriptions = descriptions.as_ref().as_ref().map(|v| v.to_token_stream());
 
         let plain_enum = quote! {
                 .schema_type(#schema_type)
                 .enum_values::<[#enum_type; #len], #enum_type>(Some(#items))
+                #varnames
+                #descriptions
         };
 
         Self(plain_enum.to_token_stream())
@@ -982,7 +1044,13 @@ impl PlainSchema {
     fn for_name<N: ToTokens>(name: N) -> Self {
         let (schema_type, enum_type) = Self::get_default_types();
         let name = &[name.to_token_stream()];
-        Self::new(name, schema_type, enum_type)
+        Self::new(
+            name,
+            Roo::Owned(None),
+            Roo::Owned(None),
+            schema_type,
+            enum_type,
+        )
     }
 }
 

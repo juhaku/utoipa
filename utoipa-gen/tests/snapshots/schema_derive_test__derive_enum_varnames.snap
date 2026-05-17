@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "enum": [
+    "error",
+    "ok",
+    "unknown"
+  ],
+  "type": "string",
+  "x-enum-varnames": [
+    "Error",
+    "Ok",
+    "Unknown"
+  ]
+}
