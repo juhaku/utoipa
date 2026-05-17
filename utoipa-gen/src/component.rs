@@ -1284,11 +1284,7 @@ impl ComponentSchema {
                             quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
 
                         let description_tokens = description_stream.to_token_stream();
-                        let schema = if default.is_some()
-                            || nullable
-                            || title.is_some()
-                            || !description_tokens.is_empty()
-                        {
+                        let schema = if nullable {
                             quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
                                     .item(#items_tokens)
@@ -1296,6 +1292,20 @@ impl ComponentSchema {
                                 @title
                                 @default
                                 #description_stream
+                            }?
+                        } else if default.is_some()
+                            || title.is_some()
+                            || !description_tokens.is_empty()
+                        {
+                            quote_diagnostics_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    .item(#items_tokens)
+                                    .item(
+                                        utoipa::openapi::schema::ObjectBuilder::new()
+                                            @title
+                                            @default
+                                            #description_stream
+                                    )
                             }?
                         } else {
                             items_tokens
@@ -1355,7 +1365,7 @@ impl ComponentSchema {
                         // TODO: refs support `summary` field but currently there is no such field
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
-                        let schema = if default.is_some() || nullable || title.is_some() {
+                        let schema = if nullable {
                             composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
                                     .item(utoipa::openapi::schema::RefBuilder::new()
@@ -1367,11 +1377,13 @@ impl ComponentSchema {
                                     @default
                             }?)
                         } else {
-                            composed_or_ref(quote_spanned! {type_path.span()=>
+                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::RefBuilder::new()
                                     #description_stream
                                     .ref_location_from_schema_name(#name_tokens)
-                            })
+                                    @title
+                                    @default
+                            }?)
                         };
 
                         schema.to_tokens(tokens);
