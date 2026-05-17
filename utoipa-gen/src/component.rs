@@ -1238,6 +1238,8 @@ impl ComponentSchema {
 
                     let default = pop_feature!(features => Feature::Default(_));
                     let title = pop_feature!(features => Feature::Title(_));
+                    let read_only = pop_feature!(features => Feature::ReadOnly(_));
+                    let write_only = pop_feature!(features => Feature::WriteOnly(_));
 
                     if is_inline {
                         let schema_type = SchemaType {
@@ -1295,6 +1297,8 @@ impl ComponentSchema {
                             }?
                         } else if default.is_some()
                             || title.is_some()
+                            || read_only.is_some()
+                            || write_only.is_some()
                             || !description_tokens.is_empty()
                         {
                             quote_diagnostics_spanned! {type_path.span()=>
@@ -1304,6 +1308,8 @@ impl ComponentSchema {
                                         utoipa::openapi::schema::ObjectBuilder::new()
                                             @title
                                             @default
+                                            @read_only
+                                            @write_only
                                             #description_stream
                                     )
                             }?
@@ -1375,6 +1381,8 @@ impl ComponentSchema {
                                     #nullable_item
                                     @title
                                     @default
+                                    @read_only
+                                    @write_only
                             }?)
                         } else {
                             composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
@@ -1383,6 +1391,8 @@ impl ComponentSchema {
                                     .ref_location_from_schema_name(#name_tokens)
                                     @title
                                     @default
+                                    @read_only
+                                    @write_only
                             }?)
                         };
 
