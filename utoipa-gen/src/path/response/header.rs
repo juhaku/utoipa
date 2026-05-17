@@ -138,7 +138,7 @@ impl ToTokensDiagnostics for Header {
             .to_token_stream();
 
             tokens.extend(quote! {
-                utoipa::openapi::HeaderBuilder::new().schema(#media_type_schema)
+                utoipa::openapi::HeaderBuilder::new().schema(Some(#media_type_schema))
             })
         } else {
             // default header (string type)

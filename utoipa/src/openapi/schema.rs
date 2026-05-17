@@ -9,7 +9,18 @@ use serde_json::Value;
 
 use super::extensions::Extensions;
 use super::RefOr;
-use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
+use super::{
+    builder,
+    example::Example,
+    header::Header,
+    link::Link,
+    path::{Callback, Parameter, PathItem},
+    request_body::RequestBody,
+    security::SecurityScheme,
+    set_value,
+    xml::Xml,
+    Content, Deprecated, Response,
+};
 use crate::{ToResponse, ToSchema};
 
 macro_rules! component_from_builder {
@@ -73,11 +84,45 @@ builder! {
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub responses: BTreeMap<String, RefOr<Response>>,
 
+        /// Map of reusable parameters.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub parameters: BTreeMap<String, RefOr<Parameter>>,
+
+        /// Map of reusable examples.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub examples: BTreeMap<String, RefOr<Example>>,
+
+        /// Map of reusable request bodies.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub request_bodies: BTreeMap<String, RefOr<RequestBody>>,
+
+        /// Map of reusable headers.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub headers: BTreeMap<String, RefOr<Header>>,
+
+        /// Map of reusable links.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub links: BTreeMap<String, RefOr<Link>>,
+
+        /// Map of reusable callbacks.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub callbacks: BTreeMap<String, RefOr<Callback>>,
+
+        /// Map of reusable path items.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub path_items: BTreeMap<String, PathItem>,
+
+        /// Map of reusable [OpenAPI Media Type Object][media_type]s.
+        ///
+        /// [media_type]: https://spec.openapis.org/oas/latest.html#media-type-object
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub media_types: BTreeMap<String, RefOr<Content>>,
+
         /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
         ///
         /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub security_schemes: BTreeMap<String, SecurityScheme>,
+        pub security_schemes: BTreeMap<String, RefOr<SecurityScheme>>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -98,7 +143,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn add_security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         &mut self,
         name: N,
         security_scheme: S,
@@ -116,7 +161,7 @@ impl Components {
     pub fn add_security_schemes_from_iter<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
-        S: Into<SecurityScheme>,
+        S: Into<RefOr<SecurityScheme>>,
     >(
         &mut self,
         schemas: I,
@@ -221,6 +266,92 @@ impl ComponentsBuilder {
         self.response(name, response)
     }
 
+    /// Add [`Content`] to [`Components`] as a reusable media type object.
+    pub fn media_type<S: Into<String>, C: Into<RefOr<Content>>>(
+        mut self,
+        name: S,
+        media_type: C,
+    ) -> Self {
+        self.media_types.insert(name.into(), media_type.into());
+        self
+    }
+
+    /// Add multiple reusable media type objects from an iterator.
+    pub fn media_types_from_iter<
+        I: IntoIterator<Item = (S, C)>,
+        S: Into<String>,
+        C: Into<RefOr<Content>>,
+    >(
+        mut self,
+        media_types: I,
+    ) -> Self {
+        self.media_types.extend(
+            media_types
+                .into_iter()
+                .map(|(name, media_type)| (name.into(), media_type.into())),
+        );
+
+        self
+    }
+
+    /// Add reusable [`Parameter`] to [`Components`].
+    pub fn parameter<S: Into<String>, P: Into<RefOr<Parameter>>>(
+        mut self,
+        name: S,
+        parameter: P,
+    ) -> Self {
+        self.parameters.insert(name.into(), parameter.into());
+        self
+    }
+
+    /// Add reusable [`Example`] to [`Components`].
+    pub fn example<S: Into<String>, E: Into<RefOr<Example>>>(
+        mut self,
+        name: S,
+        example: E,
+    ) -> Self {
+        self.examples.insert(name.into(), example.into());
+        self
+    }
+
+    /// Add reusable [`RequestBody`] to [`Components`].
+    pub fn request_body<S: Into<String>, R: Into<RefOr<RequestBody>>>(
+        mut self,
+        name: S,
+        request_body: R,
+    ) -> Self {
+        self.request_bodies.insert(name.into(), request_body.into());
+        self
+    }
+
+    /// Add reusable [`Header`] to [`Components`].
+    pub fn header<S: Into<String>, H: Into<RefOr<Header>>>(mut self, name: S, header: H) -> Self {
+        self.headers.insert(name.into(), header.into());
+        self
+    }
+
+    /// Add reusable [`Link`] to [`Components`].
+    pub fn link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
+        self.links.insert(name.into(), link.into());
+        self
+    }
+
+    /// Add reusable [`Callback`] to [`Components`].
+    pub fn callback<S: Into<String>, C: Into<RefOr<Callback>>>(
+        mut self,
+        name: S,
+        callback: C,
+    ) -> Self {
+        self.callbacks.insert(name.into(), callback.into());
+        self
+    }
+
+    /// Add reusable [`PathItem`] to [`Components`].
+    pub fn path_item<S: Into<String>, P: Into<PathItem>>(mut self, name: S, path_item: P) -> Self {
+        self.path_items.insert(name.into(), path_item.into());
+        self
+    }
+
     /// Add multiple [`struct@Response`]s to [`Components`] from iterator.
     ///
     /// Like the [`ComponentsBuilder::schemas_from_iter`] this allows adding multiple responses by
@@ -248,7 +379,7 @@ impl ComponentsBuilder {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         mut self,
         name: N,
         security_scheme: S,
@@ -1067,6 +1198,10 @@ builder! {
         /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
+
+        /// The _`content_schema`_ keyword specifies the schema of string-encoded content.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub content_schema: Option<Box<RefOr<Schema>>>,
     }
 }
 
@@ -1287,6 +1422,11 @@ impl ObjectBuilder {
     /// `application/json`.
     pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
         set_value!(self content_media_type content_media_type.into())
+    }
+
+    /// Set or change [`Object::content_schema`].
+    pub fn content_schema<I: Into<RefOr<Schema>>>(mut self, content_schema: Option<I>) -> Self {
+        set_value!(self content_schema content_schema.map(|schema| Box::new(schema.into())))
     }
 
     to_array_builder!();
@@ -1692,6 +1832,10 @@ builder! {
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
 
+        /// The _`content_schema`_ keyword specifies the schema of string-encoded content.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub content_schema: Option<Box<RefOr<Schema>>>,
+
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -1717,6 +1861,7 @@ impl Default for Array {
             extensions: Default::default(),
             content_encoding: Default::default(),
             content_media_type: Default::default(),
+            content_schema: Default::default(),
         }
     }
 }
@@ -1855,6 +2000,11 @@ impl ArrayBuilder {
     /// `application/json`.
     pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
         set_value!(self content_media_type content_media_type.into())
+    }
+
+    /// Set or change [`Array::content_schema`].
+    pub fn content_schema<I: Into<RefOr<Schema>>>(mut self, content_schema: Option<I>) -> Self {
+        set_value!(self content_schema content_schema.map(|schema| Box::new(schema.into())))
     }
 
     /// Add openapi extensions (`x-something`) for [`Array`].
@@ -2442,6 +2592,7 @@ mod tests {
                 "TLS",
                 SecurityScheme::MutualTls {
                     description: None,
+                    deprecated: None,
                     extensions: None,
                 },
             )

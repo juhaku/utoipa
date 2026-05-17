@@ -30,6 +30,7 @@ builder! {
     #[non_exhaustive]
     #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
+    #[serde(rename_all = "camelCase")]
     pub struct Xml {
         /// Used to replace the name of attribute or type used in schema property.
         /// When used with [`Xml::wrapped`] attribute the name will be used as a wrapper name
@@ -44,6 +45,10 @@ builder! {
         /// Prefix for xml element [`Xml::name`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub prefix: Option<Cow<'static, str>>,
+
+        /// XML node type for this schema.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub node_type: Option<Cow<'static, str>>,
 
         /// Flag deciding will this attribute translate to element attribute instead of xml element.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -85,6 +90,13 @@ impl XmlBuilder {
     /// Builder style chainable consuming add prefix method.
     pub fn prefix<S: Into<Cow<'static, str>>>(mut self, prefix: Option<S>) -> Self {
         set_value!(self prefix prefix.map(|prefix| prefix.into()))
+    }
+
+    /// Add [`Xml::node_type`] to xml object.
+    ///
+    /// Builder style chainable consuming add node type method.
+    pub fn node_type<S: Into<Cow<'static, str>>>(mut self, node_type: Option<S>) -> Self {
+        set_value!(self node_type node_type.map(|node_type| node_type.into()))
     }
 
     /// Mark [`Xml`] object as attribute. See [`Xml::attribute`].

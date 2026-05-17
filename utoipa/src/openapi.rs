@@ -1,4 +1,4 @@
-//! Rust implementation of Openapi Spec V3.1.
+//! Rust implementation of Openapi Spec V3.2.
 
 use serde::{
     de::{Error, Expected, Visitor},
@@ -91,6 +91,11 @@ builder! {
         /// See more details at <https://spec.openapis.org/oas/latest.html#paths-object>.
         pub paths: Paths,
 
+        /// Incoming requests that may be initiated by the API provider independently of an
+        /// incoming API request.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub webhooks: Option<Paths>,
+
         /// Holds various reusable schemas for the OpenAPI document.
         ///
         /// Few of these elements are security schemas and object schemas.
@@ -119,12 +124,20 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub external_docs: Option<ExternalDocs>,
 
+        /// The default JSON Schema dialect used by Schema Objects in this OpenAPI document.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub json_schema_dialect: Option<String>,
+
         /// Schema keyword can be used to override default _`$schema`_ dialect which is by default
         /// “<https://spec.openapis.org/oas/3.1/dialect/base>”.
         ///
         /// All the references and individual files could use their own schema dialect.
         #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
         pub schema: String,
+
+        /// URI identifying this OpenAPI document.
+        #[serde(rename = "$self", skip_serializing_if = "Option::is_none")]
+        pub self_url: Option<String>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -336,6 +349,11 @@ impl OpenApiBuilder {
         set_value!(self paths paths.into())
     }
 
+    /// Add [`Paths`] to describe incoming requests that may be initiated by the API provider.
+    pub fn webhooks<P: Into<Paths>>(mut self, webhooks: Option<P>) -> Self {
+        set_value!(self webhooks webhooks.map(Into::into))
+    }
+
     /// Add [`Components`] to configure reusable schemas.
     pub fn components(mut self, components: Option<Components>) -> Self {
         set_value!(self components components)
@@ -373,6 +391,16 @@ impl OpenApiBuilder {
     pub fn schema<S: Into<String>>(mut self, schema: S) -> Self {
         set_value!(self schema schema.into())
     }
+
+    /// Add or change the default JSON Schema dialect for Schema Objects.
+    pub fn json_schema_dialect<S: Into<String>>(mut self, json_schema_dialect: Option<S>) -> Self {
+        set_value!(self json_schema_dialect json_schema_dialect.map(Into::into))
+    }
+
+    /// Add or change the URI identifying this OpenAPI document.
+    pub fn self_url<S: Into<String>>(mut self, self_url: Option<S>) -> Self {
+        set_value!(self self_url self_url.map(Into::into))
+    }
 }
 
 /// Represents available [OpenAPI versions][version].
@@ -381,10 +409,14 @@ impl OpenApiBuilder {
 #[derive(Serialize, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.1.0` the latest released OpenAPI version.
+    /// Will serialize to `3.1.0`.
+    #[deprecated(note = "OpenAPI 3.1 is superseded by 3.2. Use Version32.")]
     #[serde(rename = "3.1.0")]
-    #[default]
     Version31,
+    /// Will serialize to `3.2.0` the latest supported OpenAPI version.
+    #[serde(rename = "3.2.0")]
+    #[default]
+    Version32,
 }
 
 impl<'de> Deserialize<'de> for OpenApiVersion {
@@ -398,7 +430,7 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
             type Value = OpenApiVersion;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-                formatter.write_str("a version string in 3.1.x format")
+                formatter.write_str("a version string in 3.1.x or 3.2.x format")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -418,9 +450,15 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
                     .collect::<Vec<_>>();
 
                 if version.len() == 3 && version.first() == Some(&3) && version.get(1) == Some(&1) {
+                    #[allow(deprecated)]
                     Ok(OpenApiVersion::Version31)
+                } else if version.len() == 3
+                    && version.first() == Some(&3)
+                    && version.get(1) == Some(&2)
+                {
+                    Ok(OpenApiVersion::Version32)
                 } else {
-                    let expected: &dyn Expected = &"3.1.0";
+                    let expected: &dyn Expected = &"3.1.0 or 3.2.0";
                     Err(Error::invalid_value(
                         serde::de::Unexpected::Str(&v),
                         expected,
@@ -657,17 +695,656 @@ pub(crate) use builder;
 #[cfg(test)]
 mod tests {
     use crate::openapi::{
+        encoding::EncodingBuilder,
+        example::ExampleBuilder,
         info::InfoBuilder,
-        path::{OperationBuilder, PathsBuilder},
+        link::LinkBuilder,
+        path::{
+            OperationBuilder, Parameter, ParameterBuilder, ParameterIn, ParameterStyle,
+            PathItemBuilder, PathsBuilder,
+        },
+        request_body::RequestBodyBuilder,
+        security::{DeviceAuthorization, Flow, OAuth2, Scopes, SecurityScheme},
+        tag::TagBuilder,
+        xml::XmlBuilder,
     };
     use insta::assert_json_snapshot;
+    use serde_json::json;
+    use std::collections::BTreeMap;
 
     use super::{response::Response, *};
 
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
-        assert_eq!(serde_json::to_value(&OpenApiVersion::Version31)?, "3.1.0");
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version32)?, "3.2.0");
+        #[allow(deprecated)]
+        {
+            assert_eq!(serde_json::to_value(&OpenApiVersion::Version31)?, "3.1.0");
+            assert_eq!(
+                serde_json::from_str::<OpenApiVersion>("\"3.1.1\"")?,
+                OpenApiVersion::Version31
+            );
+        }
+        assert_eq!(
+            serde_json::from_str::<OpenApiVersion>("\"3.2.0\"")?,
+            OpenApiVersion::Version32
+        );
         Ok(())
+    }
+
+    #[test]
+    fn openapi_32_root_self_and_webhooks_serialize() {
+        let openapi = OpenApiBuilder::new()
+            .info(Info::new("Events API", "1.0.0"))
+            .json_schema_dialect(Some("https://spec.openapis.org/oas/3.2/dialect/2025-09-17"))
+            .self_url(Some("https://example.com/openapi.json"))
+            .paths(Paths::new())
+            .webhooks(Some(PathsBuilder::new().path(
+                "newPet",
+                PathItem::new(
+                    HttpMethod::Post,
+                    OperationBuilder::new().response("200", Response::new("Webhook received")),
+                ),
+            )))
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(openapi).unwrap(),
+            json!({
+                "openapi": "3.2.0",
+                "$self": "https://example.com/openapi.json",
+                "jsonSchemaDialect": "https://spec.openapis.org/oas/3.2/dialect/2025-09-17",
+                "info": {
+                    "title": "Events API",
+                    "version": "1.0.0"
+                },
+                "paths": {},
+                "webhooks": {
+                    "newPet": {
+                        "post": {
+                            "responses": {
+                                "200": {
+                                    "description": "Webhook received"
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn openapi_32_components_and_callbacks_use_spec_data_model() {
+        let callback_path = PathItemBuilder::new()
+            .query(Some(
+                OperationBuilder::new().response("200", ResponseBuilder::new()),
+            ))
+            .build();
+        let operation = OperationBuilder::new()
+            .callback(
+                "onEvent",
+                BTreeMap::from([(
+                    "{$request.body#/callbackUrl}".to_string(),
+                    callback_path.clone().into(),
+                )]),
+            )
+            .response("202", ResponseBuilder::new().summary(Some("Accepted")))
+            .build();
+        let components = ComponentsBuilder::new()
+            .parameter(
+                "Limit",
+                ParameterBuilder::new()
+                    .name("limit")
+                    .parameter_in(ParameterIn::Query)
+                    .schema(Some(ObjectBuilder::new().schema_type(Type::Integer)))
+                    .build(),
+            )
+            .example(
+                "Accepted",
+                ExampleBuilder::new().summary("Accepted").build(),
+            )
+            .request_body(
+                "EventRequest",
+                RequestBodyBuilder::new()
+                    .content(
+                        "application/json",
+                        ContentBuilder::new()
+                            .schema(Some(Ref::from_schema_name("EventPayload")))
+                            .build(),
+                    )
+                    .build(),
+            )
+            .header(
+                "RateLimit",
+                HeaderBuilder::new()
+                    .schema(Some(ObjectBuilder::new().schema_type(Type::Integer)))
+                    .build(),
+            )
+            .link(
+                "GetEvent",
+                LinkBuilder::new().operation_id("getEvent").build(),
+            )
+            .callback(
+                "EventCallback",
+                BTreeMap::from([(
+                    "{$request.body#/callbackUrl}".to_string(),
+                    callback_path.clone().into(),
+                )]),
+            )
+            .path_item("EventPath", callback_path)
+            .media_type(
+                "SseEvent",
+                ContentBuilder::new()
+                    .description(Some("Server-sent event item"))
+                    .item_schema(Some(Ref::from_schema_name("ServerEvent")))
+                    .item_encoding(Some(
+                        EncodingBuilder::new().content_type(Some("application/json")),
+                    ))
+                    .prefix_encoding([EncodingBuilder::new().content_type(Some("text/plain"))])
+                    .build(),
+            )
+            .security_scheme("ApiKey", RefOr::Ref(Ref::from_schema_name("ApiKey")))
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(operation).unwrap(),
+            json!({
+                "responses": {
+                    "202": {
+                        "summary": "Accepted"
+                    }
+                },
+                "callbacks": {
+                    "onEvent": {
+                        "{$request.body#/callbackUrl}": {
+                            "query": {
+                                "responses": {
+                                    "200": {}
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(components).unwrap(),
+            json!({
+                "parameters": {
+                    "Limit": {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "examples": {
+                    "Accepted": {
+                        "summary": "Accepted"
+                    }
+                },
+                "requestBodies": {
+                    "EventRequest": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "headers": {
+                    "RateLimit": {
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "links": {
+                    "GetEvent": {
+                        "operationId": "getEvent"
+                    }
+                },
+                "callbacks": {
+                    "EventCallback": {
+                        "{$request.body#/callbackUrl}": {
+                            "query": {
+                                "responses": {
+                                    "200": {}
+                                }
+                            }
+                        }
+                    }
+                },
+                "pathItems": {
+                    "EventPath": {
+                        "query": {
+                            "responses": {
+                                "200": {}
+                            }
+                        }
+                    }
+                },
+                "mediaTypes": {
+                    "SseEvent": {
+                        "description": "Server-sent event item",
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/ServerEvent"
+                        },
+                        "prefixEncoding": [
+                            {
+                                "contentType": "text/plain"
+                            }
+                        ],
+                        "itemEncoding": {
+                            "contentType": "application/json"
+                        }
+                    }
+                },
+                "securitySchemes": {
+                    "ApiKey": {
+                        "$ref": "#/components/schemas/ApiKey"
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn openapi_32_tags_server_xml_and_examples_serialize() {
+        let tag = TagBuilder::new()
+            .name("partner")
+            .summary(Some("Partner"))
+            .description(Some("Operations available to partners"))
+            .parent(Some("external"))
+            .kind(Some("audience"))
+            .build();
+        let server = ServerBuilder::new()
+            .url("https://api.example.com")
+            .name(Some("production"))
+            .build();
+        let xml = XmlBuilder::new()
+            .name(Some("animal"))
+            .node_type(Some("element"))
+            .build();
+        let example = ExampleBuilder::new()
+            .summary("Serialized query")
+            .data_value(Some(json!({"flag": true})))
+            .serialized_value(Some("flag=true"))
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(tag).unwrap(),
+            json!({
+                "name": "partner",
+                "summary": "Partner",
+                "description": "Operations available to partners",
+                "parent": "external",
+                "kind": "audience"
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(server).unwrap(),
+            json!({
+                "url": "https://api.example.com",
+                "name": "production"
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(xml).unwrap(),
+            json!({
+                "name": "animal",
+                "nodeType": "element"
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(example).unwrap(),
+            json!({
+                "summary": "Serialized query",
+                "dataValue": {
+                    "flag": true
+                },
+                "serializedValue": "flag=true"
+            })
+        );
+    }
+
+    #[test]
+    fn openapi_32_query_and_additional_operations_serialize() {
+        let path_item = PathItemBuilder::new()
+            .query(Some(
+                OperationBuilder::new()
+                    .operation_id(Some("searchProducts"))
+                    .request_body(Some(
+                        request_body::RequestBodyBuilder::new()
+                            .content(
+                                "application/json",
+                                ContentBuilder::new()
+                                    .schema(Some(Ref::from_schema_name("SearchCriteria")))
+                                    .build(),
+                            )
+                            .build(),
+                    ))
+                    .response("200", Response::new("Search results")),
+            ))
+            .additional_operation(
+                "COPY",
+                OperationBuilder::new()
+                    .operation_id(Some("copyPet"))
+                    .response("200", Response::new("Copied")),
+            )
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(path_item).unwrap(),
+            json!({
+                "query": {
+                    "operationId": "searchProducts",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchCriteria"
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Search results"
+                        }
+                    }
+                },
+                "additionalOperations": {
+                    "COPY": {
+                        "operationId": "copyPet",
+                        "responses": {
+                            "200": {
+                                "description": "Copied"
+                            }
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn openapi_32_querystring_parameter_and_cookie_style_serialize() {
+        let querystring = ParameterBuilder::from(Parameter::new("advancedQuery"))
+            .parameter_in(ParameterIn::QueryString)
+            .required(Required::False)
+            .content(
+                "application/x-www-form-urlencoded",
+                ContentBuilder::new()
+                    .schema(Some(
+                        ObjectBuilder::new()
+                            .schema_type(Type::Object)
+                            .property("foo", ObjectBuilder::new().schema_type(Type::String))
+                            .property("bar", ObjectBuilder::new().schema_type(Type::Boolean)),
+                    ))
+                    .examples_from_iter([(
+                        "spacesAndPluses",
+                        ExampleBuilder::new()
+                            .description("Form-encoded query string")
+                            .data_value(Some(json!({
+                                "foo": "a + b",
+                                "bar": true
+                            })))
+                            .serialized_value(Some("foo=a+%2B+b&bar=true")),
+                    )])
+                    .build(),
+            )
+            .build();
+        let cookie = ParameterBuilder::from(Parameter::new("greeting"))
+            .parameter_in(ParameterIn::Cookie)
+            .style(Some(ParameterStyle::Cookie))
+            .example(Some(json!("Hello, world!")))
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(querystring).unwrap(),
+            json!({
+                "name": "advancedQuery",
+                "in": "querystring",
+                "required": false,
+                "content": {
+                    "application/x-www-form-urlencoded": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "bar": {
+                                    "type": "boolean"
+                                },
+                                "foo": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "spacesAndPluses": {
+                                "description": "Form-encoded query string",
+                                "dataValue": {
+                                    "foo": "a + b",
+                                    "bar": true
+                                },
+                                "serializedValue": "foo=a+%2B+b&bar=true"
+                            }
+                        }
+                    }
+                }
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(cookie).unwrap(),
+            json!({
+                "name": "greeting",
+                "in": "cookie",
+                "required": true,
+                "style": "cookie",
+                "example": "Hello, world!"
+            })
+        );
+    }
+
+    #[test]
+    fn openapi_32_components_media_types_streaming_and_response_summary_serialize() {
+        let event_payload = ObjectBuilder::new()
+            .schema_type(Type::Object)
+            .property("pet_id", ObjectBuilder::new().schema_type(Type::Integer))
+            .property("status", ObjectBuilder::new().schema_type(Type::String));
+        let server_event = ObjectBuilder::new()
+            .schema_type(Type::Object)
+            .property("event", ObjectBuilder::new().schema_type(Type::String))
+            .property(
+                "data",
+                ObjectBuilder::new()
+                    .schema_type(Type::String)
+                    .content_media_type("application/json")
+                    .content_schema(Some(Ref::from_schema_name("PetEventPayload"))),
+            )
+            .property("id", ObjectBuilder::new().schema_type(Type::String))
+            .property("retry", ObjectBuilder::new().schema_type(Type::Integer));
+        let components = ComponentsBuilder::new()
+            .schema("PetEventPayload", event_payload)
+            .schema("ServerEvent", server_event)
+            .media_type(
+                "ServerSentEvents",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("ServerEvent")))
+                    .build(),
+            )
+            .media_type(
+                "JsonLines",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("PetEventPayload")))
+                    .build(),
+            )
+            .media_type(
+                "JsonTextSequences",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("PetEventPayload")))
+                    .build(),
+            )
+            .media_type(
+                "MultipartMixed",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("PetEventPayload")))
+                    .build(),
+            )
+            .build();
+        let response = ResponseBuilder::new()
+            .summary(Some("Streaming response"))
+            .content(
+                "text/event-stream",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("ServerEvent")))
+                    .build(),
+            )
+            .content(
+                "application/jsonl",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("PetEventPayload")))
+                    .build(),
+            )
+            .content(
+                "application/json-seq",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("PetEventPayload")))
+                    .build(),
+            )
+            .content(
+                "multipart/mixed",
+                ContentBuilder::new()
+                    .item_schema(Some(Ref::from_schema_name("PetEventPayload")))
+                    .build(),
+            )
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(components).unwrap(),
+            json!({
+                "schemas": {
+                    "PetEventPayload": {
+                        "type": "object",
+                        "properties": {
+                            "pet_id": {
+                                "type": "integer"
+                            },
+                            "status": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "ServerEvent": {
+                        "type": "object",
+                        "properties": {
+                            "data": {
+                                "type": "string",
+                                "contentMediaType": "application/json",
+                                "contentSchema": {
+                                    "$ref": "#/components/schemas/PetEventPayload"
+                                }
+                            },
+                            "event": {
+                                "type": "string"
+                            },
+                            "id": {
+                                "type": "string"
+                            },
+                            "retry": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                },
+                "mediaTypes": {
+                    "JsonLines": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/PetEventPayload"
+                        }
+                    },
+                    "JsonTextSequences": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/PetEventPayload"
+                        }
+                    },
+                    "MultipartMixed": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/PetEventPayload"
+                        }
+                    },
+                    "ServerSentEvents": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/ServerEvent"
+                        }
+                    }
+                }
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(response).unwrap(),
+            json!({
+                "summary": "Streaming response",
+                "content": {
+                    "application/json-seq": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/PetEventPayload"
+                        }
+                    },
+                    "application/jsonl": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/PetEventPayload"
+                        }
+                    },
+                    "multipart/mixed": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/PetEventPayload"
+                        }
+                    },
+                    "text/event-stream": {
+                        "itemSchema": {
+                            "$ref": "#/components/schemas/ServerEvent"
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn openapi_32_oauth_device_authorization_and_deprecated_security_serialize() {
+        let oauth = SecurityScheme::OAuth2(
+            OAuth2::new([Flow::DeviceAuthorization(DeviceAuthorization::new(
+                "https://example.com/device",
+                "https://example.com/token",
+                Scopes::from_iter([("read:pets", "read pets")]),
+            ))])
+            .with_metadata_url("https://example.com/.well-known/oauth-authorization-server")
+            .deprecated(Some(Deprecated::True)),
+        );
+
+        assert_eq!(
+            serde_json::to_value(oauth).unwrap(),
+            json!({
+                "type": "oauth2",
+                "flows": {
+                    "deviceAuthorization": {
+                        "deviceAuthorizationUrl": "https://example.com/device",
+                        "tokenUrl": "https://example.com/token",
+                        "scopes": {
+                            "read:pets": "read pets"
+                        }
+                    }
+                },
+                "oauth2MetadataUrl": "https://example.com/.well-known/oauth-authorization-server",
+                "deprecated": true
+            })
+        );
     }
 
     #[test]
