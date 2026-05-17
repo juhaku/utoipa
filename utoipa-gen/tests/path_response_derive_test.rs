@@ -139,7 +139,7 @@ macro_rules! test_response_types {
     ( $( $name:ident=> $(body: $expected:expr,)? $( $content_type:literal, )? $( headers: $headers:expr, )?
         assert: $( $path:literal = $expectation:literal, $comment:literal )* )* ) => {
         $(
-            paste::paste! {
+            pastey::paste! {
                 test_fn! {
                     module: [<mod_ $name>],
                     responses: (
@@ -154,7 +154,7 @@ macro_rules! test_response_types {
 
             #[test]
             fn $name() {
-                paste::paste! {
+                pastey::paste! {
                     let doc = api_doc!(module: [<mod_ $name>]);
                 }
 
