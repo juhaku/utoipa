@@ -1420,11 +1420,15 @@ builder! {
 
         /// Declares the property as "read only" alongside the `$ref`.
         /// In OAS 3.1 sibling keywords next to `$ref` are allowed.
+        /// These can only be set within a Schema object for sibling properties;
+        /// when used with a standalone Reference type these values should be omitted.
         #[serde(rename = "readOnly", skip_serializing_if = "Option::is_none")]
         pub read_only: Option<bool>,
 
         /// Declares the property as "write only" alongside the `$ref`.
         /// In OAS 3.1 sibling keywords next to `$ref` are allowed.
+        /// These can only be set within a Schema object for sibling properties;
+        /// when used with a standalone Reference type these values should be omitted.
         #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
         pub write_only: Option<bool>,
 
