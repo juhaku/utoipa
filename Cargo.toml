@@ -14,6 +14,7 @@ members = [
     "utoipa-axum",
     "utoipa-config",
     "utoipa-actix-web",
+    "utoipa-warp",
 ]
 
 [workspace.metadata.publish]

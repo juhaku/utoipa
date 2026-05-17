@@ -2,26 +2,15 @@ use std::net::Ipv4Addr;
 
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
+    Modify,
 };
 use utoipa_rapidoc::RapiDoc;
+use utoipa_warp::{openapi_json_filter, router::OpenApiRouter, routes};
 use warp::Filter;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
-
-    #[derive(OpenApi)]
-    #[openapi(
-        nest(
-            (path = "/api", api = todo::TodoApi)
-        ),
-        modifiers(&SecurityAddon),
-        tags(
-            (name = "todo", description = "Todo items management API")
-        )
-    )]
-    struct ApiDoc;
 
     struct SecurityAddon;
 
@@ -35,21 +24,41 @@ async fn main() {
         }
     }
 
-    let api_doc = warp::path("api-doc.json")
-        .and(warp::get())
-        .map(|| warp::reply::json(&ApiDoc::openapi()));
+    // Build the todo API router using utoipa-warp's OpenApiRouter
+    let todo_router = OpenApiRouter::new()
+        .routes(routes!(
+            todo::list_todos, todo::create_todo, todo::delete_todo;
+            filter = todo::handlers()
+        ));
 
-    let rapidoc_handler = warp::path("rapidoc")
-        .and(warp::get())
-        .map(|| warp::reply::html(RapiDoc::new("/api-doc.json").to_html()));
+    // Nest under /api and extract the OpenApi spec
+    let (api_filter, mut openapi) = OpenApiRouter::new()
+        .nest("/api", todo_router)
+        .split_for_parts();
 
-    warp::serve(
-        api_doc
-            .or(rapidoc_handler)
-            .or(warp::path("api").and(todo::handlers())),
-    )
-    .run((Ipv4Addr::UNSPECIFIED, 8080))
-    .await
+    // Apply security modifier
+    SecurityAddon.modify(&mut openapi);
+
+    // Serve the OpenAPI JSON using utoipa-warp's convenience filter
+    let api_doc = openapi_json_filter("api-doc.json", openapi);
+
+    // RapiDoc just needs a single HTML page pointing at the spec URL
+    let rapidoc = warp::path("rapidoc")
+        .and(warp::get())
+        .map(|| -> Box<dyn warp::Reply> {
+            Box::new(warp::reply::html(RapiDoc::new("/api-doc.json").to_html()))
+        })
+        .boxed();
+
+    let all_routes = api_doc
+        .or(rapidoc)
+        .unify()
+        .or(api_filter)
+        .unify();
+
+    warp::serve(all_routes)
+        .run((Ipv4Addr::UNSPECIFIED, 8080))
+        .await
 }
 
 mod todo {
@@ -59,12 +68,8 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{IntoParams, OpenApi, ToSchema};
+    use utoipa::{IntoParams, ToSchema};
     use warp::{hyper::StatusCode, Filter, Rejection, Reply};
-
-    #[derive(OpenApi)]
-    #[openapi(paths(list_todos, create_todo, delete_todo))]
-    pub struct TodoApi;
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 
