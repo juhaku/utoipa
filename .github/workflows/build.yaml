@@ -92,10 +92,14 @@ jobs:
             cargo clippy --quiet --package ${{ matrix.crate }}
           fi
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Run tests
         run: |
           if [[ ${{ steps.changes.outputs.changes }} == true ]]; then
-            ./scripts/test.sh ${{ matrix.crate }}
+            just test ${{ matrix.crate }}
           fi
 
   check-typos:
@@ -122,12 +126,6 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
 
-      - name: Install nightly Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: clippy, rustfmt
-
       - uses: actions/cache@v3
         with:
           path: |
@@ -138,6 +136,10 @@ jobs:
             examples/**/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}_examples
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Test that examples compile
         run: |
-          ./scripts/validate-examples.sh
+          just validate-examples

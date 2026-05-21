@@ -1483,6 +1483,48 @@ fn derive_struct_with_read_only_and_write_only() {
 }
 
 #[test]
+fn derive_struct_with_read_only_and_write_only_ref() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Inner {
+        field: String,
+    }
+
+    let user = api_doc! {
+        struct User {
+            #[schema(read_only)]
+            address: Inner,
+            #[schema(write_only)]
+            secret: Inner,
+        }
+    };
+
+    assert_json_snapshot!(user);
+}
+
+#[test]
+fn derive_struct_with_read_only_nullable_ref() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Inner {
+        field: String,
+    }
+
+    let user = api_doc! {
+        struct User {
+            #[schema(read_only, nullable)]
+            address: Option<Inner>,
+        }
+    };
+
+    assert_value! {user=>
+        "properties.address.oneOf.[0].$ref" = r###""#/components/schemas/Inner""###, "User address $ref"
+        "properties.address.oneOf.[1].type" = r###""null""###, "User address nullable"
+        "properties.address.readOnly" = r###"true"###, "User address read only"
+    }
+}
+
+#[test]
 fn derive_struct_with_nullable_and_required() {
     let user = api_doc! {
         #[derive(Serialize)]
@@ -1670,6 +1712,7 @@ fn derive_component_with_time_feature() {
 fn derive_component_with_jiff_0_2_feature() {
     let doc = api_doc! {
         struct Timetest {
+            timestamp: jiff::Timestamp,
             civil_date: jiff::civil::Date,
             zoned: jiff::Zoned,
         }
@@ -3057,6 +3100,64 @@ fn derive_schema_with_ignore_eq_call_field() {
 }
 
 #[test]
+fn derive_schema_with_ignore_struct() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_enum() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore)]
+            __this_is_private: Private,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_ignore_fn_struct() {
+    #![allow(unused)]
+
+    fn always_true() -> bool {
+        true
+    };
+
+    #[derive(ToSchema)]
+    struct PrivateOrPublic {
+        name: &'static str,
+    }
+
+    let value = api_doc! {
+        struct SchemaIgnoredField {
+            value: String,
+            #[schema(ignore = always_true)]
+            private_or_public: PrivateOrPublic,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_schema_unnamed_title() {
     #![allow(unused)]
 
@@ -3272,4 +3373,73 @@ fn test_new_type_struct_pattern() {
     let value = serde_json::to_value(schema).expect("schema is JSON serializable");
 
     assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_option_ref_with_nullable_false() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct RefType {
+        value: String,
+    }
+
+    let schema = api_doc! {
+        struct TestStruct {
+            // Should generate a direct $ref without oneOf
+            #[schema(nullable = false)]
+            optional_ref: Option<RefType>,
+
+            // For comparison - default Option behavior with implicit nullable = true
+            default_optional_ref: Option<RefType>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
+
+#[test]
+fn derive_option_ref_with_nullable_false_and_default() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct RefType {
+        value: String,
+    }
+
+    let schema = api_doc! {
+        struct TestStruct {
+            // Should generate a direct $ref without oneOf
+            #[schema(nullable = false)]
+            #[schema(default = json!({"value": "foo"}))]
+            optional_ref: Option<RefType>,
+
+            // For comparison - default Option behavior with implicit nullable = true
+            default_optional_ref: Option<RefType>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
+
+#[test]
+fn derive_inline_option_ref_with_nullable_false_and_default() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct RefType {
+        value: String,
+    }
+
+    let schema = api_doc! {
+        struct TestStruct {
+            // Should generate a direct object without oneOf
+            #[schema(nullable = false)]
+            #[schema(default = json!({"value": "foo"}))]
+            #[schema(inline = true)]
+            optional_ref: Option<RefType>,
+
+            // For comparison - default Option behavior with implicit nullable = true
+            default_optional_ref: Option<RefType>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
 }

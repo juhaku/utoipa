@@ -8,14 +8,14 @@ use syn::{
 };
 
 use crate::{
-    as_tokens_or_diagnostics,
     component::features::{
         attributes::{Rename, Title, ValueType},
         validation::Pattern,
     },
     doc_comment::CommentAttributes,
     parse_utils::LitBoolOrExprPath,
-    Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
+    token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt, Diagnostics, OptionExt,
 };
 
 use self::{
@@ -368,7 +368,15 @@ impl NamedStructSchema {
 
                 match field_options {
                     Ok(Some(field_options)) => {
-                        Some(Ok((field_options, field_rules, field_name, field)))
+                        let should_always_ignore = match &field_options.ignore {
+                            Some(LitBoolOrExprPath::LitBool(bool)) => bool.value(),
+                            _ => false,
+                        };
+                        if should_always_ignore {
+                            None
+                        } else {
+                            Some(Ok((field_options, field_rules, field_name, field)))
+                        }
                     }
                     Ok(_) => None,
                     Err(options_diagnostics) => Some(Err(options_diagnostics)),
@@ -457,8 +465,12 @@ impl NamedStructSchema {
                             }
                         },
                         Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
-                            path.span() => if !#path() {
-                                #property_tokens;
+                            path.span() => {
+                                utoipa::__dev::warn_deprecated_ignore_fn_pattern();
+
+                                if !#path() {
+                                    #property_tokens;
+                                }
                             }
                         },
                         None => quote! { #property_tokens; },
@@ -483,17 +495,16 @@ impl NamedStructSchema {
 
             for (options, _, _, field) in flatten_fields {
                 let NamedStructFieldOptions { property, .. } = options;
-                let property_schema = as_tokens_or_diagnostics!(property);
 
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
-                        flattened_tokens.extend(quote! { .item(#property_schema) })
+                        flattened_tokens.extend(quote_diagnostics! { .item(@property) }?)
                     }
                     Property::FlattenedMap(_) => {
                         match flattened_map_field {
                             None => {
                                 object_tokens.extend(
-                                    quote! { .additional_properties(Some(#property_schema)) },
+                                    quote_diagnostics! { .additional_properties(Some(@property)) }?,
                                 );
                                 flattened_map_field = Some(field);
                             }

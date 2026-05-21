@@ -1,0 +1,15 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+assertion_line: 1856
+expression: value
+---
+[
+  {
+    "in": "query",
+    "name": "value",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

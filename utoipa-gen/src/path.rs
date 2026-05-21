@@ -11,9 +11,9 @@ use syn::{parenthesized, parse::Parse, Token};
 use syn::{Expr, ExprLit, Lit, LitStr};
 
 use crate::component::{features::attributes::Extensions, ComponentSchema, GenericType, TypeTree};
-use crate::{
-    as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
-};
+use crate::server::Server;
+use crate::token_stream::quote_diagnostics;
+use crate::{parse_utils, token_stream::ToTokensDiagnostics, Deprecated, Diagnostics, OptionExt};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
@@ -54,6 +54,7 @@ pub struct PathAttr<'p> {
     description: Option<parse_utils::LitStrOrExpr>,
     summary: Option<parse_utils::LitStrOrExpr>,
     extensions: Option<Extensions>,
+    servers: Vec<Server>,
 }
 
 impl<'p> PathAttr<'p> {
@@ -186,6 +187,14 @@ impl Parse for PathAttr<'_> {
                 "extensions" => {
                     path_attr.extensions = Some(input.parse::<Extensions>()?);
                 }
+                "servers" => {
+                    let servers;
+                    syn::parenthesized!(servers in input);
+                    path_attr.servers =
+                        Punctuated::<Server, Token![,]>::parse_terminated(&servers)?
+                            .into_iter()
+                            .collect();
+                }
                 _ => {
                     if let Some(path_operation) =
                         attribute_name.parse::<HttpMethod>().into_iter().next()
@@ -245,7 +254,7 @@ impl HttpMethod {
             .map_err(|error| {
                 let mut diagnostics = Diagnostics::with_span(ident.span(), error.to_string());
                 if name == "connect" {
-                    diagnostics = diagnostics.note("HTTP method `CONNET` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
+                    diagnostics = diagnostics.note("HTTP method `CONNECT` is not supported by OpenAPI spec <https://spec.openapis.org/oas/latest.html#path-item-object>");
                 }
 
                 diagnostics
@@ -472,8 +481,8 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             responses: self.path_attr.responses.as_ref(),
             security: self.path_attr.security.as_ref(),
             extensions: self.path_attr.extensions.as_ref(),
+            servers: self.path_attr.servers.as_ref(),
         };
-        let operation = as_tokens_or_diagnostics!(&operation);
 
         fn to_schema_references(
             mut schemas: TokenStream2,
@@ -585,7 +594,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             path_struct
         };
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             impl<'t> utoipa::__dev::Tags<'t> for #impl_for {
                 fn tags() -> Vec<&'t str> {
                     #tags_list.into()
@@ -603,7 +612,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 fn operation() -> utoipa::openapi::path::Operation {
                     use utoipa::openapi::ToArray;
                     use std::iter::FromIterator;
-                    #operation.into()
+                    @operation.into()
                 }
             }
 
@@ -614,7 +623,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 }
             }
 
-        });
+        }?);
 
         Ok(())
     }
@@ -631,6 +640,7 @@ struct Operation<'a> {
     responses: &'a Vec<Response<'a>>,
     security: Option<&'a Array<'a, SecurityRequirementsAttr>>,
     extensions: Option<&'a Extensions>,
+    servers: &'a Vec<Server>,
 }
 
 impl ToTokensDiagnostics for Operation<'_> {
@@ -638,17 +648,15 @@ impl ToTokensDiagnostics for Operation<'_> {
         tokens.extend(quote! { utoipa::openapi::path::OperationBuilder::new() });
 
         if let Some(request_body) = self.request_body {
-            let request_body = as_tokens_or_diagnostics!(request_body);
-            tokens.extend(quote! {
-                .request_body(Some(#request_body))
-            })
+            tokens.extend(quote_diagnostics! {
+                .request_body(Some(@request_body))
+            }?)
         }
 
         let responses = Responses(self.responses);
-        let responses = as_tokens_or_diagnostics!(&responses);
-        tokens.extend(quote! {
-            .responses(#responses)
-        });
+        tokens.extend(quote_diagnostics! {
+            .responses(@responses)
+        }?);
         if let Some(security_requirements) = self.security {
             tokens.extend(quote! {
                 .securities(Some(#security_requirements))
@@ -658,6 +666,13 @@ impl ToTokensDiagnostics for Operation<'_> {
         tokens.extend(quote_spanned! { operation_id.span() =>
             .operation_id(Some(#operation_id))
         });
+
+        if !self.servers.is_empty() {
+            let servers = self.servers.iter().collect::<Array<_>>();
+            tokens.extend(quote! {
+                .servers(Some(#servers))
+            })
+        }
 
         if self.deprecated {
             let deprecated: Deprecated = self.deprecated.into();

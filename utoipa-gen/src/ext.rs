@@ -9,7 +9,7 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
 use crate::path::media_type::MediaTypePathExt;
 use crate::path::{HttpMethod, PathTypeTree};
-use crate::{Diagnostics, ToTokensDiagnostics};
+use crate::token_stream::{Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -123,7 +123,7 @@ impl ExtSchema<'_> {
             } else {
                 Cow::Borrowed(actual_body)
             }
-        }).expect("ExtSchema must have actual request body resoved from TypeTree of handler fn argument")
+        }).expect("ExtSchema must have actual request body resolved from TypeTree of handler fn argument")
     }
 
     pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
