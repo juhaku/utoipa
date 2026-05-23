@@ -104,6 +104,28 @@ update-swagger-ui version:
     sed "${sed_flags[@]}" "s|tags/v.*>|tags/v{{version}}.zip>|" ./utoipa-swagger-ui/src/lib.rs
     sed "${sed_flags[@]}" "s|tags/v.*\.zip|tags/v{{version}}.zip|" ./utoipa-swagger-ui/build.rs
 
+# Update vendored Scalar UI to the given version. Usage: `just update-scalar-ui latest`
+update-scalar-ui version:
+    #!/usr/bin/env bash
+    set -eu -o pipefail
+    resource="api-reference.js"
+    if [ {{version}} = latest ]; then
+        query=""
+    else
+        query="@{{version}}"
+    fi
+    curl -sSL -o "$resource" "https://cdn.jsdelivr.net/npm/@scalar/api-reference$query"
+    version=`sed -n 's#.*/npm/@scalar/api-reference@\([^/]*\)/dist.*#\1#p' $resource`
+
+    sed_flags=(-i)
+    if [[ "$(uname)" == "Darwin" ]]; then
+        sed_flags+=('')
+    fi
+
+    echo "Update vendored Scalar UI to $version"
+    mv "$resource" ./utoipa-scalar/res/
+    sed "${sed_flags[@]}" "s|ui-version = .*\`|ui-version = ${version}\`|" ./utoipa-scalar/README.md
+
 # Validate all examples: check formatting and run clippy.
 validate-examples:
     #!/usr/bin/env bash
