@@ -286,6 +286,60 @@ fn derive_path_with_security_requirements() {
 }
 
 #[test]
+fn derive_path_with_security_requirements_display_types() {
+    use std::fmt::Display;
+
+    #[derive(Debug)]
+    enum Scope {
+        Read,
+        Write,
+    }
+
+    impl Display for Scope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Scope::Read => write!(f, "read:items"),
+                Scope::Write => write!(f, "write:items"),
+            }
+        }
+    }
+
+    const READ_SCOPE: &str = "read:items";
+
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        security(
+            (),
+            ("api_oauth" = [Scope::Read.to_string(), Scope::Write.to_string()]),
+            ("jwt_token" = []),
+            ("mixed" = [READ_SCOPE, Scope::Write.to_string()])
+        )
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_value! {operation=>
+        "security.[0]" = "{}", "Optional security requirement"
+        "security.[1].api_oauth.[0]" = r###""read:items""###, "api_oauth first scope with Display"
+        "security.[1].api_oauth.[1]" = r###""write:items""###, "api_oauth second scope with Display"
+        "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
+        "security.[3].mixed.[0]" = r###""read:items""###, "mixed first scope literal"
+        "security.[3].mixed.[1]" = r###""write:items""###, "mixed second scope Display"
+    }
+}
+
+#[test]
 fn derive_path_with_extensions() {
     #[utoipa::path(
         get,

@@ -26,7 +26,8 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     parse_utils::LitBoolOrExprPath,
-    Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
+    token_stream::{quote_diagnostics, Diagnostics, ToTokensDiagnostics},
+    Array, OptionExt, Required,
 };
 
 use super::{
@@ -380,8 +381,7 @@ impl Param {
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
-            let schema_with = crate::as_tokens_or_diagnostics!(&schema_with);
-            tokens.extend(quote! { .schema(Some(#schema_with)).build() });
+            tokens.extend(quote_diagnostics! { .schema(Some(@schema_with)).build() }?);
         } else {
             let description =
                 CommentAttributes::from_attributes(&field.attrs).as_formatted_string();

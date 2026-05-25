@@ -9,7 +9,6 @@ use syn::{
 };
 
 use crate::{
-    as_tokens_or_diagnostics,
     component::{
         self,
         features::{
@@ -26,7 +25,9 @@ use crate::{
         },
         ComponentSchema, Container, TypeTree,
     },
-    parse_utils, Diagnostics, Required, ToTokensDiagnostics,
+    parse_utils,
+    token_stream::{quote_diagnostics, Diagnostics, ToTokensDiagnostics},
+    Required,
 };
 
 use super::media_type::ParsedType;
@@ -94,8 +95,7 @@ impl ToTokensDiagnostics for Parameter<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
         match self {
             Parameter::Value(parameter) => {
-                let parameter = as_tokens_or_diagnostics!(parameter);
-                tokens.extend(quote! { .parameter(#parameter) });
+                tokens.extend(quote_diagnostics! { .parameter(@parameter) }?);
             }
             Parameter::IntoParamsIdent(IntoParamsIdentParameter {
                 path,

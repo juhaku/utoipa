@@ -12,9 +12,8 @@ use syn::{Expr, ExprLit, Lit, LitStr};
 
 use crate::component::{features::attributes::Extensions, ComponentSchema, GenericType, TypeTree};
 use crate::server::Server;
-use crate::{
-    as_tokens_or_diagnostics, parse_utils, Deprecated, Diagnostics, OptionExt, ToTokensDiagnostics,
-};
+use crate::token_stream::quote_diagnostics;
+use crate::{parse_utils, token_stream::ToTokensDiagnostics, Deprecated, Diagnostics, OptionExt};
 use crate::{schema_type::SchemaType, security_requirement::SecurityRequirementsAttr, Array};
 
 use self::response::Response;
@@ -484,7 +483,6 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             extensions: self.path_attr.extensions.as_ref(),
             servers: self.path_attr.servers.as_ref(),
         };
-        let operation = as_tokens_or_diagnostics!(&operation);
 
         fn to_schema_references(
             mut schemas: TokenStream2,
@@ -596,7 +594,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             path_struct
         };
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             impl<'t> utoipa::__dev::Tags<'t> for #impl_for {
                 fn tags() -> Vec<&'t str> {
                     #tags_list.into()
@@ -614,7 +612,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 fn operation() -> utoipa::openapi::path::Operation {
                     use utoipa::openapi::ToArray;
                     use std::iter::FromIterator;
-                    #operation.into()
+                    @operation.into()
                 }
             }
 
@@ -625,7 +623,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 }
             }
 
-        });
+        }?);
 
         Ok(())
     }
@@ -650,17 +648,15 @@ impl ToTokensDiagnostics for Operation<'_> {
         tokens.extend(quote! { utoipa::openapi::path::OperationBuilder::new() });
 
         if let Some(request_body) = self.request_body {
-            let request_body = as_tokens_or_diagnostics!(request_body);
-            tokens.extend(quote! {
-                .request_body(Some(#request_body))
-            })
+            tokens.extend(quote_diagnostics! {
+                .request_body(Some(@request_body))
+            }?)
         }
 
         let responses = Responses(self.responses);
-        let responses = as_tokens_or_diagnostics!(&responses);
-        tokens.extend(quote! {
-            .responses(#responses)
-        });
+        tokens.extend(quote_diagnostics! {
+            .responses(@responses)
+        }?);
         if let Some(security_requirements) = self.security {
             tokens.extend(quote! {
                 .securities(Some(#security_requirements))

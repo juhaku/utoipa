@@ -18,7 +18,8 @@ use crate::{
     parse_utils,
     security_requirement::SecurityRequirementsAttr,
     server::Server,
-    Array, Diagnostics, ExternalDocs, ToTokensDiagnostics,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Array, ExternalDocs,
 };
 use crate::{path, OptionExt};
 
