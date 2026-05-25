@@ -123,7 +123,7 @@ impl ExtSchema<'_> {
             } else {
                 Cow::Borrowed(actual_body)
             }
-        }).expect("ExtSchema must have actual request body resoved from TypeTree of handler fn argument")
+        }).expect("ExtSchema must have actual request body resolved from TypeTree of handler fn argument")
     }
 
     pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {

@@ -137,7 +137,7 @@ impl SchemaType<'_> {
 
             #[cfg(feature = "jiff_0_2")]
             if !primitive {
-                primitive = matches!(name, "Zoned" | "Date");
+                primitive = matches!(name, "Zoned" | "Date" | "Timestamp");
             }
 
             primitive
@@ -301,7 +301,9 @@ impl ToTokensDiagnostics for SchemaType<'_> {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
             #[cfg(feature = "jiff_0_2")]
-            "Zoned" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
+            "Zoned" | "Timestamp" => {
+                schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
+            }
             _ => schema_type_tokens(tokens, SchemaTypeInner::Object, self.nullable),
         };
 
@@ -425,7 +427,7 @@ impl KnownFormat {
             "PrimitiveDateTime" | "OffsetDateTime" => Self::DateTime,
 
             #[cfg(feature = "jiff_0_2")]
-            "Zoned" => Self::DateTime,
+            "Zoned" | "Timestamp" => Self::DateTime,
             _ => Self::Unknown,
         };
 
@@ -750,7 +752,7 @@ impl PrimitiveType {
             }
 
             #[cfg(feature = "jiff_0_2")]
-            "Zoned" => {
+            "Zoned" | "Timestamp" => {
                 syn::parse_quote!(String)
             }
             _ => {
