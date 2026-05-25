@@ -8,11 +8,7 @@ use syn::{
 };
 
 use crate::{
-    as_tokens_or_diagnostics,
-    component::features::{
-        attributes::{Rename, Title, ValueType},
-        validation::Pattern,
-    },
+    component::features::attributes::{Rename, Title, ValueType},
     doc_comment::CommentAttributes,
     parse_utils::LitBoolOrExprPath,
     token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
