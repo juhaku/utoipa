@@ -3498,7 +3498,7 @@ fn test_new_type_struct_min_items() {
     let schema = <Tags as PartialSchema>::schema();
     let value = serde_json::to_value(schema).expect("schema is JSON serializable");
 
-    assert_json_snapshot!(value); 
+    assert_json_snapshot!(value);
 }
 
 #[test]
