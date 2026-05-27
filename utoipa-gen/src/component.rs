@@ -161,7 +161,7 @@ impl<'p> SynPathExt for &'p Path {
                             let path = type_tree
                                 .path
                                 .as_ref()
-                                .expect("TypeTree must have a path")
+                                .expect(&format!("utoipa does not understand this type, for which type_tree must have a path: {ty:?}"))
                                 .as_ref();
 
                             if let Some(default_type) = PrimitiveType::new(path) {
@@ -1238,6 +1238,8 @@ impl ComponentSchema {
 
                     let default = pop_feature!(features => Feature::Default(_));
                     let title = pop_feature!(features => Feature::Title(_));
+                    let read_only = pop_feature!(features => Feature::ReadOnly(_));
+                    let write_only = pop_feature!(features => Feature::WriteOnly(_));
 
                     if is_inline {
                         let schema_type = SchemaType {
@@ -1284,11 +1286,7 @@ impl ComponentSchema {
                             quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
 
                         let description_tokens = description_stream.to_token_stream();
-                        let schema = if default.is_some()
-                            || nullable
-                            || title.is_some()
-                            || !description_tokens.is_empty()
-                        {
+                        let schema = if nullable {
                             quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
                                     .item(#items_tokens)
@@ -1296,6 +1294,24 @@ impl ComponentSchema {
                                 @title
                                 @default
                                 #description_stream
+                            }?
+                        } else if default.is_some()
+                            || title.is_some()
+                            || read_only.is_some()
+                            || write_only.is_some()
+                            || !description_tokens.is_empty()
+                        {
+                            quote_diagnostics_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
+                                    .item(#items_tokens)
+                                    .item(
+                                        utoipa::openapi::schema::ObjectBuilder::new()
+                                            @title
+                                            @default
+                                            @read_only
+                                            @write_only
+                                            #description_stream
+                                    )
                             }?
                         } else {
                             items_tokens
@@ -1355,7 +1371,7 @@ impl ComponentSchema {
                         // TODO: refs support `summary` field but currently there is no such field
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
-                        let schema = if default.is_some() || nullable || title.is_some() {
+                        let schema = if nullable {
                             composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
                                     .item(utoipa::openapi::schema::RefBuilder::new()
@@ -1365,13 +1381,19 @@ impl ComponentSchema {
                                     #nullable_item
                                     @title
                                     @default
+                                    @read_only
+                                    @write_only
                             }?)
                         } else {
-                            composed_or_ref(quote_spanned! {type_path.span()=>
+                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::RefBuilder::new()
                                     #description_stream
                                     .ref_location_from_schema_name(#name_tokens)
-                            })
+                                    @title
+                                    @default
+                                    @read_only
+                                    @write_only
+                            }?)
                         };
 
                         schema.to_tokens(tokens);
