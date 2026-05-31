@@ -27,8 +27,9 @@ use super::{builder, extensions::Extensions};
 #[derive(Serialize, Deserialize, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct SecurityRequirement {
+    /// Map of security requirement names to list of scopes required for the security scheme.
     #[serde(flatten)]
-    value: BTreeMap<String, Vec<String>>,
+    pub value: BTreeMap<String, Vec<String>>,
 }
 
 impl SecurityRequirement {
