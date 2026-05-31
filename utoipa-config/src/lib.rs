@@ -69,6 +69,9 @@ pub struct Config<'c> {
     pub aliases: HashMap<Cow<'c, str>, Cow<'c, str>>,
     /// Schema collect mode for `utoipa`. By default only non inlined schemas are collected.
     pub schema_collect: SchemaCollect,
+    /// Automatically include parameters from extractor types that implement `IntoParams`.
+    /// This acts as a global default; individual paths can still override via `auto_params`.
+    pub auto_into_params: bool,
 }
 
 /// Configures schema collect mode. By default only non explicitly inlined schemas are collected.
@@ -186,6 +189,16 @@ impl<'c> Config<'c> {
     /// to be collected to the resulting OpenAPI.
     pub fn schema_collect(mut self, schema_collect: SchemaCollect) -> Self {
         self.schema_collect = schema_collect;
+
+        self
+    }
+
+    /// Define default behavior for automatically including `IntoParams` implementations.
+    ///
+    /// When enabled, `utoipa::path` will include parameters from extractors that implement
+    /// `IntoParams` unless the path explicitly disables it with `auto_params = false`.
+    pub fn auto_into_params(mut self, enabled: bool) -> Self {
+        self.auto_into_params = enabled;
 
         self
     }
