@@ -1458,7 +1458,7 @@ pub struct SwaggerFile<'a> {
 pub fn serve<'a>(
     path: &str,
     config: Arc<Config<'a>>,
-) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error>> {
+) -> Result<Option<SwaggerFile<'a>>, Box<dyn Error + Send + Sync>> {
     let mut file_path = path;
 
     if file_path.is_empty() || file_path == "/" {
@@ -1498,7 +1498,7 @@ pub fn serve<'a>(
 }
 
 #[inline]
-fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error>> {
+fn format_config(config: &Config, file: String) -> Result<String, Box<dyn Error + Send + Sync>> {
     let config_json = match serde_json::to_string_pretty(&config) {
         Ok(config) => config,
         Err(error) => return Err(Box::new(error)),
