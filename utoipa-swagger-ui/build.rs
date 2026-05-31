@@ -176,7 +176,7 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
         // with file protocol utoipa swagger ui should compile when file changes
         println!("cargo:rerun-if-changed={:?}", file_path);
 
-        println!("start copy to : {:?}", zip_path);
+        println!("start copy to: {:?}", zip_path);
         fs::copy(file_path, zip_path.clone()).unwrap();
 
         let swagger_ui_zip =
@@ -210,9 +210,9 @@ fn get_zip_archive(url: &str, target_dir: &str) -> SwaggerZip {
         }
 
         if zip_path.exists() {
-            println!("using cached zip path from : {:?}", zip_path);
+            println!("using cached zip path from: {:?}", zip_path);
         } else {
-            println!("start download to : {:?}", zip_path);
+            println!("start download to: {:?}", zip_path);
             download_file(url, zip_path.clone()).expect("failed to download Swagger UI");
         }
         let swagger_ui_zip = File::open(zip_path).unwrap();
