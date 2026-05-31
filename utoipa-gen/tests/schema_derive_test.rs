@@ -1,7 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use insta::assert_json_snapshot;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
@@ -796,6 +796,41 @@ fn derive_simple_enum_serde_untagged() {
     };
 
     assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_simple_enum_serde_skip() {
+    // Verify that the generated documentation includes only the simple Unit enums values
+    let value: Value = api_doc! {
+        enum FooWithUnknown {
+            One,
+            Two,
+
+            #[schema(skip)]
+            Unknown(String),
+        }
+    };
+    assert_json_snapshot!(value);
+
+    // Verify that all values are still (de)serialized as expected
+    #[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq)]
+    enum FooWithUnknown {
+        One,
+        Two,
+
+        #[serde(untagged)]
+        #[schema(skip)]
+        Unknown(String),
+    };
+    let one = FooWithUnknown::One;
+    let two = FooWithUnknown::Two;
+    let unknown = FooWithUnknown::Unknown("other-value".to_string());
+    assert_eq!(serde_json::to_string(&one).unwrap(), r#""One""#);
+    assert_eq!(serde_json::to_string(&two).unwrap(), r#""Two""#);
+    assert_eq!(serde_json::to_string(&unknown).unwrap(), r#""other-value""#);
+    assert_eq!(one, serde_json::from_str(r#""One""#).unwrap());
+    assert_eq!(two, serde_json::from_str(r#""Two""#).unwrap());
+    assert_eq!(unknown, serde_json::from_str(r#""other-value""#).unwrap());
 }
 
 #[test]
