@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use insta::assert_json_snapshot;
-use paste::paste;
+use pastey::paste;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;

@@ -45,7 +45,7 @@ axum = { version = "0.8.0", default-features = false, features = [
     "json",
     "query",
 ] }
-paste = "1"
+pastey = "0.1.1"
 rocket = { version = "0.5", features = ["json"] }
 smallvec = { version = "1.10", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false }
