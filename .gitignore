@@ -5,4 +5,5 @@ Cargo.lock
 .vscode
 target
 .nvim
-
+.cargo
+vendor
