@@ -13,7 +13,7 @@ pub enum SchemaTypeInner {
     Object,
     /// Indicates string type of content.
     String,
-    /// Indicates integer type of content.    
+    /// Indicates integer type of content.
     Integer,
     /// Indicates floating point number type of content.
     Number,
@@ -215,7 +215,13 @@ fn is_primitive(name: &str) -> bool {
 fn is_primitive_chrono(name: &str) -> bool {
     matches!(
         name,
-        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime"
+        "DateTime"
+            | "Date"
+            | "NaiveDate"
+            | "NaiveTime"
+            | "Duration"
+            | "NaiveDateTime"
+            | "DateTimeUtc"
     )
 }
 
@@ -269,7 +275,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             "f32" | "f64" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" | "DateTimeUtc" => {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
 
@@ -406,7 +412,7 @@ impl KnownFormat {
             "NaiveDate" => Self::Date,
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" => Self::DateTime,
+            "DateTime" | "NaiveDateTime" | "DateTimeUtc" => Self::DateTime,
 
             #[cfg(any(feature = "chrono", feature = "time", feature = "jiff_0_2"))]
             "Date" => Self::Date,
@@ -702,7 +708,7 @@ impl PrimitiveType {
             "f32" | "f64" => syn::parse_quote!(#path),
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" | "DateTimeUtc" => {
                 syn::parse_quote!(String)
             }
 
