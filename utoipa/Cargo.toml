@@ -65,7 +65,7 @@ utoipa-gen = { version = "5.5.0", path = "../utoipa-gen", optional = true }
 indexmap = { version = "2", features = ["serde"] }
 
 [dev-dependencies]
-insta = { version = "1.41", features = ["json", "redactions"] }
+insta = { version = "1.47", features = ["json", "redactions"] }
 utoipa = { path = ".", features = ["debug"] }
 
 [package.metadata.docs.rs]

@@ -235,11 +235,11 @@ impl Display for Suggestion {
         match self {
             Self::Help(help) => {
                 let s: &str = help.borrow();
-                write!(f, "help = {}", s)
+                write!(f, "help = {s}")
             }
             Self::Note(note) => {
                 let s: &str = note.borrow();
-                write!(f, "note = {}", s)
+                write!(f, "note = {s}")
             }
         }
     }

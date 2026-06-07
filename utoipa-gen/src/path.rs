@@ -275,10 +275,7 @@ impl FromStr for HttpMethod {
             "head" => Ok(Self::Head),
             "patch" => Ok(Self::Patch),
             "trace" => Ok(Self::Trace),
-            _ => Err(Error::new(
-                std::io::ErrorKind::Other,
-                HttpMethod::ERROR_MESSAGE,
-            )),
+            _ => Err(Error::other(HttpMethod::ERROR_MESSAGE)),
         }
     }
 }

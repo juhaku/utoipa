@@ -82,42 +82,6 @@ impl PartialEq for TypeTreeValue<'_> {
     }
 }
 
-enum TypeTreeValueIter<'a, T> {
-    Once(std::iter::Once<T>),
-    Empty,
-    Iter(Box<dyn std::iter::Iterator<Item = T> + 'a>),
-}
-
-impl<'a, T> TypeTreeValueIter<'a, T> {
-    fn once(item: T) -> Self {
-        Self::Once(std::iter::once(item))
-    }
-
-    fn empty() -> Self {
-        Self::Empty
-    }
-}
-
-impl<'a, T> Iterator for TypeTreeValueIter<'a, T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Once(iter) => iter.next(),
-            Self::Empty => None,
-            Self::Iter(iter) => iter.next(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Self::Once(once) => once.size_hint(),
-            Self::Empty => (0, None),
-            Self::Iter(iter) => iter.size_hint(),
-        }
-    }
-}
-
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -138,7 +102,7 @@ pub trait SynPathExt {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics>;
 }
 
-impl<'p> SynPathExt for &'p Path {
+impl SynPathExt for &Path {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics> {
         let last_segment = self
             .segments
@@ -161,7 +125,7 @@ impl<'p> SynPathExt for &'p Path {
                             let path = type_tree
                                 .path
                                 .as_ref()
-                                .expect(&format!("utoipa does not understand this type, for which type_tree must have a path: {ty:?}"))
+                                .unwrap_or_else(|| panic!("utoipa does not understand this type, for which type_tree must have a path: {ty:?}"))
                                 .as_ref();
 
                             if let Some(default_type) = PrimitiveType::new(path) {
@@ -231,60 +195,68 @@ impl<'p> SynPathExt for &'p Path {
 
 impl TypeTree<'_> {
     pub fn from_type(ty: &Type) -> Result<TypeTree<'_>, Diagnostics> {
-        Self::convert_types(Self::get_type_tree_values(ty)?).map(|mut type_tree| {
+        Self::convert_types(std::iter::once(Self::get_type_tree_value(ty)?)).map(|mut type_tree| {
             type_tree
                 .next()
                 .expect("TypeTree from type should have one TypeTree parent")
         })
     }
 
-    fn get_type_tree_values(
-        ty: &Type,
-    ) -> Result<impl Iterator<Item = TypeTreeValue<'_>>, Diagnostics> {
-        let type_tree_values = match ty {
-            Type::Path(path) => {
-                TypeTreeValueIter::once(TypeTreeValue::TypePath(path))
-            },
-            // NOTE have to put this in the box to avoid compiler bug with recursive functions
-            // See here https://github.com/rust-lang/rust/pull/110844 and https://github.com/rust-lang/rust/issues/111906
-            // This bug in fixed in Rust 1.79, but in order to support Rust 1.75 these need to be
-            // boxed.
-            Type::Reference(reference) => TypeTreeValueIter::Iter(Box::new(Self::get_type_tree_values(reference.elem.as_ref())?)),
-            // Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref())?,
-            Type::Tuple(tuple) => {
-                // Detect unit type ()
-                if tuple.elems.is_empty() { return Ok(TypeTreeValueIter::once(TypeTreeValue::UnitType)) }
-                TypeTreeValueIter::once(TypeTreeValue::Tuple(
-                    tuple.elems.iter().map(Self::get_type_tree_values).collect::<Result<Vec<_>, Diagnostics>>()?.into_iter().flatten().collect(),
-                    tuple.span()
-                ))
-            },
-            // NOTE have to put this in the box to avoid compiler bug with recursive functions
-            // See here https://github.com/rust-lang/rust/pull/110844 and https://github.com/rust-lang/rust/issues/111906
-            // This bug in fixed in Rust 1.79, but in order to support Rust 1.75 these need to be
-            // boxed.
-            Type::Group(group) => TypeTreeValueIter::Iter(Box::new(Self::get_type_tree_values(group.elem.as_ref())?)),
-            // Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref())?,
-            Type::Slice(slice) => TypeTreeValueIter::once(TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem)?.collect(), slice.bracket_token.span.join())),
-            Type::Array(array) => TypeTreeValueIter::once(TypeTreeValue::Array(Self::get_type_tree_values(&array.elem)?.collect(), array.bracket_token.span.join())),
-            Type::TraitObject(trait_object) => {
-                trait_object
-                    .bounds
-                    .iter()
-                    .find_map(|bound| {
-                        match &bound {
-                            syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                            syn::TypeParamBound::Lifetime(_) => None,
-                            syn::TypeParamBound::Verbatim(_) => None,
-                            _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
-                        }
-                    })
-                    .map(|path| TypeTreeValueIter::once(TypeTreeValue::Path(path))).unwrap_or_else(TypeTreeValueIter::empty)
-            }
-            unexpected => return Err(Diagnostics::with_span(unexpected.span(), "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject")),
-        };
+    fn get_type_tree_value(ty: &Type) -> Result<TypeTreeValue<'_>, Diagnostics> {
+        let mut ty = ty;
+        loop {
+            ty = match ty {
+                Type::Reference(reference) => reference.elem.as_ref(),
+                Type::Group(group) => group.elem.as_ref(),
+                _ => break,
+            };
+        }
 
-        Ok(type_tree_values)
+        match ty {
+            Type::Path(path) => Ok(TypeTreeValue::TypePath(path)),
+            Type::Tuple(tuple) => {
+                if tuple.elems.is_empty() {
+                    return Ok(TypeTreeValue::UnitType);
+                }
+
+                Ok(TypeTreeValue::Tuple(
+                    tuple
+                        .elems
+                        .iter()
+                        .map(Self::get_type_tree_value)
+                        .collect::<Result<Vec<_>, Diagnostics>>()?,
+                    tuple.span(),
+                ))
+            }
+            Type::Slice(slice) => Ok(TypeTreeValue::Array(
+                vec![Self::get_type_tree_value(&slice.elem)?],
+                slice.bracket_token.span.join(),
+            )),
+            Type::Array(array) => Ok(TypeTreeValue::Array(
+                vec![Self::get_type_tree_value(&array.elem)?],
+                array.bracket_token.span.join(),
+            )),
+            Type::TraitObject(trait_object) => trait_object
+                .bounds
+                .iter()
+                .find_map(|bound| match &bound {
+                    syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
+                    syn::TypeParamBound::Lifetime(_) => None,
+                    syn::TypeParamBound::Verbatim(_) => None,
+                    _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
+                })
+                .map(TypeTreeValue::Path)
+                .ok_or_else(|| {
+                    Diagnostics::with_span(
+                        trait_object.span(),
+                        "expected trait object to contain at least one trait bound",
+                    )
+                }),
+            unexpected => Err(Diagnostics::with_span(
+                unexpected.span(),
+                "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject",
+            )),
+        }
     }
 
     fn convert_types<'p, P: IntoIterator<Item = TypeTreeValue<'p>>>(
