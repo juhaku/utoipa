@@ -903,8 +903,7 @@ impl Parse for Discriminator {
                         return Err(Error::new(
                             property.span(),
                             format!(
-                                "unexpected identifier {}, expected any of: property_name, mapping",
-                                unexpected
+                                "unexpected identifier {unexpected}, expected any of: property_name, mapping",
                             ),
                         ))
                     }
