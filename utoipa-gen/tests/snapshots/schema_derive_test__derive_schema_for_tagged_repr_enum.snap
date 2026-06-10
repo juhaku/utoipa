@@ -1,0 +1,51 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 2272
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "tag": {
+          "enum": [
+            0
+          ],
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "tag": {
+          "enum": [
+            1
+          ],
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "tag": {
+          "enum": [
+            2
+          ],
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "type": "object"
+    }
+  ]
+}
