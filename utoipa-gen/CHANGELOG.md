@@ -13,6 +13,7 @@
 ### Changed
 
 * Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)
+* Use pastey instead of unmaintained paste and fix some clippy warnings (https://github.com/juhaku/utoipa/pull/1452)
 
 ### Fixed
 
