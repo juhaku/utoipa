@@ -47,6 +47,7 @@
 //!     Tuples, arrays and slices cannot be used as generic arguments on types. Types implementing `ToSchema` manually should not have generic arguments, as
 //!     they are not composeable and will result compile error.
 //! * Automatic schema collection from usages recursively.
+//!   * Schemas referenced by parameters defined with `params` or `IntoParams`.
 //!   * Request body from either handler function arguments (if supported by framework) or from `request_body` attribute.
 //!   * Response body from response `body` attribute or response `content` attribute.
 //! * Various OpenAPI visualization tools supported out of the box.
@@ -1111,6 +1112,19 @@ pub trait IntoParams {
     fn into_params(
         parameter_in_provider: impl Fn() -> Option<openapi::path::ParameterIn>,
     ) -> Vec<openapi::path::Parameter>;
+
+    /// Provide schemas referenced by parameters.
+    ///
+    /// This is called by generated [`OpenApi`] code when a path uses `params(SomeIntoParams)`,
+    /// allowing parameter schema references to be added to `components.schemas`.
+    /// The default implementation keeps manual [`IntoParams`] implementations source-compatible.
+    fn schemas(
+        _schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+    }
 }
 
 /// This trait is implemented to document a type (like an enum) which can represent multiple
