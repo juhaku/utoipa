@@ -1,10 +1,10 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
+assertion_line: 137
 expression: doc
-snapshot_kind: text
 ---
 {
-  "openapi": "3.1.0",
+  "openapi": "3.2.0",
   "info": {
     "title": "title",
     "version": "version"
@@ -58,7 +58,6 @@ snapshot_kind: text
         },
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -126,7 +125,6 @@ snapshot_kind: text
             }
           },
           "400": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {

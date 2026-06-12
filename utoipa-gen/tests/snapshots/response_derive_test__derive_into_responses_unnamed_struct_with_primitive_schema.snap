@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/response_derive_test.rs
+assertion_line: 251
 expression: responses
-snapshot_kind: text
 ---
 {
   "201": {
@@ -11,7 +11,6 @@ snapshot_kind: text
           "type": "string"
         }
       }
-    },
-    "description": ""
+    }
   }
 }

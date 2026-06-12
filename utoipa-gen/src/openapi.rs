@@ -213,14 +213,16 @@ impl Parse for Modifier {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Tag {
     name: parse_utils::LitStrOrExpr,
+    summary: Option<parse_utils::LitStrOrExpr>,
     description: Option<parse_utils::LitStrOrExpr>,
+    parent: Option<parse_utils::LitStrOrExpr>,
+    kind: Option<parse_utils::LitStrOrExpr>,
     external_docs: Option<ExternalDocs>,
 }
 
 impl Parse for Tag {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str =
-            "unexpected token, expected any of: name, description, external_docs";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: name, summary, description, parent, kind, external_docs";
 
         let mut tag = Tag::default();
 
@@ -232,9 +234,14 @@ impl Parse for Tag {
 
             match attribute_name {
                 "name" => tag.name = parse_utils::parse_next_literal_str_or_expr(input)?,
+                "summary" => {
+                    tag.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
+                }
                 "description" => {
                     tag.description = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
+                "parent" => tag.parent = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
+                "kind" => tag.kind = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
                 "external_docs" => {
                     let content;
                     parenthesized!(content in input);
@@ -262,6 +269,24 @@ impl ToTokens for Tag {
         if let Some(ref description) = self.description {
             tokens.extend(quote! {
                 .description(Some(#description))
+            });
+        }
+
+        if let Some(ref summary) = self.summary {
+            tokens.extend(quote! {
+                .summary(Some(#summary))
+            });
+        }
+
+        if let Some(ref parent) = self.parent {
+            tokens.extend(quote! {
+                .parent(Some(#parent))
+            });
+        }
+
+        if let Some(ref kind) = self.kind {
+            tokens.extend(quote! {
+                .kind(Some(#kind))
             });
         }
 

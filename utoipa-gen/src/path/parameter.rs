@@ -132,7 +132,8 @@ impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
             ParameterIn::Query
         };
 
-        let option_is_nullable = parameter_in != ParameterIn::Query;
+        let option_is_nullable =
+            !matches!(parameter_in, ParameterIn::Query | ParameterIn::QueryString);
 
         Self::Value(ValueParameter {
             name: argument.name.unwrap_or_else(|| Cow::Owned(String::new())),
@@ -303,7 +304,10 @@ impl Parse for ValueParameter<'_> {
         if let Some(parameter_schema) = &mut parameter.parameter_schema {
             parameter_schema.features = schema_features;
 
-            if parameter.parameter_in == ParameterIn::Query {
+            if matches!(
+                parameter.parameter_in,
+                ParameterIn::Query | ParameterIn::QueryString
+            ) {
                 parameter_schema.option_is_nullable = false;
             }
         }
@@ -448,10 +452,17 @@ pub enum ParameterIn {
     Path,
     Header,
     Cookie,
+    QueryString,
 }
 
 impl ParameterIn {
-    pub const VARIANTS: &'static [Self] = &[Self::Query, Self::Path, Self::Header, Self::Cookie];
+    pub const VARIANTS: &'static [Self] = &[
+        Self::Query,
+        Self::Path,
+        Self::Header,
+        Self::Cookie,
+        Self::QueryString,
+    ];
 }
 
 impl Display for ParameterIn {
@@ -461,6 +472,7 @@ impl Display for ParameterIn {
             ParameterIn::Path => write!(f, "Path"),
             ParameterIn::Header => write!(f, "Header"),
             ParameterIn::Cookie => write!(f, "Cookie"),
+            ParameterIn::QueryString => write!(f, "QueryString"),
         }
     }
 }
@@ -488,6 +500,7 @@ impl Parse for ParameterIn {
             "Query" => Ok(Self::Query),
             "Header" => Ok(Self::Header),
             "Cookie" => Ok(Self::Cookie),
+            "QueryString" => Ok(Self::QueryString),
             _ => Err(Error::new(style.span(), expected_style())),
         }
     }
@@ -500,6 +513,7 @@ impl ToTokens for ParameterIn {
             Self::Query => quote! { utoipa::openapi::path::ParameterIn::Query },
             Self::Header => quote! { utoipa::openapi::path::ParameterIn::Header },
             Self::Cookie => quote! { utoipa::openapi::path::ParameterIn::Cookie },
+            Self::QueryString => quote! { utoipa::openapi::path::ParameterIn::QueryString },
         })
     }
 }
@@ -515,11 +529,12 @@ pub enum ParameterStyle {
     SpaceDelimited,
     PipeDelimited,
     DeepObject,
+    Cookie,
 }
 
 impl Parse for ParameterStyle {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_STYLE: &str =  "unexpected style, expected one of: Matrix, Label, Form, Simple, SpaceDelimited, PipeDelimited, DeepObject";
+        const EXPECTED_STYLE: &str =  "unexpected style, expected one of: Matrix, Label, Form, Simple, SpaceDelimited, PipeDelimited, DeepObject, Cookie";
         let style = input.parse::<Ident>()?;
 
         match &*style.to_string() {
@@ -530,6 +545,7 @@ impl Parse for ParameterStyle {
             "SpaceDelimited" => Ok(ParameterStyle::SpaceDelimited),
             "PipeDelimited" => Ok(ParameterStyle::PipeDelimited),
             "DeepObject" => Ok(ParameterStyle::DeepObject),
+            "Cookie" => Ok(ParameterStyle::Cookie),
             _ => Err(Error::new(style.span(), EXPECTED_STYLE)),
         }
     }
@@ -558,6 +574,9 @@ impl ToTokens for ParameterStyle {
             }
             ParameterStyle::DeepObject => {
                 tokens.extend(quote! { utoipa::openapi::path::ParameterStyle::DeepObject })
+            }
+            ParameterStyle::Cookie => {
+                tokens.extend(quote! { utoipa::openapi::path::ParameterStyle::Cookie })
             }
         }
     }

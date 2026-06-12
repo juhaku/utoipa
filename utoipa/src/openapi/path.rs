@@ -4,14 +4,16 @@
 use crate::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 use super::{
     builder,
+    content::Content,
     extensions::Extensions,
     request_body::RequestBody,
     response::{Response, Responses},
     security::SecurityRequirement,
-    set_value, Deprecated, ExternalDocs, RefOr, Required, Schema, Server,
+    set_value, Deprecated, ExternalDocs, Ref, RefOr, Required, Schema, Server,
 };
 
 #[cfg(not(feature = "preserve_path_order"))]
@@ -22,6 +24,9 @@ pub type PathsMap<K, V> = std::collections::BTreeMap<K, V>;
 #[allow(missing_docs)]
 #[doc(hidden)]
 pub type PathsMap<K, V> = indexmap::IndexMap<K, V>;
+
+/// OpenAPI Callback Object mapping callback expressions to path items.
+pub type Callback = BTreeMap<String, RefOr<PathItem>>;
 
 builder! {
     PathsBuilder;
@@ -230,6 +235,10 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct PathItem {
+        /// Allows referencing another Path Item Object.
+        #[serde(rename = "$ref", skip_serializing_if = "Option::is_none")]
+        pub ref_path: Option<String>,
+
         /// Optional summary intended to apply all operations in this [`PathItem`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub summary: Option<String>,
@@ -248,7 +257,7 @@ builder! {
         /// contain duplicate parameters. They can be overridden in [`Operation`] level but cannot be
         /// removed there.
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub parameters: Option<Vec<Parameter>>,
+        pub parameters: Option<Vec<RefOr<Parameter>>>,
 
         /// Get [`Operation`] for the [`PathItem`].
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -281,6 +290,14 @@ builder! {
         /// Trace [`Operation`] for the [`PathItem`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub trace: Option<Operation>,
+
+        /// Query [`Operation`] for the [`PathItem`].
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub query: Option<Operation>,
+
+        /// Operation used for HTTP methods or other operations not explicitly listed on this path.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub additional_operations: BTreeMap<String, Operation>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -356,10 +373,25 @@ impl PathItem {
         if path_item.trace.is_some() && self.trace.is_none() {
             self.trace = path_item.trace;
         }
+        if path_item.query.is_some() && self.query.is_none() {
+            self.query = path_item.query;
+        }
+        if !path_item.additional_operations.is_empty() {
+            for (method, operation) in path_item.additional_operations {
+                self.additional_operations
+                    .entry(method)
+                    .or_insert(operation);
+            }
+        }
     }
 }
 
 impl PathItemBuilder {
+    /// Add or change reference to another Path Item Object.
+    pub fn ref_path<S: Into<String>>(mut self, ref_path: Option<S>) -> Self {
+        set_value!(self ref_path ref_path.map(Into::into))
+    }
+
     /// Append a new [`Operation`] by [`HttpMethod`] to this [`PathItem`]. Operations can
     /// hold only one operation per [`HttpMethod`].
     pub fn operation<O: Into<Operation>>(mut self, http_method: HttpMethod, operation: O) -> Self {
@@ -373,6 +405,42 @@ impl PathItemBuilder {
             HttpMethod::Patch => self.patch = Some(operation.into()),
             HttpMethod::Trace => self.trace = Some(operation.into()),
         };
+
+        self
+    }
+
+    /// Add or change query [`Operation`] for this [`PathItem`].
+    pub fn query<O: Into<Operation>>(mut self, operation: Option<O>) -> Self {
+        set_value!(self query operation.map(Into::into))
+    }
+
+    /// Add or change operation used for HTTP methods or other operations not explicitly listed on
+    /// this path.
+    pub fn additional_operations<
+        I: IntoIterator<Item = (S, O)>,
+        S: Into<String>,
+        O: Into<Operation>,
+    >(
+        mut self,
+        additional_operations: I,
+    ) -> Self {
+        self.additional_operations.extend(
+            additional_operations
+                .into_iter()
+                .map(|(method, operation)| (method.into(), operation.into())),
+        );
+
+        self
+    }
+
+    /// Add operation used for an HTTP method not explicitly listed on this path.
+    pub fn additional_operation<S: Into<String>, O: Into<Operation>>(
+        mut self,
+        method: S,
+        operation: O,
+    ) -> Self {
+        self.additional_operations
+            .insert(method.into(), operation.into());
 
         self
     }
@@ -396,7 +464,12 @@ impl PathItemBuilder {
 
     /// Append list of [`Parameter`]s common to all [`Operation`]s to this [`PathItem`].
     pub fn parameters<I: IntoIterator<Item = Parameter>>(mut self, parameters: Option<I>) -> Self {
-        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().collect()))
+        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().map(Into::into).collect()))
+    }
+
+    /// Append list of parameter references common to all [`Operation`]s to this [`PathItem`].
+    pub fn parameter_refs<I: IntoIterator<Item = Ref>>(mut self, parameters: Option<I>) -> Self {
+        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().map(RefOr::Ref).collect()))
     }
 
     /// Add openapi extensions (x-something) to this [`PathItem`].
@@ -486,19 +559,18 @@ builder! {
 
         /// List of applicable parameters for this [`Operation`].
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub parameters: Option<Vec<Parameter>>,
+        pub parameters: Option<Vec<RefOr<Parameter>>>,
 
         /// Optional request body for this [`Operation`].
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub request_body: Option<RequestBody>,
+        pub request_body: Option<RefOr<RequestBody>>,
 
         /// List of possible responses returned by the [`Operation`].
         pub responses: Responses,
 
-        // TODO
-        #[allow(missing_docs)]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub callbacks: Option<String>,
+        /// Map of callbacks related to this operation.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub callbacks: BTreeMap<String, RefOr<Callback>>,
 
         /// Define whether the operation is deprecated or not and thus should be avoided consuming.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -570,12 +642,16 @@ impl OperationBuilder {
     ) -> Self {
         self.parameters = parameters.map(|parameters| {
             if let Some(mut params) = self.parameters {
-                params.extend(parameters.into_iter().map(|parameter| parameter.into()));
+                params.extend(
+                    parameters
+                        .into_iter()
+                        .map(|parameter| parameter.into().into()),
+                );
                 params
             } else {
                 parameters
                     .into_iter()
-                    .map(|parameter| parameter.into())
+                    .map(|parameter| parameter.into().into())
                     .collect()
             }
         });
@@ -586,9 +662,21 @@ impl OperationBuilder {
     /// Append parameter to [`Operation`] parameters.
     pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         match self.parameters {
-            Some(ref mut parameters) => parameters.push(parameter.into()),
+            Some(ref mut parameters) => parameters.push(parameter.into().into()),
             None => {
-                self.parameters = Some(vec![parameter.into()]);
+                self.parameters = Some(vec![parameter.into().into()]);
+            }
+        }
+
+        self
+    }
+
+    /// Append parameter reference to [`Operation`] parameters.
+    pub fn parameter_ref(mut self, parameter: Ref) -> Self {
+        match self.parameters {
+            Some(ref mut parameters) => parameters.push(RefOr::Ref(parameter)),
+            None => {
+                self.parameters = Some(vec![RefOr::Ref(parameter)]);
             }
         }
 
@@ -597,7 +685,12 @@ impl OperationBuilder {
 
     /// Add or change request body of the [`Operation`].
     pub fn request_body(mut self, request_body: Option<RequestBody>) -> Self {
-        set_value!(self request_body request_body)
+        set_value!(self request_body request_body.map(Into::into))
+    }
+
+    /// Add or change request body reference of the [`Operation`].
+    pub fn request_body_ref(mut self, request_body: Option<Ref>) -> Self {
+        set_value!(self request_body request_body.map(RefOr::Ref))
     }
 
     /// Add or change responses of the [`Operation`].
@@ -618,6 +711,33 @@ impl OperationBuilder {
             .responses
             .insert(code.into(), response.into());
 
+        self
+    }
+
+    /// Add a callback to this [`Operation`].
+    pub fn callback<S: Into<String>, C: Into<RefOr<Callback>>>(
+        mut self,
+        name: S,
+        callback: C,
+    ) -> Self {
+        self.callbacks.insert(name.into(), callback.into());
+        self
+    }
+
+    /// Add callbacks to this [`Operation`] from an iterator.
+    pub fn callbacks_from_iter<
+        I: IntoIterator<Item = (S, C)>,
+        S: Into<String>,
+        C: Into<RefOr<Callback>>,
+    >(
+        mut self,
+        callbacks: I,
+    ) -> Self {
+        self.callbacks.extend(
+            callbacks
+                .into_iter()
+                .map(|(name, callback)| (name.into(), callback.into())),
+        );
         self
     }
 
@@ -667,6 +787,18 @@ impl OperationBuilder {
     }
 }
 
+impl From<Ref> for RefOr<PathItem> {
+    fn from(r: Ref) -> Self {
+        Self::Ref(r)
+    }
+}
+
+impl From<Ref> for RefOr<Callback> {
+    fn from(r: Ref) -> Self {
+        Self::Ref(r)
+    }
+}
+
 builder! {
     ParameterBuilder;
 
@@ -704,6 +836,10 @@ builder! {
         /// Schema of the parameter. Typically [`Schema::Object`] is used.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub schema: Option<RefOr<Schema>>,
+
+        /// Map of media type representations for the parameter.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub content: BTreeMap<String, RefOr<Content>>,
 
         /// Describes how [`Parameter`] is being serialized depending on [`Parameter::schema`] (type of a content).
         /// Default value is based on [`ParameterIn`].
@@ -791,6 +927,33 @@ impl ParameterBuilder {
         set_value!(self schema component.map(|component| component.into()))
     }
 
+    /// Add media type representation for the [`Parameter`].
+    pub fn content<S: Into<String>, C: Into<RefOr<Content>>>(
+        mut self,
+        content_type: S,
+        content: C,
+    ) -> Self {
+        self.content.insert(content_type.into(), content.into());
+        self
+    }
+
+    /// Add media type representations from an iterator.
+    pub fn contents_from_iter<
+        I: IntoIterator<Item = (S, C)>,
+        S: Into<String>,
+        C: Into<RefOr<Content>>,
+    >(
+        mut self,
+        content: I,
+    ) -> Self {
+        self.content.extend(
+            content
+                .into_iter()
+                .map(|(content_type, content)| (content_type.into(), content.into())),
+        );
+        self
+    }
+
     /// Add or change serialization style of [`Parameter`].
     pub fn style(mut self, style: Option<ParameterStyle>) -> Self {
         set_value!(self style style)
@@ -830,6 +993,9 @@ pub enum ParameterIn {
     Header,
     /// Declares that parameter is used as cookie value.
     Cookie,
+    /// Declares that parameter represents the entire query string.
+    #[serde(rename = "querystring")]
+    QueryString,
 }
 
 impl Default for ParameterIn {
@@ -867,6 +1033,8 @@ pub enum ParameterStyle {
     /// Simple way of rendering nested objects using form parameters .e.g. _`color[B]=150`_.
     /// Allowed with [`ParameterIn::Query`].
     DeepObject,
+    /// Cookie parameter serialization style.
+    Cookie,
 }
 
 #[cfg(test)]
@@ -982,7 +1150,7 @@ mod tests {
         assert!(operation.parameters.is_none());
         assert!(operation.request_body.is_none());
         assert!(operation.responses.responses.is_empty());
-        assert!(operation.callbacks.is_none());
+        assert!(operation.callbacks.is_empty());
         assert!(operation.deprecated.is_none());
         assert!(operation.security.is_none());
         assert!(operation.servers.is_none());

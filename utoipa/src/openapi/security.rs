@@ -7,7 +7,7 @@ use std::{collections::BTreeMap, iter};
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, extensions::Extensions};
+use super::{builder, extensions::Extensions, Deprecated};
 
 /// OpenAPI [security requirement][security] object.
 ///
@@ -185,6 +185,9 @@ pub enum SecurityScheme {
         #[allow(missing_docs)]
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
+        #[allow(missing_docs)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        deprecated: Option<Deprecated>,
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         extensions: Option<Extensions>,
@@ -216,6 +219,10 @@ pub struct ApiKeyValue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Declares whether the security scheme is deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
+
     /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<Extensions>,
@@ -235,6 +242,7 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -252,8 +260,15 @@ impl ApiKeyValue {
         Self {
             name: name.into(),
             description: Some(description.into()),
+            deprecated: None,
             extensions: Default::default(),
         }
+    }
+
+    /// Add or change deprecated status.
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        self.deprecated = deprecated;
+        self
     }
 }
 
@@ -279,6 +294,10 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
 
+        /// Declares whether the security scheme is deprecated.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub deprecated: Option<Deprecated>,
+
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -302,6 +321,7 @@ impl Http {
             scheme,
             bearer_format: None,
             description: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -344,6 +364,13 @@ impl HttpBuilder {
     /// Add or change optional description supporting markdown syntax.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         self.description = description.map(|description| description.into());
+
+        self
+    }
+
+    /// Add or change deprecated status.
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        self.deprecated = deprecated;
 
         self
     }
@@ -390,6 +417,10 @@ pub struct OpenIdConnect {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Declares whether the security scheme is deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
+
     /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
     pub extensions: Option<Extensions>,
@@ -408,6 +439,7 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: None,
+            deprecated: None,
             extensions: Default::default(),
         }
     }
@@ -425,22 +457,38 @@ impl OpenIdConnect {
         Self {
             open_id_connect_url: open_id_connect_url.into(),
             description: Some(description.into()),
+            deprecated: None,
             extensions: Default::default(),
         }
+    }
+
+    /// Add or change deprecated status.
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        self.deprecated = deprecated;
+        self
     }
 }
 
 /// OAuth2 [`Flow`] configuration for [`SecurityScheme`].
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OAuth2 {
     /// Map of supported OAuth2 flows.
     pub flows: BTreeMap<String, Flow>,
 
+    /// URL to OAuth2 authorization server metadata.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub oauth2_metadata_url: Option<String>,
+
     /// Optional description for the [`OAuth2`] [`Flow`] [`SecurityScheme`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// Declares whether the security scheme is deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<Deprecated>,
 
     /// Optional extensions "x-something".
     #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -485,7 +533,9 @@ impl OAuth2 {
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             extensions: None,
+            oauth2_metadata_url: None,
             description: None,
+            deprecated: None,
         }
     }
 
@@ -528,8 +578,22 @@ impl OAuth2 {
                     .map(|auth_flow| (String::from(auth_flow.get_type_as_str()), auth_flow)),
             ),
             extensions: None,
+            oauth2_metadata_url: None,
             description: Some(description.into()),
+            deprecated: None,
         }
+    }
+
+    /// Add OAuth2 authorization server metadata URL.
+    pub fn with_metadata_url<S: Into<String>>(mut self, oauth2_metadata_url: S) -> Self {
+        self.oauth2_metadata_url = Some(oauth2_metadata_url.into());
+        self
+    }
+
+    /// Add or change deprecated status.
+    pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
+        self.deprecated = deprecated;
+        self
     }
 }
 
@@ -550,6 +614,8 @@ pub enum Flow {
     ClientCredentials(ClientCredentials),
     /// Define authorization code [`Flow`] type. See [`AuthorizationCode::new`] for usage details.
     AuthorizationCode(AuthorizationCode),
+    /// Define device authorization [`Flow`] type. See [`DeviceAuthorization::new`] for usage details.
+    DeviceAuthorization(DeviceAuthorization),
 }
 
 impl Flow {
@@ -559,6 +625,7 @@ impl Flow {
             Self::Password(_) => "password",
             Self::ClientCredentials(_) => "clientCredentials",
             Self::AuthorizationCode(_) => "authorizationCode",
+            Self::DeviceAuthorization(_) => "deviceAuthorization",
         }
     }
 }
@@ -745,6 +812,64 @@ impl AuthorizationCode {
     ) -> Self {
         Self {
             authorization_url: authorization_url.into(),
+            token_url: token_url.into(),
+            refresh_url: Some(refresh_url.into()),
+            scopes,
+            extensions: Default::default(),
+        }
+    }
+}
+
+/// Device authorization [`Flow`] configuration for [`OAuth2`].
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct DeviceAuthorization {
+    /// Device authorization endpoint URL for the flow.
+    pub device_authorization_url: String,
+
+    /// Token URL for the flow.
+    pub token_url: String,
+
+    /// Optional refresh token URL for the flow.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+
+    /// Scopes required by the flow.
+    #[serde(flatten)]
+    pub scopes: Scopes,
+
+    /// Optional extensions "x-something".
+    #[serde(skip_serializing_if = "Option::is_none", flatten)]
+    pub extensions: Option<Extensions>,
+}
+
+impl DeviceAuthorization {
+    /// Construct a new device authorization OAuth2 flow.
+    pub fn new<D: Into<String>, T: Into<String>>(
+        device_authorization_url: D,
+        token_url: T,
+        scopes: Scopes,
+    ) -> Self {
+        Self {
+            device_authorization_url: device_authorization_url.into(),
+            token_url: token_url.into(),
+            refresh_url: None,
+            scopes,
+            extensions: Default::default(),
+        }
+    }
+
+    /// Construct a new device authorization OAuth2 flow with additional refresh URL.
+    pub fn with_refresh_url<S: Into<String>>(
+        device_authorization_url: S,
+        token_url: S,
+        scopes: Scopes,
+        refresh_url: S,
+    ) -> Self {
+        Self {
+            device_authorization_url: device_authorization_url.into(),
             token_url: token_url.into(),
             refresh_url: Some(refresh_url.into()),
             scopes,
@@ -1311,6 +1436,7 @@ mod tests {
         security_scheme_correct_mutual_tls:
         SecurityScheme::MutualTls {
             description: Some(String::from("authorization is performed with client side certificate")),
+            deprecated: None,
             extensions: None,
         };
         r###"{

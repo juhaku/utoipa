@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/path_response_derive_test.rs
+assertion_line: 474
 expression: value
-snapshot_kind: text
 ---
 {
   "operationId": "post_secret",
@@ -9,8 +9,7 @@ snapshot_kind: text
     "200": {
       "content": {
         "application/octet-stream": {}
-      },
-      "description": ""
+      }
     }
   },
   "summary": "Post some secret inner handler"
