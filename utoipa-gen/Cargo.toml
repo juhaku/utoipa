@@ -23,11 +23,11 @@ proc-macro = true
 
 [dependencies]
 utoipa-config = { version = "0.1", path = "../utoipa-config", optional = true }
-once_cell = { version = "1.19.0", optional = true }
+once_cell = { version = "1.21.4", optional = true }
 proc-macro2 = "1.0"
 syn = { version = "2.0", features = ["full", "extra-traits"] }
 quote = "1.0"
-regex = { version = "1.7", optional = true }
+regex = { version = "1.12", optional = true }
 uuid = { version = "1", features = ["serde"], optional = true }
 ulid = { version = "1", optional = true, default-features = false }
 url = { version = "2", optional = true }
@@ -41,19 +41,19 @@ utoipa = { path = "../utoipa", features = [
 serde_json = "1"
 serde = "1"
 actix-web = { version = "4", features = ["macros"], default-features = false }
-axum = { version = "0.8.0", default-features = false, features = [
+axum = { version = "0.8.4", default-features = false, features = [
     "json",
     "query",
 ] }
-paste = "1"
+pastey = "0.2"
 rocket = { version = "0.5", features = ["json"] }
-smallvec = { version = "1.10", features = ["serde"] }
+smallvec = { version = "1.15", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 time = { version = "0.3", features = ["serde-human-readable"] }
 jiff = { version = "0.2", features = ["serde"] }
-serde_with = "3.0"
-insta = { version = "1.41", features = ["json"] }
+serde_with = "3.14"
+insta = { version = "1.47", features = ["json"] }
 
 [features]
 # See README.md for list and explanations of features

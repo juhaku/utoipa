@@ -9,10 +9,10 @@ snapshot_kind: text
       "schema": {
         "oneOf": [
           {
-            "type": "null"
+            "$ref": "#/components/schemas/Foo"
           },
           {
-            "$ref": "#/components/schemas/Foo"
+            "type": "null"
           }
         ]
       }

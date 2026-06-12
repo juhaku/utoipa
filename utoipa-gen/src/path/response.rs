@@ -11,8 +11,12 @@ use syn::{
 };
 
 use crate::{
-    component::ComponentSchema, features::attributes::Extensions, parse_utils,
-    path::media_type::Schema, AnyValue, Diagnostics, ToTokensDiagnostics,
+    component::ComponentSchema,
+    features::attributes::Extensions,
+    parse_utils,
+    path::media_type::Schema,
+    token_stream::{quote_diagnostics, Diagnostics, ToTokensDiagnostics},
+    AnyValue,
 };
 
 use self::{header::Header, link::LinkTuple};
@@ -455,10 +459,9 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
 
                 for header in &value.headers {
                     let name = &header.name;
-                    let header = crate::as_tokens_or_diagnostics!(header);
-                    tokens.extend(quote! {
-                        .header(#name, #header)
-                    })
+                    tokens.extend(quote_diagnostics! {
+                        .header(#name, @header)
+                    }?)
                 }
 
                 for LinkTuple(name, link) in &value.links {
@@ -673,11 +676,11 @@ struct ResponseStatus(TokenStream2);
 
 impl Parse for ResponseStatus {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        fn parse_lit_int(input: ParseStream) -> syn::Result<Cow<'_, str>> {
+        fn parse_lit_int(input: ParseStream<'_>) -> syn::Result<Cow<'_, str>> {
             input.parse::<LitInt>()?.base10_parse().map(Cow::Owned)
         }
 
-        fn parse_lit_str_status_range(input: ParseStream) -> syn::Result<Cow<'_, str>> {
+        fn parse_lit_str_status_range(input: ParseStream<'_>) -> syn::Result<Cow<'_, str>> {
             const VALID_STATUS_RANGES: [&str; 6] = ["default", "1XX", "2XX", "3XX", "4XX", "5XX"];
 
             input
@@ -762,8 +765,7 @@ impl ToTokensDiagnostics for Responses<'_> {
                     }
                     Response::Tuple(response) => {
                         let code = &response.status_code;
-                        let response = crate::as_tokens_or_diagnostics!(response);
-                        Ok(quote! { .response(#code, #response) })
+                        Ok(quote_diagnostics! { .response(#code, @response) }?)
                     }
                 })
                 .collect::<Result<Vec<_>, Diagnostics>>()?

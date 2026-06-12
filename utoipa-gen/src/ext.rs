@@ -9,7 +9,7 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
 use crate::path::media_type::MediaTypePathExt;
 use crate::path::{HttpMethod, PathTypeTree};
-use crate::{Diagnostics, ToTokensDiagnostics};
+use crate::token_stream::{Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -288,7 +288,7 @@ pub trait ArgumentResolver {
         _: &'_ Punctuated<syn::FnArg, Comma>,
         _: Option<Vec<MacroArg>>,
         _: String,
-    ) -> Result<Arguments, Diagnostics> {
+    ) -> Result<Arguments<'_>, Diagnostics> {
         Ok((None, None, None))
     }
 }

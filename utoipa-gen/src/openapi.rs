@@ -18,7 +18,8 @@ use crate::{
     parse_utils,
     security_requirement::SecurityRequirementsAttr,
     server::Server,
-    Array, Diagnostics, ExternalDocs, ToTokensDiagnostics,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Array, ExternalDocs,
 };
 use crate::{path, OptionExt};
 
@@ -71,7 +72,7 @@ impl<'o> OpenApiAttr<'o> {
     }
 }
 
-pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr>, Error> {
+pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr<'_>>, Error> {
     attrs
         .iter()
         .filter(|attribute| attribute.path().is_ident("openapi"))

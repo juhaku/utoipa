@@ -26,6 +26,7 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     parse_utils::{LitBoolOrExprPath, LitStrOrExpr},
+    token_stream::quote_diagnostics,
     Array, Diagnostics, OptionExt, Required, ToTokensDiagnostics,
 };
 
@@ -133,7 +134,7 @@ impl ToTokensDiagnostics for IntoParams {
                 let name = names.as_ref()
                     .map_try(|names| names.get(index).ok_or_else(|| Diagnostics::with_span(
                         ident.span(),
-                        format!("There is no name specified in the names(...) container attribute for tuple struct field {}", index),
+                        format!("There is no name specified in the names(...) container attribute for tuple struct field {index}"),
                     )));
                 let name = match name {
                     Ok(name) => name,
@@ -230,8 +231,11 @@ impl IntoParams {
                 if names.len() != unnamed_fields.len() {
                     Some(Diagnostics::with_span(
                         ident.span(),
-                        format!("declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {}", 
-                            names.len(), unnamed_fields.len(), ident)
+                        format!(
+                            "declared names amount '{}' does not match to the unnamed fields amount '{}' in type: {ident}",
+                            names.len(),
+                            unnamed_fields.len()
+                        )
                     )
                         .help(r#"Did you forget to add a field name to `#[into_params(names(... , "field_name"))]`"#)
                         .help("Or have you added extra name but haven't defined a type?")
@@ -246,8 +250,7 @@ impl IntoParams {
                     "struct with unnamed fields must have explicit name declarations.",
                 )
                 .help(format!(
-                    "Try defining `#[into_params(names(...))]` over your type: {}",
-                    ident
+                    "Try defining `#[into_params(names(...))]` over your type: {ident}",
                 )),
             ),
         }
@@ -388,8 +391,7 @@ impl Param {
 
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
-            let schema_with = crate::as_tokens_or_diagnostics!(&schema_with);
-            tokens.extend(quote! { .schema(Some(#schema_with)).build() });
+            tokens.extend(quote_diagnostics! { .schema(Some(@schema_with)).build() }?);
         } else {
             let description =
                 CommentAttributes::from_attributes(&field.attrs).as_formatted_string();

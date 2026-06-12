@@ -12,7 +12,11 @@ use crate::component::features::attributes::{Extensions, Inline};
 use crate::component::features::Feature;
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree, ValueType};
 use crate::ext::ExtSchema;
-use crate::{parse_utils, AnyValue, Array, Diagnostics, ToTokensDiagnostics};
+use crate::{
+    parse_utils,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    AnyValue, Array,
+};
 
 use super::example::Example;
 use super::PathTypeTree;
@@ -229,7 +233,7 @@ impl Default for Schema<'_> {
 }
 
 impl Schema<'_> {
-    pub fn get_type_tree(&self) -> Result<Option<Cow<TypeTree<'_>>>, Diagnostics> {
+    pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
         match self {
             Self::Default(def) => def.get_type_tree(),
             Self::Ext(ext) => ext.get_type_tree(),
@@ -417,7 +421,7 @@ pub struct ParsedType<'i> {
 
 impl ParsedType<'_> {
     /// Get's the underlying [`syn::Type`] as [`TypeTree`].
-    fn to_type_tree(&self) -> Result<TypeTree, Diagnostics> {
+    fn to_type_tree(&self) -> Result<TypeTree<'_>, Diagnostics> {
         TypeTree::from_type(&self.ty)
     }
 }
