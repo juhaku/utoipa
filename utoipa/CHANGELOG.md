@@ -7,6 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Added
 
+* Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
 * Added feature `yaml_serde` for deserializing using the official yaml_serde crate (https://github.com/juhaku/utoipa/pull/1559)
 * Add support for `title` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
 * Add support for `default` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
