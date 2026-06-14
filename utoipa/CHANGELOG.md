@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+## Unreleased
+
+### Added
+
+* Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added

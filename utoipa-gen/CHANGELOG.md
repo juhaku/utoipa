@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## Unreleased
+
+### Added
+
+* Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
+
 ## 5.4.0 - Jun 16 2025
 
 ### Added
