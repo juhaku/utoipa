@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## Unreleased
+
+### Changed
+
+* Add custom embedding for Swagger UI assets (https://github.com/juhaku/utoipa/pull/1570)
+
 ## 9.0.2 - Sun 25 May 2025
 
 ### Fixed
