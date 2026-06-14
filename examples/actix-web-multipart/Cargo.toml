@@ -9,5 +9,6 @@ actix-multipart = "0.7"
 utoipa = { path = "../../utoipa", features = ["actix_extras"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
 utoipa-actix-web = { path = "../../utoipa-actix-web" }
+brotli-decompressor = "5.0.3"
 
 [workspace]
