@@ -1,0 +1,40 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: schema
+---
+{
+  "properties": {
+    "default_optional_ref": {
+      "oneOf": [
+        {
+          "$ref": "#/components/schemas/RefType"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "optional_ref": {
+      "allOf": [
+        {
+          "properties": {
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "type": "object"
+        },
+        {
+          "default": {
+            "value": "foo"
+          },
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "type": "object"
+}

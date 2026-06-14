@@ -75,7 +75,7 @@ impl PathItemExt for HttpMethod {
 
 /// re-export paste so users do not need to add the dependency.
 #[doc(hidden)]
-pub use paste::paste;
+pub use pastey::paste;
 
 /// Collect axum handlers annotated with [`utoipa::path`] to [`router::UtoipaMethodRouter`].
 ///

@@ -8,14 +8,11 @@ use syn::{
 };
 
 use crate::{
-    as_tokens_or_diagnostics,
-    component::features::{
-        attributes::{Rename, Title, ValueType},
-        validation::Pattern,
-    },
+    component::features::attributes::{Rename, Title, ValueType},
     doc_comment::CommentAttributes,
     parse_utils::LitBoolOrExprPath,
-    Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
+    token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt, Diagnostics, OptionExt,
 };
 
 use self::{
@@ -368,7 +365,15 @@ impl NamedStructSchema {
 
                 match field_options {
                     Ok(Some(field_options)) => {
-                        Some(Ok((field_options, field_rules, field_name, field)))
+                        let should_always_ignore = match &field_options.ignore {
+                            Some(LitBoolOrExprPath::LitBool(bool)) => bool.value(),
+                            _ => false,
+                        };
+                        if should_always_ignore {
+                            None
+                        } else {
+                            Some(Ok((field_options, field_rules, field_name, field)))
+                        }
                     }
                     Ok(_) => None,
                     Err(options_diagnostics) => Some(Err(options_diagnostics)),
@@ -457,8 +462,12 @@ impl NamedStructSchema {
                             }
                         },
                         Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
-                            path.span() => if !#path() {
-                                #property_tokens;
+                            path.span() => {
+                                utoipa::__dev::warn_deprecated_ignore_fn_pattern();
+
+                                if !#path() {
+                                    #property_tokens;
+                                }
                             }
                         },
                         None => quote! { #property_tokens; },
@@ -483,17 +492,16 @@ impl NamedStructSchema {
 
             for (options, _, _, field) in flatten_fields {
                 let NamedStructFieldOptions { property, .. } = options;
-                let property_schema = as_tokens_or_diagnostics!(property);
 
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
-                        flattened_tokens.extend(quote! { .item(#property_schema) })
+                        flattened_tokens.extend(quote_diagnostics! { .item(@property) }?)
                     }
                     Property::FlattenedMap(_) => {
                         match flattened_map_field {
                             None => {
                                 object_tokens.extend(
-                                    quote! { .additional_properties(Some(#property_schema)) },
+                                    quote_diagnostics! { .additional_properties(Some(@property)) }?,
                                 );
                                 flattened_map_field = Some(field);
                             }
@@ -744,20 +752,31 @@ impl UnnamedStructSchema {
                     ));
                 }
             }
-            let pattern = if let Some(pattern) =
-                pop_feature!(features => Feature::Pattern(_) as Option<Pattern>)
-            {
-                // Pattern Attribute is only allowed for unnamed structs with single field
-                if fields_len > 1 {
+
+            if fields_len > 1 {
+                // The struct has multiple unnamed fields.
+                // Validation related features are only allowed on unnamed structs with a single field (i.e., newtype pattern).
+                if let Some((name, span)) = features.iter().find_map(|feature| match feature {
+                    Feature::MultipleOf(attr) => Some(("multiple_of", attr.span())),
+                    Feature::Maximum(attr) => Some(("maximum", attr.span())),
+                    Feature::Minimum(attr) => Some(("minimum", attr.span())),
+                    Feature::ExclusiveMaximum(attr) => Some(("exclusive_maximum", attr.span())),
+                    Feature::ExclusiveMinimum(attr) => Some(("exclusive_minimum", attr.span())),
+                    Feature::MinLength(attr) => Some(("min_length", attr.span())),
+                    Feature::MaxLength(attr) => Some(("max_length", attr.span())),
+                    Feature::Pattern(attr) => Some(("pattern", attr.span())),
+                    Feature::MaxItems(attr) => Some(("max_items", attr.span())),
+                    Feature::MinItems(attr) => Some(("min_items", attr.span())),
+                    _ => None,
+                }) {
                     return Err(Diagnostics::with_span(
-                        pattern.span(),
-                        "Pattern attribute is not allowed for unnamed structs with multiple fields",
+                        span,
+                        format!(
+                            "{name} attribute is not allowed for unnamed structs with multiple fields",
+                        ),
                     ));
                 }
-                Some(pattern.to_token_stream())
-            } else {
-                None
-            };
+            }
 
             let comments = CommentAttributes::from_attributes(root.attributes);
             let description = description
@@ -780,11 +799,7 @@ impl UnnamedStructSchema {
             })?;
 
             tokens.extend(schema.to_token_stream());
-            if let Some(pattern) = pattern {
-                tokens.extend(quote! {
-                    .pattern(Some(#pattern))
-                });
-            }
+
             schema_references = std::mem::take(&mut schema.schema_references);
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.

@@ -12,11 +12,12 @@ use syn::{
 
 use crate::doc_comment::CommentAttributes;
 use crate::schema_type::{KnownFormat, PrimitiveType, SchemaTypeInner};
-use crate::{
-    as_tokens_or_diagnostics, Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
-    ToTokensDiagnostics,
-};
+use crate::token_stream::quote_diagnostics_spanned;
 use crate::{schema_type::SchemaType, Deprecated};
+use crate::{
+    token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt, Diagnostics, GenericsExt, OptionExt,
+};
 
 use self::features::attributes::{Description, Nullable};
 use self::features::validation::Minimum;
@@ -81,42 +82,6 @@ impl PartialEq for TypeTreeValue<'_> {
     }
 }
 
-enum TypeTreeValueIter<'a, T> {
-    Once(std::iter::Once<T>),
-    Empty,
-    Iter(Box<dyn std::iter::Iterator<Item = T> + 'a>),
-}
-
-impl<'a, T> TypeTreeValueIter<'a, T> {
-    fn once(item: T) -> Self {
-        Self::Once(std::iter::once(item))
-    }
-
-    fn empty() -> Self {
-        Self::Empty
-    }
-}
-
-impl<'a, T> Iterator for TypeTreeValueIter<'a, T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Once(iter) => iter.next(),
-            Self::Empty => None,
-            Self::Iter(iter) => iter.next(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Self::Once(once) => once.size_hint(),
-            Self::Empty => (0, None),
-            Self::Iter(iter) => iter.size_hint(),
-        }
-    }
-}
-
 /// [`TypeTree`] of items which represents a single parsed `type` of a
 /// `Schema`, `Parameter` or `FnArg`
 #[cfg_attr(feature = "debug", derive(Debug))]
@@ -137,7 +102,7 @@ pub trait SynPathExt {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics>;
 }
 
-impl<'p> SynPathExt for &'p Path {
+impl SynPathExt for &Path {
     fn rewrite_path(&self) -> Result<syn::Path, Diagnostics> {
         let last_segment = self
             .segments
@@ -160,7 +125,7 @@ impl<'p> SynPathExt for &'p Path {
                             let path = type_tree
                                 .path
                                 .as_ref()
-                                .expect("TypeTree must have a path")
+                                .unwrap_or_else(|| panic!("utoipa does not understand this type, for which type_tree must have a path: {ty:?}"))
                                 .as_ref();
 
                             if let Some(default_type) = PrimitiveType::new(path) {
@@ -230,60 +195,68 @@ impl<'p> SynPathExt for &'p Path {
 
 impl TypeTree<'_> {
     pub fn from_type(ty: &Type) -> Result<TypeTree<'_>, Diagnostics> {
-        Self::convert_types(Self::get_type_tree_values(ty)?).map(|mut type_tree| {
+        Self::convert_types(std::iter::once(Self::get_type_tree_value(ty)?)).map(|mut type_tree| {
             type_tree
                 .next()
                 .expect("TypeTree from type should have one TypeTree parent")
         })
     }
 
-    fn get_type_tree_values(
-        ty: &Type,
-    ) -> Result<impl Iterator<Item = TypeTreeValue<'_>>, Diagnostics> {
-        let type_tree_values = match ty {
-            Type::Path(path) => {
-                TypeTreeValueIter::once(TypeTreeValue::TypePath(path))
-            },
-            // NOTE have to put this in the box to avoid compiler bug with recursive functions
-            // See here https://github.com/rust-lang/rust/pull/110844 and https://github.com/rust-lang/rust/issues/111906
-            // This bug in fixed in Rust 1.79, but in order to support Rust 1.75 these need to be
-            // boxed.
-            Type::Reference(reference) => TypeTreeValueIter::Iter(Box::new(Self::get_type_tree_values(reference.elem.as_ref())?)),
-            // Type::Reference(reference) => Self::get_type_tree_values(reference.elem.as_ref())?,
-            Type::Tuple(tuple) => {
-                // Detect unit type ()
-                if tuple.elems.is_empty() { return Ok(TypeTreeValueIter::once(TypeTreeValue::UnitType)) }
-                TypeTreeValueIter::once(TypeTreeValue::Tuple(
-                    tuple.elems.iter().map(Self::get_type_tree_values).collect::<Result<Vec<_>, Diagnostics>>()?.into_iter().flatten().collect(),
-                    tuple.span()
-                ))
-            },
-            // NOTE have to put this in the box to avoid compiler bug with recursive functions
-            // See here https://github.com/rust-lang/rust/pull/110844 and https://github.com/rust-lang/rust/issues/111906
-            // This bug in fixed in Rust 1.79, but in order to support Rust 1.75 these need to be
-            // boxed.
-            Type::Group(group) => TypeTreeValueIter::Iter(Box::new(Self::get_type_tree_values(group.elem.as_ref())?)),
-            // Type::Group(group) => Self::get_type_tree_values(group.elem.as_ref())?,
-            Type::Slice(slice) => TypeTreeValueIter::once(TypeTreeValue::Array(Self::get_type_tree_values(&slice.elem)?.collect(), slice.bracket_token.span.join())),
-            Type::Array(array) => TypeTreeValueIter::once(TypeTreeValue::Array(Self::get_type_tree_values(&array.elem)?.collect(), array.bracket_token.span.join())),
-            Type::TraitObject(trait_object) => {
-                trait_object
-                    .bounds
-                    .iter()
-                    .find_map(|bound| {
-                        match &bound {
-                            syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
-                            syn::TypeParamBound::Lifetime(_) => None,
-                            syn::TypeParamBound::Verbatim(_) => None,
-                            _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
-                        }
-                    })
-                    .map(|path| TypeTreeValueIter::once(TypeTreeValue::Path(path))).unwrap_or_else(TypeTreeValueIter::empty)
-            }
-            unexpected => return Err(Diagnostics::with_span(unexpected.span(), "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject")),
-        };
+    fn get_type_tree_value(ty: &Type) -> Result<TypeTreeValue<'_>, Diagnostics> {
+        let mut ty = ty;
+        loop {
+            ty = match ty {
+                Type::Reference(reference) => reference.elem.as_ref(),
+                Type::Group(group) => group.elem.as_ref(),
+                _ => break,
+            };
+        }
 
-        Ok(type_tree_values)
+        match ty {
+            Type::Path(path) => Ok(TypeTreeValue::TypePath(path)),
+            Type::Tuple(tuple) => {
+                if tuple.elems.is_empty() {
+                    return Ok(TypeTreeValue::UnitType);
+                }
+
+                Ok(TypeTreeValue::Tuple(
+                    tuple
+                        .elems
+                        .iter()
+                        .map(Self::get_type_tree_value)
+                        .collect::<Result<Vec<_>, Diagnostics>>()?,
+                    tuple.span(),
+                ))
+            }
+            Type::Slice(slice) => Ok(TypeTreeValue::Array(
+                vec![Self::get_type_tree_value(&slice.elem)?],
+                slice.bracket_token.span.join(),
+            )),
+            Type::Array(array) => Ok(TypeTreeValue::Array(
+                vec![Self::get_type_tree_value(&array.elem)?],
+                array.bracket_token.span.join(),
+            )),
+            Type::TraitObject(trait_object) => trait_object
+                .bounds
+                .iter()
+                .find_map(|bound| match &bound {
+                    syn::TypeParamBound::Trait(trait_bound) => Some(&trait_bound.path),
+                    syn::TypeParamBound::Lifetime(_) => None,
+                    syn::TypeParamBound::Verbatim(_) => None,
+                    _ => todo!("TypeTree trait object found unrecognized TypeParamBound"),
+                })
+                .map(TypeTreeValue::Path)
+                .ok_or_else(|| {
+                    Diagnostics::with_span(
+                        trait_object.span(),
+                        "expected trait object to contain at least one trait bound",
+                    )
+                }),
+            unexpected => Err(Diagnostics::with_span(
+                unexpected.span(),
+                "unexpected type in component part get type path, expected one of: Path, Tuple, Reference, Group, Array, Slice, TraitObject",
+            )),
+        }
     }
 
     fn convert_types<'p, P: IntoIterator<Item = TypeTreeValue<'p>>>(
@@ -946,7 +919,6 @@ impl ComponentSchema {
         let nullable: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
         let default = pop_feature!(features => Feature::Default(_));
-        let default_tokens = as_tokens_or_diagnostics!(&default);
         let deprecated = pop_feature!(features => Feature::Deprecated(_)).try_to_token_stream()?;
 
         let additional_properties = additional_properties
@@ -1006,14 +978,14 @@ impl ComponentSchema {
         let schema_type =
             ComponentSchema::get_schema_type_override(nullable, SchemaTypeInner::Object);
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             utoipa::openapi::ObjectBuilder::new()
                 #schema_type
                 #additional_properties
                 #description_stream
                 #deprecated
-                #default_tokens
-        });
+                @default
+        }?);
 
         example.to_tokens(tokens)
     }
@@ -1159,10 +1131,9 @@ impl ComponentSchema {
                     }
                 }
 
-                let schema_type_tokens = as_tokens_or_diagnostics!(&schema_type);
-                tokens.extend(quote! {
-                    utoipa::openapi::ObjectBuilder::new().schema_type(#schema_type_tokens)
-                });
+                tokens.extend(quote_diagnostics! {
+                    utoipa::openapi::ObjectBuilder::new().schema_type(@schema_type)
+                }?);
 
                 let format = KnownFormat::from_path(type_path)?;
                 if format.is_known_format() {
@@ -1238,9 +1209,9 @@ impl ComponentSchema {
                     object_schema_reference.name = quote! { String::from(#name_tokens) };
 
                     let default = pop_feature!(features => Feature::Default(_));
-                    let default_tokens = as_tokens_or_diagnostics!(&default);
                     let title = pop_feature!(features => Feature::Title(_));
-                    let title_tokens = as_tokens_or_diagnostics!(&title);
+                    let read_only = pop_feature!(features => Feature::ReadOnly(_));
+                    let write_only = pop_feature!(features => Feature::WriteOnly(_));
 
                     if is_inline {
                         let schema_type = SchemaType {
@@ -1287,19 +1258,33 @@ impl ComponentSchema {
                             quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
 
                         let description_tokens = description_stream.to_token_stream();
-                        let schema = if default.is_some()
-                            || nullable
+                        let schema = if nullable {
+                            quote_diagnostics_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::OneOfBuilder::new()
+                                    .item(#items_tokens)
+                                    #nullable_item
+                                @title
+                                @default
+                                #description_stream
+                            }?
+                        } else if default.is_some()
                             || title.is_some()
+                            || read_only.is_some()
+                            || write_only.is_some()
                             || !description_tokens.is_empty()
                         {
-                            quote_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::OneOfBuilder::new()
-                                    #nullable_item
+                            quote_diagnostics_spanned! {type_path.span()=>
+                                utoipa::openapi::schema::AllOfBuilder::new()
                                     .item(#items_tokens)
-                                #title_tokens
-                                #default_tokens
-                                #description_stream
-                            }
+                                    .item(
+                                        utoipa::openapi::schema::ObjectBuilder::new()
+                                            @title
+                                            @default
+                                            @read_only
+                                            @write_only
+                                            #description_stream
+                                    )
+                            }?
                         } else {
                             items_tokens
                         };
@@ -1358,23 +1343,29 @@ impl ComponentSchema {
                         // TODO: refs support `summary` field but currently there is no such field
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
-                        let schema = if default.is_some() || nullable || title.is_some() {
-                            composed_or_ref(quote_spanned! {type_path.span()=>
+                        let schema = if nullable {
+                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::OneOfBuilder::new()
-                                    #nullable_item
                                     .item(utoipa::openapi::schema::RefBuilder::new()
                                         #description_stream
                                         .ref_location_from_schema_name(#name_tokens)
                                     )
-                                    #title_tokens
-                                    #default_tokens
-                            })
+                                    #nullable_item
+                                    @title
+                                    @default
+                                    @read_only
+                                    @write_only
+                            }?)
                         } else {
-                            composed_or_ref(quote_spanned! {type_path.span()=>
+                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
                                 utoipa::openapi::schema::RefBuilder::new()
                                     #description_stream
                                     .ref_location_from_schema_name(#name_tokens)
-                            })
+                                    @title
+                                    @default
+                                    @read_only
+                                    @write_only
+                            }?)
                         };
 
                         schema.to_tokens(tokens);
@@ -1602,7 +1593,6 @@ impl FlattenedMapSchema {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
         let nullable = pop_feature!(features => Feature::Nullable(_));
         let default = pop_feature!(features => Feature::Default(_));
-        let default_tokens = as_tokens_or_diagnostics!(&default);
 
         // Maps are treated as generic objects with no named properties and
         // additionalProperties denoting the type
@@ -1621,12 +1611,12 @@ impl FlattenedMapSchema {
         })?;
         let schema_tokens = schema_property.to_token_stream();
 
-        tokens.extend(quote! {
+        tokens.extend(quote_diagnostics! {
             #schema_tokens
                 #description
                 #deprecated
-                #default_tokens
-        });
+                @default
+        }?);
 
         example.to_tokens(&mut tokens)?;
         nullable.to_tokens(&mut tokens)?;

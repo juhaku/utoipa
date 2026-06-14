@@ -5,7 +5,11 @@ use syn::token::Paren;
 use syn::{parse::Parse, Error, Token};
 
 use crate::component::{features::attributes::Extensions, ComponentSchema};
-use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
+use crate::{
+    parse_utils,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Required,
+};
 
 use super::media_type::{MediaTypeAttr, Schema};
 use super::parse;
@@ -145,7 +149,7 @@ impl Parse for RequestBodyAttr<'_> {
                             }
 
                             let media_type =
-                                parse_utils::parse_comma_separated_within_parethesis_with(
+                                parse_utils::parse_comma_separated_within_parenthesis_with(
                                     &group,
                                     group_parser,
                                 )?

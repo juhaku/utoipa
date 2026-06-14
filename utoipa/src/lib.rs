@@ -61,6 +61,7 @@
 //!
 //! * **`macros`** Enable `utoipa-gen` macros. **This is enabled by default.**
 //! * **`yaml`** Enables **serde_norway** serialization of OpenAPI objects.
+//! * **`yaml_serde`**: Enables **serde_yaml** serialization of OpenAPI objects.
 //! * **`actix_extras`** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
 //!   parse `path`, `path` and `query` parameters from actix web path attribute macros. See [actix extras support][actix_path] or
 //!   [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
@@ -81,8 +82,8 @@
 //!   By default these types are parsed as `string`. `OffsetDateTime` and `PrimitiveDateTime` will use `date-time` format. `Date` will use
 //!   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
 //!   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
-//! * **`jiff_0_2`** Add support for [jiff 0.2](https://crates.io/crates/jiff) `Zoned`, and `civil::Date` types.
-//!   By default these types are parsed as `string`. `Zoned` will use `date-time` format. `civil::Date` will use
+//! * **`jiff_0_2`** Add support for [jiff 0.2](https://crates.io/crates/jiff) `Timestamp`, `Zoned`, and `civil::Date` types.
+//!   By default these types are parsed as `string`. `Timestamp` and `Zoned` will use `date-time` format. `civil::Date` will use
 //!   `date` format. To override default `string` representation users have to use `value_type` attribute
 //!   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 //! * **`decimal`** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
@@ -1570,6 +1571,13 @@ pub mod __dev {
             )>,
         );
     }
+
+    #[deprecated(
+        note = "Using a function path for `ignore` is deprecated and will be removed in a future version. Use `ignore = true` or `ignore = false` instead."
+    )]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    pub fn warn_deprecated_ignore_fn_pattern() {}
 }
 
 #[cfg(test)]
