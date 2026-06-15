@@ -22,5 +22,6 @@ utoipa-redoc = { path = "../../utoipa-redoc", features = ["actix-web"] }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["actix-web"] }
 utoipa-scalar = { path = "../../utoipa-scalar", features = ["actix-web"] }
 utoipa-actix-web = { path = "../../utoipa-actix-web" }
+brotli-decompressor = "5.0.3"
 
 [workspace]
