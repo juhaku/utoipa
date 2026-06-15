@@ -25,8 +25,6 @@
 //!   and api doc without a hassle.
 //! * **`axum`** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
 //!   hassle free.
-//! * **`debug-embed`** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
-//!   builds as well.
 //! * **`reqwest`** Use `reqwest` for downloading Swagger UI according to the `SWAGGER_UI_DOWNLOAD_URL` environment
 //!   variable. This is only enabled by default on _Windows_.
 //! * **`url`** Enabled by default for parsing and encoding the download URL.
@@ -148,7 +146,6 @@ mod axum;
 pub mod oauth;
 mod rocket;
 
-use rust_embed::RustEmbed;
 use serde::Serialize;
 #[cfg(any(feature = "actix-web", feature = "rocket", feature = "axum"))]
 use utoipa::openapi::OpenApi;
@@ -1409,6 +1406,8 @@ pub struct SwaggerFile<'a> {
     pub bytes: Cow<'a, [u8]>,
     /// Content type of the file e.g `"text/xml"`.
     pub content_type: String,
+    /// Whether content is gzpipped and should be served with `Content-Encoding` header
+    pub gzpipped: bool,
 }
 
 /// User friendly way to serve Swagger UI and its content via web server.
@@ -1466,7 +1465,7 @@ pub fn serve<'a>(
     }
 
     if let Some(file) = SwaggerUiDist::get(file_path) {
-        let mut bytes = file.data;
+        let mut bytes = Cow::Borrowed(file.data);
 
         if file_path == "swagger-initializer.js" {
             let mut file = match String::from_utf8(bytes.to_vec()) {
@@ -1491,6 +1490,7 @@ pub fn serve<'a>(
             content_type: mime_guess::from_path(file_path)
                 .first_or_octet_stream()
                 .to_string(),
+            gzpipped: file.gzipped,
         }))
     } else {
         Ok(None)

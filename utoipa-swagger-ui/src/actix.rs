@@ -5,8 +5,8 @@ use std::future;
 use actix_web::{
     dev::{HttpServiceFactory, Service, ServiceResponse},
     guard::Get,
-    web,
-    web::Data,
+    http::header,
+    web::{self, Data},
     HttpResponse, Resource, Responder as ActixResponder,
 };
 use base64::Engine;
@@ -86,7 +86,13 @@ async fn serve_swagger_ui(path: web::Path<String>, data: web::Data<Config<'_>>) 
     match super::serve(&path.into_inner(), data.into_inner()) {
         Ok(swagger_file) => swagger_file
             .map(|file| {
-                HttpResponse::Ok()
+                let mut response = HttpResponse::Ok();
+                if file.gzpipped {
+                    response
+                        .insert_header((header::CONTENT_ENCODING, header::ContentEncoding::Gzip));
+                }
+
+                response
                     .content_type(file.content_type)
                     .body(file.bytes.to_vec())
             })
@@ -127,7 +133,7 @@ mod tests {
         let encoded_credentials = BASE64_STANDARD.encode("admin:password");
         let req = test::TestRequest::get()
             .uri("/swagger-ui/")
-            .insert_header(("Authorization", format!("Basic {}", encoded_credentials)))
+            .insert_header(("Authorization", format!("Basic {encoded_credentials}")))
             .to_request();
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());

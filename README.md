@@ -311,17 +311,6 @@ See [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for e
 
 ## FAQ
 
-### Swagger UI returns 404 NotFound from built binary
-
-This is highly probably due to `RustEmbed` not embedding the Swagger UI to the executable. This is natural since the `RustEmbed`
-library **does not** by default embed files on debug builds. To get around this you can do one of the following.
-
-1. Build your executable in `--release` mode
-2. or add `debug-embed` feature flag to your `Cargo.toml` for `utoipa-swagger-ui`. This will enable the `debug-emebed` feature flag for
-   `RustEmbed` as well. Read more about this [here](https://github.com/juhaku/utoipa/issues/527#issuecomment-1474219098) and [here](https://github.com/juhaku/utoipa/issues/268).
-
-Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
-
 ### How to implement `ToSchema` for external type?
 
 There are few ways around this that are elaborated [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).

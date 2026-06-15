@@ -11,7 +11,11 @@ authors = ["Elli Example <example@example.com>"]
 [dependencies]
 rocket = { version = "0.5", features = ["json"] }
 utoipa = { path = "../../utoipa", features = ["rocket_extras"] }
-utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["rocket"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = [
+    "rocket",
+    "gzip",
+    "minified",
+] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["rocket"] }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["rocket"] }
 utoipa-scalar = { path = "../../utoipa-scalar", features = ["rocket"] }
