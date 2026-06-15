@@ -3573,6 +3573,7 @@ fn test_new_type_struct_pattern() {
     assert_json_snapshot!(value);
 }
 
+#[test]
 fn test_new_type_struct_max_items() {
     #![allow(unused)]
     #[derive(ToSchema)]
