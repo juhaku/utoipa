@@ -3,7 +3,7 @@
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/crates/v/utoipa-swagger-ui.svg?label=crates.io&color=orange&logo=rust)](https://crates.io/crates/utoipa-swagger-ui)
 [![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa-swagger-ui&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/)
-![rustc](https://img.shields.io/static/v1?label=rustc&message=1.75&color=orange&logo=rust)
+![rustc](https://img.shields.io/static/v1?label=rustc&message=1.88&color=orange&logo=rust)
 
 This crate implements necessary boilerplate code to serve Swagger UI via web server. It
 works as a bridge for serving the OpenAPI documentation created with
@@ -11,31 +11,35 @@ works as a bridge for serving the OpenAPI documentation created with
 
 **Currently implemented boilerplate for:**
 
-* **actix-web** `version >= 4`
-* **rocket** `version >=0.5`
-* **axum** `version >=0.7`
+- **actix-web** `version >= 4`
+- **rocket** `version >=0.5`
+- **axum** `version >=0.7`
 
 Serving Swagger UI is framework independent thus this crate also supports serving the Swagger UI with
 other frameworks as well. With other frameworks, there is a bit more manual implementation to be done. See
 more details at [serve](https://docs.rs/utoipa-swagger-ui/latest/utoipa_swagger_ui/fn.serve.html) or
 [examples](https://github.com/juhaku/utoipa/tree/master/examples).
 
+> [!IMPORTANT]
+> **Heads up!** No more `rust-embed` as dependency. This improves the ergonomics, built time, and allows users freely to use
+> `rust-embed` in their applications without feature flag limitations as it has been the [case before](https://github.com/juhaku/utoipa/issues/1151).
+
 ## Crate Features
 
-* **`actix-web`** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
+- **`actix-web`** Enables actix-web integration with pre-configured SwaggerUI service factory allowing
   users to use the Swagger UI without a hassle.
-* **`rocket`** Enables rocket integration with pre-configured routes for serving the Swagger UI
+- **`rocket`** Enables rocket integration with pre-configured routes for serving the Swagger UI
   and api doc without a hassle.
-* **`axum`** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
+- **`axum`** Enables `axum` integration with pre-configured Router serving Swagger UI and OpenAPI specs
   hassle free.
-* **`debug-embed`** Enables `debug-embed` feature on `rust_embed` crate to allow embedding files in debug
-  builds as well.
-* **`reqwest`** Use `reqwest` for downloading Swagger UI according to the `SWAGGER_UI_DOWNLOAD_URL` environment
+- **`reqwest`** Use `reqwest` for downloading Swagger UI according to the `SWAGGER_UI_DOWNLOAD_URL` environment
   variable. This is only enabled by default on _Windows_.
-* **`url`** Enabled by default for parsing and encoding the download URL.
-* **`vendored`** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
-* **`cache`** Enables caching of the Swagger UI download in `utoipa-swagger-ui` during the build process.
-* **`debug`**: Implement debug trait for SwaggerUi and other types.
+- **`url`** Enabled by default for parsing and encoding the download URL.
+- **`vendored`** Enables vendored Swagger UI via `utoipa-swagger-ui-vendored` crate.
+- **`cache`** Enables caching of the Swagger UI download in `utoipa-swagger-ui` during the build process.
+- **`debug`**: Implement debug trait for SwaggerUi and other types.
+- **`minified`**: Ignores unnecessary source `.map` files from the binary. This makes the binary an order of magnitude smaller.
+- **`gzip`**: Squeezes every bit of space by gzipping the Swagger UI resources.
 
 ## Install
 
@@ -64,18 +68,17 @@ utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 > If the `SWAGGER_UI_DOWNLOAD_URL` is a file path then no downloading will happen._
 
 > [!TIP]
-> Use **`vendored`** feature flag to use vendored Swagger UI. This is especially useful for no network 
+> Use **`vendored`** feature flag to use vendored Swagger UI. This is especially useful for no network
 > environments.
 
 **The following configuration env variables are available at build time:**
 
- * `SWAGGER_UI_DOWNLOAD_URL`: Defines the url from where to download the swagger-ui zip file.
+- `SWAGGER_UI_DOWNLOAD_URL`: Defines the url from where to download the swagger-ui zip file.
+  - Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip>
+  - [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 
-   * Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip>
-   * [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
-
- * `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files 
-    to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
+- `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files
+  to overwrite the Swagger UI files. Typically you might want to overwrite `index.html`.
 
 ## Examples
 

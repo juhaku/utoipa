@@ -4,7 +4,29 @@
 
 ### Added
 
-* Add support for jiff v0.2 `Timestamp` (https://github.com/juahku/utoipa/pull/1416)
+* Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
+* Expand openAPI header fields (https://github.com/juhaku/utoipa/pull/1556)
+* Expand support for validation features in `#[schema(...)]` on new type structs (https://github.com/juhaku/utoipa/pull/1427)
+* Add quote_diagnostics! and quote_diagnostics_spanned! macros (https://github.com/juhaku/utoipa/pull/1553)
+* feat(gen): support Display types for security scopes (https://github.com/juhaku/utoipa/pull/1463)
+* Emit `title` and `default` on `RefBuilder` instead of wrapping in `oneOf` when `Option<_>` is non-nullable (https://github.com/juhaku/utoipa/pull/1380)
+
+### Changed
+
+* Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)
+* Use pastey instead of unmaintained paste and fix some clippy warnings (https://github.com/juhaku/utoipa/pull/1452)
+
+### Fixed
+
+* Avoid degenerate `oneOf` for `Option<_>` with `nullable = false` and `default`/`title`/`description` (https://github.com/juhaku/utoipa/pull/1380)
+
+## 5.5.0 - May 5 2026
+
+### Added
+
+* Add support for jiff v0.2 `Timestamp` (https://github.com/juhaku/utoipa/pull/1416)
+* Support servers in path macro (https://github.com/juhaku/utoipa/pull/1293)
+* No need to implement `IntoParams`, `ToSchema`, and `PartialSchema` for boolean ignored (e.g.: `ignore = true`) fields (https://github.com/juhaku/utoipa/pull/1500)
 
 ## 5.4.0 - Jun 16 2025
 

@@ -497,7 +497,7 @@ impl_feature! {
 
 impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
-    pub fn as_type_tree(&self) -> Result<TypeTree, Diagnostics> {
+    pub fn as_type_tree(&self) -> Result<TypeTree<'_>, Diagnostics> {
         TypeTree::from_type(&self.0)
     }
 }
@@ -903,8 +903,7 @@ impl Parse for Discriminator {
                         return Err(Error::new(
                             property.span(),
                             format!(
-                                "unexpected identifier {}, expected any of: property_name, mapping",
-                                unexpected
+                                "unexpected identifier {unexpected}, expected any of: property_name, mapping",
                             ),
                         ))
                     }

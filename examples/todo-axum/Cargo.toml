@@ -14,7 +14,7 @@ hyper = { version = "1.0.1", features = ["full"] }
 tokio = { version = "1.17", features = ["full"] }
 tower = "0.5"
 utoipa = { path = "../../utoipa", features = ["axum_extras"] }
-utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum", "minified", "gzip"] }
 utoipa-axum = { path = "../../utoipa-axum" }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["axum"] }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["axum"] }

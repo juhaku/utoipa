@@ -3,7 +3,7 @@
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/crates/v/utoipa.svg?label=crates.io&color=orange&logo=rust)](https://crates.io/crates/utoipa)
 [![docs.rs](https://img.shields.io/static/v1?label=docs.rs&message=utoipa&color=blue&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K)](https://docs.rs/utoipa/latest/utoipa/)
-![MSRV](https://img.shields.io/static/v1?label=MSRV&message=1.75&color=orange&logo=rust)
+![MSRV](https://img.shields.io/static/v1?label=MSRV&message=1.88&color=orange&logo=rust)
 
 Pronounced **_/u:ˈtoʊ:i.pɑ/_** or **_/u:ˈtoʊˌaɪ.piˈeɪ/_** whatever works better for you.
 
@@ -64,6 +64,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 
 - **`macros`** Enable `utoipa-gen` macros. **This is enabled by default.**
 - **`yaml`**: Enables **serde_norway** serialization of OpenAPI objects.
+- **`yaml_serde`**: Enables **serde_yaml** serialization of OpenAPI objects.
 - **`actix_extras`**: Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
   parse `path`, `path` and `query` parameters from actix web path attribute macros. See
   [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-feature-support-for-actix-web) or [examples](./examples) for more details.
@@ -94,7 +95,13 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **`decimal_float`**: Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
   it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your
   documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
-- **`uuid`**: Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
+ - **`bigdecimal`**: Add support for [bigdecimal](https://crates.io/crates/bigdecimal) `BigDecimal` type. **By default**
+   it is interpreted as `String`. If you wish to change the format you need to override the type.
+   See the `value_type` in [component derive docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html).
+ - **`bigdecimal_float`**: Add support for [bigdecimal](https://crates.io/crates/bigdecimal) `BigDecimal` type. **By default**
+   it is interpreted as `Number`. This feature is mutually exclusive with **bigdecimal** and allows changing the default type
+   used in your documentation for `BigDecimal`.
+ - **`uuid`**: Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
   format `uuid` in OpenAPI spec.
 - **`ulid`**: Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
   format `ulid` in OpenAPI spec.
@@ -301,17 +308,6 @@ See [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for e
 - Dump generated API doc to file at build time. See [issue 214 comment](https://github.com/juhaku/utoipa/issues/214#issuecomment-1179589373).
 
 ## FAQ
-
-### Swagger UI returns 404 NotFound from built binary
-
-This is highly probably due to `RustEmbed` not embedding the Swagger UI to the executable. This is natural since the `RustEmbed`
-library **does not** by default embed files on debug builds. To get around this you can do one of the following.
-
-1. Build your executable in `--release` mode
-2. or add `debug-embed` feature flag to your `Cargo.toml` for `utoipa-swagger-ui`. This will enable the `debug-emebed` feature flag for
-   `RustEmbed` as well. Read more about this [here](https://github.com/juhaku/utoipa/issues/527#issuecomment-1474219098) and [here](https://github.com/juhaku/utoipa/issues/268).
-
-Find `utoipa-swagger-ui` [feature flags here](https://github.com/juhaku/utoipa/tree/master/utoipa-swagger-ui#crate-features).
 
 ### How to implement `ToSchema` for external type?
 

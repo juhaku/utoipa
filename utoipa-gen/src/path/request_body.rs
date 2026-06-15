@@ -5,7 +5,11 @@ use syn::token::Paren;
 use syn::{parse::Parse, Error, Token};
 
 use crate::component::{features::attributes::Extensions, ComponentSchema};
-use crate::{parse_utils, Diagnostics, Required, ToTokensDiagnostics};
+use crate::{
+    parse_utils,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Required,
+};
 
 use super::media_type::{MediaTypeAttr, Schema};
 use super::parse;

@@ -22,7 +22,8 @@ use crate::{
     doc_comment::CommentAttributes,
     features::attributes::Repr,
     schema_type::SchemaType,
-    Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt,
 };
 
 use super::{features, serde, NamedStructSchema, Root, UnnamedStructSchema};

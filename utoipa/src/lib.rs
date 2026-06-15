@@ -61,6 +61,7 @@
 //!
 //! * **`macros`** Enable `utoipa-gen` macros. **This is enabled by default.**
 //! * **`yaml`** Enables **serde_norway** serialization of OpenAPI objects.
+//! * **`yaml_serde`**: Enables **serde_yaml** serialization of OpenAPI objects.
 //! * **`actix_extras`** Enhances [actix-web](https://github.com/actix/actix-web/) integration with being able to
 //!   parse `path`, `path` and `query` parameters from actix web path attribute macros. See [actix extras support][actix_path] or
 //!   [examples](https://github.com/juhaku/utoipa/tree/master/examples) for more details.
@@ -91,6 +92,12 @@
 //! * **`decimal_float`** Add support for [rust_decimal](https://crates.io/crates/rust_decimal) `Decimal` type. **By default**
 //!   it is interpreted as `Number`. This feature is mutually exclusive with **decimal** and allow to change the default type used in your
 //!   documentation for `Decimal` much like `serde_with_float` feature exposed by rust_decimal.
+//! * **`bigdecimal`** Add support for [bigdecimal](https://crates.io/crates/bigdecimal) `BigDecimal` type. **By default**
+//!   it is interpreted as `String`. If you wish to change the format you need to override the type.
+//!   See the `value_type` in [`ToSchema` derive docs][to_schema_derive].
+//! * **`bigdecimal_float`** Add support for [bigdecimal](https://crates.io/crates/bigdecimal) `BigDecimal` type. **By default**
+//!   it is interpreted as `Number`. This feature is mutually exclusive with **bigdecimal** and allows changing the default type
+//!   used in your documentation for `BigDecimal`.
 //! * **`uuid`** Add support for [uuid](https://github.com/uuid-rs/uuid). `Uuid` type will be presented as `String` with
 //!   format `uuid` in OpenAPI spec.
 //! * **`ulid`** Add support for [ulid](https://github.com/dylanhart/ulid-rs). `Ulid` type will be presented as `String` with
@@ -1564,6 +1571,13 @@ pub mod __dev {
             )>,
         );
     }
+
+    #[deprecated(
+        note = "Using a function path for `ignore` is deprecated and will be removed in a future version. Use `ignore = true` or `ignore = false` instead."
+    )]
+    #[doc(hidden)]
+    #[allow(deprecated)]
+    pub fn warn_deprecated_ignore_fn_pattern() {}
 }
 
 #[cfg(test)]

@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 3090
+expression: value
+---
+{
+  "properties": {
+    "value": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "value"
+  ],
+  "type": "object"
+}
