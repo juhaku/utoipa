@@ -792,6 +792,53 @@ fn derive_path_params_intoparams() {
 }
 
 #[test]
+fn derive_path_params_intoparams_with_serde_flatten() {
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct PaginationParams {
+        /// Page number.
+        page: Option<u32>,
+        /// Page size.
+        size: Option<u32>,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct UserListQuery {
+        #[serde(flatten)]
+        pagination: PaginationParams,
+        /// Name keyword.
+        #[param(example = "")]
+        name: Option<String>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/users",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(UserListQuery)
+    )]
+    #[allow(unused)]
+    fn list(params: UserListQuery) -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/users"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
 fn derive_path_params_into_params_with_value_type() {
     use utoipa::OpenApi;
 
