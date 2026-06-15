@@ -74,7 +74,7 @@ utoipa-swagger-ui = { version = "9", features = ["actix-web"] }
 **The following configuration env variables are available at build time:**
 
 - `SWAGGER_UI_DOWNLOAD_URL`: Defines the url from where to download the swagger-ui zip file.
-  - Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.17.14.zip>
+  - Current Swagger UI version: <https://github.com/swagger-api/swagger-ui/archive/refs/tags/v5.32.6.zip>
   - [All available Swagger UI versions](https://github.com/swagger-api/swagger-ui/tags)
 
 - `SWAGGER_UI_OVERWRITE_FOLDER`: Defines an _optional_ absolute path to a directory containing files

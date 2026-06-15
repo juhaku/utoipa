@@ -1,5 +1,10 @@
 # Changelog - utoipa-swagger-ui-vendored
 
+## Unreleased
+
+### Changed
+* Update Swagger UI to 5.32.6 (https://github.com/juhaku/utoipa/pull/1573)
+
 ## 0.1.2 - Oct 16 2024
 
 ### Fixed
