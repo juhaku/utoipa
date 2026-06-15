@@ -248,7 +248,9 @@ impl ToTokensDiagnostics for Feature {
             }
             Feature::Ignore(_) => return Err(Diagnostics::new("Ignore does not support `ToTokens`")),
             Feature::Extensions(extensions) => quote! { .extensions(Some(#extensions)) },
-            Feature::Repr(repr) => quote! { .repr(Some(#repr)) },
+            Feature::Repr(_) => quote! {
+                return Err(Diagnostics::new("Repr feature does not support `ToTokens`"))
+            },
         };
 
         tokens.extend(feature);
