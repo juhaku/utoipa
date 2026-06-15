@@ -42,7 +42,6 @@ similar = "2.7"
 tokio = { version = "1", features = ["macros"] }
 tower = "0.5"
 utoipa-swagger-ui = { path = ".", features = ["actix-web", "axum", "rocket"] }
-brotli-decompressor = "5.0.3"
 
 [package.metadata.docs.rs]
 features = ["actix-web", "axum", "rocket", "vendored", "cache"]
