@@ -612,7 +612,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// **Note!**: The deprecated `repr` feature enables this functionality
 /// automatically for any unit enum annotated with `#[repr(_)]`. Since features
 /// are unified across all dependencies, it is recommended to specify
-/// `#[schema(repr = false)` for any enum that has `#[repr(_)]` but doesn't use
+/// `#[schema(repr = false)]` for any enum that has `#[repr(_)]` but doesn't use
 /// it for serialization. Otherwise, another crate enabling the `repr` feature
 /// could change the schema output.
 ///
