@@ -170,6 +170,13 @@ impl OpenApi {
         serde_norway::to_string(self)
     }
 
+    /// Converts this [`OpenApi`] to YAML String. This method essentially calls [`yaml_serde::to_string`].
+    #[cfg(feature = "yaml_serde")]
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "yaml")))]
+    pub fn to_yaml_serde(&self) -> Result<String, yaml_serde::Error> {
+        yaml_serde::to_string(self)
+    }
+
     /// Merge `other` [`OpenApi`] moving `self` and returning combined [`OpenApi`].
     ///
     /// In functionality wise this is exactly same as calling [`OpenApi::merge`] but but provides

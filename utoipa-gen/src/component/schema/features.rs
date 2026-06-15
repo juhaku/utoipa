@@ -65,7 +65,16 @@ impl Parse for UnnamedFieldStructFeatures {
             ContentMediaType,
             Bound,
             NoRecursion,
-            Pattern
+            MultipleOf,
+            Maximum,
+            Minimum,
+            ExclusiveMaximum,
+            ExclusiveMinimum,
+            MinLength,
+            MaxLength,
+            Pattern,
+            MaxItems,
+            MinItems
         )))
     }
 }

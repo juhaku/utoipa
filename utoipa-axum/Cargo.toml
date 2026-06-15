@@ -22,21 +22,21 @@ include = [
 debug = []
 
 [dependencies]
-axum = { version = "0.8.0", default-features = false }
+axum = { version = "0.8.4", default-features = false }
 utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
 tower-service = "0.3"
-tower-layer = "0.3.2"
-paste = "1.0"
+tower-layer = "0.3.3"
+pastey = "0.2"
 
 [dev-dependencies]
 utoipa = { path = "../utoipa", features = ["debug"] }
-axum = { version = "0.8.0", default-features = false, features = ["json"] }
-http = "1.2"
-insta = { version = "1.41", features = ["json"] }
+axum = { version = "0.8.4", default-features = false, features = ["json"] }
+http = "1.4"
+insta = { version = "1.47", features = ["json"] }
 serde = "1"
-tokio = { version = "1.42", features = ["macros", "rt"]}
+tokio = { version = "1.52", features = ["macros", "rt"]}
 tower = "0.5"
 
 [package.metadata.docs.rs]

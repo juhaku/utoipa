@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use insta::assert_json_snapshot;
-use paste::paste;
+use pastey::paste;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -282,6 +282,60 @@ fn derive_path_with_security_requirements() {
         "security.[1].api_oauth.[0]" = r###""read:items""###, "api_oauth first scope"
         "security.[1].api_oauth.[1]" = r###""edit:items""###, "api_oauth second scope"
         "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
+    }
+}
+
+#[test]
+fn derive_path_with_security_requirements_display_types() {
+    use std::fmt::Display;
+
+    #[derive(Debug)]
+    enum Scope {
+        Read,
+        Write,
+    }
+
+    impl Display for Scope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Scope::Read => write!(f, "read:items"),
+                Scope::Write => write!(f, "write:items"),
+            }
+        }
+    }
+
+    const READ_SCOPE: &str = "read:items";
+
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        security(
+            (),
+            ("api_oauth" = [Scope::Read.to_string(), Scope::Write.to_string()]),
+            ("jwt_token" = []),
+            ("mixed" = [READ_SCOPE, Scope::Write.to_string()])
+        )
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_value! {operation=>
+        "security.[0]" = "{}", "Optional security requirement"
+        "security.[1].api_oauth.[0]" = r###""read:items""###, "api_oauth first scope with Display"
+        "security.[1].api_oauth.[1]" = r###""write:items""###, "api_oauth second scope with Display"
+        "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
+        "security.[3].mixed.[0]" = r###""read:items""###, "mixed first scope literal"
+        "security.[3].mixed.[1]" = r###""write:items""###, "mixed second scope Display"
     }
 }
 
@@ -1826,6 +1880,97 @@ fn derive_into_params_with_ignored_eq_false_field() {
     let value = operation.pointer("/parameters");
 
     assert_json_snapshot!(value)
+}
+
+#[test]
+fn derive_into_params_with_ignored_struct_field() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore)]
+        __this_is_private: Private,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_into_params_with_ignored_enum_field() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore)]
+        __this_is_private: Private,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_into_params_with_ignored_struct_fn_field() {
+    #![allow(unused)]
+
+    fn always_true() -> bool {
+        true
+    };
+
+    #[derive(ToSchema)]
+    struct PrivateOrPublic {
+        name: &'static str,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore = always_true)]
+        private_or_public: PrivateOrPublic,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
 }
 
 #[test]

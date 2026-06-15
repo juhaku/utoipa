@@ -5,7 +5,9 @@ use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 
 use crate::{
-    as_tokens_or_diagnostics, schema_type::SchemaType, Diagnostics, OptionExt, ToTokensDiagnostics,
+    schema_type::SchemaType,
+    token_stream::{as_tokens_or_diagnostics, Diagnostics, ToTokensDiagnostics},
+    OptionExt,
 };
 
 use self::validators::{AboveZeroF64, AboveZeroUsize, IsNumber, IsString, IsVec, ValidatorChain};
@@ -176,8 +178,8 @@ impl ToTokensDiagnostics for Feature {
             Feature::Examples(examples) => quote! { .examples(#examples) },
             Feature::XmlAttr(xml) => quote! { .xml(Some(#xml)) },
             Feature::Format(format) => quote! { .format(Some(#format)) },
-            Feature::WriteOnly(write_only) => quote! { .write_only(Some(#write_only)) },
-            Feature::ReadOnly(read_only) => quote! { .read_only(Some(#read_only)) },
+            Feature::WriteOnly(write_only) => quote! { .write_only(#write_only) },
+            Feature::ReadOnly(read_only) => quote! { .read_only(#read_only) },
             Feature::Title(title) => quote! { .title(Some(#title)) },
             Feature::Nullable(_nullable) => return Err(Diagnostics::new("Nullable does not support `ToTokens`")),
             Feature::Rename(rename) => rename.to_token_stream(),

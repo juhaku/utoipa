@@ -11,6 +11,9 @@
 #[cfg(all(feature = "decimal", feature = "decimal_float"))]
 compile_error!("`decimal` and `decimal_float` are mutually exclusive feature flags");
 
+#[cfg(all(feature = "bigdecimal", feature = "bigdecimal_float"))]
+compile_error!("`bigdecimal` and `bigdecimal_float` are mutually exclusive feature flags");
+
 #[cfg(all(
     feature = "actix_extras",
     feature = "axum_extras",
@@ -20,13 +23,7 @@ compile_error!(
     "`actix_extras`, `axum_extras` and `rocket_extras` are mutually exclusive feature flags"
 );
 
-use std::{
-    borrow::{Borrow, Cow},
-    error::Error,
-    fmt::Display,
-    mem,
-    ops::Deref,
-};
+use std::{mem, ops::Deref};
 
 use component::schema::Schema;
 use doc_comment::CommentAttributes;
@@ -35,9 +32,9 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{quote, ToTokens, TokenStreamExt};
 
-use proc_macro2::{Group, Ident, Punct, Span, TokenStream as TokenStream2};
+use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -53,6 +50,8 @@ mod openapi;
 mod path;
 mod schema_type;
 mod security_requirement;
+mod server;
+pub(crate) mod token_stream;
 
 use crate::path::{Path, PathAttr};
 
@@ -63,13 +62,14 @@ use self::{
     },
     openapi::parse_openapi_attrs,
     path::response::derive::{IntoResponses, ToResponse},
+    token_stream::{Diagnostics, ToTokensDiagnostics},
 };
 
 #[cfg(feature = "config")]
 static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
     once_cell::sync::Lazy::new(utoipa_config::Config::read_from_file);
 
-#[proc_macro_derive(ToSchema, attributes(schema))]
+#[proc_macro_derive(ToSchema, attributes(schema, serde))]
 /// Generate reusable OpenAPI schema to be used
 /// together with [`OpenApi`][openapi_derive].
 ///
@@ -135,7 +135,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `min_properties = ...` Can be used to define minimum number of properties this struct can
 ///   contain. Value must be a number.
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
 ///  struct level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
@@ -152,7 +152,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `write_only` Defines property is only used in **write** operations *POST,PUT,PATCH* but not in *GET*
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+///   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -199,11 +199,11 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
-///* `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`).
-///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
-///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
+/// * `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
+///   `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
+///   recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Field nullability and required rules
 ///
@@ -267,7 +267,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
@@ -335,7 +335,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   field for enums with single unnamed _`ToSchema`_ reference field. See the [discriminator
 ///   syntax][derive@ToSchema#schemadiscriminator-syntax].
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
 ///  enum level the _`no_recursion`_ rule will be applied to all of its variants.
 ///
@@ -391,7 +391,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `min_properties = ...` Can be used to define minimum number of properties this struct can
 ///   contain. Value must be a number.
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**. On
 ///  named field variant level the _`no_recursion`_ rule will be applied to all of its fields.
 ///
@@ -422,7 +422,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
 ///* `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
-///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Ower` type not to allow
+///  `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///  recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
 ///
 /// #### Mixed Enum Unnamed Field Variant's Field Configuration Options
@@ -487,7 +487,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
 /// * `untagged` Supported at the container level. Allows [untagged
-///    enum representation](https://serde.rs/enum-representations.html#untagged).
+///   enum representation](https://serde.rs/enum-representations.html#untagged).
 /// * `default` Supported at the container level and field level according to [serde attributes].
 /// * `deny_unknown_fields` Supported at the container level.
 /// * `flatten` Supported at the field level.
@@ -1160,7 +1160,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   _`serde_json::json!`_ can parse as a _`serde_json::Value`_.
 ///
 /// * `response = ...` Type what implements [`ToResponse`][to_response_trait] trait. This can alternatively be used to
-///    define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
+///   define response attributes. _`response`_ attribute cannot co-exist with other than _`status`_ attribute.
 ///
 /// * `content((...), (...))` Can be used to define multiple return types for single response status. Supports same syntax as
 ///   [multiple request body content][`macro@path#multiple-request-body-content`].
@@ -1339,7 +1339,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   E.g. _`Path, Query, Header, Cookie`_
 ///
 /// * `deprecated` Define whether the parameter is deprecated or not. Can optionally be defined
-///    with explicit `bool` value as _`deprecated = bool`_.
+///   with explicit `bool` value as _`deprecated = bool`_.
 ///
 /// * `description = "..."` Define possible description for the parameter as str.
 ///
@@ -1369,7 +1369,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*
 ///
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties for the parameter type.
-///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+///   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 ///
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 ///
@@ -1558,7 +1558,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///     _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///    _`Path<...>`_ or _`Query<...>`_ handler function arguments.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
@@ -1984,9 +1984,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// * `paths(...)`  List of method references having attribute [`#[utoipa::path]`][path] macro.
 /// * `components(schemas(...), responses(...))` Takes available _`component`_ configurations. Currently only
-///    _`schema`_ and _`response`_ components are supported.
-///    * `schemas(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
-///    * `responses(...)` List of types that implement [`ToResponse`][to_response_trait].
+///   _`schema`_ and _`response`_ components are supported.
+/// * `schemas(...)` List of [`ToSchema`][to_schema]s in OpenAPI schema.
+/// * `responses(...)` List of types that implement [`ToResponse`][to_response_trait].
 /// * `modifiers(...)` List of items implementing [`Modify`][modify] trait for runtime OpenApi modification.
 ///   See the [trait documentation][modify] for more details.
 /// * `security(...)` List of [`SecurityRequirement`][security]s global to all operations.
@@ -2072,8 +2072,8 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// * `path = ...` Define mandatory path for nesting the [`OpenApi`][openapi_struct].
 /// * `api = ...` Define mandatory path to struct that implements [`OpenApi`][openapi] trait.
-///    The fully qualified path (_`path::to`_) will become the default _`tag`_ for the nested
-///    `OpenApi` endpoints if provided.
+///   The fully qualified path (_`path::to`_) will become the default _`tag`_ for the nested
+///   `OpenApi` endpoints if provided.
 /// * `tags = [...]` Define optional tags what are appended to the existing list of tags.
 ///
 ///  _**Example of nest definition**_
@@ -2278,13 +2278,13 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// deriving `IntoParams`:
 ///
 /// * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
-///    __Only__ supported on __unnamed structs__.
+///   __Only__ supported on __unnamed structs__.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
-///    values are based on _`parameter_in`_ attribute.
+///   values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
-///    [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
-///    supplied, then the value is determined by the `parameter_in_provider` in
-///    [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+///   [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
+///   supplied, then the value is determined by the `parameter_in_provider` in
+///   [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
 /// * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 ///
 /// Use `names` to define name for single unnamed argument.
@@ -2340,12 +2340,12 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `read_only` Defines property is only used in **read** operations *GET* but not in *POST,PUT,PATCH*.
 ///
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to named fields.
-///    See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
+///   See configuration options at xml attributes of [`ToSchema`][to_schema_xml]
 ///
 /// * `nullable` Defines property is nullable (note this is different to non-required).
 ///
 /// * `required = ...` Can be used to enforce required status for the parameter. [See
-///    rules][derive@IntoParams#field-nullability-and-required-rules]
+///   rules][derive@IntoParams#field-nullability-and-required-rules]
 ///
 /// * `rename = ...` Can be provided to alternatively to the serde's `rename` attribute. Effectively provides same functionality.
 ///
@@ -2381,8 +2381,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. It accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`).
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
+///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
 ///
 /// #### Field nullability and required rules
 ///
@@ -3432,7 +3432,7 @@ trait GenericsExt {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize>;
 }
 
-impl<'g> GenericsExt for &'g syn::Generics {
+impl GenericsExt for &syn::Generics {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
         let ident = &type_tree
             .path
@@ -3457,170 +3457,6 @@ impl<'g> GenericsExt for &'g syn::Generics {
     }
 }
 
-trait ToTokensDiagnostics {
-    fn to_tokens(&self, tokens: &mut TokenStream2) -> Result<(), Diagnostics>;
-
-    #[allow(unused)]
-    fn into_token_stream(self) -> TokenStream2
-    where
-        Self: std::marker::Sized,
-    {
-        ToTokensDiagnostics::to_token_stream(&self)
-    }
-
-    fn to_token_stream(&self) -> TokenStream2 {
-        let mut tokens = TokenStream2::new();
-        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
-            Ok(_) => tokens,
-            Err(error_stream) => Into::<Diagnostics>::into(error_stream).into_token_stream(),
-        }
-    }
-
-    fn try_to_token_stream(&self) -> Result<TokenStream2, Diagnostics> {
-        let mut tokens = TokenStream2::new();
-        match ToTokensDiagnostics::to_tokens(self, &mut tokens) {
-            Ok(_) => Ok(tokens),
-            Err(diagnostics) => Err(diagnostics),
-        }
-    }
-}
-
-macro_rules! as_tokens_or_diagnostics {
-    ( $type:expr ) => {{
-        let mut _tokens = proc_macro2::TokenStream::new();
-        match crate::ToTokensDiagnostics::to_tokens($type, &mut _tokens) {
-            Ok(_) => _tokens,
-            Err(diagnostics) => return Err(diagnostics),
-        }
-    }};
-}
-
-use as_tokens_or_diagnostics;
-
-#[derive(Debug)]
-struct Diagnostics {
-    diagnostics: Vec<DiangosticsInner>,
-}
-
-#[derive(Debug)]
-struct DiangosticsInner {
-    span: Span,
-    message: Cow<'static, str>,
-    suggestions: Vec<Suggestion>,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-enum Suggestion {
-    Help(Cow<'static, str>),
-    Note(Cow<'static, str>),
-}
-
-impl Display for Diagnostics {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message())
-    }
-}
-
-impl Display for Suggestion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Help(help) => {
-                let s: &str = help.borrow();
-                write!(f, "help = {}", s)
-            }
-            Self::Note(note) => {
-                let s: &str = note.borrow();
-                write!(f, "note = {}", s)
-            }
-        }
-    }
-}
-
-impl Diagnostics {
-    fn message(&self) -> Cow<'static, str> {
-        self.diagnostics
-            .first()
-            .as_ref()
-            .map(|diagnostics| diagnostics.message.clone())
-            .unwrap_or_else(|| Cow::Borrowed(""))
-    }
-
-    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
-        Self::with_span(Span::call_site(), message)
-    }
-
-    pub fn with_span<S: Into<Cow<'static, str>>>(span: Span, message: S) -> Self {
-        Self {
-            diagnostics: vec![DiangosticsInner {
-                span,
-                message: message.into(),
-                suggestions: Vec::new(),
-            }],
-        }
-    }
-
-    pub fn help<S: Into<Cow<'static, str>>>(mut self, help: S) -> Self {
-        if let Some(diagnostics) = self.diagnostics.first_mut() {
-            diagnostics.suggestions.push(Suggestion::Help(help.into()));
-            diagnostics.suggestions.sort();
-        }
-
-        self
-    }
-
-    pub fn note<S: Into<Cow<'static, str>>>(mut self, note: S) -> Self {
-        if let Some(diagnostics) = self.diagnostics.first_mut() {
-            diagnostics.suggestions.push(Suggestion::Note(note.into()));
-            diagnostics.suggestions.sort();
-        }
-
-        self
-    }
-}
-
-impl From<syn::Error> for Diagnostics {
-    fn from(value: syn::Error) -> Self {
-        Self::with_span(value.span(), value.to_string())
-    }
-}
-
-impl ToTokens for Diagnostics {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        for diagnostics in &self.diagnostics {
-            let span = diagnostics.span;
-            let message: &str = diagnostics.message.borrow();
-
-            let suggestions = diagnostics
-                .suggestions
-                .iter()
-                .map(Suggestion::to_string)
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            let diagnostics = if !suggestions.is_empty() {
-                Cow::Owned(format!("{message}\n\n{suggestions}"))
-            } else {
-                Cow::Borrowed(message)
-            };
-
-            tokens.extend(quote_spanned! {span=>
-                ::core::compile_error!(#diagnostics);
-            })
-        }
-    }
-}
-
-impl Error for Diagnostics {}
-
-impl FromIterator<Diagnostics> for Option<Diagnostics> {
-    fn from_iter<T: IntoIterator<Item = Diagnostics>>(iter: T) -> Self {
-        iter.into_iter().reduce(|mut acc, diagnostics| {
-            acc.diagnostics.extend(diagnostics.diagnostics);
-            acc
-        })
-    }
-}
-
 trait AttributesExt {
     fn has_deprecated(&self) -> bool;
 }
@@ -3632,7 +3468,7 @@ impl AttributesExt for Vec<syn::Attribute> {
     }
 }
 
-impl<'a> AttributesExt for &'a [syn::Attribute] {
+impl AttributesExt for &[syn::Attribute] {
     fn has_deprecated(&self) -> bool {
         self.iter().any(|attr| {
             matches!(attr.path().get_ident(), Some(ident) if &*ident.to_string() == "deprecated")
@@ -3771,7 +3607,7 @@ mod parse_utils {
         Punctuated::parse_terminated(&group)
     }
 
-    pub fn parse_comma_separated_within_parethesis_with<T>(
+    pub fn parse_comma_separated_within_parenthesis_with<T>(
         input: ParseStream,
         with: fn(ParseStream) -> syn::Result<T>,
     ) -> syn::Result<Punctuated<T, Comma>>
