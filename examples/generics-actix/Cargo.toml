@@ -17,6 +17,5 @@ geo-types = { version = "0.7", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 utoipa = { path = "../../utoipa", features = ["actix_extras", "non_strict_integers"] }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["actix-web"] }
-brotli-decompressor = "5.0.3"
 
 [workspace]
