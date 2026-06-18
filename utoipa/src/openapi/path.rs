@@ -376,12 +376,10 @@ impl PathItem {
         if path_item.query.is_some() && self.query.is_none() {
             self.query = path_item.query;
         }
-        if !path_item.additional_operations.is_empty() {
-            for (method, operation) in path_item.additional_operations {
-                self.additional_operations
-                    .entry(method)
-                    .or_insert(operation);
-            }
+        for (method, operation) in path_item.additional_operations {
+            self.additional_operations
+                .entry(method)
+                .or_insert(operation);
         }
     }
 }
@@ -645,13 +643,13 @@ impl OperationBuilder {
                 params.extend(
                     parameters
                         .into_iter()
-                        .map(|parameter| parameter.into().into()),
+                        .map(|parameter| RefOr::T(parameter.into())),
                 );
                 params
             } else {
                 parameters
                     .into_iter()
-                    .map(|parameter| parameter.into().into())
+                    .map(|parameter| RefOr::T(parameter.into()))
                     .collect()
             }
         });
@@ -662,9 +660,9 @@ impl OperationBuilder {
     /// Append parameter to [`Operation`] parameters.
     pub fn parameter<P: Into<Parameter>>(mut self, parameter: P) -> Self {
         match self.parameters {
-            Some(ref mut parameters) => parameters.push(parameter.into().into()),
+            Some(ref mut parameters) => parameters.push(RefOr::T(parameter.into())),
             None => {
-                self.parameters = Some(vec![parameter.into().into()]);
+                self.parameters = Some(vec![RefOr::T(parameter.into())]);
             }
         }
 

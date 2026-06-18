@@ -371,7 +371,6 @@ impl HttpBuilder {
     /// Add or change deprecated status.
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
         self.deprecated = deprecated;
-
         self
     }
 }

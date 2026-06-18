@@ -137,7 +137,7 @@ builder! {
 
         /// URI identifying this OpenAPI document.
         #[serde(rename = "$self", skip_serializing_if = "Option::is_none")]
-        pub self_url: Option<String>,
+        pub self_uri: Option<String>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -334,6 +334,14 @@ impl OpenApi {
 }
 
 impl OpenApiBuilder {
+    /// Set the [`OpenApiVersion`] the document serializes as.
+    ///
+    /// Defaults to [`OpenApiVersion::Version31`]. Set [`OpenApiVersion::Version32`] to opt in to
+    /// OpenAPI 3.2 output.
+    pub fn openapi(mut self, openapi: OpenApiVersion) -> Self {
+        set_value!(self openapi openapi)
+    }
+
     /// Add [`Info`] metadata of the API.
     pub fn info<I: Into<Info>>(mut self, info: I) -> Self {
         set_value!(self info info.into())
@@ -398,8 +406,8 @@ impl OpenApiBuilder {
     }
 
     /// Add or change the URI identifying this OpenAPI document.
-    pub fn self_url<S: Into<String>>(mut self, self_url: Option<S>) -> Self {
-        set_value!(self self_url self_url.map(Into::into))
+    pub fn self_uri<S: Into<String>>(mut self, self_uri: Option<S>) -> Self {
+        set_value!(self self_uri self_uri.map(Into::into))
     }
 }
 
@@ -409,13 +417,12 @@ impl OpenApiBuilder {
 #[derive(Serialize, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum OpenApiVersion {
-    /// Will serialize to `3.1.0`.
-    #[deprecated(note = "OpenAPI 3.1 is superseded by 3.2. Use Version32.")]
+    /// Will serialize to `3.1.0`, the current default OpenAPI version.
     #[serde(rename = "3.1.0")]
-    Version31,
-    /// Will serialize to `3.2.0` the latest supported OpenAPI version.
-    #[serde(rename = "3.2.0")]
     #[default]
+    Version31,
+    /// Will serialize to `3.2.0`. Opt-in until OpenAPI 3.2 tooling support is widespread.
+    #[serde(rename = "3.2.0")]
     Version32,
 }
 
@@ -449,13 +456,9 @@ impl<'de> Deserialize<'de> for OpenApiVersion {
                     .flat_map(|digit| digit.parse::<i8>())
                     .collect::<Vec<_>>();
 
-                if version.len() == 3 && version.first() == Some(&3) && version.get(1) == Some(&1) {
-                    #[allow(deprecated)]
+                if matches!(version.as_slice(), [3, 1, _]) {
                     Ok(OpenApiVersion::Version31)
-                } else if version.len() == 3
-                    && version.first() == Some(&3)
-                    && version.get(1) == Some(&2)
-                {
+                } else if matches!(version.as_slice(), [3, 2, _]) {
                     Ok(OpenApiVersion::Version32)
                 } else {
                     let expected: &dyn Expected = &"3.1.0 or 3.2.0";
@@ -717,14 +720,11 @@ mod tests {
     #[test]
     fn serialize_deserialize_openapi_version_success() -> Result<(), serde_json::Error> {
         assert_eq!(serde_json::to_value(&OpenApiVersion::Version32)?, "3.2.0");
-        #[allow(deprecated)]
-        {
-            assert_eq!(serde_json::to_value(&OpenApiVersion::Version31)?, "3.1.0");
-            assert_eq!(
-                serde_json::from_str::<OpenApiVersion>("\"3.1.1\"")?,
-                OpenApiVersion::Version31
-            );
-        }
+        assert_eq!(serde_json::to_value(&OpenApiVersion::Version31)?, "3.1.0");
+        assert_eq!(
+            serde_json::from_str::<OpenApiVersion>("\"3.1.1\"")?,
+            OpenApiVersion::Version31
+        );
         assert_eq!(
             serde_json::from_str::<OpenApiVersion>("\"3.2.0\"")?,
             OpenApiVersion::Version32
@@ -735,9 +735,10 @@ mod tests {
     #[test]
     fn openapi_32_root_self_and_webhooks_serialize() {
         let openapi = OpenApiBuilder::new()
+            .openapi(OpenApiVersion::Version32)
             .info(Info::new("Events API", "1.0.0"))
             .json_schema_dialect(Some("https://spec.openapis.org/oas/3.2/dialect/2025-09-17"))
-            .self_url(Some("https://example.com/openapi.json"))
+            .self_uri(Some("https://example.com/openapi.json"))
             .paths(Paths::new())
             .webhooks(Some(PathsBuilder::new().path(
                 "newPet",
