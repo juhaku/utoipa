@@ -61,7 +61,7 @@ insta = { version = "1.47", features = ["json"] }
 debug = ["syn/extra-traits"]
 actix_extras = ["regex", "syn/extra-traits"]
 chrono = []
-yaml = []
+yaml = ["utoipa/yaml"]
 decimal = []
 decimal_float = []
 bigdecimal = []
