@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/openapi_derive.rs
+assertion_line: 281
 expression: response
-snapshot_kind: text
 ---
 {
   "content": {
@@ -18,6 +18,5 @@ snapshot_kind: text
         "type": "object"
       }
     }
-  },
-  "description": ""
+  }
 }

@@ -208,7 +208,6 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
                 #examples
                 #(#encoding)*
                 #extensions
-                .into()
         });
 
         Ok(())

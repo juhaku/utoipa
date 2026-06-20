@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/path_response_derive_test.rs
+assertion_line: 398
 expression: responses
-snapshot_kind: text
 ---
 {
   "200": {
@@ -40,7 +40,6 @@ snapshot_kind: text
           "$ref": "#/components/schemas/User2"
         }
       }
-    },
-    "description": ""
+    }
   }
 }
