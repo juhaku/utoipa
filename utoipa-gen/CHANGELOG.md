@@ -19,6 +19,7 @@
 ### Fixed
 
 * Avoid degenerate `oneOf` for `Option<_>` with `nullable = false` and `default`/`title`/`description` (https://github.com/juhaku/utoipa/pull/1380)
+* Support `#[serde(flatten)]` fields that implement `IntoParams` in `IntoParams` derive.
 
 ## 5.5.0 - May 5 2026
 

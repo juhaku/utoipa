@@ -2402,6 +2402,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `skip_serializing = "..."` Supported  **only** at the field or variant level.
 /// * `skip_deserializing = "..."` Supported  **only** at the field or variant level.
 /// * `skip = "..."` Supported  **only** at the field level.
+/// * `flatten` Supported **only** at the field level for fields that implement
+///   [`IntoParams`][into_params].
 ///
 /// Other _`serde`_ attributes will impact the serialization but will not be reflected on the generated OpenAPI doc.
 ///

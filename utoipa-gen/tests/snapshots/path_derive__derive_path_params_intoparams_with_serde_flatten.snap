@@ -1,0 +1,38 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+---
+[
+  {
+    "description": "Page number.",
+    "in": "query",
+    "name": "page",
+    "required": false,
+    "schema": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  {
+    "description": "Page size.",
+    "in": "query",
+    "name": "size",
+    "required": false,
+    "schema": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  {
+    "description": "Name keyword.",
+    "example": "",
+    "in": "query",
+    "name": "name",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
