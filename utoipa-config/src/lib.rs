@@ -61,7 +61,7 @@ use serde::{Deserialize, Serialize};
 /// the quick usage from [module documentation][module]
 ///
 /// [module]: ./index.html
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Config<'c> {
     /// A map of global aliases `utoipa` will recognize as types.
@@ -69,8 +69,18 @@ pub struct Config<'c> {
     pub aliases: HashMap<Cow<'c, str>, Cow<'c, str>>,
     /// Schema collect mode for `utoipa`. By default only non inlined schemas are collected.
     pub schema_collect: SchemaCollect,
+    /// If true then all modules are tagged with the module name.
+    pub auto_tag_modules: bool,
 }
-
+impl Default for Config<'_> {
+    fn default() -> Self {
+        Self {
+            aliases: HashMap::default(),
+            schema_collect: SchemaCollect::default(),
+            auto_tag_modules: true,
+        }
+    }
+}
 /// Configures schema collect mode. By default only non explicitly inlined schemas are collected.
 /// but this behavior can be changed to collect also inlined schemas by setting
 /// [`SchemaCollect::All`].
@@ -172,6 +182,13 @@ impl<'c> Config<'c> {
     pub fn alias_for(mut self, alias: &'c str, value: &'c str) -> Config<'c> {
         self.aliases
             .insert(Cow::Borrowed(alias), Cow::Borrowed(value));
+
+        self
+    }
+
+    /// Set if module paths should be used as tags when passed into paths
+    pub fn tag_modules(mut self, auto_tag_modules: bool) -> Self {
+        self.auto_tag_modules = auto_tag_modules;
 
         self
     }
