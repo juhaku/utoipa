@@ -1,0 +1,43 @@
+---
+source: utoipa-gen/tests/schema_generics.rs
+expression: api
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "Bounds_i32": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "format": "int32"
+              }
+            ]
+          }
+        }
+      },
+      "Top": {
+        "type": "object",
+        "required": [
+          "bounds"
+        ],
+        "properties": {
+          "bounds": {
+            "$ref": "#/components/schemas/Bounds_i32"
+          }
+        }
+      }
+    }
+  }
+}
