@@ -579,13 +579,10 @@ impl Parse for SchemaWith {
         parse_utils::parse_next(input, || input.parse::<TypePath>().map(Self))
     }
 }
-
 impl ToTokens for SchemaWith {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let path = &self.0;
-        tokens.extend(quote! {
-            #path()
-        })
+        let expr = &self.0;
+        tokens.extend(quote! { #expr });
     }
 }
 
