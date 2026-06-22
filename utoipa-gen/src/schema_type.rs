@@ -140,7 +140,7 @@ impl SchemaType<'_> {
             if !primitive {
                 primitive = matches!(
                     name,
-                    "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration"
+                    "Time" | "Date" | "PrimitiveDateTime" | "OffsetDateTime" | "Duration"
                 );
             }
 
@@ -283,7 +283,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             }
 
             #[cfg(any(feature = "chrono", feature = "time", feature = "jiff_0_2"))]
-            "Date" | "Duration" => {
+            "Time" | "Date" | "Duration" => {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
 
@@ -348,6 +348,7 @@ pub enum KnownFormat {
     Double,
     Byte,
     Binary,
+    Time,
     Date,
     DateTime,
     Duration,
@@ -417,6 +418,9 @@ impl KnownFormat {
             "f32" => Self::Float,
             "f64" => Self::Double,
 
+            #[cfg(any(feature = "chrono", feature = "time", feature = "jiff_0_2"))]
+            "Time" => Self::Time,
+
             #[cfg(feature = "chrono")]
             "NaiveDate" => Self::Date,
 
@@ -464,6 +468,7 @@ impl KnownFormat {
             "Double",
             "Byte",
             "Binary",
+            "Time",
             "Date",
             "DateTime",
             "Duration",
@@ -543,6 +548,7 @@ impl Parse for KnownFormat {
                 "Double" => Ok(Self::Double),
                 "Byte" => Ok(Self::Byte),
                 "Binary" => Ok(Self::Binary),
+                "Time" => Ok(Self::Time),
                 "Date" => Ok(Self::Date),
                 "DateTime" => Ok(Self::DateTime),
                 "Duration" => Ok(Self::Duration),
@@ -619,6 +625,9 @@ impl ToTokens for KnownFormat {
             ))),
             Self::Binary => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
                 utoipa::openapi::schema::KnownFormat::Binary
+            ))),
+            Self::Time => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
+                utoipa::openapi::schema::KnownFormat::Time
             ))),
             Self::Date => tokens.extend(quote!(utoipa::openapi::schema::SchemaFormat::KnownFormat(
                 utoipa::openapi::schema::KnownFormat::Date
@@ -725,7 +734,7 @@ impl PrimitiveType {
             }
 
             #[cfg(any(feature = "chrono", feature = "time", feature = "jiff_0_2"))]
-            "Date" => {
+            "Time" | "Date" => {
                 syn::parse_quote!(String)
             }
 
