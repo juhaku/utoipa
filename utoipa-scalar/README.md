@@ -18,6 +18,7 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 * **actix-web** Allows serving `Scalar` via _**`actix-web`**_. `version >= 4`
 * **rocket** Allows serving `Scalar` via _**`rocket`**_. `version >=0.5`
 * **axum** Allows serving `Scalar` via _**`axum`**_. `version >=0.7`
+* **vendored** Allows loading `Scalar` in offline clients. `ui-version = 1.57.5`
 
 # Install
 
