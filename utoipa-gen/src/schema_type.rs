@@ -224,7 +224,7 @@ fn is_primitive(name: &str) -> bool {
 fn is_primitive_chrono(name: &str) -> bool {
     matches!(
         name,
-        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime"
+        "DateTime" | "Date" | "NaiveDate" | "NaiveTime" | "Duration" | "NaiveDateTime" | "Weekday"
     )
 }
 
@@ -278,7 +278,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             "f32" | "f64" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" | "Weekday" => {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
 
@@ -720,7 +720,7 @@ impl PrimitiveType {
             "f32" | "f64" => syn::parse_quote!(#path),
 
             #[cfg(feature = "chrono")]
-            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" => {
+            "DateTime" | "NaiveDateTime" | "NaiveDate" | "NaiveTime" | "Weekday" => {
                 syn::parse_quote!(String)
             }
 
