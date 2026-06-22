@@ -463,4 +463,14 @@ mod tests {
         let response = router.oneshot(request).await.unwrap();
         assert_eq!(response.status(), http::StatusCode::BAD_REQUEST);
     }
+
+    #[test]
+    fn openapi_router_has_routes() {
+        // no routes
+        assert!(!OpenApiRouter::<()>::new().has_routes());
+        // some routes
+        assert!(OpenApiRouter::<()>::new()
+            .routes(routes!(get_user))
+            .has_routes())
+    }
 }
