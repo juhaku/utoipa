@@ -272,6 +272,24 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///
 /// # Enum Optional Configuration Options for `#[schema(...)]`
 ///
+/// ## Enum Variant Filtering Options for `#[schema(...)]`
+///
+/// * `skip` Can be used to skip inclusion of an enum variant in the generated schema. This is similar
+///   to `#[serde(skip)]`, however, the variant will still be included in the generated serialization
+///   and deserialization code. This is particularly useful when you need to define a fixed known
+///   set of `Unit` variants, and one special variant to capture unrecognized values, and still want
+///   the generated schema to be a simple list of the known values. E.g.
+/// ```text
+/// #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+/// enum MyEnum {
+///     OptionA,
+///     OptionB,
+///
+///     #[serde(untagged)]
+///     #[schema(skip)]
+///     Unknown(String),
+/// };
+/// ```
 /// ## Plain Enum having only `Unit` variants Optional Configuration Options for `#[schema(...)]`
 ///
 /// * `description = ...` Can be literal string or Rust expression e.g. [_`const`_][const] reference or
