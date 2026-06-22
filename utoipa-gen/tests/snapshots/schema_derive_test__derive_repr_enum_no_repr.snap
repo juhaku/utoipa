@@ -1,0 +1,12 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 2374
+expression: value
+---
+{
+  "enum": [
+    "Error",
+    "Ok"
+  ],
+  "type": "string"
+}

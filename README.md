@@ -110,7 +110,8 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 - **`openapi_extensions`**: Adds traits and functions that provide extra convenience functions.
   See the [`request_body` docs](https://docs.rs/utoipa/latest/utoipa/openapi/request_body) for an example.
 - **`repr`**: Add support for [repr_serde](https://github.com/dtolnay/serde-repr)'s `repr(u*)` and `repr(i*)` attributes to unit type enums for
-  C-like enum representation. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
+  C-like enum representation. *Note*: this feature is deprecated in favor of the `#[schema(repr)]` attribute. See
+  [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 - **`preserve_order`**: Preserve order of properties when serializing the schema for a component.
   When enabled, the properties are listed in order of fields in the corresponding struct definition.
   When disabled, the properties are listed in alphabetical order.
