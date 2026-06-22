@@ -668,6 +668,7 @@ impl OperationBuilder {
 }
 
 builder! {
+    nobuild,
     ParameterBuilder;
 
     /// Implements [OpenAPI Parameter Object][parameter] for [`Operation`].
@@ -768,10 +769,6 @@ impl ParameterBuilder {
     /// defined this is always [`Required::True`].
     pub fn required(mut self, required: Required) -> Self {
         self.required = required;
-        // required must be true, if parameter_in is Path
-        if self.parameter_in == ParameterIn::Path {
-            self.required = Required::True;
-        }
 
         self
     }
@@ -814,6 +811,27 @@ impl ParameterBuilder {
     /// Add openapi extensions (x-something) to the [`Parameter`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    #[doc = concat!("Constructs a new [`",stringify!(Parameter),"`] taking all fields values from this object.")]
+    pub fn build(mut self) -> Parameter {
+        // required must be true, if parameter_in is Path
+        if self.parameter_in == ParameterIn::Path {
+            self.required = Required::True;
+        }
+        Parameter {
+            name: self.name,
+            parameter_in: self.parameter_in,
+            description: self.description,
+            required: self.required,
+            deprecated: self.deprecated,
+            schema: self.schema,
+            style: self.style,
+            explode: self.explode,
+            allow_reserved: self.allow_reserved,
+            example: self.example,
+            extensions: self.extensions,
+        }
     }
 }
 

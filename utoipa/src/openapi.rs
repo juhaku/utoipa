@@ -605,6 +605,11 @@ macro_rules! builder {
         builder!( @builder_impl $( #[$builder_meta] )* $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
     };
 
+    ( nobuild, $( #[$builder_meta:meta] )* $builder_name:ident; $(#[$meta:meta])* $vis:vis $key:ident $name:ident $( $tt:tt )* ) => {
+        builder!( @type_impl $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
+        builder!( @builder_impl_nobuild $( #[$builder_meta] )* $builder_name $( #[$meta] )* $vis $key $name $( $tt )* );
+    };
+
     ( @type_impl $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
         { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
     ) => {
@@ -646,6 +651,33 @@ macro_rules! builder {
         impl $builder_name {
             crate::openapi::new!($vis $builder_name);
             crate::openapi::build_fn!($vis $name $( $field ),* );
+        }
+
+        crate::openapi::from!($name $builder_name $( $field ),* );
+    };
+
+    ( @builder_impl_nobuild $( #[$builder_meta:meta] )* $builder_name:ident $( #[$meta:meta] )* $vis:vis $key:ident $name:ident
+        { $( $( #[$field_meta:meta] )* $field_vis:vis $field:ident: $field_ty:ty, )* }
+    ) => {
+        #[doc = concat!("Builder for [`", stringify!($name),
+            "`] with chainable configuration methods to create a new [`", stringify!($name) , "`].")]
+        $( #[$builder_meta] )*
+        #[cfg_attr(feature = "debug", derive(Debug))]
+        $vis $key $builder_name {
+            $( $field: $field_ty, )*
+        }
+
+        impl Default for $builder_name {
+            fn default() -> Self {
+                let meta_default: $name = $name::default();
+                Self {
+                    $( $field: meta_default.$field, )*
+                }
+            }
+        }
+
+        impl $builder_name {
+            crate::openapi::new!($vis $builder_name);
         }
 
         crate::openapi::from!($name $builder_name $( $field ),* );
