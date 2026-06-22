@@ -2940,6 +2940,24 @@ fn derive_doc_hidden() {
 }
 
 #[test]
+fn test_min_max_properties_schema_options() {
+    let schema = api_doc! {
+        #[allow(unused)]
+        #[schema(min_properties = 1, max_properties = 2)]
+        struct RequestWithPropertyLimits {
+            property_1: Option<String>,
+            property_2: Option<String>,
+            property_3: Option<String>,
+        }
+    };
+
+    assert_value! {schema=>
+        "minProperties" = "1", "min_properties schema option"
+        "maxProperties" = "2", "max_properties schema option"
+    }
+}
+
+#[test]
 fn derive_schema_with_docstring_on_unit_variant_of_enum() {
     let value: Value = api_doc! {
         /// top level doc for My enum
