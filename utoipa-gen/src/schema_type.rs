@@ -13,7 +13,7 @@ pub enum SchemaTypeInner {
     Object,
     /// Indicates string type of content.
     String,
-    /// Indicates integer type of content.    
+    /// Indicates integer type of content.
     Integer,
     /// Indicates floating point number type of content.
     Number,
@@ -70,34 +70,7 @@ impl SchemaType<'_> {
         };
         let name = &*last_segment.ident.to_string();
 
-        #[cfg(not(any(
-            feature = "chrono",
-            feature = "decimal",
-            feature = "decimal_float",
-            feature = "bigdecimal",
-            feature = "bigdecimal_float",
-            feature = "rocket_extras",
-            feature = "uuid",
-            feature = "ulid",
-            feature = "url",
-            feature = "time",
-        )))]
-        {
-            is_primitive(name)
-        }
-
-        #[cfg(any(
-            feature = "chrono",
-            feature = "decimal",
-            feature = "decimal_float",
-            feature = "bigdecimal",
-            feature = "bigdecimal_float",
-            feature = "rocket_extras",
-            feature = "uuid",
-            feature = "ulid",
-            feature = "url",
-            feature = "time",
-        ))]
+        #[allow(unused_mut, reason = "mut is used in conditional compilation")]
         {
             let mut primitive = is_primitive(name);
 
