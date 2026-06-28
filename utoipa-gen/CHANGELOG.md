@@ -19,6 +19,7 @@
 ### Fixed
 
 * Avoid degenerate `oneOf` for `Option<_>` with `nullable = false` and `default`/`title`/`description` (https://github.com/juhaku/utoipa/pull/1380)
+* Fix `jiff` type detection when only the `jiff_0_2` feature is enabled (https://github.com/juhaku/utoipa/pull/1575)
 
 ## 5.5.0 - May 5 2026
 
