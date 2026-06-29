@@ -166,6 +166,65 @@ fn derive_openapi_with_components_in_different_module() {
 }
 
 #[test]
+fn derive_openapi_collects_parameter_schema_references() {
+    use utoipa::IntoParams;
+
+    #[derive(ToSchema)]
+    #[allow(dead_code)]
+    enum ExplicitOrder {
+        Asc,
+        Desc,
+    }
+
+    #[derive(ToSchema)]
+    #[allow(dead_code)]
+    enum DerivedOrder {
+        Asc,
+        Desc,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(dead_code)]
+    struct SearchParams {
+        order: DerivedOrder,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/items",
+        params(
+            ("explicit_order" = ExplicitOrder, Query),
+            SearchParams,
+        ),
+        responses(
+            (status = 200, description = "success")
+        )
+    )]
+    #[allow(dead_code)]
+    fn get_items(_params: SearchParams) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_items))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    assert_eq!(
+        doc.pointer("/paths/~1items/get/parameters/0/schema/$ref"),
+        Some(&Value::String(
+            "#/components/schemas/ExplicitOrder".to_string()
+        ))
+    );
+    assert_eq!(
+        doc.pointer("/paths/~1items/get/parameters/1/schema/$ref"),
+        Some(&Value::String(
+            "#/components/schemas/DerivedOrder".to_string()
+        ))
+    );
+}
+
+#[test]
 fn derive_openapi_with_responses() {
     #[allow(unused)]
     struct MyResponse;
