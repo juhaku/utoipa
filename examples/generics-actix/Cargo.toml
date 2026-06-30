@@ -11,6 +11,8 @@ authors = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# cookie (actix/rocket) does not build with time 0.3.52+; drop when cookie is fixed
+time = { version = ">=0.3, <0.3.52" }
 actix-web = "4"
 env_logger = "0.10.0"
 geo-types = { version = "0.7", features = ["serde"] }

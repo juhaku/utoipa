@@ -9,6 +9,8 @@ authors = ["Example <example@example.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# cookie (actix/rocket) does not build with time 0.3.52+; drop when cookie is fixed
+time = { version = ">=0.3, <0.3.52" }
 actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
 env_logger = "0.11"
