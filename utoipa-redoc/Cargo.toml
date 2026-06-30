@@ -15,6 +15,10 @@ rust-version.workspace = true
 features = ["actix-web", "axum", "rocket"]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
+[features]
+# Pull capped `time` with rocket so cookie 0.18.1 cannot resolve time 0.3.52+.
+rocket = ["dep:rocket", "dep:time"]
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
@@ -23,6 +27,7 @@ utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, feat
 ] }
 actix-web = { version = "4", optional = true }
 rocket = { version = "0.5", features = ["json"], optional = true }
+time = { workspace = true, optional = true }
 axum = { version = "0.8.4", default-features = false, optional = true }
 
 [dev-dependencies]

@@ -21,6 +21,8 @@ vendored = ["dep:utoipa-swagger-ui-vendored"]
 cache = ["dep:dirs", "dep:sha2"]
 minified = []
 gzip = ["dep:flate2"]
+# Pull capped `time` with rocket so cookie 0.18.1 cannot resolve time 0.3.52+.
+rocket = ["dep:rocket", "dep:time"]
 
 [dependencies]
 mime_guess = { version = "2.0" }
@@ -28,6 +30,8 @@ actix-web = { version = "4", optional = true, default-features = false, features
     "macros",
 ] }
 rocket = { version = "0.5", features = ["json"], optional = true }
+# See workspace.dependencies — only enabled with `rocket` feature.
+time = { workspace = true, optional = true }
 axum = { version = "0.8.4", default-features = false, features = [
     "json",
 ], optional = true }

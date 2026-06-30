@@ -16,6 +16,12 @@ members = [
     "utoipa-actix-web",
 ]
 
+# cookie 0.18.1 (via rocket_http) does not compile against time 0.3.52+
+# (Parsable::parse gained a defaults argument). Cap until cookie releases a fix.
+# Keeps `just test` / fresh resolves working without committing Cargo.lock.
+[workspace.dependencies]
+time = { version = ">=0.3, <0.3.52" }
+
 [workspace.metadata.publish]
 order = [
     "utoipa-config",

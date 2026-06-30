@@ -51,7 +51,7 @@ smallvec = { version = "1.15", features = ["serde"] }
 rust_decimal = { version = "1", default-features = false }
 bigdecimal = { version = "0.4", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
-time = { version = "0.3", features = ["serde-human-readable"] }
+time = { workspace = true, features = ["serde-human-readable"] }
 jiff = { version = "0.2", features = ["serde"] }
 serde_with = "3.14"
 insta = { version = "1.47", features = ["json"] }
