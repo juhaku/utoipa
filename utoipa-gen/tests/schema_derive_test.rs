@@ -1306,6 +1306,147 @@ fn derive_mixed_enum_with_ref_serde_untagged_named_fields_rename_all() {
 }
 
 #[test]
+fn derive_mixed_enum_serde_rename_all_fields() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all_fields = "camelCase")]
+        enum Foo {
+            One { some_number: i32, another_field: String },
+            Two { yet_another: bool },
+            Unit,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_with_variant_rename_all_override() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all_fields = "camelCase")]
+        enum Foo {
+            #[serde(rename_all = "UPPERCASE")]
+            One { some_number: i32, another_field: String },
+            Two { yet_another: bool },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_and_rename_all_fields() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all = "snake_case", rename_all_fields = "camelCase")]
+        enum Foo {
+            UnitValue,
+            NamedFields { some_number: i32, another_field: String },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_untagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(untagged, rename_all_fields = "camelCase")]
+        enum Foo {
+            One { some_number: i32 },
+            Two { another_field: String },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_with_field_rename_override() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all_fields = "camelCase")]
+        enum Foo {
+            One {
+                some_number: i32,
+                #[serde(rename = "custom_name")]
+                another_field: String,
+            },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_internally_tagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", rename_all_fields = "camelCase")]
+        enum Foo {
+            One { some_number: i32, another_field: String },
+            Two { yet_another: bool },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_adjacently_tagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "tag", content = "content", rename_all_fields = "camelCase")]
+        enum Foo {
+            One { some_number: i32, another_field: String },
+            Two { yet_another: bool },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_with_schema_rename_all_on_variant() {
+    // variant `#[schema(rename_all)]` overrides enum `#[serde(rename_all_fields)]`
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all_fields = "camelCase")]
+        enum Foo {
+            #[schema(rename_all = "SCREAMING-KEBAB-CASE")]
+            One { some_number: i32, another_field: String },
+            Two { yet_another: bool },
+        }
+    };
+
+    assert_value! {value=>
+        "oneOf.[0].properties.One.properties.SOME-NUMBER.type" = r#""integer""#, "variant schema rename_all overrides enum rename_all_fields"
+        "oneOf.[0].properties.One.properties.ANOTHER-FIELD.type" = r#""string""#, "variant schema rename_all overrides enum rename_all_fields"
+        "oneOf.[1].properties.Two.properties.yetAnother.type" = r#""boolean""#, "variant without override uses rename_all_fields"
+    };
+}
+
+#[test]
+fn derive_mixed_enum_serde_rename_all_fields_does_not_affect_unnamed_variant() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar(String);
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(rename_all_fields = "camelCase")]
+        enum Foo {
+            Named { some_number: i32 },
+            Unnamed(Bar),
+            Unit,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_mixed_enum_serde_adjacently_tagged() {
     let value: Value = api_doc! {
         #[derive(Serialize)]
