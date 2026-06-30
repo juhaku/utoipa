@@ -6,7 +6,7 @@ use syn::{parenthesized, Error, LitStr, Token};
 
 use crate::{parse_utils, AnyValue};
 
-// (name = (summary = "...", description = "...", value = "..", external_value = "..."))
+// (name = (summary = "...", description = "...", value = "..", data_value = "..", serialized_value = "..", external_value = "..."))
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Example {
@@ -14,6 +14,8 @@ pub struct Example {
     pub(super) summary: Option<String>,
     pub(super) description: Option<String>,
     pub(super) value: Option<AnyValue>,
+    pub(super) data_value: Option<AnyValue>,
+    pub(super) serialized_value: Option<String>,
     pub(super) external_value: Option<String>,
 }
 
@@ -51,6 +53,17 @@ impl Parse for Example {
                         AnyValue::parse_json(&content)
                     })?)
                 }
+                "data_value" => {
+                    example.data_value = Some(parse_utils::parse_next(&content, || {
+                        AnyValue::parse_json(&content)
+                    })?)
+                }
+                "serialized_value" => {
+                    example.serialized_value = Some(
+                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?
+                            .value(),
+                    )
+                }
                 "external_value" => {
                     example.external_value = Some(
                         parse_utils::parse_next(&content, || content.parse::<LitStr>())?
@@ -61,7 +74,7 @@ impl Parse for Example {
                     return Err(
                         Error::new(
                             ident.span(),
-                            format!("unexpected attribute: {attribute_name}, expected one of: summary, description, value, external_value")
+                            format!("unexpected attribute: {attribute_name}, expected one of: summary, description, value, data_value, serialized_value, external_value")
                         )
                     )
                 }
@@ -90,6 +103,14 @@ impl ToTokens for Example {
             .value
             .as_ref()
             .map(|value| quote!(.value(Some(#value))));
+        let data_value = self
+            .data_value
+            .as_ref()
+            .map(|data_value| quote!(.data_value(Some(#data_value))));
+        let serialized_value = self
+            .serialized_value
+            .as_ref()
+            .map(|serialized_value| quote!(.serialized_value(Some(#serialized_value))));
         let external_value = self
             .external_value
             .as_ref()
@@ -100,6 +121,8 @@ impl ToTokens for Example {
                 #summary
                 #description
                 #value
+                #data_value
+                #serialized_value
                 #external_value
         })
     }

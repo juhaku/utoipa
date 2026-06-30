@@ -22,10 +22,19 @@ builder! {
     #[derive(Serialize, Deserialize, Default, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[non_exhaustive]
+    #[serde(rename_all = "camelCase")]
     pub struct Content {
         /// Schema used in response body or request body.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub schema: Option<RefOr<Schema>>,
+
+        /// Schema used for each item in a streaming or event-based media type.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub item_schema: Option<RefOr<Schema>>,
+
+        /// Description of this media type. Markdown syntax is supported.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<String>,
 
         /// Example for request body or response body.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,6 +58,14 @@ builder! {
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub encoding: BTreeMap<String, Encoding>,
 
+        /// Encoding information for tuple-like sequential or array items.
+        #[serde(skip_serializing_if = "Vec::is_empty", default)]
+        pub prefix_encoding: Vec<Encoding>,
+
+        /// Encoding information for each item in a sequential or array media type.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub item_encoding: Option<Box<Encoding>>,
+
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -69,6 +86,16 @@ impl ContentBuilder {
     /// Add schema.
     pub fn schema<I: Into<RefOr<Schema>>>(mut self, schema: Option<I>) -> Self {
         set_value!(self schema schema.map(|schema| schema.into()))
+    }
+
+    /// Add item schema for a streaming or event-based media type.
+    pub fn item_schema<I: Into<RefOr<Schema>>>(mut self, item_schema: Option<I>) -> Self {
+        set_value!(self item_schema item_schema.map(|schema| schema.into()))
+    }
+
+    /// Add or change description of this media type.
+    pub fn description<I: Into<String>>(mut self, description: Option<I>) -> Self {
+        set_value!(self description description.map(Into::into))
     }
 
     /// Add example of schema.
@@ -117,8 +144,33 @@ impl ContentBuilder {
         self
     }
 
+    /// Add encoding information for tuple-like sequential or array items.
+    pub fn prefix_encoding<I: IntoIterator<Item = E>, E: Into<Encoding>>(
+        mut self,
+        prefix_encoding: I,
+    ) -> Self {
+        set_value!(self prefix_encoding prefix_encoding.into_iter().map(Into::into).collect())
+    }
+
+    /// Add encoding information for each item in a sequential or array media type.
+    pub fn item_encoding<E: Into<Encoding>>(mut self, item_encoding: Option<E>) -> Self {
+        set_value!(self item_encoding item_encoding.map(|encoding| Box::new(encoding.into())))
+    }
+
     /// Add openapi extensions (x-something) of the API.
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+}
+
+impl From<ContentBuilder> for RefOr<Content> {
+    fn from(content_builder: ContentBuilder) -> Self {
+        Self::T(content_builder.build())
+    }
+}
+
+impl From<super::Ref> for RefOr<Content> {
+    fn from(r: super::Ref) -> Self {
+        Self::Ref(r)
     }
 }
