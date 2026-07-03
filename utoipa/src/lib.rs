@@ -1263,6 +1263,28 @@ impl_from_for_number!(
     isize => Int, usize => UInt
 );
 
+macro_rules! impl_from_for_num_alias {
+    ( $( $ty:ident => $pat:ident $( as $as:ident )? ),* ) => {
+        $(
+        impl From<$ty> for Number {
+            fn from(value: $ty) -> Self {
+                Self::$pat(value.get() $( as $as )?)
+            }
+        }
+        )*
+    };
+}
+
+use std::num::{NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroIsize, NonZeroUsize};
+
+#[rustfmt::skip]
+impl_from_for_num_alias!(
+    NonZeroI8 => Int as isize, NonZeroI16 => Int as isize, NonZeroI32 => Int as isize,
+    NonZeroI64 => Int as isize, NonZeroIsize => Int as isize,
+    NonZeroU8 => UInt as usize, NonZeroU16 => UInt as usize, NonZeroU32 => UInt as usize,
+    NonZeroU64 => UInt as usize, NonZeroUsize => UInt as usize
+);
+
 /// Internal dev module used internally by utoipa-gen
 #[doc(hidden)]
 #[cfg(feature = "macros")]
