@@ -514,11 +514,32 @@ impl_to_schema!(
     i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
 );
 
+macro_rules! impl_to_schema_num_alias {
+    ( $( $ty:ident as $as:ident),* ) => {
+        $(
+        impl ToSchema for $ty {
+            fn name() -> std::borrow::Cow<'static, str> {
+                std::borrow::Cow::Borrowed(stringify!( $ty as $as ))
+            }
+        }
+        )*
+    };
+}
+
+#[rustfmt::skip]
+impl_to_schema_num_alias!(
+    NonZeroI8 as isize, NonZeroI16 as isize, NonZeroI32 as isize,
+    NonZeroI64 as isize, NonZeroIsize as isize,
+    NonZeroU8 as usize, NonZeroU16 as usize, NonZeroU32 as usize,
+    NonZeroU64 as usize, NonZeroUsize as usize
+);
+
 impl ToSchema for &str {
     fn name() -> Cow<'static, str> {
         str::name()
     }
 }
+
 
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
@@ -1376,9 +1397,13 @@ pub mod __dev {
         };
     }
 
+    use std::num::{NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroIsize, NonZeroUsize};
+
     #[rustfmt::skip]
     impl_compose_schema!(
-        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, 
+        NonZeroIsize, NonZeroUsize
     );
 
     fn schema_or_compose<T: ComposeSchema>(
