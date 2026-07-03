@@ -511,27 +511,9 @@ macro_rules! impl_to_schema {
 
 #[rustfmt::skip]
 impl_to_schema!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
-);
-
-macro_rules! impl_to_schema_num_alias {
-    ( $( $ty:ident as $as:ident),* ) => {
-        $(
-        impl ToSchema for $ty {
-            fn name() -> std::borrow::Cow<'static, str> {
-                std::borrow::Cow::Borrowed(stringify!( $ty as $as ))
-            }
-        }
-        )*
-    };
-}
-
-#[rustfmt::skip]
-impl_to_schema_num_alias!(
-    NonZeroI8 as isize, NonZeroI16 as isize, NonZeroI32 as isize,
-    NonZeroI64 as isize, NonZeroIsize as isize,
-    NonZeroU8 as usize, NonZeroU16 as usize, NonZeroU32 as usize,
-    NonZeroU64 as usize, NonZeroUsize as usize
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroIsize,
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroUsize 
 );
 
 impl ToSchema for &str {
