@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use features::validation::ExclusiveMinimum;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::punctuated::Punctuated;
@@ -1120,14 +1121,21 @@ impl ComponentSchema {
                     path: Cow::Borrowed(type_path),
                     nullable,
                 };
+
                 if schema_type.is_unsigned_integer() {
+                    let minimum : Feature = if schema_type.is_nonzero_unsigned_integer() {
+                        ExclusiveMinimum::new(0f64, type_path.span()).into()
+                    } else {
+                        Minimum::new(0f64, type_path.span()).into()
+                    };
+
                     // add default minimum feature only when there is no explicit minimum
                     // provided
                     if !features
                         .iter()
-                        .any(|feature| matches!(&feature, Feature::Minimum(_)))
+                        .any(|feature| matches!(&feature, Feature::Minimum(_) | Feature::ExclusiveMinimum(_)))
                     {
-                        features.push(Minimum::new(0f64, type_path.span()).into());
+                        features.push(minimum);
                     }
                 }
 

@@ -1368,35 +1368,25 @@ pub mod __dev {
     }
 
     macro_rules! impl_compose_schema {
-    ( $( $ty:ident $(as $as:ident)? ),* $(,)? ) => {
-        $(
+        ( $( $ty:ident ),* ) => {
+            $(
             impl ComposeSchema for $ty {
-                fn compose(
-                    _: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>
-                ) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
-                    impl_compose_schema!(@schema $ty $(, $as)?).into()
+                fn compose(_: Vec<utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>>) -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+                    schema!( $ty ).into()
                 }
             }
-        )*
-    };
-
-    (@schema $ty:ident) => {
-        schema!($ty)
-    };
-
-    (@schema $ty:ident, $as:ident) => {
-        schema!($as)
-    };
-}
+            )*
+        };
+    }
 
     use std::num::{NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroIsize, NonZeroUsize};
 
     #[rustfmt::skip]
     impl_compose_schema!(
         i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
-        NonZeroI8 as i8, NonZeroI16 as i16, NonZeroI32 as i32, NonZeroI64 as i64, 
-        NonZeroU8 as u8, NonZeroU16 as u16, NonZeroU32 as u32, NonZeroU64 as u64, 
-        NonZeroIsize as isize, NonZeroUsize as usize
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, 
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, 
+        NonZeroIsize, NonZeroUsize
     );
 
     fn schema_or_compose<T: ComposeSchema>(
