@@ -580,6 +580,13 @@ impl Parse for SchemaWith {
     }
 }
 
+impl SchemaWith {
+    pub(crate) fn to_token_stream_with_args(&self, args: TokenStream) -> TokenStream {
+        let path = &self.0;
+        quote! { #path(#args) }
+    }
+}
+
 impl ToTokens for SchemaWith {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = &self.0;
