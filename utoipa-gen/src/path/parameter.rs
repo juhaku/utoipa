@@ -119,6 +119,17 @@ impl ToTokensDiagnostics for Parameter<'_> {
     }
 }
 
+impl Parameter<'_> {
+    pub fn get_schema_references(&self) -> Result<TokenStream, Diagnostics> {
+        match self {
+            Parameter::Value(parameter) => parameter.get_schema_references(),
+            Parameter::IntoParamsIdent(IntoParamsIdentParameter { path, .. }) => Ok(quote! {
+                <#path as utoipa::IntoParams>::schemas(schemas);
+            }),
+        }
+    }
+}
+
 #[cfg(any(
     feature = "actix_extras",
     feature = "rocket_extras",
@@ -223,6 +234,53 @@ impl ToTokensDiagnostics for ParameterSchema<'_> {
                     required,
                 );
                 Ok(())
+            }
+        }
+    }
+}
+
+impl ParameterSchema<'_> {
+    fn get_component_schema(&self) -> Result<(bool, ComponentSchema), Diagnostics> {
+        match &self.parameter_type {
+            #[cfg(any(
+                feature = "actix_extras",
+                feature = "rocket_extras",
+                feature = "axum_extras"
+            ))]
+            ParameterType::External(type_tree) => Ok((
+                false,
+                ComponentSchema::for_params(
+                    component::ComponentSchemaProps {
+                        type_tree,
+                        features: self.features.clone(),
+                        description: None,
+                        container: &Container {
+                            generics: &Generics::default(),
+                        },
+                    },
+                    self.option_is_nullable,
+                )?,
+            )),
+            ParameterType::Parsed(inline_type) => {
+                let type_tree = TypeTree::from_type(inline_type.ty.as_ref())?;
+                let mut schema_features = Vec::<Feature>::new();
+                schema_features.clone_from(&self.features);
+                schema_features.push(Feature::Inline(inline_type.is_inline.into()));
+
+                Ok((
+                    inline_type.is_inline,
+                    ComponentSchema::for_params(
+                        component::ComponentSchemaProps {
+                            type_tree: &type_tree,
+                            features: schema_features,
+                            description: None,
+                            container: &Container {
+                                generics: &Generics::default(),
+                            },
+                        },
+                        self.option_is_nullable,
+                    )?,
+                ))
             }
         }
     }
@@ -412,6 +470,26 @@ impl ToTokensDiagnostics for ValueParameter<'_> {
         }
 
         Ok(())
+    }
+}
+
+impl ValueParameter<'_> {
+    fn get_schema_references(&self) -> Result<TokenStream, Diagnostics> {
+        self.parameter_schema
+            .as_ref()
+            .map(|parameter_schema| {
+                parameter_schema
+                    .get_component_schema()
+                    .map(|(is_inline, component_schema)| {
+                        component::component_schema_to_tokens(
+                            TokenStream::new(),
+                            is_inline,
+                            component_schema,
+                        )
+                    })
+            })
+            .transpose()
+            .map(Option::unwrap_or_default)
     }
 }
 
