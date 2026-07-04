@@ -1116,6 +1116,14 @@ builder! {
         /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON Schemas into a more general schema. The keyword does not directly affect the validation result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
+        pub defs: BTreeMap<String, Schema>,
     }
 }
 
@@ -1336,6 +1344,11 @@ impl ObjectBuilder {
     /// `application/json`.
     pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
         set_value!(self content_media_type content_media_type.into())
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
+        set_value!(self defs defs.into())
     }
 
     to_array_builder!();
