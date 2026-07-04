@@ -82,6 +82,16 @@ builder! {
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
+        pub defs: BTreeMap<String, Schema>,
     }
 }
 
@@ -522,6 +532,16 @@ builder! {
         /// Declares the schema as "write only".
         #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
         pub write_only: Option<bool>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
+        pub defs: BTreeMap<String, Schema>,
     }
 }
 
@@ -567,6 +587,7 @@ impl Default for OneOf {
             extensions: Default::default(),
             read_only: Default::default(),
             write_only: Default::default(),
+            defs: Default::default()
         }
     }
 }
@@ -711,6 +732,16 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
+        pub defs: BTreeMap<String, Schema>,
     }
 }
 
@@ -754,6 +785,7 @@ impl Default for AllOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
+            defs: Default::default()
         }
     }
 }
@@ -810,6 +842,11 @@ impl AllOfBuilder {
     /// Add openapi extensions (`x-something`) for [`AllOf`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
+        set_value!(self defs defs.into())
     }
 
     to_array_builder!();
@@ -884,6 +921,16 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
+        pub defs: BTreeMap<String, Schema>,
     }
 }
 
@@ -926,6 +973,7 @@ impl Default for AnyOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
+            defs: Default::default()
         }
     }
 }
@@ -977,6 +1025,11 @@ impl AnyOfBuilder {
     /// Add openapi extensions (`x-something`) for [`AnyOf`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
+        set_value!(self defs defs.into())
     }
 
     to_array_builder!();
@@ -1167,7 +1220,9 @@ builder! {
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
 
-        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON Schemas into a more general schema. The keyword does not directly affect the validation result.
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
         ///
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
@@ -1831,6 +1886,16 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
+        pub defs: BTreeMap<String, Schema>,
     }
 }
 
@@ -1853,6 +1918,7 @@ impl Default for Array {
             extensions: Default::default(),
             content_encoding: Default::default(),
             content_media_type: Default::default(),
+            defs: Default::default(),
         }
     }
 }
@@ -1996,6 +2062,11 @@ impl ArrayBuilder {
     /// Add openapi extensions (`x-something`) for [`Array`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
+        set_value!(self defs defs.into())
     }
 
     to_array_builder!();
