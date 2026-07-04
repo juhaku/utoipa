@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::defs::Defs;
 use super::extensions::Extensions;
 use super::RefOr;
 use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
@@ -90,8 +91,8 @@ builder! {
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
         /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
-        pub defs: BTreeMap<String, Schema>,
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -404,7 +405,6 @@ impl Discriminator {
 }
 
 builder! {
-
     ConstBuilder;
 
     /// The value of this keyword MAY be of any type, including null.
@@ -560,8 +560,8 @@ builder! {
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
         /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
-        pub defs: BTreeMap<String, Schema>,
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -760,8 +760,8 @@ builder! {
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
         /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
-        pub defs: BTreeMap<String, Schema>,
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -865,8 +865,8 @@ impl AllOfBuilder {
     }
 
     /// Set definitons for the object [`Object::defs`].
-    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
-        set_value!(self defs defs.into())
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -949,8 +949,8 @@ builder! {
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
         /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
-        pub defs: BTreeMap<String, Schema>,
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -1048,8 +1048,8 @@ impl AnyOfBuilder {
     }
 
     /// Set definitons for the object [`Object::defs`].
-    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
-        set_value!(self defs defs.into())
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -1247,8 +1247,8 @@ builder! {
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
         /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
-        pub defs: BTreeMap<String, Schema>,
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -1472,8 +1472,8 @@ impl ObjectBuilder {
     }
 
     /// Set definitons for the object [`Object::defs`].
-    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
-        set_value!(self defs defs.into())
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -1914,8 +1914,8 @@ builder! {
         ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
         ///
         /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
-        #[serde(skip_serializing_if = "BTreeMap::is_empty", default, rename = "#defs")]
-        pub defs: BTreeMap<String, Schema>,
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -2085,8 +2085,8 @@ impl ArrayBuilder {
     }
 
     /// Set definitons for the object [`Object::defs`].
-    pub fn defs<S: Into<BTreeMap<String, Schema>>>(mut self, defs: S) -> Self {
-        set_value!(self defs defs.into())
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -3161,5 +3161,12 @@ mod tests {
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
+    }
+
+    #[test]
+    fn object_with_defs() {
+        let expected = json!("value");
+        let json_value = ObjectBuilder::new().defs(Defs::default()).build();
+        //TODO
     }
 }
