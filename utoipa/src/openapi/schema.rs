@@ -309,24 +309,6 @@ pub enum Schema {
     AnyOf(AnyOf),
 }
 
-/// The value of this keyword MAY be of any type, including null.
-/// Use of this keyword is functionally equivalent to an "enum" (Section 6.1.2) with a single value.
-///
-/// An instance validates successfully against this keyword if its value is equal to the value of the keyword.
-///
-/// Form more see:
-/// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
-/// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Const {
-    #[serde(rename = "const")]
-    const_: Value,
-    #[serde(flatten, default)]
-    annotations: BTreeMap<String, String>,
-}
-
 impl Default for Schema {
     fn default() -> Self {
         Schema::Object(Object::default())
@@ -408,6 +390,74 @@ impl Discriminator {
             ),
             ..Default::default()
         }
+    }
+}
+
+builder! {
+
+    ConstBuilder;
+
+    /// The value of this keyword MAY be of any type, including null.
+    /// Use of this keyword is functionally equivalent to an "enum" (Section 6.1.2) with a single value.
+    ///
+    /// An instance validates successfully against this keyword if its value is equal to the value of the keyword.
+    ///
+    /// Form more see:
+    /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+    /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Const {
+        #[serde(rename = "const")]
+        const_: Value,
+        #[serde(flatten, default)]
+        annotations: BTreeMap<String, String>,
+    }
+}
+
+impl Const {
+    /// Construct a new [`Const`] component.
+    pub fn new(value: Value) -> Self {
+        Self {
+            const_: value,
+            ..Default::default()
+        }
+    }
+
+    /// Construct a new [`Const`] with provided annotations. Annotations describe `const` value
+    pub fn with_annotations(value: Value, annotations: BTreeMap<String, String>) -> Self {
+        Self {
+            const_: value,
+            annotations,
+        }
+    }
+}
+
+impl ConstBuilder {
+    /// Set `const` keyword
+    ///
+    /// Read more: 
+    /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+    /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    pub fn const_<T: Into<Value>>(mut self, value: T) -> Self {
+        set_value!(self const_ value.into())
+    }
+
+    /// Extend fields describing `const` value
+    ///
+    /// Read more: <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    pub fn annotations<T: IntoIterator<Item = (String, String)>>(mut self, annotations: T) -> Self {
+        self.annotations.extend(annotations);
+        self
+    }
+
+    /// Add field describing `const` value
+    ///
+    /// Read more: <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    pub fn annotation<K: Into<String>, V: Into<String>>(mut self, key: K, value: V) -> Self {
+        self.annotations.insert(key.into(), value.into());
+        self
     }
 }
 
@@ -2581,7 +2631,6 @@ mod tests {
 
     #[test]
     fn serialize_deserialize_const_keyword() {
-
         let basic_json = r#"{
             "const": { "my-complex-key": [1, 2], "x": null, "v": {} },
             "annotation": "my-annotation",
