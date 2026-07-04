@@ -8,7 +8,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, Schema};
+use super::{builder, OpenApi, RefOr, Schema};
 
 builder! {
     DefsBuilder;
@@ -134,13 +134,175 @@ impl Schema {
     }
 }
 
+impl OpenApi {
+    /// Used to extract defs from the direct openapi components schemas as the schemas
+    ///
+    /// e.g.
+    ///
+    /// ```json
+    /// {
+    ///   "openapi": "3.1.0",
+    ///   "info": {
+    ///     "title": "",
+    ///     "version": ""
+    ///   },
+    ///   "paths": {},
+    ///   "components": {
+    ///     "schemas": {
+    ///       "MySchema": {
+    ///         "type": "object",
+    ///         "$defs": {
+    ///           "address": {
+    ///             "type": "object",
+    ///             "required": [
+    ///               "street",
+    ///               "city"
+    ///             ],
+    ///             "properties": {
+    ///               "city": {
+    ///                 "$ref": "#/$defs/nonEmptyString"
+    ///               },
+    ///               "street": {
+    ///                 "$ref": "#/$defs/nonEmptyString"
+    ///               }
+    ///             }
+    ///           },
+    ///           "nonEmptyString": {
+    ///             "type": "string",
+    ///             "minLength": 1
+    ///           }
+    ///         }
+    ///       }
+    ///     }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// becomes
+    /// ```json
+    ///{
+    ///   "openapi": "3.1.0",
+    ///   "info": {
+    ///     "title": "",
+    ///     "version": ""
+    ///   },
+    ///   "paths": {},
+    ///   "components": {
+    ///     "schemas": {
+    ///       "MySchema": {
+    ///         "type": "object",
+    ///         "$defs": {
+    ///           "address": {
+    ///             "type": "object",
+    ///             "required": [
+    ///               "street",
+    ///               "city"
+    ///             ],
+    ///             "properties": {
+    ///               "city": {
+    ///                 "$ref": "#/$defs/nonEmptyString"
+    ///               },
+    ///               "street": {
+    ///                 "$ref": "#/$defs/nonEmptyString"
+    ///               }
+    ///             }
+    ///           },
+    ///           "nonEmptyString": {
+    ///             "type": "string",
+    ///             "minLength": 1
+    ///           }
+    ///         }
+    ///       },
+    ///       "address": {
+    ///         "type": "object",
+    ///         "required": [
+    ///           "street",
+    ///           "city"
+    ///         ],
+    ///         "properties": {
+    ///           "city": {
+    ///             "$ref": "#/$defs/nonEmptyString"
+    ///           },
+    ///           "street": {
+    ///             "$ref": "#/$defs/nonEmptyString"
+    ///           }
+    ///         }
+    ///       },
+    ///       "nonEmptyString": {
+    ///         "type": "string",
+    ///         "minLength": 1
+    ///       }
+    ///     }
+    ///   }
+    /// }
+    /// ```
+    pub fn extract_components_from_schemas_def(&mut self) -> &mut Self {
+        let mut additional_schemas: Vec<(String, RefOr<Schema>)> = Vec::new();
+        if let Some(components) = &mut self.components {
+            for schema in components
+                .schemas
+                .values()
+                .filter_map(|schema| match schema {
+                    RefOr::T(t) => Some(t),
+                    _ => None,
+                })
+            {
+                if let Some(defs) = schema.defs() {
+                    additional_schemas.extend(
+                        defs.iter()
+                            // .cloned() did not work here
+                            .map(|(key, value)| (key.clone(), RefOr::T(value.clone()))),
+                    )
+                }
+            }
+
+            components.schemas.extend(additional_schemas);
+        }
+
+        self
+    }
+}
+
+impl<T> RefOr<T> {
+    /// Used to replace /#defs/ with openapi /components/schemas
+    ///
+    /// e.g.
+    /// ```json
+    /// {
+    ///    "$ref": "/#defs/a/b
+    /// }
+    /// ```
+    ///
+    /// becomes
+    ///
+    /// ```json
+    /// {
+    ///    "$ref": /#components/schemas/a/b"
+    /// }
+    /// ```
+    pub fn root_defs_to_openapi_schemas(&mut self) -> &mut Self {
+        match self {
+            RefOr::Ref(ref_) => {
+                if ref_.ref_location.starts_with("/#defs/") {
+                    ref_.ref_location =
+                        ref_.ref_location
+                            .replacen("/#defs/", "#/components/schemas/", 1);
+                }
+            }
+            RefOr::T(_) => {}
+        }
+
+        self
+    }
+}
+
 #[cfg(test)]
 #[allow(missing_docs)]
 pub mod test {
     use super::*;
     use crate::openapi::{
         schema::{SchemaType, Type},
-        ObjectBuilder,
+        ComponentsBuilder, ObjectBuilder, OpenApiBuilder,
     };
 
     const BASIC: &str = r##"
@@ -217,12 +379,25 @@ pub mod test {
         println!("--------------------------");
         println!("{final_defs}");
 
-        let expected : Defs = serde_json::from_str(expected_str).unwrap();
+        let expected: Defs = serde_json::from_str(expected_str).unwrap();
         let final_expected = serde_json::to_string_pretty(&expected).unwrap();
         println!("{final_expected}");
         println!("--------------------------");
 
         assert_eq!(final_defs, final_expected);
+    }
 
+    #[test]
+    fn additional_schemas_extraction() {
+        let defs = serde_json::from_str(BASIC).unwrap();
+
+        let mut openapi = OpenApiBuilder::new().components(Some(
+            ComponentsBuilder::new()
+                .schema("MySchema", ObjectBuilder::new().defs(defs))
+                .build(),
+        )).build();
+
+        openapi.extract_components_from_schemas_def();
+        assert_eq!(openapi.components.unwrap().schemas.len(), 3);
     }
 }
