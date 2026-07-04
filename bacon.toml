@@ -1,0 +1,8 @@
+ignore = ["**/*.pending-snap"]
+
+[jobs.nextest-just]
+command = ["just", "test"]
+env.CARGO_COMMAND = "nextest run --hide-progress-bar --failure-output final"
+need_stdout = true
+allow_warnings = true
+analyzer = "nextest"
