@@ -270,10 +270,21 @@ impl ComponentsBuilder {
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
+    /// The value of this keyword MAY be of any type, including null.
+    /// Use of this keyword is functionally equivalent to an "enum" (Section 6.1.2) with a single value.
+    ///
+    /// An instance validates successfully against this keyword if its value is equal to the value of the keyword.
+    ///
+    /// Form more see:
+    /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+    /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    Const(Const),
+
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
@@ -296,6 +307,24 @@ pub enum Schema {
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
     AnyOf(AnyOf),
+}
+
+/// The value of this keyword MAY be of any type, including null.
+/// Use of this keyword is functionally equivalent to an "enum" (Section 6.1.2) with a single value.
+///
+/// An instance validates successfully against this keyword if its value is equal to the value of the keyword.
+///
+/// Form more see:
+/// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+/// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+#[non_exhaustive]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+pub struct Const {
+    #[serde(rename = "const")]
+    const_: Value,
+    #[serde(flatten, default)]
+    annotations: BTreeMap<String, String>,
 }
 
 impl Default for Schema {
@@ -2535,6 +2564,54 @@ mod tests {
             serialized_components,
             serde_json::to_string(&deserialized_components).unwrap()
         )
+    }
+
+    #[test]
+    fn serialize_deserialize_const_keyword() {
+
+        let basic_json = r#"{
+            "const": { "my-complex-key": [1, 2], "x": null, "v": {} },
+            "annotation": "my-annotation",
+            "other": "other",
+            "type": "object"
+        }"#;
+
+        let basic_deserialized: RefOr<Schema> = serde_json::from_str(basic_json).unwrap();
+        assert!(matches!(basic_deserialized, RefOr::T(Schema::Const(_))));
+
+        let deserialized_unwrapped = if let RefOr::T(Schema::Const(const_)) = basic_deserialized {
+            const_
+        } else {
+            unreachable!();
+        };
+
+        assert!(matches!(deserialized_unwrapped.const_, Value::Object(_)));
+        assert_eq!(deserialized_unwrapped.annotations.len(), 3);
+
+        for const_value in [
+            Const {
+                const_: Value::String("Test".into()),
+                annotations: BTreeMap::from([("title".into(), "test".into())]),
+            },
+            Const {
+                const_: Value::String("Test".into()),
+                annotations: BTreeMap::from([("type".into(), "string".into())]),
+            },
+        ] {
+            let const_keyword = RefOr::T(Schema::Const(const_value));
+
+            let json_str = serde_json::to_string(&const_keyword).expect("");
+            println!("----------------------------");
+            println!("{json_str}");
+
+            let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+            let json_de_str = serde_json::to_string(&deserialized).expect("");
+            println!("----------------------------");
+            println!("{json_de_str}");
+
+            assert_eq!(json_str, json_de_str);
+        }
     }
 
     #[test]
