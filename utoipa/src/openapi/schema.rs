@@ -447,7 +447,7 @@ impl Const {
 impl ConstBuilder {
     /// Set `const` keyword
     ///
-    /// Read more: 
+    /// Read more:
     /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
     /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
     pub fn const_<T: Into<Value>>(mut self, value: T) -> Self {
@@ -607,7 +607,7 @@ impl Default for OneOf {
             extensions: Default::default(),
             read_only: Default::default(),
             write_only: Default::default(),
-            defs: Default::default()
+            defs: Default::default(),
         }
     }
 }
@@ -805,7 +805,7 @@ impl Default for AllOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
-            defs: Default::default()
+            defs: Default::default(),
         }
     }
 }
@@ -993,7 +993,7 @@ impl Default for AnyOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
-            defs: Default::default()
+            defs: Default::default(),
         }
     }
 }
@@ -3161,12 +3161,5 @@ mod tests {
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
-    }
-
-    #[test]
-    fn object_with_defs() {
-        let expected = json!("value");
-        let json_value = ObjectBuilder::new().defs(Defs::default()).build();
-        //TODO
     }
 }
