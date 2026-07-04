@@ -471,6 +471,26 @@ impl ConstBuilder {
     }
 }
 
+impl From<Const> for Schema {
+    fn from(const_: Const) -> Self {
+        Self::Const(const_)
+    }
+}
+
+impl From<ConstBuilder> for RefOr<Schema> {
+    fn from(const_: ConstBuilder) -> Self {
+        Self::T(Schema::Const(const_.build()))
+    }
+}
+
+impl From<ConstBuilder> for ArrayItems {
+    fn from(value: ConstBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
+component_from_builder!(ConstBuilder);
+
 builder! {
     OneOfBuilder;
 
