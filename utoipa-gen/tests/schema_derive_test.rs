@@ -3652,9 +3652,10 @@ fn derive_inline_option_ref_with_nullable_false_and_default() {
     assert_json_snapshot!(schema);
 }
 
-// Deriving on a wide type must not emit a large stack array (juhaku/utoipa#1454).
+// Smoke test: deriving `ToSchema` on a wide struct keeps compiling and produces
+// a valid schema. Related to the large stack array fix (juhaku/utoipa#1454).
 #[test]
-fn derive_schema_with_many_fields_does_not_use_large_stack_arrays() {
+fn derive_schema_with_many_fields_compiles() {
     #![allow(unused)]
 
     macro_rules! wide_struct {
