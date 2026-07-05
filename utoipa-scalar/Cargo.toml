@@ -33,5 +33,5 @@ axum = { version = "0.8.4", default-features = false, optional = true }
 [dev-dependencies]
 utoipa-scalar = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+[lints]
+workspace = true

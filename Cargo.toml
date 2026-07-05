@@ -22,6 +22,14 @@ members = [
 [workspace.dependencies]
 time = { version = ">=0.3, <0.3.52" }
 
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
+[workspace.lints.clippy]
+# Enforced to guard against regressions of large stack allocations in generated
+# code (see https://github.com/juhaku/utoipa/issues/1454).
+large_stack_arrays = "deny"
+
 [workspace.metadata.publish]
 order = [
     "utoipa-config",

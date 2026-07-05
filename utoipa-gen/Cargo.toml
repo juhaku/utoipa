@@ -83,5 +83,5 @@ config = ["dep:utoipa-config", "dep:once_cell"]
 # EXPERIEMENTAL! use with cauntion
 auto_into_responses = []
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+[lints]
+workspace = true

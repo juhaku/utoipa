@@ -72,5 +72,5 @@ reqwest = { version = "0.13", features = [
 url = { version = "2", optional = true }
 utoipa-swagger-ui-vendored = { version = "0.1", path = "../utoipa-swagger-ui-vendored", optional = true }
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+[lints]
+workspace = true

@@ -29,5 +29,5 @@ serde = "1"
 features = []
 rustdoc-args = ["--cfg", "doc_cfg"]
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+[lints]
+workspace = true

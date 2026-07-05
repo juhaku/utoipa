@@ -32,9 +32,9 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{quote, ToTokens};
 
-use proc_macro2::{Group, Ident, Punct, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
@@ -3164,17 +3164,18 @@ where
             Self::Borrowed(values) => values.iter(),
         };
 
-        tokens.append(Group::new(
-            proc_macro2::Delimiter::Bracket,
-            values
-                .fold(Punctuated::new(), |mut punctuated, item| {
-                    punctuated.push_value(item);
-                    punctuated.push_punct(Punct::new(',', proc_macro2::Spacing::Alone));
+        // Emit `vec![...]` rather than a stack array literal `[...]` to avoid
+        // large stack allocations for wide types (juhaku/utoipa#1454).
+        let items = values
+            .fold(Punctuated::new(), |mut punctuated, item| {
+                punctuated.push_value(item);
+                punctuated.push_punct(Punct::new(',', proc_macro2::Spacing::Alone));
 
-                    punctuated
-                })
-                .to_token_stream(),
-        ));
+                punctuated
+            })
+            .to_token_stream();
+
+        tokens.extend(quote! { vec![#items] });
     }
 }
 
