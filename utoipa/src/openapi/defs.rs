@@ -136,6 +136,32 @@ impl Schema {
             Schema::AnyOf(any_of) => Some(&any_of.defs),
         }
     }
+
+    /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
+    /// for schema (recursively)
+    ///
+    /// See also: [`RefOr::root_defs_to_openapi_schemas`]
+    ///
+    /// e.g.
+    /// ```json
+    /// {
+    ///    "$ref": "/#defs/a/b
+    /// }
+    /// ```
+    ///
+    /// becomes
+    ///
+    /// ```json
+    /// {
+    ///    "$ref": /#components/schemas/<schema-name>/a/b"
+    /// }
+    /// ```
+    pub fn refs_to_openapi_format<SN: AsRef<str>>(&mut self, schema_name: Option<SN>) -> &mut Self {
+        match schema_name {
+            Some(schema_name) => self.replace_defs_with_openapi_schemas(Some(schema_name.as_ref())),
+            None => self.replace_defs_with_openapi_schemas(None),
+        }
+    }
 }
 
 impl OpenApi {
@@ -622,6 +648,51 @@ pub mod test {
     }
 
     #[test]
+    fn root_defs_to_openapi_schemas_simple_ref() {
+        let mut simple_ref: RefOr<Schema> = RefOr::Ref(
+            RefBuilder::new()
+                .ref_location("/#defs/MyStruct".into())
+                .into(),
+        );
+
+        simple_ref.replace_defs_with_openapi_schemas(Option::<&str>::None);
+
+        match simple_ref {
+            RefOr::Ref(x) => assert_eq!(x.ref_location, "/#components/schemas/MyStruct"),
+            RefOr::T(_) => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn root_defs_to_openapi_schemas_on_schema() {
+        let simple_ref: RefOr<Schema> = RefOr::Ref(
+            RefBuilder::new()
+                .ref_location("/#defs/MyStruct".into())
+                .into(),
+        );
+
+        let mut any_of_with_ref: Schema =
+            AnyOfBuilder::new().item(simple_ref.clone()).build().into();
+
+        any_of_with_ref
+            .refs_to_openapi_format(Option::<&str>::None)
+            // dual+ calls should not be a problem
+            .refs_to_openapi_format(Some("dummy"))
+            .refs_to_openapi_format(Some("magic-dummy"));
+
+        let items = match any_of_with_ref {
+            Schema::AnyOf(any_of) => any_of.items,
+            _ => unreachable!(),
+        };
+
+        assert_eq!(items.len(), 1);
+        match items.first().unwrap() {
+            RefOr::Ref(ref_) => assert_eq!(ref_.ref_location, "/#components/schemas/MyStruct"),
+            RefOr::T(_) => unreachable!(),
+        }
+    }
+
+    #[test]
     fn root_defs_to_openapi_schemas() {
         let simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
@@ -697,9 +768,14 @@ pub mod test {
         );
 
         let suffix = "MySuffixSchema";
-        let suffixed_stringified =
-            serde_json::to_string_pretty(openapi.clone().refs_to_openapi_format(Some(suffix)))
-                .unwrap();
+        let suffixed_stringified = serde_json::to_string_pretty(
+            openapi
+                .clone()
+                .refs_to_openapi_format(Some(suffix))
+                // dual calls should not cause any issues
+                .refs_to_openapi_format(Some("dummy")),
+        )
+        .unwrap();
 
         assert_eq!(
             suffixed_stringified.matches(DEFS_PREFIX).count(),
