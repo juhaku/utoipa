@@ -140,7 +140,7 @@ impl Schema {
     /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
     /// for schema (recursively)
     ///
-    /// See also: [`RefOr::root_defs_to_openapi_schemas`]
+    /// See also: [`RefOr::refs_to_openapi_format`]
     ///
     /// e.g.
     /// ```json
@@ -367,7 +367,7 @@ impl OpenApi {
     /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
     /// for all components schemas (recursively)
     ///
-    /// See also: [`RefOr::root_defs_to_openapi_schemas`]
+    /// See also: [`RefOr::refs_to_openapi_format`]
     ///
     /// e.g.
     /// ```json
@@ -419,7 +419,7 @@ impl RefOr<Schema> {
     ///    "$ref": /#components/schemas/<schema-name>/a/b"
     /// }
     /// ```
-    pub fn root_defs_to_openapi_schemas<SN: AsRef<str>>(
+    pub fn refs_to_openapi_format<SN: AsRef<str>>(
         &mut self,
         schema_name: Option<SN>,
     ) -> &mut Self {
@@ -717,14 +717,14 @@ pub mod test {
     }
 
     #[test]
-    fn root_defs_to_openapi_schemas_simple_ref() {
+    fn refs_to_openapi_format_simple_ref() {
         let mut simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
                 .ref_location("/#defs/MyStruct".into())
                 .into(),
         );
 
-        simple_ref.replace_defs_with_openapi_schemas(Option::<&str>::None);
+        simple_ref.refs_to_openapi_format(Option::<&str>::None);
 
         match simple_ref {
             RefOr::Ref(x) => assert_eq!(x.ref_location, "/#components/schemas/MyStruct"),
@@ -733,7 +733,7 @@ pub mod test {
     }
 
     #[test]
-    fn root_defs_to_openapi_schemas_on_schema() {
+    fn refs_to_openapi_format_on_schema() {
         let simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
                 .ref_location("/#defs/MyStruct".into())
@@ -762,7 +762,7 @@ pub mod test {
     }
 
     #[test]
-    fn root_defs_to_openapi_schemas() {
+    fn refs_to_openapi_format_on_openapi() {
         let simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
                 .ref_location("/#defs/MyStruct".into())
