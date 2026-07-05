@@ -164,6 +164,76 @@ impl Schema {
     }
 }
 
+impl Schema {
+    /// Extract other json schemas from the root $defs
+    ///
+    /// Example for:
+    ///
+    /// ```json
+    ///  "MySchema": {
+    ///    "type": "object",
+    ///    "$defs": {
+    ///      "address": {
+    ///        "type": "object",
+    ///        "required": [
+    ///          "street",
+    ///          "city"
+    ///        ],
+    ///        "properties": {
+    ///          "city": {
+    ///            "$ref": "#/$defs/nonEmptyString"
+    ///          },
+    ///          "street": {
+    ///            "$ref": "#/$defs/nonEmptyString"
+    ///          }
+    ///        }
+    ///      },
+    ///      "nonEmptyString": {
+    ///        "type": "string",
+    ///        "minLength": 1
+    ///      }
+    ///    }
+    ///  }
+    /// ````
+    ///
+    /// you get:
+    ///
+    /// ```json
+    ///   "address": {
+    ///     "type": "object",
+    ///     "required": [
+    ///       "street",
+    ///       "city"
+    ///     ],
+    ///     "properties": {
+    ///       "city": {
+    ///         "$ref": "#/$defs/nonEmptyString"
+    ///       },
+    ///       "street": {
+    ///         "$ref": "#/$defs/nonEmptyString"
+    ///       }
+    ///     }
+    ///   },
+    /// ```
+    ///
+    /// and
+    ///
+    /// ```json
+    ///   "nonEmptyString": {
+    ///     "type": "string",
+    ///     "minLength": 1
+    ///   }
+    /// ```
+    pub fn retrive_schemas_from_defs(&self) -> BTreeMap<&str, &Schema> {
+        let mut result = BTreeMap::new();
+        if let Some(defs) = self.defs() {
+            result.extend(defs.iter().map(|(key, value)| (key.as_str(), value)))
+        }
+
+        result
+    }
+}
+
 impl OpenApi {
     /// Used to extract defs from the direct openapi components schemas as the schemas.
     ///
@@ -280,13 +350,12 @@ impl OpenApi {
                     _ => None,
                 })
             {
-                if let Some(defs) = schema.defs() {
-                    additional_schemas.extend(
-                        defs.iter()
-                            // .cloned() did not work here
-                            .map(|(key, value)| (key.clone(), RefOr::T(value.clone()))),
-                    )
-                }
+                additional_schemas.extend(
+                    schema
+                        .retrive_schemas_from_defs()
+                        .into_iter()
+                        .map(|(key, schema)| (key.to_string(), RefOr::T(schema.clone()))),
+                )
             }
 
             components.schemas.extend(additional_schemas);
