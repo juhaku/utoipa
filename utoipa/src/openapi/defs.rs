@@ -14,6 +14,10 @@ use super::{
     AllOf, Array, Components, Object, OneOf, OpenApi, RefOr, Schema,
 };
 
+
+const DEFS_PREFIX: &str = "#/$defs/";
+const COMPONENTS_PREFIX: &str = "#/components/schemas/";
+
 builder! {
     DefsBuilder;
 
@@ -137,7 +141,7 @@ impl Schema {
         }
     }
 
-    /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
+    /// Used to replace #/$defs/ with openapi /components/schemas/<schema-name>
     /// for schema (recursively)
     ///
     /// See also: [`RefOr::refs_to_openapi_format`]
@@ -145,7 +149,7 @@ impl Schema {
     /// e.g.
     /// ```json
     /// {
-    ///    "$ref": "/#defs/a/b
+    ///    "$ref": "#/$defs/a/b
     /// }
     /// ```
     ///
@@ -153,7 +157,7 @@ impl Schema {
     ///
     /// ```json
     /// {
-    ///    "$ref": /#components/schemas/<schema-name>/a/b"
+    ///    "$ref": #/components/schemas/<schema-name>/a/b"
     /// }
     /// ```
     pub fn refs_to_openapi_format<SN: AsRef<str>>(&mut self, schema_name: Option<SN>) -> &mut Self {
@@ -364,7 +368,7 @@ impl OpenApi {
         self
     }
 
-    /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
+    /// Used to replace #/$defs/ with openapi /components/schemas/<schema-name>
     /// for all components schemas (recursively)
     ///
     /// See also: [`RefOr::refs_to_openapi_format`]
@@ -372,7 +376,7 @@ impl OpenApi {
     /// e.g.
     /// ```json
     /// {
-    ///    "$ref": "/#defs/a/b
+    ///    "$ref": "#/$defs/a/b
     /// }
     /// ```
     ///
@@ -380,7 +384,7 @@ impl OpenApi {
     ///
     /// ```json
     /// {
-    ///    "$ref": /#components/schemas/<schema-name>/a/b"
+    ///    "$ref": #/components/schemas/<schema-name>/a/b"
     /// }
     /// ```
     pub fn refs_to_openapi_format<SN: AsRef<str>>(&mut self, schema_name: Option<SN>) -> &mut Self {
@@ -399,16 +403,13 @@ impl OpenApi {
     }
 }
 
-const DEFS_PREFIX: &str = "/#defs/";
-const COMPONENTS_PREFIX: &str = "/#components/schemas/";
-
 impl RefOr<Schema> {
-    /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
+    /// Used to replace #/$defs/ with openapi /components/schemas/<schema-name>
     ///
     /// e.g.
     /// ```json
     /// {
-    ///    "$ref": "/#defs/a/b
+    ///    "$ref": "#/$defs/a/b
     /// }
     /// ```
     ///
@@ -416,7 +417,7 @@ impl RefOr<Schema> {
     ///
     /// ```json
     /// {
-    ///    "$ref": /#components/schemas/<schema-name>/a/b"
+    ///    "$ref": #/components/schemas/<schema-name>/a/b"
     /// }
     /// ```
     pub fn refs_to_openapi_format<SN: AsRef<str>>(
@@ -720,14 +721,14 @@ pub mod test {
     fn refs_to_openapi_format_simple_ref() {
         let mut simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
-                .ref_location("/#defs/MyStruct".into())
+                .ref_location("#/$defs/MyStruct".into())
                 .into(),
         );
 
         simple_ref.refs_to_openapi_format(Option::<&str>::None);
 
         match simple_ref {
-            RefOr::Ref(x) => assert_eq!(x.ref_location, "/#components/schemas/MyStruct"),
+            RefOr::Ref(x) => assert_eq!(x.ref_location, "#/components/schemas/MyStruct"),
             RefOr::T(_) => unreachable!(),
         }
     }
@@ -736,7 +737,7 @@ pub mod test {
     fn refs_to_openapi_format_on_schema() {
         let simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
-                .ref_location("/#defs/MyStruct".into())
+                .ref_location("#/$defs/MyStruct".into())
                 .into(),
         );
 
@@ -756,7 +757,7 @@ pub mod test {
 
         assert_eq!(items.len(), 1);
         match items.first().unwrap() {
-            RefOr::Ref(ref_) => assert_eq!(ref_.ref_location, "/#components/schemas/MyStruct"),
+            RefOr::Ref(ref_) => assert_eq!(ref_.ref_location, "#/components/schemas/MyStruct"),
             RefOr::T(_) => unreachable!(),
         }
     }
@@ -765,7 +766,7 @@ pub mod test {
     fn refs_to_openapi_format_on_openapi() {
         let simple_ref: RefOr<Schema> = RefOr::Ref(
             RefBuilder::new()
-                .ref_location("/#defs/MyStruct".into())
+                .ref_location("#/$defs/MyStruct".into())
                 .into(),
         );
 
