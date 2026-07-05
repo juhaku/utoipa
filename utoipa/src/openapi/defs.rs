@@ -25,7 +25,7 @@ builder! {
     ///
     /// As an example, here is a schema describing an array of positive integers, where the
     /// positive integer constraint is a subschema in "$defs":
-    /// ```
+    /// ```json
     /// {
     ///     "type": "array",
     ///     "items": { "$ref": "#/$defs/positiveInteger" },
