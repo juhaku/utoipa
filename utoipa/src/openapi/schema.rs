@@ -676,6 +676,11 @@ impl OneOfBuilder {
         set_value!(self write_only Some(write_only))
     }
 
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
+    }
+
     to_array_builder!();
 }
 
@@ -904,6 +909,11 @@ builder! {
     #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct AnyOf {
+
+        /// Changes the [`AnyOf`] title.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
+
         /// Components of _AnyOf component.
         #[serde(rename = "anyOf")]
         pub items: Vec<RefOr<Schema>>,
@@ -985,6 +995,7 @@ impl AnyOf {
 impl Default for AnyOf {
     fn default() -> Self {
         Self {
+            title: Default::default(),
             items: Default::default(),
             schema_type: SchemaType::AnyValue,
             description: Default::default(),
@@ -999,6 +1010,11 @@ impl Default for AnyOf {
 }
 
 impl AnyOfBuilder {
+    /// Add or change the title of the [`AnyOf`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
+    }
+
     /// Adds a given [`Schema`] to [`AnyOf`] [Composite Object][composite].
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object

@@ -8,7 +8,11 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::{builder, OpenApi, RefOr, Schema};
+use super::{
+    builder,
+    schema::{AdditionalProperties, AnyOf},
+    AllOf, Array, Components, Object, OneOf, OpenApi, RefOr, Schema,
+};
 
 builder! {
     DefsBuilder;
@@ -135,7 +139,9 @@ impl Schema {
 }
 
 impl OpenApi {
-    /// Used to extract defs from the direct openapi components schemas as the schemas
+    /// Used to extract defs from the direct openapi components schemas as the schemas.
+    ///
+    /// It keeps original defs unchanged.
     ///
     /// e.g.
     ///
@@ -237,8 +243,9 @@ impl OpenApi {
     /// }
     /// ```
     pub fn extract_components_from_schemas_def(&mut self) -> &mut Self {
-        let mut additional_schemas: Vec<(String, RefOr<Schema>)> = Vec::new();
         if let Some(components) = &mut self.components {
+            let mut additional_schemas: Vec<(String, RefOr<Schema>)> = Vec::new();
+
             for schema in components
                 .schemas
                 .values()
@@ -261,10 +268,11 @@ impl OpenApi {
 
         self
     }
-}
 
-impl<T> RefOr<T> {
-    /// Used to replace /#defs/ with openapi /components/schemas
+    /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
+    /// for all components schemas (recursively)
+    ///
+    /// See also: [`RefOr::root_defs_to_openapi_schemas`]
     ///
     /// e.g.
     /// ```json
@@ -277,19 +285,211 @@ impl<T> RefOr<T> {
     ///
     /// ```json
     /// {
-    ///    "$ref": /#components/schemas/a/b"
+    ///    "$ref": /#components/schemas/<schema-name>/a/b"
     /// }
     /// ```
-    pub fn root_defs_to_openapi_schemas(&mut self) -> &mut Self {
+    pub fn refs_to_openapi_format<SN: AsRef<str>>(&mut self, schema_name: Option<SN>) -> &mut Self {
+        if let Some(components) = &mut self.components {
+            for schema in components.schemas.values_mut() {
+                match &schema_name {
+                    Some(schema_name) => {
+                        schema.replace_defs_with_openapi_schemas(Some(schema_name.as_ref()))
+                    }
+                    None => schema.replace_defs_with_openapi_schemas(None),
+                };
+            }
+        }
+
+        self
+    }
+}
+
+const DEFS_PREFIX: &str = "/#defs/";
+const COMPONENTS_PREFIX: &str = "/#components/schemas/";
+
+impl RefOr<Schema> {
+    /// Used to replace /#defs/ with openapi /components/schemas/<schema-name>
+    ///
+    /// e.g.
+    /// ```json
+    /// {
+    ///    "$ref": "/#defs/a/b
+    /// }
+    /// ```
+    ///
+    /// becomes
+    ///
+    /// ```json
+    /// {
+    ///    "$ref": /#components/schemas/<schema-name>/a/b"
+    /// }
+    /// ```
+    pub fn root_defs_to_openapi_schemas<SN: AsRef<str>>(
+        &mut self,
+        schema_name: Option<SN>,
+    ) -> &mut Self {
+        // map caused some compiler errors due to ownership
+        match schema_name {
+            Some(schema_name) => self.replace_defs_with_openapi_schemas(Some(schema_name.as_ref())),
+            None => self.replace_defs_with_openapi_schemas(None),
+        };
+        self
+    }
+}
+
+trait RefRootDefsReplace {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self;
+}
+
+impl RefRootDefsReplace for RefOr<Schema> {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
         match self {
+            // use non recursive version for the ref itself
             RefOr::Ref(ref_) => {
-                if ref_.ref_location.starts_with("/#defs/") {
-                    ref_.ref_location =
-                        ref_.ref_location
-                            .replacen("/#defs/", "#/components/schemas/", 1);
+                if ref_.ref_location.starts_with(DEFS_PREFIX) {
+                    let replacement = schema_name
+                        .map(|schema| format!("{COMPONENTS_PREFIX}{schema}/"))
+                        .unwrap_or(COMPONENTS_PREFIX.into());
+
+                    ref_.ref_location = ref_.ref_location.replacen(DEFS_PREFIX, &replacement, 1);
                 }
             }
-            RefOr::T(_) => {}
+
+            // any schema should use recursive version
+            RefOr::T(t) => {
+                t.replace_defs_with_openapi_schemas(schema_name);
+            }
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for Components {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        for schema in &mut self.schemas {
+            schema.1.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for Defs {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        for (_, schema) in self.iter_mut() {
+            schema.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for Schema {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        match self {
+            Schema::Const(_) => {}
+            Schema::Array(array) => {
+                array.replace_defs_with_openapi_schemas(schema_name);
+            }
+            Schema::Object(object) => {
+                object.replace_defs_with_openapi_schemas(schema_name);
+            }
+            Schema::OneOf(one_of) => {
+                one_of.replace_defs_with_openapi_schemas(schema_name);
+            }
+            Schema::AllOf(all_of) => {
+                all_of.replace_defs_with_openapi_schemas(schema_name);
+            }
+            Schema::AnyOf(any_of) => {
+                any_of.replace_defs_with_openapi_schemas(schema_name);
+            }
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for Array {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        self.defs.replace_defs_with_openapi_schemas(schema_name);
+        for item in &mut self.prefix_items {
+            item.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        match &mut self.items {
+            super::schema::ArrayItems::RefOrSchema(ref_or) => {
+                ref_or.replace_defs_with_openapi_schemas(schema_name);
+            }
+            super::schema::ArrayItems::False => {}
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for AdditionalProperties<Schema> {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        match self {
+            AdditionalProperties::RefOr(ref_or) => {
+                ref_or.replace_defs_with_openapi_schemas(schema_name);
+            }
+            AdditionalProperties::FreeForm(_) => {}
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for Object {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        self.defs.replace_defs_with_openapi_schemas(schema_name);
+
+        for property in self.properties.values_mut() {
+            property.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        if let Some(additional_properties) = &mut self.additional_properties {
+            additional_properties.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        if let Some(property_names) = &mut self.property_names {
+            property_names.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for OneOf {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        self.defs.replace_defs_with_openapi_schemas(schema_name);
+
+        for item in &mut self.items {
+            item.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        self
+    }
+}
+
+impl RefRootDefsReplace for AllOf {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        self.defs.replace_defs_with_openapi_schemas(schema_name);
+
+        for item in &mut self.items {
+            item.replace_defs_with_openapi_schemas(schema_name);
+        }
+
+        self
+    }
+}
+impl RefRootDefsReplace for AnyOf {
+    fn replace_defs_with_openapi_schemas(&mut self, schema_name: Option<&str>) -> &mut Self {
+        self.defs.replace_defs_with_openapi_schemas(schema_name);
+
+        for item in &mut self.items {
+            item.replace_defs_with_openapi_schemas(schema_name);
         }
 
         self
@@ -301,8 +501,8 @@ impl<T> RefOr<T> {
 pub mod test {
     use super::*;
     use crate::openapi::{
-        schema::{SchemaType, Type},
-        ComponentsBuilder, ObjectBuilder, OpenApiBuilder,
+        schema::{AnyOfBuilder, ArrayItems, RefBuilder, SchemaType, Type},
+        AllOfBuilder, ArrayBuilder, ComponentsBuilder, ObjectBuilder, OneOfBuilder, OpenApiBuilder,
     };
 
     const BASIC: &str = r##"
@@ -391,13 +591,127 @@ pub mod test {
     fn additional_schemas_extraction() {
         let defs = serde_json::from_str(BASIC).unwrap();
 
-        let mut openapi = OpenApiBuilder::new().components(Some(
-            ComponentsBuilder::new()
-                .schema("MySchema", ObjectBuilder::new().defs(defs))
-                .build(),
-        )).build();
+        let mut openapi = OpenApiBuilder::new()
+            .components(Some(
+                ComponentsBuilder::new()
+                    .schema("MySchema", ObjectBuilder::new().defs(defs))
+                    .build(),
+            ))
+            .build();
 
         openapi.extract_components_from_schemas_def();
-        assert_eq!(openapi.components.unwrap().schemas.len(), 3);
+
+        // defs should be promoted to components
+        assert_eq!(openapi.components.as_ref().unwrap().schemas.len(), 3);
+
+        let my_schema = openapi
+            .components
+            .unwrap()
+            .schemas
+            .iter()
+            .find(|x| x.0 == "MySchema")
+            .map(|x| match x.1 {
+                RefOr::T(schema) => schema,
+                _ => panic!("It should be schema"),
+            })
+            .unwrap()
+            .clone();
+
+        // old defs should be kept intact
+        assert_eq!(my_schema.defs().map(|defs| defs.len()), Some(2));
+    }
+
+    #[test]
+    fn root_defs_to_openapi_schemas() {
+        let simple_ref: RefOr<Schema> = RefOr::Ref(
+            RefBuilder::new()
+                .ref_location("/#defs/MyStruct".into())
+                .into(),
+        );
+
+        let defsobj_with_ref = ObjectBuilder::new()
+            .title("BaseDefsObj".into())
+            .property("base", simple_ref.clone());
+        let defs = DefsBuilder::new().def("DefObj", defsobj_with_ref).build();
+
+        let any_of_with_ref = AnyOfBuilder::new()
+            .title("AnyOf".into())
+            .item(simple_ref.clone())
+            .defs(defs.clone())
+            .build();
+
+        let one_of_with_ref = OneOfBuilder::new()
+            .title("OneOf".into())
+            .item(simple_ref.clone())
+            .defs(defs.clone())
+            .build();
+
+        let all_of_with_ref = AllOfBuilder::new()
+            .title("AllOf".into())
+            .item(simple_ref.clone())
+            .defs(defs.clone())
+            .build();
+
+        let object_with_ref = ObjectBuilder::new()
+            .schema_type(SchemaType::Type(Type::Object))
+            .title(Some("Obj"))
+            .property("prop", simple_ref.clone())
+            .additional_properties(Some(AdditionalProperties::RefOr(simple_ref.clone())))
+            .property_names(Some(any_of_with_ref.clone()))
+            .defs(defs.clone());
+
+        let array_with_ref = ArrayBuilder::new()
+            .schema_type(SchemaType::Type(Type::Array))
+            .title(Some("AraryWithRef"))
+            .items(ArrayItems::RefOrSchema(Box::new(simple_ref.clone())));
+
+        let openapi = OpenApiBuilder::new()
+            .components(Some(
+                ComponentsBuilder::new()
+                    .schema("AnyOfRef", RefOr::T(any_of_with_ref.into()))
+                    .schema("OneOffRef", RefOr::T(one_of_with_ref.into()))
+                    .schema("AllOffRef", RefOr::T(all_of_with_ref.into()))
+                    .schema("ObjectRef", RefOr::T(object_with_ref.into()))
+                    .schema("ArrayRef", RefOr::T(array_with_ref.into()))
+                    .build(),
+            ))
+            .build();
+
+        let stringified = serde_json::to_string_pretty(&openapi).unwrap();
+        let initial_defs_ref_count = stringified.matches(DEFS_PREFIX).count();
+        let non_suffixed_stringified = serde_json::to_string_pretty(
+            openapi.clone().refs_to_openapi_format(Option::<&str>::None),
+        )
+        .unwrap();
+
+        assert_eq!(
+            non_suffixed_stringified.matches(DEFS_PREFIX).count(),
+            0,
+            "No original {DEFS_PREFIX} should be present"
+        );
+
+        assert_eq!(
+            initial_defs_ref_count,
+            non_suffixed_stringified.matches(COMPONENTS_PREFIX).count(),
+            "All occurences of {DEFS_PREFIX} should be replaced with {COMPONENTS_PREFIX}\nSchema: {non_suffixed_stringified}"
+        );
+
+        let suffix = "MySuffixSchema";
+        let suffixed_stringified =
+            serde_json::to_string_pretty(openapi.clone().refs_to_openapi_format(Some(suffix)))
+                .unwrap();
+
+        assert_eq!(
+            suffixed_stringified.matches(DEFS_PREFIX).count(),
+            0,
+            "No original {DEFS_PREFIX} should be present"
+        );
+
+        let suffixed = format!("{COMPONENTS_PREFIX}{suffix}/");
+        assert_eq!(
+            initial_defs_ref_count,
+            suffixed_stringified.matches(&suffixed).count(),
+            "All occurences of {DEFS_PREFIX} should be replaced with {suffixed}\nSchema: {suffixed_stringified}"
+        );
     }
 }
