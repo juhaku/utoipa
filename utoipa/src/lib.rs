@@ -511,7 +511,9 @@ macro_rules! impl_to_schema {
 
 #[rustfmt::skip]
 impl_to_schema!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroIsize,
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroUsize 
 );
 
 impl ToSchema for &str {
@@ -1263,6 +1265,31 @@ impl_from_for_number!(
     isize => Int, usize => UInt
 );
 
+macro_rules! impl_from_for_num_alias {
+    ( $( $ty:ident => $pat:ident $( as $as:ident )? ),* ) => {
+        $(
+        impl From<$ty> for Number {
+            fn from(value: $ty) -> Self {
+                Self::$pat(value.get() $( as $as )?)
+            }
+        }
+        )*
+    };
+}
+
+use std::num::{
+    NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+};
+
+#[rustfmt::skip]
+impl_from_for_num_alias!(
+    NonZeroI8 => Int as isize, NonZeroI16 => Int as isize, NonZeroI32 => Int as isize,
+    NonZeroI64 => Int as isize, NonZeroI128 => Int as isize, NonZeroIsize => Int as isize,
+    NonZeroU8 => UInt as usize, NonZeroU16 => UInt as usize, NonZeroU32 => UInt as usize,
+    NonZeroU64 => UInt as usize, NonZeroU128 => UInt as usize, NonZeroUsize => UInt as usize
+);
+
 /// Internal dev module used internally by utoipa-gen
 #[doc(hidden)]
 #[cfg(feature = "macros")]
@@ -1271,6 +1298,10 @@ pub mod __dev {
     use utoipa_gen::schema;
 
     use crate::{utoipa, OpenApi, PartialSchema};
+    use std::num::{
+        NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+    };
 
     pub trait PathConfig {
         fn path() -> String;
@@ -1356,7 +1387,10 @@ pub mod __dev {
 
     #[rustfmt::skip]
     impl_compose_schema!(
-        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, 
+        NonZeroIsize, NonZeroUsize
     );
 
     fn schema_or_compose<T: ComposeSchema>(
@@ -1627,6 +1661,17 @@ mod tests {
         assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
         assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
         assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
+
+        assert_compact_json_snapshot!(NonZeroI8::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(NonZeroI16::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(NonZeroI32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(NonZeroI64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(NonZeroI128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(NonZeroIsize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(NonZeroU8::schema(), @r#"{"type": "integer", "format": "int32", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU16::schema(), @r#"{"type": "integer", "format": "int32", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU32::schema(), @r#"{"type": "integer", "format": "int32", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU64::schema(), @r#"{"type": "integer", "format": "int64", "exclusiveMinimum": 0}"#);
     }
 
     #[cfg(feature = "non_strict_integers")]
@@ -1640,8 +1685,19 @@ mod tests {
         assert_compact_json_snapshot!(isize::schema(), @r#"{"type": "integer"}"#);
         assert_compact_json_snapshot!(u8::schema(), @r#"{"type": "integer", "format": "uint8", "minimum": 0}"#);
         assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 0}"#);
-        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
-        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "uint32", "minimum": 0}"#);
+        assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "uint64", "minimum": 0}"#);
+
+        assert_compact_json_snapshot!(NonZeroI8::schema(), @r#"{"type": "integer", "format": "int8"}"#);
+        assert_compact_json_snapshot!(NonZeroI16::schema(), @r#"{"type": "integer", "format": "int16"}"#);
+        assert_compact_json_snapshot!(NonZeroI32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(NonZeroI64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(NonZeroI128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(NonZeroIsize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(NonZeroU8::schema(), @r#"{"type": "integer", "format": "uint8", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU16::schema(), @r#"{"type": "integer", "format": "uint16", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU32::schema(), @r#"{"type": "integer", "format": "uint32", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU64::schema(), @r#"{"type": "integer", "format": "uint64", "exclusiveMinimum": 0}"#);
     }
 
     #[test]

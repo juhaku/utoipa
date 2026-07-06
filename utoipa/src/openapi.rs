@@ -25,6 +25,7 @@ pub use self::{
 };
 
 pub mod content;
+pub mod defs;
 pub mod encoding;
 pub mod example;
 pub mod extensions;
