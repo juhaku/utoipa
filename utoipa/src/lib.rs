@@ -1687,6 +1687,17 @@ mod tests {
         assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 0}"#);
         assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "uint32", "minimum": 0}"#);
         assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "uint64", "minimum": 0}"#);
+
+        assert_compact_json_snapshot!(NonZeroI8::schema(), @r#"{"type": "integer", "format": "int8"}"#);
+        assert_compact_json_snapshot!(NonZeroI16::schema(), @r#"{"type": "integer", "format": "int16"}"#);
+        assert_compact_json_snapshot!(NonZeroI32::schema(), @r#"{"type": "integer", "format": "int32"}"#);
+        assert_compact_json_snapshot!(NonZeroI64::schema(), @r#"{"type": "integer", "format": "int64"}"#);
+        assert_compact_json_snapshot!(NonZeroI128::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(NonZeroIsize::schema(), @r#"{"type": "integer"}"#);
+        assert_compact_json_snapshot!(NonZeroU8::schema(), @r#"{"type": "integer", "format": "uint8", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU16::schema(), @r#"{"type": "integer", "format": "uint16", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU32::schema(), @r#"{"type": "integer", "format": "uint32", "exclusiveMinimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU64::schema(), @r#"{"type": "integer", "format": "uint64", "exclusiveMinimum": 0}"#);
     }
 
     #[test]
