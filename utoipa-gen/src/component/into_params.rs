@@ -108,7 +108,7 @@ impl ToTokensDiagnostics for IntoParams {
         let parameter_in = pop_feature!(into_params_features => Feature::ParameterIn(_));
         let rename_all = pop_feature!(into_params_features => Feature::RenameAll(_));
 
-        let parameter_tokens = self
+        let params = self
             .get_struct_fields(&names.as_ref())?
             .enumerate()
             .map(|(index, field)| {
@@ -161,7 +161,7 @@ impl ToTokensDiagnostics for IntoParams {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
                     let mut parameters = Vec::<utoipa::openapi::path::Parameter>::new();
-                    #( parameters.extend(#parameter_tokens); )*
+                    #( parameters.extend(#params); )*
                     parameters
                 }
             }

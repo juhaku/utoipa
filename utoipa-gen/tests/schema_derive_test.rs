@@ -3651,3 +3651,36 @@ fn derive_inline_option_ref_with_nullable_false_and_default() {
 
     assert_json_snapshot!(schema);
 }
+
+// Smoke test: deriving `ToSchema` on a wide struct keeps compiling and produces
+// a valid schema. Related to the large stack array fix (juhaku/utoipa#1454).
+#[test]
+fn derive_schema_with_many_fields_compiles() {
+    #![allow(unused)]
+
+    macro_rules! wide_struct {
+        ($name:ident; $($field:ident),+ $(,)?) => {
+            #[derive(ToSchema)]
+            struct $name {
+                $($field: String,)+
+            }
+        };
+    }
+
+    wide_struct!(WideStruct;
+        f000, f001, f002, f003, f004, f005, f006, f007, f008, f009,
+        f010, f011, f012, f013, f014, f015, f016, f017, f018, f019,
+        f020, f021, f022, f023, f024, f025, f026, f027, f028, f029,
+        f030, f031, f032, f033, f034, f035, f036, f037, f038, f039,
+        f040, f041, f042, f043, f044, f045, f046, f047, f048, f049,
+        f050, f051, f052, f053, f054, f055, f056, f057, f058, f059,
+        f060, f061, f062, f063, f064, f065, f066, f067, f068, f069,
+        f070, f071, f072, f073, f074, f075, f076, f077, f078, f079,
+        f080, f081, f082, f083, f084, f085, f086, f087, f088, f089,
+        f090, f091, f092, f093, f094, f095, f096, f097, f098, f099,
+    );
+
+    use utoipa::PartialSchema;
+    let schema = <WideStruct as PartialSchema>::schema();
+    serde_json::to_value(schema).expect("wide schema is JSON serializable");
+}

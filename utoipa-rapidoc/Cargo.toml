@@ -35,5 +35,5 @@ axum = { version = "0.8.4", default-features = false, features = [
 [dev-dependencies]
 utoipa-rapidoc = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+[lints]
+workspace = true
