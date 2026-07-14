@@ -2375,6 +2375,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `schema_with = ...` Use _`schema`_ created by provided function reference instead of the
 ///   default derived _`schema`_. The function must match to `fn() -> Into<RefOr<Schema>>`. It does
 ///   not accept arguments and must return anything that can be converted into `RefOr<Schema>`.
+///   When used together with `#[serde(flatten)]`, the function must instead accept the
+///   `parameter_in` provider and return a `Vec<Parameter>` for the flattened parameter list.
 ///
 /// * `additional_properties = ...` Can be used to define free form types for maps such as
 ///   [`HashMap`](std::collections::HashMap) and [`BTreeMap`](std::collections::BTreeMap).
@@ -2402,6 +2404,9 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `skip_serializing = "..."` Supported  **only** at the field or variant level.
 /// * `skip_deserializing = "..."` Supported  **only** at the field or variant level.
 /// * `skip = "..."` Supported  **only** at the field level.
+/// * `flatten` Supported **only** at the field level. Flattened fields must implement
+///   [`IntoParams`][into_params] unless `#[param(schema_with = ...)]` provides the flattened
+///   parameter list or `#[param(ignore)]` always ignores the field.
 ///
 /// Other _`serde`_ attributes will impact the serialization but will not be reflected on the generated OpenAPI doc.
 ///

@@ -21,6 +21,7 @@
 * Emit `vec![...]` instead of stack allocated array literals in generated `ToSchema`/`IntoParams` code to avoid `clippy::large_stack_arrays` and stack overflows for types with many fields (https://github.com/juhaku/utoipa/issues/1454)
 * Avoid degenerate `oneOf` for `Option<_>` with `nullable = false` and `default`/`title`/`description` (https://github.com/juhaku/utoipa/pull/1380)
 * Fix `jiff` type detection when only the `jiff_0_2` feature is enabled (https://github.com/juhaku/utoipa/pull/1575)
+* Support `#[serde(flatten)]` fields in `IntoParams` derive, including custom flattened parameter lists with `#[param(schema_with = ...)]`.
 
 ## 5.5.0 - May 5 2026
 
