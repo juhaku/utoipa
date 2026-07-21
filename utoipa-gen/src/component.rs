@@ -1576,6 +1576,7 @@ impl<'a, T> Iterator for ChildRefIter<'a, T> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct FlattenedMapSchema {
     tokens: TokenStream,
+    pub schema_references: Vec<SchemaReference>,
 }
 
 impl FlattenedMapSchema {
@@ -1598,7 +1599,7 @@ impl FlattenedMapSchema {
         // additionalProperties denoting the type
         // maps have 2 child schemas and we are interested the second one of them
         // which is used to determine the additional properties
-        let schema_property = ComponentSchema::new(ComponentSchemaProps {
+        let mut schema_property = ComponentSchema::new(ComponentSchemaProps {
             container,
             type_tree: type_tree
                 .children
@@ -1609,6 +1610,7 @@ impl FlattenedMapSchema {
             features,
             description: None,
         })?;
+        let schema_references = std::mem::take(&mut schema_property.schema_references);
         let schema_tokens = schema_property.to_token_stream();
 
         tokens.extend(quote_diagnostics! {
@@ -1621,7 +1623,10 @@ impl FlattenedMapSchema {
         example.to_tokens(&mut tokens)?;
         nullable.to_tokens(&mut tokens)?;
 
-        Ok(Self { tokens })
+        Ok(Self {
+            tokens,
+            schema_references,
+        })
     }
 }
 

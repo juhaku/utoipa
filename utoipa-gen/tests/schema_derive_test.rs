@@ -105,6 +105,61 @@ fn derive_flattened_map_ref_property() {
 }
 
 #[test]
+fn derive_flattened_map_ref_property_collects_recursive_schema() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    struct Bar {
+        value: i64,
+    }
+
+    #[derive(ToSchema)]
+    struct Foo {
+        #[serde(flatten)]
+        data: HashMap<String, Bar>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Foo)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let schemas = doc
+        .pointer("/components/schemas")
+        .and_then(Value::as_object)
+        .expect("schemas object exists");
+
+    // `Bar` referenced through the flattened `HashMap` must be discovered recursively.
+    assert!(
+        schemas.contains_key("Bar"),
+        "expected `Bar` to be collected recursively, got: {:?}",
+        schemas.keys().collect::<Vec<_>>()
+    );
+    assert_json_snapshot!(schemas, @r###"
+    {
+      "Bar": {
+        "properties": {
+          "value": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
+      "Foo": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/Bar"
+        },
+        "type": "object"
+      }
+    }
+    "###);
+}
+
+#[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
         #[schema(default = "Mode1", example = "Mode2")]
