@@ -1,10 +1,13 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use insta::assert_json_snapshot;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
+
+#[cfg(feature = "repr")]
+use serde_repr::{Serialize_repr, Deserialize_repr};
 
 mod common;
 
@@ -2366,8 +2369,16 @@ fn derive_struct_with_no_additional_properties() {
 #[test]
 #[cfg(feature = "repr")]
 fn derive_schema_for_repr_enum() {
+    #[derive(Deserialize_repr, Serialize_repr)]
+    #[repr(i32)]
+    enum ExitCode {
+        Error  = -1,
+        Ok     = 0,
+        Unknown = 1,
+    }
+
     let value = api_doc! {
-        #[derive(serde::Deserialize)]
+        #[derive(Deserialize_repr, Serialize_repr)]
         #[repr(i32)]
         #[schema(example = 1, default = 0)]
         enum ExitCode {
@@ -2377,14 +2388,26 @@ fn derive_schema_for_repr_enum() {
         }
     };
 
+    assert_eq!(serde_json::to_string(&ExitCode::Error).unwrap(), "-1");
+    assert!(matches!(serde_json::from_str("1").unwrap(), ExitCode::Unknown));
+
     assert_json_snapshot!(value);
 }
 
 #[test]
 #[cfg(feature = "repr")]
 fn derive_schema_for_tagged_repr_enum() {
+    #[derive(Deserialize_repr, Serialize_repr)]
+    #[serde(tag = "tag")]
+    #[repr(u8)]
+    enum TaggedEnum {
+        One = 0,
+        Two,
+        Three,
+    }
+
     let value: Value = api_doc! {
-        #[derive(serde::Deserialize, serde::Serialize)]
+        #[derive(Deserialize_repr, Serialize_repr)]
         #[serde(tag = "tag")]
         #[repr(u8)]
         enum TaggedEnum {
@@ -2393,6 +2416,13 @@ fn derive_schema_for_tagged_repr_enum() {
             Three,
         }
     };
+
+    assert_eq!(serde_json::to_string(&TaggedEnum::One).unwrap(), r#"{"tag": 0}"#);
+    assert_eq!(serde_json::to_string(&TaggedEnum::Two).unwrap(), r#"{"tag": 1}"#);
+    assert_eq!(serde_json::to_string(&TaggedEnum::Three).unwrap(), r#"{"tag": 2}"#);
+    assert!(matches!(serde_json::from_str(r#"{"tag": 0}"#).unwrap(), TaggedEnum::One));
+    assert!(matches!(serde_json::from_str(r#"{"tag": 1}"#).unwrap(), TaggedEnum::Two));
+    assert!(matches!(serde_json::from_str(r#"{"tag": 2}"#).unwrap(), TaggedEnum::Three));
 
     assert_json_snapshot!(value);
 }
