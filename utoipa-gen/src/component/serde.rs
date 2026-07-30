@@ -29,6 +29,7 @@ pub struct SerdeValue {
     pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
+    pub untagged: bool,
     pub skip_serializing_if: bool,
     pub double_option: bool,
 }
@@ -67,6 +68,7 @@ impl SerdeValue {
                             .unwrap_or(false);
                     }
                     TokenTree::Ident(ident) if ident == "flatten" => value.flatten = true,
+                    TokenTree::Ident(ident) if ident == "untagged" => value.untagged = true,
                     TokenTree::Ident(ident) if ident == "rename" => {
                         if let Some((literal, _)) = parse_next_lit_str(next) {
                             value.rename = Some(literal)
@@ -240,6 +242,9 @@ pub fn parse_value(attributes: &[Attribute]) -> Result<SerdeValue, Diagnostics> 
             }
             if value.flatten {
                 acc.flatten = value.flatten;
+            }
+            if value.untagged {
+                acc.untagged = value.untagged;
             }
             if value.default {
                 acc.default = value.default;

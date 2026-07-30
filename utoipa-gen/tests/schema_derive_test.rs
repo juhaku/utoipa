@@ -1284,6 +1284,154 @@ fn derive_mixed_enum_with_ref_serde_untagged_named_fields() {
 }
 
 #[test]
+fn derive_mixed_enum_serde_partially_untagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One,
+            #[serde(untagged)]
+            Two(String),
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_named_fields() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { m: i32 },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_unit_variant() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn mixed_enum_serde_partially_untagged_unit_variant_proof() {
+    #[derive(Serialize)]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two,
+    }
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two).unwrap(), r#"null"#);
+}
+
+#[test]
+fn mixed_enum_serde_partially_untagged_named_fields_proof() {
+    #[derive(Serialize)]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            m: i32,
+        },
+    }
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two { m: 3 }).unwrap(),
+        r#"{"m":3}"#
+    );
+}
+
+#[test]
+#[ignore = "not implemented"]
+fn derive_unit_variants_serde_partially_untagged() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            TaggedOne,
+            #[serde(untagged)]
+            UntaggedTwo,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn unit_variants_serde_partially_untagged_proof() {
+    #[derive(Serialize)]
+    enum Foo {
+        TaggedOne,
+        #[serde(untagged)]
+        UntaggedTwo,
+    }
+
+    assert_eq!(
+        serde_json::to_string(&Foo::TaggedOne).unwrap(),
+        r#""TaggedOne""#
+    );
+    assert_eq!(serde_json::to_string(&Foo::UntaggedTwo).unwrap(), r#"null"#);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_partially_renamed() {
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            #[serde(rename = "First")]
+            One,
+            #[serde(untagged)]
+            Two(usize),
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn mixed_enum_serde_partially_untagged_partially_renamed_proof() {
+    #[derive(Serialize, serde::Deserialize)]
+    enum Foo {
+        #[serde(rename = "First")]
+        One,
+        #[serde(untagged)]
+        Two(usize),
+    }
+
+    assert_eq!(serde_json::to_string(&Foo::One).unwrap(), "\"First\"");
+    assert_eq!(serde_json::to_string(&Foo::Two(5)).unwrap(), "5");
+    assert!(matches!(
+        serde_json::from_str("\"First\"").unwrap(),
+        Foo::One
+    ));
+    assert!(matches!(serde_json::from_str("5").unwrap(), Foo::Two(5)));
+}
+
+#[test]
 fn derive_mixed_enum_with_ref_serde_untagged_named_fields_rename_all() {
     #[derive(Serialize, ToSchema)]
     struct Bar {

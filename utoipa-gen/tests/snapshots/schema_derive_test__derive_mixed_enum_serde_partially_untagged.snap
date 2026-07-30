@@ -1,0 +1,17 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "enum": [
+        "One"
+      ],
+      "type": "string"
+    },
+    {
+      "type": "string"
+    }
+  ]
+}
