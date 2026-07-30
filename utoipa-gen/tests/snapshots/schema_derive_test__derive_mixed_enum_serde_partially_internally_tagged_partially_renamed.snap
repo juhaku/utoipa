@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "First"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    {
+      "minimum": 0,
+      "type": "integer"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: bar_value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "Two": {
+          "properties": {
+            "m": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "m"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Two"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "Three": {
+          "properties": {
+            "o": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "o"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Three"
+      ],
+      "type": "object"
+    }
+  ]
+}
