@@ -855,10 +855,17 @@ impl<'e> EnumSchema<'e> {
         parent: &'e Root<'e>,
         variants: &'e Punctuated<Variant, Comma>,
     ) -> Result<Self, Diagnostics> {
-        if variants
+        let all_unit_not_partially_tagged = variants
             .iter()
-            .all(|variant| matches!(variant.fields, Fields::Unit))
-        {
+            .map(|variant| {
+                Ok(matches!(variant.fields, Fields::Unit)
+                    && !serde::parse_value(&variant.attrs)?.untagged)
+            })
+            .collect::<Result<Vec<bool>, Diagnostics>>()?
+            .into_iter()
+            .all(|is_plain| is_plain);
+
+        if all_unit_not_partially_tagged {
             #[cfg(feature = "repr")]
             let mut features = {
                 if parent

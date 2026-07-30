@@ -1832,8 +1832,14 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_adjacently_tagged_named_field
 }
 
 #[test]
-#[ignore = "not implemented"]
 fn derive_unit_variants_serde_partially_untagged() {
+    #[derive(Serialize)]
+    enum Foo {
+        TaggedOne,
+        #[serde(untagged)]
+        UntaggedTwo,
+    }
+
     let value: Value = api_doc! {
         #[derive(Serialize)]
         enum Foo {
@@ -1843,23 +1849,13 @@ fn derive_unit_variants_serde_partially_untagged() {
         }
     };
 
-    assert_json_snapshot!(value);
-}
-
-#[test]
-fn unit_variants_serde_partially_untagged_proof() {
-    #[derive(Serialize)]
-    enum Foo {
-        TaggedOne,
-        #[serde(untagged)]
-        UntaggedTwo,
-    }
-
     assert_eq!(
         serde_json::to_string(&Foo::TaggedOne).unwrap(),
         r#""TaggedOne""#
     );
     assert_eq!(serde_json::to_string(&Foo::UntaggedTwo).unwrap(), r#"null"#);
+
+    assert_json_snapshot!(value);
 }
 
 #[test]

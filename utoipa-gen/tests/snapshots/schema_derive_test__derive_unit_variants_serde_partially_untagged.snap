@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "enum": [
+        "TaggedOne"
+      ],
+      "type": "string"
+    },
+    {
+      "default": null,
+      "type": "null"
+    }
+  ]
+}
