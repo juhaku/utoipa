@@ -1,7 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use insta::assert_json_snapshot;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
@@ -1299,52 +1299,6 @@ fn derive_mixed_enum_serde_partially_untagged() {
 
 #[test]
 fn derive_mixed_enum_serde_partially_untagged_named_fields() {
-    let value: Value = api_doc! {
-        #[derive(Serialize)]
-        enum Foo {
-            One { n: i32 },
-            #[serde(untagged)]
-            Two { m: i32 },
-        }
-    };
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
-fn derive_mixed_enum_serde_partially_untagged_unit_variant() {
-    let value: Value = api_doc! {
-        #[derive(Serialize)]
-        enum Foo {
-            One { n: i32 },
-            #[serde(untagged)]
-            Two,
-        }
-    };
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
-fn mixed_enum_serde_partially_untagged_unit_variant_proof() {
-    #[derive(Serialize)]
-    enum Foo {
-        One {
-            n: i32,
-        },
-        #[serde(untagged)]
-        Two,
-    }
-
-    assert_eq!(
-        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
-        r#"{"One":{"n":3}}"#
-    );
-    assert_eq!(serde_json::to_string(&Foo::Two).unwrap(), r#"null"#);
-}
-
-#[test]
-fn mixed_enum_serde_partially_untagged_named_fields_proof() {
     #[derive(Serialize)]
     enum Foo {
         One {
@@ -1356,6 +1310,15 @@ fn mixed_enum_serde_partially_untagged_named_fields_proof() {
         },
     }
 
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { m: i32 },
+        }
+    };
+
     assert_eq!(
         serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
         r#"{"One":{"n":3}}"#
@@ -1364,6 +1327,99 @@ fn mixed_enum_serde_partially_untagged_named_fields_proof() {
         serde_json::to_string(&Foo::Two { m: 3 }).unwrap(),
         r#"{"m":3}"#
     );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_unit_variant() {
+    #[derive(Serialize)]
+    enum Foo {
+        One { n: i32 },
+        #[serde(untagged)]
+        Two,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two).unwrap(), r#"null"#);
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_with_ref_serde_partially_untagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { bar: Bar },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_with_enum_ref_serde_partially_untagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    enum Bar {
+        Two { m: String },
+        Three { o: u64 },
+    }
+
+    #[derive(Serialize)]
+    enum Foo {
+        One { n: i32 },
+        #[serde(untagged)]
+        Other(Bar),
+    }
+
+    let bar_value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            Two { m: String },
+            Three { o: u64 },
+        }
+    };
+    let foo_value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Other(Bar),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Other(Bar::Two{ m: "baz".into() })).unwrap(),
+        r#"{"Two":{"m":"baz"}}"#
+    );
+
+    assert_json_snapshot!(bar_value);
+    assert_json_snapshot!(foo_value);
 }
 
 #[test]
@@ -1399,6 +1455,14 @@ fn unit_variants_serde_partially_untagged_proof() {
 
 #[test]
 fn derive_mixed_enum_serde_partially_untagged_partially_renamed() {
+    #[derive(Serialize, Deserialize)]
+    enum Foo {
+        #[serde(rename = "First")]
+        One,
+        #[serde(untagged)]
+        Two(usize),
+    }
+
     let value: Value = api_doc! {
         #[derive(Serialize)]
         enum Foo {
@@ -1409,19 +1473,6 @@ fn derive_mixed_enum_serde_partially_untagged_partially_renamed() {
         }
     };
 
-    assert_json_snapshot!(value);
-}
-
-#[test]
-fn mixed_enum_serde_partially_untagged_partially_renamed_proof() {
-    #[derive(Serialize, serde::Deserialize)]
-    enum Foo {
-        #[serde(rename = "First")]
-        One,
-        #[serde(untagged)]
-        Two(usize),
-    }
-
     assert_eq!(serde_json::to_string(&Foo::One).unwrap(), "\"First\"");
     assert_eq!(serde_json::to_string(&Foo::Two(5)).unwrap(), "5");
     assert!(matches!(
@@ -1429,6 +1480,8 @@ fn mixed_enum_serde_partially_untagged_partially_renamed_proof() {
         Foo::One
     ));
     assert!(matches!(serde_json::from_str("5").unwrap(), Foo::Two(5)));
+
+    assert_json_snapshot!(value);
 }
 
 #[test]
