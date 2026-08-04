@@ -1320,23 +1320,37 @@ impl ComponentSchema {
                         // non generic likewise.
                         object_schema_reference.references =
                             quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
-                        let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
+                        let composed_or_ref = |item_tokens: TokenStream,
+                                               generics: &Generics|
+                         -> TokenStream {
                             if let Some(index) = &index {
-                                quote_spanned! {type_path.span()=>
-                                    {
-                                        let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
-
-                                        if let Some(composed) = generics.get_mut(#index) {
-                                            composed.clone()
-                                        } else {
+                                let param = generics.params.get(*index);
+                                if let Some(GenericParam::Type(composed)) = param {
+                                    quote_spanned! {type_path.span()=>
+                                        {
+                                            let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+                                            let name = <#rewritten_path as utoipa::ToSchema>::name();
+                                            utoipa::openapi::schema::RefBuilder::new().ref_location_from_schema_name(name)
+                                        }
+                                    }
+                                } else if let Some(composed) = param {
+                                    let composed = composed.clone();
+                                    quote_spanned! {type_path.span()=>
+                                        {
+                                            let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+                                        }
+                                        #composed
+                                    }
+                                } else {
+                                    quote_spanned! {type_path.span()=>
+                                        {
+                                            let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
                                             #item_tokens.into()
                                         }
                                     }
                                 }
                             } else {
-                                quote_spanned! {type_path.span()=>
-                                    #item_tokens
-                                }
+                                quote_spanned! {type_path.span()=> #item_tokens }
                             }
                         };
 
@@ -1344,28 +1358,34 @@ impl ComponentSchema {
                         // on schemas more over there is no way to distinct the `summary` from
                         // `description` of the ref. Should we consider supporting the summary?
                         let schema = if nullable {
-                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::OneOfBuilder::new()
-                                    .item(utoipa::openapi::schema::RefBuilder::new()
+                            composed_or_ref(
+                                quote_diagnostics_spanned! {type_path.span()=>
+                                    utoipa::openapi::schema::OneOfBuilder::new()
+                                        .item(utoipa::openapi::schema::RefBuilder::new()
+                                            #description_stream
+                                            .ref_location_from_schema_name(#name_tokens)
+                                        )
+                                        #nullable_item
+                                        @title
+                                        @default
+                                        @read_only
+                                        @write_only
+                                }?,
+                                container.generics,
+                            )
+                        } else {
+                            composed_or_ref(
+                                quote_diagnostics_spanned! {type_path.span()=>
+                                    utoipa::openapi::schema::RefBuilder::new()
                                         #description_stream
                                         .ref_location_from_schema_name(#name_tokens)
-                                    )
-                                    #nullable_item
-                                    @title
-                                    @default
-                                    @read_only
-                                    @write_only
-                            }?)
-                        } else {
-                            composed_or_ref(quote_diagnostics_spanned! {type_path.span()=>
-                                utoipa::openapi::schema::RefBuilder::new()
-                                    #description_stream
-                                    .ref_location_from_schema_name(#name_tokens)
-                                    @title
-                                    @default
-                                    @read_only
-                                    @write_only
-                            }?)
+                                        @title
+                                        @default
+                                        @read_only
+                                        @write_only
+                                }?,
+                                container.generics,
+                            )
                         };
 
                         schema.to_tokens(tokens);

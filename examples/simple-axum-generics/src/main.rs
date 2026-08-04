@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use axum::{routing::get, Json};
-use utoipa::{IntoParams, OpenApi, ToSchema};
+use utoipa::{IntoParams, OpenApi, ToSchema, PartialSchema};
 
 #[derive(ToSchema)]
 enum Bird {
@@ -50,7 +50,7 @@ async fn beetles() -> Json<utoipa::openapi::OpenApi> {
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(beetles, birds))]
+#[openapi(paths(beetles, birds), components(schemas(Bird, Beetle)))]
 struct ApiDoc {}
 
 #[tokio::main]
