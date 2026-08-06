@@ -204,6 +204,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
 ///   `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///   recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
+/// * `extensions(...)` List of extensions to add to the field. See below for the format.
 ///
 /// #### Field nullability and required rules
 ///
@@ -468,6 +469,19 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+///
+/// # Extensions Requirements Attributes
+///
+/// * `x-property` defines the name of the extension.
+/// * `json!(...)` defines the value associated with the named extension as a `serde_json::Value`.
+///
+/// **Extensions Requitement supported formats:**
+///
+/// ```text
+/// ("x-property" = json!({ "type": "mock" }) ),
+/// ("x-an-extension" = json!({ "type": "mock" }) ),
+/// ("x-another-extension" = json!( "body" ) ),
+/// ```
 ///
 /// # Partial `#[serde(...)]` attributes support
 ///
