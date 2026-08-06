@@ -165,6 +165,27 @@ fn mode_custom_default_fn() -> String {
 }
 
 #[test]
+fn derive_struct_with_extensions_success() {
+    let book = api_doc!(
+        struct Book {
+            #[schema(
+                extensions(
+                    ("x-extension-1" = json!({ "type": "extension1" })),
+                    ("x-extension-2" = json!({ "type": "extension2", "value": 2 }))
+                )
+            )]
+            name: String,
+        }
+    );
+
+    assert_value! {book=>
+        "properties.name.x-extension-1.type" = r#""extension1""#, "Book extension 1"
+        "properties.name.x-extension-2.type" = r#""extension2""#, "Book extension 2"
+        "properties.name.x-extension-2.value" = r#"2"#, "Book extension 2 value"
+    }
+}
+
+#[test]
 fn derive_struct_with_defaults_success() {
     let book = api_doc! {
         struct Book {
