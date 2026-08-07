@@ -177,14 +177,11 @@ fn get_generic_schemas(generics: &Generics) -> Vec<TokenStream> {
         .iter()
         .filter_map(|p| {
             if let GenericParam::Type(tp) = p {
-                Some(tp)
+                let ident = tp.ident.clone();
+                Some(quote! { <#ident as utoipa::PartialSchema>::schema() })
             } else {
                 None
             }
-        })
-        .map(|tp| {
-            let ident = tp.ident.clone();
-            quote! { <#ident as utoipa::PartialSchema>::schema() }
         })
         .collect::<Vec<_>>()
 }
