@@ -1994,6 +1994,7 @@ fn derive_into_params_with_generic_field() {
 
     #[derive(IntoParams)]
     #[into_params(parameter_in = Query)]
+    #[allow(unused)]
     struct QueryParams<AnimalType: ToSchema> {
         animal: AnimalType,
     }
