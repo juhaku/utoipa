@@ -172,7 +172,6 @@ impl ToTokensDiagnostics for IntoParams {
 }
 
 fn get_generic_schemas(generics: &Generics) -> Vec<TokenStream> {
-    // generics.params.iter().map()
     generics
         .params
         .iter()
