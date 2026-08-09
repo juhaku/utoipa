@@ -1,0 +1,22 @@
+[package]
+name = "openapi-3_2-sse"
+description = "Axum example documenting a Server-Sent Events (SSE) endpoint using OpenAPI 3.2"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Drifter-J <latenytcoffee@gmail.com>"]
+
+[dependencies]
+axum = "0.8.0"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.17", features = ["full"] }
+tokio-stream = "0.1"
+utoipa = { path = "../../utoipa", features = ["axum_extras", "uuid"] }
+utoipa-axum = { path = "../../utoipa-axum" }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+rand = "0.8"
+
+[workspace]

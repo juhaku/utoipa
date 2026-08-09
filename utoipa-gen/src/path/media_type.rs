@@ -25,16 +25,29 @@ pub mod encoding;
 
 use encoding::Encoding;
 
-/// Parse OpenAPI Media Type object params
-/// ( Schema )
-/// ( Schema = "content/type" )
-/// ( "content/type", ),
-/// ( "content/type", example = ..., examples(..., ...), encoding(("exampleField" = (...)), ...), extensions(("x-ext" = json!(...))) )
+/// Parsed representation of OpenAPI Media Type object attributes.
+///
+/// Maps to configuration options for request body content or response content,
+/// e.g. within `responses(...)` or `request_body(...)`.
+///
+/// Supports the following configuration styles:
+/// * **Shorthand type form:** `Schema` (e.g. `Pet` or `inline(Pet)`)
+/// * **Shorthand type + content type form:** `Schema = "content/type"` (e.g. `Pet = "application/json"`)
+/// * **Shorthand content type only:** `"content/type"` (e.g. `"text/event-stream"`)
+/// * **Full attribute form:** `"content/type"`, `item_schema = ...`, `example = ...`, `examples(...)`, etc.
+///
+/// Supported named attributes:
+/// * **item_schema** Optional schema describing each item of a streaming media type (OpenAPI 3.2 `itemSchema`).
+/// * **example** Optional single example of the media type value.
+/// * **examples** Optional multiple examples of the media type value.
+/// * **encoding** Optional map between property names and their encoding information.
+/// * **extensions** Optional custom extensions prefixing with `x-`.#[derive(Default)]
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct MediaTypeAttr<'m> {
     pub content_type: Option<parse_utils::LitStrOrExpr>, // if none, true guess
     pub schema: Schema<'m>,
+    pub item_schema: Schema<'m>,
     pub example: Option<AnyValue>,
     pub examples: Punctuated<Example, Comma>,
     pub encoding: BTreeMap<String, Encoding>,
@@ -107,6 +120,10 @@ impl<'m> MediaTypeAttr<'m> {
         let name = &*attribute.to_string();
 
         match name {
+            "item_schema" => {
+                let schema = parse_utils::parse_next(input, || Self::parse_schema(input))?;
+                self.item_schema = Schema::Default(schema);
+            }
             "example" => {
                 self.example = Some(parse_utils::parse_next(input, || {
                     AnyValue::parse_any(input)
@@ -152,7 +169,7 @@ impl<'m> MediaTypeAttr<'m> {
                 return Err(syn::Error::new(
                     attribute.span(),
                     format!(
-                        "unexpected attribute: {unexpected}, expected any of: example, examples, encoding(...), extensions(...)"
+                        "unexpected attribute: {unexpected}, expected any of: item_schema, example, examples, encoding(...), extensions(...)"
                     ),
                 ))
             }
@@ -173,6 +190,12 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
             None
         } else {
             Some(quote! { .schema(Some(#schema)) })
+        };
+        let item_schema = &self.item_schema.try_to_token_stream()?;
+        let item_schema_tokens = if item_schema.is_empty() {
+            None
+        } else {
+            Some(quote! { .item_schema(Some(#item_schema)) })
         };
         let example = self
             .example
@@ -204,6 +227,7 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
         tokens.extend(quote! {
             utoipa::openapi::content::ContentBuilder::new()
                 #schema_tokens
+                #item_schema_tokens
                 #example
                 #examples
                 #(#encoding)*

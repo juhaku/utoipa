@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add support for the media type `item_schema = ...` attribute in `responses(...)`/`request_body(...)`, mapping to OpenAPI 3.2's `itemSchema` keyword for streaming/event-based media types such as `text/event-stream`
 * Add macro/derive support for OpenAPI 3.2 (https://github.com/juhaku/utoipa/pull/1555)
   - Supports `summary`, `parent`, and `kind` in `#[derive(OpenApi)]` tag parsing
   - Supports `querystring` and `cookie` style in path parameter parsing
