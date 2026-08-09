@@ -180,12 +180,25 @@ pub enum SecurityScheme {
     /// Authentication is done via client side certificate.
     ///
     /// OpenApi 3.1 type
+    ///
+    /// # Examples
+    ///
+    /// Declare mutual TLS authentication with a description.
+    /// ```rust
+    /// # use utoipa::openapi::security::SecurityScheme;
+    /// SecurityScheme::MutualTls {
+    ///     description: Some("Client certificate required".to_string()),
+    ///     deprecated: None,
+    ///     extensions: None,
+    /// };
+    /// ```
     #[serde(rename = "mutualTLS")]
     MutualTls {
-        #[allow(missing_docs)]
+        /// Optional description explaining how the mutual TLS certificate should be obtained
+        /// and used. Description supports markdown syntax.
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
-        #[allow(missing_docs)]
+        /// Declares whether the security scheme is deprecated.
         #[serde(skip_serializing_if = "Option::is_none")]
         deprecated: Option<Deprecated>,
         /// Optional extensions "x-something".
@@ -266,6 +279,15 @@ impl ApiKeyValue {
     }
 
     /// Add or change deprecated status.
+    ///
+    /// # Examples
+    ///
+    /// Mark an api key security scheme as deprecated.
+    /// ```rust
+    /// # use utoipa::openapi::security::ApiKeyValue;
+    /// # use utoipa::openapi::Deprecated;
+    /// ApiKeyValue::new("api_key").deprecated(Some(Deprecated::True));
+    /// ```
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
         self.deprecated = deprecated;
         self
@@ -369,6 +391,19 @@ impl HttpBuilder {
     }
 
     /// Add or change deprecated status.
+    ///
+    /// # Examples
+    ///
+    /// Mark a bearer HTTP authentication scheme as deprecated.
+    /// ```rust
+    /// # use utoipa::openapi::security::{HttpBuilder, HttpAuthScheme};
+    /// # use utoipa::openapi::Deprecated;
+    /// HttpBuilder::new()
+    ///     .scheme(HttpAuthScheme::Bearer)
+    ///     .bearer_format("JWT")
+    ///     .deprecated(Some(Deprecated::True))
+    ///     .build();
+    /// ```
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
         self.deprecated = deprecated;
         self
@@ -462,6 +497,15 @@ impl OpenIdConnect {
     }
 
     /// Add or change deprecated status.
+    ///
+    /// # Examples
+    ///
+    /// Mark an OpenID Connect security scheme as deprecated.
+    /// ```rust
+    /// # use utoipa::openapi::security::OpenIdConnect;
+    /// # use utoipa::openapi::Deprecated;
+    /// OpenIdConnect::new("https://localhost/openid").deprecated(Some(Deprecated::True));
+    /// ```
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
         self.deprecated = deprecated;
         self
@@ -584,12 +628,44 @@ impl OAuth2 {
     }
 
     /// Add OAuth2 authorization server metadata URL.
+    ///
+    /// # Examples
+    ///
+    /// Add authorization server metadata URL to an existing [`OAuth2`] security scheme.
+    /// ```rust
+    /// # use utoipa::openapi::security::{OAuth2, Flow, Password, Scopes};
+    /// OAuth2::new([Flow::Password(
+    ///     Password::new(
+    ///         "https://localhost/oauth/token",
+    ///         Scopes::from_iter([("edit:items", "edit my items")]),
+    ///     ),
+    /// )])
+    /// .with_metadata_url("https://localhost/.well-known/oauth-authorization-server");
+    /// ```
     pub fn with_metadata_url<S: Into<String>>(mut self, oauth2_metadata_url: S) -> Self {
         self.oauth2_metadata_url = Some(oauth2_metadata_url.into());
         self
     }
 
     /// Add or change deprecated status.
+    ///
+    /// Declaring a security scheme deprecated signals to API consumers that they should migrate
+    /// away from it. This is an OpenAPI 3.2 addition available on all [`SecurityScheme`] variants.
+    ///
+    /// # Examples
+    ///
+    /// Mark an [`OAuth2`] security scheme as deprecated.
+    /// ```rust
+    /// # use utoipa::openapi::security::{OAuth2, Flow, Password, Scopes};
+    /// # use utoipa::openapi::Deprecated;
+    /// OAuth2::new([Flow::Password(
+    ///     Password::new(
+    ///         "https://localhost/oauth/token",
+    ///         Scopes::from_iter([("edit:items", "edit my items")]),
+    ///     ),
+    /// )])
+    /// .deprecated(Some(Deprecated::True));
+    /// ```
     pub fn deprecated(mut self, deprecated: Option<Deprecated>) -> Self {
         self.deprecated = deprecated;
         self
@@ -846,6 +922,27 @@ pub struct DeviceAuthorization {
 
 impl DeviceAuthorization {
     /// Construct a new device authorization OAuth2 flow.
+    ///
+    /// First parameter is the device authorization endpoint URL where the client requests a
+    /// device code, second parameter is the token URL used to poll for the access token, and the
+    /// third parameter defines the scopes available for the flow.
+    ///
+    /// # Examples
+    ///
+    /// Create a device authorization flow and use it in an [`OAuth2`] security scheme.
+    /// ```rust
+    /// # use utoipa::openapi::security::{OAuth2, Flow, DeviceAuthorization, Scopes};
+    /// OAuth2::new([Flow::DeviceAuthorization(
+    ///     DeviceAuthorization::new(
+    ///         "https://localhost/oauth/device/code",
+    ///         "https://localhost/oauth/token",
+    ///         Scopes::from_iter([
+    ///             ("edit:items", "edit my items"),
+    ///             ("read:items", "read my items"),
+    ///         ]),
+    ///     ),
+    /// )]);
+    /// ```
     pub fn new<D: Into<String>, T: Into<String>>(
         device_authorization_url: D,
         token_url: T,
@@ -861,6 +958,19 @@ impl DeviceAuthorization {
     }
 
     /// Construct a new device authorization OAuth2 flow with additional refresh URL.
+    ///
+    /// # Examples
+    ///
+    /// Create a device authorization flow with a refresh token URL.
+    /// ```rust
+    /// # use utoipa::openapi::security::{DeviceAuthorization, Scopes};
+    /// DeviceAuthorization::with_refresh_url(
+    ///     "https://localhost/oauth/device/code",
+    ///     "https://localhost/oauth/token",
+    ///     Scopes::from_iter([("edit:items", "edit my items")]),
+    ///     "https://localhost/oauth/refresh",
+    /// );
+    /// ```
     pub fn with_refresh_url<S: Into<String>>(
         device_authorization_url: S,
         token_url: S,
