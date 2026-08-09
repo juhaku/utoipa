@@ -75,15 +75,19 @@ impl utoipa::Modify for ApiModify {
         extend_servers(&mut openapi.servers, "[Modify] openapi");
 
         fn extend_parameters(
-            parameters: &mut Option<Vec<utoipa::openapi::path::Parameter>>,
+            parameters: &mut Option<Vec<utoipa::openapi::RefOr<utoipa::openapi::path::Parameter>>>,
             text: &str,
         ) {
             parameters
                 .get_or_insert(Vec::new())
                 .iter_mut()
-                .for_each(|i| {
+                .filter_map(|parameter| match parameter {
+                    utoipa::openapi::RefOr::T(parameter) => Some(parameter),
+                    utoipa::openapi::RefOr::Ref(_) => None,
+                })
+                .for_each(|parameter| {
                     extend(
-                        &mut i.extensions,
+                        &mut parameter.extensions,
                         format!("{text}>Parameters>item").as_str(),
                     );
                 });
@@ -114,16 +118,18 @@ impl utoipa::Modify for ApiModify {
                         );
                     }
                 });
-                if let Some(request_body) = &mut operation.request_body {
+                if let Some(utoipa::openapi::RefOr::T(request_body)) = &mut operation.request_body {
                     extend(
                         &mut request_body.extensions,
                         format!("{text}>RequestBody").as_str(),
                     );
-                    request_body.content.iter_mut().for_each(|(_, i)| {
-                        extend(
-                            &mut i.extensions,
-                            format!("{text}>RequestBody>Content").as_str(),
-                        );
+                    request_body.content.iter_mut().for_each(|(_, content)| {
+                        if let utoipa::openapi::RefOr::T(content) = content {
+                            extend(
+                                &mut content.extensions,
+                                format!("{text}>RequestBody>Content").as_str(),
+                            );
+                        }
                     });
                 }
             }

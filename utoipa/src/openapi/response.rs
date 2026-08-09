@@ -118,19 +118,24 @@ builder! {
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[serde(rename_all = "camelCase")]
     pub struct Response {
+        /// Short summary of the response.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub summary: Option<String>,
+
         /// Description of the response. Response support markdown syntax.
+        #[serde(skip_serializing_if = "String::is_empty", default)]
         pub description: String,
 
         /// Map of headers identified by their name. `Content-Type` header will be ignored.
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub headers: BTreeMap<String, Header>,
+        pub headers: BTreeMap<String, RefOr<Header>>,
 
         /// Map of response [`Content`] objects identified by response body content type e.g `application/json`.
         ///
         /// [`Content`]s are stored within [`IndexMap`] to retain their insertion order. Swagger UI
         /// will create and show default example according to the first entry in `content` map.
         #[serde(skip_serializing_if = "IndexMap::is_empty", default)]
-        pub content: IndexMap<String, Content>,
+        pub content: IndexMap<String, RefOr<Content>>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -161,16 +166,41 @@ impl ResponseBuilder {
         set_value!(self description description.into())
     }
 
+    /// Add short summary of the response.
+    pub fn summary<I: Into<String>>(mut self, summary: Option<I>) -> Self {
+        set_value!(self summary summary.map(Into::into))
+    }
+
     /// Add [`Content`] of the [`Response`] with content type e.g `application/json`.
-    pub fn content<S: Into<String>>(mut self, content_type: S, content: Content) -> Self {
-        self.content.insert(content_type.into(), content);
+    pub fn content<S: Into<String>, C: Into<Content>>(
+        mut self,
+        content_type: S,
+        content: C,
+    ) -> Self {
+        self.content
+            .insert(content_type.into(), content.into().into());
+
+        self
+    }
+
+    /// Add reusable [`Content`] reference by content type e.g `application/json`.
+    pub fn content_ref<S: Into<String>>(mut self, content_type: S, content_ref: Ref) -> Self {
+        self.content
+            .insert(content_type.into(), RefOr::Ref(content_ref));
 
         self
     }
 
     /// Add response [`Header`].
     pub fn header<S: Into<String>>(mut self, name: S, header: Header) -> Self {
-        self.headers.insert(name.into(), header);
+        self.headers.insert(name.into(), header.into());
+
+        self
+    }
+
+    /// Add response [`Header`] reference.
+    pub fn header_ref<S: Into<String>>(mut self, name: S, header: Ref) -> Self {
+        self.headers.insert(name.into(), RefOr::Ref(header));
 
         self
     }
@@ -244,7 +274,7 @@ impl ResponseExt for Response {
     fn json_schema_ref(mut self, ref_name: &str) -> Response {
         self.content.insert(
             "application/json".to_string(),
-            Content::new(Some(crate::openapi::Ref::from_schema_name(ref_name))),
+            Content::new(Some(crate::openapi::Ref::from_schema_name(ref_name))).into(),
         );
         self
     }
