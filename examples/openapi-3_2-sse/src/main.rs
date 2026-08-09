@@ -72,14 +72,17 @@ async fn pet_events() -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
 }
 
-/// Opt the whole document in to OpenAPI 3.2 output with `version = "3.2.0"`
+/// Opt the whole document in to OpenAPI 3.2 output via `ApiDoc::openapi().openapi(...)`
 #[derive(OpenApi)]
-#[openapi(version = "3.2.0", components(schemas(PetEvent)))]
+#[openapi(components(schemas(PetEvent)))]
 struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
-    let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+    let mut api = ApiDoc::openapi();
+    api.openapi = utoipa::openapi::OpenApiVersion::Version32;
+
+    let (router, api) = OpenApiRouter::with_openapi(api)
         .routes(routes!(pet_events))
         .split_for_parts();
 
@@ -99,7 +102,10 @@ mod tests {
 
     #[test]
     fn sse_response_documents_item_schema() {
-        let (_, api) = OpenApiRouter::<()>::with_openapi(ApiDoc::openapi())
+        let mut api = ApiDoc::openapi();
+        api.openapi = utoipa::openapi::OpenApiVersion::Version32;
+
+        let (_, api) = OpenApiRouter::<()>::with_openapi(api)
             .routes(routes!(pet_events))
             .split_for_parts();
 
