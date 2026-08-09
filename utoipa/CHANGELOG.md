@@ -7,6 +7,13 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Added
 
+* Add support for OpenAPI 3.2.0 specification via `Version32` (https://github.com/juhaku/utoipa/pull/1555)
+  - Supports `$self` (`self_uri` field), `webhooks`, and `jsonSchemaDialect` on OpenAPI root
+  - Adds expanded components support: `mediaTypes`, `parameters`, `examples`, `requestBodies`, `headers`, `links`, `callbacks`, and `pathItems`
+  - Aligns OpenAPI 3.2 operation/path support: path item `$ref`, `query` operation, and `additionalOperations`
+  - Expands media type and streaming support: Media Type `itemSchema`, `description`, `itemEncoding`, `prefixEncoding`, and Server-Sent Events / typed streaming payload modeling
+  - Adds other OpenAPI 3.2 fixed fields: Tag `summary`, `parent`, and `kind`; Server `name`; XML `nodeType`; Response `summary`; Example `dataValue` and `serializedValue`; Parameter location `querystring`; Parameter style `cookie`; OAuth2 `deviceAuthorization` and `oauth2MetadataUrl`; `deprecated` on security schemes
+* Correct Link Object serialization to use OpenAPI camelCase fixed fields: `operationId`, `operationRef`, and `requestBody` (https://github.com/juhaku/utoipa/pull/1555)
 * Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
 * Add support for `title` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)
 * Add support for `default` on `RefBuilder` (https://github.com/juhaku/utoipa/pull/1380)

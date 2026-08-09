@@ -267,6 +267,25 @@ impl ComponentsBuilder {
     }
 
     /// Add [`Content`] to [`Components`] as a reusable media type object.
+    ///
+    /// Reusable media types are an OpenAPI 3.2 addition, added to the `mediaTypes` map of
+    /// [`Components`]. They can then be referenced by name from `content` maps using
+    /// [`RefOr::Ref`], instead of repeating the same media type definition across multiple
+    /// operations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, ContentBuilder, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .media_type(
+    ///         "PetJson",
+    ///         ContentBuilder::new()
+    ///             .schema(Some(ObjectBuilder::new().schema_type(Type::Object)))
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
     pub fn media_type<S: Into<String>, C: Into<RefOr<Content>>>(
         mut self,
         name: S,
@@ -277,6 +296,22 @@ impl ComponentsBuilder {
     }
 
     /// Add multiple reusable media type objects from an iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, ContentBuilder, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .media_types_from_iter([
+    ///         (
+    ///             "PetJson",
+    ///             ContentBuilder::new()
+    ///                 .schema(Some(ObjectBuilder::new().schema_type(Type::Object)))
+    ///                 .build(),
+    ///         ),
+    ///     ])
+    ///     .build();
+    /// ```
     pub fn media_types_from_iter<
         I: IntoIterator<Item = (S, C)>,
         S: Into<String>,
@@ -295,6 +330,22 @@ impl ComponentsBuilder {
     }
 
     /// Add reusable [`Parameter`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, path::{ParameterBuilder, ParameterIn}, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .parameter(
+    ///         "Limit",
+    ///         ParameterBuilder::new()
+    ///             .name("limit")
+    ///             .parameter_in(ParameterIn::Query)
+    ///             .schema(Some(ObjectBuilder::new().schema_type(Type::Integer)))
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
     pub fn parameter<S: Into<String>, P: Into<RefOr<Parameter>>>(
         mut self,
         name: S,
@@ -305,6 +356,15 @@ impl ComponentsBuilder {
     }
 
     /// Add reusable [`Example`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, example::ExampleBuilder};
+    /// let components = ComponentsBuilder::new()
+    ///     .example("Accepted", ExampleBuilder::new().summary("Accepted").build())
+    ///     .build();
+    /// ```
     pub fn example<S: Into<String>, E: Into<RefOr<Example>>>(
         mut self,
         name: S,
@@ -315,6 +375,25 @@ impl ComponentsBuilder {
     }
 
     /// Add reusable [`RequestBody`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, request_body::RequestBodyBuilder, ContentBuilder, Ref};
+    /// let components = ComponentsBuilder::new()
+    ///     .request_body(
+    ///         "EventRequest",
+    ///         RequestBodyBuilder::new()
+    ///             .content(
+    ///                 "application/json",
+    ///                 ContentBuilder::new()
+    ///                     .schema(Some(Ref::from_schema_name("EventPayload")))
+    ///                     .build(),
+    ///             )
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
     pub fn request_body<S: Into<String>, R: Into<RefOr<RequestBody>>>(
         mut self,
         name: S,
@@ -325,18 +404,62 @@ impl ComponentsBuilder {
     }
 
     /// Add reusable [`Header`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, header::HeaderBuilder, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .header(
+    ///         "RateLimit",
+    ///         HeaderBuilder::new()
+    ///             .schema(Some(ObjectBuilder::new().schema_type(Type::Integer)))
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
     pub fn header<S: Into<String>, H: Into<RefOr<Header>>>(mut self, name: S, header: H) -> Self {
         self.headers.insert(name.into(), header.into());
         self
     }
 
     /// Add reusable [`Link`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, link::LinkBuilder};
+    /// let components = ComponentsBuilder::new()
+    ///     .link("GetEvent", LinkBuilder::new().operation_id("getEvent").build())
+    ///     .build();
+    /// ```
     pub fn link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
         self.links.insert(name.into(), link.into());
         self
     }
 
     /// Add reusable [`Callback`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, path::{PathItemBuilder, OperationBuilder}, response::ResponseBuilder};
+    /// # use std::collections::BTreeMap;
+    /// let callback_path = PathItemBuilder::new()
+    ///     .query(Some(
+    ///         OperationBuilder::new().response("200", ResponseBuilder::new()),
+    ///     ))
+    ///     .build();
+    /// let components = ComponentsBuilder::new()
+    ///     .callback(
+    ///         "EventCallback",
+    ///         BTreeMap::from([(
+    ///             "{$request.body#/callbackUrl}".to_string(),
+    ///             callback_path.into(),
+    ///         )]),
+    ///     )
+    ///     .build();
+    /// ```
     pub fn callback<S: Into<String>, C: Into<RefOr<Callback>>>(
         mut self,
         name: S,
@@ -347,6 +470,20 @@ impl ComponentsBuilder {
     }
 
     /// Add reusable [`PathItem`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, path::{PathItemBuilder, OperationBuilder}, response::ResponseBuilder};
+    /// let path_item = PathItemBuilder::new()
+    ///     .query(Some(
+    ///         OperationBuilder::new().response("200", ResponseBuilder::new()),
+    ///     ))
+    ///     .build();
+    /// let components = ComponentsBuilder::new()
+    ///     .path_item("EventPath", path_item)
+    ///     .build();
+    /// ```
     pub fn path_item<S: Into<String>, P: Into<PathItem>>(mut self, name: S, path_item: P) -> Self {
         self.path_items.insert(name.into(), path_item.into());
         self

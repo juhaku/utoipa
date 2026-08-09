@@ -92,7 +92,13 @@ builder! {
         pub paths: Paths,
 
         /// Incoming requests that may be initiated by the API provider independently of an
-        /// incoming API request.
+        /// incoming API request. For example, a subscription confirmation request sent to a
+        /// consumer-provided webhook URL after they register for notifications.
+        ///
+        /// Each key is a unique identifier for the webhook, e.g. `newPet`, and the value is a
+        /// [`PathItem`][path::PathItem] describing the request that the API provider will send.
+        ///
+        /// See more details at <https://spec.openapis.org/oas/latest.html#oas-webhooks>.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub webhooks: Option<Paths>,
 
@@ -124,7 +130,11 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub external_docs: Option<ExternalDocs>,
 
-        /// The default JSON Schema dialect used by Schema Objects in this OpenAPI document.
+        /// The default JSON Schema dialect used by Schema Objects contained within this OpenAPI
+        /// document. Individual [`Schema`]s may still override this by declaring their own
+        /// `$schema` keyword.
+        ///
+        /// See more details at <https://spec.openapis.org/oas/latest.html#schema-object>.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub json_schema_dialect: Option<String>,
 
@@ -135,7 +145,10 @@ builder! {
         #[serde(rename = "$schema", default, skip_serializing_if = "String::is_empty")]
         pub schema: String,
 
-        /// URI identifying this OpenAPI document.
+        /// URI identifying this OpenAPI document, used as the base URI for resolving relative
+        /// references (e.g. `$ref` values) within the document.
+        ///
+        /// See more details at <https://spec.openapis.org/oas/latest.html#fixed-fields>.
         #[serde(rename = "$self", skip_serializing_if = "Option::is_none")]
         pub self_uri: Option<String>,
 
@@ -338,6 +351,17 @@ impl OpenApiBuilder {
     ///
     /// Defaults to [`OpenApiVersion::Version31`]. Set [`OpenApiVersion::Version32`] to opt in to
     /// OpenAPI 3.2 output.
+    ///
+    /// # Examples
+    ///
+    /// Opt in to OpenAPI 3.2 output.
+    /// ```rust
+    /// # use utoipa::openapi::{OpenApiBuilder, OpenApiVersion, Info};
+    /// let openapi = OpenApiBuilder::new()
+    ///     .openapi(OpenApiVersion::Version32)
+    ///     .info(Info::new("my api", "0.1.0"))
+    ///     .build();
+    /// ```
     pub fn openapi(mut self, openapi: OpenApiVersion) -> Self {
         set_value!(self openapi openapi)
     }
@@ -358,6 +382,27 @@ impl OpenApiBuilder {
     }
 
     /// Add [`Paths`] to describe incoming requests that may be initiated by the API provider.
+    ///
+    /// # Examples
+    ///
+    /// Describe a `newPet` webhook that the API provider may send to a subscriber.
+    /// ```rust
+    /// # use utoipa::openapi::{
+    /// #     OpenApiBuilder, Info, Paths, PathsBuilder, PathItem, HttpMethod,
+    /// #     path::OperationBuilder, response::Response,
+    /// # };
+    /// let openapi = OpenApiBuilder::new()
+    ///     .info(Info::new("Events API", "1.0.0"))
+    ///     .paths(Paths::new())
+    ///     .webhooks(Some(PathsBuilder::new().path(
+    ///         "newPet",
+    ///         PathItem::new(
+    ///             HttpMethod::Post,
+    ///             OperationBuilder::new().response("200", Response::new("Webhook received")),
+    ///         ),
+    ///     )))
+    ///     .build();
+    /// ```
     pub fn webhooks<P: Into<Paths>>(mut self, webhooks: Option<P>) -> Self {
         set_value!(self webhooks webhooks.map(Into::into))
     }
@@ -401,11 +446,29 @@ impl OpenApiBuilder {
     }
 
     /// Add or change the default JSON Schema dialect for Schema Objects.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::OpenApiBuilder;
+    /// let _ = OpenApiBuilder::new()
+    ///     .json_schema_dialect(Some("https://spec.openapis.org/oas/3.2/dialect/2025-09-17"))
+    ///     .build();
+    /// ```
     pub fn json_schema_dialect<S: Into<String>>(mut self, json_schema_dialect: Option<S>) -> Self {
         set_value!(self json_schema_dialect json_schema_dialect.map(Into::into))
     }
 
     /// Add or change the URI identifying this OpenAPI document.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::OpenApiBuilder;
+    /// let _ = OpenApiBuilder::new()
+    ///     .self_uri(Some("https://example.com/openapi.json"))
+    ///     .build();
+    /// ```
     pub fn self_uri<S: Into<String>>(mut self, self_uri: Option<S>) -> Self {
         set_value!(self self_uri self_uri.map(Into::into))
     }

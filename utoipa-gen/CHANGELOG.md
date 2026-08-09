@@ -4,6 +4,10 @@
 
 ### Added
 
+* Add macro/derive support for OpenAPI 3.2 (https://github.com/juhaku/utoipa/pull/1555)
+  - Supports `summary`, `parent`, and `kind` in `#[derive(OpenApi)]` tag parsing
+  - Supports `querystring` and `cookie` style in path parameter parsing
+  - Supports `data_value` and `serialized_value` in path examples
 * Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
 * Expand openAPI header fields (https://github.com/juhaku/utoipa/pull/1556)
 * Expand support for validation features in `#[schema(...)]` on new type structs (https://github.com/juhaku/utoipa/pull/1427)
@@ -13,6 +17,8 @@
 
 ### Changed
 
+* Update response header generation for optional schemas and content-capable headers (https://github.com/juhaku/utoipa/pull/1555)
+* Adjust generated media type tokens to avoid ambiguous `Into` inference after content maps gained reference support (https://github.com/juhaku/utoipa/pull/1555)
 * Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)
 * Use pastey instead of unmaintained paste and fix some clippy warnings (https://github.com/juhaku/utoipa/pull/1452)
 
