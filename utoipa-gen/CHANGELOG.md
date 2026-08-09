@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add support for selecting the OpenAPI document version via the `version = "..."` attribute in `#[derive(OpenApi)]` (accepts `"3.1.0"` or `"3.2.0"`, mapping to `OpenApiVersion`)
 * Add macro/derive support for OpenAPI 3.2 (https://github.com/juhaku/utoipa/pull/1555)
   - Supports `summary`, `parent`, and `kind` in `#[derive(OpenApi)]` tag parsing
   - Supports `querystring` and `cookie` style in path parameter parsing
