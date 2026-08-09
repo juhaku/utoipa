@@ -466,8 +466,8 @@ impl PathItemBuilder {
     }
 
     /// Append list of parameter references common to all [`Operation`]s to this [`PathItem`].
-    pub fn parameter_refs<I: IntoIterator<Item = Ref>>(mut self, parameters: Option<I>) -> Self {
-        set_value!(self parameters parameters.map(|parameters| parameters.into_iter().map(RefOr::Ref).collect()))
+    pub fn parameter_refs<I: IntoIterator<Item = Ref>>(mut self, refs: Option<I>) -> Self {
+        set_value!(self parameters refs.map(|refs| refs.into_iter().map(RefOr::Ref).collect()))
     }
 
     /// Add openapi extensions (x-something) to this [`PathItem`].
