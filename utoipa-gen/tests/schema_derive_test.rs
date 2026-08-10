@@ -1484,7 +1484,9 @@ fn derive_mixed_enum_serde_partially_adjacently_tagged_named_fields() {
 fn derive_mixed_enum_serde_partially_untagged_unit_variant() {
     #[derive(Serialize)]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
         Two,
     }
@@ -1512,7 +1514,9 @@ fn derive_mixed_enum_serde_partially_internally_tagged_unit_variant() {
     #[derive(Serialize)]
     #[serde(tag = "type")]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
         Two,
     }
@@ -1541,7 +1545,9 @@ fn derive_mixed_enum_serde_partially_adjacently_tagged_unit_variant() {
     #[derive(Serialize)]
     #[serde(tag = "type", content = "content")]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
         Two,
     }
@@ -1575,9 +1581,13 @@ fn derive_mixed_enum_with_ref_serde_partially_untagged_named_fields() {
 
     #[derive(Serialize)]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
-        Two { bar: Bar },
+        Two {
+            bar: Bar,
+        },
     }
 
     let value: Value = api_doc! {
@@ -1618,9 +1628,13 @@ fn derive_mixed_enum_with_ref_serde_partially_internally_tagged_named_fields() {
     #[derive(Serialize)]
     #[serde(tag = "type")]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
-        Two { bar: Bar },
+        Two {
+            bar: Bar,
+        },
     }
 
     let value: Value = api_doc! {
@@ -1662,9 +1676,13 @@ fn derive_mixed_enum_with_ref_serde_partially_adjacently_tagged_named_fields() {
     #[derive(Serialize)]
     #[serde(tag = "type", content = "content")]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
-        Two { bar: Bar },
+        Two {
+            bar: Bar,
+        },
     }
 
     let value: Value = api_doc! {
@@ -1705,7 +1723,9 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_untagged_named_fields() {
 
     #[derive(Serialize)]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
         Other(Bar),
     }
@@ -1731,7 +1751,7 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_untagged_named_fields() {
         r#"{"One":{"n":3}}"#
     );
     assert_eq!(
-        serde_json::to_string(&Foo::Other(Bar::Two{ m: "baz".into() })).unwrap(),
+        serde_json::to_string(&Foo::Other(Bar::Two { m: "baz".into() })).unwrap(),
         r#"{"Two":{"m":"baz"}}"#
     );
 
@@ -1750,7 +1770,9 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_internally_tagged_named_field
     #[derive(Serialize)]
     #[serde(tag = "type")]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
         Other(Bar),
     }
@@ -1777,7 +1799,7 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_internally_tagged_named_field
         r#"{"type":"One","n":3}"#
     );
     assert_eq!(
-        serde_json::to_string(&Foo::Other(Bar::Two{ m: "baz".into() })).unwrap(),
+        serde_json::to_string(&Foo::Other(Bar::Two { m: "baz".into() })).unwrap(),
         r#"{"Two":{"m":"baz"}}"#
     );
 
@@ -1796,7 +1818,9 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_adjacently_tagged_named_field
     #[derive(Serialize)]
     #[serde(tag = "type", content = "content")]
     enum Foo {
-        One { n: i32 },
+        One {
+            n: i32,
+        },
         #[serde(untagged)]
         Other(Bar),
     }
@@ -1823,7 +1847,7 @@ fn derive_mixed_enum_with_enum_ref_serde_partially_adjacently_tagged_named_field
         r#"{"type":"One","content":{"n":3}}"#
     );
     assert_eq!(
-        serde_json::to_string(&Foo::Other(Bar::Two{ m: "baz".into() })).unwrap(),
+        serde_json::to_string(&Foo::Other(Bar::Two { m: "baz".into() })).unwrap(),
         r#"{"Two":{"m":"baz"}}"#
     );
 
