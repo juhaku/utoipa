@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add support for generic types with `IntoParams` (https://github.com/juhaku/utoipa/pull/1588)
 * Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
 * Expand openAPI header fields (https://github.com/juhaku/utoipa/pull/1556)
 * Expand support for validation features in `#[schema(...)]` on new type structs (https://github.com/juhaku/utoipa/pull/1427)
