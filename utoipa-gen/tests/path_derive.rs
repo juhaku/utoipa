@@ -1974,6 +1974,46 @@ fn derive_into_params_with_ignored_struct_fn_field() {
 }
 
 #[test]
+fn derive_into_params_with_generic_field() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum Bird {
+        Sparrow,
+        Pigeon,
+        Crow,
+        Coot,
+    }
+
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum Beetle {
+        Stag,
+        Longhorn,
+        Weevil,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct QueryParams<AnimalType: ToSchema> {
+        animal: AnimalType,
+    }
+
+    #[utoipa::path(get, path = "/params", params(QueryParams<Bird>, QueryParams<Beetle>))]
+    #[allow(unused)]
+    fn get_params() {}
+
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+    let operation = operation.pointer("/parameters");
+
+    assert_json_snapshot!(operation);
+}
+
+#[test]
 fn derive_octet_stream_request_body() {
     #![allow(dead_code)]
 
