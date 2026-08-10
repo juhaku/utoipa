@@ -1883,6 +1883,76 @@ fn derive_unit_variants_serde_partially_untagged() {
 }
 
 #[test]
+fn derive_unit_variants_serde_mix_skip_untagged() {
+    #[derive(Serialize)]
+    enum Foo {
+        NormalOne,
+        #[serde(skip)]
+        SkipTwo(u8),
+        #[serde(untagged)]
+        UntaggedThree,
+        #[serde(untagged)]
+        UntaggedFour,
+        #[serde(skip, untagged)]
+        SkipUntaggedFive,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            NormalOne,
+            #[serde(skip)]
+            SkipTwo(u8),
+            #[serde(untagged)]
+            UntaggedThree,
+            #[serde(untagged)]
+            UntaggedFour,
+            #[serde(skip, untagged)]
+            SkipUntaggedFive,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::NormalOne).unwrap(),
+        r#""NormalOne""#
+    );
+    assert!(serde_json::to_string(&Foo::SkipTwo(42)).is_err());
+    assert_eq!(
+        serde_json::to_string(&Foo::UntaggedThree).unwrap(),
+        r#"null"#
+    );
+    assert!(serde_json::to_string(&Foo::SkipUntaggedFive).is_err());
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_unit_variants_serde_skip_non_unit() {
+    #[derive(Serialize)]
+    enum Foo {
+        One,
+        Two,
+        #[serde(skip)]
+        Three(u8),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One,
+            Two,
+            #[serde(skip)]
+            Three(u8),
+        }
+    };
+
+    assert_eq!(serde_json::to_string(&Foo::One).unwrap(), r#""One""#);
+    assert!(serde_json::to_string(&Foo::Three(42)).is_err());
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_mixed_enum_serde_partially_untagged_partially_renamed() {
     #[derive(Serialize, Deserialize)]
     enum Foo {

@@ -45,7 +45,7 @@ pub struct PlainEnum<'e> {
 impl<'e> PlainEnum<'e> {
     pub fn new(
         root: &'e Root,
-        variants: &Punctuated<Variant, Comma>,
+        variants_without_skipped: Vec<(&'e Variant, SerdeValue)>,
         mut features: Vec<Feature>,
     ) -> Result<Self, Diagnostics> {
         #[cfg(feature = "repr")]
@@ -58,21 +58,7 @@ impl<'e> PlainEnum<'e> {
         let description = pop_feature!(features => Feature::Description(_) as Option<Description>);
 
         let container_rules = serde::parse_container(root.attributes)?;
-        let variants_iter = variants
-            .iter()
-            .map(|variant| match serde::parse_value(&variant.attrs) {
-                Ok(variant_rules) => Ok((variant, variant_rules)),
-                Err(diagnostics) => Err(diagnostics),
-            })
-            .collect::<Result<Vec<_>, Diagnostics>>()?
-            .into_iter()
-            .filter_map(|(variant, variant_rules)| {
-                if variant_rules.skip {
-                    None
-                } else {
-                    Some((variant, variant_rules))
-                }
-            });
+        let variants_iter = variants_without_skipped.into_iter();
 
         let enum_variant = match repr_type_path {
             Some(repr_type_path) => PlainEnumRepr::Repr(
@@ -247,7 +233,7 @@ pub struct MixedEnum<'p> {
 impl<'p> MixedEnum<'p> {
     pub fn new(
         root: &'p Root,
-        variants: &Punctuated<Variant, Comma>,
+        variants_without_skipped: Vec<(&'p Variant, SerdeValue)>,
         mut features: Vec<Feature>,
     ) -> Result<Self, Diagnostics> {
         let attributes = root.attributes;
@@ -257,58 +243,35 @@ impl<'p> MixedEnum<'p> {
         let description = pop_feature!(features => Feature::Description(_) as Option<Description>);
         let discriminator = pop_feature!(features => Feature::Discriminator(_));
 
-        let variants = variants
-            .iter()
-            .map(|variant| match serde::parse_value(&variant.attrs) {
-                Ok(variant_rules) => Ok((variant, variant_rules)),
-                Err(diagnostics) => Err(diagnostics),
-            })
-            .collect::<Result<Vec<_>, Diagnostics>>()?
+        let variants = variants_without_skipped
             .into_iter()
-            .filter_map(|(variant, variant_rules)| {
-                if variant_rules.skip {
-                    None
-                } else {
-                    let variant_features = match &variant.fields {
-                        Fields::Named(_) => {
-                            match variant
-                                .attrs
-                                .parse_features::<EnumNamedFieldVariantFeatures>()
-                            {
-                                Ok(features) => features.into_inner().unwrap_or_default(),
-                                Err(diagnostics) => return Some(Err(diagnostics)),
-                            }
-                        }
-                        Fields::Unnamed(_) => {
-                            match variant
-                                .attrs
-                                .parse_features::<EnumUnnamedFieldVariantFeatures>()
-                            {
-                                Ok(features) => features.into_inner().unwrap_or_default(),
-                                Err(diagnostics) => return Some(Err(diagnostics)),
-                            }
-                        }
-                        Fields::Unit => {
-                            let parse_unit_features =
-                                features::parse_schema_features_with(&variant.attrs, |input| {
-                                    Ok(parse_features!(
-                                        input as Title,
-                                        Rename,
-                                        Example,
-                                        Examples,
-                                        Deprecated
-                                    ))
-                                });
+            .map(|(variant, variant_rules)| {
+                let variant_features = match &variant.fields {
+                    Fields::Named(_) => variant
+                        .attrs
+                        .parse_features::<EnumNamedFieldVariantFeatures>()?
+                        .into_inner()
+                        .unwrap_or_default(),
+                    Fields::Unnamed(_) => variant
+                        .attrs
+                        .parse_features::<EnumUnnamedFieldVariantFeatures>()?
+                        .into_inner()
+                        .unwrap_or_default(),
+                    Fields::Unit => {
+                        features::parse_schema_features_with(&variant.attrs, |input| {
+                            Ok(parse_features!(
+                                input as Title,
+                                Rename,
+                                Example,
+                                Examples,
+                                Deprecated
+                            ))
+                        })?
+                        .unwrap_or_default()
+                    }
+                };
 
-                            match parse_unit_features {
-                                Ok(features) => features.unwrap_or_default(),
-                                Err(diagnostics) => return Some(Err(diagnostics)),
-                            }
-                        }
-                    };
-
-                    Some(Ok((variant, variant_rules, variant_features)))
-                }
+                Ok((variant, variant_rules, variant_features))
             })
             .collect::<Result<Vec<_>, Diagnostics>>()?;
 
