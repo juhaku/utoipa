@@ -21,9 +21,21 @@ builder! {
         /// Name of the tag. Should match to tag of **operation**.
         pub name: String,
 
+        /// Short summary for the tag.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub summary: Option<String>,
+
         /// Additional description for the tag shown in the document.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
+
+        /// Name of this tag's parent tag.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub parent: Option<String>,
+
+        /// Kind of tag, allowing tooling to distinguish grouping tags from other tag purposes.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub kind: Option<String>,
 
         /// Additional external documentation for the tag.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,9 +63,24 @@ impl TagBuilder {
         set_value!(self name name.into())
     }
 
+    /// Add short summary for the tag.
+    pub fn summary<S: Into<String>>(mut self, summary: Option<S>) -> Self {
+        set_value!(self summary summary.map(|summary| summary.into()))
+    }
+
     /// Add additional description for the tag.
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add parent tag name.
+    pub fn parent<S: Into<String>>(mut self, parent: Option<S>) -> Self {
+        set_value!(self parent parent.map(|parent| parent.into()))
+    }
+
+    /// Add tag kind.
+    pub fn kind<S: Into<String>>(mut self, kind: Option<S>) -> Self {
+        set_value!(self kind kind.map(|kind| kind.into()))
     }
 
     /// Add additional external documentation for the tag.

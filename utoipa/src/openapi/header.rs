@@ -51,7 +51,7 @@ builder! {
 
         /// A map containing the representations for the header.
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub content: BTreeMap<String, Content>,
+        pub content: BTreeMap<String, RefOr<Content>>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -103,8 +103,18 @@ impl Default for Header {
 
 impl HeaderBuilder {
     /// Add schema of header.
-    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: I) -> Self {
-        set_value!(self schema Some(component.into()))
+    pub fn schema<I: Into<RefOr<Schema>>>(mut self, component: Option<I>) -> Self {
+        set_value!(self schema component.map(Into::into))
+    }
+
+    /// Add media type representation for the header.
+    pub fn content<S: Into<String>, C: Into<RefOr<Content>>>(
+        mut self,
+        content_type: S,
+        content: C,
+    ) -> Self {
+        self.content.insert(content_type.into(), content.into());
+        self
     }
 
     /// Add additional description for header.
@@ -151,7 +161,11 @@ impl HeaderBuilder {
     }
 
     /// Add media type content representation to [`Header`].
-    pub fn content_from_iter<E: IntoIterator<Item = (N, V)>, N: Into<String>, V: Into<Content>>(
+    pub fn content_from_iter<
+        E: IntoIterator<Item = (N, V)>,
+        N: Into<String>,
+        V: Into<RefOr<Content>>,
+    >(
         mut self,
         content: E,
     ) -> Self {
@@ -211,7 +225,7 @@ mod tests {
 
         let header = Header {
             schema: None,
-            content: BTreeMap::from_iter([("application/json".to_string(), content)]),
+            content: BTreeMap::from_iter([("application/json".to_string(), content.into())]),
             examples: BTreeMap::from_iter([("test_example".to_string(), example.into())]),
             ..Default::default()
         };
