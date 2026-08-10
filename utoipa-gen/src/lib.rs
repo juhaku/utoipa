@@ -2008,6 +2008,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   implement [`OpenApi`][openapi] trait. Nesting allows defining one `OpenApi` per defined path.
 ///   If more instances is defined only latest one will be rentained.
 ///   See the _[nest(...) attribute syntax below]( #nest-attribute-syntax )_
+/// * `version = "..."` Set the [`OpenApiVersion`][openapi_version] the document serializes as.
+///   Accepts a full `X.Y.Z` version string: `"3.1.0"` (the default) or `"3.2.0"`. Opt in to
+///   `"3.2.0"` to emit OpenAPI 3.2 keywords.
 ///
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
@@ -2221,6 +2224,7 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// [openapi]: trait.OpenApi.html
 /// [openapi_struct]: openapi/struct.OpenApi.html
+/// [openapi_version]: openapi/enum.OpenApiVersion.html
 /// [to_schema]: derive.ToSchema.html
 /// [path]: attr.path.html
 /// [modify]: trait.Modify.html

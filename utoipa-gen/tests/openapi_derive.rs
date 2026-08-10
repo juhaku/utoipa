@@ -140,6 +140,32 @@ fn derive_openapi_with_external_docs_only_url() {
 }
 
 #[test]
+fn derive_openapi_default_version_is_3_1_0() {
+    #[derive(OpenApi)]
+    #[openapi()]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    assert_value! {doc=>
+        "openapi" = r###""3.1.0""###, "Default OpenAPI version"
+    }
+}
+
+#[test]
+fn derive_openapi_with_version_3_2_0() {
+    #[derive(OpenApi)]
+    #[openapi(version = "3.2.0")]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    assert_value! {doc=>
+        "openapi" = r###""3.2.0""###, "Opted-in OpenAPI 3.2 version"
+    }
+}
+
+#[test]
 fn derive_openapi_with_components_in_different_module() {
     mod custom {
         use utoipa::ToSchema;
