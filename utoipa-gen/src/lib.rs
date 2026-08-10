@@ -1154,6 +1154,14 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
 ///   for struct and mixed enum types.
 ///
+/// * `item_schema = ...` Optional schema describing each item of a streaming or event-based media
+///   type such as `text/event-stream`, `application/jsonl` or `application/json-seq`. It maps to
+///   OpenAPI 3.2's `itemSchema` media type keyword and accepts the same syntax as `body`, i.e.
+///   _`item_schema = Type`_, _`item_schema = inline(Type)`_ or _`item_schema = ref("...")`_.
+///   This attribute only emits the `itemSchema` keyword; opting the document in to OpenAPI 3.2
+///   output (`openapi: 3.2.0`) is a separate, deliberate step done via
+///   [`OpenApiVersion::Version32`][openapi_version].
+///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
 /// * `example = ...` Can be _`json!(...)`_. _`json!(...)`_ should be something that
@@ -1880,6 +1888,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [into_params_derive]: derive.IntoParams.html
 /// [to_response_trait]: trait.ToResponse.html
 /// [known_format]: openapi/schema/enum.KnownFormat.html
+/// [openapi_version]: openapi/enum.OpenApiVersion.html
 /// [xml]: openapi/xml/struct.Xml.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
 /// [relative_references]: https://spec.openapis.org/oas/latest.html#relative-references-in-uris
