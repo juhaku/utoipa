@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add support for generic types with `IntoParams` (https://github.com/juhaku/utoipa/pull/1588)
 * Add macro/derive support for OpenAPI 3.2 (https://github.com/juhaku/utoipa/pull/1555)
   - Supports `summary`, `parent`, and `kind` in `#[derive(OpenApi)]` tag parsing
   - Supports `querystring` and `cookie` style in path parameter parsing
