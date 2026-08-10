@@ -31,6 +31,7 @@ mod info;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiAttr<'o> {
     info: Option<Info<'o>>,
+    version: Option<OpenApiVersionAttr>,
     paths: Punctuated<ExprPath, Comma>,
     components: Components,
     modifiers: Punctuated<Modifier, Comma>,
@@ -45,6 +46,9 @@ impl<'o> OpenApiAttr<'o> {
     fn merge(mut self, other: OpenApiAttr<'o>) -> Self {
         if other.info.is_some() {
             self.info = other.info;
+        }
+        if other.version.is_some() {
+            self.version = other.version;
         }
         if !other.paths.is_empty() {
             self.paths = other.paths;
@@ -84,7 +88,7 @@ pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr<'_>
 impl Parse for OpenApiAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
-            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers, nest";
+            "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers, nest, version";
         let mut openapi = OpenApiAttr::default();
 
         while !input.is_empty() {
@@ -98,6 +102,9 @@ impl Parse for OpenApiAttr<'_> {
                     let info_stream;
                     parenthesized!(info_stream in input);
                     openapi.info = Some(info_stream.parse()?)
+                }
+                "version" => {
+                    openapi.version = Some(input.parse()?);
                 }
                 "paths" => {
                     openapi.paths = parse_utils::parse_comma_separated_within_parenthesis(input)?;
@@ -143,6 +150,55 @@ impl Parse for OpenApiAttr<'_> {
         }
 
         Ok(openapi)
+    }
+}
+
+/// Parsed `version = "..."` attribute of `#[derive(OpenApi)]`.
+///
+/// The runtime [`utoipa::openapi::OpenApiVersion`] enum lives in the `utoipa` crate and cannot be
+/// referenced here (proc-macros only emit tokens and do not depend on `utoipa`). This type validates
+/// the version literal at compile time and remembers which `OpenApiVersion` variant to emit.
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct OpenApiVersionAttr {
+    /// Identifier of the [`utoipa::openapi::OpenApiVersion`] variant to emit, e.g. `Version32`.
+    variant: Ident,
+}
+
+impl Parse for OpenApiVersionAttr {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let version = parse_utils::parse_next(input, || input.parse::<syn::LitStr>())?;
+        let value = version.value();
+        // Require the full `X.Y.Z` form to match the leniency of `OpenApiVersion`'s runtime
+        // `Deserialize`, which only accepts three dot separated segments (e.g. `3.2.0`, and any
+        // `3.1.x` / `3.2.x` patch).
+        let digits = value
+            .split('.')
+            .flat_map(|digit| digit.parse::<u8>())
+            .collect::<Vec<_>>();
+
+        let variant = match digits.as_slice() {
+            [3, 1, _] => "Version31",
+            [3, 2, _] => "Version32",
+            _ => {
+                return Err(syn::Error::new(
+                    version.span(),
+                    format!(
+                        r#"unsupported OpenAPI version `{value}`, expected one of: "3.1.0", "3.2.0""#
+                    ),
+                ))
+            }
+        };
+
+        Ok(Self {
+            variant: Ident::new(variant, version.span()),
+        })
+    }
+}
+
+impl ToTokens for OpenApiVersionAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let variant = &self.variant;
+        tokens.extend(quote! { utoipa::openapi::OpenApiVersion::#variant });
     }
 }
 
@@ -426,6 +482,15 @@ impl ToTokensDiagnostics for OpenApi<'_> {
             _ => None,
         };
 
+        let version = attributes
+            .as_ref()
+            .and_then(|attributes| attributes.version.as_ref())
+            .map(|version| {
+                quote! {
+                    .openapi(#version)
+                }
+            });
+
         let modifiers_tokens = attributes
             .as_ref()
             .map(|attributes| &attributes.modifiers)
@@ -448,6 +513,7 @@ impl ToTokensDiagnostics for OpenApi<'_> {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     use utoipa::{ToSchema, Path};
                     let mut openapi = utoipa::openapi::OpenApiBuilder::new()
+                        #version
                         .info(#info)
                         .paths({
                             #path_items
