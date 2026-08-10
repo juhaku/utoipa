@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Generics, Ident,
+    GenericParam, Generics, Ident,
 };
 
 use crate::{
@@ -157,9 +157,11 @@ impl ToTokensDiagnostics for IntoParams {
             })
             .collect::<Result<Vec<TokenStream>, Diagnostics>>()?;
 
+        let generic_schemas = get_generic_schemas(&self.generics);
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
+                    let mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::Schema>> = vec![ #(#generic_schemas),* ];
                     vec![#(#params),*].into_iter().filter(Option::is_some).flatten().collect()
                 }
             }
@@ -167,6 +169,21 @@ impl ToTokensDiagnostics for IntoParams {
 
         Ok(())
     }
+}
+
+fn get_generic_schemas(generics: &Generics) -> Vec<TokenStream> {
+    generics
+        .params
+        .iter()
+        .filter_map(|p| {
+            if let GenericParam::Type(tp) = p {
+                let ident = tp.ident.clone();
+                Some(quote! { <#ident as utoipa::PartialSchema>::schema() })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
 }
 
 fn parse_field_features(field: &Field) -> Result<Vec<Feature>, Diagnostics> {
