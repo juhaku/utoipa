@@ -1576,7 +1576,7 @@ impl<'a, T> Iterator for ChildRefIter<'a, T> {
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct FlattenedMapSchema {
     tokens: TokenStream,
-    pub schema_references: Vec<SchemaReference>,
+    schema_references: Vec<SchemaReference>,
 }
 
 impl FlattenedMapSchema {
