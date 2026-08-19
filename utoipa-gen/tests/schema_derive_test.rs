@@ -125,8 +125,6 @@ fn derive_flattened_map_ref_property_collects_recursive_schema() {
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
-    // `Bar` referenced through the flattened `HashMap` must be discovered recursively
-    // and appear in `components.schemas` without being listed explicitly.
     assert_value! { doc =>
         "components.schemas.Foo.additionalProperties.$ref" = r##""#/components/schemas/Bar""##, "Foo flattened map additional properties ref"
         "components.schemas.Bar.type" = r#""object""#, "Bar recursively discovered type"
