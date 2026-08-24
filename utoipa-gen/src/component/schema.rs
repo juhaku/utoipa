@@ -388,6 +388,9 @@ impl NamedStructSchema {
                     (Property::Schema(schema), false) => {
                         Some(std::mem::take(&mut schema.schema_references))
                     }
+                    (Property::FlattenedMap(schema), false) => {
+                        Some(std::mem::take(&mut schema.schema_references))
+                    }
                     _ => None,
                 }
             })

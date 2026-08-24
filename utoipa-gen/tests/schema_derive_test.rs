@@ -105,6 +105,34 @@ fn derive_flattened_map_ref_property() {
 }
 
 #[test]
+fn derive_flattened_map_ref_property_collects_recursive_schema() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    struct Bar {
+        value: i64,
+    }
+
+    #[derive(ToSchema)]
+    struct Foo {
+        #[serde(flatten)]
+        data: HashMap<String, Bar>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Foo)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    assert_value! { doc =>
+        "components.schemas.Foo.additionalProperties.$ref" = r##""#/components/schemas/Bar""##, "Foo flattened map additional properties ref"
+        "components.schemas.Bar.type" = r#""object""#, "Bar recursively discovered type"
+        "components.schemas.Bar.properties.value.format" = r#""int64""#, "Bar value format"
+    };
+}
+
+#[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
         #[schema(default = "Mode1", example = "Mode2")]
