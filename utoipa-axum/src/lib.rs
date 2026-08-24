@@ -24,9 +24,10 @@
 //! _**Use [`OpenApiRouter`][router] to collect handlers with _`#[utoipa::path]`_ macro to compose service and form OpenAPI spec.**_
 //!
 //! ```rust
-//! # use axum::Json;
-//! # use utoipa::openapi::OpenApi;
-//! # use utoipa_axum::{routes, PathItemExt, router::OpenApiRouter};
+//!  use axum::Json;
+//!  use utoipa::openapi::OpenApi;
+//!  use utoipa_axum::{routes, PathItemExt, router::OpenApiRouter};
+//!
 //!  #[derive(utoipa::ToSchema, serde::Serialize)]
 //!  struct User {
 //!      id: i32,
