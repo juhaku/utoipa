@@ -349,13 +349,10 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .path_attr
             .operation_id
             .clone()
-            .or(Some(
-                ExprLit {
-                    attrs: vec![],
-                    lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
-                }
-                .into(),
-            ))
+            .or(Some(Expr::Lit(ExprLit {
+                attrs: vec![],
+                lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
+            })))
             .ok_or_else(|| {
                 Diagnostics::new("operation id is not defined for path")
                     .help(format!(
