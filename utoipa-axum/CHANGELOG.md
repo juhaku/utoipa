@@ -5,6 +5,7 @@
 ### Changed
 
 * Use pastey instead of unmaintained paste and fix some clippy warnings (https://github.com/juhaku/utoipa/pull/1452)
+* Pass through for axum::Router::has_routes (https://github.com/juhaku/utoipa/pull/1458)
 
 ## 0.2.0 - Thu 16 2025
 
