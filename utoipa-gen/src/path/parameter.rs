@@ -309,6 +309,8 @@ impl Parse for ValueParameter<'_> {
                 ParameterIn::Query | ParameterIn::QueryString
             ) {
                 parameter_schema.option_is_nullable = false;
+            } else if parameter.parameter_in == ParameterIn::Header {
+                parameter_schema.option_is_nullable = false;
             }
         }
 
