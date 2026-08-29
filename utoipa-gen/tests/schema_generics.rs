@@ -168,6 +168,29 @@ fn schema_with_non_generic_root() {
 }
 
 #[test]
+fn schema_option_generic() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    struct Top {
+        bounds: Bounds<i32>,
+    }
+
+    #[derive(ToSchema)]
+    struct Bounds<T> {
+        min: Option<T>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Top)))]
+    struct ApiDoc;
+    let mut api = ApiDoc::openapi();
+    api.info = Info::new("title", "version");
+
+    assert_json_snapshot!(api);
+}
+
+#[test]
 fn derive_generic_schema_enum_variants() {
     #![allow(unused)]
 
