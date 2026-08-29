@@ -1047,3 +1047,24 @@ impl From<NoRecursion> for Feature {
         Self::NoRecursion(value)
     }
 }
+
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Skip;
+}
+
+impl Parse for Skip {
+    fn parse(_: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        Ok(Self)
+    }
+}
+
+impl From<Skip> for Feature {
+    fn from(value: Skip) -> Self {
+        Self::Skip(value)
+    }
+}
