@@ -208,7 +208,11 @@ impl ToTokensDiagnostics for IntoResponses {
 trait Response {
     fn to_type(ident: &Ident) -> Type {
         let path = Path::from(ident.clone());
-        let type_path = TypePath { path, qself: None };
+        let type_path = TypePath {
+            attrs: Vec::new(),
+            path,
+            qself: None,
+        };
         Type::Path(type_path)
     }
 
