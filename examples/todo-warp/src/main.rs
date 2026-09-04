@@ -1,34 +1,16 @@
-use std::{net::Ipv4Addr, sync::Arc};
+use std::net::Ipv4Addr;
 
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
-    Modify, OpenApi,
+    Modify,
 };
 use utoipa_swagger_ui::Config;
-use warp::{
-    http::Uri,
-    hyper::{Response, StatusCode},
-    path::{FullPath, Tail},
-    Filter, Rejection, Reply,
-};
+use utoipa_warp::{openapi_json_filter, router::OpenApiRouter, routes, serving::swagger_ui_filter};
+use warp::Filter;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
-
-    let config = Arc::new(Config::from("/api-doc.json"));
-
-    #[derive(OpenApi)]
-    #[openapi(
-        nest(
-            (path = "/api", api = todo::TodoApi)
-        ),
-        modifiers(&SecurityAddon),
-        tags(
-            (name = "todo", description = "Todo items management API")
-        )
-    )]
-    struct ApiDoc;
 
     struct SecurityAddon;
 
@@ -42,56 +24,34 @@ async fn main() {
         }
     }
 
-    let api_doc = warp::path("api-doc.json")
-        .and(warp::get())
-        .map(|| warp::reply::json(&ApiDoc::openapi()));
+    // Build the todo API router using utoipa-warp's OpenApiRouter
+    let todo_router = OpenApiRouter::new()
+        .routes(routes!(
+            todo::list_todos, todo::create_todo, todo::delete_todo;
+            filter = todo::handlers()
+        ));
 
-    let swagger_ui = warp::path("swagger-ui")
-        .and(warp::get())
-        .and(warp::path::full())
-        .and(warp::path::tail())
-        .and(warp::any().map(move || config.clone()))
-        .and_then(serve_swagger);
+    // Nest under /api and extract the OpenApi spec
+    let (api_filter, mut openapi) = OpenApiRouter::new()
+        .nest("/api", todo_router)
+        .split_for_parts();
 
-    warp::serve(
-        api_doc
-            .or(swagger_ui)
-            .or(warp::path("api").and(todo::handlers())),
-    )
-    .run((Ipv4Addr::UNSPECIFIED, 8080))
-    .await
-}
+    // Apply security modifier
+    SecurityAddon.modify(&mut openapi);
 
-async fn serve_swagger(
-    full_path: FullPath,
-    tail: Tail,
-    config: Arc<Config<'static>>,
-) -> Result<Box<dyn Reply + 'static>, Rejection> {
-    if full_path.as_str() == "/swagger-ui" {
-        return Ok(Box::new(warp::redirect::found(Uri::from_static(
-            "/swagger-ui/",
-        ))));
-    }
+    // Serve the OpenAPI JSON and Swagger UI using convenience filters
+    let api_doc = openapi_json_filter("api-doc.json", openapi);
+    let swagger_ui = swagger_ui_filter("swagger-ui", Config::from("/api-doc.json"));
 
-    let path = tail.as_str();
-    match utoipa_swagger_ui::serve(path, config) {
-        Ok(file) => {
-            if let Some(file) = file {
-                Ok(Box::new(
-                    Response::builder()
-                        .header("Content-Type", file.content_type)
-                        .body(file.bytes),
-                ))
-            } else {
-                Ok(Box::new(StatusCode::NOT_FOUND))
-            }
-        }
-        Err(error) => Ok(Box::new(
-            Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(error.to_string()),
-        )),
-    }
+    let all_routes = api_doc
+        .or(swagger_ui)
+        .unify()
+        .or(api_filter)
+        .unify();
+
+    warp::serve(all_routes)
+        .run((Ipv4Addr::UNSPECIFIED, 8080))
+        .await
 }
 
 mod todo {
@@ -101,12 +61,8 @@ mod todo {
     };
 
     use serde::{Deserialize, Serialize};
-    use utoipa::{IntoParams, OpenApi, ToSchema};
+    use utoipa::{IntoParams, ToSchema};
     use warp::{hyper::StatusCode, Filter, Rejection, Reply};
-
-    #[derive(OpenApi)]
-    #[openapi(paths(list_todos, create_todo, delete_todo))]
-    pub struct TodoApi;
 
     pub type Store = Arc<Mutex<Vec<Todo>>>;
 
