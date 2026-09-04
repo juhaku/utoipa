@@ -2380,18 +2380,22 @@ pub enum KnownFormat {
     /// 8 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[cfg_attr(feature = "non_strict_integers", serde(rename = "uint8"))]
     UInt8,
     /// 16 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[cfg_attr(feature = "non_strict_integers", serde(rename = "uint16"))]
     UInt16,
     /// 32 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[cfg_attr(feature = "non_strict_integers", serde(rename = "uint32"))]
     UInt32,
     /// 64 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[cfg_attr(feature = "non_strict_integers", serde(rename = "uint64"))]
     UInt64,
     /// floating point number.
     Float,
