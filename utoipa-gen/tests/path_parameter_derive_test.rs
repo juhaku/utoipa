@@ -1,4 +1,5 @@
 use insta::assert_json_snapshot;
+use serde::Deserialize;
 use utoipa::{OpenApi, Path};
 
 mod common;
@@ -386,4 +387,59 @@ fn path_parameter_with_extensions() {
     let value = serde_json::to_value(operation).expect("operation is JSON serializable");
     let params = value.pointer("/parameters").unwrap();
     assert_json_snapshot!(params);
+}
+
+#[test]
+fn derive_into_params_with_extensions() {
+    #[derive(utoipa::IntoParams, Deserialize)]
+    #[into_params(parameter_in = Query, extensions(("x-some-ext" = json!(true))))]
+    #[allow(unused)]
+    struct Person {
+        /// Name of person
+        name: String,
+        /// City of residence
+        #[param(extensions(("x-other-ext" = json!(1))))]
+        city: Option<String>,
+    }
+
+    /// Get person by id
+    #[utoipa::path(
+        get,
+        path = "/person",
+        params(
+            Person
+        ),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[allow(unused)]
+    async fn get_person() {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_person))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/~1person/get/parameters").unwrap();
+
+    common::assert_json_array_len(parameters, 2);
+    assert_value! {parameters=>
+        "[0].in" = r#""query""#, "Parameter in"
+        "[0].name" = r#""name""#, "Parameter name"
+        "[0].description" = r#""Name of person""#, "Parameter description"
+        "[0].required" = r#"true"#, "Parameter required"
+        "[0].schema.type" = r#""string""#, "Parameter schema type"
+        "[0].schema.format" = r#"null"#, "Parameter schema format"
+        "[0].x-some-ext" = r#"true"#, "Parameter x-some-ext"
+
+        "[1].in" = r#""query""#, "Parameter in"
+        "[1].name" = r#""city""#, "Parameter name"
+        "[1].description" = r#""City of residence""#, "Parameter description"
+        "[1].required" = r#"false"#, "Parameter required"
+        "[1].schema.type" = r#""string""#, "Parameter schema type"
+        "[1].schema.format" = r#"null"#, "Parameter schema format"
+        "[1].x-some-ext" = r#"true"#, "Parameter x-some-ext"
+        "[1].x-other-ext" = r#"1"#, "Parameter x-other-ext"
+    };
 }
