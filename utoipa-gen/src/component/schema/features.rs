@@ -18,6 +18,7 @@ use crate::{
         },
         Feature, Merge,
     },
+    features::attributes::Repr,
     Diagnostics,
 };
 
@@ -94,7 +95,8 @@ impl Parse for EnumFeatures {
             As,
             Deprecated,
             Description,
-            Bound
+            Bound,
+            Repr
         )))
     }
 }
