@@ -1,0 +1,39 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "One": {
+          "properties": {
+            "n": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "n"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "One"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "bar": {
+          "$ref": "#/components/schemas/Bar"
+        }
+      },
+      "required": [
+        "bar"
+      ],
+      "type": "object"
+    }
+  ]
+}

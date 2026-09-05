@@ -1,7 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use insta::assert_json_snapshot;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::openapi::{Object, ObjectBuilder};
 use utoipa::{OpenApi, ToSchema};
@@ -1307,6 +1307,778 @@ fn derive_mixed_enum_with_ref_serde_untagged_named_fields() {
             Two { bar: Bar },
         }
     };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged() {
+    #[derive(Serialize)]
+    enum Foo {
+        One,
+        #[serde(untagged)]
+        Two(String),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One,
+            #[serde(untagged)]
+            Two(String),
+        }
+    };
+
+    assert_eq!(serde_json::to_string(&Foo::One).unwrap(), r#""One""#);
+    assert_eq!(
+        serde_json::to_string(&Foo::Two("baz".into())).unwrap(),
+        r#""baz""#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_internally_tagged() {
+    #[derive(Serialize)]
+    #[serde(tag = "type")]
+    enum Foo {
+        One,
+        #[serde(untagged)]
+        Two(String),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type")]
+        enum Foo {
+            One,
+            #[serde(untagged)]
+            Two(String),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One).unwrap(),
+        r#"{"type":"One"}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two("baz".into())).unwrap(),
+        r#""baz""#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_adjacently_tagged() {
+    #[derive(Serialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        One,
+        #[serde(untagged)]
+        Two(String),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", content = "content")]
+        enum Foo {
+            One,
+            #[serde(untagged)]
+            Two(String),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One).unwrap(),
+        r#"{"type":"One"}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two("baz".into())).unwrap(),
+        r#""baz""#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_named_fields() {
+    #[derive(Serialize)]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            m: i32,
+        },
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { m: i32 },
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two { m: 3 }).unwrap(),
+        r#"{"m":3}"#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_internally_tagged_named_fields() {
+    #[derive(Serialize)]
+    #[serde(tag = "type")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            m: i32,
+        },
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { m: i32 },
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","n":3}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two { m: 3 }).unwrap(),
+        r#"{"m":3}"#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_adjacently_tagged_named_fields() {
+    #[derive(Serialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            m: i32,
+        },
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", content = "content")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { m: i32 },
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","content":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two { m: 3 }).unwrap(),
+        r#"{"m":3}"#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_unit_variant() {
+    #[derive(Serialize)]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two).unwrap(), r#"null"#);
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_internally_tagged_unit_variant() {
+    #[derive(Serialize)]
+    #[serde(tag = "type")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","n":3}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two).unwrap(), r#"null"#);
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_adjacently_tagged_unit_variant() {
+    #[derive(Serialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", content = "content")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","content":{"n":3}}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two).unwrap(), r#"null"#);
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_with_ref_serde_partially_untagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    #[derive(Serialize)]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            bar: Bar,
+        },
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { bar: Bar },
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two {
+            bar: Bar {
+                name: "baz".into(),
+                age: 13
+            }
+        })
+        .unwrap(),
+        r#"{"bar":{"name":"baz","age":13}}"#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_with_ref_serde_partially_internally_tagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    #[derive(Serialize)]
+    #[serde(tag = "type")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            bar: Bar,
+        },
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { bar: Bar },
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","n":3}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two {
+            bar: Bar {
+                name: "baz".into(),
+                age: 13
+            }
+        })
+        .unwrap(),
+        r#"{"bar":{"name":"baz","age":13}}"#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_with_ref_serde_partially_adjacently_tagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    struct Bar {
+        name: String,
+        age: u32,
+    }
+
+    #[derive(Serialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Two {
+            bar: Bar,
+        },
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", content = "content")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Two { bar: Bar },
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","content":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Two {
+            bar: Bar {
+                name: "baz".into(),
+                age: 13
+            }
+        })
+        .unwrap(),
+        r#"{"bar":{"name":"baz","age":13}}"#
+    );
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_with_enum_ref_serde_partially_untagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    enum Bar {
+        Two { m: String },
+        Three { o: u64 },
+    }
+
+    #[derive(Serialize)]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Other(Bar),
+    }
+
+    let bar_value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            Two { m: String },
+            Three { o: u64 },
+        }
+    };
+    let foo_value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Other(Bar),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"One":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Other(Bar::Two { m: "baz".into() })).unwrap(),
+        r#"{"Two":{"m":"baz"}}"#
+    );
+
+    assert_json_snapshot!(bar_value);
+    assert_json_snapshot!(foo_value);
+}
+
+#[test]
+fn derive_mixed_enum_with_enum_ref_serde_partially_internally_tagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    enum Bar {
+        Two { m: String },
+        Three { o: u64 },
+    }
+
+    #[derive(Serialize)]
+    #[serde(tag = "type")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Other(Bar),
+    }
+
+    let bar_value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            Two { m: String },
+            Three { o: u64 },
+        }
+    };
+    let foo_value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Other(Bar),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","n":3}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Other(Bar::Two { m: "baz".into() })).unwrap(),
+        r#"{"Two":{"m":"baz"}}"#
+    );
+
+    assert_json_snapshot!(bar_value);
+    assert_json_snapshot!(foo_value);
+}
+
+#[test]
+fn derive_mixed_enum_with_enum_ref_serde_partially_adjacently_tagged_named_fields() {
+    #[derive(Serialize, ToSchema)]
+    enum Bar {
+        Two { m: String },
+        Three { o: u64 },
+    }
+
+    #[derive(Serialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        One {
+            n: i32,
+        },
+        #[serde(untagged)]
+        Other(Bar),
+    }
+
+    let bar_value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Bar {
+            Two { m: String },
+            Three { o: u64 },
+        }
+    };
+    let foo_value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", content = "content")]
+        enum Foo {
+            One { n: i32 },
+            #[serde(untagged)]
+            Other(Bar),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One { n: 3 }).unwrap(),
+        r#"{"type":"One","content":{"n":3}}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&Foo::Other(Bar::Two { m: "baz".into() })).unwrap(),
+        r#"{"Two":{"m":"baz"}}"#
+    );
+
+    assert_json_snapshot!(bar_value);
+    assert_json_snapshot!(foo_value);
+}
+
+#[test]
+fn derive_unit_variants_serde_partially_untagged() {
+    #[derive(Serialize)]
+    enum Foo {
+        TaggedOne,
+        #[serde(untagged)]
+        UntaggedTwo,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            TaggedOne,
+            #[serde(untagged)]
+            UntaggedTwo,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::TaggedOne).unwrap(),
+        r#""TaggedOne""#
+    );
+    assert_eq!(serde_json::to_string(&Foo::UntaggedTwo).unwrap(), r#"null"#);
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_unit_variants_serde_mix_skip_untagged() {
+    #[derive(Serialize)]
+    enum Foo {
+        NormalOne,
+        #[serde(skip)]
+        SkipTwo(u8),
+        #[serde(untagged)]
+        UntaggedThree,
+        #[serde(untagged)]
+        UntaggedFour,
+        #[serde(skip, untagged)]
+        SkipUntaggedFive,
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            NormalOne,
+            #[serde(skip)]
+            SkipTwo(u8),
+            #[serde(untagged)]
+            UntaggedThree,
+            #[serde(untagged)]
+            UntaggedFour,
+            #[serde(skip, untagged)]
+            SkipUntaggedFive,
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::NormalOne).unwrap(),
+        r#""NormalOne""#
+    );
+    assert!(serde_json::to_string(&Foo::SkipTwo(42)).is_err());
+    assert_eq!(
+        serde_json::to_string(&Foo::UntaggedThree).unwrap(),
+        r#"null"#
+    );
+    assert!(serde_json::to_string(&Foo::SkipUntaggedFive).is_err());
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_unit_variants_serde_skip_non_unit() {
+    #[derive(Serialize)]
+    enum Foo {
+        One,
+        Two,
+        #[serde(skip)]
+        Three(u8),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            One,
+            Two,
+            #[serde(skip)]
+            Three(u8),
+        }
+    };
+
+    assert_eq!(serde_json::to_string(&Foo::One).unwrap(), r#""One""#);
+    assert!(serde_json::to_string(&Foo::Three(42)).is_err());
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_untagged_partially_renamed() {
+    #[derive(Serialize, Deserialize)]
+    enum Foo {
+        #[serde(rename = "First")]
+        One,
+        #[serde(untagged)]
+        Two(usize),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        enum Foo {
+            #[serde(rename = "First")]
+            One,
+            #[serde(untagged)]
+            Two(usize),
+        }
+    };
+
+    assert_eq!(serde_json::to_string(&Foo::One).unwrap(), "\"First\"");
+    assert_eq!(serde_json::to_string(&Foo::Two(5)).unwrap(), "5");
+    assert!(matches!(
+        serde_json::from_str("\"First\"").unwrap(),
+        Foo::One
+    ));
+    assert!(matches!(serde_json::from_str("5").unwrap(), Foo::Two(5)));
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_internally_tagged_partially_renamed() {
+    #[derive(Serialize, Deserialize)]
+    #[serde(tag = "type")]
+    enum Foo {
+        #[serde(rename = "First")]
+        One,
+        #[serde(untagged)]
+        Two(usize),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type")]
+        enum Foo {
+            #[serde(rename = "First")]
+            One,
+            #[serde(untagged)]
+            Two(usize),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One).unwrap(),
+        r#"{"type":"First"}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two(5)).unwrap(), "5");
+    assert!(matches!(
+        serde_json::from_str(r#"{"type":"First"}"#).unwrap(),
+        Foo::One
+    ));
+    assert!(matches!(serde_json::from_str("5").unwrap(), Foo::Two(5)));
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_mixed_enum_serde_partially_adjacently_tagged_partially_renamed() {
+    #[derive(Serialize, Deserialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        #[serde(rename = "First")]
+        One,
+        #[serde(untagged)]
+        Two(usize),
+    }
+
+    let value: Value = api_doc! {
+        #[derive(Serialize)]
+        #[serde(tag = "type", content = "content")]
+        enum Foo {
+            #[serde(rename = "First")]
+            One,
+            #[serde(untagged)]
+            Two(usize),
+        }
+    };
+
+    assert_eq!(
+        serde_json::to_string(&Foo::One).unwrap(),
+        r#"{"type":"First"}"#
+    );
+    assert_eq!(serde_json::to_string(&Foo::Two(5)).unwrap(), "5");
+    assert!(matches!(
+        serde_json::from_str(r#"{"type":"First"}"#).unwrap(),
+        Foo::One
+    ));
+    assert!(matches!(serde_json::from_str("5").unwrap(), Foo::Two(5)));
 
     assert_json_snapshot!(value);
 }

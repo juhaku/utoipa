@@ -858,10 +858,20 @@ impl<'e> EnumSchema<'e> {
         parent: &'e Root<'e>,
         variants: &'e Punctuated<Variant, Comma>,
     ) -> Result<Self, Diagnostics> {
-        if variants
+        let variants_without_skipped = variants
             .iter()
-            .all(|variant| matches!(variant.fields, Fields::Unit))
-        {
+            .filter_map(|variant| match serde::parse_value(&variant.attrs) {
+                Ok(rules) if rules.skip => None,
+                Ok(rules) => Some(Ok((variant, rules))),
+                Err(diagnostics) => Some(Err(diagnostics)),
+            })
+            .collect::<Result<Vec<_>, Diagnostics>>()?;
+
+        let all_unit_not_partially_tagged = variants_without_skipped
+            .iter()
+            .all(|(variant, rules)| matches!(variant.fields, Fields::Unit) && !rules.untagged);
+
+        if all_unit_not_partially_tagged {
             #[cfg(feature = "repr")]
             let mut features = {
                 if parent
@@ -905,7 +915,7 @@ impl<'e> EnumSchema<'e> {
             }
 
             Ok(Self {
-                schema_type: EnumSchemaType::Plain(PlainEnum::new(parent, variants, features)?),
+                schema_type: EnumSchemaType::Plain(PlainEnum::new(parent, variants_without_skipped, features)?),
                 schema_as,
                 schema_references: Vec::new(),
                 bound,
@@ -922,7 +932,7 @@ impl<'e> EnumSchema<'e> {
             if parent.attributes.has_deprecated() {
                 enum_features.push(Feature::Deprecated(true.into()))
             }
-            let mut mixed_enum = MixedEnum::new(parent, variants, enum_features)?;
+            let mut mixed_enum = MixedEnum::new(parent, variants_without_skipped, enum_features)?;
             let schema_references = std::mem::take(&mut mixed_enum.schema_references);
             Ok(Self {
                 schema_type: EnumSchemaType::Mixed(mixed_enum),

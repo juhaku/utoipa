@@ -486,8 +486,9 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `content = "..."` Supported at the container level, allows [adjacently-tagged enums](https://serde.rs/enum-representations.html#adjacently-tagged).
 ///   This attribute requires that a `tag` is present, otherwise serde will trigger a compile-time
 ///   failure.
-/// * `untagged` Supported at the container level. Allows [untagged
-///   enum representation](https://serde.rs/enum-representations.html#untagged).
+/// * `untagged` Supported at the container level for [untagged enum
+///   representation](https://serde.rs/enum-representations.html#untagged) and at the [variant
+///   level](https://serde.rs/variant-attrs.html#untagged) for untagged variants.
 /// * `default` Supported at the container level and field level according to [serde attributes].
 /// * `deny_unknown_fields` Supported at the container level.
 /// * `flatten` Supported at the field level.

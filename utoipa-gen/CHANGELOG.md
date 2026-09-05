@@ -17,6 +17,7 @@
 * Add quote_diagnostics! and quote_diagnostics_spanned! macros (https://github.com/juhaku/utoipa/pull/1553)
 * feat(gen): support Display types for security scopes (https://github.com/juhaku/utoipa/pull/1463)
 * Emit `title` and `default` on `RefBuilder` instead of wrapping in `oneOf` when `Option<_>` is non-nullable (https://github.com/juhaku/utoipa/pull/1380)
+* Support untagged variants in enums (https://github.com/juhaku/utoipa/pull/1585)
 
 ### Changed
 
