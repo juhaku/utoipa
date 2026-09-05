@@ -1,0 +1,43 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "enum": [
+        "UnitValue"
+      ],
+      "title": "CustomTitleUnitValue",
+      "type": "string"
+    },
+    {
+      "properties": {
+        "NamedFields": {
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "NamedFields"
+      ],
+      "title": "CustomTitleNamedFields",
+      "type": "object"
+    },
+    {
+      "enum": [
+        "OverriddenTitle"
+      ],
+      "title": "Overridden",
+      "type": "string"
+    }
+  ],
+  "title": "CustomTitle"
+}
