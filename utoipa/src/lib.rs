@@ -250,6 +250,7 @@ pub mod openapi;
 /// Public re-exports for utoipa-gen.
 pub mod gen;
 
+use core::num::{NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::option::Option;
@@ -511,7 +512,8 @@ macro_rules! impl_to_schema {
 
 #[rustfmt::skip]
 impl_to_schema!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64
 );
 
 impl ToSchema for &str {
@@ -1268,6 +1270,8 @@ impl_from_for_number!(
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 pub mod __dev {
+    use core::num::{NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8};
+
     use utoipa_gen::schema;
 
     use crate::{utoipa, OpenApi, PartialSchema};
@@ -1356,7 +1360,8 @@ pub mod __dev {
 
     #[rustfmt::skip]
     impl_compose_schema!(
-        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64
     );
 
     fn schema_or_compose<T: ComposeSchema>(
@@ -1627,6 +1632,10 @@ mod tests {
         assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
         assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
         assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU8::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 1}"#);
+        assert_compact_json_snapshot!(NonZeroU16::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 1}"#);
+        assert_compact_json_snapshot!(NonZeroU32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 1}"#);
+        assert_compact_json_snapshot!(NonZeroU64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 1}"#);
     }
 
     #[cfg(feature = "non_strict_integers")]
@@ -1642,6 +1651,10 @@ mod tests {
         assert_compact_json_snapshot!(u16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 0}"#);
         assert_compact_json_snapshot!(u32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 0}"#);
         assert_compact_json_snapshot!(u64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 0}"#);
+        assert_compact_json_snapshot!(NonZeroU8::schema(), @r#"{"type": "integer", "format": "uint8", "minimum": 1}"#);
+        assert_compact_json_snapshot!(NonZeroU16::schema(), @r#"{"type": "integer", "format": "uint16", "minimum": 1}"#);
+        assert_compact_json_snapshot!(NonZeroU32::schema(), @r#"{"type": "integer", "format": "int32", "minimum": 1}"#);
+        assert_compact_json_snapshot!(NonZeroU64::schema(), @r#"{"type": "integer", "format": "int64", "minimum": 1}"#);
     }
 
     #[test]
