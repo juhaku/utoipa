@@ -22,7 +22,7 @@ include = [
 debug = []
 
 [dependencies]
-axum = { version = "0.8.4", default-features = false }
+axum = { version = "0.8.4", default-features = false, features = ["json"] }
 utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
@@ -36,6 +36,7 @@ axum = { version = "0.8.4", default-features = false, features = ["json"] }
 http = "1.4"
 insta = { version = "1.47", features = ["json"] }
 serde = "1"
+serde_json = "1"
 tokio = { version = "1.52", features = ["macros", "rt"]}
 tower = "0.5"
 
