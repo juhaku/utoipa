@@ -112,8 +112,27 @@ fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> Valu
 
 impl PathOperationResolver for PathOperations {
     fn resolve_operation(item_fn: &ItemFn) -> Result<Option<ResolvedOperation>, Diagnostics> {
-        item_fn.attrs.iter().find_map(resolve_route).transpose()
+        let routes = item_fn
+            .attrs
+            .iter()
+            .filter_map(resolve_route)
+            .collect::<Result<Vec<_>, Diagnostics>>()?;
+
+        Ok(routes.into_iter().reduce(merge_same_path_methods))
     }
+}
+
+/// Merge methods of routes sharing the same path, e.g. `#[routes] #[get("/foo")] #[post("/foo")]`.
+/// `utoipa::Path` describes a single path, so routes with a different path than the first one
+/// are left out.
+fn merge_same_path_methods(
+    mut operation: ResolvedOperation,
+    other: ResolvedOperation,
+) -> ResolvedOperation {
+    if operation.path == other.path {
+        operation.methods.extend(other.methods);
+    }
+    operation
 }
 
 /// Resolve [`ResolvedOperation`] from an actix-web route attribute such as `#[get("/path")]`.
