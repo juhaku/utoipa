@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use proc_macro2::{Ident, TokenTree};
 use regex::{Captures, Regex};
-use syn::{parse::Parse, punctuated::Punctuated, token::Comma, ItemFn, LitStr};
+use syn::{parse::Parse, punctuated::Punctuated, token::Comma, Attribute, ItemFn, LitStr};
 
 use crate::{
     component::{TypeTree, ValueType},
@@ -112,46 +112,48 @@ fn into_value_argument((macro_arg, primitive_arg): (MacroArg, TypeTree)) -> Valu
 
 impl PathOperationResolver for PathOperations {
     fn resolve_operation(item_fn: &ItemFn) -> Result<Option<ResolvedOperation>, Diagnostics> {
-        item_fn
-            .attrs
-            .iter()
-            .find_map(|attribute| {
-                if is_valid_actix_route_attribute(attribute.path().get_ident()) {
-                    match attribute.parse_args::<Route>() {
-                        Ok(route) => {
-                            let attribute_path = attribute.path().get_ident()
-                                .expect("actix-web route macro must have ident");
-                            let methods: Vec<HttpMethod> = if *attribute_path == "route" {
-                                route.methods.into_iter().map(|method| {
-                                    method.to_lowercase().parse::<HttpMethod>()
-                                        .expect("Should never fail, validity of HTTP method is checked before parsing")
-                                }).collect()
-                            } else {
-                                // if user used #[connect(...)] macro, return error
-                                match HttpMethod::from_ident(attribute_path) {
-                                    Ok(http_method) => { vec![http_method]},
-                                    Err(error) => return Some(
-                                        Err(
-                                            error.help(
-                                                format!(r#"If you want operation to be documented and executed on `{method}` try using `#[route(...)]` e.g. `#[route("/path", method = "GET", method = "{method}")]`"#, method = attribute_path.to_string().to_uppercase())
-                                            )
-                                        )
-                                    )
-                                }
-                            };
-                            Some(Ok(ResolvedOperation {
-                                path: route.path,
-                                methods,
-                                body: String::new(),
-                            }))
-                        }
-                        Err(error) => Some(Err(Into::<Diagnostics>::into(error))),
-                    }
+        item_fn.attrs.iter().find_map(resolve_route).transpose()
+    }
+}
+
+/// Resolve [`ResolvedOperation`] from an actix-web route attribute such as `#[get("/path")]`.
+/// Returns `None` if the attribute is not a route attribute.
+fn resolve_route(attribute: &Attribute) -> Option<Result<ResolvedOperation, Diagnostics>> {
+    if is_valid_actix_route_attribute(attribute.path().get_ident()) {
+        match attribute.parse_args::<Route>() {
+            Ok(route) => {
+                let attribute_path = attribute
+                    .path()
+                    .get_ident()
+                    .expect("actix-web route macro must have ident");
+                let methods: Vec<HttpMethod> = if *attribute_path == "route" {
+                    route.methods.into_iter().map(|method| {
+                        method.to_lowercase().parse::<HttpMethod>()
+                            .expect("Should never fail, validity of HTTP method is checked before parsing")
+                    }).collect()
                 } else {
-                    None
-                }
-            })
-            .transpose()
+                    // if user used #[connect(...)] macro, return error
+                    match HttpMethod::from_ident(attribute_path) {
+                        Ok(http_method) => { vec![http_method]},
+                        Err(error) => return Some(
+                            Err(
+                                error.help(
+                                    format!(r#"If you want operation to be documented and executed on `{method}` try using `#[route(...)]` e.g. `#[route("/path", method = "GET", method = "{method}")]`"#, method = attribute_path.to_string().to_uppercase())
+                                )
+                            )
+                        )
+                    }
+                };
+                Some(Ok(ResolvedOperation {
+                    path: route.path,
+                    methods,
+                    body: String::new(),
+                }))
+            }
+            Err(error) => Some(Err(Into::<Diagnostics>::into(error))),
+        }
+    } else {
+        None
     }
 }
 
