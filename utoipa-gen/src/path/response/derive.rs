@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::{iter, mem};
+use std::mem;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -115,35 +115,26 @@ pub struct IntoResponses {
 
 impl ToTokensDiagnostics for IntoResponses {
     fn to_tokens(&self, tokens: &mut TokenStream) -> Result<(), Diagnostics> {
-        let responses = match &self.data {
-            Data::Struct(struct_value) => match &struct_value.fields {
-                Fields::Named(fields) => {
-                    let response =
-                        NamedStructResponse::new(&self.attributes, &self.ident, &fields.named)?.0;
-                    let status = &response.status_code;
+        let response_tuples = match &self.data {
+            Data::Struct(struct_value) => {
+                let response = match &struct_value.fields {
+                    Fields::Named(fields) => {
+                        NamedStructResponse::new(&self.attributes, &self.ident, &fields.named)?.0
+                    }
+                    Fields::Unnamed(fields) => {
+                        let field = fields
+                            .unnamed
+                            .iter()
+                            .next()
+                            .expect("Unnamed struct must have 1 field");
 
-                    Array::from_iter(iter::once(quote_diagnostics!((#status, @response))?))
-                }
-                Fields::Unnamed(fields) => {
-                    let field = fields
-                        .unnamed
-                        .iter()
-                        .next()
-                        .expect("Unnamed struct must have 1 field");
+                        UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)?.0
+                    }
+                    Fields::Unit => UnitStructResponse::new(&self.attributes)?.0,
+                };
 
-                    let response =
-                        UnnamedStructResponse::new(&self.attributes, &field.ty, &field.attrs)?.0;
-                    let status = &response.status_code;
-
-                    Array::from_iter(iter::once(quote_diagnostics!((#status, @response))?))
-                }
-                Fields::Unit => {
-                    let response = UnitStructResponse::new(&self.attributes)?.0;
-                    let status = &response.status_code;
-
-                    Array::from_iter(iter::once(quote_diagnostics!((#status, @response))?))
-                }
-            },
+                vec![response]
+            }
             Data::Enum(enum_value) => enum_value
                 .variants
                 .iter()
@@ -167,13 +158,7 @@ impl ToTokensDiagnostics for IntoResponses {
                     }
                     Fields::Unit => Ok(UnitStructResponse::new(&variant.attrs)?.0),
                 })
-                .collect::<Result<Vec<ResponseTuple>, Diagnostics>>()?
-                .iter()
-                .map(|response| {
-                    let status = &response.status_code;
-                    quote_diagnostics!((#status, utoipa::openapi::RefOr::from(@response)))
-                })
-                .collect::<Result<Array<TokenStream>, Diagnostics>>()?,
+                .collect::<Result<Vec<ResponseTuple>, Diagnostics>>()?,
             Data::Union(_) => {
                 return Err(Diagnostics::with_span(
                     self.ident.span(),
@@ -181,6 +166,14 @@ impl ToTokensDiagnostics for IntoResponses {
                 ))
             }
         };
+
+        let responses = response_tuples
+            .iter()
+            .map(|response| {
+                let status = &response.status_code;
+                quote_diagnostics!((#status, utoipa::openapi::RefOr::from(@response)))
+            })
+            .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
