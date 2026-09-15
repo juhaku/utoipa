@@ -508,7 +508,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             servers: self.path_attr.servers.as_ref(),
         };
 
-        let response_schemas = self
+        let mut response_schemas = self
             .path_attr
             .responses
             .iter()
@@ -517,6 +517,14 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .into_iter()
             .flatten()
             .fold(TokenStream2::new(), to_schema_references);
+
+        // `IntoResponses` types collect the schemas referenced by their own responses
+        for response in &self.path_attr.responses {
+            if let Response::IntoResponses(path) = response {
+                response_schemas
+                    .extend(quote! { <#path as utoipa::IntoResponses>::schemas(schemas); });
+            }
+        }
 
         let schemas = self
             .path_attr

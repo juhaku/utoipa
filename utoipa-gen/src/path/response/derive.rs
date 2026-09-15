@@ -175,11 +175,33 @@ impl ToTokensDiagnostics for IntoResponses {
             })
             .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
 
+        // collect the schemas referenced by the responses the same way as for `responses(...)`
+        let responses_with_schemas = response_tuples
+            .into_iter()
+            .map(super::Response::Tuple)
+            .collect::<Vec<_>>();
+        let schema_references = responses_with_schemas
+            .iter()
+            .map(super::Response::get_component_schemas)
+            .collect::<Result<Vec<_>, Diagnostics>>()?
+            .into_iter()
+            .flatten()
+            .fold(TokenStream::new(), crate::path::to_schema_references);
+
         let ident = &self.ident;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
 
         let responses = if !responses.is_empty() {
             Some(quote!( .responses_from_iter(#responses)))
+        } else {
+            None
+        };
+        let schemas = if !schema_references.is_empty() {
+            Some(quote! {
+                fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
+                    #schema_references
+                }
+            })
         } else {
             None
         };
@@ -191,6 +213,8 @@ impl ToTokensDiagnostics for IntoResponses {
                             .build()
                             .into()
                     }
+
+                    #schemas
                 }
             });
 
