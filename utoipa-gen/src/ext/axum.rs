@@ -63,7 +63,11 @@ fn split_value_args_and_request_body(
     let (path_args, body_types): (Vec<FnArg>, Vec<FnArg>) = value_args
         .into_iter()
         .filter(|arg| {
-            arg.ty.is("Path") || arg.ty.is("Json") || arg.ty.is("Form") || arg.ty.is("Bytes")
+            arg.ty.is("Path")
+                || arg.ty.is("Json")
+                || arg.ty.is("Form")
+                || arg.ty.is("Bytes")
+                || super::is_string_type(&arg.ty)
         })
         .partition(|arg| arg.ty.is("Path"));
 
