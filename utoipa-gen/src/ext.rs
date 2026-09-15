@@ -126,6 +126,13 @@ impl ExtSchema<'_> {
         }).expect("ExtSchema must have actual request body resolved from TypeTree of handler fn argument")
     }
 
+    /// Check whether a request body type such as `Json<T>`, `Form<T>` or `Bytes` can be resolved
+    /// from the handler fn argument. Rocket selects the argument by the `data = "<...>"` name, so
+    /// it can also be a data guard without one, e.g. `Data<'_>` or `TempFile<'_>`.
+    pub fn has_actual_body(&self) -> bool {
+        get_actual_body_type(&self.0).is_some()
+    }
+
     pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
         Ok(Some(Cow::Borrowed(&self.0)))
     }
