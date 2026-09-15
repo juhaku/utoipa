@@ -89,6 +89,12 @@ impl Response<'_> {
             Self::AutoIntoResponses(_) => Ok(ResponseComponentSchemaIter::Empty),
         }
     }
+
+    /// Check whether this is a success (`2XX`) response declared with a status code.
+    #[cfg(feature = "auto_into_responses")]
+    pub fn is_success_tuple(&self) -> bool {
+        matches!(self, Self::Tuple(tuple) if tuple.status_code.is_success())
+    }
 }
 
 pub enum ResponseComponentSchemaIter<'a, T> {
@@ -126,6 +132,26 @@ const RESPONSE_INCOMPATIBLE_ATTRIBUTES_MSG: &str =
     "The `response` attribute may only be used in conjunction with the `status` attribute";
 
 impl<'r> ResponseTuple<'r> {
+    /// Create a `200` response with `ty` as `application/json` body, used for a `Json<T>` handler
+    /// return type.
+    #[cfg(feature = "auto_into_responses")]
+    pub fn json_ok(ty: &'r syn::Type) -> Self {
+        let media_type = MediaTypeAttr {
+            content_type: Some(String::from("application/json").into()),
+            schema: Schema::Default(DefaultSchema::TypePath(ParsedType {
+                ty: Cow::Borrowed(ty),
+                is_inline: false,
+            })),
+            ..Default::default()
+        };
+        let value = ResponseValue {
+            content: vec![media_type],
+            ..Default::default()
+        };
+
+        (ResponseStatus(quote!("200")), value).into()
+    }
+
     /// Set as `ResponseValue` the content. This will fail if `response` attribute is already
     /// defined.
     fn set_as_value<F: FnOnce(&mut ResponseValue) -> syn::Result<()>>(
@@ -680,6 +706,15 @@ impl Parse for DeriveIntoResponsesValue {
 #[derive(Default)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct ResponseStatus(TokenStream2);
+
+impl ResponseStatus {
+    /// Check whether the status is a `2XX` status code or the `2XX` range. The status is always
+    /// a string literal such as `"201"` or `"2XX"`, also when declared as `StatusCode::CREATED`.
+    #[cfg(feature = "auto_into_responses")]
+    fn is_success(&self) -> bool {
+        self.0.to_string().trim_matches('"').starts_with('2')
+    }
+}
 
 impl Parse for ResponseStatus {
     fn parse(input: ParseStream) -> syn::Result<Self> {

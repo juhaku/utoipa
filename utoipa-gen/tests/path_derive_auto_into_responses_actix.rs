@@ -341,11 +341,6 @@ fn path_operation_request_body_form() {
 
 #[test]
 fn path_operation_auto_types_skip_actix_responders() {
-    #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-    struct Item {
-        value: String,
-    }
-
     #[utoipa::path]
     #[post("/http-response")]
     #[allow(unused)]
@@ -354,12 +349,10 @@ fn path_operation_auto_types_skip_actix_responders() {
     }
 
     #[utoipa::path]
-    #[post("/json")]
+    #[post("/text")]
     #[allow(unused)]
-    async fn json() -> Json<Item> {
-        Json(Item {
-            value: String::new(),
-        })
+    async fn text() -> String {
+        String::new()
     }
 
     mod result_alias {
@@ -374,7 +367,7 @@ fn path_operation_auto_types_skip_actix_responders() {
     }
 
     #[derive(OpenApi)]
-    #[openapi(paths(http_response, json, result_alias::result_alias))]
+    #[openapi(paths(http_response, text, result_alias::result_alias))]
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
@@ -382,7 +375,7 @@ fn path_operation_auto_types_skip_actix_responders() {
     // actix-web responders cannot implement `IntoResponses`, so they are left out
     for path in [
         "/paths/~1http-response",
-        "/paths/~1json",
+        "/paths/~1text",
         "/paths/~1result-alias",
     ] {
         let responses = doc.pointer(&format!("{path}/post/responses"));
@@ -468,11 +461,16 @@ fn path_operation_auto_types_result_with_actix_types() {
         Some(&serde_json::json!({ "200": item_response, "500": error_response }))
     );
 
-    // `Json<Item>` cannot implement `IntoResponses`, only the error responses are documented
+    // `Json<Item>` is documented as a `200` response next to the error responses
     let responses = doc.pointer("/paths/~1json-or-error/post/responses");
+    let json_item_response = serde_json::json!({
+        "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+        }
+    });
     assert_eq!(
         responses,
-        Some(&serde_json::json!({ "500": error_response }))
+        Some(&serde_json::json!({ "200": json_item_response, "500": error_response }))
     );
 
     // `actix_web::Error` cannot implement `IntoResponses`, only the success responses are documented
@@ -480,5 +478,139 @@ fn path_operation_auto_types_result_with_actix_types() {
     assert_eq!(
         responses,
         Some(&serde_json::json!({ "200": item_response }))
+    );
+}
+
+#[test]
+fn path_operation_auto_types_json_response() {
+    use serde_json::json;
+
+    #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+    struct Item {
+        value: String,
+    }
+
+    #[derive(utoipa::IntoResponses)]
+    #[allow(unused)]
+    enum ItemResponse {
+        /// Item found
+        #[response(status = 200)]
+        Success(Item),
+    }
+
+    impl Responder for ItemResponse {
+        type Body = BoxBody;
+
+        fn respond_to(self, _: &actix_web::HttpRequest) -> actix_web::HttpResponse<Self::Body> {
+            match self {
+                Self::Success(item) => HttpResponse::Ok().json(item),
+            }
+        }
+    }
+
+    /// Error
+    #[derive(Debug, utoipa::IntoResponses)]
+    #[response(status = 500)]
+    struct Error;
+
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Error")
+        }
+    }
+
+    impl actix_web::ResponseError for Error {}
+
+    #[utoipa::path]
+    #[post("/json")]
+    #[allow(unused)]
+    async fn json_item() -> Json<Item> {
+        Json(Item {
+            value: String::new(),
+        })
+    }
+
+    #[utoipa::path]
+    #[post("/json-or-error")]
+    #[allow(unused)]
+    async fn json_or_error() -> Result<Json<Item>, Error> {
+        Err(Error)
+    }
+
+    #[utoipa::path(responses((status = 201, description = "Item created", body = Item)))]
+    #[post("/created")]
+    #[allow(unused)]
+    async fn created() -> Json<Item> {
+        Json(Item {
+            value: String::new(),
+        })
+    }
+
+    #[utoipa::path(responses((status = 404, description = "Item not found")))]
+    #[post("/not-found")]
+    #[allow(unused)]
+    async fn not_found() -> Json<Item> {
+        Json(Item {
+            value: String::new(),
+        })
+    }
+
+    #[utoipa::path(responses((status = 200, description = "Explicit item")))]
+    #[post("/explicit")]
+    #[allow(unused)]
+    async fn explicit() -> ItemResponse {
+        ItemResponse::Success(Item {
+            value: String::new(),
+        })
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(json_item, json_or_error, created, not_found, explicit))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let json_item_response = json!({
+        "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+        }
+    });
+
+    // `Json<T>` is documented as a `200` response with `T` as JSON body
+    let responses = doc.pointer("/paths/~1json/post/responses");
+    assert_eq!(responses, Some(&json!({ "200": json_item_response })));
+    assert!(doc.pointer("/components/schemas/Item").is_some());
+
+    let responses = doc.pointer("/paths/~1json-or-error/post/responses");
+    assert_eq!(
+        responses,
+        Some(&json!({ "200": json_item_response, "500": { "description": "Error" } }))
+    );
+
+    // An explicit success response replaces the automatic `200` response
+    let responses = doc.pointer("/paths/~1created/post/responses");
+    assert_eq!(
+        responses,
+        Some(&json!({
+            "201": {
+                "description": "Item created",
+                "content": {
+                    "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+                }
+            }
+        }))
+    );
+
+    // Other explicit responses are documented next to the automatic `200` response
+    let responses = doc.pointer("/paths/~1not-found/post/responses");
+    assert_eq!(
+        responses,
+        Some(&json!({ "200": json_item_response, "404": { "description": "Item not found" } }))
+    );
+
+    // An explicit response is not overwritten by an automatic response with the same status
+    let responses = doc.pointer("/paths/~1explicit/post/responses");
+    assert_eq!(
+        responses,
+        Some(&json!({ "200": { "description": "Explicit item" } }))
     );
 }

@@ -124,3 +124,31 @@ fn path_operation_auto_types_result_alias() {
         }))
     );
 }
+
+#[test]
+fn path_operation_auto_types_json_without_framework_extras() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    struct Item {
+        value: String,
+    }
+
+    struct Json<T>(T);
+
+    #[utoipa::path(get, path = "/json")]
+    #[allow(unused)]
+    async fn get_json() -> Json<Item> {
+        Json(Item {
+            value: String::new(),
+        })
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_json))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let responses = doc.pointer("/paths/~1json/get/responses");
+
+    // Without framework extras a type named `Json` is not a JSON response of a web framework
+    assert_eq!(responses, Some(&serde_json::json!({})));
+}
