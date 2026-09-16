@@ -1040,3 +1040,43 @@ fn derive_path_with_multiple_methods_skip_connect() {
         __path_multiple_methods::methods()
     )
 }
+
+#[test]
+fn derive_path_with_routes_macro_merges_methods_of_same_path() {
+    use actix_web::routes;
+
+    #[utoipa::path]
+    #[routes]
+    #[get("/foo")]
+    #[post("/foo")]
+    #[allow(unused)]
+    async fn same_path() -> impl Responder {
+        String::new()
+    }
+
+    #[utoipa::path]
+    #[routes]
+    #[get("/foo")]
+    #[post("/bar")]
+    #[allow(unused)]
+    async fn different_paths() -> impl Responder {
+        String::new()
+    }
+
+    use utoipa::Path;
+    assert_eq!("/foo", __path_same_path::path());
+    assert_eq!(
+        vec![
+            utoipa::openapi::path::HttpMethod::Get,
+            utoipa::openapi::path::HttpMethod::Post
+        ],
+        __path_same_path::methods()
+    );
+
+    // `utoipa::Path` can only describe one path, so only the first route is documented
+    assert_eq!("/foo", __path_different_paths::path());
+    assert_eq!(
+        vec![utoipa::openapi::path::HttpMethod::Get],
+        __path_different_paths::methods()
+    );
+}
