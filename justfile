@@ -27,7 +27,7 @@ test *crates='utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc ut
 
             $cargo $cargo_command -p utoipa-gen --test path_derive_auto_into_responses --features auto_into_responses,utoipa/uuid,uuid,utoipa/macros
             $cargo $cargo_command -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,utoipa/uuid,uuid,utoipa/chrono,chrono,utoipa/time,time,utoipa/macros
-            $cargo $cargo_command -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,auto_into_responses,utoipa/uuid,uuid,utoipa/macros
+            $cargo $cargo_command -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,auto_into_responses,utoipa/auto_into_responses,utoipa/uuid,uuid,utoipa/macros
 
             $cargo $cargo_command -p utoipa-gen --test path_derive_rocket --features rocket_extras,utoipa/macros
 
