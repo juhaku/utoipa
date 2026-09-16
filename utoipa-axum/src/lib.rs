@@ -45,6 +45,7 @@
 //!
 //! [router]: router/struct.OpenApiRouter.html
 
+pub mod response;
 pub mod router;
 
 use axum::routing::MethodFilter;

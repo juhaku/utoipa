@@ -55,6 +55,7 @@ use utoipa::OpenApi;
 
 use self::service_config::ServiceConfig;
 
+pub mod response;
 pub mod scope;
 pub mod service_config;
 
