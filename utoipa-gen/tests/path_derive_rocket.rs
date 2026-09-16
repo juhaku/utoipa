@@ -565,3 +565,46 @@ fn derive_rocket_path_with_query_params_in_option() {
 
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn derive_rocket_path_with_form_wrapper_request_body() {
+    #![allow(unused)]
+    use rocket::form::{Contextual, Form, Lenient, Strict};
+    use serde_json::json;
+
+    #[derive(FromForm, ToSchema)]
+    struct Item {
+        value: String,
+    }
+
+    #[utoipa::path]
+    #[post("/contextual", data = "<item>")]
+    async fn post_contextual(item: Form<Contextual<'_, Item>>) {}
+
+    #[utoipa::path]
+    #[post("/strict", data = "<item>")]
+    async fn post_strict(item: Form<Strict<Item>>) {}
+
+    #[utoipa::path]
+    #[post("/lenient", data = "<item>")]
+    async fn post_lenient(item: Form<Lenient<Item>>) {}
+
+    // The request body schema is the wrapped type, not the rocket form wrapper
+    let item_body = json!({
+        "content": {
+            "application/x-www-form-urlencoded": {
+                "schema": { "$ref": "#/components/schemas/Item" }
+            }
+        },
+        "required": true
+    });
+
+    let operation = serde_json::to_value(__path_post_contextual::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), Some(&item_body));
+
+    let operation = serde_json::to_value(__path_post_strict::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), Some(&item_body));
+
+    let operation = serde_json::to_value(__path_post_lenient::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), Some(&item_body));
+}
