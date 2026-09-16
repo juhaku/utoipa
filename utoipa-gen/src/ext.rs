@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::spanned::Spanned;
 use syn::Generics;
-use syn::{punctuated::Punctuated, token::Comma, ItemFn};
+use syn::{parse_quote, punctuated::Punctuated, token::Comma, ItemFn};
 
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
 use crate::path::media_type::MediaTypePathExt;
@@ -153,26 +153,50 @@ impl ExtSchema<'_> {
         let type_tree = &self.0;
         let actual_body_type = get_actual_body_type(type_tree);
 
-        actual_body_type.and_then_try(|body_type| body_type.get_component_schema())
+        actual_body_type.and_then_try(|body_type| {
+            with_bytes_as_vec(body_type, |body_type| body_type.get_component_schema())
+        })
     }
 }
 
 impl ToTokensDiagnostics for ExtSchema<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let get_actual_body = self.get_actual_body();
-        let type_tree = get_actual_body.as_ref();
 
-        let component_tokens = ComponentSchema::new(ComponentSchemaProps {
-            type_tree,
-            features: Vec::new(),
-            description: None,
-            container: &Container {
-                generics: &Generics::default(),
-            },
-        })?;
-        component_tokens.to_tokens(tokens);
+        with_bytes_as_vec(get_actual_body.as_ref(), |type_tree| {
+            let component_tokens = ComponentSchema::new(ComponentSchemaProps {
+                type_tree,
+                features: Vec::new(),
+                description: None,
+                container: &Container {
+                    generics: &Generics::default(),
+                },
+            })?;
+            component_tokens.to_tokens(tokens);
 
-        Ok(())
+            Ok(())
+        })
+    }
+}
+
+/// `Bytes` does not implement `ToSchema`, so call `f` with `Vec<u8>` in its place. This documents
+/// a `Bytes` request body the same way as a `[u8]` request body.
+fn with_bytes_as_vec<R>(
+    ty: &TypeTree<'_>,
+    f: impl FnOnce(&TypeTree<'_>) -> Result<R, Diagnostics>,
+) -> Result<R, Diagnostics> {
+    let is_bytes = ty.children.is_none()
+        && ty
+            .path
+            .as_ref()
+            .and_then(|path| path.segments.last())
+            .is_some_and(|segment| segment.ident == "Bytes");
+
+    if is_bytes {
+        let bytes_as_vec: syn::Type = parse_quote!(Vec<u8>);
+        f(&TypeTree::from_type(&bytes_as_vec)?)
+    } else {
+        f(ty)
     }
 }
 
