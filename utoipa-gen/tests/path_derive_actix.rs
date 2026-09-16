@@ -543,6 +543,57 @@ fn derive_path_with_struct_variables_with_into_params() {
 }
 
 #[test]
+fn derive_path_with_into_params_resolved_from_fn_args() {
+    use serde_json::json;
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Filter {
+        /// Age filter
+        age: i32,
+    }
+
+    /// Newtype without `IntoParams`, see https://github.com/juhaku/utoipa/issues/675
+    #[derive(Deserialize)]
+    #[allow(unused)]
+    struct FooId(String);
+
+    #[utoipa::path]
+    #[get("/foo/{foo_id}")]
+    #[allow(unused)]
+    async fn get_foo(foo_id: Path<FooId>, filter: Query<Filter>) -> impl Responder {
+        String::new()
+    }
+
+    #[utoipa::path]
+    #[get("/bar")]
+    #[allow(unused)]
+    async fn get_bar(filter: Option<Query<Filter>>) -> impl Responder {
+        String::new()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_foo, get_bar))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let age_parameter = json!([{
+        "in": "query",
+        "name": "age",
+        "description": "Age filter",
+        "required": true,
+        "schema": { "type": "integer", "format": "int32" }
+    }]);
+
+    // `Path<FooId>` documents no parameters because `FooId` does not implement `IntoParams`
+    let parameters = doc.pointer("/paths/~1foo~1{foo_id}/get/parameters");
+    assert_eq!(parameters, Some(&age_parameter));
+
+    let parameters = doc.pointer("/paths/~1bar/get/parameters");
+    assert_eq!(parameters, Some(&age_parameter));
+}
+
+#[test]
 fn derive_path_with_multiple_instances_same_path_params() {
     use actix_web::{delete, get, HttpResponse, Responder};
     use serde_json::json;

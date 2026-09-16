@@ -537,6 +537,34 @@ test_derive_path_operations! {
 }
 
 #[test]
+fn derive_rocket_path_with_into_params_resolved_from_fn_args() {
+    #![allow(unused)]
+    use serde_json::json;
+
+    #[derive(FromForm, IntoParams)]
+    pub struct PageParams {
+        pub page: u64,
+    }
+
+    #[utoipa::path]
+    #[get("/list?<page..>")]
+    async fn list_items(page: Option<PageParams>) {}
+
+    let operation = serde_json::to_value(__path_list_items::operation()).unwrap();
+    let parameters = operation.pointer("/parameters");
+
+    assert_eq!(
+        parameters,
+        Some(&json!([{
+            "in": "query",
+            "name": "page",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64", "minimum": 0 }
+        }]))
+    );
+}
+
+#[test]
 fn derive_rocket_path_with_query_params_in_option() {
     #![allow(unused)]
 
