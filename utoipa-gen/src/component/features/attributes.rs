@@ -363,6 +363,12 @@ impl RenameAll {
     }
 }
 
+impl From<RenameRule> for RenameAll {
+    fn from(value: RenameRule) -> Self {
+        Self(value)
+    }
+}
+
 impl Parse for RenameAll {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         let litstr = parse_utils::parse_next(input, || input.parse::<LitStr>())?;
