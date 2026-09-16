@@ -838,6 +838,33 @@ impl From<ContentMediaType> for Feature {
     }
 }
 
+impl_feature! {
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct ContentType(String);
+}
+
+impl Parse for ContentType {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self>
+    where
+        Self: std::marker::Sized,
+    {
+        parse_utils::parse_next_literal_str(input).map(Self)
+    }
+}
+
+impl ToTokens for ContentType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.0.to_tokens(tokens);
+    }
+}
+
+impl From<ContentType> for Feature {
+    fn from(value: ContentType) -> Self {
+        Self::ContentType(value)
+    }
+}
+
 // discriminator = ...
 // discriminator(property_name = ..., mapping(
 //      (value = ...),

@@ -1,0 +1,66 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: value
+---
+[
+  {
+    "content": {
+      "application/json": {
+        "example": {
+          "limit": 10,
+          "name": "foo"
+        },
+        "schema": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Filter"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "description": "JSON encoded filter.",
+    "in": "header",
+    "name": "filter",
+    "required": false
+  },
+  {
+    "content": {
+      "application/json": {
+        "schema": {
+          "properties": {
+            "limit": {
+              "format": "int32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      }
+    },
+    "in": "header",
+    "name": "inline_filter",
+    "required": true
+  },
+  {
+    "in": "header",
+    "name": "plain",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

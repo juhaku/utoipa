@@ -302,6 +302,7 @@ impl Parse for FieldFeatures {
             Explode,
             SchemaWith,
             component::features::attributes::Required,
+            component::features::attributes::ContentType,
             // param schema features
             Inline,
             Format,
@@ -398,9 +399,30 @@ impl Param {
             tokens.extend(quote! { .deprecated(Some(#deprecated)) });
         }
 
+        let content_type = pop_feature!(param_features => Feature::ContentType(_) as Option<features::attributes::ContentType>);
+        let content_example = content_type.as_ref().and_then(|_| {
+            pop_feature!(param_features => Feature::Example(_) as Option<features::attributes::Example>)
+        });
+        let schema_or_content = |schema: TokenStream| match &content_type {
+            Some(content_type) => {
+                let example = content_example
+                    .as_ref()
+                    .map(|example| quote! { .example(Some(#example)) });
+                quote! {
+                    .content(#content_type, utoipa::openapi::content::ContentBuilder::new()
+                        .schema(Some(#schema))
+                        #example
+                        .build())
+                }
+            }
+            None => quote! { .schema(Some(#schema)) },
+        };
+
         let schema_with = pop_feature!(param_features => Feature::SchemaWith(_));
         if let Some(schema_with) = schema_with {
-            tokens.extend(quote_diagnostics! { .schema(Some(@schema_with)).build() }?);
+            let schema_with = quote_diagnostics! { @schema_with }?;
+            let schema_or_content = schema_or_content(schema_with);
+            tokens.extend(quote! { #schema_or_content.build() });
         } else {
             let description =
                 CommentAttributes::from_attributes(&field.attrs).as_formatted_string();
@@ -444,9 +466,9 @@ impl Param {
                 },
                 option_is_nullable,
             )?;
-            let schema_tokens = schema.to_token_stream();
+            let schema_or_content = schema_or_content(schema.to_token_stream());
 
-            tokens.extend(quote! { .schema(Some(#schema_tokens)).build() });
+            tokens.extend(quote! { #schema_or_content.build() });
         }
 
         let tokens = match ignore {

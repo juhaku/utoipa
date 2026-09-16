@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add `content_type = ...` attribute to `IntoParams` `#[param(...)]` to render the parameter schema under `content`
 * Add support for the media type `item_schema = ...` attribute in `responses(...)`/`request_body(...)`, mapping to OpenAPI 3.2's `itemSchema` keyword for streaming/event-based media types such as `text/event-stream`
 * Add support for selecting the OpenAPI document version via the `version = "..."` attribute in `#[derive(OpenApi)]` (accepts `"3.1.0"` or `"3.2.0"`, mapping to `OpenApiVersion`)
 * Add support for generic types with `IntoParams` (https://github.com/juhaku/utoipa/pull/1588)

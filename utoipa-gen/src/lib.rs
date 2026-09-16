@@ -2345,6 +2345,11 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
+/// * `content_type = ...` Literal string media type e.g. _`"application/json"`_. Renders the
+///   parameter's schema (and `example`) under a [`content`][content] map keyed by the media type
+///   instead of the parameter's `schema`. Use this for parameters with complex serialization, e.g.
+///   a JSON-encoded header value.
+///
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -2619,6 +2624,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// [primitive]: https://doc.rust-lang.org/std/primitive/index.html
 /// [serde attributes]: https://serde.rs/attributes.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
+/// [content]: https://spec.openapis.org/oas/latest.html#fixed-fields-for-use-with-content
 pub fn into_params(input: TokenStream) -> TokenStream {
     let DeriveInput {
         attrs,
