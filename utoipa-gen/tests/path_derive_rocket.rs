@@ -13,6 +13,27 @@ use utoipa_gen::schema;
 mod common;
 
 #[test]
+fn derive_rocket_path_with_data_guard_without_body_extractor() {
+    #![allow(unused)]
+    use rocket::{data::Data, fs::TempFile};
+
+    #[utoipa::path]
+    #[post("/data", data = "<data>")]
+    async fn post_data(data: Data<'_>) {}
+
+    #[utoipa::path]
+    #[post("/file", data = "<file>")]
+    async fn post_file(file: TempFile<'_>) {}
+
+    // Data guards without `Json`, `Form` or `Bytes` document no request body
+    let operation = serde_json::to_value(__path_post_data::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), None);
+
+    let operation = serde_json::to_value(__path_post_file::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), None);
+}
+
+#[test]
 fn resolve_route_with_simple_url() {
     mod rocket_route_operation {
         use rocket::route;
