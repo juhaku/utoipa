@@ -21,6 +21,12 @@ impl_feature! {
     }
 }
 
+impl Extensions {
+    pub fn merge(&mut self, extensions: Extensions) {
+        self.extensions.extend(extensions.extensions);
+    }
+}
+
 impl Parse for Extensions {
     fn parse(input: syn::parse::ParseStream, _: proc_macro2::Ident) -> syn::Result<Self> {
         syn::parse::Parse::parse(input)

@@ -161,6 +161,17 @@ impl utoipa::Modify for ApiModify {
     }
 }
 
+#[derive(Debug, Clone, utoipa::IntoParams)]
+#[into_params(parameter_in = Query, extensions(("x-on-both-struct-params" = json!(true))))]
+pub struct ParamStruct {
+    /// Another param.
+    pub param_1: i32,
+
+    /// Yet another param.
+    #[param(extensions(("x-on-one-param" = json!({ "key": "value" }))))]
+    pub param_2: String,
+}
+
 #[utoipa::path(
     get,
     path = "/openapi",
@@ -174,6 +185,7 @@ impl utoipa::Modify for ApiModify {
           ("x-ext-macro" = json!( "[Macro] openapi>Paths>PathItem>Operation>Parameters>item" ) )
         )
       ),
+      ParamStruct
     ),
     responses(
       ( status = 200,
