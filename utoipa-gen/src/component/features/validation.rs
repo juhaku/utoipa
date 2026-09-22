@@ -210,6 +210,18 @@ impl_feature! {
     pub struct ExclusiveMaximum(NumberValue, Ident);
 }
 
+impl ExclusiveMinimum {
+    pub fn new(value: f64, span: Span) -> Self {
+        Self(
+            NumberValue {
+                minus: value <= 0.0,
+                lit: Literal::f64_suffixed(value),
+            },
+            Ident::new("empty", span),
+        )
+    }
+}
+
 impl Validate for ExclusiveMaximum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
