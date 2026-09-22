@@ -24,13 +24,13 @@ You may find fullsize examples from utoipa's Github [repository][examples].
 Use Redoc only without any boiler plate implementation.
 ```toml
 [dependencies]
-utoipa-redoc = "6"
+utoipa-redoc = "7"
 ```
 
 Enable actix-web integration with Redoc.
 ```toml
 [dependencies]
-utoipa-redoc = { version = "6", features = ["actix-web"] }
+utoipa-redoc = { version = "7", features = ["actix-web"] }
 ```
 
 # Using standalone

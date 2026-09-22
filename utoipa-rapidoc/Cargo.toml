@@ -2,7 +2,7 @@
 name = "utoipa-rapidoc"
 description = "RapiDoc for utoipa"
 edition = "2021"
-version = "6.0.0"
+version = "7.0.0"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["rapidoc", "openapi", "documentation"]
@@ -22,7 +22,7 @@ rocket = ["dep:rocket", "dep:time"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
+utoipa = { version = "6.0.0", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
 actix-web = { version = "4", optional = true, default-features = false }

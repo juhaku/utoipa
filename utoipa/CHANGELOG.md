@@ -3,7 +3,7 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
-## Unreleased
+## 6.0.0 - Sep 23 2026
 
 ### Added
 
@@ -20,6 +20,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Changed
 
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * **Breaking**: Removed `serde_norway` dependency. The `yaml` feature now uses `yaml_serde` and `OpenApi::to_yaml` returns `yaml_serde::Error` (https://github.com/juhaku/utoipa/issues/1565)
 
 ## 5.5.0 - May 5 2026
