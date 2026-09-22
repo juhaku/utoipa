@@ -1,6 +1,6 @@
 # Changelog - utoipa-gen
 
-## Unreleased
+## 6.0.0 - Sep 23 2026
 
 ### Added
 
@@ -21,6 +21,7 @@
 
 ### Changed
 
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * Update response header generation for optional schemas and content-capable headers (https://github.com/juhaku/utoipa/pull/1555)
 * Adjust generated media type tokens to avoid ambiguous `Into` inference after content maps gained reference support (https://github.com/juhaku/utoipa/pull/1555)
 * Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)
