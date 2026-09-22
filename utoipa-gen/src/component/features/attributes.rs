@@ -9,7 +9,7 @@ use syn::{Error, LitStr, Token, TypePath, WherePredicate};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
-use crate::parse_utils::{LitBoolOrExprPath, LitStrOrExpr};
+use crate::parse_utils::LitStrOrExpr;
 use crate::path::parameter::{self, ParameterStyle};
 use crate::schema_type::KnownFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
@@ -995,7 +995,7 @@ impl_feature! {
     /// Ignore feature parsed from macro attributes.
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Ignore(pub LitBoolOrExprPath);
+    pub struct Ignore(pub syn::LitBool);
 }
 
 impl Parse for Ignore {
@@ -1003,7 +1003,11 @@ impl Parse for Ignore {
     where
         Self: std::marker::Sized,
     {
-        parse_utils::parse_next_literal_bool_or_call(input).map(Self)
+        if input.peek(Token![=]) {
+            parse_utils::parse_next(input, || input.parse::<syn::LitBool>()).map(Self)
+        } else {
+            Ok(true.into())
+        }
     }
 }
 
@@ -1021,7 +1025,7 @@ impl From<Ignore> for Feature {
 
 impl From<bool> for Ignore {
     fn from(value: bool) -> Self {
-        Self(value.into())
+        Self(syn::LitBool::new(value, proc_macro2::Span::call_site()))
     }
 }
 

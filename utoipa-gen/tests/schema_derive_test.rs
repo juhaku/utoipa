@@ -3210,27 +3210,6 @@ fn derive_schema_with_ignore_eq_false_field() {
 }
 
 #[test]
-fn derive_schema_with_ignore_eq_call_field() {
-    #![allow(unused)]
-
-    let value = api_doc! {
-        struct SchemaIgnoredField {
-            value: String,
-            #[schema(ignore = Self::ignore)]
-            this_is_not_private: String,
-        }
-
-        impl SchemaIgnoredField {
-            fn ignore() -> bool {
-                false
-            }
-        }
-    };
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
 fn derive_schema_with_ignore_struct() {
     #![allow(unused)]
 
@@ -3258,30 +3237,6 @@ fn derive_schema_with_ignore_enum() {
             value: String,
             #[schema(ignore)]
             __this_is_private: Private,
-        }
-    };
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
-fn derive_schema_with_ignore_fn_struct() {
-    #![allow(unused)]
-
-    fn always_true() -> bool {
-        true
-    };
-
-    #[derive(ToSchema)]
-    struct PrivateOrPublic {
-        name: &'static str,
-    }
-
-    let value = api_doc! {
-        struct SchemaIgnoredField {
-            value: String,
-            #[schema(ignore = always_true)]
-            private_or_public: PrivateOrPublic,
         }
     };
 

@@ -1939,41 +1939,6 @@ fn derive_into_params_with_ignored_enum_field() {
 }
 
 #[test]
-fn derive_into_params_with_ignored_struct_fn_field() {
-    #![allow(unused)]
-
-    fn always_true() -> bool {
-        true
-    };
-
-    #[derive(ToSchema)]
-    struct PrivateOrPublic {
-        name: &'static str,
-    }
-
-    #[derive(IntoParams)]
-    #[into_params(parameter_in = Query)]
-    struct Params {
-        value: String,
-        #[param(ignore = always_true)]
-        private_or_public: PrivateOrPublic,
-    }
-
-    #[utoipa::path(get, path = "/params", params(Params))]
-    #[allow(unused)]
-    fn get_params() {}
-    let operation = test_api_fn_doc! {
-        get_params,
-        operation: get,
-        path: "/params"
-    };
-
-    let value = operation.pointer("/parameters");
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
 fn derive_into_params_with_generic_field() {
     #[derive(ToSchema)]
     #[allow(unused)]

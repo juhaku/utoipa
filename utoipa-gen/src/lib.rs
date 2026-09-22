@@ -162,7 +162,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
-///   
+///
 ///   **Note!**<br>Using `inline` with generic arguments might lead to incorrect spec generation.
 ///   This is due to the fact that during compilation we cannot know how to treat the generic
 ///   argument and there is difference whether it is a primitive type or another generic type.
@@ -199,8 +199,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
-/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema Only literal `bool` value is allowed.
 /// * `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
 ///   `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///   recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
@@ -2408,8 +2407,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema Only literal `bool` value is allowed.
 ///
 /// #### Field nullability and required rules
 ///
@@ -3738,14 +3736,6 @@ mod parse_utils {
                 Self::LitBool(bool) => bool.to_tokens(tokens),
                 Self::ExprPath(call) => call.to_tokens(tokens),
             }
-        }
-    }
-
-    pub fn parse_next_literal_bool_or_call(input: ParseStream) -> syn::Result<LitBoolOrExprPath> {
-        if input.peek(Token![=]) {
-            parse_next(input, || LitBoolOrExprPath::parse(input))
-        } else {
-            Ok(LitBoolOrExprPath::from(true))
         }
     }
 }
