@@ -20,6 +20,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Changed
 
+* Removed support for expression ignore in `ToSchema` and `IntoParams` (https://github.com/juhaku/utoipa/pull/1619)
 * Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * **Breaking**: Removed `serde_norway` dependency. The `yaml` feature now uses `yaml_serde` and `OpenApi::to_yaml` returns `yaml_serde::Error` (https://github.com/juhaku/utoipa/issues/1565)
 

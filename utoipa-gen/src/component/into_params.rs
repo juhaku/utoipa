@@ -25,7 +25,6 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    parse_utils::LitBoolOrExprPath,
     token_stream::{quote_diagnostics, Diagnostics, ToTokensDiagnostics},
     OptionExt, Required,
 };
@@ -361,7 +360,7 @@ impl Param {
                 .map_err(Diagnostics::from)?;
 
         let ignore = pop_feature!(param_features => Feature::Ignore(_));
-        let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(b)))) if b.value());
+        let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(b))) if b.value());
         if should_always_ignore {
             return Ok(Self {
                 tokens: quote! { None },
@@ -450,25 +449,12 @@ impl Param {
         }
 
         let tokens = match ignore {
-            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(bool)))) => {
+            Some(Feature::Ignore(Ignore(bool))) => {
                 quote_spanned! {
                     bool.span() => if #bool {
                         None
                     } else {
                         Some(#tokens)
-                    }
-                }
-            }
-            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
-                quote_spanned! {
-                    path.span() => {
-                        utoipa::__dev::warn_deprecated_ignore_fn_pattern();
-
-                        if #path() {
-                            None
-                        } else {
-                            Some(#tokens)
-                        }
                     }
                 }
             }

@@ -21,6 +21,7 @@
 
 ### Changed
 
+* Removed support for expression ignore in `ToSchema` and `IntoParams` (https://github.com/juhaku/utoipa/pull/1619)
 * Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * Update response header generation for optional schemas and content-capable headers (https://github.com/juhaku/utoipa/pull/1555)
 * Adjust generated media type tokens to avoid ambiguous `Into` inference after content maps gained reference support (https://github.com/juhaku/utoipa/pull/1555)
