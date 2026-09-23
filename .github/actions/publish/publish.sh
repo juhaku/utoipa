@@ -42,7 +42,7 @@ fi
 echo "$token" | cargo login
 while read -r module; do
     # crate=$(echo "$ref" | sed 's|-[0-9]*\.[0-9]*\.[0-9].*||')
-    crate=${ref/-[0-9]\.[0-9]\.[0-9]*/}
+    crate=${ref/-[0-9]*\.[0-9]*\.[0-9]*/}
     if [[ "$crate" != "$module" ]]; then
         echo "Module: $module does not match to release crate: $crate, skipping release for module"
         continue
