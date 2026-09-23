@@ -77,7 +77,7 @@ coverage:
 # Generate workspace documentation (requires nightly toolchain). Output is written to target/doc/
 doc:
     cargo +nightly doc -Z unstable-options --workspace --no-deps \
-        --features actix_extras,openapi_extensions,yaml,uuid,ulid,url,non_strict_integers,actix-web,axum,rocket,macros,config \
+        --features actix_extras,openapi_extensions,yaml,uuid,ulid,url,non_strict_integers,actix-web,axum,rocket,macros,config,vendored \
         --config 'build.rustdocflags = ["--cfg", "doc_cfg"]'
 
 # Update vendored Swagger UI to the given version. Usage: `just update-swagger-ui 5.18.2`
