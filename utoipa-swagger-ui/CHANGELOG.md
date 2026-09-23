@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## 10.0.1 - Sep 24 2026
+
+### Fixed
+
+* Fix utoipa-swagger-ui build (https://github.com/juhaku/utoipa/pull/1624)
+
 ## 10.0.0 - Sep 23 2026
 
 ### Changed
