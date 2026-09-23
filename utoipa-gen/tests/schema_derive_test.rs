@@ -3688,3 +3688,16 @@ fn derive_schema_with_many_fields_compiles() {
     let schema = <WideStruct as PartialSchema>::schema();
     serde_json::to_value(schema).expect("wide schema is JSON serializable");
 }
+
+#[test]
+fn derive_correct_exclusive_min_properties() {
+    let schema = api_doc! {
+        #[schema(min_properties = 1)]
+        struct Foo {
+            property_1: Option<String>,
+            property_2: Option<String>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}

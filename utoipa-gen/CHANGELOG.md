@@ -1,5 +1,11 @@
 # Changelog - utoipa-gen
 
+## 6.0.1 - Sep 23 2026
+
+### Fixed
+
+* Fix min properties schema generation (https://github.com/juhaku/utoipoa/pull/1623)
+
 ## 6.0.0 - Sep 23 2026
 
 ### Added
