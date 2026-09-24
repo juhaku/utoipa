@@ -61,7 +61,7 @@ impl<'p> PathAttr<'p> {
     #[cfg(feature = "auto_into_responses")]
     pub fn responses_from_into_responses(&mut self, ty: &'p syn::TypePath) {
         self.responses
-            .push(Response::IntoResponses(Cow::Borrowed(ty)))
+            .push(Response::AutoIntoResponses(Cow::Borrowed(ty)))
     }
 
     #[cfg(any(

@@ -1930,9 +1930,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     #[cfg(feature = "auto_into_responses")]
     {
-        if let Some(responses) = ext::auto_types::parse_fn_operation_responses(&ast_fn) {
+        for responses in ext::auto_types::parse_fn_operation_responses(&ast_fn) {
             path_attribute.responses_from_into_responses(responses);
-        };
+        }
     }
 
     let mut resolved_methods = match PathOperations::resolve_operation(&ast_fn) {
