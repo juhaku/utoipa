@@ -1007,6 +1007,51 @@ fn path_derive_custom_generic_wrapper() {
     assert_json_snapshot!(&operation.pointer("/requestBody"));
 }
 
+#[test]
+fn path_derive_request_body_content_type_from_extractor() {
+    use actix_web::{web::Form, Either};
+    use serde_json::json;
+
+    #[derive(utoipa::ToSchema, serde::Serialize, serde::Deserialize)]
+    struct Item {
+        value: String,
+    }
+
+    #[utoipa::path]
+    #[post("/json-string")]
+    #[allow(unused)]
+    async fn post_json_string(_body: Json<String>) -> impl Responder {
+        String::new()
+    }
+
+    #[utoipa::path]
+    #[post("/either")]
+    #[allow(unused)]
+    async fn post_either(_body: Either<Json<Item>, Form<Item>>) -> impl Responder {
+        String::new()
+    }
+
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(post_json_string, post_either))]
+    struct Doc;
+
+    let doc = serde_json::to_value(Doc::openapi()).unwrap();
+
+    // `Json<String>` is a JSON body even though the inner type is a primitive
+    let json_string_content = doc.pointer("/paths/~1json-string/post/requestBody/content");
+    assert_eq!(
+        json_string_content,
+        Some(&json!({ "application/json": { "schema": { "type": "string" } } }))
+    );
+
+    // The content type must match the extractor the schema is taken from, the first variant
+    let either_content = doc.pointer("/paths/~1either/post/requestBody/content");
+    assert_eq!(
+        either_content,
+        Some(&json!({ "application/json": { "schema": { "$ref": "#/components/schemas/Item" } } }))
+    );
+}
+
 test_derive_path_operations! {
     derive_path_operation_post, mod_test_post: post
     derive_path_operation_get, mod_test_get: get
