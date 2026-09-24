@@ -2312,6 +2312,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   supplied, then the value is determined by the `parameter_in_provider` in
 ///   [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
 /// * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
+/// * `extensions(...)` List of extensions applied to all parameters in the struct. Additive with extensions specfied in field-level `#[param(...)]` attributes.
 ///
 /// Use `names` to define name for single unnamed argument.
 /// ```rust
@@ -2408,6 +2409,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
 /// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema Only literal `bool` value is allowed.
+///
+/// * `extensions(...)` List of extensions local to the parameter. Additive with extensions specfied in struct-level `#[into_params(...)]` attributes.
 ///
 /// #### Field nullability and required rules
 ///
