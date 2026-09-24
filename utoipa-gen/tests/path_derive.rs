@@ -917,10 +917,7 @@ fn derive_parameter_rename_expr() {
 
     #[derive(IntoParams)]
     #[into_params(parameter_in = Path, names(NEW_NAME))]
-    struct Filter(
-        #[allow(unused)]
-        (),
-    );
+    struct Filter(#[allow(unused)] ());
 
     #[utoipa::path(
         get,
@@ -952,12 +949,7 @@ fn derive_parameter_rename_expr_in_param_name_and_title() {
 
     #[derive(IntoParams)]
     #[into_params(parameter_in = Query, names(PARAM_NAME, PARAM_TITLE))]
-    struct Filter(
-        #[allow(unused)]
-        String,
-        #[allow(unused)]
-        String,
-    );
+    struct Filter(#[allow(unused)] String, #[allow(unused)] String);
 
     #[utoipa::path(
         get,
