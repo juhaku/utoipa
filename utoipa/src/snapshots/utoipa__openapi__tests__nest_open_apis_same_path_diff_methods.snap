@@ -1,0 +1,21 @@
+---
+source: utoipa/src/openapi.rs
+expression: paths
+---
+{
+  "/api/v1/foo": {
+    "post": {
+      "responses": {}
+    }
+  },
+  "/api/v1/status": {
+    "get": {
+      "description": "Get status",
+      "responses": {}
+    },
+    "post": {
+      "description": "Post status",
+      "responses": {}
+    }
+  }
+}
