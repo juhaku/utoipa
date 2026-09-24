@@ -912,6 +912,77 @@ fn derive_path_params_into_params_with_unit_type() {
 }
 
 #[test]
+fn derive_parameter_rename_expr() {
+    const NEW_NAME: &str = "renamed_field";
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Path, names(NEW_NAME))]
+    struct Filter(
+        #[allow(unused)]
+        (),
+    );
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
+fn derive_parameter_rename_expr_in_param_name_and_title() {
+    const PARAM_NAME: &str = "filter_value";
+    const PARAM_TITLE: &str = "another_name";
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query, names(PARAM_NAME, PARAM_TITLE))]
+    struct Filter(
+        #[allow(unused)]
+        String,
+        #[allow(unused)]
+        String,
+    );
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
 fn arbitrary_expr_in_operation_id() {
     #[utoipa::path(
         get,
@@ -1570,13 +1641,13 @@ fn derive_path_with_response_links() {
         get,
         path = "/test-links",
         responses(
-            (status = 200, description = "success response", 
+            (status = 200, description = "success response",
                 links(
                     ("getFoo" = (
-                        operation_id = "test_links", 
-                        parameters(("key" = "value"), ("json_value" = json!(1))), 
-                        request_body = "this is body", 
-                        server(url = "http://localhost") 
+                        operation_id = "test_links",
+                        parameters(("key" = "value"), ("json_value" = json!(1))),
+                        request_body = "this is body",
+                        server(url = "http://localhost")
                     )),
                     ("getBar" = (
                         operation_ref = "this is ref"

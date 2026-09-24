@@ -3701,3 +3701,18 @@ fn derive_correct_exclusive_min_properties() {
 
     assert_json_snapshot!(schema);
 }
+
+#[test]
+fn derive_struct_with_field_rename_expr() {
+    const STRUCT_TITLE: &str = "Post Title";
+
+    let schema = api_doc! {
+        #[schema(title = STRUCT_TITLE)]
+        struct Post {
+            id: i64,
+            description: String,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
