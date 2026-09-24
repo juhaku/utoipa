@@ -72,7 +72,8 @@ impl<'p> PathAttr<'p> {
     pub fn update_request_body(&mut self, schema: Option<crate::ext::ExtSchema<'p>>) {
         use self::media_type::Schema;
         if self.request_body.is_none() {
-            if let Some(schema) = schema {
+            // a handler argument without a resolvable request body type documents no request body
+            if let Some(schema) = schema.filter(crate::ext::ExtSchema::has_actual_body) {
                 self.request_body = Some(RequestBodyAttr::from_schema(Schema::Ext(schema)));
             }
         }
