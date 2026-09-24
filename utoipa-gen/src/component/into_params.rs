@@ -374,17 +374,17 @@ impl Param {
             .rename_all
             .map(|rename_all| rename_all.as_rename_rule()));
 
-        if let LitStrOrExpr::LitStr(s) = name {
-            let mut value = s.value();
-            if value.starts_with("r#") {
-                value = value[2..].to_string();
-            }
+        if let LitStrOrExpr::LitStr(s) = &name {
+            let lit_value = s.value();
+            let value = if lit_value.starts_with("r#") {
+                Cow::Borrowed(&lit_value[2..])
+            } else {
+                Cow::Borrowed(lit_value.as_str())
+            };
 
-            name = LitStrOrExpr::from(
-                super::rename::<FieldRename>(&value, rename_to, rename_all)
-                    .map(|v| v.into_owned())
-                    .unwrap_or(value),
-            );
+            if let Some(renamed) = super::rename::<FieldRename>(&value, rename_to, rename_all) {
+                name = LitStrOrExpr::from(renamed.into_owned());
+            }
         }
 
         let type_tree = TypeTree::from_type(&field.ty)?;
