@@ -115,6 +115,7 @@ pub enum SerdeEnumRepr {
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct SerdeContainer {
     pub rename_all: Option<RenameRule>,
+    pub rename_all_fields: Option<RenameRule>,
     pub enum_repr: SerdeEnumRepr,
     pub default: bool,
     pub deny_unknown_fields: bool,
@@ -123,6 +124,7 @@ pub struct SerdeContainer {
 impl SerdeContainer {
     /// Parse a single serde attribute, currently supported attributes are:
     ///     * `rename_all = ...`
+    ///     * `rename_all_fields = ...`
     ///     * `tag = ...`
     ///     * `content = ...`
     ///     * `untagged = ...`
@@ -133,6 +135,15 @@ impl SerdeContainer {
             "rename_all" => {
                 if let Some((literal, span)) = parse_next_lit_str(next) {
                     self.rename_all = Some(
+                        literal
+                            .parse::<RenameRule>()
+                            .map_err(|error| Error::new(span, error.to_string()))?,
+                    );
+                }
+            }
+            "rename_all_fields" => {
+                if let Some((literal, span)) = parse_next_lit_str(next) {
+                    self.rename_all_fields = Some(
                         literal
                             .parse::<RenameRule>()
                             .map_err(|error| Error::new(span, error.to_string()))?,
@@ -281,6 +292,9 @@ pub fn parse_container(attributes: &[Attribute]) -> Result<SerdeContainer, Diagn
             }
             if value.rename_all.is_some() {
                 acc.rename_all = value.rename_all;
+            }
+            if value.rename_all_fields.is_some() {
+                acc.rename_all_fields = value.rename_all_fields;
             }
 
             acc
@@ -501,6 +515,22 @@ mod tests {
         let expected = SerdeContainer {
             default: true,
             deny_unknown_fields: true,
+            ..Default::default()
+        };
+
+        let result = parse_container(attributes).expect("parse success");
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_serde_parse_container_rename_all_fields() {
+        let rename_all_fields_attribute: syn::Attribute = parse_quote! {
+            #[serde(rename_all_fields = "camelCase")]
+        };
+        let attributes: &[Attribute] = &[rename_all_fields_attribute];
+
+        let expected = SerdeContainer {
+            rename_all_fields: Some(RenameRule::Camel),
             ..Default::default()
         };
 
