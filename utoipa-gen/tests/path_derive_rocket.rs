@@ -426,6 +426,31 @@ fn path_with_all_args_and_body() {
 }
 
 #[test]
+fn derive_rocket_path_with_string_request_body() {
+    #![allow(unused)]
+    use serde_json::json;
+
+    #[utoipa::path]
+    #[post("/string", data = "<body>")]
+    async fn post_string(body: String) {}
+
+    #[utoipa::path]
+    #[post("/str", data = "<body>")]
+    async fn post_str(body: &str) {}
+
+    let text_body = json!({
+        "content": { "text/plain": { "schema": { "type": "string" } } },
+        "required": true
+    });
+
+    let operation = serde_json::to_value(__path_post_string::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), Some(&text_body));
+
+    let operation = serde_json::to_value(__path_post_str::operation()).unwrap();
+    assert_eq!(operation.pointer("/requestBody"), Some(&text_body));
+}
+
+#[test]
 fn path_with_enum_path_param() {
     #[derive(ToSchema)]
     #[allow(unused)]
