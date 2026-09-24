@@ -476,6 +476,20 @@ pub mod fn_arg {
         }
     }
 
+    /// Get the type inside `Option<T>`, e.g. `Query<T>` of `Option<Query<T>>`, or the type itself
+    /// when it is not an `Option`.
+    pub(super) fn without_option(ty: TypeTree<'_>) -> TypeTree<'_> {
+        if ty.generic_type == Some(crate::component::GenericType::Option) {
+            ty.children
+                .expect("FnArg Option must have children")
+                .into_iter()
+                .next()
+                .expect("FnArg Option must have 1 child")
+        } else {
+            ty
+        }
+    }
+
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
     pub(super) fn with_parameter_in(
         arg: FnArg<'_>,
@@ -483,16 +497,17 @@ pub mod fn_arg {
         Option<std::borrow::Cow<'_, syn::Path>>,
         proc_macro2::TokenStream,
     )> {
-        let parameter_in_provider = if arg.ty.is("Path") {
+        let ty = without_option(arg.ty);
+
+        let parameter_in_provider = if ty.is("Path") {
             quote! { || Some (utoipa::openapi::path::ParameterIn::Path) }
-        } else if arg.ty.is("Query") {
+        } else if ty.is("Query") {
             quote! { || Some(utoipa::openapi::path::ParameterIn::Query) }
         } else {
             quote! { || None }
         };
 
-        let type_path = arg
-            .ty
+        let type_path = ty
             .children
             .expect("FnArg TypeTree generic type Path must have children")
             .into_iter()
