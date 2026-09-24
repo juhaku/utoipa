@@ -342,6 +342,36 @@ impl<'p> Path<'p> {
     }
 }
 
+/// Collect the schemas referenced by a component schema into `schemas.push(...)` statements.
+fn to_schema_references(
+    mut schemas: TokenStream2,
+    (is_inline, component_schema): (bool, ComponentSchema),
+) -> TokenStream2 {
+    for reference in component_schema.schema_references {
+        let name = &reference.name;
+        let tokens = &reference.tokens;
+        let references = &reference.references;
+
+        #[cfg(feature = "config")]
+        let should_collect_schema = (matches!(
+            crate::CONFIG.schema_collect,
+            utoipa_config::SchemaCollect::NonInlined
+        ) && !is_inline)
+            || matches!(
+                crate::CONFIG.schema_collect,
+                utoipa_config::SchemaCollect::All
+            );
+        #[cfg(not(feature = "config"))]
+        let should_collect_schema = !is_inline;
+        if should_collect_schema {
+            schemas.extend(quote!( schemas.push((#name, #tokens)); ));
+        }
+        schemas.extend(quote!( #references; ));
+    }
+
+    schemas
+}
+
 impl<'p> ToTokensDiagnostics for Path<'p> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) -> Result<(), Diagnostics> {
         let fn_name = &*self.fn_ident.to_string();
@@ -478,36 +508,7 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             servers: self.path_attr.servers.as_ref(),
         };
 
-        fn to_schema_references(
-            mut schemas: TokenStream2,
-            (is_inline, component_schema): (bool, ComponentSchema),
-        ) -> TokenStream2 {
-            for reference in component_schema.schema_references {
-                let name = &reference.name;
-                let tokens = &reference.tokens;
-                let references = &reference.references;
-
-                #[cfg(feature = "config")]
-                let should_collect_schema = (matches!(
-                    crate::CONFIG.schema_collect,
-                    utoipa_config::SchemaCollect::NonInlined
-                ) && !is_inline)
-                    || matches!(
-                        crate::CONFIG.schema_collect,
-                        utoipa_config::SchemaCollect::All
-                    );
-                #[cfg(not(feature = "config"))]
-                let should_collect_schema = !is_inline;
-                if should_collect_schema {
-                    schemas.extend(quote!( schemas.push((#name, #tokens)); ));
-                }
-                schemas.extend(quote!( #references; ));
-            }
-
-            schemas
-        }
-
-        let response_schemas = self
+        let mut response_schemas = self
             .path_attr
             .responses
             .iter()
@@ -516,6 +517,14 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .into_iter()
             .flatten()
             .fold(TokenStream2::new(), to_schema_references);
+
+        // `IntoResponses` types collect the schemas referenced by their own responses
+        for response in &self.path_attr.responses {
+            if let Response::IntoResponses(path) = response {
+                response_schemas
+                    .extend(quote! { <#path as utoipa::IntoResponses>::schemas(schemas); });
+            }
+        }
 
         let schemas = self
             .path_attr

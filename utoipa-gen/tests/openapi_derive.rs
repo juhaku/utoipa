@@ -602,3 +602,39 @@ fn derive_generic_openapi_component_schemas() {
 
     assert_json_snapshot!(schemas)
 }
+
+#[test]
+fn derive_openapi_collects_schemas_from_into_responses() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Item {
+        value: String,
+    }
+
+    #[derive(utoipa::IntoResponses)]
+    #[allow(unused)]
+    enum ItemResponses {
+        /// Item found
+        #[response(status = 200)]
+        Success(Item),
+    }
+
+    #[utoipa::path(get, path = "/item", responses(ItemResponses))]
+    #[allow(unused)]
+    fn get_item() {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_item))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let reference =
+        doc.pointer("/paths/~1item/get/responses/200/content/application~1json/schema/$ref");
+    let item = doc.pointer("/components/schemas/Item");
+
+    assert_eq!(reference, Some(&Value::from("#/components/schemas/Item")));
+    assert!(
+        item.is_some(),
+        "expected referenced schema `Item` in components"
+    );
+}
