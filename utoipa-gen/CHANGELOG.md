@@ -1,17 +1,16 @@
 # Changelog - utoipa-gen
 
-## x.y.z - XXX yy 2026
+## Unreleased
 
 ### Added
 
-* Add support for expression for `title` and `names` (<https://github.com/juhaku/utoipa/pull/1524>)
+* Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 
 ## 6.0.1 - Sep 23 2026
 
 ### Fixed
 
 * Fix min properties schema generation (https://github.com/juhaku/utoipoa/pull/1623)
-* Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 
 ## 6.0.0 - Sep 23 2026
 
