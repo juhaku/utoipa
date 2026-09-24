@@ -102,6 +102,7 @@ pub enum Feature {
     Required(attributes::Required),
     ContentEncoding(attributes::ContentEncoding),
     ContentMediaType(attributes::ContentMediaType),
+    ContentType(attributes::ContentType),
     Discriminator(attributes::Discriminator),
     Bound(attributes::Bound),
     Ignore(attributes::Ignore),
@@ -217,6 +218,10 @@ impl ToTokensDiagnostics for Feature {
             }
             Feature::ContentEncoding(content_encoding) => quote! { .content_encoding(#content_encoding) },
             Feature::ContentMediaType(content_media_type) => quote! { .content_media_type(#content_media_type) },
+            Feature::ContentType(_) => {
+                return Err(Diagnostics::new("ContentType does not support `ToTokens`")
+                    .help("ContentType is only used with IntoParams to render the parameter schema as `content`."))
+            }
             Feature::Discriminator(discriminator) => quote! { .discriminator(Some(#discriminator)) },
             Feature::Bound(_) => {
                 // specially handled on generating impl blocks.
@@ -306,6 +311,7 @@ impl Display for Feature {
             Feature::Required(required) => required.fmt(f),
             Feature::ContentEncoding(content_encoding) => content_encoding.fmt(f),
             Feature::ContentMediaType(content_media_type) => content_media_type.fmt(f),
+            Feature::ContentType(content_type) => content_type.fmt(f),
             Feature::Discriminator(discriminator) => discriminator.fmt(f),
             Feature::Bound(bound) => bound.fmt(f),
             Feature::Ignore(ignore) => ignore.fmt(f),
@@ -358,6 +364,7 @@ impl Validatable for Feature {
             Feature::Required(required) => required.is_validatable(),
             Feature::ContentEncoding(content_encoding) => content_encoding.is_validatable(),
             Feature::ContentMediaType(content_media_type) => content_media_type.is_validatable(),
+            Feature::ContentType(content_type) => content_type.is_validatable(),
             Feature::Discriminator(discriminator) => discriminator.is_validatable(),
             Feature::Bound(bound) => bound.is_validatable(),
             Feature::Ignore(ignore) => ignore.is_validatable(),
@@ -408,6 +415,7 @@ is_validatable! {
     attributes::Required,
     attributes::ContentEncoding,
     attributes::ContentMediaType,
+    attributes::ContentType,
     attributes::Discriminator,
     attributes::Bound,
     attributes::Ignore,
@@ -639,6 +647,7 @@ impl_feature_into_inner! {
     attributes::As,
     attributes::Required,
     attributes::AdditionalProperties,
+    attributes::ContentType,
     attributes::Discriminator,
     attributes::Bound,
     attributes::Ignore,

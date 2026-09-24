@@ -1144,6 +1144,41 @@ fn derive_into_params_required() {
 }
 
 #[test]
+fn derive_into_params_with_content_type() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    struct Filter {
+        name: String,
+        limit: Option<u32>,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Header)]
+    #[allow(unused)]
+    struct Params {
+        /// JSON encoded filter.
+        #[param(content_type = "application/json", example = json!({"name": "foo", "limit": 10}))]
+        filter: Option<Filter>,
+        #[param(content_type = "application/json", inline)]
+        inline_filter: Filter,
+        plain: String,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value)
+}
+
+#[test]
 fn derive_into_params_with_serde_skip() {
     #[derive(IntoParams, Serialize)]
     #[into_params(parameter_in = Query)]
