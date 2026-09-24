@@ -3,6 +3,12 @@
 **`utoipa`** is in direct correlation with **`utoipa-gen`** ([CHANGELOG.md](../utoipa-gen/CHANGELOG.md)). You might want
 to look into changes introduced to **`utoipa-gen`**.
 
+### Unreleased
+
+### Fixed
+
+* Fix unsigned integer known format serialization (https://github.com/juhaku/utoipa/pull/1554)
+
 ## 6.0.0 - Sep 23 2026
 
 ### Added
