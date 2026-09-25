@@ -17,6 +17,7 @@ log = "0.4"
 futures = "0.3"
 utoipa = { path = "../../utoipa" }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc" }
+utoipa-warp = { path = "../../utoipa-warp" }
 
 [workspace]
 

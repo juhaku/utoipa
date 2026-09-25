@@ -34,9 +34,8 @@ being portable and standalone, one of its key aspects is simple integration with
 |[actix-web](https://github.com/actix/actix-web)|Parse path, path parameters and query parameters, recognize request body and response body, [`utoipa-actix-web` bindings](./utoipa-actix-web/README.md). See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#actix_extras-feature-support-for-actix-web)|
 |[axum](https://github.com/tokio-rs/axum)|Parse path and query parameters, recognize request body and response body, [`utoipa-axum` bindings](./utoipa-axum/README.md). See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#axum_extras-feature-support-for-axum)|
 |[rocket](https://github.com/SergioBenitez/Rocket)| Parse path, path parameters and query parameters, recognize request body and response body. See more at [docs](https://docs.rs/utoipa/latest/utoipa/attr.path.html#rocket_extras-feature-support-for-rocket)|
-|Others*| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|
-
-> Others* = For example [warp](https://github.com/seanmonstar/warp) but could be anything.
+|[warp](https://github.com/seanmonstar/warp)|Primitives for composing warp filters with OpenAPI spec generation, [`utoipa-warp` bindings](./utoipa-warp/README.md).|
+|Others| Plain `utoipa` without extra flavor. This gives you all the basic benefits listed below in **[Features](#features)** section but with little less automation.|
 
 Refer to the existing [examples](./examples) to find out more.
 

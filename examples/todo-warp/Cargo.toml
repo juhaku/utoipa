@@ -19,5 +19,6 @@ log = "0.4"
 futures = "0.3"
 utoipa = { path = "../../utoipa" }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui" }
+utoipa-warp = { path = "../../utoipa-warp", features = ["swagger-ui"] }
 
 [workspace]
