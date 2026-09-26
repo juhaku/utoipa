@@ -31,6 +31,7 @@ pub struct SerdeValue {
     pub flatten: bool,
     pub skip_serializing_if: bool,
     pub double_option: bool,
+    pub deserialize_with: bool,
 }
 
 impl SerdeValue {
@@ -55,7 +56,11 @@ impl SerdeValue {
                     TokenTree::Ident(ident) if ident == "skip_serializing_if" => {
                         value.skip_serializing_if = true
                     }
+                    TokenTree::Ident(ident) if ident == "deserialize_with" => {
+                        value.deserialize_with = true
+                    }
                     TokenTree::Ident(ident) if ident == "with" => {
+                        value.deserialize_with = true;
                         value.double_option = parse_next_lit_str(next)
                             .and_then(|(literal, _)| {
                                 if literal == SerdeValue::SERDE_WITH_DOUBLE_OPTION {
@@ -246,6 +251,9 @@ pub fn parse_value(attributes: &[Attribute]) -> Result<SerdeValue, Diagnostics> 
             }
             if value.double_option {
                 acc.double_option = value.double_option;
+            }
+            if value.deserialize_with {
+                acc.deserialize_with = value.deserialize_with;
             }
 
             acc

@@ -1207,6 +1207,35 @@ fn derive_into_params_required() {
 }
 
 #[test]
+fn derive_into_params_option_with_deserialize_with_is_required() {
+    use serde::Deserialize;
+
+    #[derive(IntoParams, Deserialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        #[serde(deserialize_with = "Option::deserialize")]
+        name: Option<String>,
+        #[serde(default, deserialize_with = "Option::deserialize")]
+        name2: Option<String>,
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value)
+}
+
+#[test]
 fn derive_into_params_with_serde_skip() {
     #[derive(IntoParams, Serialize)]
     #[into_params(parameter_in = Query)]

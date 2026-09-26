@@ -444,8 +444,8 @@ impl NamedStructSchema {
                     let mut property_tokens = quote! {
                         object = object.property(#name, #field_schema)
                     };
-                    let component_required =
-                        !is_option && super::is_required(field_rules, &container_rules);
+                    let component_required = (!is_option || field_rules.deserialize_with)
+                        && super::is_required(field_rules, &container_rules);
                     let required = match (required, component_required) {
                         (Some(required), _) => required.is_true(),
                         (None, component_required) => component_required,

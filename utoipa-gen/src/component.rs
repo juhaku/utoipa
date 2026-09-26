@@ -53,6 +53,9 @@ fn get_deprecated(attributes: &[Attribute]) -> Option<Deprecated> {
 /// * If field has not serde's `skip_serializing_if`
 /// * Field has not `serde_with` double option
 /// * Field is not default
+///
+/// An `Option` field is only checked here when it has `deserialize_with` or `with`, since serde
+/// then reports a missing field instead of treating it as `None`.
 pub fn is_required(field_rule: &SerdeValue, container_rules: &SerdeContainer) -> bool {
     !field_rule.skip_serializing_if
         && !field_rule.double_option
