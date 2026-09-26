@@ -6,6 +6,10 @@
 
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 
+### Fixed
+
+* Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
+
 ## 6.0.1 - Sep 23 2026
 
 ### Fixed
