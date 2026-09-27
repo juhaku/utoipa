@@ -2034,6 +2034,11 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * `version = "..."` Set the [`OpenApiVersion`][openapi_version] the document serializes as.
 ///   Accepts a full `X.Y.Z` version string: `"3.1.0"` (the default) or `"3.2.0"`. Opt in to
 ///   `"3.2.0"` to emit OpenAPI 3.2 keywords.
+/// * `merge(...)` Merge [`OpenApi`][openapi_struct]s into this _`OpenApi`_ instance without
+///   prefixing their paths. Merge takes a comma separated list of tuples. Each _`OpenApi`_
+///   instance must implement [`OpenApi`][openapi] trait. Existing paths, schemas, responses,
+///   security requirements and tags are retained; only missing items are appended. See the
+///   _[merge(...) attribute syntax below]( #merge-attribute-syntax )_
 ///
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
@@ -2107,6 +2112,19 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///  (path = "path/to/nest", api = path::to::NestableApi),
 ///  (path = "path/to/nest", api = path::to::NestableApi, tags = ["nestableapi", ...])
 ///  ```
+///
+/// # `merge(...)` attribute syntax
+///
+/// * `api = ...` Define mandatory path to struct that implements [`OpenApi`][openapi] trait.
+/// * `tags = [...]` Define optional tags what are appended to the existing list of tags.
+///   Unlike `nest(...)`, merge does not use the module path as a fallback tag and does not
+///   rewrite paths.
+///
+/// _**Example of merge definition**_
+/// ```text
+/// (api = path::to::Api),
+/// (api = path::to::Api, tags = ["merged", ...])
+/// ```
 ///
 /// # Examples
 ///
@@ -2240,6 +2258,32 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///      ),
 ///      nest(
 ///          (path = "/api/v1/user", api = UserApi),
+///      )
+///  )]
+///  struct ApiDoc;
+/// ```
+///
+/// _**Merge _`UserApi`_ into the current api doc instance without a path prefix.**_
+/// ```rust
+/// # use utoipa::OpenApi;
+/// #
+///  #[utoipa::path(get, path = "/api/v1/status")]
+///  fn test_path_status() {}
+///
+///  #[utoipa::path(get, path = "/test")]
+///  fn user_test_path() {}
+///
+///  #[derive(OpenApi)]
+///  #[openapi(paths(user_test_path))]
+///  struct UserApi;
+///
+///  #[derive(OpenApi)]
+///  #[openapi(
+///      paths(
+///          test_path_status
+///      ),
+///      merge(
+///          (api = UserApi),
 ///      )
 ///  )]
 ///  struct ApiDoc;
