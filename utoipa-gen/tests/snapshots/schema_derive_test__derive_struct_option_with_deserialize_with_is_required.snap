@@ -1,0 +1,30 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: review
+---
+{
+  "properties": {
+    "app": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "label": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "app"
+  ],
+  "type": "object"
+}

@@ -429,8 +429,9 @@ impl Param {
 
             let required: Option<features::attributes::Required> =
                 pop_feature!(param_features => Feature::Required(_)).into_inner();
-            let component_required =
-                !component.is_option() && super::is_required(field_serde_params, serde_container);
+            let component_required = (!component.is_option()
+                || field_serde_params.deserialize_with)
+                && super::is_required(field_serde_params, serde_container);
 
             let required = match (required, component_required) {
                 (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),

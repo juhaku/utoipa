@@ -1599,6 +1599,24 @@ fn derive_struct_with_nullable_and_required() {
 }
 
 #[test]
+fn derive_struct_option_with_deserialize_with_is_required() {
+    use serde::Deserialize;
+
+    let review = api_doc! {
+        #[derive(Deserialize)]
+        struct Review {
+            #[serde(deserialize_with = "Option::deserialize")]
+            app: Option<String>,
+            #[serde(default, deserialize_with = "Option::deserialize")]
+            label: Option<String>,
+            note: Option<String>,
+        }
+    };
+
+    assert_json_snapshot!(review);
+}
+
+#[test]
 fn derive_enum_with_inline_variant() {
     #[allow(dead_code)]
     #[derive(ToSchema)]
