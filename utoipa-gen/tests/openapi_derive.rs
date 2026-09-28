@@ -418,6 +418,188 @@ fn derive_nest_openapi_with_tags() {
 }
 
 #[test]
+fn derive_merge_openapi_with_tags() {
+    mod one {
+        use utoipa::OpenApi;
+
+        #[derive(OpenApi)]
+        #[openapi(paths(api_one_handler))]
+        pub struct OneApi;
+
+        #[utoipa::path(get, path = "/api/v1/one")]
+        #[allow(dead_code)]
+        fn api_one_handler() {}
+    }
+
+    mod two {
+        use utoipa::OpenApi;
+
+        #[derive(OpenApi)]
+        #[openapi(paths(api_two_handler))]
+        pub struct TwoApi;
+
+        #[utoipa::path(get, path = "/api/v1/two")]
+        #[allow(dead_code)]
+        fn api_two_handler() {}
+    }
+
+    mod three {
+        use utoipa::OpenApi;
+
+        #[derive(OpenApi)]
+        #[openapi(paths(api_three_handler))]
+        pub struct ThreeApi;
+
+        #[utoipa::path(get, path = "/api/v1/three")]
+        #[allow(dead_code)]
+        fn api_three_handler() {}
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        merge(
+            (api = one::OneApi, tags = ["one"]),
+            (api = two::TwoApi, tags = ["two"]),
+            (api = three::ThreeApi)
+        )
+    )]
+    struct ApiDoc;
+
+    let api = serde_json::to_value(ApiDoc::openapi()).expect("should serialize to value");
+    let paths = api.pointer("/paths");
+
+    assert_json_snapshot!(paths);
+}
+
+#[test]
+fn derive_merge_openapi_keeps_existing_items_and_appends_missing_ones() {
+    mod parent {
+        use utoipa::openapi::{RefOr, ResponseBuilder};
+        use utoipa::{ToResponse, ToSchema};
+
+        #[derive(ToSchema)]
+        #[allow(dead_code)]
+        pub struct Shared {
+            parent: String,
+        }
+
+        #[derive(ToSchema)]
+        #[allow(dead_code)]
+        pub struct ParentOnly {
+            value: String,
+        }
+
+        pub struct ParentResponse;
+
+        impl<'r> ToResponse<'r> for ParentResponse {
+            fn response() -> (&'r str, RefOr<utoipa::openapi::Response>) {
+                (
+                    "SharedResponse",
+                    ResponseBuilder::new().description("parent").build().into(),
+                )
+            }
+        }
+
+        #[utoipa::path(get, path = "/shared", operation_id = "parent_shared")]
+        #[allow(dead_code)]
+        fn parent_shared() {}
+
+        #[utoipa::path(post, path = "/parent-only", operation_id = "parent_only")]
+        #[allow(dead_code)]
+        fn parent_only() {}
+    }
+
+    mod merged {
+        use utoipa::openapi::{RefOr, ResponseBuilder};
+        use utoipa::{OpenApi, ToResponse, ToSchema};
+
+        #[derive(ToSchema)]
+        #[schema(as = Shared)]
+        #[allow(dead_code)]
+        pub struct SharedOverride {
+            merged: String,
+        }
+
+        #[derive(ToSchema)]
+        #[allow(dead_code)]
+        pub struct MergedOnly {
+            value: i32,
+        }
+
+        pub struct MergedSharedResponse;
+
+        impl<'r> ToResponse<'r> for MergedSharedResponse {
+            fn response() -> (&'r str, RefOr<utoipa::openapi::Response>) {
+                (
+                    "SharedResponse",
+                    ResponseBuilder::new().description("merged").build().into(),
+                )
+            }
+        }
+
+        pub struct ExtraResponse;
+
+        impl<'r> ToResponse<'r> for ExtraResponse {
+            fn response() -> (&'r str, RefOr<utoipa::openapi::Response>) {
+                (
+                    "ExtraResponse",
+                    ResponseBuilder::new().description("extra").build().into(),
+                )
+            }
+        }
+
+        #[utoipa::path(get, path = "/shared", operation_id = "merged_shared")]
+        #[allow(dead_code)]
+        fn merged_shared() {}
+
+        #[utoipa::path(post, path = "/shared", operation_id = "merged_shared_post")]
+        #[allow(dead_code)]
+        fn merged_shared_post() {}
+
+        #[utoipa::path(get, path = "/merged-only", operation_id = "merged_only")]
+        #[allow(dead_code)]
+        fn merged_only() {}
+
+        #[derive(OpenApi)]
+        #[openapi(
+            info(title = "merged title", version = "9.9.9"),
+            paths(merged_shared, merged_shared_post, merged_only),
+            components(
+                schemas(SharedOverride, MergedOnly),
+                responses(MergedSharedResponse, ExtraResponse)
+            ),
+            security(
+                ("parent_key" = ["read"]),
+                ("merged_key" = ["write"])
+            ),
+            tags(
+                (name = "parent", description = "parent tag"),
+                (name = "merged", description = "merged tag")
+            )
+        )]
+        pub struct Api;
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(
+        info(title = "parent title", version = "1.0.0"),
+        paths(parent::parent_shared, parent::parent_only),
+        components(
+            schemas(parent::Shared, parent::ParentOnly),
+            responses(parent::ParentResponse)
+        ),
+        security(("parent_key" = ["read"])),
+        tags((name = "parent", description = "parent tag")),
+        merge((api = merged::Api, tags = ["from-merge"]))
+    )]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).expect("should serialize to value");
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
 fn openapi_schemas_resolve_generic_enum_schema() {
     #![allow(dead_code)]
     use utoipa::ToSchema;
