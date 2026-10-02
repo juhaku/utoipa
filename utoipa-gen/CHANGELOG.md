@@ -7,6 +7,10 @@
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 * Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
 
+### Changed
+
+* Replace the `once_cell` dependency with `std::sync::LazyLock` (https://github.com/juhaku/utoipa/pull/1629)
+
 ### Fixed
 
 * Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
