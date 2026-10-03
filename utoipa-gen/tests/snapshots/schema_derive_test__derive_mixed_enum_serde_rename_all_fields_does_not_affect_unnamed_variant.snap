@@ -1,0 +1,46 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 1441
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "Named": {
+          "properties": {
+            "someNumber": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "someNumber"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Named"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "Unnamed": {
+          "$ref": "#/components/schemas/Bar"
+        }
+      },
+      "required": [
+        "Unnamed"
+      ],
+      "type": "object"
+    },
+    {
+      "enum": [
+        "Unit"
+      ],
+      "type": "string"
+    }
+  ]
+}
