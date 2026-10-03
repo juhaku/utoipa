@@ -80,7 +80,7 @@ rc_schema = []
 config = ["dep:utoipa-config"]
 
 # EXPERIEMENTAL! use with cauntion
-auto_into_responses = []
+auto_into_responses = ["utoipa/auto_into_responses"]
 
 [lints]
 workspace = true
