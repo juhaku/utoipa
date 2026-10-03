@@ -116,10 +116,11 @@ impl PathOperationResolver for PathOperations {
             .attrs
             .iter()
             .find_map(|attribute| {
-                if is_valid_actix_route_attribute(attribute.path().get_ident()) {
+                let route_ident = get_route_ident(attribute.path());
+                if is_valid_actix_route_attribute(route_ident) {
                     match attribute.parse_args::<Route>() {
                         Ok(route) => {
-                            let attribute_path = attribute.path().get_ident()
+                            let attribute_path = route_ident
                                 .expect("actix-web route macro must have ident");
                             let methods: Vec<HttpMethod> = if *attribute_path == "route" {
                                 route.methods.into_iter().map(|method| {
@@ -261,6 +262,16 @@ impl PathResolver for PathOperations {
                 args,
             }
         })
+    }
+}
+
+/// Get the route macro ident from either `#[get(...)]` or `#[actix_web::get(...)]` attribute.
+#[inline]
+fn get_route_ident(path: &syn::Path) -> Option<&Ident> {
+    match path.segments.len() {
+        1 => path.get_ident(),
+        2 if path.segments[0].ident == "actix_web" => Some(&path.segments[1].ident),
+        _ => None,
     }
 }
 
