@@ -1284,6 +1284,41 @@ pub mod __dev {
         fn tags() -> Vec<&'t str>;
     }
 
+    /// Responses of a handler return type resolved with `auto_into_responses`.
+    ///
+    /// Uses autoref based specialization so that a type without `IntoResponses` documents no
+    /// responses instead of failing to compile. Framework types such as `Json<T>` cannot implement
+    /// `IntoResponses` because of the orphan rule. The generated code calls `responses()` on a
+    /// `&ResponsesOf<T>` with both traits in scope: [`FromIntoResponses`] matches the receiver
+    /// directly when `T: IntoResponses`, otherwise method resolution adds a reference and
+    /// [`NoResponses`] matches.
+    pub struct ResponsesOf<T: ?Sized>(pub std::marker::PhantomData<T>);
+
+    type ResponsesMap = std::collections::BTreeMap<
+        String,
+        crate::openapi::RefOr<crate::openapi::response::Response>,
+    >;
+
+    pub trait FromIntoResponses {
+        fn responses(&self) -> ResponsesMap;
+    }
+
+    impl<T: crate::IntoResponses + ?Sized> FromIntoResponses for ResponsesOf<T> {
+        fn responses(&self) -> ResponsesMap {
+            T::responses()
+        }
+    }
+
+    pub trait NoResponses {
+        fn responses(&self) -> ResponsesMap;
+    }
+
+    impl<T: ?Sized> NoResponses for &ResponsesOf<T> {
+        fn responses(&self) -> ResponsesMap {
+            ResponsesMap::new()
+        }
+    }
+
     impl<T: PathConfig> utoipa::Path for T {
         fn path() -> String {
             <Self as PathConfig>::path()
