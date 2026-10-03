@@ -99,11 +99,7 @@ impl<'p> PathAttr<'p> {
             }
         }
 
-        self.params.extend(
-            new_params
-                .into_iter()
-                .filter(|param| !matches!(param, Parameter::IntoParamsIdent(_))),
-        );
+        self.params.extend(new_params);
     }
 }
 
