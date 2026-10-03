@@ -131,17 +131,18 @@ impl ExtSchema<'_> {
     }
 
     pub fn get_default_content_type(&self) -> Result<Cow<'static, str>, Diagnostics> {
-        let type_tree = &self.0;
+        let content_type = match get_body_extractor_ident(&self.0) {
+            Some(extractor) if *extractor == "Bytes" => Cow::Borrowed("application/octet-stream"),
+            Some(extractor) if *extractor == "Form" => {
+                Cow::Borrowed("application/x-www-form-urlencoded")
+            }
+            Some(extractor) if *extractor == "Json" => Cow::Borrowed("application/json"),
+            _ => {
+                let get_actual_body = self.get_actual_body();
+                let actual_body = get_actual_body.as_ref();
 
-        let content_type = if type_tree.is("Bytes") {
-            Cow::Borrowed("application/octet-stream")
-        } else if type_tree.is("Form") {
-            Cow::Borrowed("application/x-www-form-urlencoded")
-        } else {
-            let get_actual_body = self.get_actual_body();
-            let actual_body = get_actual_body.as_ref();
-
-            actual_body.get_default_content_type()
+                actual_body.get_default_content_type()
+            }
         };
 
         Ok(content_type)
@@ -211,6 +212,25 @@ fn get_actual_body_type<'t>(ty: &'t TypeTree<'t>) -> Option<&'t TypeTree<'t>> {
                 )),
                 None => None,
             },
+        })
+}
+
+/// Find the ident of the body extractor (`Json`, `Form` or `Bytes`) the request body schema is
+/// taken from. The type is walked the same way as in [`get_actual_body_type`] so that the content
+/// type and the schema always come from the same extractor, e.g. the first variant of `Either`.
+fn get_body_extractor_ident<'t>(ty: &'t TypeTree<'t>) -> Option<&'t syn::Ident> {
+    ty.path
+        .as_deref()
+        .expect("RequestBody TypeTree must have syn::Path")
+        .segments
+        .iter()
+        .find_map(|segment| match &*segment.ident.to_string() {
+            "Json" | "Form" | "Bytes" => Some(&segment.ident),
+            _ => ty
+                .children
+                .as_deref()
+                .and_then(<[TypeTree]>::first)
+                .and_then(get_body_extractor_ident),
         })
 }
 
