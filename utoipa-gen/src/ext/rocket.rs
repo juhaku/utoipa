@@ -36,8 +36,13 @@ impl ArgumentResolver for PathOperations {
                 let (anonymous_args, named_args): (Vec<MacroArg>, Vec<MacroArg>) =
                     args.into_iter().partition(is_anonymous_arg);
 
+                // `String` and `&str` data guards are primitives and therefore value arguments
+                let string_args = value_args
+                    .iter()
+                    .filter(|arg| super::is_string_type(&arg.ty));
                 let body = into_params_args
                     .iter()
+                    .chain(string_args)
                     .find(|arg| *arg.arg_type.get_name() == body)
                     .map(|arg| arg.ty.clone())
                     .map(Into::into);
