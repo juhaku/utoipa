@@ -16,7 +16,7 @@ tokio-stream = "0.1"
 utoipa = { path = "../../utoipa", features = ["axum_extras", "uuid"] }
 utoipa-axum = { path = "../../utoipa-axum" }
 utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["axum"] }
-uuid = { version = "1", features = ["serde", "v4"] }
+uuid = { version = ">=1, <1.27", features = ["serde", "v4"] }
 rand = "0.8"
 
 [workspace]
