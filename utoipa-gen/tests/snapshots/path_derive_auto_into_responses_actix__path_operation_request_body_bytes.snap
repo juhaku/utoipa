@@ -1,0 +1,19 @@
+---
+source: utoipa-gen/tests/path_derive_auto_into_responses_actix.rs
+expression: "&path.pointer(\"/requestBody\")"
+---
+{
+  "content": {
+    "application/octet-stream": {
+      "schema": {
+        "items": {
+          "format": "int32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      }
+    }
+  },
+  "required": true
+}
