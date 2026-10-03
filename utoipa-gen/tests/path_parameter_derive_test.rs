@@ -387,3 +387,52 @@ fn path_parameter_with_extensions() {
     let params = value.pointer("/parameters").unwrap();
     assert_json_snapshot!(params);
 }
+
+// Test for enum in header parameter schema collection - reproduces GitHub issue #1324
+#[test]
+fn derive_enum_header_parameter_includes_schema() {
+    use serde::{Deserialize, Serialize};
+    use utoipa::ToSchema;
+
+    #[derive(Deserialize, Serialize, Debug, ToSchema)]
+    pub enum AnalysisType {
+        Spending,
+        Nutrition,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/analysis",
+        params(
+            ("Analysis-Type" = AnalysisType, Header, description = "Type of analysis to be performed. Either 'Spending' or 'Nutrition'")
+        ),
+    )]
+    #[allow(unused)]
+    async fn get_analysis() {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_analysis))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    
+    // Check that the parameter references the schema correctly
+    let parameters = doc.pointer("/paths/~1analysis/get/parameters").unwrap();
+    let analysis_type_param = parameters.get(0).unwrap();
+    let param_schema_ref = analysis_type_param.pointer("/schema/$ref").unwrap();
+    assert_eq!(param_schema_ref, "#/components/schemas/AnalysisType");
+    
+    // Most importantly: Check that the schema definition is present in components.schemas
+    let schemas = doc.pointer("/components/schemas").unwrap();
+    let analysis_type_schema = schemas.pointer("/AnalysisType").unwrap();
+    assert!(analysis_type_schema.is_object());
+    
+    // Verify the schema content
+    assert_eq!(analysis_type_schema.pointer("/type").unwrap(), "string");
+    let enum_values = analysis_type_schema.pointer("/enum").unwrap();
+    assert!(enum_values.is_array());
+    let enum_array = enum_values.as_array().unwrap();
+    assert_eq!(enum_array.len(), 2);
+    assert!(enum_array.contains(&serde_json::Value::String("Spending".to_string())));
+    assert!(enum_array.contains(&serde_json::Value::String("Nutrition".to_string())));
+}
