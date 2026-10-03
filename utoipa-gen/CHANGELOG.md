@@ -14,6 +14,7 @@
 ### Fixed
 
 * Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
+* chore: Pin uuid < 1.27 for MSRV 1.88 compatibility (https://github.com/juhaku/utoipa/pull/1630)
 
 ## 6.0.1 - Sep 23 2026
 

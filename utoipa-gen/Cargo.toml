@@ -27,7 +27,7 @@ proc-macro2 = "1.0"
 syn = { version = "3", features = ["full", "extra-traits"] }
 quote = "1.0"
 regex = { version = "1.12", optional = true }
-uuid = { version = "1", features = ["serde"], optional = true }
+uuid = { workspace = true, optional = true }
 ulid = { version = "1", optional = true, default-features = false }
 url = { version = "2", optional = true }
 
