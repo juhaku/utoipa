@@ -106,6 +106,7 @@ pub enum Feature {
     Bound(attributes::Bound),
     Ignore(attributes::Ignore),
     NoRecursion(attributes::NoRecursion),
+    Skip(attributes::Skip),
     MultipleOf(validation::MultipleOf),
     Maximum(validation::Maximum),
     Minimum(validation::Minimum),
@@ -234,6 +235,7 @@ impl ToTokensDiagnostics for Feature {
                 TokenStream::new()
             }
             Feature::NoRecursion(_) => return Err(Diagnostics::new("NoRecursion does not support `ToTokens`")),
+            Feature::Skip(_) => return Err(Diagnostics::new("Skip does not support `ToTokens`")),
             Feature::IntoParamsNames(_) => {
                 return Err(Diagnostics::new("Names feature does not support `ToTokens`")
                     .help("Names is only used with IntoParams to artificially give names for unnamed struct type `IntoParams`."))
@@ -310,6 +312,7 @@ impl Display for Feature {
             Feature::Bound(bound) => bound.fmt(f),
             Feature::Ignore(ignore) => ignore.fmt(f),
             Feature::NoRecursion(no_recursion) => no_recursion.fmt(f),
+            Feature::Skip(skip) => skip.fmt(f),
             Feature::Extensions(extensions) => extensions.fmt(f),
         }
     }
@@ -362,6 +365,7 @@ impl Validatable for Feature {
             Feature::Bound(bound) => bound.is_validatable(),
             Feature::Ignore(ignore) => ignore.is_validatable(),
             Feature::NoRecursion(no_recursion) => no_recursion.is_validatable(),
+            Feature::Skip(skip) => skip.is_validatable(),
             Feature::Extensions(extensions) => extensions.is_validatable(),
         }
     }
@@ -412,6 +416,7 @@ is_validatable! {
     attributes::Bound,
     attributes::Ignore,
     attributes::NoRecursion,
+    attributes::Skip,
     validation::MultipleOf = true,
     validation::Maximum = true,
     validation::Minimum = true,
@@ -643,6 +648,7 @@ impl_feature_into_inner! {
     attributes::Bound,
     attributes::Ignore,
     attributes::NoRecursion,
+    attributes::Skip,
     validation::MultipleOf,
     validation::Maximum,
     validation::Minimum,
