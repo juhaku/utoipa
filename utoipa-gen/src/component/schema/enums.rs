@@ -503,7 +503,12 @@ impl MixedEnumContent {
             SerdeEnumRepr::ExternallyTagged => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
                 let schema_tokens = schema.to_token_stream();
 
                 (
@@ -516,7 +521,12 @@ impl MixedEnumContent {
             SerdeEnumRepr::InternallyTagged { tag } => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
 
                 let mut schema_tokens = schema.to_token_stream();
                 (
@@ -542,13 +552,23 @@ impl MixedEnumContent {
                 )
             }
             SerdeEnumRepr::Untagged => {
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
                 (schema.to_token_stream(), schema.fields_references)
             }
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
 
                 let schema_tokens = schema.to_token_stream();
                 (
