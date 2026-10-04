@@ -2431,6 +2431,34 @@ fn derive_struct_with_no_additional_properties() {
 }
 
 #[test]
+fn derive_internally_tagged_enum_with_no_additional_properties() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(tag = "kind", deny_unknown_fields)]
+        enum MyValue {
+            Empty {},
+            Field { field: String },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_externally_tagged_enum_with_no_additional_properties() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        enum MyValue {
+            Empty {},
+            Field { field: String },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 #[cfg(feature = "repr")]
 fn derive_schema_for_repr_enum() {
     let value = api_doc! {

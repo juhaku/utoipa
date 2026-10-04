@@ -328,7 +328,32 @@ impl NamedStructSchema {
     pub fn new(
         root: &Root,
         fields: &Punctuated<Field, Comma>,
+        features: Vec<Feature>,
+    ) -> Result<Self, Diagnostics> {
+        let container_rules = serde::parse_container(root.attributes)?;
+        Self::with_container_rules(root, fields, features, container_rules)
+    }
+
+    /// Schema of a named field enum variant.
+    ///
+    /// Serde applies the enum's `deny_unknown_fields` to every struct variant, so the
+    /// variant schema denies additional properties as well.
+    pub fn new_enum_variant(
+        root: &Root,
+        fields: &Punctuated<Field, Comma>,
+        features: Vec<Feature>,
+        enum_container: &SerdeContainer,
+    ) -> Result<Self, Diagnostics> {
+        let mut container_rules = serde::parse_container(root.attributes)?;
+        container_rules.deny_unknown_fields |= enum_container.deny_unknown_fields;
+        Self::with_container_rules(root, fields, features, container_rules)
+    }
+
+    fn with_container_rules(
+        root: &Root,
+        fields: &Punctuated<Field, Comma>,
         mut features: Vec<Feature>,
+        container_rules: SerdeContainer,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
 
@@ -337,8 +362,6 @@ impl NamedStructSchema {
         let description: Option<Description> =
             pop_feature!(features => Feature::Description(_)).into_inner();
         let bound = pop_feature!(features => Feature::Bound(_) as Option<Bound>);
-
-        let container_rules = serde::parse_container(root.attributes)?;
 
         let mut fields_vec = fields
             .iter()
