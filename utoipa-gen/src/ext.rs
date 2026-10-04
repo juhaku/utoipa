@@ -9,6 +9,7 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
 use crate::path::media_type::MediaTypePathExt;
 use crate::path::{HttpMethod, PathTypeTree};
+use crate::schema_type::SchemaType;
 use crate::token_stream::{Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
@@ -107,8 +108,18 @@ impl<'t> From<TypeTree<'t>> for ExtSchema<'t> {
 }
 
 impl ExtSchema<'_> {
+    /// Get the request body type of the handler fn argument. A `String` argument is the request
+    /// body itself, otherwise the body type is resolved from e.g. `Json<T>` or `Form<T>`.
+    fn get_body_type(&self) -> Option<&TypeTree<'_>> {
+        if is_string_type(&self.0) {
+            Some(&self.0)
+        } else {
+            get_actual_body_type(&self.0)
+        }
+    }
+
     fn get_actual_body(&self) -> Cow<'_, TypeTree<'_>> {
-        let actual_body_type = get_actual_body_type(&self.0);
+        let actual_body_type = self.get_body_type();
 
         actual_body_type.map(|actual_body| {
             if let Some(option_type) = find_option_type_tree(actual_body) {
@@ -150,11 +161,23 @@ impl ExtSchema<'_> {
     pub fn get_component_schema(&self) -> Result<Option<ComponentSchema>, Diagnostics> {
         use crate::OptionExt;
 
-        let type_tree = &self.0;
-        let actual_body_type = get_actual_body_type(type_tree);
+        let actual_body_type = self.get_body_type();
 
         actual_body_type.and_then_try(|body_type| body_type.get_component_schema())
     }
+}
+
+/// Check whether the type is `String` or `&str`, which web frameworks extract from the request
+/// body as plain text when used as a handler fn argument.
+fn is_string_type(ty: &TypeTree<'_>) -> bool {
+    ty.children.is_none()
+        && ty.path.as_deref().is_some_and(|path| {
+            SchemaType {
+                path: Cow::Borrowed(path),
+                nullable: false,
+            }
+            .is_string()
+        })
 }
 
 impl ToTokensDiagnostics for ExtSchema<'_> {

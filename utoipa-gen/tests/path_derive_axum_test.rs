@@ -409,6 +409,28 @@ fn derive_path_with_validation_attributes_axum() {
 }
 
 #[test]
+fn path_derive_string_request_body_axum() {
+    #[utoipa::path(post, path = "/text")]
+    #[allow(unused)]
+    async fn post_text(body: String) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(post_text))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let request_body = doc.pointer("/paths/~1text/post/requestBody");
+
+    assert_eq!(
+        request_body,
+        Some(&serde_json::json!({
+            "content": { "text/plain": { "schema": { "type": "string" } } },
+            "required": true
+        }))
+    );
+}
+
+#[test]
 fn path_derive_inline_with_tuple() {
     #[derive(utoipa::ToSchema)]
     #[allow(unused)]

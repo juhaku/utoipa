@@ -969,6 +969,55 @@ macro_rules! test_derive_path_operations {
 }
 
 #[test]
+fn path_derive_string_request_body() {
+    use serde_json::json;
+
+    #[utoipa::path]
+    #[post("/text")]
+    #[allow(unused)]
+    async fn post_text(body: String) -> impl Responder {
+        String::new()
+    }
+
+    #[utoipa::path]
+    #[post("/strings")]
+    #[allow(unused)]
+    async fn post_strings(body: actix_web::web::Json<Vec<String>>) -> impl Responder {
+        String::new()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(post_text, post_strings))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    // A `String` argument is the request body as plain text
+    let request_body = doc.pointer("/paths/~1text/post/requestBody");
+    assert_eq!(
+        request_body,
+        Some(&json!({
+            "content": { "text/plain": { "schema": { "type": "string" } } },
+            "required": true
+        }))
+    );
+
+    // `String` inside another body type does not change the schema of that body type
+    let request_body = doc.pointer("/paths/~1strings/post/requestBody");
+    assert_eq!(
+        request_body,
+        Some(&json!({
+            "content": {
+                "application/json": {
+                    "schema": { "type": "array", "items": { "type": "string" } }
+                }
+            },
+            "required": true
+        }))
+    );
+}
+
+#[test]
 fn path_derive_custom_generic_wrapper() {
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Validated<T>(T);
