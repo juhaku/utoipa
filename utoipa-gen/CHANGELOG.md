@@ -52,6 +52,7 @@
 
 ### Fixed
 
+* Fix `#[utoipa::path]` panic for rocket data guards without a body type, such as `Data<'_>` or `TempFile<'_>` (https://github.com/juhaku/utoipa/pull/1611)
 * Recursively discover flattened fields in maps for `#[serde(flatten)]`. (https://github.com/juhaku/utoipa/pull/1582)
 * Emit `vec![...]` instead of stack allocated array literals in generated `ToSchema`/`IntoParams` code to avoid `clippy::large_stack_arrays` and stack overflows for types with many fields (https://github.com/juhaku/utoipa/issues/1454)
 * Avoid degenerate `oneOf` for `Option<_>` with `nullable = false` and `default`/`title`/`description` (https://github.com/juhaku/utoipa/pull/1380)
