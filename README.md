@@ -312,7 +312,8 @@ See [Modify](https://docs.rs/utoipa/latest/utoipa/trait.Modify.html) trait for e
 
 ### How to implement `ToSchema` for external type?
 
-There are few ways around this that are elaborated [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
+There are few ways around this that are elaborated [here](https://github.com/juhaku/utoipa/issues/1307#issuecomment-6001499570) 
+and [here in detail](https://github.com/juhaku/utoipa/issues/790#issuecomment-1787754185).
 
 ### Auto discover for OpenAPI schemas and paths?
 
