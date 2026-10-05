@@ -421,6 +421,19 @@ pub trait ToSchema: PartialSchema {
         Cow::Borrowed(type_name)
     }
 
+    /// Return the fully composed name of this schema including its generic arguments.
+    ///
+    /// While [`ToSchema::name`] returns the base name of the type, composed references need
+    /// the full chain of generic arguments to match the name produced at the usage site.
+    ///
+    /// The default implementation returns [`ToSchema::name`]. Generic derives and std
+    /// containers override this method, e.g. `Foo<Bar<i32>>` composes to `Foo_Bar_i32`
+    /// and `Vec<Bar<i32>>` to `Vec_Bar_i32`. Manually implemented generic schemas
+    /// should override it accordingly.
+    fn composed_name() -> Cow<'static, str> {
+        Self::name()
+    }
+
     /// Implement reference [`utoipa::openapi::schema::Schema`]s for this type.
     ///
     /// When [`ToSchema`] is being derived this is implemented automatically but if one needs to
@@ -526,6 +539,14 @@ impl<T: ToSchema> ToSchema for Option<T>
 where
     Option<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -542,6 +563,14 @@ impl<T: ToSchema> ToSchema for Vec<T>
 where
     Vec<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -558,6 +587,14 @@ impl<T: ToSchema> ToSchema for std::collections::LinkedList<T>
 where
     std::collections::LinkedList<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -574,6 +611,14 @@ impl<T: ToSchema> ToSchema for [T]
 where
     [T]: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -590,6 +635,14 @@ impl<'t, T: ToSchema> ToSchema for &'t [T]
 where
     &'t [T]: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -606,6 +659,14 @@ impl<'t, T: ToSchema> ToSchema for &'t mut [T]
 where
     &'t mut [T]: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -622,6 +683,15 @@ impl<K: ToSchema, T: ToSchema, S> ToSchema for std::collections::HashMap<K, T, S
 where
     std::collections::HashMap<K, T, S>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}_{}",
+            Self::name(),
+            <K as ToSchema>::composed_name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -639,6 +709,15 @@ impl<K: ToSchema, T: ToSchema> ToSchema for std::collections::BTreeMap<K, T>
 where
     std::collections::BTreeMap<K, T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}_{}",
+            Self::name(),
+            <K as ToSchema>::composed_name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -656,6 +735,14 @@ impl<K: ToSchema, S> ToSchema for std::collections::HashSet<K, S>
 where
     std::collections::HashSet<K, S>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <K as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -672,6 +759,14 @@ impl<K: ToSchema> ToSchema for std::collections::BTreeSet<K>
 where
     std::collections::BTreeSet<K>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <K as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -688,6 +783,15 @@ impl<K: ToSchema, T: ToSchema> ToSchema for indexmap::IndexMap<K, T>
 where
     indexmap::IndexMap<K, T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}_{}",
+            Self::name(),
+            <K as ToSchema>::composed_name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -705,6 +809,14 @@ impl<K: ToSchema> ToSchema for indexmap::IndexSet<K>
 where
     indexmap::IndexSet<K>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <K as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -721,6 +833,14 @@ impl<T: ToSchema> ToSchema for std::boxed::Box<T>
 where
     std::boxed::Box<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -737,6 +857,14 @@ impl<'a, T: ToSchema + Clone> ToSchema for std::borrow::Cow<'a, T>
 where
     std::borrow::Cow<'a, T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -753,6 +881,14 @@ impl<T: ToSchema> ToSchema for std::cell::RefCell<T>
 where
     std::cell::RefCell<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -769,6 +905,14 @@ impl<T: ToSchema> ToSchema for std::rc::Rc<T>
 where
     std::rc::Rc<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,
@@ -785,6 +929,14 @@ impl<T: ToSchema> ToSchema for std::sync::Arc<T>
 where
     std::sync::Arc<T>: PartialSchema,
 {
+    fn composed_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Owned(format!(
+            "{}_{}",
+            Self::name(),
+            <T as ToSchema>::composed_name()
+        ))
+    }
+
     fn schemas(
         schemas: &mut Vec<(
             String,

@@ -911,6 +911,11 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// `ToSchema`) will not be applied anymore, and only the specified predicates are added to the
 /// `where` clause of generated `impl` blocks.
 ///
+/// Schemas that take part in nested generic recursion should use the full path
+/// `utoipa::ToSchema` in the bound. A bare `ToSchema` path left in scope by
+/// `use utoipa::ToSchema;` is not recognized when composing full generic argument
+/// names, which can leave `$ref`s to such schemas unresolvable.
+///
 /// ```rust
 /// // Override the default bounds to only require `T: ToSchema`, ignoring unused `U`.
 /// #[derive(utoipa::ToSchema, serde::Serialize)]
