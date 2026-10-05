@@ -4,6 +4,7 @@
 
 ### Added
 
+* Add support for `chrono::DateTimeWithTimeZone` (https://github.com/juhaku/utoipa/pull/1367)
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 * Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
 
