@@ -1161,7 +1161,9 @@ impl ComponentSchema {
                         utoipa::openapi::ObjectBuilder::new()
                             .schema_type(utoipa::openapi::schema::SchemaType::AnyValue)
                             #description_stream #deprecated
-                    })
+                    });
+                    let _ = pop_feature!(features => Feature::NoRecursion(_));
+                    tokens.extend(features.to_token_stream()?);
                 }
             }
             ValueType::Object => {
@@ -1176,7 +1178,9 @@ impl ComponentSchema {
                         utoipa::openapi::ObjectBuilder::new()
                             #nullable_schema_type
                             #description_stream #deprecated
-                    })
+                    });
+                    let _ = pop_feature!(features => Feature::NoRecursion(_));
+                    tokens.extend(features.to_token_stream()?);
                 } else {
                     fn nullable_one_of_item(nullable: bool) -> Option<TokenStream> {
                         if nullable {
