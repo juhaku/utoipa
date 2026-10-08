@@ -616,9 +616,31 @@ impl ToTokensDiagnostics for Components {
                     let schema = component_schema.to_token_stream();
                     let name = &component_schema.name_tokens;
 
+                    let schema_references = component_schema
+                        .schema_references
+                        .iter()
+                        .map(|reference| {
+                            if !reference.is_inline {
+                                let name = &reference.name;
+                                let tokens = &reference.tokens;
+                                let references = &reference.references;
+                                quote! {
+                                    schemas.push((#name, #tokens));
+                                    #references;
+                                }
+                            } else {
+                                TokenStream::new()
+                            }
+                        })
+                        .collect::<TokenStream>();
+
                     components.extend(quote! { .schemas_from_iter( {
                         let mut schemas = Vec::<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>::new();
                         <#type_path as utoipa::ToSchema>::schemas(&mut schemas);
+                        {
+                            let schemas = &mut schemas;
+                            #schema_references
+                        }
                         schemas
                     } )});
                     components.extend(quote! { .schema(#name, {

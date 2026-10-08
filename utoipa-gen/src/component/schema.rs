@@ -143,8 +143,46 @@ impl ToTokensDiagnostics for Schema<'_> {
             ident.to_string()
         };
 
+        let custom_bound = variant.get_schema_bound();
+        let bound_composes_args = custom_bound.is_none_or(|Bound(bound)| {
+            self.generics.type_params().all(|param| {
+                bound.iter().any(|predicate| match predicate {
+                    syn::WherePredicate::Type(predicate) => match &predicate.bounded_ty {
+                        syn::Type::Path(bounded) if bounded.qself.is_none() => {
+                            bounded.path.get_ident() == Some(&param.ident)
+                                && predicate.bounds.iter().any(|bound| match bound {
+                                    syn::TypeParamBound::Trait(trait_bound) => {
+                                        is_utoipa_to_schema(&trait_bound.path)
+                                    }
+                                    _ => false,
+                                })
+                        }
+                        _ => false,
+                    },
+                    _ => false,
+                })
+            })
+        });
+        let composed_name = if bound_composes_args && self.generics.type_params().next().is_some() {
+            let params = self
+                .generics
+                .type_params()
+                .map(|param| {
+                    let ident = &param.ident;
+                    quote!(<#ident as utoipa::ToSchema>::composed_name().as_ref())
+                })
+                .collect::<Vec<_>>();
+            Some(quote! {
+                fn composed_name() -> std::borrow::Cow<'static, str> {
+                    std::borrow::Cow::Owned(format!("{}_{}", #name, [#(#params),*].join("_")))
+                }
+            })
+        } else {
+            None
+        };
+
         // TODO refactor this to avoid clone
-        if let Some(Bound(bound)) = variant.get_schema_bound() {
+        if let Some(Bound(bound)) = custom_bound {
             where_clause.predicates.extend(bound.clone());
         } else {
             for param in self.generics.type_params() {
@@ -168,6 +206,8 @@ impl ToTokensDiagnostics for Schema<'_> {
                 fn name() -> std::borrow::Cow<'static, str> {
                     std::borrow::Cow::Borrowed(#name)
                 }
+
+                #composed_name
 
                 fn schemas(schemas: &mut Vec<(String, utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>)>) {
                     schemas.extend(#schema_refs);
@@ -1002,6 +1042,18 @@ fn rename_enum_variant<'s>(
         .map(|rename_all| rename_all.as_rename_rule()));
 
     super::rename::<VariantRename>(name, rename_to, rename_all)
+}
+
+/// Only an exact `utoipa::ToSchema` path provides the `composed_name` override; a same-named
+/// foreign trait in the user's bound must not be mistaken for it.
+fn is_utoipa_to_schema(path: &syn::Path) -> bool {
+    path.segments.len() == 2
+        && path.segments[0].ident == "utoipa"
+        && path.segments[1].ident == "ToSchema"
+        && path
+            .segments
+            .iter()
+            .all(|segment| segment.arguments.is_none())
 }
 
 #[cfg_attr(feature = "debug", derive(Debug))]

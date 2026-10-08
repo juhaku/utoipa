@@ -492,13 +492,13 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
                 let should_collect_schema = (matches!(
                     crate::CONFIG.schema_collect,
                     utoipa_config::SchemaCollect::NonInlined
-                ) && !is_inline)
+                ) && (!is_inline || !reference.is_inline))
                     || matches!(
                         crate::CONFIG.schema_collect,
                         utoipa_config::SchemaCollect::All
                     );
                 #[cfg(not(feature = "config"))]
-                let should_collect_schema = !is_inline;
+                let should_collect_schema = !is_inline || !reference.is_inline;
                 if should_collect_schema {
                     schemas.extend(quote!( schemas.push((#name, #tokens)); ));
                 }
