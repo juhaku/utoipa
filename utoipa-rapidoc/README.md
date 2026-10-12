@@ -1,6 +1,6 @@
 # utoipa-rapidoc
 
-This crate works as a bridge between [utoipa](https://docs.rs/utoipa/latest/utoipa/) and [RapiDoc](https://rapidocweb.com/) OpenAPI visualizer.
+This crate works as a bridge between [utoipa](https://docs.rs/utoipa/latest/utoipa/) and [RapiDoc](https://rapidocui.com/) OpenAPI visualizer.
 
 [![Utoipa build](https://github.com/juhaku/utoipa/actions/workflows/build.yaml/badge.svg)](https://github.com/juhaku/utoipa/actions/workflows/build.yaml)
 [![crates.io](https://img.shields.io/crates/v/utoipa-rapidoc.svg?label=crates.io&color=orange&logo=rust)](https://crates.io/crates/utoipa-rapidoc)
