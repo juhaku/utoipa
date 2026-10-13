@@ -335,3 +335,42 @@ fn derive_into_responses_enum_with_multiple_responses() {
 
     assert_json_snapshot!(responses);
 }
+
+#[test]
+fn derive_response_with_examples_from() {
+    #[derive(serde::Serialize, ToSchema, ToResponse)]
+    #[response(examples(from = [
+        ("Person1", Person { name: "name1".to_string() }),
+        ("Person2", Person { name: "name2".to_string() }),
+    ]))]
+    #[allow(unused)]
+    struct Person {
+        name: String,
+    }
+    let (name, v) = <Person as utoipa::ToResponse>::response();
+    assert_eq!("Person", name);
+    assert_json_snapshot!(v);
+}
+
+#[test]
+fn derive_into_responses_with_examples_from() {
+    #[derive(serde::Serialize, ToSchema)]
+    #[allow(unused)]
+    struct Person {
+        name: String,
+    }
+
+    #[derive(utoipa::IntoResponses)]
+    #[allow(unused)]
+    enum PersonResponses {
+        #[response(
+            status = 200,
+            description = "Success",
+            examples(from = [("Person1", Person { name: "name1".to_string() })])
+        )]
+        Success(Person),
+    }
+
+    let responses = <PersonResponses as utoipa::IntoResponses>::responses();
+    assert_json_snapshot!(responses);
+}

@@ -600,3 +600,81 @@ fn request_body_with_extensions() {
     let request_body = value.pointer("/requestBody").unwrap();
     assert_json_snapshot!(request_body);
 }
+
+#[test]
+fn request_body_with_examples_from() {
+    #![allow(unused)]
+
+    #[derive(utoipa::ToSchema, serde::Serialize)]
+    pub struct Foo {
+        name: String,
+    }
+
+    impl Foo {
+        fn new(name: &str) -> Self {
+            Foo {
+                name: name.to_string(),
+            }
+        }
+    }
+
+    #[utoipa::path(
+        post,
+        path = "/foo",
+        request_body(
+            content = Foo,
+            examples(from = [("first", Foo::new("first")), ("second", Foo::new("second"))])
+        ),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    fn post_foo() {}
+
+    let operation = serde_json::to_value(__path_post_foo::operation()).unwrap();
+    let request_body = operation.pointer("/requestBody").unwrap();
+
+    assert_json_snapshot!(request_body);
+}
+
+#[test]
+fn request_body_content_group_with_examples_from() {
+    #![allow(unused)]
+
+    #[derive(utoipa::ToSchema, serde::Serialize)]
+    pub struct Foo {
+        name: String,
+    }
+
+    fn foo_lists() -> Vec<(String, Vec<Foo>)> {
+        vec![
+            (
+                "one".to_string(),
+                vec![Foo {
+                    name: "one".to_string(),
+                }],
+            ),
+            ("empty".to_string(), vec![]),
+        ]
+    }
+
+    #[utoipa::path(
+        post,
+        path = "/foo",
+        request_body(
+            content(
+                ([Foo], examples(from = foo_lists())),
+                (inline(Foo) = "text/xml", examples(from = [("xml", Foo { name: "xml".to_string() })]))
+            ),
+        ),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    fn post_foo() {}
+
+    let operation = serde_json::to_value(__path_post_foo::operation()).unwrap();
+    let request_body = operation.pointer("/requestBody").unwrap();
+
+    assert_json_snapshot!(request_body);
+}
