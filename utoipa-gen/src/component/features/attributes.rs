@@ -12,7 +12,7 @@ use crate::component::{schema, GenericType, TypeTree};
 use crate::parse_utils::LitStrOrExpr;
 use crate::path::parameter::{self, ParameterStyle};
 use crate::schema_type::KnownFormat;
-use crate::{parse_utils, AnyValue, Array, Diagnostics};
+use crate::{parse_utils, AnyValue, Array, Diagnostics, ExamplesFrom};
 
 use super::{impl_feature, Feature, Parse};
 use quote::quote;
@@ -84,7 +84,22 @@ impl From<Example> for Feature {
 impl_feature! {
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Examples(Vec<AnyValue>);
+    pub enum Examples {
+        /// `examples(json!(...), "literal", function_path, ...)`
+        List(Vec<AnyValue>),
+        /// `examples(from = <expr>)` where items are converted to the type of the schema. Type
+        /// is `Self` unless set with [`Examples::set_type`].
+        From(Box<ExamplesFrom>, Option<Box<syn::Type>>),
+    }
+}
+
+impl Examples {
+    /// Set the type that `examples(from = ...)` items are converted to, unless already set.
+    pub fn set_type(&mut self, ty: &syn::Type) {
+        if let Self::From(_, example_type @ None) = self {
+            *example_type = Some(Box::new(ty.clone()));
+        }
+    }
 }
 
 impl Parse for Examples {
@@ -95,7 +110,11 @@ impl Parse for Examples {
         let examples;
         syn::parenthesized!(examples in input);
 
-        Ok(Self(
+        if ExamplesFrom::peek(&examples) {
+            return ExamplesFrom::parse(&examples).map(|from| Self::From(Box::new(from), None));
+        }
+
+        Ok(Self::List(
             Punctuated::<AnyValue, Token![,]>::parse_terminated_with(
                 &examples,
                 AnyValue::parse_any,
@@ -108,9 +127,13 @@ impl Parse for Examples {
 
 impl ToTokens for Examples {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        if !self.0.is_empty() {
-            let examples = Array::Borrowed(&self.0).to_token_stream();
-            examples.to_tokens(tokens);
+        match self {
+            Self::List(examples) if !examples.is_empty() => {
+                Array::Borrowed(examples).to_tokens(tokens);
+            }
+            Self::List(_) => (),
+            Self::From(from, Some(ty)) => from.to_values(&ty.to_token_stream()).to_tokens(tokens),
+            Self::From(from, None) => from.to_values(&quote!(Self)).to_tokens(tokens),
         }
     }
 }
@@ -499,6 +522,11 @@ impl ValueType {
     /// Create [`TypeTree`] from current [`syn::Type`].
     pub fn as_type_tree(&self) -> Result<TypeTree<'_>, Diagnostics> {
         TypeTree::from_type(&self.0)
+    }
+
+    /// Get the [`syn::Type`] of the value type.
+    pub fn ty(&self) -> &syn::Type {
+        &self.0
     }
 }
 
