@@ -112,6 +112,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
 /// * `title = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
 ///   `include_str!(...)` statement. Can be used to define title for struct in OpenAPI
@@ -147,6 +149,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `format = ...` May either be variant of the [`KnownFormat`][known_format] enum, or otherwise
 ///   an open value as a string. By default the format is derived from the type of the property
@@ -238,6 +242,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_. If no value
 ///   is specified, and the struct has only one field, the field's default value in the schema will be
 ///   set from the struct's [`Default`] implementation.
@@ -283,6 +289,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -316,6 +324,9 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 /// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -374,6 +385,9 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 /// * `example = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
+///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -403,6 +417,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `default = ...` Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
@@ -461,6 +477,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `title = ...` Literal string value. Can be used to define title for enum variant in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   struct.
@@ -581,6 +599,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///   **Deprecated since OpenAPI 3.0, using `examples` is preferred instead.**
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
+///   Alternatively _`examples(from = ...)`_ takes typed examples from a Rust expression, see
+///   [typed examples](derive.ToSchema.html#typed-examples).
 /// * `title = ...` Literal string value. Can be used to define title for enum in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
 ///   struct.
@@ -619,6 +639,78 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 ///     Ok = 1,
 ///  }
 /// ```
+///
+/// # Typed examples
+///
+/// _`examples(from = ...)`_ takes any Rust expression implementing [`IntoIterator`] instead of a
+/// list of values. Each item becomes one example, in iteration order. Items are converted with
+/// [`Into::into`] to the type the schema describes and serialized with _`serde_json`_:
+///
+/// * On a struct, an enum or an enum variant the type is `Self`.
+/// * On a field the type is the type of the field, or the type given with _`value_type`_. With
+///   the virtual _`value_type = Object`_ or _`value_type = Value`_ the type of the field is used.
+///
+/// An example of the wrong type fails to compile at the attribute. The type must implement
+/// [`serde::Serialize`][serialize]. If serializing an example fails, building the schema panics
+/// with an error message pointing to the attribute.
+///
+/// Because items are converted with [`Into::into`], integer literals of other types than `i32`
+/// need a suffix, e.g. `1u64`.
+///
+/// Examples of `Vec` and other list types are placed on the array schema, not on its items.
+///
+/// ```rust
+/// # use serde::Serialize;
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, Serialize)]
+/// #[schema(examples(from = [Zone::A, Zone::B]))]
+/// enum Zone {
+///     A,
+///     B,
+/// }
+///
+/// #[derive(ToSchema, Serialize)]
+/// #[schema(examples(from = Nameservers::examples()))]
+/// struct Nameservers(Vec<String>);
+///
+/// impl Nameservers {
+///     fn examples() -> Vec<Self> {
+///         vec![Nameservers(vec!["ns1.example.com.".to_string(), "ns2.example.com.".to_string()])]
+///     }
+/// }
+///
+/// #[derive(ToSchema, Serialize)]
+/// struct Record {
+///     #[schema(examples(from = ["example.com.", "example.org."]))]
+///     name: String,
+///     #[schema(examples(from = [vec![Zone::A], vec![Zone::A, Zone::B]]))]
+///     zones: Vec<Zone>,
+/// }
+/// ```
+///
+/// _**An example of the wrong type fails to compile.**_
+/// ```compile_fail
+/// # use serde::Serialize;
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, Serialize)]
+/// struct Record {
+///     #[schema(examples(from = [42]))]
+///     name: String,
+/// }
+/// ```
+///
+/// ```compile_fail
+/// # use serde::Serialize;
+/// # use utoipa::ToSchema;
+/// #[derive(ToSchema, Serialize)]
+/// #[schema(examples(from = ["A"]))]
+/// enum Zone {
+///     A,
+///     B,
+/// }
+/// ```
+///
+/// [serialize]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 ///
 /// # Generic schemas
 ///
@@ -1209,6 +1301,54 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///  ("John" = (summary = "This is John", value = json!({"name": "John"})))
 /// ```
 ///
+/// Alternatively _`examples(from = ...)`_ takes typed examples from any Rust expression implementing
+/// [`IntoIterator`] where each item is a _`(name, value)`_ tuple. The name can be any type
+/// implementing `Into<String>`. The value is converted with [`Into::into`] to the type of the body
+/// (_`Vec<T>`_ for _`[T]`_) and serialized with _`serde_json`_, so an example of the wrong type
+/// fails to compile. _`from = ...`_ cannot be combined with other examples and requires the body
+/// type to be defined with _`content = ...`_ or _`body = ...`_. The same form is supported in
+/// [parameter `examples(...)`](#parameter-attributes) where the value is converted to the
+/// parameter type.
+///
+/// ```rust
+/// # use serde::Serialize;
+/// #[derive(utoipa::ToSchema, Serialize)]
+/// struct Pet {
+///     name: String,
+/// }
+///
+/// impl Pet {
+///     fn new(name: &str) -> Self {
+///         Pet { name: name.to_string() }
+///     }
+/// }
+///
+/// #[utoipa::path(
+///     post,
+///     path = "/pets",
+///     request_body(content = Pet, examples(from = [("Rex", Pet::new("Rex"))])),
+///     params(
+///         ("limit" = u32, Query, examples(from = [("ten", 10u32), ("hundred", 100u32)]))
+///     ),
+///     responses(
+///         (status = 200, body = [Pet], examples(from = [("pets", vec![Pet::new("Rex")])]))
+///     )
+/// )]
+/// fn create_pet() {}
+/// ```
+///
+/// _**Typed examples require a body type.**_
+/// ```compile_fail
+/// #[utoipa::path(
+///     get,
+///     path = "/pets",
+///     responses(
+///         (status = 200, content_type = "text/plain", examples(from = [("one", "Rex")]))
+///     )
+/// )]
+/// fn get_pets() {}
+/// ```
+///
 /// ## Response `links(...)` syntax
 ///
 /// * `operation_ref = ...` Define a relative or absolute URI reference to an OAS operation. This field is
@@ -1374,6 +1514,11 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///
 /// * `example = ...` Can method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
+///
+/// * `examples(...)` Define multiple named examples for the parameter. This has same syntax as
+///   [Response `examples(...)`](#response-examples-syntax), including typed
+///   _`examples(from = ...)`_ where values are converted to the _`parameter_type`_, which must
+///   be defined.
 ///
 /// * `extensions(...)` List of extensions local to the parameter
 ///
@@ -2391,6 +2536,11 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `example = ...` Can be method reference or _`json!(...)`_. Given example
 ///   will override any example in underlying parameter type.
 ///
+/// * `examples(...)` Define multiple named examples for the parameter. This has same syntax as
+///   [Response `examples(...)`][`macro@path#response-examples-syntax`], including typed
+///   _`examples(from = ...)`_ where values are converted to the field type, or to the
+///   _`value_type`_ when defined.
+///
 /// * `value_type = ...` Can be used to override default type derived from type of the field used in OpenAPI spec.
 ///   This is useful in cases where the default type does not correspond to the actual type e.g. when
 ///   any third-party types are used which are not [`ToSchema`][to_schema]s nor [`primitive` types][primitive].
@@ -2804,6 +2954,9 @@ pub fn into_params(input: TokenStream) -> TokenStream {
 ///     ```text
 ///      ("John" = (summary = "This is John", value = json!({"name": "John"})))
 ///     ```
+///     * Alternatively _`examples(from = ...)`_ takes typed _`(name, value)`_ examples where the
+///       value is converted to the response body type. See
+///       [Response `examples(...)` syntax][`macro@path#response-examples-syntax`].
 ///
 /// # Examples
 ///
@@ -2967,6 +3120,9 @@ pub fn to_response(input: TokenStream) -> TokenStream {
 ///     ```text
 ///      ("John" = (summary = "This is John", value = json!({"name": "John"})))
 ///     ```
+///     * Alternatively _`examples(from = ...)`_ takes typed _`(name, value)`_ examples where the
+///       value is converted to the response body type. See
+///       [Response `examples(...)` syntax][`macro@path#response-examples-syntax`].
 ///
 /// # Examples
 ///
