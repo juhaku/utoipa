@@ -3481,6 +3481,10 @@ impl ExamplesFrom {
         Ok(Self(expr))
     }
 
+    fn span(&self) -> proc_macro2::Span {
+        self.0.span()
+    }
+
     /// Serialize a single example converted to `ty`.
     fn example_value(ty: &TokenStream2, span: proc_macro2::Span) -> TokenStream2 {
         quote_spanned! {span=>
