@@ -5,6 +5,10 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Unreleased
 
+### Added
+
+* Add `examples` to `Parameter` and `ParameterBuilder::examples_from_iter` as defined for the Parameter Object in OpenAPI 3.1 (https://github.com/juhaku/utoipa/pull/1639)
+
 ### Fixed
 
 * Fix unsigned integer known format serialization (https://github.com/juhaku/utoipa/pull/1554)

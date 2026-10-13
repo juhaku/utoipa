@@ -6,6 +6,8 @@
 
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 * Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
+* Add typed `examples(from = ...)` taking examples from a Rust expression implementing `IntoIterator` to `ToSchema`, `IntoParams`, `ToResponse`, `IntoResponses` and `request_body`, `responses` and `params` of `#[utoipa::path]`. Examples are converted to the type the schema, body or parameter describes, so an example of the wrong type fails to compile (https://github.com/juhaku/utoipa/pull/1639)
+* Add named `examples(...)` to parameters of `IntoParams` and `#[utoipa::path]` (https://github.com/juhaku/utoipa/pull/1639)
 
 ### Changed
 
