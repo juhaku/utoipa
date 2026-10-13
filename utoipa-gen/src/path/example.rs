@@ -183,7 +183,7 @@ impl Examples {
                         from.span(),
                         "`examples(from = ...)` requires a type to check the examples against",
                     )
-                    .help("Define the type explicitly, e.g. `content = Pet` or `body = Pet`")
+                    .help("Define the type explicitly, e.g. `content = Pet` or `body = Pet` for request and response content or `(\"id\" = u64, Path, ...)` for parameters")
                 })?;
                 // `[T]` is used for arrays in content, examples of it are `Vec<T>`
                 let ty = match ty {
