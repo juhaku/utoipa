@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use super::{
     builder,
     content::Content,
+    example::Example,
     extensions::Extensions,
     request_body::RequestBody,
     response::{Response, Responses},
@@ -870,6 +871,13 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         example: Option<Value>,
 
+        /// Examples of [`Parameter`]'s potential value. Each example should match the media type
+        /// and the specified schema if present. [`Parameter::examples`] and the example of
+        /// [`Parameter`] are mutually exclusive. If both are defined `examples` will override the
+        /// value in `example`.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub examples: BTreeMap<String, RefOr<Example>>,
+
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -972,6 +980,30 @@ impl ParameterBuilder {
         set_value!(self example example)
     }
 
+    /// Add iterator of _`(N, V)`_ where `N` is name of example and `V` is [`Example`][example] to
+    /// [`Parameter`].
+    ///
+    /// [`Parameter::examples`] and the example of [`Parameter`] are mutually exclusive. If both
+    /// are defined `examples` will override value in `example`.
+    ///
+    /// [example]: ../example/Example.html
+    pub fn examples_from_iter<
+        E: IntoIterator<Item = (N, V)>,
+        N: Into<String>,
+        V: Into<RefOr<Example>>,
+    >(
+        mut self,
+        examples: E,
+    ) -> Self {
+        self.examples.extend(
+            examples
+                .into_iter()
+                .map(|(name, example)| (name.into(), example.into())),
+        );
+
+        self
+    }
+
     /// Add openapi extensions (x-something) to the [`Parameter`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
@@ -1037,8 +1069,13 @@ pub enum ParameterStyle {
 
 #[cfg(test)]
 mod tests {
-    use super::{HttpMethod, Operation, OperationBuilder};
-    use crate::openapi::{security::SecurityRequirement, server::Server, PathItem, PathsBuilder};
+    use serde_json::json;
+
+    use super::{HttpMethod, Operation, OperationBuilder, ParameterBuilder, ParameterIn};
+    use crate::openapi::{
+        example::ExampleBuilder, security::SecurityRequirement, server::Server, PathItem,
+        PathsBuilder,
+    };
 
     #[test]
     fn test_path_order() {
@@ -1177,5 +1214,30 @@ mod tests {
             .build();
 
         assert!(operation.servers.is_some());
+    }
+
+    #[test]
+    fn parameter_builder_examples() {
+        let parameter = ParameterBuilder::new()
+            .name("id")
+            .parameter_in(ParameterIn::Query)
+            .examples_from_iter([
+                ("one", ExampleBuilder::new().value(Some(json!(1)))),
+                ("two", ExampleBuilder::new().value(Some(json!(2)))),
+            ])
+            .build();
+
+        assert_eq!(
+            serde_json::to_value(&parameter).unwrap(),
+            json!({
+                "name": "id",
+                "in": "query",
+                "required": false,
+                "examples": {
+                    "one": { "value": 1 },
+                    "two": { "value": 2 },
+                },
+            })
+        );
     }
 }
