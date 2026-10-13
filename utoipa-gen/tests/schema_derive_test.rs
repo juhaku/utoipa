@@ -3856,3 +3856,116 @@ fn derive_struct_with_field_rename_expr() {
 
     assert_json_snapshot!(schema);
 }
+
+#[test]
+fn derive_unit_enum_with_examples_from() {
+    let doc = api_doc! {
+        #[derive(serde::Serialize)]
+        #[schema(examples(from = [Zone::A, Zone::B]))]
+        enum Zone {
+            A,
+            B,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_unnamed_struct_vec_with_examples_from() {
+    #[derive(ToSchema, serde::Serialize)]
+    #[schema(examples(from = Nameservers::examples()))]
+    struct Nameservers(Vec<String>);
+
+    impl Nameservers {
+        fn examples() -> Vec<Self> {
+            vec![
+                Nameservers(vec![
+                    "ns1.example.com.".to_string(),
+                    "ns2.example.com.".to_string(),
+                ]),
+                Nameservers(vec![]),
+            ]
+        }
+    }
+
+    let doc = serde_json::to_value(<Nameservers as utoipa::PartialSchema>::schema()).unwrap();
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_struct_fields_with_examples_from() {
+    #[derive(serde::Serialize)]
+    struct Date(String);
+
+    impl From<&str> for Date {
+        fn from(value: &str) -> Self {
+            Date(value.to_string())
+        }
+    }
+
+    let doc = api_doc! {
+        #[derive(serde::Serialize)]
+        #[schema(examples(from = [Post {
+            name: "post".to_string(),
+            tags: vec![],
+            labels: None,
+            counts: HashMap::new(),
+            published: "2026-01-01".into(),
+        }]))]
+        struct Post {
+            #[schema(examples(from = ["first", "second"]))]
+            name: String,
+            #[schema(examples(from = [vec!["a".to_string(), "b".to_string()], vec![]]))]
+            tags: Vec<String>,
+            #[schema(examples(from = [vec!["label".to_string()]]))]
+            labels: Option<Vec<String>>,
+            #[schema(examples(from = [HashMap::from([("a".to_string(), 1)])]))]
+            counts: HashMap<String, i32>,
+            #[schema(value_type = String, examples(from = ["2026-01-01"]))]
+            published: Date,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_mixed_enum_variant_with_examples_from() {
+    let doc = api_doc! {
+        #[derive(serde::Serialize)]
+        enum Shape {
+            #[schema(examples(from = [Shape::Circle { radius: 1 }]))]
+            Circle { radius: i32 },
+            #[schema(examples(from = [Shape::Square(2)]))]
+            Square(i32),
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_generic_struct_with_examples_from() {
+    #[derive(ToSchema, serde::Serialize)]
+    #[schema(
+        bound = "T: Default + serde::Serialize + utoipa::ToSchema",
+        examples(from = Self::examples())
+    )]
+    struct Wrapper<T: Default> {
+        value: T,
+    }
+
+    impl<T: Default> Wrapper<T> {
+        fn examples() -> [Self; 1] {
+            [Wrapper {
+                value: T::default(),
+            }]
+        }
+    }
+
+    let doc = serde_json::to_value(<Wrapper<i32> as utoipa::PartialSchema>::schema()).unwrap();
+
+    assert_json_snapshot!(doc);
+}
