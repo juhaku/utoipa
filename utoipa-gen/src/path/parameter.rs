@@ -296,9 +296,21 @@ impl Parse for ValueParameter<'_> {
             }
         }
 
-        let (schema_features, parameter_features) = input
+        let (schema_features, mut parameter_features) = input
             .parse::<ParameterFeatures>()?
             .split_for_parameter_type();
+
+        if let Some(ParameterSchema {
+            parameter_type: ParameterType::Parsed(parsed),
+            ..
+        }) = &parameter.parameter_schema
+        {
+            for feature in &mut parameter_features {
+                if let Feature::ParamExamples(examples) = feature {
+                    examples.set_type(&parsed.ty);
+                }
+            }
+        }
 
         parameter.features = (schema_features.clone(), parameter_features);
         if let Some(parameter_schema) = &mut parameter.parameter_schema {
@@ -328,6 +340,7 @@ impl Parse for ParameterFeatures {
             Explode,
             AllowReserved,
             Example,
+            crate::component::features::attributes::ParamExamples,
             crate::component::features::attributes::Deprecated,
             Description,
             // param schema features

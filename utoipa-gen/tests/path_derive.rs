@@ -587,7 +587,7 @@ fn derive_path_params_with_examples() {
 fn derive_into_params_with_examples() {
     let operation = api_fn_doc_with_params! {get: "/foo" =>
         struct MyParams {
-            #[param(examples(from = [("one", 1), ("two", 2)]))]
+            #[param(examples(from = [("one", 1u64), ("two", 2u64)]))]
             id: u64,
             #[param(examples(("plain" = (value = json!("value"), summary = "Plain value"))))]
             name: String,

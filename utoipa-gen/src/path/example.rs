@@ -8,7 +8,7 @@ use syn::{parenthesized, Error, LitStr, Token, Type};
 use crate::{parse_utils, AnyValue, Array, Diagnostics, ExamplesFrom};
 
 // (name = (summary = "...", description = "...", value = "..", data_value = "..", serialized_value = "..", external_value = "..."))
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct Example {
     pub(super) name: String,
@@ -132,6 +132,7 @@ impl ToTokens for Example {
 /// Named examples of a media type or a parameter, either listed as
 /// `examples(("name" = (...)), ...)` or given as `examples(from = <expr>)` where each item of
 /// `<expr>` is a `(name, value)` tuple.
+#[derive(Clone)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub enum Examples {
     List(Punctuated<Example, Comma>),

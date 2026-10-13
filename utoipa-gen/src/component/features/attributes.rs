@@ -144,6 +144,40 @@ impl From<Examples> for Feature {
     }
 }
 
+impl_feature! {"examples" =>
+    /// Named examples of a parameter, `examples(("name" = (...)), ...)` or
+    /// `examples(from = <expr>)` where each item is a `(name, value)` tuple.
+    #[derive(Clone)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct ParamExamples(Box<crate::path::example::Examples>, Option<Box<syn::Type>>);
+}
+
+impl ParamExamples {
+    /// Set the type that `examples(from = ...)` values are converted to, unless already set.
+    pub fn set_type(&mut self, ty: &syn::Type) {
+        if self.1.is_none() {
+            self.1 = Some(Box::new(ty.clone()));
+        }
+    }
+
+    /// Get `.examples_from_iter(...)` builder call, if any examples are defined.
+    pub fn to_examples_from_iter(&self) -> Result<Option<TokenStream>, Diagnostics> {
+        self.0.to_examples_from_iter(self.1.as_deref())
+    }
+}
+
+impl Parse for ParamExamples {
+    fn parse(input: ParseStream, _: Ident) -> syn::Result<Self> {
+        input.parse().map(|examples| Self(Box::new(examples), None))
+    }
+}
+
+impl From<ParamExamples> for Feature {
+    fn from(value: ParamExamples) -> Self {
+        Feature::ParamExamples(value)
+    }
+}
+
 impl_feature! {"xml" =>
     #[derive(Default, Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
