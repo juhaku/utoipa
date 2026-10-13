@@ -32,13 +32,14 @@ use component::into_params::IntoParams;
 use ext::{PathOperationResolver, PathOperations, PathResolver};
 use openapi::OpenApi;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 
 use proc_macro2::{Ident, Punct, TokenStream as TokenStream2};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    spanned::Spanned,
     token::Bracket,
     DeriveInput, ExprPath, GenericParam, ItemFn, Lit, LitStr, Member, Token,
 };
@@ -3445,6 +3446,78 @@ impl ToTokens for AnyValue {
             } => tokens.extend(quote! {
                 utoipa::gen::serde_json::to_value(#struct_ident::default().#field_ident).unwrap()
             }),
+        }
+    }
+}
+
+/// Typed examples given as `from = <expr>` within `examples(...)`.
+///
+/// `<expr>` is any expression implementing `IntoIterator`. Each item becomes one example and is
+/// converted with `Into::into` to the type the examples describe before it is serialized, so a
+/// wrong example fails to compile at the attribute.
+#[derive(Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct ExamplesFrom(syn::Expr);
+
+impl ExamplesFrom {
+    /// Check whether the input starts with `from = `.
+    fn peek(input: ParseStream) -> bool {
+        let fork = input.fork();
+        fork.parse::<Ident>().is_ok_and(|ident| ident == "from") && fork.peek(Token![=])
+    }
+
+    /// Parse `from = <expr>` with an optional trailing comma. It cannot be combined with other
+    /// examples.
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        input.parse::<Ident>()?;
+        input.parse::<Token![=]>()?;
+        let expr = input.parse::<syn::Expr>()?;
+        input.parse::<Option<Token![,]>>()?;
+
+        if !input.is_empty() {
+            return Err(input.error("`from = ...` cannot be combined with other examples"));
+        }
+
+        Ok(Self(expr))
+    }
+
+    /// Serialize a single example converted to `ty`.
+    fn example_value(ty: &TokenStream2, span: proc_macro2::Span) -> TokenStream2 {
+        quote_spanned! {span=>
+            {
+                let example: #ty = ::core::convert::Into::into(example);
+                utoipa::gen::serde_json::to_value(&example).unwrap_or_else(|error| {
+                    panic!("failed to serialize example from `examples(from = ...)`: {error}")
+                })
+            }
+        }
+    }
+
+    /// Get `Vec<serde_json::Value>` where each item of the expression is converted to `ty`.
+    fn to_values(&self, ty: &TokenStream2) -> TokenStream2 {
+        let expr = &self.0;
+        let span = expr.span();
+        let value = Self::example_value(ty, span);
+
+        quote_spanned! {span=>
+            ::core::iter::Iterator::collect::<::std::vec::Vec<utoipa::gen::serde_json::Value>>(
+                ::core::iter::Iterator::map(::core::iter::IntoIterator::into_iter(#expr), |example| #value)
+            )
+        }
+    }
+
+    /// Get iterator of `(String, Example)` where each item of the expression is a tuple of name
+    /// and example converted to `ty`.
+    fn to_named_examples(&self, ty: &TokenStream2) -> TokenStream2 {
+        let expr = &self.0;
+        let span = expr.span();
+        let value = Self::example_value(ty, span);
+
+        quote_spanned! {span=>
+            ::core::iter::Iterator::map(::core::iter::IntoIterator::into_iter(#expr), |(name, example)| (
+                ::core::convert::Into::<::std::string::String>::into(name),
+                utoipa::openapi::example::ExampleBuilder::new().value(Some(#value)),
+            ))
         }
     }
 }
