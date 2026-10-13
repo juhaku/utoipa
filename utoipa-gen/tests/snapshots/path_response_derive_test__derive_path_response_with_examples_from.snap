@@ -1,0 +1,27 @@
+---
+source: utoipa-gen/tests/path_response_derive_test.rs
+expression: responses
+---
+{
+  "200": {
+    "content": {
+      "application/json": {
+        "examples": {
+          "Demo": {
+            "value": {
+              "name": "Demo"
+            }
+          },
+          "John": {
+            "value": {
+              "name": "John"
+            }
+          }
+        },
+        "schema": {
+          "$ref": "#/components/schemas/User"
+        }
+      }
+    }
+  }
+}

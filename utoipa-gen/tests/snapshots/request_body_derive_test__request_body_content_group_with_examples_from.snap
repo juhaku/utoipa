@@ -1,0 +1,49 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: request_body
+---
+{
+  "content": {
+    "application/json": {
+      "examples": {
+        "empty": {
+          "value": []
+        },
+        "one": {
+          "value": [
+            {
+              "name": "one"
+            }
+          ]
+        }
+      },
+      "schema": {
+        "items": {
+          "$ref": "#/components/schemas/Foo"
+        },
+        "type": "array"
+      }
+    },
+    "text/xml": {
+      "examples": {
+        "xml": {
+          "value": {
+            "name": "xml"
+          }
+        }
+      },
+      "schema": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "required": true
+}

@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 use syn::token::{Comma, Paren};
 use syn::{Error, Generics, Ident, Token, Type};
 
@@ -15,10 +14,10 @@ use crate::ext::ExtSchema;
 use crate::{
     parse_utils,
     token_stream::{Diagnostics, ToTokensDiagnostics},
-    AnyValue, Array,
+    AnyValue,
 };
 
-use super::example::Example;
+use super::example::Examples;
 use super::PathTypeTree;
 
 pub mod encoding;
@@ -49,7 +48,7 @@ pub struct MediaTypeAttr<'m> {
     pub schema: Schema<'m>,
     pub item_schema: Schema<'m>,
     pub example: Option<AnyValue>,
-    pub examples: Punctuated<Example, Comma>,
+    pub examples: Examples,
     pub encoding: BTreeMap<String, Encoding>,
     pub extensions: Option<Extensions>,
 }
@@ -129,9 +128,7 @@ impl<'m> MediaTypeAttr<'m> {
                     AnyValue::parse_any(input)
                 })?)
             }
-            "examples" => {
-                self.examples = parse_utils::parse_comma_separated_within_parenthesis(input)?
-            }
+            "examples" => self.examples = input.parse()?,
             "encoding" => {
                 struct KV {
                     k: String,
@@ -204,17 +201,7 @@ impl ToTokensDiagnostics for MediaTypeAttr<'_> {
 
         let examples = self
             .examples
-            .iter()
-            .map(|example| {
-                let name = &example.name;
-                quote!( (#name, #example) )
-            })
-            .collect::<Array<TokenStream>>();
-        let examples = if !examples.is_empty() {
-            Some(quote!( .examples_from_iter(#examples) ))
-        } else {
-            None
-        };
+            .to_examples_from_iter(self.schema.get_type())?;
         let encoding = self
             .encoding
             .iter()
@@ -274,6 +261,15 @@ impl Schema<'_> {
         match self {
             Self::Default(def) => def.get_component_schema(),
             Self::Ext(ext) => ext.get_component_schema(),
+        }
+    }
+
+    /// Get the [`syn::Type`] of the schema if it is explicitly defined.
+    pub fn get_type(&self) -> Option<&Type> {
+        match self {
+            Self::Default(DefaultSchema::TypePath(parsed)) => Some(parsed.ty.as_ref()),
+            Self::Default(DefaultSchema::Raw { ty, .. }) => Some(ty.as_ref()),
+            _ => None,
         }
     }
 
