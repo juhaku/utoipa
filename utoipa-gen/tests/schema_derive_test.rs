@@ -2697,6 +2697,18 @@ fn derive_struct_with_smallvec_field_with_examples() {
 }
 
 #[test]
+fn derive_struct_with_map_field_with_examples() {
+    let doc = api_doc! {
+        struct Counts {
+            #[schema(examples(json!({"a": 1, "b": 2})))]
+            counts: HashMap<String, i32>,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
 fn derive_struct_with_inline_vec_field_keeps_item_examples() {
     #[derive(ToSchema)]
     #[schema(examples(json!({"name": "item"})))]

@@ -1,0 +1,28 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "properties": {
+    "counts": {
+      "additionalProperties": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "examples": [
+        {
+          "a": 1,
+          "b": 2
+        }
+      ],
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "counts"
+  ],
+  "type": "object"
+}
