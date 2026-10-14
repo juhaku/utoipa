@@ -2050,6 +2050,9 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// * env `CARGO_PKG_AUTHORS` map to contact `name` and `email` **only first author will be used**
 /// * env `CARGO_PKG_LICENSE` map to info `license`
 ///
+/// Cargo sets a variable to an empty string when its field is missing from _`Cargo.toml`_.
+/// Empty variables are left out of the info.
+///
 /// # `info(...)` attribute syntax
 ///
 /// * `title = ...` Define title of the API. It can be [`str`] or an

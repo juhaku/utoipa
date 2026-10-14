@@ -28,11 +28,16 @@ impl Info<'_> {
     /// * `CARGO_PGK_AUTHORS`
     /// * `CARGO_PGK_LICENSE`
     pub fn from_env() -> Self {
-        let name = std::env::var("CARGO_PKG_NAME").ok();
-        let version = std::env::var("CARGO_PKG_VERSION").ok();
-        let description = std::env::var("CARGO_PKG_DESCRIPTION").ok();
-        let contact = std::env::var("CARGO_PKG_AUTHORS")
-            .ok()
+        Self::from_vars(|name| std::env::var(name).ok())
+    }
+
+    fn from_vars(var: impl Fn(&str) -> Option<String>) -> Self {
+        // Cargo sets an empty value for a field missing from Cargo.toml.
+        let var = |name| var(name).filter(|value| !value.is_empty());
+        let name = var("CARGO_PKG_NAME");
+        let version = var("CARGO_PKG_VERSION");
+        let description = var("CARGO_PKG_DESCRIPTION");
+        let contact = var("CARGO_PKG_AUTHORS")
             .and_then(|authors| Contact::try_from(authors).ok())
             .and_then(|contact| {
                 if contact.name.is_none() && contact.email.is_none() && contact.url.is_none() {
@@ -41,15 +46,13 @@ impl Info<'_> {
                     Some(contact)
                 }
             });
-        let license = std::env::var("CARGO_PKG_LICENSE")
-            .ok()
-            .map(|spdx_expr| License {
-                name: Cow::Owned(spdx_expr.clone()),
-                // CARGO_PKG_LICENSE contains an SPDX expression as described in the Cargo Book.
-                // It can be set to `info.license.identifier`.
-                identifier: Cow::Owned(spdx_expr),
-                ..Default::default()
-            });
+        let license = var("CARGO_PKG_LICENSE").map(|spdx_expr| License {
+            name: Cow::Owned(spdx_expr.clone()),
+            // CARGO_PKG_LICENSE contains an SPDX expression as described in the Cargo Book.
+            // It can be set to `info.license.identifier`.
+            identifier: Cow::Owned(spdx_expr),
+            ..Default::default()
+        });
 
         Info {
             title: name.map(|name| name.into()),
@@ -466,5 +469,12 @@ mod tests {
             }
             None => panic!(),
         }
+
+        let info = Info::from_vars(|_| Some(String::new()));
+        assert!(info.license.is_none());
+        assert!(info.description.is_none());
+        assert!(info.contact.is_none());
+        assert!(info.title.is_none());
+        assert!(info.version.is_none());
     }
 }
