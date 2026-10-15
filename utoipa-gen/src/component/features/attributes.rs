@@ -9,7 +9,7 @@ use syn::{Error, LitStr, Token, TypePath, WherePredicate};
 
 use crate::component::serde::RenameRule;
 use crate::component::{schema, GenericType, TypeTree};
-use crate::parse_utils::{LitBoolOrExprPath, LitStrOrExpr};
+use crate::parse_utils::LitStrOrExpr;
 use crate::path::parameter::{self, ParameterStyle};
 use crate::schema_type::KnownFormat;
 use crate::{parse_utils, AnyValue, Array, Diagnostics};
@@ -258,12 +258,12 @@ impl From<ReadOnly> for Feature {
 impl_feature! {
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Title(String);
+    pub struct Title(parse_utils::LitStrOrExpr);
 }
 
 impl Parse for Title {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
-        parse_utils::parse_next_literal_str(input).map(Self)
+        parse_utils::parse_next_literal_str_or_expr(input).map(Self)
     }
 }
 
@@ -542,11 +542,11 @@ impl_feature! {"names" =>
     /// Specify names of unnamed fields with `names(...) attribute for `IntoParams` derive.
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[derive(Clone)]
-    pub struct IntoParamsNames(Vec<String>);
+    pub struct IntoParamsNames(Vec<parse_utils::LitStrOrExpr>);
 }
 
 impl IntoParamsNames {
-    pub fn into_values(self) -> Vec<String> {
+    pub fn into_values(self) -> Vec<parse_utils::LitStrOrExpr> {
         self.0
     }
 }
@@ -554,9 +554,9 @@ impl IntoParamsNames {
 impl Parse for IntoParamsNames {
     fn parse(input: syn::parse::ParseStream, _: Ident) -> syn::Result<Self> {
         Ok(Self(
-            parse_utils::parse_comma_separated_within_parenthesis::<LitStr>(input)?
-                .iter()
-                .map(LitStr::value)
+            parse_utils::parse_comma_separated_within_parenthesis::<LitStrOrExpr>(input)?
+                .into_iter()
+                .map(|lit| parse_utils::LitStrOrExpr::from(lit))
                 .collect(),
         ))
     }
@@ -1002,7 +1002,7 @@ impl_feature! {
     /// Ignore feature parsed from macro attributes.
     #[derive(Clone)]
     #[cfg_attr(feature = "debug", derive(Debug))]
-    pub struct Ignore(pub LitBoolOrExprPath);
+    pub struct Ignore(pub syn::LitBool);
 }
 
 impl Parse for Ignore {
@@ -1010,7 +1010,11 @@ impl Parse for Ignore {
     where
         Self: std::marker::Sized,
     {
-        parse_utils::parse_next_literal_bool_or_call(input).map(Self)
+        if input.peek(Token![=]) {
+            parse_utils::parse_next(input, || input.parse::<syn::LitBool>()).map(Self)
+        } else {
+            Ok(true.into())
+        }
     }
 }
 
@@ -1028,7 +1032,7 @@ impl From<Ignore> for Feature {
 
 impl From<bool> for Ignore {
     fn from(value: bool) -> Self {
-        Self(value.into())
+        Self(syn::LitBool::new(value, proc_macro2::Span::call_site()))
     }
 }
 

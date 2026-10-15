@@ -27,7 +27,7 @@ test *crates='utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc ut
 
             $cargo $cargo_command -p utoipa-gen --test path_derive_auto_into_responses --features auto_into_responses,utoipa/uuid,uuid,utoipa/macros
             $cargo $cargo_command -p utoipa-gen --test path_derive_actix --test path_parameter_derive_actix --features actix_extras,utoipa/uuid,uuid,utoipa/chrono,chrono,utoipa/time,time,utoipa/macros
-            $cargo $cargo_command -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,auto_into_responses,utoipa/uuid,uuid,utoipa/macros
+            $cargo $cargo_command -p utoipa-gen --test path_derive_auto_into_responses_actix --features actix_extras,auto_into_responses,utoipa/auto_into_responses,utoipa/uuid,uuid,utoipa/macros
 
             $cargo $cargo_command -p utoipa-gen --test path_derive_rocket --features rocket_extras,utoipa/macros
 
@@ -77,7 +77,7 @@ coverage:
 # Generate workspace documentation (requires nightly toolchain). Output is written to target/doc/
 doc:
     cargo +nightly doc -Z unstable-options --workspace --no-deps \
-        --features actix_extras,openapi_extensions,yaml,uuid,ulid,url,non_strict_integers,actix-web,axum,rocket,macros,config \
+        --features actix_extras,openapi_extensions,yaml,uuid,ulid,url,non_strict_integers,actix-web,axum,rocket,macros,config,vendored \
         --config 'build.rustdocflags = ["--cfg", "doc_cfg"]'
 
 # Update vendored Swagger UI to the given version. Usage: `just update-swagger-ui 5.18.2`

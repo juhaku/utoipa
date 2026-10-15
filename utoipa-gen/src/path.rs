@@ -72,7 +72,8 @@ impl<'p> PathAttr<'p> {
     pub fn update_request_body(&mut self, schema: Option<crate::ext::ExtSchema<'p>>) {
         use self::media_type::Schema;
         if self.request_body.is_none() {
-            if let Some(schema) = schema {
+            // a handler argument without a resolvable request body type documents no request body
+            if let Some(schema) = schema.filter(crate::ext::ExtSchema::has_actual_body) {
                 self.request_body = Some(RequestBodyAttr::from_schema(Schema::Ext(schema)));
             }
         }
@@ -349,13 +350,10 @@ impl<'p> ToTokensDiagnostics for Path<'p> {
             .path_attr
             .operation_id
             .clone()
-            .or(Some(
-                ExprLit {
-                    attrs: vec![],
-                    lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
-                }
-                .into(),
-            ))
+            .or(Some(Expr::Lit(ExprLit {
+                attrs: vec![],
+                lit: Lit::Str(LitStr::new(fn_name, Span::call_site())),
+            })))
             .ok_or_else(|| {
                 Diagnostics::new("operation id is not defined for path")
                     .help(format!(

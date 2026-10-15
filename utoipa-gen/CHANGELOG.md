@@ -4,20 +4,57 @@
 
 ### Added
 
+* Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
+* Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
+
+### Changed
+
+* Replace the `once_cell` dependency with `std::sync::LazyLock` (https://github.com/juhaku/utoipa/pull/1629)
+
+### Fixed
+
+* Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
+* chore: Pin uuid < 1.27 for MSRV 1.88 compatibility (https://github.com/juhaku/utoipa/pull/1630)
+* Deny additional properties on struct variants of `deny_unknown_fields` enums (https://github.com/juhaku/utoipa/pull/1631)
+
+## 6.0.1 - Sep 23 2026
+
+### Fixed
+
+* Fix min properties schema generation (https://github.com/juhaku/utoipoa/pull/1623)
+
+## 6.0.0 - Sep 23 2026
+
+### Added
+
+* Add support for the media type `item_schema = ...` attribute in `responses(...)`/`request_body(...)`, mapping to OpenAPI 3.2's `itemSchema` keyword for streaming/event-based media types such as `text/event-stream`
+* Add support for selecting the OpenAPI document version via the `version = "..."` attribute in `#[derive(OpenApi)]` (accepts `"3.1.0"` or `"3.2.0"`, mapping to `OpenApiVersion`)
+* Add support for generic types with `IntoParams` (https://github.com/juhaku/utoipa/pull/1588)
+* Add macro/derive support for OpenAPI 3.2 (https://github.com/juhaku/utoipa/pull/1555)
+  - Supports `summary`, `parent`, and `kind` in `#[derive(OpenApi)]` tag parsing
+  - Supports `querystring` and `cookie` style in path parameter parsing
+  - Supports `data_value` and `serialized_value` in path examples
 * Add `bigdecimal` and `bigdecimal_float` feature support for `BigDecimal` type (https://github.com/juhaku/utoipa/pull/1487)
 * Expand openAPI header fields (https://github.com/juhaku/utoipa/pull/1556)
 * Expand support for validation features in `#[schema(...)]` on new type structs (https://github.com/juhaku/utoipa/pull/1427)
 * Add quote_diagnostics! and quote_diagnostics_spanned! macros (https://github.com/juhaku/utoipa/pull/1553)
 * feat(gen): support Display types for security scopes (https://github.com/juhaku/utoipa/pull/1463)
 * Emit `title` and `default` on `RefBuilder` instead of wrapping in `oneOf` when `Option<_>` is non-nullable (https://github.com/juhaku/utoipa/pull/1380)
+* Add support for extensions in `utoipa::ToSchema` named structs (https://github.com/juhaku/utoipa/pull/1593)
 
 ### Changed
 
+* Removed support for expression ignore in `ToSchema` and `IntoParams` (https://github.com/juhaku/utoipa/pull/1619)
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
+* Update response header generation for optional schemas and content-capable headers (https://github.com/juhaku/utoipa/pull/1555)
+* Adjust generated media type tokens to avoid ambiguous `Into` inference after content maps gained reference support (https://github.com/juhaku/utoipa/pull/1555)
 * Emit nullable_item last for OneOfBuilder (https://github.com/juhaku/utoipa/pull/1299)
 * Use pastey instead of unmaintained paste and fix some clippy warnings (https://github.com/juhaku/utoipa/pull/1452)
 
 ### Fixed
 
+* Fix `#[utoipa::path]` panic for rocket data guards without a body type, such as `Data<'_>` or `TempFile<'_>` (https://github.com/juhaku/utoipa/pull/1611)
+* Recursively discover flattened fields in maps for `#[serde(flatten)]`. (https://github.com/juhaku/utoipa/pull/1582)
 * Emit `vec![...]` instead of stack allocated array literals in generated `ToSchema`/`IntoParams` code to avoid `clippy::large_stack_arrays` and stack overflows for types with many fields (https://github.com/juhaku/utoipa/issues/1454)
 * Avoid degenerate `oneOf` for `Option<_>` with `nullable = false` and `default`/`title`/`description` (https://github.com/juhaku/utoipa/pull/1380)
 * Fix `jiff` type detection when only the `jiff_0_2` feature is enabled (https://github.com/juhaku/utoipa/pull/1575)
@@ -37,7 +74,6 @@
 
 * Add feature support extensions in `utoipa::path` macro (https://github.com/juhaku/utoipa/pull/1292)
 * Add support for jiff v0.2 (https://github.com/juhaku/utoipa/pull/1332)
-
 ## 5.3.1 - Jan 6 2025
 
 ### Fixed

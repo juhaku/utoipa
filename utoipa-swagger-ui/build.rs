@@ -27,11 +27,13 @@ const SWAGGER_UI_OVERWRITE_FOLDER: &str = "SWAGGER_UI_OVERWRITE_FOLDER";
 
 #[cfg(feature = "cache")]
 fn sha256(data: &[u8]) -> String {
+    use base16ct::HexDisplay;
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(data);
     let hash = hasher.finalize();
-    format!("{hash:x}").to_uppercase()
+    let hex = HexDisplay(&hash);
+    format!("{hex:x}")
 }
 
 #[cfg(feature = "cache")]
@@ -312,8 +314,8 @@ impl SwaggerUiDist {
         .map(|(relative_path, path, gzip)| {
             format!(
                 r###"Asset {{
-                data: include_bytes!({path:?}), 
-                path: {relative_path:?}, 
+                data: include_bytes!({path:?}),
+                path: {relative_path:?},
                 gzipped: {gzip}
             }}"###
             )

@@ -850,6 +850,49 @@ fn derive_path_params_intoparams_with_serde_flatten() {
 }
 
 #[test]
+fn derive_path_params_with_generic_field_and_serde_flatten() {
+    #![allow(dead_code)]
+
+    #[derive(serde::Deserialize, ToSchema)]
+    enum Animal {
+        Bird,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    struct PaginationParams {
+        page: u32,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct QueryParams<AnimalType: ToSchema> {
+        animal: AnimalType,
+        #[serde(flatten)]
+        pagination: PaginationParams,
+        limit: Option<u32>,
+    }
+
+    #[utoipa::path(get, path = "/animals", params(QueryParams<Animal>))]
+    fn list() {}
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/animals"
+    };
+    let parameters = operation["parameters"].as_array().unwrap();
+    let names: Vec<_> = parameters
+        .iter()
+        .map(|parameter| parameter["name"].as_str().unwrap())
+        .collect();
+
+    assert_eq!(names, ["animal", "page", "limit"]);
+    assert!(parameters
+        .iter()
+        .all(|parameter| parameter["in"] == "query"));
+}
+
+#[test]
 fn derive_path_params_intoparams_with_flatten_schema_with() {
     fn cursor_params(
         parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>,
@@ -1003,6 +1046,69 @@ fn derive_path_params_into_params_with_unit_type() {
         #[allow(unused)]
         r#in: (),
     }
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
+fn derive_parameter_rename_expr() {
+    const NEW_NAME: &str = "renamed_field";
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Path, names(NEW_NAME))]
+    struct Filter(#[allow(unused)] ());
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
+fn derive_parameter_rename_expr_in_param_name_and_title() {
+    const PARAM_NAME: &str = "filter_value";
+    const PARAM_TITLE: &str = "another_name";
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query, names(PARAM_NAME, PARAM_TITLE))]
+    struct Filter(#[allow(unused)] String, #[allow(unused)] String);
 
     #[utoipa::path(
         get,
@@ -1242,6 +1348,35 @@ fn derive_into_params_required() {
         name: String,
         name2: Option<String>,
         #[param(required)]
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value)
+}
+
+#[test]
+fn derive_into_params_option_with_deserialize_with_is_required() {
+    use serde::Deserialize;
+
+    #[derive(IntoParams, Deserialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        #[serde(deserialize_with = "Option::deserialize")]
+        name: Option<String>,
+        #[serde(default, deserialize_with = "Option::deserialize")]
+        name2: Option<String>,
         name3: Option<String>,
     }
 
@@ -1686,13 +1821,13 @@ fn derive_path_with_response_links() {
         get,
         path = "/test-links",
         responses(
-            (status = 200, description = "success response", 
+            (status = 200, description = "success response",
                 links(
                     ("getFoo" = (
-                        operation_id = "test_links", 
-                        parameters(("key" = "value"), ("json_value" = json!(1))), 
-                        request_body = "this is body", 
-                        server(url = "http://localhost") 
+                        operation_id = "test_links",
+                        parameters(("key" = "value"), ("json_value" = json!(1))),
+                        request_body = "this is body",
+                        server(url = "http://localhost")
                     )),
                     ("getBar" = (
                         operation_ref = "this is ref"
@@ -2055,38 +2190,43 @@ fn derive_into_params_with_ignored_enum_field() {
 }
 
 #[test]
-fn derive_into_params_with_ignored_struct_fn_field() {
-    #![allow(unused)]
-
-    fn always_true() -> bool {
-        true
-    };
+fn derive_into_params_with_generic_field() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum Bird {
+        Sparrow,
+        Pigeon,
+        Crow,
+        Coot,
+    }
 
     #[derive(ToSchema)]
-    struct PrivateOrPublic {
-        name: &'static str,
+    #[allow(unused)]
+    enum Beetle {
+        Stag,
+        Longhorn,
+        Weevil,
     }
 
     #[derive(IntoParams)]
     #[into_params(parameter_in = Query)]
-    struct Params {
-        value: String,
-        #[param(ignore = always_true)]
-        private_or_public: PrivateOrPublic,
+    #[allow(unused)]
+    struct QueryParams<AnimalType: ToSchema> {
+        animal: AnimalType,
     }
 
-    #[utoipa::path(get, path = "/params", params(Params))]
+    #[utoipa::path(get, path = "/params", params(QueryParams<Bird>, QueryParams<Beetle>))]
     #[allow(unused)]
     fn get_params() {}
+
     let operation = test_api_fn_doc! {
         get_params,
         operation: get,
         path: "/params"
     };
+    let operation = operation.pointer("/parameters");
 
-    let value = operation.pointer("/parameters");
-
-    assert_json_snapshot!(value);
+    assert_json_snapshot!(operation);
 }
 
 #[test]

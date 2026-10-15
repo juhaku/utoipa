@@ -73,6 +73,10 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub description: Option<String>,
 
+        /// Optional name for the server.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub name: Option<String>,
+
         /// Optional map of variable name and its substitution value used in [`Server::url`].
         #[serde(skip_serializing_if = "Option::is_none")]
         pub variables: Option<BTreeMap<String, ServerVariable>>,
@@ -122,6 +126,11 @@ impl ServerBuilder {
     /// Add or change description of the [`Server`].
     pub fn description<S: Into<String>>(mut self, description: Option<S>) -> Self {
         set_value!(self description description.map(|description| description.into()))
+    }
+
+    /// Add or change name of the [`Server`].
+    pub fn name<S: Into<String>>(mut self, name: Option<S>) -> Self {
+        set_value!(self name name.map(|name| name.into()))
     }
 
     /// Add parameter to [`Server`] which is used to substitute values in [`Server::url`].

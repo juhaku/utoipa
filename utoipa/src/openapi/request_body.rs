@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use super::extensions::Extensions;
-use super::{builder, set_value, Content, Required};
+use super::{builder, set_value, Content, RefOr, Required};
 
 builder! {
     RequestBodyBuilder;
@@ -24,7 +24,7 @@ builder! {
         pub description: Option<String>,
 
         /// Map of request body contents mapped by content type e.g. `application/json`.
-        pub content: BTreeMap<String, Content>,
+        pub content: BTreeMap<String, RefOr<Content>>,
 
         /// Determines whether request body is required in the request or not.
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,8 +55,25 @@ impl RequestBodyBuilder {
     }
 
     /// Add [`Content`] by content type e.g `application/json` to [`RequestBody`].
-    pub fn content<S: Into<String>>(mut self, content_type: S, content: Content) -> Self {
-        self.content.insert(content_type.into(), content);
+    pub fn content<S: Into<String>, C: Into<Content>>(
+        mut self,
+        content_type: S,
+        content: C,
+    ) -> Self {
+        self.content
+            .insert(content_type.into(), content.into().into());
+
+        self
+    }
+
+    /// Add reusable [`Content`] reference by content type e.g `application/json`.
+    pub fn content_ref<S: Into<String>>(
+        mut self,
+        content_type: S,
+        content_ref: super::Ref,
+    ) -> Self {
+        self.content
+            .insert(content_type.into(), RefOr::Ref(content_ref));
 
         self
     }
@@ -108,7 +125,8 @@ impl RequestBodyExt for RequestBody {
     fn json_schema_ref(mut self, ref_name: &str) -> RequestBody {
         self.content.insert(
             "application/json".to_string(),
-            crate::openapi::Content::new(Some(crate::openapi::Ref::from_schema_name(ref_name))),
+            crate::openapi::Content::new(Some(crate::openapi::Ref::from_schema_name(ref_name)))
+                .into(),
         );
         self
     }

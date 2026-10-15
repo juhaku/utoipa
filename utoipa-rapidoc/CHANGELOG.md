@@ -1,9 +1,14 @@
 # Changelog - utoipa-rapidoc
 
+## 7.0.0 - Sep 23 2025
+
+* Update utoipa to version 6.0.0
+
 ## 6.0.0 - Thu 16 2025
 
 ### Changed
 
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * Re-release 5.0.1 since axum upgrade is a breaking change (https://github.com/juhaku/utoipa/pull/1295)
 
 ## 5.0.1 - Jan 6 2025

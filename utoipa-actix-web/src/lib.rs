@@ -11,7 +11,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! utoipa-actix-web = "0.1"
+//! utoipa-actix-web = "0.2"
 //! ```
 //!
 //! ## Examples

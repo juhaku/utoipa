@@ -21,6 +21,7 @@ members = [
 # Keeps `just test` / fresh resolves working without committing Cargo.lock.
 [workspace.dependencies]
 time = { version = ">=0.3, <0.3.52" }
+uuid = { version = ">=1, <1.27", features = ["serde"] }
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }

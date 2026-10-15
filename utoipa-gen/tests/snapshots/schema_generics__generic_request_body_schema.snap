@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
+assertion_line: 68
 expression: doc
-snapshot_kind: text
 ---
 {
   "openapi": "3.1.0",

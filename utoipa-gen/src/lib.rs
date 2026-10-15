@@ -66,8 +66,8 @@ use self::{
 };
 
 #[cfg(feature = "config")]
-static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
-    once_cell::sync::Lazy::new(utoipa_config::Config::read_from_file);
+static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
+    std::sync::LazyLock::new(utoipa_config::Config::read_from_file);
 
 #[proc_macro_derive(ToSchema, attributes(schema, serde))]
 /// Generate reusable OpenAPI schema to be used
@@ -112,9 +112,10 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `examples(..., ...)` Comma separated list defining multiple _`examples`_ for the schema. Each
 ///   _`example`_ Can be any value e.g. literal, method reference or _`json!(...)`_.
 /// * `xml(...)` Can be used to define [`Xml`][xml] object properties applicable to Structs.
-/// * `title = ...` Literal string value. Can be used to define title for struct in OpenAPI
+/// * `title = ...` Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. Can be used to define title for struct in OpenAPI
 ///   document. Some OpenAPI code generation libraries also use this field as a name for the
-///   struct.
+///   struct. `rename` and `rename_all` will not work in cases of passing Rust expression.
 /// * `rename_all = ...` Supports same syntax as _serde_ _`rename_all`_ attribute. Will rename all fields
 ///   of the structs accordingly. If both _serde_ `rename_all` and _schema_ _`rename_all`_ are defined
 ///   __serde__ will take precedence.
@@ -162,7 +163,7 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   _`Value`_ will be rendered as any OpenAPI value (i.e. no `type` restriction).
 /// * `inline` If the type of this field implements [`ToSchema`][to_schema], then the schema definition
 ///   will be inlined. **warning:** Don't use this for recursive data types!
-///   
+///
 ///   **Note!**<br>Using `inline` with generic arguments might lead to incorrect spec generation.
 ///   This is due to the fact that during compilation we cannot know how to treat the generic
 ///   argument and there is difference whether it is a primitive type or another generic type.
@@ -199,11 +200,11 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 ///   See [`Object::content_encoding`][schema_object_encoding]
 /// * `content_media_type = ...` Can be used to define MIME type of a string for underlying schema object.
 ///   See [`Object::content_media_type`][schema_object_media_type]
-/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema Only literal `bool` value is allowed.
 /// * `no_recursion` Is used to break from recursion in case of looping schema tree e.g. `Pet` ->
 ///   `Owner` -> `Pet`. _`no_recursion`_ attribute must be used within `Owner` type not to allow
 ///   recurring into `Pet`. Failing to do so will cause infinite loop and runtime **panic**.
+/// * `extensions(...)` List of extensions to add to the field. See below for the format.
 ///
 /// #### Field nullability and required rules
 ///
@@ -468,6 +469,19 @@ static CONFIG: once_cell::sync::Lazy<utoipa_config::Config> =
 /// * `deprecated` Can be used to mark the field as deprecated in the generated OpenAPI spec but
 ///   not in the code. If you'd like to mark the field as deprecated in the code as well use
 ///   Rust's own `#[deprecated]` attribute instead.
+///
+/// # Extensions Requirements Attributes
+///
+/// * `x-property` defines the name of the extension.
+/// * `json!(...)` defines the value associated with the named extension as a `serde_json::Value`.
+///
+/// **Extensions Requitement supported formats:**
+///
+/// ```text
+/// ("x-property" = json!({ "type": "mock" }) ),
+/// ("x-an-extension" = json!({ "type": "mock" }) ),
+/// ("x-another-extension" = json!( "body" ) ),
+/// ```
 ///
 /// # Partial `#[serde(...)]` attributes support
 ///
@@ -1153,6 +1167,14 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///   content type such as _`application/json`_ . By default the content type is _`text/plain`_
 ///   for [primitive Rust types][primitive], `application/octet-stream` for _`[u8]`_ and _`application/json`_
 ///   for struct and mixed enum types.
+///
+/// * `item_schema = ...` Optional schema describing each item of a streaming or event-based media
+///   type such as `text/event-stream`, `application/jsonl` or `application/json-seq`. It maps to
+///   OpenAPI 3.2's `itemSchema` media type keyword and accepts the same syntax as `body`, i.e.
+///   _`item_schema = Type`_, _`item_schema = inline(Type)`_ or _`item_schema = ref("...")`_.
+///   This attribute only emits the `itemSchema` keyword; opting the document in to OpenAPI 3.2
+///   output (`openapi: 3.2.0`) is a separate, deliberate step done via
+///   [`OpenApiVersion::Version32`][openapi_version].
 ///
 /// * `headers(...)` Slice of response headers that are returned back to a caller.
 ///
@@ -1880,6 +1902,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// [into_params_derive]: derive.IntoParams.html
 /// [to_response_trait]: trait.ToResponse.html
 /// [known_format]: openapi/schema/enum.KnownFormat.html
+/// [openapi_version]: openapi/enum.OpenApiVersion.html
 /// [xml]: openapi/xml/struct.Xml.html
 /// [to_schema_xml]: macro@ToSchema#xml-attribute-configuration-options
 /// [relative_references]: https://spec.openapis.org/oas/latest.html#relative-references-in-uris
@@ -2008,6 +2031,14 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   implement [`OpenApi`][openapi] trait. Nesting allows defining one `OpenApi` per defined path.
 ///   If more instances is defined only latest one will be rentained.
 ///   See the _[nest(...) attribute syntax below]( #nest-attribute-syntax )_
+/// * `version = "..."` Set the [`OpenApiVersion`][openapi_version] the document serializes as.
+///   Accepts a full `X.Y.Z` version string: `"3.1.0"` (the default) or `"3.2.0"`. Opt in to
+///   `"3.2.0"` to emit OpenAPI 3.2 keywords.
+/// * `merge(...)` Merge [`OpenApi`][openapi_struct]s into this _`OpenApi`_ instance without
+///   prefixing their paths. Merge takes a comma separated list of tuples. Each _`OpenApi`_
+///   instance must implement [`OpenApi`][openapi] trait. Existing paths, schemas, responses,
+///   security requirements and tags are retained; only missing items are appended. See the
+///   _[merge(...) attribute syntax below]( #merge-attribute-syntax )_
 ///
 ///
 /// OpenApi derive macro will also derive [`Info`][info] for OpenApi specification using Cargo
@@ -2081,6 +2112,19 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///  (path = "path/to/nest", api = path::to::NestableApi),
 ///  (path = "path/to/nest", api = path::to::NestableApi, tags = ["nestableapi", ...])
 ///  ```
+///
+/// # `merge(...)` attribute syntax
+///
+/// * `api = ...` Define mandatory path to struct that implements [`OpenApi`][openapi] trait.
+/// * `tags = [...]` Define optional tags what are appended to the existing list of tags.
+///   Unlike `nest(...)`, merge does not use the module path as a fallback tag and does not
+///   rewrite paths.
+///
+/// _**Example of merge definition**_
+/// ```text
+/// (api = path::to::Api),
+/// (api = path::to::Api, tags = ["merged", ...])
+/// ```
 ///
 /// # Examples
 ///
@@ -2219,8 +2263,35 @@ pub fn path(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///  struct ApiDoc;
 /// ```
 ///
+/// _**Merge _`UserApi`_ into the current api doc instance without a path prefix.**_
+/// ```rust
+/// # use utoipa::OpenApi;
+/// #
+///  #[utoipa::path(get, path = "/api/v1/status")]
+///  fn test_path_status() {}
+///
+///  #[utoipa::path(get, path = "/test")]
+///  fn user_test_path() {}
+///
+///  #[derive(OpenApi)]
+///  #[openapi(paths(user_test_path))]
+///  struct UserApi;
+///
+///  #[derive(OpenApi)]
+///  #[openapi(
+///      paths(
+///          test_path_status
+///      ),
+///      merge(
+///          (api = UserApi),
+///      )
+///  )]
+///  struct ApiDoc;
+/// ```
+///
 /// [openapi]: trait.OpenApi.html
 /// [openapi_struct]: openapi/struct.OpenApi.html
+/// [openapi_version]: openapi/enum.OpenApiVersion.html
 /// [to_schema]: derive.ToSchema.html
 /// [path]: attr.path.html
 /// [modify]: trait.Modify.html
@@ -2278,7 +2349,8 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// deriving `IntoParams`:
 ///
 /// * `names(...)` Define comma separated list of names for unnamed fields of struct used as a path parameter.
-///   __Only__ supported on __unnamed structs__.
+///    __Only__ supported on __unnamed structs__. Can be literal string or Rust expression e.g. _`const`_ reference or
+///   `include_str!(...)` statement. `rename` and `rename_all` will not work in cases of passing Rust expression.
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///   values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
@@ -2383,8 +2455,7 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 ///   Free form type enables use of arbitrary types within map values.
 ///   Supports formats _`additional_properties`_ and _`additional_properties = true`_.
 ///
-/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema. (Currently it accepts either a literal `bool` value
-///   or a path to a function that returns `bool` (`Fn() -> bool`). **Note!** support for function paths is **deprecated** and will be removed in a future version.).
+/// * `ignore` or `ignore = ...` Can be used to skip the field from being serialized to OpenAPI schema Only literal `bool` value is allowed.
 ///
 /// #### Field nullability and required rules
 ///
@@ -3716,14 +3787,6 @@ mod parse_utils {
                 Self::LitBool(bool) => bool.to_tokens(tokens),
                 Self::ExprPath(call) => call.to_tokens(tokens),
             }
-        }
-    }
-
-    pub fn parse_next_literal_bool_or_call(input: ParseStream) -> syn::Result<LitBoolOrExprPath> {
-        if input.peek(Token![=]) {
-            parse_next(input, || LitBoolOrExprPath::parse(input))
-        } else {
-            Ok(LitBoolOrExprPath::from(true))
         }
     }
 }

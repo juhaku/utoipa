@@ -1,8 +1,10 @@
 # Changelog - utoipa-swagger-ui-vendored
 
-## Unreleased
+## 0.2.0 - Sep 23 2026
 
 ### Changed
+
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * Update Swagger UI to 5.32.6 (https://github.com/juhaku/utoipa/pull/1573)
 
 ## 0.1.2 - Oct 16 2024

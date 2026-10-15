@@ -1,7 +1,7 @@
 ---
 source: utoipa/src/openapi.rs
+assertion_line: 1161
 expression: api_1
-snapshot_kind: text
 ---
 {
   "openapi": "3.1.0",

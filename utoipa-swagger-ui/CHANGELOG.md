@@ -1,9 +1,16 @@
 # Changelog - utoipa-swagger-ui
 
-## Unreleased
+## 10.0.1 - Sep 24 2026
+
+### Fixed
+
+* Fix utoipa-swagger-ui build (https://github.com/juhaku/utoipa/pull/1624)
+
+## 10.0.0 - Sep 23 2026
 
 ### Changed
 
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
 * Update Swagger UI to 5.32.6 (https://github.com/juhaku/utoipa/pull/1573)
 * Add custom embedding for Swagger UI assets (https://github.com/juhaku/utoipa/pull/1570)
 
