@@ -1580,7 +1580,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///    _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///    _`Path<...>`_ or _`Query<...>`_ handler function arguments. They are matched by the name written in the
+///    handler signature. See the [`parameter_in` attribute][into_params_derive] for what is not recognized.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
@@ -1588,7 +1589,7 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// /// Get todo by id and name.
 /// #[utoipa::path(
 ///     get,
-///     path = "/todo/{id}",
+///     path = "/todo/{id}/{name}",
 ///     params(
 ///         ("id", description = "Todo id"),
 ///         ("name", description = "Todo name")
@@ -2357,9 +2358,16 @@ pub fn openapi(input: TokenStream) -> TokenStream {
 /// * `style = ...` Defines how all parameters are serialized by [`ParameterStyle`][style]. Default
 ///   values are based on _`parameter_in`_ attribute.
 /// * `parameter_in = ...` =  Defines where the parameters of this field are used with a value from
-///   [`openapi::path::ParameterIn`][in_enum]. There is no default value, if this attribute is not
-///   supplied, then the value is determined by the `parameter_in_provider` in
-///   [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params).
+///   [`openapi::path::ParameterIn`][in_enum]. If this attribute is not supplied, the value is
+///   determined by the `parameter_in_provider` in
+///   [`IntoParams::into_params()`](trait.IntoParams.html#tymethod.into_params), and is `Path` if
+///   the provider returns `None`.
+///
+///   With `actix_extras` or `axum_extras`, the provider returns `Path` or `Query` for a handler
+///   argument written as `Path<...>` or `Query<...>`. The match is on the name, so `Query`
+///   imported under another name, a type alias, or `Query` inside another type such as
+///   `Option<Query<...>>` is not recognized, and the parameters become path parameters. Set
+///   `parameter_in` on such a type.
 /// * `rename_all = ...` Can be provided to alternatively to the serde's `rename_all` attribute. Effectively provides same functionality.
 ///
 /// Use `names` to define name for single unnamed argument.
