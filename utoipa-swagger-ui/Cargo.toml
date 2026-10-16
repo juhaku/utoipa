@@ -55,7 +55,7 @@ no-default-features = true
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
-zip = { version = "8.6", default-features = false, features = ["deflate"] }
+zip = { version = "9.0", default-features = false, features = ["deflate"] }
 regex = "1.12"
 flate2 = { version = "1", optional = true }
 

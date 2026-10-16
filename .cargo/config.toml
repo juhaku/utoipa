@@ -1,0 +1,3 @@
+# Examples are standalone workspaces; keep their fresh resolves within the toolchain's rustc.
+[resolver]
+incompatible-rust-versions = "fallback"
