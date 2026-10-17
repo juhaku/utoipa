@@ -133,7 +133,7 @@ impl SwaggerZip {
                         continue;
                     }
 
-                    if file.name().ends_with('/') {
+                    if file.name()?.ends_with('/') {
                         fs::create_dir_all(&out_path)?;
                     } else {
                         if let Some(p) = out_path.parent() {

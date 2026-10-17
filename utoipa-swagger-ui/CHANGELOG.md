@@ -1,5 +1,11 @@
 # Changelog - utoipa-swagger-ui
 
+## Unreleased
+
+### Changed
+
+* Update build dependency `zip` to v9.0 (https://github.com/juhaku/utoipa/pull/1645)
+
 ## 10.0.1 - Sep 24 2026
 
 ### Fixed

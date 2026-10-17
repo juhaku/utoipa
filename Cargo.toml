@@ -2,7 +2,8 @@
 rust-version = "1.88"
 
 [workspace]
-resolver = "2"
+# MSRV-aware resolution so fresh resolves pick deps compatible with rust-version.
+resolver = "3"
 members = [
     "utoipa",
     "utoipa-gen",
