@@ -1669,6 +1669,18 @@ impl From<AllOfBuilder> for AdditionalProperties<Schema> {
     }
 }
 
+impl From<OneOfBuilder> for AdditionalProperties<Schema> {
+    fn from(value: OneOfBuilder) -> Self {
+        Self::RefOr(RefOr::T(Schema::OneOf(value.build())))
+    }
+}
+
+impl From<AnyOfBuilder> for AdditionalProperties<Schema> {
+    fn from(value: AnyOfBuilder) -> Self {
+        Self::RefOr(RefOr::T(Schema::AnyOf(value.build())))
+    }
+}
+
 builder! {
     RefBuilder;
 
