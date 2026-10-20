@@ -1,0 +1,35 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+assertion_line: 907
+expression: parameters
+---
+[
+  {
+    "description": "Search text.",
+    "in": "query",
+    "name": "query",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "cursor",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "description": "Result limit.",
+    "in": "query",
+    "name": "limit",
+    "required": false,
+    "schema": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  }
+]
